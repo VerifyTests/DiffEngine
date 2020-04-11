@@ -7,10 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="EmptyFiles" Version="2.0.0" PrivateAssets="None" />
-    <PackageReference Include="MarkdownSnippets.MsBuild" Version="18.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.42" PrivateAssets="All" />
     <PackageReference Include="Nullable" Version="1.2.1" PrivateAssets="All" />
