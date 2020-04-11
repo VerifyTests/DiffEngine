@@ -17,7 +17,7 @@ DiffTools.AddCustomTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+    buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"});
 ```

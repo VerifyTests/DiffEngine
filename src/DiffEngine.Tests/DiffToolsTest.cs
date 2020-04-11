@@ -35,7 +35,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"});
         #endregion
@@ -54,6 +54,22 @@ public class DiffToolsTest :
     {
         var exception = Assert.Throws<Exception>(() => DiffTools.ParseEnvironmentVariable("Foo").ToList());
         Assert.Equal("Unable to parse tool from `Verify.DiffToolOrder` environment variable: Foo", exception.Message);
+    }
+
+    [Fact]
+    public void WriteDiffToolsList()
+    {
+        var md = Path.Combine(SourceDirectory, "diffToolList.include.md");
+        File.Delete(md);
+        using var writer = File.CreateText(md);
+        var tools = DiffTools
+            .Tools();
+
+        foreach (var tool in tools
+            .OrderBy(x => x.Name.ToString()))
+        {
+            writer.WriteLine($@" * [{tool.Name}](/docs/diff-tool.md#{tool.Name.ToString().ToLower()})");
+        }
     }
 
     [Fact]

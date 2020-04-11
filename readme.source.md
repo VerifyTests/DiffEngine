@@ -16,6 +16,11 @@ include: doc-index
  * https://nuget.org/packages/DiffEngine/
 
 
+## Supported Diff Tools
+
+include: diffToolList
+
+
 ## Launching a diff tool
 
 A diff tool can be launched using the following:

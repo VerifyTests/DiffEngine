@@ -18,29 +18,41 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
 ## Contents
 
   * [NuGet package](#nuget-package)
+  * [Supported Diff Tools](#supported-diff-tools)
   * [Launching a diff tool](#launching-a-diff-tool)
   * [Closing a diff tool](#closing-a-diff-tool)
   * [File type detection](#file-type-detection)
-  * [Supported Diff Tools](#supported-diff-tools)
+  * [Supported Diff Tools](#supported-diff-tools-1)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
-  * [Serializer Settings](/docs/serializer-settings.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
-  * [File naming](/docs/naming.md)
-  * [Parameterised tests](/docs/parameterised.md)
-  * [Named Tuples](/docs/named-tuples.md)
-  * [Scrubbers](/docs/scrubbers.md)
-  * [Diff Tool](/docs/diff-tool.md)
+  * [Diff Tool](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Diff Tool Order](/docs/diff-tool.order.md)
-  * [Diff Engine](/docs/diff-engine.md)
-  * [Custom Diff Tool](/docs/diff-tool.custom.md)
-  * [Using anonymous types](/docs/anonymous-types.md)
-  * [Verifying binary data](/docs/binary.md)
-  * [Comparers](/docs/comparer.md)
-  * [Compared to ApprovalTests](/docs/compared-to-approvaltests.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Custom Diff Tool](/docs/diff-tool.custom.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
 
 
 ## NuGet package
 
  * https://nuget.org/packages/DiffEngine/
+
+
+## Supported Diff Tools
+
+ * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
+ * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
+ * [CodeCompare](/docs/diff-tool.md#codecompare)
+ * [DiffMerge](/docs/diff-tool.md#diffmerge)
+ * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
+ * [KDiff3](/docs/diff-tool.md#kdiff3)
+ * [Meld](/docs/diff-tool.md#meld)
+ * [P4Merge](/docs/diff-tool.md#p4merge)
+ * [Rider](/docs/diff-tool.md#rider)
+ * [SublimeMerge](/docs/diff-tool.md#sublimemerge)
+ * [TkDiff](/docs/diff-tool.md#tkdiff)
+ * [TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)
+ * [TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)
+ * [TortoiseMerge](/docs/diff-tool.md#tortoisemerge)
+ * [VisualStudio](/docs/diff-tool.md#visualstudio)
+ * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
+ * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
 
 
 ## Launching a diff tool
@@ -50,7 +62,7 @@ A diff tool can be launched using the following:
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'/></a>
 ```cs
-DiffRunner.Launch(path1, path2);
+DiffRunner.Launch(tempFile, targetFile);
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L14-L16' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
@@ -65,7 +77,7 @@ A diff tool can be closed using the following:
 <!-- snippet: DiffRunnerKill -->
 <a id='snippet-diffrunnerkill'/></a>
 ```cs
-DiffRunner.Kill(path1, path2);
+DiffRunner.Kill(tempFile, targetFile);
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L25-L27' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
