@@ -3,9 +3,9 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/b62ti1b998iy3njw/branch/master?svg=true)](https://ci.appveyor.com/project/SimonCropp/DiffEngine)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg)](https://www.nuget.org/packages/DiffEngine/)
 
-DiffEngine manage launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
+DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
-Support is available via a [Tidelift Subscription](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
+Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
 
 toc
 include: doc-index
@@ -16,7 +16,7 @@ include: doc-index
  * https://nuget.org/packages/DiffEngine/
 
 
-## [Supported Tools](/docs/diff-tool.md)
+## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
 include: diffToolList
 
@@ -27,7 +27,7 @@ A tool can be launched using the following:
 
 snippet: DiffRunnerLaunch
 
-Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
+Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
 ## Closing a tool
@@ -36,7 +36,7 @@ A tool can be closed using the following:
 
 snippet: DiffRunnerKill
 
-Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of MDI behavior.
+Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
 
 
 ## File type detection

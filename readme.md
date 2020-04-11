@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 [![Build status](https://ci.appveyor.com/api/projects/status/b62ti1b998iy3njw/branch/master?svg=true)](https://ci.appveyor.com/project/SimonCropp/DiffEngine)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg)](https://www.nuget.org/packages/DiffEngine/)
 
-DiffEngine manage launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
+DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
 Support is available via a [Tidelift Subscription](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
 

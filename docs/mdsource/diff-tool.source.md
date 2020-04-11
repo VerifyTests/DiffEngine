@@ -1,4 +1,4 @@
-# Supported Diff Tools
+# Diff Tools
 
 
 ## Initial difference behavior
@@ -56,6 +56,6 @@ If a tool is running for the comparison of the current verification (per test), 
 include: diffToolCleanup
 
 
-## Tools List:
+## Supported Tools:
 
 include: diffTools
