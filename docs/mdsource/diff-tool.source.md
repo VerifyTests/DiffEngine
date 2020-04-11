@@ -1,6 +1,4 @@
-# Diff Tool
-
-When a test fails verification the difference between the received and verified files is displayed in a tool.
+# Supported Diff Tools
 
 
 ## Initial difference behavior
@@ -48,7 +46,7 @@ snippet: MaxInstancesToLaunch
 
 ## Successful verification behavior
 
-If a diff tool is running for the comparison of the current verification (per test), and a new verification passes, the following logic will be applied:
+If a tool is running for the comparison of the current verification (per test), and a new verification passes, the following logic will be applied:
 
 | Mdi   | Behavior |
 |-------|----------|
@@ -58,6 +56,6 @@ If a diff tool is running for the comparison of the current verification (per te
 include: diffToolCleanup
 
 
-## Supported Diff tools:
+## Tools List:
 
 include: diffTools

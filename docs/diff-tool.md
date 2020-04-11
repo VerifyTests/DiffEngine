@@ -5,9 +5,7 @@ Source File: /docs/mdsource/diff-tool.source.md
 To change this file edit the source file and then run MarkdownSnippets.
 -->
 
-# Diff Tool
-
-When a test fails verification the difference between the received and verified files is displayed in a tool.
+# Supported Diff Tools
 
 
 ## Initial difference behavior
@@ -63,7 +61,7 @@ DiffRunner.MaxInstancesToLaunch(10);
 
 ## Successful verification behavior
 
-If a diff tool is running for the comparison of the current verification (per test), and a new verification passes, the following logic will be applied:
+If a tool is running for the comparison of the current verification (per test), and a new verification passes, the following logic will be applied:
 
 | Mdi   | Behavior |
 |-------|----------|
@@ -75,7 +73,7 @@ This allows, in most cases, for no manual closing of the tool to be required. <!
 This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
-## Supported Diff tools:
+## Tools List:
 
  <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
 ## [AraxisMerge](https://www.araxis.com/merge)
