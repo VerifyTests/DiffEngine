@@ -20,6 +20,29 @@ public class DiffToolsTest :
     //}
 
     [Fact]
+    public void MaxInstancesToLaunch()
+    {
+        #region MaxInstancesToLaunch
+
+        DiffRunner.MaxInstancesToLaunch(10);
+
+        #endregion
+    }
+
+    void AddCustomTool(string diffToolPath)
+    {
+        #region AddCustomTool
+        DiffTools.AddCustomTool(
+            supportsAutoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            exePath: diffToolPath,
+            binaryExtensions: new[] {"jpg"});
+        #endregion
+    }
+    [Fact]
     public Task ParseEnvironmentVariable()
     {
         return Verify(DiffTools.ParseEnvironmentVariable("VisualStudio,Meld"));

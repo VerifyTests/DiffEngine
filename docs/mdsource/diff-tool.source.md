@@ -61,8 +61,3 @@ include: diffToolCleanup
 ## Supported Diff tools:
 
 include: diffTools
-
-
-## Disable Diff
-
-snippet: DisableDiff
