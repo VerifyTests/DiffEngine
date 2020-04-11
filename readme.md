@@ -12,7 +12,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
-Support is available via a [Tidelift Subscription](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
+Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
 
 <!-- toc -->
 ## Contents
@@ -23,7 +23,7 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
-  * [Supported Tool](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
 
@@ -33,7 +33,7 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
  * https://nuget.org/packages/DiffEngine/
 
 
-## [Supported Tools](/docs/diff-tool.md)
+## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
  * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
@@ -66,7 +66,7 @@ DiffRunner.Launch(tempFile, targetFile);
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L14-L16' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
-Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
+Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
 ## Closing a tool
@@ -81,7 +81,7 @@ DiffRunner.Kill(tempFile, targetFile);
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L25-L27' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
-Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of MDI behavior.
+Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
 
 
 ## File type detection

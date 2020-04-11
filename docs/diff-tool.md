@@ -5,7 +5,7 @@ Source File: /docs/mdsource/diff-tool.source.md
 To change this file edit the source file and then run MarkdownSnippets.
 -->
 
-# Supported Diff Tools
+# Diff Tools
 
 
 ## Initial difference behavior
@@ -73,7 +73,7 @@ This allows, in most cases, for no manual closing of the tool to be required. <!
 This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
-## Tools List:
+## Supported Tools:
 
  <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
 ## [AraxisMerge](https://www.araxis.com/merge)
