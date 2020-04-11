@@ -1,18 +1,16 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+.vs
 
-# Other files and folders
-.settings/
+*.DotSettings
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+Nugets/
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+[Bb]in
+[Oo]bj
+*.received.*
+src/Verify.Tests/Tests.StreamNegative.verified.bin
+src/Verify.Tests/Tests.StreamMultipleNegative.00.verified.bin
+src/Verify.Tests/Tests.StreamMultipleNegative.01.verified.bin
+src/Verify.Tests/Tests.TextNegative.verified.tmp
+.idea
+.DS_Store
+src/Verify.sln.DotSettings.user
