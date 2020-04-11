@@ -18,15 +18,14 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
 ## Contents
 
   * [NuGet package](#nuget-package)
-  * [Supported Diff Tools](#supported-diff-tools)
-  * [Launching a diff tool](#launching-a-diff-tool)
-  * [Closing a diff tool](#closing-a-diff-tool)
+  * [Supported Tools](#supported-tools)
+  * [Launching a tool](#launching-a-tool)
+  * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
-  * [Supported Diff Tools](#supported-diff-tools-1)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
-  * [Diff Tool](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
-  * [Diff Tool Order](/docs/diff-tool.order.md)
-  * [Custom Diff Tool](/docs/diff-tool.custom.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Supported Tool](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Tool Order](/docs/diff-tool.order.md)
+  * [Custom Tool](/docs/diff-tool.custom.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
 
 
 ## NuGet package
@@ -34,7 +33,7 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
  * https://nuget.org/packages/DiffEngine/
 
 
-## Supported Diff Tools
+## [Supported Tools](/docs/diff-tool.md)
 
  * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
@@ -55,9 +54,9 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
  * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
 
 
-## Launching a diff tool
+## Launching a tool
 
-A diff tool can be launched using the following:
+A tool can be launched using the following:
 
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'/></a>
@@ -70,9 +69,9 @@ DiffRunner.Launch(tempFile, targetFile);
 Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
-## Closing a diff tool
+## Closing a tool
 
-A diff tool can be closed using the following:
+A tool can be closed using the following:
 
 <!-- snippet: DiffRunnerKill -->
 <a id='snippet-diffrunnerkill'/></a>
@@ -90,14 +89,9 @@ Note that this method will respect the above [difference behavior](#detected-dif
 DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determineif a given file or extension is a binary or text.
 
 
-## Supported Diff Tools
-
-LIst here with links to diff tool eg https://github.com/SimonCropp/DiffEngine/blob/master/docs/diff-tool.md#araxismerge
-
-
 ## Security contact information
 
-To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
+To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security).Tidelift will coordinate the fix and disclosure.
 
 
 ## Icon

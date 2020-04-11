@@ -11,7 +11,7 @@ include: defaultDiffToolOrder
 
 ### ViaEnvironment Variable
 
-Set an `Verify.DiffToolOrder` envrironment variable with the preferred order of diff tool resolution. The value can be comma (`,`), pipe (`|`), or space separated.
+Set an `Verify.DiffToolOrder` environment variable with the preferred order of toll resolution. The value can be comma (`,`), pipe (`|`), or space separated.
 
 For example `VisualStudio,Meld` will result in VisualStudio then Meld then all other tools being the order.
 

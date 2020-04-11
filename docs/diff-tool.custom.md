@@ -7,7 +7,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 # Custom Diff Tool
 
-A custom diff tool can be added by calling `DiffTools.AddCustomTool`
+A custom tool can be added by calling `DiffTools.AddCustomTool`
 
 <!-- snippet: AddCustomTool -->
 <a id='snippet-addcustomtool'/></a>

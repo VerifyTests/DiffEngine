@@ -16,23 +16,23 @@ include: doc-index
  * https://nuget.org/packages/DiffEngine/
 
 
-## Supported Diff Tools
+## [Supported Tools](/docs/diff-tool.md)
 
 include: diffToolList
 
 
-## Launching a diff tool
+## Launching a tool
 
-A diff tool can be launched using the following:
+A tool can be launched using the following:
 
 snippet: DiffRunnerLaunch
 
 Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
-## Closing a diff tool
+## Closing a tool
 
-A diff tool can be closed using the following:
+A tool can be closed using the following:
 
 snippet: DiffRunnerKill
 
@@ -44,14 +44,9 @@ Note that this method will respect the above [difference behavior](#detected-dif
 DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determineif a given file or extension is a binary or text.
 
 
-## Supported Diff Tools
-
-LIst here with links to diff tool eg https://github.com/SimonCropp/DiffEngine/blob/master/docs/diff-tool.md#araxismerge
-
-
 ## Security contact information
 
-To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
+To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security).Tidelift will coordinate the fix and disclosure.
 
 
 ## Icon

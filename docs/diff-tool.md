@@ -7,7 +7,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 # Diff Tool
 
-When a test fails verification the difference between the received and verified files is displayed in a diff tool.
+When a test fails verification the difference between the received and verified files is displayed in a tool.
 
 
 ## Initial difference behavior
@@ -16,8 +16,8 @@ Behavior when an input is verified for the first time.
 
 Behavior depends on if an [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) can be found matching the current extension.
 
- * If an EmptyFiles can be found matching the current extension, then the diff tool will be launch to compare the input to that empty file.
- * If no EmptyFiles can be found no diff tool will be launched.
+ * If an EmptyFiles can be found matching the current extension, then the tool will be launch to compare the input to that empty file.
+ * If no EmptyFiles can be found no tool will be launched.
 
 
 ## Detected difference behavior
@@ -27,12 +27,12 @@ Behavior when a difference is detected between the input an existing current ver
 
 ### Not Running
 
-If no diff tool is running for the comparison of the current verification (per test), a new diff tool instance will be launched.
+If no tool is running for the comparison of the current verification (per test), a new tool instance will be launched.
 
 
 ### Is Running
 
-If a diff tool is running for the comparison of the current verification (per test), and a new verification fails, the following logic will be applied:
+If a tool is running for the comparison of the current verification (per test), and a new verification fails, the following logic will be applied:
 
 | Auto Refresh | Mdi   | Behavior |
 |--------------|-------|----------|
@@ -41,14 +41,14 @@ If a diff tool is running for the comparison of the current verification (per te
 | false        | true  | Open new instance. Previous instance must be manually closed |
 | false        | false | Kill current and open new instance |
 
-This allows, in most cases, for no manual closing of the diff tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
-This behavior is currently supported on Windows. On Linux and OSX, diff tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## MaxInstancesToLaunch
 
-By default a maximum of 5 diff tool instances will be launched. This prevents a change that break many test from causing too much load on a machine.
+By default a maximum of 5 tool instances will be launched. This prevents a change that break many test from causing too much load on a machine.
 
 This value can be changed:
 
@@ -70,9 +70,9 @@ If a diff tool is running for the comparison of the current verification (per te
 | true  | No action taken. Previous instance must be manually closed |
 | false | Kill current instance |
 
-This allows, in most cases, for no manual closing of the diff tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
-This behavior is currently supported on Windows. On Linux and OSX, diff tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## Supported Diff tools:
