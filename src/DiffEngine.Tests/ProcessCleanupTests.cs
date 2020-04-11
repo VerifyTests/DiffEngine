@@ -2,12 +2,11 @@
 using System.Diagnostics;
 using System.Linq;
 using DiffEngine;
-using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
 public class ProcessCleanupTests :
-    VerifyBase
+    XunitContextBase
 {
     [Fact]
     public void Find()

@@ -1,14 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using DiffEngine;
-using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
 public class DiffToolsTest :
-    VerifyBase
+    XunitContextBase
 {
     //[Fact]
     //public void IsDetected()
@@ -42,17 +40,20 @@ public class DiffToolsTest :
             binaryExtensions: new[] {"jpg"});
         #endregion
     }
+
     [Fact]
-    public Task ParseEnvironmentVariable()
+    public void ParseEnvironmentVariable()
     {
-        return Verify(DiffTools.ParseEnvironmentVariable("VisualStudio,Meld"));
+        var diffTools = DiffTools.ParseEnvironmentVariable("VisualStudio,Meld").ToList();
+        Assert.Equal(DiffTool.VisualStudio, diffTools[0]);
+        Assert.Equal(DiffTool.Meld, diffTools[1]);
     }
 
     [Fact]
-    public Task BadEnvironmentVariable()
+    public void BadEnvironmentVariable()
     {
         var exception = Assert.Throws<Exception>(() => DiffTools.ParseEnvironmentVariable("Foo").ToList());
-        return Verify(exception.Message);
+        Assert.Equal("Unable to parse tool from `Verify.DiffToolOrder` environment variable: Foo", exception.Message);
     }
 
     [Fact]

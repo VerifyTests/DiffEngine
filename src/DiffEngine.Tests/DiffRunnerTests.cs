@@ -1,11 +1,10 @@
 ﻿using System.IO;
 using DiffEngine;
-using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
 public class DiffRunnerTests :
-    VerifyBase
+    XunitContextBase
 {
     [Fact(Skip = "Explicit")]
     public void Launch()

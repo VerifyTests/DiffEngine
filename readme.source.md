@@ -1,36 +1,47 @@
-# <img src="/src/icon.png" height="30px"> Verify
+# <img src="/src/icon.png" height="30px"> DiffEngine
 
-[![Build status](https://ci.appveyor.com/api/projects/status/dpqylic0be7s9vnm/branch/master?svg=true)](https://ci.appveyor.com/project/SimonCropp/Verify)
-[![NuGet Status](https://img.shields.io/nuget/v/Verify.Xunit.svg?label=Verify.Xunit)](https://www.nuget.org/packages/Verify.Xunit/)
-[![NuGet Status](https://img.shields.io/nuget/v/Verify.NUnit.svg?label=Verify.NUnit)](https://www.nuget.org/packages/Verify.NUnit/)
-[![NuGet Status](https://img.shields.io/nuget/v/Verify.MSTest.svg?label=Verify.MSTest)](https://www.nuget.org/packages/Verify.MSTest/)
-[![NuGet Status](https://img.shields.io/nuget/v/Verify.Bunit.svg?label=Verify.Bunit)](https://www.nuget.org/packages/Verify.Bunit/)
+[![Build status](https://ci.appveyor.com/api/projects/status/dpqylic0be7s9vnm/branch/master?svg=true)](https://ci.appveyor.com/project/SimonCropp/DiffEngine)
+[![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg)](https://www.nuget.org/packages/DiffEngine/)
 
-Verification tool to enable simple approval of complex models and documents.
+DiffEngine manage launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
-Support is available via a [Tidelift Subscription](https://tidelift.com/subscription/pkg/nuget-verify?utm_source=nuget-verify&utm_medium=referral&utm_campaign=enterprise).
+Support is available via a [Tidelift Subscription](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
 
 toc
 include: doc-index
 
 
-## NuGet packages
+## NuGet package
 
- * https://nuget.org/packages/Verify.Xunit/
- * https://nuget.org/packages/Verify.NUnit/
- * https://nuget.org/packages/Verify.MSTest/
- * https://nuget.org/packages/Verify.Bunit/
+ * https://nuget.org/packages/DiffEngine/
+
+
+## Launching a diff tool
+
+A diff tool can be launched using the following:
+
+snippet: DiffRunnerLaunch
+
+Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
+
+
+## Closing a diff tool
+
+A diff tool can be closed using the following:
+
+snippet: DiffRunnerKill
+
+Note that this method will respect the above [difference behavior](#detected-difference-behavior) in terms of MDI behavior.
+
+
+## File type detection
+
+DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determineif a given file or extension is a binary or text.
 
 
 ## Supported Diff Tools
 
-
-
-
-## Usage
-
-
-
+LIst here with links to diff tool eg https://github.com/SimonCropp/DiffEngine/blob/master/docs/diff-tool.md#araxismerge
 
 
 ## Security contact information

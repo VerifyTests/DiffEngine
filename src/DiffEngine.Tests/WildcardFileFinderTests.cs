@@ -1,10 +1,9 @@
 ﻿using System.IO;
-using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
 public class WildcardFileFinderTests :
-    VerifyBase
+    XunitContextBase
 {
     [Fact]
     public void FullFilePath()
