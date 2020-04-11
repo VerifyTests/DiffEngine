@@ -20,6 +20,7 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
 <!-- toc -->
 ## Contents
 
+  * [Supported Diff Tools](#supported-diff-tools)
   * [Usage](#usage)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
   * [Serializer Settings](/docs/serializer-settings.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
@@ -43,6 +44,10 @@ Support is available via a [Tidelift Subscription](https://tidelift.com/subscrip
  * https://nuget.org/packages/Verify.NUnit/
  * https://nuget.org/packages/Verify.MSTest/
  * https://nuget.org/packages/Verify.Bunit/
+
+
+## Supported Diff Tools
+
 
 
 
