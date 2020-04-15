@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"  --cs CreateBakFiles=0",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\KDiff3\kdiff3.exe"
@@ -21,5 +21,7 @@ static partial class Implementation
             osxExePaths: new[]
             {
                 "/Applications/kdiff3.app/Contents/MacOS/kdiff3"
-            });
+            },
+            notes: @"
+ * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
 }

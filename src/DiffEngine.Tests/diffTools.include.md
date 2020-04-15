@@ -116,16 +116,21 @@
   * Supports auto-refresh: False
   * Supports text files: True
 
+### Notes:
+
+
+ * `--cs CreateBakFiles=0` to not save a `.orig` file when merging
+
 ### Windows settings:
 
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `"tempFile" "targetFile"  --cs CreateBakFiles=0`
  * Scanned path: `%ProgramFiles%\KDiff3\kdiff3.exe`
 
 ### OSX settings:
 
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `"tempFile" "targetFile"  --cs CreateBakFiles=0`
  * Scanned path: `/Applications/kdiff3.app/Contents/MacOS/kdiff3`
 
 ## [Meld](https://meldmerge.org/)
