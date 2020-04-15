@@ -55,7 +55,7 @@ This value can be changed:
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L27' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L20-L24' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 
@@ -260,17 +260,31 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
   * Supports auto-refresh: False
   * Supports text files: True
 
+### Notes:
+
+
+ * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html
+
 ### Windows settings:
 
 
  * Example arguments: ` diff "tempFile" "targetFile"`
- * Scanned path: `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+ * Scanned paths:
+
+   * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+   * `%JetBrains Rider%\rider64.exe`
+   * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
 
 ### OSX settings:
 
 
  * Example arguments: ` diff "tempFile" "targetFile"`
- * Scanned path: `/Applications/Rider*/Contents/MacOS/rider`
+ * Scanned paths:
+
+   * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider`
+   * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider`
+   * `/Applications/Rider EAP.app/Contents/MacOS/rider`
+   * `/Applications/Rider.app/Contents/MacOS/rider`
 
 ## [SublimeMerge](https://www.sublimemerge.com/)
 

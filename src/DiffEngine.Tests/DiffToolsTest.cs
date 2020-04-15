@@ -11,10 +11,7 @@ public class DiffToolsTest :
     //[Fact]
     //public void IsDetected()
     //{
-    //    Assert.False(DiffTools.IsDetectedFor(DiffTool.Kaleidoscope, "png"));
-    //    Assert.False(DiffTools.IsDetectedFor(DiffTool.Kaleidoscope, "txt"));
-    //    Assert.True(DiffTools.IsDetectedFor(DiffTool.VisualStudio, "txt"));
-    //    Assert.True(DiffTools.IsDetectedFor(DiffTool.BeyondCompare, "png"));
+    //    Assert.True(DiffTools.IsDetectedFor(DiffTool.Rider, "txt"));
     //}
 
     [Fact]
