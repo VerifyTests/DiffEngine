@@ -350,5 +350,5 @@
 ### Windows settings:
 
 
- * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "Temp File" /dr "Target File" `
+ * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "tempFile" /dr "targetFile"`
  * Scanned path: `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe`

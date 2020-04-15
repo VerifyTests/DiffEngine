@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using DiffEngine;
 
 static partial class Implementation
@@ -11,7 +12,12 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) => $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"Temp File\" /dr \"Target File\" ",
+            buildArguments: (tempFile, targetFile, targetExists) =>
+            {
+                var leftDescription = Path.GetFileName(tempFile);
+                var rightDescription = Path.GetFileName(targetFile);
+                return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftDescription}\" /dr \"{rightDescription}\"";
+            },
             windowsExePaths: new[]
             {
                 @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"

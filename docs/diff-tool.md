@@ -427,5 +427,5 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 ### Windows settings:
 
 
- * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "Temp File" /dr "Target File" `
+ * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "tempFile" /dr "targetFile"`
  * Scanned path: `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- end include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
