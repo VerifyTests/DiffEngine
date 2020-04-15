@@ -30,7 +30,7 @@ namespace DiffEngine
                 return;
             }
 
-            var command = diffTool.BuildCommand(tempFile, targetFile, File.Exists(targetFile));
+            var command = diffTool.BuildCommand(tempFile, targetFile);
 
             if (diffTool.IsMdi)
             {
@@ -88,7 +88,7 @@ namespace DiffEngine
 
             launchedInstances++;
 
-            var command = diffTool.BuildCommand(tempFile, targetFile, targetExists);
+            var command = diffTool.BuildCommand(tempFile, targetFile);
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
             if (isDiffToolRunning)
             {
@@ -103,7 +103,7 @@ namespace DiffEngine
                 }
             }
 
-            var arguments = diffTool.BuildArguments(tempFile, targetFile, targetExists);
+            var arguments = diffTool.BuildArguments(tempFile, targetFile);
             try
             {
                 Process.Start(diffTool.ExePath, arguments);

@@ -11,9 +11,9 @@ class ResolvedDiffTool
     public IReadOnlyList<string> BinaryExtensions { get; }
     public bool RequiresTarget { get; }
 
-    public string BuildCommand(string tempFile, string targetFile, bool targetExists)
+    public string BuildCommand(string tempFile, string targetFile)
     {
-        return $"\"{ExePath}\" {BuildArguments(tempFile, targetFile, targetExists)}";
+        return $"\"{ExePath}\" {BuildArguments(tempFile, targetFile)}";
     }
 
     public ResolvedDiffTool(

@@ -12,7 +12,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) =>
+            buildArguments: (tempFile, targetFile) =>
             {
                 var leftTitle = Path.GetFileName(tempFile);
                 var rightTitle = Path.GetFileName(targetFile);

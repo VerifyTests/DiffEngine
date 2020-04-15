@@ -10,7 +10,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: false,
-            buildArguments: (tempFile, targetFile, targetExists) => $"/solo \"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile) => $"/solo \"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Beyond Compare *\BCompare.exe"

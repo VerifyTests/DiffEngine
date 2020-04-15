@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"

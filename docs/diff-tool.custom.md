@@ -17,7 +17,7 @@ DiffTools.AddCustomTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    buildArguments: (tempFile, targetFile, targetExists) =>
+    buildArguments: (tempFile, targetFile) =>
     {
         return $"\"{tempFile}\" \"{targetFile}\"";
     },

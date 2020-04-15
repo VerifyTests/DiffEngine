@@ -32,7 +32,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) =>
+            buildArguments: (tempFile, targetFile) =>
             {
                 return $"\"{tempFile}\" \"{targetFile}\"";
             },
@@ -136,20 +136,9 @@ public class DiffToolsTest :
 
     static void WriteArguments(StreamWriter writer, BuildArguments buildArguments)
     {
-        var argumentsWithTarget = buildArguments("tempFile", "targetFile", true);
-        var argumentsWithNoTarget = buildArguments("tempFile", "targetFile", false);
-        if (argumentsWithNoTarget == argumentsWithTarget)
-        {
-            writer.WriteLine($@"
+        var argumentsWithTarget = buildArguments("tempFile", "targetFile");
+        writer.WriteLine($@"
  * Example arguments: `{argumentsWithTarget}`");
-        }
-        else
-        {
-            writer.WriteLine($@"
- * Example arguments:
-   * When target exists: `{argumentsWithTarget}`
-   * When no target exists: `{argumentsWithNoTarget}`");
-        }
     }
 
     static void WritePaths(TextWriter writer, string[] paths)

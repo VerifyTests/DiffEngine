@@ -10,7 +10,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Perforce\p4merge.exe"

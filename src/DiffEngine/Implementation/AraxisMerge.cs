@@ -11,9 +11,9 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildWindowsArguments: (tempFile, targetFile, targetExists) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
             buildLinuxArguments: null,
-            buildOsxArguments: (tempFile, targetFile, targetExists) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
+            buildOsxArguments: (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"

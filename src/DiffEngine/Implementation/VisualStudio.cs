@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile, targetExists) => $"/diff \"{targetFile}\" \"{tempFile}\"",
+            buildArguments: (tempFile, targetFile) => $"/diff \"{targetFile}\" \"{tempFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
