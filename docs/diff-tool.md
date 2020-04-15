@@ -418,10 +418,14 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 ### Notes:
 
 
- * [Command line reference](https://manual.winmerge.org/en/Command_line.html)
+ * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
+ * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
+ * `/wl` Opens the left side as read-only.
+ * `/dl` and `/dr` Specifies file descriptions in the title bar.
+ * `/e` Enables close with a single Esc key press.
 
 ### Windows settings:
 
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "Temp File" /dr "Target File" `
  * Scanned path: `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- end include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
