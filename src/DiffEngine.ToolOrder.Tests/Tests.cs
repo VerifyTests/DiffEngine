@@ -2,7 +2,6 @@
 using System.Linq;
 using DiffEngine;
 using Xunit;
-using Xunit.Abstractions;
 
 public class Tests
 {
