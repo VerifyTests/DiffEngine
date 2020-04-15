@@ -279,7 +279,12 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 
 
  * Example arguments: ` diff "tempFile" "targetFile"`
- * Scanned path: `/Applications/Rider*/Contents/MacOS/rider`
+ * Scanned paths:
+
+   * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider`
+   * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider`
+   * `/Applications/Rider EAP.app/Contents/MacOS/rider`
+   * `/Applications/Rider.app/Contents/MacOS/rider`
 
 ## [SublimeMerge](https://www.sublimemerge.com/)
 
