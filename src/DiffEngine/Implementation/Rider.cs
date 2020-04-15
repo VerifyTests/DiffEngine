@@ -23,5 +23,7 @@ static partial class Implementation
             osxExePaths: new[]
             {
                 @"/Applications/Rider*/Contents/MacOS/rider"
-            });
+            },
+            notes: @"
+ * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
 }

@@ -260,11 +260,20 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
   * Supports auto-refresh: False
   * Supports text files: True
 
+### Notes:
+
+
+ * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html
+
 ### Windows settings:
 
 
  * Example arguments: ` diff "tempFile" "targetFile"`
- * Scanned path: `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+ * Scanned paths:
+
+   * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+   * `%JetBrains Rider%\rider64.exe`
+   * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
 
 ### OSX settings:
 
