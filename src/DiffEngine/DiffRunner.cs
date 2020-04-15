@@ -30,7 +30,7 @@ namespace DiffEngine
                 return;
             }
 
-            var command = diffTool.BuildCommand(tempFile, targetFile);
+            var command = diffTool.BuildCommand(tempFile, targetFile, File.Exists(targetFile));
 
             if (diffTool.IsMdi)
             {
@@ -77,7 +77,8 @@ namespace DiffEngine
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
-            if (diffTool.RequiresTarget && !File.Exists(targetFile))
+            var targetExists = File.Exists(targetFile);
+            if (diffTool.RequiresTarget && !targetExists)
             {
                 if (!AllFiles.TryCreateFile(targetFile, true))
                 {
@@ -87,7 +88,7 @@ namespace DiffEngine
 
             launchedInstances++;
 
-            var command = diffTool.BuildCommand(tempFile, targetFile);
+            var command = diffTool.BuildCommand(tempFile, targetFile, targetExists);
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
             if (isDiffToolRunning)
             {
@@ -102,7 +103,7 @@ namespace DiffEngine
                 }
             }
 
-            var arguments = diffTool.BuildArguments(tempFile, targetFile);
+            var arguments = diffTool.BuildArguments(tempFile, targetFile, targetExists);
             try
             {
                 Process.Start(diffTool.ExePath, arguments);

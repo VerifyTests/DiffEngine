@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"--nosplash \"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile, targetExists) => $"--nosplash \"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"

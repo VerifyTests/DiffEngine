@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $" diff \"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile, targetExists) => $" diff \"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",

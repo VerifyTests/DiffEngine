@@ -17,9 +17,12 @@ DiffTools.AddCustomTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+    buildArguments: (tempFile, targetFile, targetExists) =>
+    {
+        return $"\"{tempFile}\" \"{targetFile}\"";
+    },
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L29-L38' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L29-L41' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->

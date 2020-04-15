@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"  --cs CreateBakFiles=0",
+            buildArguments: (tempFile, targetFile, targetExists) => $"\"{tempFile}\" \"{targetFile}\"  --cs CreateBakFiles=0",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\KDiff3\kdiff3.exe"

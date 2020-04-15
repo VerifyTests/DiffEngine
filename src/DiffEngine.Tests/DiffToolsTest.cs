@@ -32,7 +32,10 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile, targetExists) =>
+            {
+                return $"\"{tempFile}\" \"{targetFile}\"";
+            },
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"});
         #endregion
@@ -107,8 +110,7 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### Windows settings:
 ");
-                writer.WriteLine($@"
- * Example arguments: `{tool.BuildWindowsArguments!("tempFile", "targetFile")}`");
+                WriteArguments(writer, tool.BuildWindowsArguments!);
                 WritePaths(writer, tool.WindowsExePaths);
             }
 
@@ -117,8 +119,7 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### OSX settings:
 ");
-                writer.WriteLine($@"
- * Example arguments: `{tool.BuildOsxArguments!("tempFile", "targetFile")}`");
+                WriteArguments(writer, tool.BuildOsxArguments!);
                 WritePaths(writer, tool.OsxExePaths);
             }
 
@@ -127,11 +128,27 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### Linux settings:
 ");
-                writer.WriteLine($@"
- * Example arguments: `{tool.BuildLinuxArguments!("tempFile", "targetFile")}`");
-
+                WriteArguments(writer, tool.BuildLinuxArguments!);
                 WritePaths(writer, tool.LinuxExePaths);
             }
+        }
+    }
+
+    static void WriteArguments(StreamWriter writer, BuildArguments buildArguments)
+    {
+        var argumentsWithTarget = buildArguments("tempFile", "targetFile", true);
+        var argumentsWithNoTarget = buildArguments("tempFile", "targetFile", false);
+        if (argumentsWithNoTarget == argumentsWithTarget)
+        {
+            writer.WriteLine($@"
+ * Example arguments: `{argumentsWithTarget}`");
+        }
+        else
+        {
+            writer.WriteLine($@"
+ * Example arguments:
+   * When target exists: `{argumentsWithTarget}`
+   * When no target exists: `{argumentsWithNoTarget}`");
         }
     }
 

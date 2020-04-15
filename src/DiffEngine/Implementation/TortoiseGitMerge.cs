@@ -11,7 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildArguments: (tempFile, targetFile, targetExists) => $"\"{tempFile}\" \"{targetFile}\"",
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"
