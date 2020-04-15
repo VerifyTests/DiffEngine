@@ -376,6 +376,7 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
  * Example arguments: `/diff "targetFile" "tempFile"`
  * Scanned paths:
 
+   * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe`
@@ -395,7 +396,10 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 
 
  * Example arguments: `--diff "targetFile" "tempFile"`
- * Scanned path: `%LOCALAPPDATA%\Programs\Microsoft VS Code\code.exe`
+ * Scanned paths:
+
+   * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
+   * `%ProgramFiles%\Microsoft VS Code\bin\code`
 
 ### OSX settings:
 
