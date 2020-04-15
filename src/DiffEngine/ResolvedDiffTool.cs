@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DiffEngine;
 
 class ResolvedDiffTool
 {
     public DiffTool? Tool { get; }
     public string ExePath { get; }
-    public Func<string, string, string> BuildArguments { get; }
+    public BuildArguments BuildArguments { get; }
     public bool IsMdi { get; }
     public bool SupportsAutoRefresh { get; }
     public IReadOnlyList<string> BinaryExtensions { get; }
@@ -20,7 +19,7 @@ class ResolvedDiffTool
     public ResolvedDiffTool(
         DiffTool? tool,
         string exePath,
-        Func<string, string, string> buildArguments,
+        BuildArguments buildArguments,
         bool isMdi,
         bool supportsAutoRefresh,
         string[] binaryExtensions,

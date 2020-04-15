@@ -8,11 +8,11 @@ class ToolDefinition
     public string Url { get; }
     public bool SupportsAutoRefresh { get; }
     public bool IsMdi { get; }
-    public Func<string, string, string>? BuildWindowsArguments { get; }
-    public Func<string, string, string>? BuildLinuxArguments { get; }
-    public Func<string, string, string>? BuildOsxArguments { get; }
+    public BuildArguments? BuildWindowsArguments { get; }
+    public BuildArguments? BuildLinuxArguments { get; }
+    public BuildArguments? BuildOsxArguments { get; }
 
-    public Func<string, string, string> BuildArguments
+    public BuildArguments BuildArguments
     {
         get
         {
@@ -52,9 +52,9 @@ class ToolDefinition
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        Func<string, string, string>? buildWindowsArguments,
-        Func<string, string, string>? buildLinuxArguments,
-        Func<string, string, string>? buildOsxArguments,
+        BuildArguments? buildWindowsArguments,
+        BuildArguments? buildLinuxArguments,
+        BuildArguments? buildOsxArguments,
         string[] windowsExePaths,
         string[] binaryExtensions,
         string[] linuxExePaths,
@@ -86,7 +86,7 @@ class ToolDefinition
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        Func<string, string, string> buildArguments,
+        BuildArguments buildArguments,
         string[] windowsExePaths,
         string[] binaryExtensions,
         string[] linuxExePaths,

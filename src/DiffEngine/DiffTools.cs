@@ -17,14 +17,21 @@ namespace DiffEngine
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            Func<string, string, string> buildArguments,
+            BuildArguments buildArguments,
             string exePath,
             string[] binaryExtensions)
         {
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
             Guard.AgainstNull(buildArguments, nameof(buildArguments));
             Guard.FileExists(exePath, nameof(exePath));
-            var tool = new ResolvedDiffTool(null, exePath, buildArguments, isMdi, supportsAutoRefresh, binaryExtensions, requiresTarget);
+            var tool = new ResolvedDiffTool(
+                null,
+                exePath,
+                buildArguments,
+                isMdi,
+                supportsAutoRefresh,
+                binaryExtensions,
+                requiresTarget);
             if (supportsText)
             {
                 TextDiffTools.Insert(0, tool);
