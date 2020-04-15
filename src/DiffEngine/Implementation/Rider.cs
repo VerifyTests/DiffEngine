@@ -22,7 +22,10 @@ static partial class Implementation
             linuxExePaths: Array.Empty<string>(),
             osxExePaths: new[]
             {
-                @"/Applications/Rider*/Contents/MacOS/rider"
+                @"%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider",
+                @"%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",
+                @"/Applications/Rider EAP.app/Contents/MacOS/rider",
+                @"/Applications/Rider.app/Contents/MacOS/rider"
             },
             notes: @"
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
