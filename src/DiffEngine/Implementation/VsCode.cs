@@ -14,7 +14,8 @@ static partial class Implementation
             buildArguments: (tempFile, targetFile) => $"--diff \"{targetFile}\" \"{tempFile}\"",
             windowsExePaths: new[]
             {
-                @"%LOCALAPPDATA%\Programs\Microsoft VS Code\code.exe"
+                @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
+                @"%ProgramFiles%\Microsoft VS Code\bin\code"
             },
             binaryExtensions: Array.Empty<string>(),
             linuxExePaths: new[]
