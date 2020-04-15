@@ -14,9 +14,9 @@ static partial class Implementation
             requiresTarget: true,
             buildArguments: (tempFile, targetFile, targetExists) =>
             {
-                var leftDescription = Path.GetFileName(tempFile);
-                var rightDescription = Path.GetFileName(targetFile);
-                return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftDescription}\" /dr \"{rightDescription}\"";
+                var leftTitle = Path.GetFileName(tempFile);
+                var rightTitle = Path.GetFileName(targetFile);
+                return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
             },
             windowsExePaths: new[]
             {
