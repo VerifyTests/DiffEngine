@@ -8,11 +8,11 @@ using Xunit.Abstractions;
 public class DiffToolsTest :
     XunitContextBase
 {
-    [Fact]
-    public void IsDetected()
-    {
-        Assert.True(DiffTools.IsDetectedFor(DiffTool.Rider, "txt"));
-    }
+    //[Fact]
+    //public void IsDetected()
+    //{
+    //    Assert.True(DiffTools.IsDetectedFor(DiffTool.Rider, "txt"));
+    //}
 
     [Fact]
     public void MaxInstancesToLaunch()
