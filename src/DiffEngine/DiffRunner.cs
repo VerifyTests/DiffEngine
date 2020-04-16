@@ -10,10 +10,12 @@ namespace DiffEngine
     /// </summary>
     public static class DiffRunner
     {
-        static uint maxInstancesToLaunch = 5;
-        static uint launchedInstances;
-        public static void MaxInstancesToLaunch(uint value)
+        static int maxInstancesToLaunch = 5;
+        static int launchedInstances;
+
+        public static void MaxInstancesToLaunch(int value)
         {
+            Guard.AgainstNegativeAndZero(value, nameof(value));
             maxInstancesToLaunch = value;
         }
 

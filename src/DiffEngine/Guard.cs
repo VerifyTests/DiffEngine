@@ -13,6 +13,14 @@ static class Guard
         }
     }
 
+    public static void AgainstNegativeAndZero(int value, string argumentName)
+    {
+        if (value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(argumentName);
+        }
+    }
+
     public static void FileExists(string path, string argumentName)
     {
         AgainstNullOrEmpty(argumentName, path);

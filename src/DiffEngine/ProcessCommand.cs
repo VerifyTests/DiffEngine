@@ -13,9 +13,9 @@ namespace DiffEngine
         /// <summary>
         /// The process Id.
         /// </summary>
-        public uint Process { get; }
+        public int Process { get; }
 
-        public ProcessCommand(string command, in uint process)
+        public ProcessCommand(string command, in int process)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
             Command = command;

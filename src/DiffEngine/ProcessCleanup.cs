@@ -86,7 +86,7 @@ where CommandLine like '%.received.%'";
             foreach (var process in collection)
             {
                 var command = (string) process["CommandLine"];
-                var id = (uint) process["ProcessId"];
+                var id = (int) process["ProcessId"];
                 process.Dispose();
                 yield return new ProcessCommand(command, id);
             }
