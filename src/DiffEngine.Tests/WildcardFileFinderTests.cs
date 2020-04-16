@@ -9,8 +9,8 @@ public class WildcardFileFinderTests :
     [Fact]
     public void MultiMatchDir_order1()
     {
-        var dir1 = Path.Combine(SourceDirectory, @"DirForSearch\dir1");
-        var dir2 = Path.Combine(SourceDirectory, @"DirForSearch\dir2");
+        var dir1 = Path.Combine(SourceDirectory, "DirForSearch", "dir1");
+        var dir2 = Path.Combine(SourceDirectory, "DirForSearch", "dir2");
         Directory.SetLastWriteTime(dir2, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir1, DateTime.Now);
         var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
@@ -21,8 +21,8 @@ public class WildcardFileFinderTests :
     [Fact]
     public void MultiMatchDir_order2()
     {
-        var dir1 = Path.Combine(SourceDirectory, @"DirForSearch\dir1");
-        var dir2 = Path.Combine(SourceDirectory, @"DirForSearch\dir2");
+        var dir1 = Path.Combine(SourceDirectory, "DirForSearch", "dir1");
+        var dir2 = Path.Combine(SourceDirectory, "DirForSearch", "dir2");
         Directory.SetLastWriteTime(dir1, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir2, DateTime.Now);
         var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
