@@ -15,7 +15,7 @@ public class WildcardFileFinderTests :
         Directory.SetLastWriteTime(dir1, DateTime.Now);
         var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
-        Assert.True(File.Exists(result));
+        Assert.True(File.Exists(result), result);
     }
 
     [Fact]
@@ -27,14 +27,14 @@ public class WildcardFileFinderTests :
         Directory.SetLastWriteTime(dir2, DateTime.Now);
         var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
-        Assert.True(File.Exists(result));
+        Assert.True(File.Exists(result), result);
     }
 
     [Fact]
     public void FullFilePath()
     {
         Assert.True(WildcardFileFinder.TryFind(SourceFile, out var result));
-        Assert.True(File.Exists(result));
+        Assert.True(File.Exists(result), result);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class WildcardFileFinderTests :
         var directory = SourceDirectory.Replace("DiffEngine.Tests", "Diff*.Tests");
         var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
-        Assert.True(File.Exists(result));
+        Assert.True(File.Exists(result), result);
     }
 
     [Fact]
