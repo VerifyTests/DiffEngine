@@ -19,21 +19,21 @@ public class WildcardFileFinderTests :
         Assert.Null(result);
     }
 
-    [Fact]
-    public void WildCardInFile()
-    {
-        var path = Path.Combine(SourceDirectory, "WildcardFileFinder*.cs");
-        Assert.True(WildcardFileFinder.TryFind(path, out var result));
-        Assert.True(File.Exists(result));
-    }
+    //[Fact]
+    //public void WildCardInFile()
+    //{
+    //    var path = Path.Combine(SourceDirectory, "WildcardFileFinder*.cs");
+    //    Assert.True(WildcardFileFinder.TryFind(path, out var result));
+    //    Assert.True(File.Exists(result));
+    //}
 
-    [Fact]
-    public void WildCardInFile_missing()
-    {
-        var path = Path.Combine(SourceDirectory, "WildcardFileFinder*.foo");
-        Assert.False(WildcardFileFinder.TryFind(path, out var result));
-        Assert.Null(result);
-    }
+    //[Fact]
+    //public void WildCardInFile_missing()
+    //{
+    //    var path = Path.Combine(SourceDirectory, "WildcardFileFinder*.foo");
+    //    Assert.False(WildcardFileFinder.TryFind(path, out var result));
+    //    Assert.Null(result);
+    //}
 
     [Fact]
     public void WildCardInDir()
@@ -41,7 +41,7 @@ public class WildcardFileFinderTests :
         var directory = SourceDirectory.Replace("DiffEngine.Tests", "Diff*.Tests");
         var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
-        //Assert.True(File.Exists(result));
+        Assert.True(File.Exists(result));
     }
 
     [Fact]

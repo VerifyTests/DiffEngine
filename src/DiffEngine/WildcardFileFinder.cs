@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -11,66 +12,79 @@ static class WildcardFileFinder
         Path.AltDirectorySeparatorChar
     };
 
-    public static bool TryFind(string path, [NotNullWhen(true)] out string? result)
+    static IEnumerable<string> EnumerateDirectories(string directory)
     {
-        var expanded = Environment.ExpandEnvironmentVariables(path);
-        if (path.Contains('*'))
+        var expanded = Environment.ExpandEnvironmentVariables(directory);
+        if (!directory.Contains('*'))
         {
-            var directoryPart = Path.GetDirectoryName(expanded);
-            var filePart = Path.GetFileName(expanded);
-            var segments = directoryPart.Split(separators);
-            var currentPath = segments[0] + Path.DirectorySeparatorChar;
-            foreach (var segment in segments.Skip(1))
+            if (Directory.Exists(directory))
+            {
+                return new List<string> {directory};
+            }
+        }
+
+        var segments = expanded.Split(separators);
+        var currentSearchRoots = new List<string>{segments[0] + Path.DirectorySeparatorChar};
+        foreach (var segment in segments.Skip(1))
+        {
+            var newSearchRoots = new List<string>();
+            foreach (var searchRoot in currentSearchRoots)
             {
                 if (segment.Contains('*'))
                 {
-                    currentPath = Directory.EnumerateDirectories(currentPath, segment)
-                        .OrderByDescending(Directory.GetLastWriteTime)
-                        .FirstOrDefault();
-                    if (currentPath == null)
-                    {
-                        result = null;
-                        return false;
-                    }
+                    newSearchRoots.AddRange(Directory.EnumerateDirectories(searchRoot, segment)
+                        .OrderByDescending(Directory.GetLastWriteTime));
                 }
                 else
                 {
-                    currentPath = Path.Combine(currentPath, segment);
-                    if (!Directory.Exists(currentPath))
+                    var newSearchRoot = Path.Combine(searchRoot, segment);
+                    if (Directory.Exists(newSearchRoot))
                     {
-                        result = null;
-                        return false;
+                        newSearchRoots.Add(newSearchRoot);
                     }
                 }
             }
 
-            if (filePart.Contains('*'))
+            if (!newSearchRoots.Any())
             {
-                currentPath = Directory.EnumerateFiles(currentPath, filePart).FirstOrDefault();
-                if (currentPath != null)
-                {
-                    result = currentPath;
-                    return true;
-                }
+                return Enumerable.Empty<string>();
             }
-            else
+            currentSearchRoots = newSearchRoots;
+        }
+
+        return currentSearchRoots;
+    }
+
+    public static bool TryFind(string path, [NotNullWhen(true)] out string? result)
+    {
+        var expanded = Environment.ExpandEnvironmentVariables(path);
+        if (!path.Contains('*'))
+        {
+            if (File.Exists(expanded))
             {
-                currentPath = Path.Combine(currentPath, filePart);
-                if (File.Exists(currentPath))
-                {
-                    result = currentPath;
-                    return true;
-                }
+                result = expanded;
+                return true;
             }
 
             result = null;
             return false;
         }
 
-        if (File.Exists(expanded))
+        var filePart = Path.GetFileName(expanded);
+        var directoryPart = Path.GetDirectoryName(expanded);
+        foreach (var directory in EnumerateDirectories(directoryPart))
         {
-            result = expanded;
-            return true;
+            if (filePart.Contains('*'))
+            {
+                throw new Exception("Wildcard in file part currently not supported.");
+            }
+
+            var filePath = Path.Combine(directory, filePart);
+            if (File.Exists(filePath))
+            {
+                result = filePath;
+                return true;
+            }
         }
 
         result = null;
