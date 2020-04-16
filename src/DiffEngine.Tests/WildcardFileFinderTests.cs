@@ -13,7 +13,7 @@ public class WildcardFileFinderTests :
         var dir2 = Path.Combine(SourceDirectory, "DirForSearch", "dir2");
         Directory.SetLastWriteTime(dir2, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir1, DateTime.Now);
-        var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
+        var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
@@ -25,7 +25,7 @@ public class WildcardFileFinderTests :
         var dir2 = Path.Combine(SourceDirectory, "DirForSearch", "dir2");
         Directory.SetLastWriteTime(dir1, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir2, DateTime.Now);
-        var path = Path.Combine(SourceDirectory, @"DirForSearch\*\TextFile1.txt");
+        var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
