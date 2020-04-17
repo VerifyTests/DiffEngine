@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
@@ -86,7 +87,7 @@ where CommandLine like '%.received.%'";
             foreach (var process in collection)
             {
                 var command = (string) process["CommandLine"];
-                var id = (int) process["ProcessId"];
+                var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
                 process.Dispose();
                 yield return new ProcessCommand(command, id);
             }
