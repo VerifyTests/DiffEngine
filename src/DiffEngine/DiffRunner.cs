@@ -118,14 +118,6 @@ namespace DiffEngine
                 throw new Exception(message, exception);
             }
         }
-    }
 
-    public enum LaunchResult
-    {
-        NoEmptyFileForExtension,
-        AlreadyRunningAndSupportsRefresh,
-        StartedNewInstance,
-        TooManyRunningDiffTools,
-        NoDiffToolForExtension
     }
 }
