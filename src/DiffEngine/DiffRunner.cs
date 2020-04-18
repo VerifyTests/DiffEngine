@@ -24,8 +24,7 @@ namespace DiffEngine
         /// </summary>
         public static void Kill(string tempFile, string targetFile)
         {
-            Guard.AgainstNullOrEmpty(tempFile, nameof(tempFile));
-            Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
+            GuardFiles(tempFile, targetFile);
             var extension = Extensions.GetExtension(tempFile);
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
@@ -44,8 +43,7 @@ namespace DiffEngine
 
         public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
         {
-            Guard.FileExists(tempFile, nameof(tempFile));
-            Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
+            GuardFiles(tempFile, targetFile);
             var extension = Extensions.GetExtension(tempFile);
             if (!DiffTools.TryFind(tool, extension, out var resolvedTool))
             {
@@ -60,8 +58,7 @@ namespace DiffEngine
         /// </summary>
         public static LaunchResult Launch(string tempFile, string targetFile)
         {
-            Guard.FileExists(tempFile, nameof(tempFile));
-            Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
+            GuardFiles(tempFile, targetFile);
             var extension = Extensions.GetExtension(tempFile);
 
             if (!DiffTools.TryFind(extension, out var diffTool))
@@ -74,7 +71,7 @@ namespace DiffEngine
 
         static LaunchResult Launch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
         {
-            if (launchedInstances >= maxInstancesToLaunch)
+            if (CheckInstanceCount())
             {
                 return LaunchResult.TooManyRunningDiffTools;
             }
@@ -88,6 +85,11 @@ namespace DiffEngine
                 }
             }
 
+            return InnerLaunch(diffTool, tempFile, targetFile);
+        }
+
+        static LaunchResult InnerLaunch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
+        {
             launchedInstances++;
 
             var command = diffTool.BuildCommand(tempFile, targetFile);
@@ -119,5 +121,15 @@ namespace DiffEngine
             }
         }
 
+        static void GuardFiles(string tempFile, string targetFile)
+        {
+            Guard.FileExists(tempFile, nameof(tempFile));
+            Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
+        }
+
+        static bool CheckInstanceCount()
+        {
+            return launchedInstances >= maxInstancesToLaunch;
+        }
     }
 }
