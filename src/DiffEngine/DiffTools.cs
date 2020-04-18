@@ -71,7 +71,12 @@ namespace DiffEngine
 
         static DiffTools()
         {
-            var diffOrder = Environment.GetEnvironmentVariable("Verify.DiffToolOrder");
+            var diffOrder = Environment.GetEnvironmentVariable("DiffEngine.ToolOrder");
+            if (diffOrder == null)
+            {
+                diffOrder = Environment.GetEnvironmentVariable("Verify.DiffToolOrder");
+            }
+
             IEnumerable<DiffTool> order;
             bool throwForNoTool;
             if (string.IsNullOrWhiteSpace(diffOrder))
@@ -140,7 +145,7 @@ namespace DiffEngine
             {
                 if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
                 {
-                    throw new Exception($"Unable to parse tool from `Verify.DiffToolOrder` environment variable: {toolString}");
+                    throw new Exception($"Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: {toolString}");
                 }
 
                 yield return diffTool;
@@ -160,7 +165,7 @@ namespace DiffEngine
                         continue;
                     }
 
-                    throw new Exception($"`Verify.DiffToolOrder` is configured to use '{diffTool}' but it is not installed.");
+                    throw new Exception($"`DiffEngine.DiffToolOrder` is configured to use '{diffTool}' but it is not installed.");
                 }
 
                 yield return definition;

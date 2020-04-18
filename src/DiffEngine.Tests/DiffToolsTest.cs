@@ -53,7 +53,7 @@ public class DiffToolsTest :
     public void BadEnvironmentVariable()
     {
         var exception = Assert.Throws<Exception>(() => DiffTools.ParseEnvironmentVariable("Foo").ToList());
-        Assert.Equal("Unable to parse tool from `Verify.DiffToolOrder` environment variable: Foo", exception.Message);
+        Assert.Equal("Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: Foo", exception.Message);
     }
 
     [Fact]

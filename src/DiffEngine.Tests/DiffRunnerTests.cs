@@ -27,6 +27,27 @@ public class DiffRunnerTests :
         #endregion
     }
 
+    //static string diffToolPath = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/FakeDiffTool.exe"));
+
+    //[Fact]
+    //public void LaunchAndKill()
+    //{
+    //    DiffTools.AddCustomTool(
+    //        supportsAutoRefresh: true,
+    //        isMdi: false,
+    //        supportsText: true,
+    //        requiresTarget: true,
+    //        buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+    //        exePath: diffToolPath,
+    //        binaryExtensions: new[] {"knownBin"});
+    //    var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
+    //    var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
+    //    DiffRunner.Launch(tempFile, targetFile);
+    //    Assert.NotEmpty(ProcessCleanup.FindAll());
+    //    DiffRunner.Kill(tempFile, targetFile);
+    //    Assert.Empty(ProcessCleanup.FindAll());
+    //}
+
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)
     {
