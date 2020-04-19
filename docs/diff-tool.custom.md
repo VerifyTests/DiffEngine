@@ -26,3 +26,28 @@ DiffTools.AddCustomTool(
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L29-L41' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->
+
+`exePath` is the full path to the executable.
+
+
+## ExpandEnvironmentVariables 
+
+`Environment.ExpandEnvironmentVariables` can be used to expand environment variables.
+
+<!-- snippet: AddCustomToolExpanded -->
+<a id='snippet-addcustomtoolexpanded'/></a>
+```cs
+DiffTools.AddCustomTool(
+    supportsAutoRefresh: true,
+    isMdi: false,
+    supportsText: true,
+    requiresTarget: true,
+    buildArguments: (tempFile, targetFile) =>
+    {
+        return $"\"{tempFile}\" \"{targetFile}\"";
+    },
+    exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
+    binaryExtensions: new[] {"jpg"});
+```
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L42-L54' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
+<!-- endsnippet -->

@@ -19,6 +19,7 @@ namespace DiffEngine
             bool requiresTarget,
             BuildArguments buildArguments,
             string exePath,
+            //todo make an ienumerable
             string[] binaryExtensions)
         {
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
