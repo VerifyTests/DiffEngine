@@ -1,4 +1,4 @@
-﻿using System;
+﻿#if NETCOREAPP3_1
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -30,7 +30,6 @@ public class DiffRunnerTests :
         DiffRunner.Kill(tempFile, targetFile);
         #endregion
     }
-#if NETCOREAPP3_1
 
     static string diffToolPath = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/FakeDiffTool.exe"));
 
@@ -62,10 +61,10 @@ public class DiffRunnerTests :
         Thread.Sleep(500);
         return ProcessCleanup.FindAll().Any(x => x.Command.Contains("FakeDiffTool"));
     }
-#endif
 
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)
     {
     }
 }
+#endif
