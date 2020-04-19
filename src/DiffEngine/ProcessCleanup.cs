@@ -21,13 +21,14 @@ namespace DiffEngine
 
         public static void Refresh()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (BuildServerDetector.Detected ||
+                !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                commands = FindAll().ToList();
+                commands = new List<ProcessCommand>();
             }
             else
             {
-                commands = new List<ProcessCommand>();
+                commands = FindAll().ToList();
             }
         }
 
