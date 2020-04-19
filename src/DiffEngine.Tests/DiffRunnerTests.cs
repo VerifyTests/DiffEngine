@@ -1,4 +1,4 @@
-﻿#if NETCOREAPP3_1
+﻿#if NETCOREAPP3_1 && DEBUG
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -58,7 +58,7 @@ public class DiffRunnerTests :
 
     static bool IsRunning()
     {
-        Thread.Sleep(1000);
+        Thread.Sleep(500);
         return ProcessCleanup.FindAll().Any(x => x.Command.Contains("FakeDiffTool"));
     }
 
