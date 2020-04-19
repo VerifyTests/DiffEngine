@@ -58,7 +58,7 @@ public class DiffRunnerTests :
 
     static bool IsRunning()
     {
-        Thread.Sleep(500);
+        Thread.Sleep(1000);
         return ProcessCleanup.FindAll().Any(x => x.Command.Contains("FakeDiffTool"));
     }
 
