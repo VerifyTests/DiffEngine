@@ -47,12 +47,17 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 
 ## File type detection
 
-DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determineif a given file or extension is a binary or text.
+DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text.
+
+
+## BuildServerDetector
+
+`BuildServerDetector.Detected` returns true if the current code is running on a build/CI server.
 
 
 ## Security contact information
 
-To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security).Tidelift will coordinate the fix and disclosure.
+To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
 
 
 ## Icon
