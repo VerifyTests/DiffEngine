@@ -63,7 +63,7 @@ namespace DiffEngine
 
         static void TerminalProcessIfExists(ProcessCommand processCommand)
         {
-            var processId = (int) processCommand.Process;
+            var processId = processCommand.Process;
             using var processHandle = OpenProcess(4097, false, processId);
             if (processHandle.IsInvalid)
             {
@@ -74,14 +74,14 @@ namespace DiffEngine
         }
 
         /// <summary>
-        /// Find all processes with `.received.` in the command line.
+        /// Find all processes with `% %.%.%` in the command line.
         /// </summary>
         public static IEnumerable<ProcessCommand> FindAll()
         {
             var wmiQuery = @"
 select CommandLine, ProcessId
 from Win32_Process
-where CommandLine like '%.received.%'";
+where CommandLine like '% %.%.%'";
             using var searcher = new ManagementObjectSearcher(wmiQuery);
             using var collection = searcher.Get();
             foreach (var process in collection)
