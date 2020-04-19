@@ -24,7 +24,6 @@ namespace DiffEngine
         /// </summary>
         public static void Kill(string tempFile, string targetFile)
         {
-            GuardFiles(tempFile, targetFile);
             var extension = Extensions.GetExtension(tempFile);
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
