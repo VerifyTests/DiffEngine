@@ -54,6 +54,15 @@ DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determi
 
 `BuildServerDetector.Detected` returns true if the current code is running on a build/CI server.
 
+Supports:
+
+ * [Appveyor](https://www.appveyor.com/docs/environment-variables/)
+ * [Travis](https://docs.travis-ci.com/user/environment-variables/#default-environment-variables)
+ * [Jenkins](https://wiki.jenkins.io/display/JENKINS/Building+a+software+project#Buildingasoftwareproject-belowJenkinsSetEnvironmentVariables)
+ * [GitHub Actions](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/using-environment-variables#default-environment-variables)
+ * [AzureDevops](https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables)
+ * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
+
 
 ## Security contact information
 
