@@ -28,6 +28,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
   * [Launching a tool](#launching-a-tool)
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
+  * [BuildServerDetector](#buildserverdetector)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
@@ -92,12 +93,26 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 
 ## File type detection
 
-DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determineif a given file or extension is a binary or text.
+DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text.
+
+
+## BuildServerDetector
+
+`BuildServerDetector.Detected` returns true if the current code is running on a build/CI server.
+
+Supports:
+
+ * [AppVeyor](https://www.appveyor.com/docs/environment-variables/)
+ * [Travis](https://docs.travis-ci.com/user/environment-variables/#default-environment-variables)
+ * [Jenkins](https://wiki.jenkins.io/display/JENKINS/Building+a+software+project#Buildingasoftwareproject-belowJenkinsSetEnvironmentVariables)
+ * [GitHub Actions](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/using-environment-variables#default-environment-variables)
+ * [AzureDevops](https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables)
+ * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
 
 
 ## Security contact information
 
-To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security).Tidelift will coordinate the fix and disclosure.
+To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
 
 
 ## Icon
