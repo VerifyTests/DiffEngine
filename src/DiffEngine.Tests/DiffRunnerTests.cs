@@ -52,15 +52,14 @@ public class DiffRunnerTests :
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);
-        Thread.Sleep(100);
         Assert.True(IsRunning());
         DiffRunner.Kill(tempFile, targetFile);
-        Thread.Sleep(100);
         Assert.False(IsRunning());
     }
 
     static bool IsRunning()
     {
+        Thread.Sleep(500);
         return ProcessCleanup.FindAll().Any(x => x.Command.Contains("FakeDiffTool"));
     }
 #endif
