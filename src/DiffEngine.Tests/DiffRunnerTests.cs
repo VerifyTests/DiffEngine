@@ -36,6 +36,10 @@ public class DiffRunnerTests :
     [Fact]
     public void LaunchAndKill()
     {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
         DiffTools.AddCustomTool(
             supportsAutoRefresh: true,
             isMdi: false,
