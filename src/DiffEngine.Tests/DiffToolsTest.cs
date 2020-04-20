@@ -57,7 +57,7 @@ public class DiffToolsTest :
     void AddCustomTool(string diffToolPath)
     {
         #region AddCustomTool
-        DiffTools.AddCustomTool(
+        DiffTools.TryAddCustomTool(
             name: "MyCustomDiffTool",
             supportsAutoRefresh: true,
             isMdi: false,
@@ -72,7 +72,7 @@ public class DiffToolsTest :
         #endregion
 
         #region AddCustomToolExpanded
-        DiffTools.AddCustomTool(
+        DiffTools.TryAddCustomTool(
             name: "MyCustomDiffTool",
             supportsAutoRefresh: true,
             isMdi: false,

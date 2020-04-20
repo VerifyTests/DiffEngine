@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using EmptyFiles;
 
@@ -34,7 +35,36 @@ namespace DiffEngine
             return true;
         }
 
-        public static void AddCustomTool(
+        public static bool AddCustomTool(
+            DiffTool basedOn,
+            string name,
+            bool? supportsAutoRefresh,
+            bool? isMdi,
+            bool? supportsText,
+            bool? requiresTarget,
+            BuildArguments? buildArguments,
+            string? exePath,
+            IEnumerable<string>? binaryExtensions)
+        {
+            var existing = ResolvedDiffTools.SingleOrDefault(x=>x.Tool ==basedOn);
+            if (existing == null)
+            {
+                return false;
+            }
+
+            return TryAddCustomTool(
+                name,
+                supportsAutoRefresh ?? existing.SupportsAutoRefresh,
+                isMdi ?? existing.IsMdi,
+                supportsText ?? existing.SupportsText,
+                requiresTarget ?? existing.RequiresTarget,
+                buildArguments ?? existing.BuildArguments,
+                exePath ?? existing.ExePath,
+                binaryExtensions ?? existing.BinaryExtensions
+            );
+        }
+
+        public static bool TryAddCustomTool(
             string name,
             bool supportsAutoRefresh,
             bool isMdi,
@@ -44,14 +74,20 @@ namespace DiffEngine
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
+            Guard.AgainstNullOrEmpty(exePath, nameof(exePath));
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
             Guard.AgainstNull(buildArguments, nameof(buildArguments));
-            Guard.FileExists(exePath, nameof(exePath));
+            if (!File.Exists(exePath))
+            {
+                return false;
+            }
+
             if (ResolvedDiffTools.Any(x => x.Name == name))
             {
                 throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
             }
+
             var extensions = binaryExtensions.ToArray();
             var tool = new ResolvedDiffTool(
                 name,
@@ -61,7 +97,8 @@ namespace DiffEngine
                 isMdi,
                 supportsAutoRefresh,
                 extensions,
-                requiresTarget);
+                requiresTarget,
+                supportsText);
             if (supportsText)
             {
                 TextDiffTools.Insert(0, tool);
@@ -73,6 +110,8 @@ namespace DiffEngine
                 var cleanedExtension = Extensions.GetExtension(extension);
                 ExtensionLookup[cleanedExtension] = tool;
             }
+
+            return true;
         }
 
         internal static List<ToolDefinition> Tools()
@@ -134,6 +173,7 @@ namespace DiffEngine
         {
             Guard.AgainstNullOrEmpty(order, nameof(order));
             var tools = ToolsByOrder(throwForNoTool, order);
+
             ExtensionLookup.Clear();
             ResolvedDiffTools.Clear();
             TextDiffTools.Clear();
@@ -152,7 +192,8 @@ namespace DiffEngine
                     tool.IsMdi,
                     tool.SupportsAutoRefresh,
                     tool.BinaryExtensions,
-                    tool.RequiresTarget);
+                    tool.RequiresTarget,
+                    tool.SupportsText);
                 if (tool.SupportsText)
                 {
                     TextDiffTools.Add(diffTool);

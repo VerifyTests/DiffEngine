@@ -11,6 +11,7 @@ class ResolvedDiffTool
     public bool SupportsAutoRefresh { get; }
     public IReadOnlyList<string> BinaryExtensions { get; }
     public bool RequiresTarget { get; }
+    public bool SupportsText { get; }
 
     public string BuildCommand(string tempFile, string targetFile)
     {
@@ -25,7 +26,8 @@ class ResolvedDiffTool
         bool isMdi,
         bool supportsAutoRefresh,
         string[] binaryExtensions,
-        bool requiresTarget)
+        bool requiresTarget,
+        bool supportsText)
     {
         Name = name;
         Tool = tool;
@@ -35,5 +37,6 @@ class ResolvedDiffTool
         SupportsAutoRefresh = supportsAutoRefresh;
         BinaryExtensions = binaryExtensions;
         RequiresTarget = requiresTarget;
+        SupportsText = supportsText;
     }
 }

@@ -40,7 +40,7 @@ public class DiffRunnerTests :
         {
             return;
         }
-        DiffTools.AddCustomTool(
+        DiffTools.TryAddCustomTool(
             name: "FakeDiffTool",
             supportsAutoRefresh: true,
             isMdi: false,

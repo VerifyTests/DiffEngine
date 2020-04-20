@@ -12,7 +12,7 @@ A custom tool can be added by calling `DiffTools.AddCustomTool`
 <!-- snippet: AddCustomTool -->
 <a id='snippet-addcustomtool'/></a>
 ```cs
-DiffTools.AddCustomTool(
+DiffTools.TryAddCustomTool(
     name: "MyCustomDiffTool",
     supportsAutoRefresh: true,
     isMdi: false,
@@ -38,7 +38,7 @@ DiffTools.AddCustomTool(
 <!-- snippet: AddCustomToolExpanded -->
 <a id='snippet-addcustomtoolexpanded'/></a>
 ```cs
-DiffTools.AddCustomTool(
+DiffTools.TryAddCustomTool(
     name: "MyCustomDiffTool",
     supportsAutoRefresh: true,
     isMdi: false,
