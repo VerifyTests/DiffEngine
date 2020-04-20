@@ -15,6 +15,27 @@ public class DiffToolsTest :
     //}
 
     [Fact]
+    public void TryGetPathFor()
+    {
+        #region TryGetPathFor
+
+        var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
+        #endregion
+        Assert.True(foundPath);
+        Assert.NotNull(path);
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void GetPathFor()
+    {
+        #region GetPathFor
+        var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
+        #endregion
+        Assert.True(File.Exists(toolPath));
+    }
+
+    [Fact]
     public void MaxInstancesToLaunch()
     {
         #region MaxInstancesToLaunch
