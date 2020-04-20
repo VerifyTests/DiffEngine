@@ -35,6 +35,7 @@ namespace DiffEngine
         }
 
         public static void AddCustomTool(
+            string name,
             bool supportsAutoRefresh,
             bool isMdi,
             bool supportsText,
@@ -54,6 +55,7 @@ namespace DiffEngine
             }
 
             AddCustomTool(
+                name,
                 supportsAutoRefresh,
                 isMdi,
                 supportsText,
@@ -64,6 +66,7 @@ namespace DiffEngine
         }
 
         public static void AddCustomTool(
+            string name,
             bool supportsAutoRefresh,
             bool isMdi,
             bool supportsText,
@@ -72,11 +75,17 @@ namespace DiffEngine
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
+            Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
             Guard.AgainstNull(buildArguments, nameof(buildArguments));
             Guard.FileExists(exePath, nameof(exePath));
+            if (ResolvedDiffTools.Any(x => x.Name == name))
+            {
+                throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
+            }
             var extensions = binaryExtensions.ToArray();
             var tool = new ResolvedDiffTool(
+                name,
                 null,
                 exePath,
                 buildArguments,
@@ -167,7 +176,8 @@ namespace DiffEngine
             foreach (var tool in tools)
             {
                 var diffTool = new ResolvedDiffTool(
-                    tool.Name,
+                    tool.Tool.ToString(),
+                    tool.Tool,
                     tool.ExePath!,
                     tool.BuildArguments,
                     tool.IsMdi,
@@ -211,7 +221,7 @@ namespace DiffEngine
                 .ToList();
             foreach (var diffTool in order)
             {
-                var definition = allTools.SingleOrDefault(x => x.Name == diffTool);
+                var definition = allTools.SingleOrDefault(x => x.Tool == diffTool);
                 if (definition == null)
                 {
                     if (!throwForNoTool)

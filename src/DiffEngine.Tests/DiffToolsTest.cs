@@ -58,6 +58,7 @@ public class DiffToolsTest :
     {
         #region AddCustomTool
         DiffTools.AddCustomTool(
+            name: "MyCustomDiffTool",
             supportsAutoRefresh: true,
             isMdi: false,
             supportsText: true,
@@ -72,6 +73,7 @@ public class DiffToolsTest :
 
         #region AddCustomToolExpanded
         DiffTools.AddCustomTool(
+            name: "MyCustomDiffTool",
             supportsAutoRefresh: true,
             isMdi: false,
             supportsText: true,
@@ -110,9 +112,9 @@ public class DiffToolsTest :
             .Tools();
 
         foreach (var tool in tools
-            .OrderBy(x => x.Name.ToString()))
+            .OrderBy(x => x.Tool.ToString()))
         {
-            writer.WriteLine($@" * [{tool.Name}](/docs/diff-tool.md#{tool.Name.ToString().ToLower()})");
+            writer.WriteLine($@" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
         }
     }
 
@@ -126,10 +128,10 @@ public class DiffToolsTest :
             .Tools();
 
         foreach (var tool in tools
-            .OrderBy(x => x.Name.ToString()))
+            .OrderBy(x => x.Tool.ToString()))
         {
             writer.WriteLine($@"
-## [{tool.Name}]({tool.Url})");
+## [{tool.Tool}]({tool.Url})");
 
             writer.WriteLine($@"
   * Is MDI: {tool.IsMdi}
@@ -211,7 +213,7 @@ public class DiffToolsTest :
 
         foreach (var tool in DiffTools.Tools())
         {
-            writer.WriteLine($@" * {tool.Name}");
+            writer.WriteLine($@" * {tool.Tool}");
         }
     }
 

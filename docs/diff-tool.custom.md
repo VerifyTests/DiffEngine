@@ -13,6 +13,7 @@ A custom tool can be added by calling `DiffTools.AddCustomTool`
 <a id='snippet-addcustomtool'/></a>
 ```cs
 DiffTools.AddCustomTool(
+    name: "MyCustomDiffTool",
     supportsAutoRefresh: true,
     isMdi: false,
     supportsText: true,
@@ -24,7 +25,7 @@ DiffTools.AddCustomTool(
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L59-L71' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L59-L72' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
 `exePath` is the full path to the executable.
@@ -38,6 +39,7 @@ DiffTools.AddCustomTool(
 <a id='snippet-addcustomtoolexpanded'/></a>
 ```cs
 DiffTools.AddCustomTool(
+    name: "MyCustomDiffTool",
     supportsAutoRefresh: true,
     isMdi: false,
     supportsText: true,
@@ -49,5 +51,5 @@ DiffTools.AddCustomTool(
     exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L73-L85' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L74-L87' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
 <!-- endsnippet -->

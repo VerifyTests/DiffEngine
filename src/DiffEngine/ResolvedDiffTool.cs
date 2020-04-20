@@ -3,6 +3,7 @@ using DiffEngine;
 
 class ResolvedDiffTool
 {
+    public string Name { get; }
     public DiffTool? Tool { get; }
     public string ExePath { get; }
     public BuildArguments BuildArguments { get; }
@@ -17,6 +18,7 @@ class ResolvedDiffTool
     }
 
     public ResolvedDiffTool(
+        string name,
         DiffTool? tool,
         string exePath,
         BuildArguments buildArguments,
@@ -25,6 +27,7 @@ class ResolvedDiffTool
         string[] binaryExtensions,
         bool requiresTarget)
     {
+        Name = name;
         Tool = tool;
         ExePath = exePath;
         BuildArguments = buildArguments;

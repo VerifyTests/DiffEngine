@@ -4,7 +4,7 @@ using DiffEngine;
 
 class ToolDefinition
 {
-    public DiffTool Name { get; }
+    public DiffTool Tool { get; }
     public string Url { get; }
     public bool SupportsAutoRefresh { get; }
     public bool IsMdi { get; }
@@ -61,7 +61,7 @@ class ToolDefinition
         string[] osxExePaths,
         string? notes = null)
     {
-        Name = name;
+        Tool = name;
         Url = url;
         SupportsAutoRefresh = supportsAutoRefresh;
         IsMdi = isMdi;
@@ -93,7 +93,7 @@ class ToolDefinition
         string[] osxExePaths,
         string? notes = null)
     {
-        Name = name;
+        Tool = name;
         Url = url;
         SupportsAutoRefresh = supportsAutoRefresh;
         IsMdi = isMdi;
