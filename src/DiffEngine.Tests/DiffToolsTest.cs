@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,6 +18,10 @@ public class DiffToolsTest :
     [Fact]
     public void TryGetPathFor()
     {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
         #region TryGetPathFor
 
         var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
@@ -29,6 +34,10 @@ public class DiffToolsTest :
     [Fact]
     public void GetPathFor()
     {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
         #region GetPathFor
         var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
         #endregion

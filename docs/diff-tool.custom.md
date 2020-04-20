@@ -24,7 +24,7 @@ DiffTools.AddCustomTool(
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L50-L62' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L55-L67' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
 `exePath` is the full path to the executable.
@@ -49,5 +49,5 @@ DiffTools.AddCustomTool(
     exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L64-L76' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L69-L81' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
 <!-- endsnippet -->
