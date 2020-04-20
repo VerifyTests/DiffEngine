@@ -49,5 +49,5 @@ DiffTools.AddCustomTool(
     exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L42-L54' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L43-L55' title='File snippet `addcustomtoolexpanded` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtoolexpanded' title='Navigate to start of snippet `addcustomtoolexpanded`'>anchor</a></sup>
 <!-- endsnippet -->
