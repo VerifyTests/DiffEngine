@@ -49,8 +49,11 @@ namespace DiffEngine
         public static void Kill(string command)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
-            foreach (var processCommand in Commands
-                .Where(x => x.Command == command))
+            var matchingCommands = Commands
+                .Where(x => x.Command == command).ToList();
+
+            Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
+            foreach (var processCommand in matchingCommands)
             {
                 TerminalProcessIfExists(processCommand);
             }
@@ -68,9 +71,11 @@ namespace DiffEngine
             using var processHandle = OpenProcess(4097, false, processId);
             if (processHandle.IsInvalid)
             {
+                Logging.Write($"Process not valid. Id: {processId}.");
                 return;
             }
 
+            Logging.Write($"TerminateProcess. Id: {processId}.");
             TerminateProcess(processHandle, -1);
         }
 

@@ -27,6 +27,7 @@ namespace DiffEngine
             var extension = Extensions.GetExtension(tempFile);
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
+                Logging.Write($"Extension not found. {extension}");
                 return;
             }
 
@@ -34,6 +35,7 @@ namespace DiffEngine
 
             if (diffTool.IsMdi)
             {
+                Logging.Write($"DiffTool is Mdi so not killing. diffTool: {diffTool.ExePath}");
                 return;
             }
 
