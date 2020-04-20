@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -9,9 +10,8 @@ namespace DiffEngine
 {
     public static class DiffTools
     {
-        internal static Dictionary<string, ResolvedDiffTool> ExtensionLookup = new Dictionary<string, ResolvedDiffTool>();
+        static ConcurrentDictionary<string, ResolvedDiffTool> ExtensionLookup = new ConcurrentDictionary<string, ResolvedDiffTool>();
         internal static List<ResolvedDiffTool> ResolvedDiffTools = new List<ResolvedDiffTool>();
-        internal static List<ResolvedDiffTool> TextDiffTools = new List<ResolvedDiffTool>();
 
         public static string GetPathFor(DiffTool tool)
         {
@@ -99,10 +99,6 @@ namespace DiffEngine
                 extensions,
                 requiresTarget,
                 supportsText);
-            if (supportsText)
-            {
-                TextDiffTools.Insert(0, tool);
-            }
 
             ResolvedDiffTools.Insert(0, tool);
             foreach (var extension in extensions)
@@ -176,7 +172,6 @@ namespace DiffEngine
 
             ExtensionLookup.Clear();
             ResolvedDiffTools.Clear();
-            TextDiffTools.Clear();
             InitLookups(tools);
         }
 
@@ -194,10 +189,6 @@ namespace DiffEngine
                     tool.BinaryExtensions,
                     tool.RequiresTarget,
                     tool.SupportsText);
-                if (tool.SupportsText)
-                {
-                    TextDiffTools.Add(diffTool);
-                }
 
                 ResolvedDiffTools.Add(diffTool);
                 foreach (var ext in tool.BinaryExtensions)
@@ -258,11 +249,20 @@ namespace DiffEngine
         {
             if (Extensions.IsText(extension))
             {
-                tool = TextDiffTools.FirstOrDefault();
-                return tool != null;
+                return FirstTextTool(out tool);
             }
 
             return ExtensionLookup.TryGetValue(extension, out tool);
+        }
+
+        static bool FirstTextTool(out ResolvedDiffTool tool)
+        {
+            tool = TextTools().FirstOrDefault();
+            return tool != null;
+        }
+        static IEnumerable<ResolvedDiffTool> TextTools()
+        {
+            return ResolvedDiffTools.Where(x => x.SupportsText);
         }
 
         internal static bool TryFind(
@@ -272,7 +272,7 @@ namespace DiffEngine
         {
             if (Extensions.IsText(extension))
             {
-                resolvedTool = TextDiffTools.FirstOrDefault(x => x.Tool == tool);
+                resolvedTool = TextTools().SingleOrDefault(x => x.Tool == tool);
                 return resolvedTool != null;
             }
 
@@ -296,7 +296,7 @@ namespace DiffEngine
             var extension = Extensions.GetExtension(extensionOrPath);
             if (Extensions.IsText(extension))
             {
-                return TextDiffTools.Any(x => x.Tool == diffTool);
+                return TextTools().Any();
             }
 
             var tool = ResolvedDiffTools.SingleOrDefault(_ => _.Tool == diffTool);
