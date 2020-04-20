@@ -1,4 +1,4 @@
-﻿#if NETCOREAPP3_1 && DEBUG
+﻿#if NETCOREAPP3_1
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -52,6 +52,7 @@ public class DiffRunnerTests :
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);
         Assert.True(IsRunning());
+        ProcessCleanup.Refresh();
         DiffRunner.Kill(tempFile, targetFile);
         Assert.False(IsRunning());
     }
@@ -59,7 +60,9 @@ public class DiffRunnerTests :
     static bool IsRunning()
     {
         Thread.Sleep(500);
-        return ProcessCleanup.FindAll().Any(x => x.Command.Contains("FakeDiffTool"));
+        return ProcessCleanup
+            .FindAll()
+            .Any(x => x.Command.Contains("FakeDiffTool"));
     }
 
     public DiffRunnerTests(ITestOutputHelper output) :
