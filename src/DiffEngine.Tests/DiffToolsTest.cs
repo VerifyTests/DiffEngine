@@ -32,17 +32,24 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => { return $"\"{tempFile}\" \"{targetFile}\""; },
+            buildArguments: (tempFile, targetFile) =>
+            {
+                return $"\"{tempFile}\" \"{targetFile}\"";
+            },
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"});
         #endregion
+
         #region AddCustomToolExpanded
         DiffTools.AddCustomTool(
             supportsAutoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => { return $"\"{tempFile}\" \"{targetFile}\""; },
+            buildArguments: (tempFile, targetFile) =>
+            {
+                return $"\"{tempFile}\" \"{targetFile}\"";
+            },
             exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
             binaryExtensions: new[] {"jpg"});
         #endregion

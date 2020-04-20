@@ -19,19 +19,48 @@ namespace DiffEngine
             bool requiresTarget,
             BuildArguments buildArguments,
             string exePath,
-            //todo make an ienumerable
-            string[] binaryExtensions)
+            params string[] binaryExtensions)
+        {
+            IEnumerable<string> extensions;
+            if (binaryExtensions == null)
+            {
+                extensions = Enumerable.Empty<string>();
+            }
+            else
+            {
+                extensions = binaryExtensions;
+            }
+
+            AddCustomTool(
+                supportsAutoRefresh,
+                isMdi,
+                supportsText,
+                requiresTarget,
+                buildArguments,
+                exePath,
+                extensions);
+        }
+
+        public static void AddCustomTool(
+            bool supportsAutoRefresh,
+            bool isMdi,
+            bool supportsText,
+            bool requiresTarget,
+            BuildArguments buildArguments,
+            string exePath,
+            IEnumerable<string> binaryExtensions)
         {
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
             Guard.AgainstNull(buildArguments, nameof(buildArguments));
             Guard.FileExists(exePath, nameof(exePath));
+            var extensions = binaryExtensions.ToArray();
             var tool = new ResolvedDiffTool(
                 null,
                 exePath,
                 buildArguments,
                 isMdi,
                 supportsAutoRefresh,
-                binaryExtensions,
+                extensions,
                 requiresTarget);
             if (supportsText)
             {
@@ -39,7 +68,7 @@ namespace DiffEngine
             }
 
             ResolvedDiffTools.Insert(0, tool);
-            foreach (var extension in binaryExtensions)
+            foreach (var extension in extensions)
             {
                 var cleanedExtension = Extensions.GetExtension(extension);
                 ExtensionLookup[cleanedExtension] = tool;
