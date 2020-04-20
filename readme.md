@@ -123,7 +123,7 @@ Supports:
 ```cs
 var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L37-L39' title='File snippet `getpathfor` was extracted from'>snippet source</a> | <a href='#snippet-getpathfor' title='Navigate to start of snippet `getpathfor`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L41-L43' title='File snippet `getpathfor` was extracted from'>snippet source</a> | <a href='#snippet-getpathfor' title='Navigate to start of snippet `getpathfor`'>anchor</a></sup>
 <!-- endsnippet -->
 
 
