@@ -53,6 +53,12 @@ namespace DiffEngine
                 .Where(x => x.Command == command).ToList();
 
             Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
+            if (matchingCommands.Count == 0)
+            {
+                var separator = Environment.NewLine + "\t";
+                Logging.Write($"No matching commands. All commands: {separator}{string.Join(separator, Commands)}.");
+            }
+
             foreach (var processCommand in matchingCommands)
             {
                 TerminalProcessIfExists(processCommand);
