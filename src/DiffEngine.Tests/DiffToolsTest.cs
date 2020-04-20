@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -13,6 +14,35 @@ public class DiffToolsTest :
     //{
     //    Assert.True(DiffTools.IsDetectedFor(DiffTool.Rider, "txt"));
     //}
+
+    [Fact]
+    public void TryGetPathFor()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+        #region TryGetPathFor
+
+        var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
+        #endregion
+        Assert.True(foundPath);
+        Assert.NotNull(path);
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void GetPathFor()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+        #region GetPathFor
+        var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
+        #endregion
+        Assert.True(File.Exists(toolPath));
+    }
 
     [Fact]
     public void MaxInstancesToLaunch()

@@ -29,6 +29,9 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
+  * [Get path for tool](#get-path-for-tool)
+    * [GetPathFor](#getpathfor)
+    * [TryGetPathFor](#trygetpathfor)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
@@ -109,6 +112,30 @@ Supports:
  * [AzureDevops](https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables)
  * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
 
+
+## Get path for tool
+
+
+### GetPathFor
+
+<!-- snippet: GetPathFor -->
+<a id='snippet-getpathfor'/></a>
+```cs
+var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
+```
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L41-L43' title='File snippet `getpathfor` was extracted from'>snippet source</a> | <a href='#snippet-getpathfor' title='Navigate to start of snippet `getpathfor`'>anchor</a></sup>
+<!-- endsnippet -->
+
+
+### TryGetPathFor
+
+<!-- snippet: TryGetPathFor -->
+<a id='snippet-trygetpathfor'/></a>
+```cs
+var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
+```
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L25-L28' title='File snippet `trygetpathfor` was extracted from'>snippet source</a> | <a href='#snippet-trygetpathfor' title='Navigate to start of snippet `trygetpathfor`'>anchor</a></sup>
+<!-- endsnippet -->
 
 ## Security contact information
 

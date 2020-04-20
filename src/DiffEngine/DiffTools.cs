@@ -12,6 +12,28 @@ namespace DiffEngine
         internal static List<ResolvedDiffTool> ResolvedDiffTools = new List<ResolvedDiffTool>();
         internal static List<ResolvedDiffTool> TextDiffTools = new List<ResolvedDiffTool>();
 
+        public static string GetPathFor(DiffTool tool)
+        {
+            if (TryGetPathFor(tool, out var exePath))
+            {
+                return exePath;
+            }
+            throw new Exception($"Tool to found: {tool}");
+        }
+
+        public static bool TryGetPathFor(DiffTool tool, [NotNullWhen(true)] out string? exePath)
+        {
+            var resolvedDiffTool = ResolvedDiffTools.SingleOrDefault(x => x.Tool == tool);
+            if (resolvedDiffTool == null)
+            {
+                exePath = null;
+                return false;
+            }
+
+            exePath = resolvedDiffTool.ExePath;
+            return true;
+        }
+
         public static void AddCustomTool(
             bool supportsAutoRefresh,
             bool isMdi,
@@ -184,7 +206,9 @@ namespace DiffEngine
 
         static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
-            var allTools = Tools().Where(x => x.Exists).ToList();
+            var allTools = Tools()
+                .Where(x => x.Exists)
+                .ToList();
             foreach (var diffTool in order)
             {
                 var definition = allTools.SingleOrDefault(x => x.Name == diffTool);
