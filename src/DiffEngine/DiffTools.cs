@@ -42,37 +42,6 @@ namespace DiffEngine
             bool requiresTarget,
             BuildArguments buildArguments,
             string exePath,
-            params string[] binaryExtensions)
-        {
-            IEnumerable<string> extensions;
-            if (binaryExtensions == null)
-            {
-                extensions = Enumerable.Empty<string>();
-            }
-            else
-            {
-                extensions = binaryExtensions;
-            }
-
-            AddCustomTool(
-                name,
-                supportsAutoRefresh,
-                isMdi,
-                supportsText,
-                requiresTarget,
-                buildArguments,
-                exePath,
-                extensions);
-        }
-
-        public static void AddCustomTool(
-            string name,
-            bool supportsAutoRefresh,
-            bool isMdi,
-            bool supportsText,
-            bool requiresTarget,
-            BuildArguments buildArguments,
-            string exePath,
             IEnumerable<string> binaryExtensions)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
