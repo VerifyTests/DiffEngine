@@ -174,13 +174,11 @@ namespace DiffEngine
 
             ExtensionLookup.Clear();
 #if NETSTANDARD2_1
-
             resolved.Clear();
 #else
-            ResolvedDiffTool someItem;
             while (!resolved.IsEmpty)
             {
-                resolved.TryTake(out someItem);
+                resolved.TryTake(out _);
             }
 #endif
             InitLookups(tools);
