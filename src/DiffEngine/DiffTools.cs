@@ -150,7 +150,7 @@ namespace DiffEngine
             UseOrder(false, order);
         }
 
-        public static void UseOrder(bool throwForNoTool, params DiffTool[] order)
+        public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
         {
             Guard.AgainstNullOrEmpty(order, nameof(order));
             var tools = ToolsByOrder(throwForNoTool, order);

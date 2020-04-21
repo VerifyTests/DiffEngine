@@ -5,7 +5,7 @@ using DiffEngine;
 
 static class ToolOrderReader
 {
-    public class Result
+    public readonly struct Result
     {
         public bool FoundInEnvVar { get; }
         public IEnumerable<DiffTool> Order { get; }
