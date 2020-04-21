@@ -220,7 +220,7 @@ public class DiffToolsTest :
     //[Fact]
     //public void LaunchImageDiff()
     //{
-    //    foreach (var tool in DiffTools.ResolvedDiffTools)
+    //    foreach (var tool in DiffTools.Resolved)
     //    {
     //        DiffRunner.Launch(tool,
     //            Path.Combine(SourceDirectory, "input.file1.png"),
@@ -231,7 +231,7 @@ public class DiffToolsTest :
     //[Fact]
     //public void LaunchTextDiff()
     //{
-    //    foreach (var tool in DiffTools.ResolvedDiffTools)
+    //    foreach (var tool in DiffTools.Resolved)
     //    {
     //        DiffRunner.Launch(tool,
     //            Path.Combine(SourceDirectory, "input.file1.txt"),

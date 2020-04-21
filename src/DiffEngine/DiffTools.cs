@@ -11,7 +11,9 @@ namespace DiffEngine
     public static class DiffTools
     {
         static ConcurrentDictionary<string, ResolvedDiffTool> ExtensionLookup = new ConcurrentDictionary<string, ResolvedDiffTool>();
-        internal static List<ResolvedDiffTool> ResolvedDiffTools = new List<ResolvedDiffTool>();
+        static ConcurrentBag<ResolvedDiffTool> resolved = new ConcurrentBag<ResolvedDiffTool>();
+
+        public static IEnumerable<ResolvedDiffTool> Resolved { get => resolved; }
 
         public static string GetPathFor(DiffTool tool)
         {
@@ -24,7 +26,7 @@ namespace DiffEngine
 
         public static bool TryGetPathFor(DiffTool tool, [NotNullWhen(true)] out string? exePath)
         {
-            var resolvedDiffTool = ResolvedDiffTools.SingleOrDefault(x => x.Tool == tool);
+            var resolvedDiffTool = resolved.SingleOrDefault(x => x.Tool == tool);
             if (resolvedDiffTool == null)
             {
                 exePath = null;
@@ -46,7 +48,7 @@ namespace DiffEngine
             string? exePath,
             IEnumerable<string>? binaryExtensions)
         {
-            var existing = ResolvedDiffTools.SingleOrDefault(x=>x.Tool ==basedOn);
+            var existing = resolved.SingleOrDefault(x=>x.Tool ==basedOn);
             if (existing == null)
             {
                 return false;
@@ -83,7 +85,7 @@ namespace DiffEngine
                 return false;
             }
 
-            if (ResolvedDiffTools.Any(x => x.Name == name))
+            if (resolved.Any(x => x.Name == name))
             {
                 throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
             }
@@ -100,7 +102,7 @@ namespace DiffEngine
                 requiresTarget,
                 supportsText);
 
-            ResolvedDiffTools.Insert(0, tool);
+            resolved.Add(tool);
             foreach (var extension in extensions)
             {
                 var cleanedExtension = Extensions.GetExtension(extension);
@@ -171,13 +173,22 @@ namespace DiffEngine
             var tools = ToolsByOrder(throwForNoTool, order);
 
             ExtensionLookup.Clear();
-            ResolvedDiffTools.Clear();
+#if NETSTANDARD2_1
+
+            resolved.Clear();
+#else
+            ResolvedDiffTool someItem;
+            while (!resolved.IsEmpty)
+            {
+                resolved.TryTake(out someItem);
+            }
+#endif
             InitLookups(tools);
         }
 
         static void InitLookups(IEnumerable<ToolDefinition> tools)
         {
-            foreach (var tool in tools)
+            foreach (var tool in tools.Reverse())
             {
                 var diffTool = new ResolvedDiffTool(
                     tool.Tool.ToString(),
@@ -190,7 +201,7 @@ namespace DiffEngine
                     tool.RequiresTarget,
                     tool.SupportsText);
 
-                ResolvedDiffTools.Add(diffTool);
+                resolved.Add(diffTool);
                 foreach (var ext in tool.BinaryExtensions)
                 {
                     if (!ExtensionLookup.ContainsKey(ext))
@@ -260,9 +271,10 @@ namespace DiffEngine
             tool = TextTools().FirstOrDefault();
             return tool != null;
         }
+
         static IEnumerable<ResolvedDiffTool> TextTools()
         {
-            return ResolvedDiffTools.Where(x => x.SupportsText);
+            return resolved.Where(x => x.SupportsText);
         }
 
         internal static bool TryFind(
@@ -276,7 +288,7 @@ namespace DiffEngine
                 return resolvedTool != null;
             }
 
-            resolvedTool = ResolvedDiffTools.SingleOrDefault(x => x.Tool == tool);
+            resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
             if (resolvedTool == null)
             {
                 return false;
@@ -299,7 +311,7 @@ namespace DiffEngine
                 return TextTools().Any();
             }
 
-            var tool = ResolvedDiffTools.SingleOrDefault(_ => _.Tool == diffTool);
+            var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
             if (tool == null)
             {
                 return false;
