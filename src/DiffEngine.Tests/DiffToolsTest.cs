@@ -87,20 +87,6 @@ public class DiffToolsTest :
         #endregion
     }
 
-    [Fact]
-    public void ParseEnvironmentVariable()
-    {
-        var diffTools = DiffTools.ParseEnvironmentVariable("VisualStudio,Meld").ToList();
-        Assert.Equal(DiffTool.VisualStudio, diffTools[0]);
-        Assert.Equal(DiffTool.Meld, diffTools[1]);
-    }
-
-    [Fact]
-    public void BadEnvironmentVariable()
-    {
-        var exception = Assert.Throws<Exception>(() => DiffTools.ParseEnvironmentVariable("Foo").ToList());
-        Assert.Equal("Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: Foo", exception.Message);
-    }
 
     [Fact]
     public void WriteDiffToolsList()

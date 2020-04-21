@@ -138,26 +138,9 @@ namespace DiffEngine
 
         static DiffTools()
         {
-            var diffOrder = Environment.GetEnvironmentVariable("DiffEngine.ToolOrder");
-            if (diffOrder == null)
-            {
-                diffOrder = Environment.GetEnvironmentVariable("Verify.DiffToolOrder");
-            }
+            var result = ToolOrderReader.ReadToolOrder();
 
-            IEnumerable<DiffTool> order;
-            bool throwForNoTool;
-            if (string.IsNullOrWhiteSpace(diffOrder))
-            {
-                throwForNoTool = false;
-                order = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>();
-            }
-            else
-            {
-                throwForNoTool = true;
-                order = ParseEnvironmentVariable(diffOrder);
-            }
-
-            var tools = ToolsByOrder(throwForNoTool, order);
+            var tools = ToolsByOrder(result.FoundInEnvVar, result.Order);
 
             InitLookups(tools);
         }
@@ -210,19 +193,6 @@ namespace DiffEngine
             }
         }
 
-        internal static IEnumerable<DiffTool> ParseEnvironmentVariable(string diffOrder)
-        {
-            foreach (var toolString in diffOrder
-                .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
-                {
-                    throw new Exception($"Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: {toolString}");
-                }
-
-                yield return diffTool;
-            }
-        }
 
         static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
