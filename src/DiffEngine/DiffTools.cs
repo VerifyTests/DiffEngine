@@ -111,30 +111,6 @@ namespace DiffEngine
             return true;
         }
 
-        internal static List<ToolDefinition> Tools()
-        {
-            return new List<ToolDefinition>
-            {
-                Implementation.BeyondCompare(),
-                Implementation.P4Merge(),
-                Implementation.AraxisMerge(),
-                Implementation.Meld(),
-                Implementation.SublimeMerge(),
-                Implementation.Kaleidoscope(),
-                Implementation.CodeCompare(),
-                Implementation.WinMerge(),
-                Implementation.DiffMerge(),
-                Implementation.TortoiseMerge(),
-                Implementation.TortoiseGitMerge(),
-                Implementation.TortoiseIDiff(),
-                Implementation.KDiff3(),
-                Implementation.TkDiff(),
-                Implementation.VsCode(),
-                Implementation.VisualStudio(),
-                Implementation.Rider()
-            };
-        }
-
         static DiffTools()
         {
             var result = ToolOrderReader.ReadToolOrder();
@@ -199,7 +175,7 @@ namespace DiffEngine
 
         static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
-            var allTools = Tools()
+            var allTools = ToolDefinitions.Tools()
                 .ToList();
             foreach (var diffTool in order)
             {

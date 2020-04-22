@@ -123,7 +123,7 @@ Supports:
 ```cs
 var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L41-L43' title='File snippet `getpathfor` was extracted from'>snippet source</a> | <a href='#snippet-getpathfor' title='Navigate to start of snippet `getpathfor`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L34-L36' title='File snippet `getpathfor` was extracted from'>snippet source</a> | <a href='#snippet-getpathfor' title='Navigate to start of snippet `getpathfor`'>anchor</a></sup>
 <!-- endsnippet -->
 
 
@@ -134,7 +134,7 @@ var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
 ```cs
 var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L25-L28' title='File snippet `trygetpathfor` was extracted from'>snippet source</a> | <a href='#snippet-trygetpathfor' title='Navigate to start of snippet `trygetpathfor`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L18-L21' title='File snippet `trygetpathfor` was extracted from'>snippet source</a> | <a href='#snippet-trygetpathfor' title='Navigate to start of snippet `trygetpathfor`'>anchor</a></sup>
 <!-- endsnippet -->
 
 ## Security contact information
