@@ -15,9 +15,9 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildWindowsArguments: BuildArguments,
-            buildLinuxArguments: BuildArguments,
-            buildOsxArguments: BuildArguments,
+            windowsArguments: BuildArguments,
+            linuxArguments: BuildArguments,
+            osxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",

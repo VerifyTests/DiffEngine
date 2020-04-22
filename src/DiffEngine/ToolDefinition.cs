@@ -1,6 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using DiffEngine;
+﻿using DiffEngine;
 
 class ToolDefinition
 {
@@ -8,33 +6,9 @@ class ToolDefinition
     public string Url { get; }
     public bool SupportsAutoRefresh { get; }
     public bool IsMdi { get; }
-    public BuildArguments? BuildWindowsArguments { get; }
-    public BuildArguments? BuildLinuxArguments { get; }
-    public BuildArguments? BuildOsxArguments { get; }
-
-    public BuildArguments BuildArguments
-    {
-        get
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return BuildWindowsArguments!;
-            }
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                return BuildLinuxArguments!;
-            }
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return BuildOsxArguments!;
-            }
-
-            throw new Exception($"OS not supported: {RuntimeInformation.OSDescription}");
-        }
-    }
-
+    public BuildArguments? WindowsArguments { get; }
+    public BuildArguments? LinuxArguments { get; }
+    public BuildArguments? OsxArguments { get; }
     public string[] BinaryExtensions { get; }
     public string[] WindowsExePaths { get; }
     public string[] LinuxExePaths { get; }
@@ -50,9 +24,9 @@ class ToolDefinition
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        BuildArguments? buildWindowsArguments,
-        BuildArguments? buildLinuxArguments,
-        BuildArguments? buildOsxArguments,
+        BuildArguments? windowsArguments,
+        BuildArguments? linuxArguments,
+        BuildArguments? osxArguments,
         string[] windowsExePaths,
         string[] binaryExtensions,
         string[] linuxExePaths,
@@ -63,9 +37,9 @@ class ToolDefinition
         Url = url;
         SupportsAutoRefresh = supportsAutoRefresh;
         IsMdi = isMdi;
-        BuildWindowsArguments = buildWindowsArguments;
-        BuildLinuxArguments = buildLinuxArguments;
-        BuildOsxArguments = buildOsxArguments;
+        WindowsArguments = windowsArguments;
+        LinuxArguments = linuxArguments;
+        OsxArguments = osxArguments;
         BinaryExtensions = binaryExtensions;
         WindowsExePaths = windowsExePaths;
         LinuxExePaths = linuxExePaths;

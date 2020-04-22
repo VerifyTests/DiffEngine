@@ -142,7 +142,7 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### Windows settings:
 ");
-                WriteArguments(writer, tool.BuildWindowsArguments!);
+                WriteArguments(writer, tool.WindowsArguments!);
                 WritePaths(writer, tool.WindowsExePaths);
             }
 
@@ -151,7 +151,7 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### OSX settings:
 ");
-                WriteArguments(writer, tool.BuildOsxArguments!);
+                WriteArguments(writer, tool.OsxArguments!);
                 WritePaths(writer, tool.OsxExePaths);
             }
 
@@ -160,7 +160,7 @@ public class DiffToolsTest :
                 writer.WriteLine(@"
 ### Linux settings:
 ");
-                WriteArguments(writer, tool.BuildLinuxArguments!);
+                WriteArguments(writer, tool.LinuxArguments!);
                 WritePaths(writer, tool.LinuxExePaths);
             }
         }

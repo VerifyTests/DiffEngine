@@ -152,11 +152,13 @@ namespace DiffEngine
                 {
                     continue;
                 }
+
+                var buildArguments = ArgumentBuilder.Build(tool.WindowsArguments, tool.LinuxArguments, tool.OsxArguments);
                 var diffTool = new ResolvedDiffTool(
                     tool.Tool.ToString(),
                     tool.Tool,
                     exePath,
-                    tool.BuildArguments,
+                    buildArguments,
                     tool.IsMdi,
                     tool.SupportsAutoRefresh,
                     tool.BinaryExtensions,

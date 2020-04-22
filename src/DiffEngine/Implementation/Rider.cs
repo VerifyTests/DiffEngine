@@ -15,9 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildWindowsArguments: BuildArguments,
-            buildLinuxArguments: BuildArguments,
-            buildOsxArguments: BuildArguments,
+            windowsArguments: BuildArguments,
+            linuxArguments: BuildArguments,
+            osxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
