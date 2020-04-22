@@ -52,7 +52,7 @@ public class DiffToolsTest :
         #region AddCustomTool
         DiffTools.TryAddCustomTool(
             name: "MyCustomDiffTool",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
@@ -67,7 +67,7 @@ public class DiffToolsTest :
         #region AddCustomToolExpanded
         DiffTools.TryAddCustomTool(
             name: "MyCustomDiffTool",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

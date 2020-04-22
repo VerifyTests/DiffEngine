@@ -14,7 +14,7 @@ A custom tool can be added by calling `DiffTools.AddCustomTool`
 ```cs
 DiffTools.TryAddCustomTool(
     name: "MyCustomDiffTool",
-    supportsAutoRefresh: true,
+    autoRefresh: true,
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
@@ -40,7 +40,7 @@ DiffTools.TryAddCustomTool(
 ```cs
 DiffTools.TryAddCustomTool(
     name: "MyCustomDiffTool",
-    supportsAutoRefresh: true,
+    autoRefresh: true,
     isMdi: false,
     supportsText: true,
     requiresTarget: true,

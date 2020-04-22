@@ -110,7 +110,7 @@ namespace DiffEngine
 
         public static bool TryAddCustomTool(
             string name,
-            bool supportsAutoRefresh,
+            bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
@@ -138,7 +138,7 @@ namespace DiffEngine
                 exePath,
                 buildArguments,
                 isMdi,
-                supportsAutoRefresh,
+                autoRefresh,
                 extensions,
                 requiresTarget,
                 supportsText);
