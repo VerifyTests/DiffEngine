@@ -139,41 +139,23 @@ namespace DiffEngine
         {
             var result = ToolOrderReader.ReadToolOrder();
 
-            var tools = ToolsByOrder(result.FoundInEnvVar, result.Order);
-
-            InitLookups(tools);
+            InitTools(result.FoundInEnvVar, result.Order);
         }
 
-        public static void UseOrder(params DiffTool[] order)
+        static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> resultOrder)
         {
-            UseOrder(false, order);
-        }
+            var tools = ToolsByOrder(resultFoundInEnvVar, resultOrder);
 
-        public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
-        {
-            Guard.AgainstNullOrEmpty(order, nameof(order));
-            var tools = ToolsByOrder(throwForNoTool, order);
-
-            ExtensionLookup.Clear();
-#if NETSTANDARD2_1
-            resolved.Clear();
-#else
-            while (!resolved.IsEmpty)
-            {
-                resolved.TryTake(out _);
-            }
-#endif
-            InitLookups(tools);
-        }
-
-        static void InitLookups(IEnumerable<ToolDefinition> tools)
-        {
             foreach (var tool in tools.Reverse())
             {
+                if (!ExeFinder.TryFindExe(tool.WindowsExePaths, tool.LinuxExePaths, tool.OsxExePaths, out var exePath))
+                {
+                    continue;
+                }
                 var diffTool = new ResolvedDiffTool(
                     tool.Tool.ToString(),
                     tool.Tool,
-                    tool.ExePath!,
+                    exePath,
                     tool.BuildArguments,
                     tool.IsMdi,
                     tool.SupportsAutoRefresh,
@@ -192,10 +174,30 @@ namespace DiffEngine
             }
         }
 
+        public static void UseOrder(params DiffTool[] order)
+        {
+            UseOrder(false, order);
+        }
+
+        public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
+        {
+            Guard.AgainstNullOrEmpty(order, nameof(order));
+
+            ExtensionLookup.Clear();
+#if NETSTANDARD2_1
+            resolved.Clear();
+#else
+            while (!resolved.IsEmpty)
+            {
+                resolved.TryTake(out _);
+            }
+#endif
+            InitTools(throwForNoTool, order);
+        }
+
         static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
             var allTools = Tools()
-                .Where(x => x.Exists)
                 .ToList();
             foreach (var diffTool in order)
             {

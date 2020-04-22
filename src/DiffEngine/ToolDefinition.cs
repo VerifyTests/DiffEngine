@@ -36,8 +36,6 @@ class ToolDefinition
     }
 
     public string[] BinaryExtensions { get; }
-    public string? ExePath { get; private set; }
-    public bool Exists { get; private set; }
     public string[] WindowsExePaths { get; }
     public string[] LinuxExePaths { get; }
     public string[] OsxExePaths { get; }
@@ -75,8 +73,5 @@ class ToolDefinition
         Notes = notes;
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;
-
-        Exists = ExeFinder.TryFindExe(windowsExePaths, linuxExePaths, osxExePaths, out var exePath);
-        ExePath = exePath;
     }
 }
