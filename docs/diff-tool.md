@@ -55,7 +55,7 @@ This value can be changed:
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L43-L47' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 

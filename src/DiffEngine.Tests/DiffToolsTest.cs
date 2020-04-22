@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Runtime.InteropServices;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
