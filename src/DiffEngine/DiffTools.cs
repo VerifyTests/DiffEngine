@@ -124,7 +124,7 @@ namespace DiffEngine
 
             foreach (var tool in tools.Reverse())
             {
-                if (!ExeFinder.TryFindExe(tool.WindowsExePaths, tool.LinuxExePaths, tool.OsxExePaths, out var exePath))
+                if (!ExeFinder.TryFindExe(tool.WindowsPaths, tool.LinuxPaths, tool.OsxPaths, out var exePath))
                 {
                     continue;
                 }

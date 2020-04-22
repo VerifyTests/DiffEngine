@@ -23,13 +23,13 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>(),
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.

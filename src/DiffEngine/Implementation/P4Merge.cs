@@ -17,7 +17,7 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\Perforce\p4merge.exe"
             },
@@ -36,11 +36,11 @@ static partial class Implementation
                 "xbm",
                 "xpm"
             },
-            linuxExePaths: new[]
+            linuxPaths: new[]
             {
                 @"/usr/bin/p4merge"
             },
-            osxExePaths: new[]
+            osxPaths: new[]
             {
                 @"/Applications/p4merge.app/Contents/MacOS/p4merge"
             });

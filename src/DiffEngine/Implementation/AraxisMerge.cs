@@ -14,12 +14,12 @@ static partial class Implementation
             windowsArguments: (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
             linuxArguments: null,
             osxArguments: (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"
             },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: new[]
             {
                 "/Applications/Araxis Merge.app/Contents/Utilities/compare"
             },

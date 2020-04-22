@@ -18,7 +18,7 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
@@ -26,7 +26,7 @@ static partial class Implementation
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe",
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: Array.Empty<string>());
     }
 }

@@ -18,15 +18,15 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
                 @"%JetBrains Rider%\rider64.exe",
                 @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: new[]
             {
                 @"%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider",
                 @"%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",

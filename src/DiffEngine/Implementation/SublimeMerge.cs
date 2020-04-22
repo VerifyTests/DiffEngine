@@ -18,16 +18,16 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\Sublime Merge\smerge.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: new[]
+            linuxPaths: new[]
             {
                 @"/usr/bin/smerge"
             },
-            osxExePaths: new[]
+            osxPaths: new[]
             {
                 @"/Applications/smerge.app/Contents/MacOS/smerge"
             });

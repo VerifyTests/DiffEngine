@@ -18,10 +18,10 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: Array.Empty<string>(),
+            windowsPaths: Array.Empty<string>(),
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: new[]
             {
                 "/Applications/TkDiff.app/Contents/MacOS/tkdiff"
             });

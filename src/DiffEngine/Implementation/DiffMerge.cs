@@ -18,16 +18,16 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: new[]
+            linuxPaths: new[]
             {
                 "/usr/bin/diffmerge"
             },
-            osxExePaths: new[]
+            osxPaths: new[]
             {
                 "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"
             });

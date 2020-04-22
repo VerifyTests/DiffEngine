@@ -18,13 +18,13 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\KDiff3\kdiff3.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: new[]
             {
                 "/Applications/kdiff3.app/Contents/MacOS/kdiff3"
             },

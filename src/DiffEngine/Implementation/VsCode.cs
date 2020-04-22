@@ -18,17 +18,17 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
                 @"%ProgramFiles%\Microsoft VS Code\bin\code"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: new[]
+            linuxPaths: new[]
             {
                 @"/usr/local/bin/code"
             },
-            osxExePaths: new[]
+            osxPaths: new[]
             {
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
             },

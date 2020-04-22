@@ -18,12 +18,12 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: Array.Empty<string>());
     }
 }

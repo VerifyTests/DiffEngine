@@ -17,7 +17,7 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\Beyond Compare *\BCompare.exe"
             },
@@ -44,12 +44,12 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
-            linuxExePaths: new[]
+            linuxPaths: new[]
             {
                 //TODO:
                 "/usr/lib/beyondcompare/bcomp"
             },
-            osxExePaths: new[]
+            osxPaths: new[]
             {
                 "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"
             },

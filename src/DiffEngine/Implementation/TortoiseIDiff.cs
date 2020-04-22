@@ -18,7 +18,7 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"
             },
@@ -33,7 +33,7 @@ static partial class Implementation
                 "tif",
                 "tiff",
             },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: Array.Empty<string>());
     }
 }

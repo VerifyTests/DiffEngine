@@ -18,7 +18,7 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: Array.Empty<string>(),
+            windowsPaths: Array.Empty<string>(),
             binaryExtensions: new[]
             {
                 "bmp",
@@ -30,8 +30,8 @@ static partial class Implementation
                 "tiff",
                 "tif",
             },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: new[]
             {
                 "/usr/local/bin/ksdiff"
             });

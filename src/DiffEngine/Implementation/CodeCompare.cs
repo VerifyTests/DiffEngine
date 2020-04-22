@@ -18,13 +18,13 @@ static partial class Implementation
             windowsArguments: BuildArguments,
             linuxArguments: BuildArguments,
             osxArguments: BuildArguments,
-            windowsExePaths: new[]
+            windowsPaths: new[]
             {
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"
             },
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>(),
+            linuxPaths: Array.Empty<string>(),
+            osxPaths: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)");
     }

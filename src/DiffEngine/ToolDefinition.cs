@@ -10,9 +10,9 @@ class ToolDefinition
     public BuildArguments? LinuxArguments { get; }
     public BuildArguments? OsxArguments { get; }
     public string[] BinaryExtensions { get; }
-    public string[] WindowsExePaths { get; }
-    public string[] LinuxExePaths { get; }
-    public string[] OsxExePaths { get; }
+    public string[] WindowsPaths { get; }
+    public string[] LinuxPaths { get; }
+    public string[] OsxPaths { get; }
     public string? Notes { get; }
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
@@ -27,10 +27,10 @@ class ToolDefinition
         BuildArguments? windowsArguments,
         BuildArguments? linuxArguments,
         BuildArguments? osxArguments,
-        string[] windowsExePaths,
+        string[] windowsPaths,
         string[] binaryExtensions,
-        string[] linuxExePaths,
-        string[] osxExePaths,
+        string[] linuxPaths,
+        string[] osxPaths,
         string? notes = null)
     {
         Tool = name;
@@ -41,9 +41,9 @@ class ToolDefinition
         LinuxArguments = linuxArguments;
         OsxArguments = osxArguments;
         BinaryExtensions = binaryExtensions;
-        WindowsExePaths = windowsExePaths;
-        LinuxExePaths = linuxExePaths;
-        OsxExePaths = osxExePaths;
+        WindowsPaths = windowsPaths;
+        LinuxPaths = linuxPaths;
+        OsxPaths = osxPaths;
         Notes = notes;
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;
