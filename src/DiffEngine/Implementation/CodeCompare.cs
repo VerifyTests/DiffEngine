@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition CodeCompare() =>
-        new ToolDefinition(
+    public static ToolDefinition CodeCompare()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"\"{tempFile}\" \"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
             supportsAutoRefresh: false,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"
@@ -21,4 +27,5 @@ static partial class Implementation
             osxExePaths: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)");
+    }
 }

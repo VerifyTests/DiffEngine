@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Rider() =>
-        new ToolDefinition(
+    public static ToolDefinition Rider()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $" diff \"{tempFile}\" \"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.Rider,
             url: "https://www.jetbrains.com/rider/",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $" diff \"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
@@ -29,4 +35,5 @@ static partial class Implementation
             },
             notes: @"
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
+    }
 }

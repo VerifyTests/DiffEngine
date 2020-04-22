@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TortoiseIDiff() =>
-        new ToolDefinition(
+    public static ToolDefinition TortoiseIDiff()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"/left:\"{tempFile}\" /right:\"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: false,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"/left:\"{tempFile}\" /right:\"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"
@@ -29,4 +35,5 @@ static partial class Implementation
             },
             linuxExePaths: Array.Empty<string>(),
             osxExePaths: Array.Empty<string>());
+    }
 }

@@ -79,34 +79,4 @@ class ToolDefinition
         Exists = ExeFinder.TryFindExe(windowsExePaths, linuxExePaths, osxExePaths, out var exePath);
         ExePath = exePath;
     }
-
-    public ToolDefinition(
-        DiffTool name,
-        string url,
-        bool supportsAutoRefresh,
-        bool isMdi,
-        bool supportsText,
-        bool requiresTarget,
-        BuildArguments buildArguments,
-        string[] windowsExePaths,
-        string[] binaryExtensions,
-        string[] linuxExePaths,
-        string[] osxExePaths,
-        string? notes = null) :
-        this(name,
-            url,
-            supportsAutoRefresh,
-            isMdi,
-            supportsText,
-            requiresTarget,
-            buildArguments,
-            buildArguments,
-            buildArguments,
-            windowsExePaths,
-            binaryExtensions,
-            linuxExePaths,
-            osxExePaths,
-            notes)
-    {
-    }
 }

@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition KDiff3() =>
-        new ToolDefinition(
+    public static ToolDefinition KDiff3()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"\"{tempFile}\" \"{targetFile}\" --cs CreateBakFiles=0";
+
+        return new ToolDefinition(
             name: DiffTool.KDiff3,
             url: "https://github.com/KDE/kdiff3",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\" --cs CreateBakFiles=0",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\KDiff3\kdiff3.exe"
@@ -24,4 +30,5 @@ static partial class Implementation
             },
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
+    }
 }

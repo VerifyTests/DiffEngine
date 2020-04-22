@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition VsCode() =>
-        new ToolDefinition(
+    public static ToolDefinition VsCode()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"--diff \"{targetFile}\" \"{tempFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.VisualStudioCode,
             url: "https://code.visualstudio.com",
             supportsAutoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"--diff \"{targetFile}\" \"{tempFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
@@ -28,4 +34,5 @@ static partial class Implementation
             },
             notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
+    }
 }

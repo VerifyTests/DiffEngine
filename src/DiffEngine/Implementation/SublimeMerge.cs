@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition SublimeMerge() =>
-        new ToolDefinition(
+    public static ToolDefinition SublimeMerge()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"mergetool \"{tempFile}\" \"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.SublimeMerge,
             url: "https://www.sublimemerge.com/",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"mergetool \"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles%\Sublime Merge\smerge.exe"
@@ -25,4 +31,5 @@ static partial class Implementation
             {
                 @"/Applications/smerge.app/Contents/MacOS/smerge"
             });
+    }
 }

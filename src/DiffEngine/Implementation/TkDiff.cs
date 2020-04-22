@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TkDiff() =>
-        new ToolDefinition(
+    public static ToolDefinition TkDiff()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"\"{tempFile}\" \"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: Array.Empty<string>(),
             binaryExtensions: Array.Empty<string>(),
             linuxExePaths: Array.Empty<string>(),
@@ -19,4 +25,5 @@ static partial class Implementation
             {
                 "/Applications/TkDiff.app/Contents/MacOS/tkdiff"
             });
+    }
 }

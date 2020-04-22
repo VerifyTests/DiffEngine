@@ -3,15 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Meld() =>
-        new ToolDefinition(
+    public static ToolDefinition Meld()
+    {
+        string BuildArguments(string tempFile, string targetFile) =>
+            $"\"{tempFile}\" \"{targetFile}\"";
+
+        return new ToolDefinition(
             name: DiffTool.Meld,
             url: "https://meldmerge.org/",
             supportsAutoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            buildWindowsArguments: BuildArguments,
+            buildLinuxArguments: BuildArguments,
+            buildOsxArguments: BuildArguments,
             windowsExePaths: new[]
             {
                 @"%ProgramFiles(x86)%\Meld\meld.exe"
@@ -25,4 +31,5 @@ static partial class Implementation
             {
                 @"/Applications/meld.app/Contents/MacOS/meld"
             });
+    }
 }
