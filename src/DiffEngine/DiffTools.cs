@@ -67,19 +67,19 @@ namespace DiffEngine
         }
 
         public static void AddTool(
-            string[] windowsPaths,
-            string[] linuxPaths,
-            string[] osxPaths,
-            BuildArguments? windowsArguments,
-            BuildArguments? linuxArguments,
-            BuildArguments? osxArguments,
             string name,
             DiffTool toolTool,
+            bool autoRefresh,
             bool isMdi,
-            bool toolSupportsAutoRefresh,
-            string[] binaryExtensions,
+            bool toolSupportsText,
             bool requiresTarget,
-            bool toolSupportsText)
+            string[] binaryExtensions,
+            BuildArguments? windowsArguments,
+            string[] windowsPaths,
+            BuildArguments? linuxArguments,
+            string[] linuxPaths,
+            BuildArguments? osxArguments,
+            string[] osxPaths)
         {
             if (!ExeFinder.TryFindExe(windowsPaths, linuxPaths, osxPaths, out var exePath))
             {
@@ -93,7 +93,7 @@ namespace DiffEngine
                 exePath,
                 buildArguments,
                 isMdi,
-                toolSupportsAutoRefresh,
+                autoRefresh,
                 binaryExtensions,
                 requiresTarget,
                 toolSupportsText);
@@ -166,19 +166,11 @@ namespace DiffEngine
 
             foreach (var tool in tools.Reverse())
             {
-                AddTool(tool.WindowsPaths,
-                    tool.LinuxPaths,
-                    tool.OsxPaths,
-                    tool.WindowsArguments,
-                    tool.LinuxArguments,
-                    tool.OsxArguments,
-                    tool.Tool.ToString(),
+                AddTool(tool.Tool.ToString(),
                     tool.Tool,
-                    tool.IsMdi,
                     tool.SupportsAutoRefresh,
-                    tool.BinaryExtensions,
-                    tool.RequiresTarget,
-                    tool.SupportsText);
+                    tool.IsMdi,
+                    tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.WindowsArguments, tool.WindowsPaths, tool.LinuxArguments, tool.LinuxPaths, tool.OsxArguments, tool.OsxPaths);
             }
         }
 
