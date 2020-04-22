@@ -67,18 +67,18 @@ namespace DiffEngine
 
         static void AddTool(
             string name,
-            DiffTool? toolTool,
+            DiffTool? diffTool,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
             string[] binaryExtensions,
             BuildArguments? windowsArguments,
-            string[] windowsPaths,
+            IEnumerable<string> windowsPaths,
             BuildArguments? linuxArguments,
-            string[] linuxPaths,
+            IEnumerable<string> linuxPaths,
             BuildArguments? osxArguments,
-            string[] osxPaths)
+            IEnumerable<string> osxPaths)
         {
             if (!ExeFinder.TryFindExe(windowsPaths, linuxPaths, osxPaths, out var exePath))
             {
@@ -86,9 +86,9 @@ namespace DiffEngine
             }
 
             var arguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
-            var diffTool = new ResolvedTool(
+            var resolvedTool = new ResolvedTool(
                 name,
-                toolTool,
+                diffTool,
                 exePath,
                 arguments,
                 isMdi,
@@ -97,10 +97,10 @@ namespace DiffEngine
                 requiresTarget,
                 supportsText);
 
-            resolved.Insert(0, diffTool);
+            resolved.Insert(0, resolvedTool);
             foreach (var ext in binaryExtensions)
             {
-                ExtensionLookup[ext] = diffTool;
+                ExtensionLookup[ext] = resolvedTool;
             }
         }
 

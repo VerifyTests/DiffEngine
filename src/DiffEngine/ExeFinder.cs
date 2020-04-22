@@ -1,13 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 static class ExeFinder
 {
     public static bool TryFindExe(
-        string[] windowsPaths,
-        string[] linuxPaths,
-        string[] osxPaths,
+        IEnumerable<string> windowsPaths,
+        IEnumerable<string> linuxPaths,
+        IEnumerable<string> osxPaths,
         [NotNullWhen(true)] out string? path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -28,7 +29,7 @@ static class ExeFinder
         throw new Exception($"OS not supported: {RuntimeInformation.OSDescription}");
     }
 
-    static bool TryFindExe(string[] paths, [NotNullWhen(true)] out string? exePath)
+    static bool TryFindExe(IEnumerable<string> paths, [NotNullWhen(true)] out string? exePath)
     {
         foreach (var path in paths)
         {
