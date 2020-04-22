@@ -23,7 +23,7 @@ namespace DiffEngine
 
         internal ResolvedTool(
             string name,
-            DiffTool tool,
+            DiffTool? tool,
             string exePath,
             BuildArguments buildArguments,
             bool isMdi,

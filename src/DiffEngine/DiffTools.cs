@@ -65,9 +65,9 @@ namespace DiffEngine
             );
         }
 
-        public static void AddTool(
+        static void AddTool(
             string name,
-            DiffTool toolTool,
+            DiffTool? toolTool,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,
