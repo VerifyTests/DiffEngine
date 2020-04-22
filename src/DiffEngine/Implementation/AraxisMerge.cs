@@ -7,7 +7,7 @@ static partial class Implementation
         new Definition(
             name: DiffTool.AraxisMerge,
             url: "https://www.araxis.com/merge",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,

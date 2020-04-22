@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.Rider,
             url: "https://www.jetbrains.com/rider/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

@@ -16,7 +16,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.WinMerge,
             url: "https://winmerge.org/",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

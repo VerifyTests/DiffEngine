@@ -10,7 +10,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.P4Merge,
             url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

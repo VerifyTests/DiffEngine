@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.VisualStudioCode,
             url: "https://code.visualstudio.com",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,

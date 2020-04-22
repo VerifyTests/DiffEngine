@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,

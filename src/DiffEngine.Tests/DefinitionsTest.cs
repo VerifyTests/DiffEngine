@@ -53,7 +53,7 @@ public class DefinitionsTest :
 
             writer.WriteLine($@"
   * Is MDI: {tool.IsMdi}
-  * Supports auto-refresh: {tool.SupportsAutoRefresh}
+  * Supports auto-refresh: {tool.AutoRefresh}
   * Supports text files: {tool.SupportsText}");
 
             if (tool.BinaryExtensions.Any())

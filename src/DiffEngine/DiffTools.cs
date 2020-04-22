@@ -168,7 +168,7 @@ namespace DiffEngine
             {
                 AddTool(tool.Tool.ToString(),
                     tool.Tool,
-                    tool.SupportsAutoRefresh,
+                    tool.AutoRefresh,
                     tool.IsMdi,
                     tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.WindowsArguments, tool.WindowsPaths, tool.LinuxArguments, tool.LinuxPaths, tool.OsxArguments, tool.OsxPaths);
             }

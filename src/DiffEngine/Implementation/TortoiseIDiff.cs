@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: false,
             requiresTarget: true,

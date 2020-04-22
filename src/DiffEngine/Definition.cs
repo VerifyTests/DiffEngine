@@ -4,7 +4,7 @@ class Definition
 {
     public DiffTool Tool { get; }
     public string Url { get; }
-    public bool SupportsAutoRefresh { get; }
+    public bool AutoRefresh { get; }
     public bool IsMdi { get; }
     public BuildArguments? WindowsArguments { get; }
     public BuildArguments? LinuxArguments { get; }
@@ -20,7 +20,7 @@ class Definition
     public Definition(
         DiffTool name,
         string url,
-        bool supportsAutoRefresh,
+        bool autoRefresh,
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
@@ -35,7 +35,7 @@ class Definition
     {
         Tool = name;
         Url = url;
-        SupportsAutoRefresh = supportsAutoRefresh;
+        AutoRefresh = autoRefresh;
         IsMdi = isMdi;
         WindowsArguments = windowsArguments;
         LinuxArguments = linuxArguments;

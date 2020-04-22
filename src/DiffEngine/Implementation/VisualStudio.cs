@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.VisualStudio,
             url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,

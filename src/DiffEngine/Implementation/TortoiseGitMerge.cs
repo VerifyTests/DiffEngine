@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.TortoiseGitMerge,
             url: "https://tortoisegit.org/docs/tortoisegitmerge/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

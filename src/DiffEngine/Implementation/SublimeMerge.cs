@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.SublimeMerge,
             url: "https://www.sublimemerge.com/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

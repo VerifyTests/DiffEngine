@@ -10,7 +10,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.BeyondCompare,
             url: "https://www.scootersoftware.com",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: false,

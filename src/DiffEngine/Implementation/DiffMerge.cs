@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.DiffMerge,
             url: "https://www.sourcegear.com/diffmerge/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,

@@ -11,7 +11,7 @@ static partial class Implementation
         return new Definition(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
