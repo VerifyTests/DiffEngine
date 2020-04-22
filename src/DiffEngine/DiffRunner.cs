@@ -69,7 +69,7 @@ namespace DiffEngine
             return Launch(diffTool, tempFile, targetFile);
         }
 
-        static LaunchResult Launch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
+        static LaunchResult Launch(ResolvedTool diffTool, string tempFile, string targetFile)
         {
             if (CheckInstanceCount())
             {
@@ -88,7 +88,7 @@ namespace DiffEngine
             return InnerLaunch(diffTool, tempFile, targetFile);
         }
 
-        static LaunchResult InnerLaunch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
+        static LaunchResult InnerLaunch(ResolvedTool diffTool, string tempFile, string targetFile)
         {
             launchedInstances++;
 
@@ -96,7 +96,7 @@ namespace DiffEngine
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
             if (isDiffToolRunning)
             {
-                if (diffTool.SupportsAutoRefresh)
+                if (diffTool.AutoRefresh)
                 {
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }

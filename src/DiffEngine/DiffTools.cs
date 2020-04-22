@@ -10,10 +10,10 @@ namespace DiffEngine
 {
     public static class DiffTools
     {
-        static ConcurrentDictionary<string, ResolvedDiffTool> ExtensionLookup = new ConcurrentDictionary<string, ResolvedDiffTool>();
-        static ConcurrentBag<ResolvedDiffTool> resolved = new ConcurrentBag<ResolvedDiffTool>();
+        static ConcurrentDictionary<string, ResolvedTool> ExtensionLookup = new ConcurrentDictionary<string, ResolvedTool>();
+        static ConcurrentBag<ResolvedTool> resolved = new ConcurrentBag<ResolvedTool>();
 
-        public static IEnumerable<ResolvedDiffTool> Resolved { get => resolved; }
+        public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
         public static string GetPathFor(DiffTool tool)
         {
@@ -56,7 +56,7 @@ namespace DiffEngine
 
             return TryAddCustomTool(
                 name,
-                supportsAutoRefresh ?? existing.SupportsAutoRefresh,
+                supportsAutoRefresh ?? existing.AutoRefresh,
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
@@ -86,12 +86,12 @@ namespace DiffEngine
                 return;
             }
 
-            var buildArguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
-            var diffTool = new ResolvedDiffTool(
+            var arguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
+            var diffTool = new ResolvedTool(
                 name,
                 toolTool,
                 exePath,
-                buildArguments,
+                arguments,
                 isMdi,
                 autoRefresh,
                 binaryExtensions,
@@ -133,7 +133,7 @@ namespace DiffEngine
             }
 
             var extensions = binaryExtensions.ToArray();
-            var tool = new ResolvedDiffTool(
+            var tool = new ResolvedTool(
                 name,
                 exePath,
                 buildArguments,
@@ -224,7 +224,7 @@ namespace DiffEngine
 
         internal static bool TryFind(
             string extension,
-            [NotNullWhen(true)] out ResolvedDiffTool? tool)
+            [NotNullWhen(true)] out ResolvedTool? tool)
         {
             if (Extensions.IsText(extension))
             {
@@ -237,7 +237,7 @@ namespace DiffEngine
 
         internal static bool TryFind(
             DiffTool tool,
-            [NotNullWhen(true)] out ResolvedDiffTool? resolvedTool)
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
             resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
             return resolvedTool != null;

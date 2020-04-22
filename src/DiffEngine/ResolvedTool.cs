@@ -2,14 +2,14 @@
 
 namespace DiffEngine
 {
-    public class ResolvedDiffTool
+    public class ResolvedTool
     {
         public string Name { get; }
         public DiffTool? Tool { get; }
         public string ExePath { get; }
         public BuildArguments BuildArguments { get; }
         public bool IsMdi { get; }
-        public bool SupportsAutoRefresh { get; }
+        public bool AutoRefresh { get; }
         public IReadOnlyList<string> BinaryExtensions { get; }
         public bool RequiresTarget { get; }
         public bool SupportsText { get; }
@@ -19,13 +19,13 @@ namespace DiffEngine
             return $"\"{ExePath}\" {BuildArguments(tempFile, targetFile)}";
         }
 
-        internal ResolvedDiffTool(
+        internal ResolvedTool(
             string name,
             DiffTool tool,
             string exePath,
             BuildArguments buildArguments,
             bool isMdi,
-            bool supportsAutoRefresh,
+            bool autoRefresh,
             string[] binaryExtensions,
             bool requiresTarget,
             bool supportsText)
@@ -35,18 +35,18 @@ namespace DiffEngine
             ExePath = exePath;
             BuildArguments = buildArguments;
             IsMdi = isMdi;
-            SupportsAutoRefresh = supportsAutoRefresh;
+            AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
             RequiresTarget = requiresTarget;
             SupportsText = supportsText;
         }
 
-        public ResolvedDiffTool(
+        public ResolvedTool(
             string name,
             string exePath,
             BuildArguments buildArguments,
             bool isMdi,
-            bool supportsAutoRefresh,
+            bool autoRefresh,
             string[] binaryExtensions,
             bool requiresTarget,
             bool supportsText)
@@ -59,7 +59,7 @@ namespace DiffEngine
             ExePath = exePath;
             BuildArguments = buildArguments;
             IsMdi = isMdi;
-            SupportsAutoRefresh = supportsAutoRefresh;
+            AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
             RequiresTarget = requiresTarget;
             SupportsText = supportsText;
