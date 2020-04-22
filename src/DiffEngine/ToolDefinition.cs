@@ -76,7 +76,8 @@ class ToolDefinition
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;
 
-        FindExe();
+        Exists = ExeFinder.TryFindExe(windowsExePaths, linuxExePaths, osxExePaths, out var exePath);
+        ExePath = exePath;
     }
 
     public ToolDefinition(
@@ -91,56 +92,21 @@ class ToolDefinition
         string[] binaryExtensions,
         string[] linuxExePaths,
         string[] osxExePaths,
-        string? notes = null) : this(name,
-        url,
-        supportsAutoRefresh,
-        isMdi,
-        supportsText,
-        requiresTarget,
-        buildArguments,
-        buildArguments,
-        buildArguments,
-        windowsExePaths,
-        binaryExtensions,
-        linuxExePaths,
-        osxExePaths,
-        notes)
+        string? notes = null) :
+        this(name,
+            url,
+            supportsAutoRefresh,
+            isMdi,
+            supportsText,
+            requiresTarget,
+            buildArguments,
+            buildArguments,
+            buildArguments,
+            windowsExePaths,
+            binaryExtensions,
+            linuxExePaths,
+            osxExePaths,
+            notes)
     {
-    }
-
-    void FindExe()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            FindExe(WindowsExePaths);
-            return;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            FindExe(LinuxExePaths);
-            return;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            FindExe(OsxExePaths);
-            return;
-        }
-
-        throw new Exception($"OS not supported: {RuntimeInformation.OSDescription}");
-    }
-
-    void FindExe(string[] exePaths)
-    {
-        foreach (var exePath in exePaths)
-        {
-            if (WildcardFileFinder.TryFind(exePath, out var result))
-            {
-                ExePath = result;
-                Exists = true;
-                return;
-            }
-        }
     }
 }
