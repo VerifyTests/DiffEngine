@@ -19,9 +19,9 @@ namespace DiffEngine
             return $"\"{ExePath}\" {BuildArguments(tempFile, targetFile)}";
         }
 
-        public ResolvedDiffTool(
+        internal ResolvedDiffTool(
             string name,
-            DiffTool? tool,
+            DiffTool tool,
             string exePath,
             BuildArguments buildArguments,
             bool isMdi,
@@ -32,6 +32,30 @@ namespace DiffEngine
         {
             Name = name;
             Tool = tool;
+            ExePath = exePath;
+            BuildArguments = buildArguments;
+            IsMdi = isMdi;
+            SupportsAutoRefresh = supportsAutoRefresh;
+            BinaryExtensions = binaryExtensions;
+            RequiresTarget = requiresTarget;
+            SupportsText = supportsText;
+        }
+
+        public ResolvedDiffTool(
+            string name,
+            string exePath,
+            BuildArguments buildArguments,
+            bool isMdi,
+            bool supportsAutoRefresh,
+            string[] binaryExtensions,
+            bool requiresTarget,
+            bool supportsText)
+        {
+            Guard.FileExists(exePath, nameof(exePath));
+            Guard.AgainstNullOrEmpty(name, nameof(name));
+            Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
+            Guard.AgainstNull(buildArguments, nameof(buildArguments));
+            Name = name;
             ExePath = exePath;
             BuildArguments = buildArguments;
             IsMdi = isMdi;

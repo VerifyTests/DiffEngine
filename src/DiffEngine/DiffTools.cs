@@ -93,7 +93,6 @@ namespace DiffEngine
             var extensions = binaryExtensions.ToArray();
             var tool = new ResolvedDiffTool(
                 name,
-                null,
                 exePath,
                 buildArguments,
                 isMdi,
