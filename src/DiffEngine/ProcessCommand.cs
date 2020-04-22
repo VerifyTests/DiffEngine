@@ -3,7 +3,7 @@
 namespace DiffEngine
 {
     [DebuggerDisplay("{Command} | Process = {Process}")]
-    public class ProcessCommand
+    public readonly struct ProcessCommand
     {
         /// <summary>
         /// The command line used to launch the process.

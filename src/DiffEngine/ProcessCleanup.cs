@@ -70,7 +70,7 @@ namespace DiffEngine
             return commands.Any(x => x.Command == command);
         }
 
-        static void TerminalProcessIfExists(ProcessCommand processCommand)
+        static void TerminalProcessIfExists(in ProcessCommand processCommand)
         {
             var processId = processCommand.Process;
             using var processHandle = OpenProcess(4097, false, processId);
