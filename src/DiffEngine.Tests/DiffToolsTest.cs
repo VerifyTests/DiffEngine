@@ -232,16 +232,13 @@ public class DiffToolsTest :
         Assert.True(DiffTools.TryFind("txt", out var resolved));
         Assert.NotNull(resolved);
 
-        Assert.True(DiffTools.TryFind(DiffTool.VisualStudio, "txt", out resolved));
+        Assert.True(DiffTools.TryFind(DiffTool.VisualStudio, out resolved));
         Assert.NotNull(resolved);
 
         Assert.False(DiffTools.TryFind("notFound", out resolved));
         Assert.Null(resolved);
 
-        Assert.False(DiffTools.TryFind(DiffTool.VisualStudio, "notFound", out resolved));
-        Assert.Null(resolved);
-
-        Assert.False(DiffTools.TryFind(DiffTool.Kaleidoscope, "txt", out resolved));
+        Assert.False(DiffTools.TryFind(DiffTool.Kaleidoscope, out resolved));
         Assert.Null(resolved);
     }
 #endif

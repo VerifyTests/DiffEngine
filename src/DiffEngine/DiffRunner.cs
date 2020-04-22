@@ -45,10 +45,9 @@ namespace DiffEngine
         public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            var extension = Extensions.GetExtension(tempFile);
-            if (!DiffTools.TryFind(tool, extension, out var resolvedTool))
+            if (!DiffTools.TryFind(tool, out var resolvedTool))
             {
-                return LaunchResult.NoDiffToolForExtension;
+                return LaunchResult.NoDiffToolFound;
             }
 
             return Launch(resolvedTool, tempFile, targetFile);
@@ -64,7 +63,7 @@ namespace DiffEngine
 
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
-                return LaunchResult.NoDiffToolForExtension;
+                return LaunchResult.NoDiffToolFound;
             }
 
             return Launch(diffTool, tempFile, targetFile);

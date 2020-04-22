@@ -193,7 +193,6 @@ namespace DiffEngine
             }
         }
 
-
         static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
             var allTools = Tools()
@@ -228,61 +227,33 @@ namespace DiffEngine
         {
             if (Extensions.IsText(extension))
             {
-                return FirstTextTool(out tool);
+                tool = resolved.FirstOrDefault(x => x.SupportsText);
+                return tool != null;
             }
 
             return ExtensionLookup.TryGetValue(extension, out tool);
         }
 
-        static bool FirstTextTool(out ResolvedDiffTool tool)
-        {
-            tool = TextTools().FirstOrDefault();
-            return tool != null;
-        }
-
-        static IEnumerable<ResolvedDiffTool> TextTools()
-        {
-            return resolved.Where(x => x.SupportsText);
-        }
-
         internal static bool TryFind(
             DiffTool tool,
-            string extension,
             [NotNullWhen(true)] out ResolvedDiffTool? resolvedTool)
         {
-            if (Extensions.IsText(extension))
-            {
-                resolvedTool = TextTools().SingleOrDefault(x => x.Tool == tool);
-                return resolvedTool != null;
-            }
-
             resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
-            if (resolvedTool == null)
-            {
-                return false;
-            }
-
-            if (!resolvedTool.BinaryExtensions.Contains(extension))
-            {
-                resolvedTool = null;
-                return false;
-            }
-
-            return true;
+            return resolvedTool != null;
         }
 
         public static bool IsDetectedFor(DiffTool diffTool, string extensionOrPath)
         {
             var extension = Extensions.GetExtension(extensionOrPath);
-            if (Extensions.IsText(extension))
-            {
-                return TextTools().Any();
-            }
 
             var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
             if (tool == null)
             {
                 return false;
+            }
+            if (Extensions.IsText(extension))
+            {
+                return tool.SupportsText;
             }
 
             return tool.BinaryExtensions.Contains(extension);
