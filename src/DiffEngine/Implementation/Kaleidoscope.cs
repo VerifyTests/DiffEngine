@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Kaleidoscope()
+    public static Definition Kaleidoscope()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.Kaleidoscope,
             url: "https://www.kaleidoscopeapp.com/",
             supportsAutoRefresh: false,

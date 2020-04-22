@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition CodeCompare()
+    public static Definition CodeCompare()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
             supportsAutoRefresh: false,

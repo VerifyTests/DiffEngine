@@ -2,12 +2,12 @@
 
 static partial class Implementation
 {
-    public static ToolDefinition BeyondCompare()
+    public static Definition BeyondCompare()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"/solo \"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.BeyondCompare,
             url: "https://www.scootersoftware.com",
             supportsAutoRefresh: true,

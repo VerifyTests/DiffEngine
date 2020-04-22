@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TortoiseIDiff()
+    public static Definition TortoiseIDiff()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"/left:\"{tempFile}\" /right:\"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
             supportsAutoRefresh: false,

@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TortoiseGitMerge()
+    public static Definition TortoiseGitMerge()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.TortoiseGitMerge,
             url: "https://tortoisegit.org/docs/tortoisegitmerge/",
             supportsAutoRefresh: false,

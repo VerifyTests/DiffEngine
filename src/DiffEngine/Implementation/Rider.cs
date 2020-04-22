@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Rider()
+    public static Definition Rider()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $" diff \"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.Rider,
             url: "https://www.jetbrains.com/rider/",
             supportsAutoRefresh: false,

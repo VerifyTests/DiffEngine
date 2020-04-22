@@ -4,7 +4,7 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition WinMerge()
+    public static Definition WinMerge()
     {
         string BuildArguments(string tempFile, string targetFile)
         {
@@ -13,7 +13,7 @@ static partial class Implementation
             return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
         }
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.WinMerge,
             url: "https://winmerge.org/",
             supportsAutoRefresh: true,

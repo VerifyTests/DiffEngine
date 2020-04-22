@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 
-static class ToolDefinitions
+static class Definitions
 {
-    internal static List<ToolDefinition> Tools()
+    internal static List<Definition> Tools()
     {
-        return new List<ToolDefinition>
+        return new List<Definition>
         {
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),

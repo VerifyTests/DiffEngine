@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition VsCode()
+    public static Definition VsCode()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"--diff \"{targetFile}\" \"{tempFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.VisualStudioCode,
             url: "https://code.visualstudio.com",
             supportsAutoRefresh: true,

@@ -113,7 +113,7 @@ namespace DiffEngine
 
         static DiffTools()
         {
-            var result = ToolOrderReader.ReadToolOrder();
+            var result = OrderReader.ReadToolOrder();
 
             InitTools(result.FoundInEnvVar, result.Order);
         }
@@ -173,9 +173,9 @@ namespace DiffEngine
             InitTools(throwForNoTool, order);
         }
 
-        static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
+        static IEnumerable<Definition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
         {
-            var allTools = ToolDefinitions.Tools()
+            var allTools = Definitions.Tools()
                 .ToList();
             foreach (var diffTool in order)
             {
@@ -187,7 +187,7 @@ namespace DiffEngine
                         continue;
                     }
 
-                    throw new Exception($"`DiffEngine.DiffToolOrder` is configured to use '{diffTool}' but it is not installed.");
+                    throw new Exception($"`DiffEngine.ToolOrder` is configured to use '{diffTool}' but it is not installed.");
                 }
 
                 yield return definition;

@@ -3,8 +3,8 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition AraxisMerge() =>
-        new ToolDefinition(
+    public static Definition AraxisMerge() =>
+        new Definition(
             name: DiffTool.AraxisMerge,
             url: "https://www.araxis.com/merge",
             supportsAutoRefresh: true,

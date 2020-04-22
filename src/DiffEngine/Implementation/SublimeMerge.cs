@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition SublimeMerge()
+    public static Definition SublimeMerge()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"mergetool \"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.SublimeMerge,
             url: "https://www.sublimemerge.com/",
             supportsAutoRefresh: false,

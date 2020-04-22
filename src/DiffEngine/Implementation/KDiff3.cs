@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition KDiff3()
+    public static Definition KDiff3()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\" --cs CreateBakFiles=0";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.KDiff3,
             url: "https://github.com/KDE/kdiff3",
             supportsAutoRefresh: false,

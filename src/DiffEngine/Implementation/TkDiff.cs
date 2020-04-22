@@ -3,12 +3,12 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TkDiff()
+    public static Definition TkDiff()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
             supportsAutoRefresh: false,

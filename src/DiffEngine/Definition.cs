@@ -1,6 +1,6 @@
 ﻿using DiffEngine;
 
-class ToolDefinition
+class Definition
 {
     public DiffTool Tool { get; }
     public string Url { get; }
@@ -17,7 +17,7 @@ class ToolDefinition
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
 
-    public ToolDefinition(
+    public Definition(
         DiffTool name,
         string url,
         bool supportsAutoRefresh,

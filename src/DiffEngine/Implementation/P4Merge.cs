@@ -2,12 +2,12 @@
 
 static partial class Implementation
 {
-    public static ToolDefinition P4Merge()
+    public static Definition P4Merge()
     {
         string BuildArguments(string tempFile, string targetFile) =>
             $"\"{tempFile}\" \"{targetFile}\"";
 
-        return new ToolDefinition(
+        return new Definition(
             name: DiffTool.P4Merge,
             url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
             supportsAutoRefresh: false,

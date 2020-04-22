@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DiffEngine;
 
-static class ToolOrderReader
+static class OrderReader
 {
     public readonly struct Result
     {
@@ -29,7 +29,7 @@ static class ToolOrderReader
         IEnumerable<DiffTool> order;
         if (found)
         {
-            order = ParseEnvironmentVariable(diffOrder);
+            order = ParseEnvironment(diffOrder);
         }
         else
         {
@@ -39,14 +39,14 @@ static class ToolOrderReader
         return new Result(found, order);
     }
 
-    internal static IEnumerable<DiffTool> ParseEnvironmentVariable(string diffOrder)
+    internal static IEnumerable<DiffTool> ParseEnvironment(string diffOrder)
     {
         foreach (var toolString in diffOrder
             .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
         {
             if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
             {
-                throw new Exception($"Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: {toolString}");
+                throw new Exception($"Unable to parse tool from `DiffEngine.ToolOrder` environment variable: {toolString}");
             }
 
             yield return diffTool;

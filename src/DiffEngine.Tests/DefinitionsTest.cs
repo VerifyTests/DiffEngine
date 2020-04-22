@@ -4,7 +4,7 @@ using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
-public class ToolDefinitionsTest :
+public class DefinitionsTest :
     XunitContextBase
 {
     [Fact]
@@ -13,7 +13,7 @@ public class ToolDefinitionsTest :
         var md = Path.Combine(SourceDirectory, "diffToolList.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
-        var tools = ToolDefinitions
+        var tools = Definitions
             .Tools();
 
         foreach (var tool in tools
@@ -24,13 +24,13 @@ public class ToolDefinitionsTest :
     }
 
     [Fact]
-    public void WriteDefaultDiffToolOrder()
+    public void WriteDefaultOrder()
     {
         var md = Path.Combine(SourceDirectory, "defaultDiffToolOrder.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        foreach (var tool in ToolDefinitions.Tools())
+        foreach (var tool in Definitions.Tools())
         {
             writer.WriteLine($@" * {tool.Tool}");
         }
@@ -42,7 +42,7 @@ public class ToolDefinitionsTest :
         var md = Path.Combine(SourceDirectory, "diffTools.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
-        var tools = ToolDefinitions
+        var tools = Definitions
             .Tools();
 
         foreach (var tool in tools
@@ -123,7 +123,7 @@ public class ToolDefinitionsTest :
     }
 
 
-    public ToolDefinitionsTest(ITestOutputHelper output) :
+    public DefinitionsTest(ITestOutputHelper output) :
         base(output)
     {
     }
