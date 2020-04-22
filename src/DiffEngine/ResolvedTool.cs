@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace DiffEngine
 {
+    [DebuggerDisplay("{Name} {ExePath}")]
     public class ResolvedTool
     {
         public string Name { get; }

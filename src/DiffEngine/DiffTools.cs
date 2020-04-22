@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -10,8 +9,8 @@ namespace DiffEngine
 {
     public static class DiffTools
     {
-        static ConcurrentDictionary<string, ResolvedTool> ExtensionLookup = new ConcurrentDictionary<string, ResolvedTool>();
-        static ConcurrentBag<ResolvedTool> resolved = new ConcurrentBag<ResolvedTool>();
+        static Dictionary<string, ResolvedTool> ExtensionLookup = new Dictionary<string, ResolvedTool>();
+        static List<ResolvedTool> resolved = new List<ResolvedTool>();
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
@@ -71,7 +70,7 @@ namespace DiffEngine
             DiffTool toolTool,
             bool autoRefresh,
             bool isMdi,
-            bool toolSupportsText,
+            bool supportsText,
             bool requiresTarget,
             string[] binaryExtensions,
             BuildArguments? windowsArguments,
@@ -96,15 +95,12 @@ namespace DiffEngine
                 autoRefresh,
                 binaryExtensions,
                 requiresTarget,
-                toolSupportsText);
+                supportsText);
 
-            resolved.Add(diffTool);
+            resolved.Insert(0, diffTool);
             foreach (var ext in binaryExtensions)
             {
-                if (!ExtensionLookup.ContainsKey(ext))
-                {
-                    ExtensionLookup[ext] = diffTool;
-                }
+                ExtensionLookup[ext] = diffTool;
             }
         }
 
@@ -143,7 +139,7 @@ namespace DiffEngine
                 requiresTarget,
                 supportsText);
 
-            resolved.Add(tool);
+            resolved.Insert(0,tool);
             foreach (var extension in extensions)
             {
                 var cleanedExtension = Extensions.GetExtension(extension);
@@ -155,6 +151,11 @@ namespace DiffEngine
 
         static DiffTools()
         {
+            Reset();
+        }
+
+        internal static void Reset()
+        {
             var result = OrderReader.ReadToolOrder();
 
             InitTools(result.FoundInEnvVar, result.Order);
@@ -162,15 +163,25 @@ namespace DiffEngine
 
         static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> resultOrder)
         {
-            var tools = ToolsByOrder(resultFoundInEnvVar, resultOrder);
+            ExtensionLookup.Clear();
+            resolved.Clear();
 
-            foreach (var tool in tools.Reverse())
+            foreach (var tool in ToolsByOrder(resultFoundInEnvVar, resultOrder).Reverse())
             {
-                AddTool(tool.Tool.ToString(),
+                AddTool(
+                    tool.Tool.ToString(),
                     tool.Tool,
                     tool.AutoRefresh,
                     tool.IsMdi,
-                    tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.WindowsArguments, tool.WindowsPaths, tool.LinuxArguments, tool.LinuxPaths, tool.OsxArguments, tool.OsxPaths);
+                    tool.SupportsText,
+                    tool.RequiresTarget,
+                    tool.BinaryExtensions,
+                    tool.WindowsArguments,
+                    tool.WindowsPaths,
+                    tool.LinuxArguments,
+                    tool.LinuxPaths,
+                    tool.OsxArguments,
+                    tool.OsxPaths);
             }
         }
 
@@ -183,15 +194,6 @@ namespace DiffEngine
         {
             Guard.AgainstNullOrEmpty(order, nameof(order));
 
-            ExtensionLookup.Clear();
-#if NETSTANDARD2_1
-            resolved.Clear();
-#else
-            while (!resolved.IsEmpty)
-            {
-                resolved.TryTake(out _);
-            }
-#endif
             InitTools(throwForNoTool, order);
         }
 

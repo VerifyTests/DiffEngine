@@ -123,5 +123,6 @@ public class DiffToolsTest :
     public DiffToolsTest(ITestOutputHelper output) :
         base(output)
     {
+        DiffTools.Reset();
     }
 }
