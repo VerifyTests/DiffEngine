@@ -91,24 +91,21 @@ class ToolDefinition
         string[] binaryExtensions,
         string[] linuxExePaths,
         string[] osxExePaths,
-        string? notes = null)
+        string? notes = null) : this(name,
+        url,
+        supportsAutoRefresh,
+        isMdi,
+        supportsText,
+        requiresTarget,
+        buildArguments,
+        buildArguments,
+        buildArguments,
+        windowsExePaths,
+        binaryExtensions,
+        linuxExePaths,
+        osxExePaths,
+        notes)
     {
-        Tool = name;
-        Url = url;
-        SupportsAutoRefresh = supportsAutoRefresh;
-        IsMdi = isMdi;
-        BuildWindowsArguments = buildArguments;
-        BuildLinuxArguments = buildArguments;
-        BuildOsxArguments = buildArguments;
-        BinaryExtensions = binaryExtensions;
-        WindowsExePaths = windowsExePaths;
-        LinuxExePaths = linuxExePaths;
-        OsxExePaths = osxExePaths;
-        Notes = notes;
-        SupportsText = supportsText;
-        RequiresTarget = requiresTarget;
-
-        FindExe();
     }
 
     void FindExe()
