@@ -28,7 +28,7 @@ namespace DiffEngine
             BuildArguments buildArguments,
             bool isMdi,
             bool autoRefresh,
-            string[] binaryExtensions,
+            IReadOnlyList<string> binaryExtensions,
             bool requiresTarget,
             bool supportsText)
         {

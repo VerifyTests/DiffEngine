@@ -14,28 +14,6 @@ namespace DiffEngine
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
-        public static string GetPathFor(DiffTool tool)
-        {
-            if (TryGetPathFor(tool, out var exePath))
-            {
-                return exePath;
-            }
-            throw new Exception($"Tool to found: {tool}");
-        }
-
-        public static bool TryGetPathFor(DiffTool tool, [NotNullWhen(true)] out string? exePath)
-        {
-            var resolvedDiffTool = resolved.SingleOrDefault(x => x.Tool == tool);
-            if (resolvedDiffTool == null)
-            {
-                exePath = null;
-                return false;
-            }
-
-            exePath = resolvedDiffTool.ExePath;
-            return true;
-        }
-
         public static bool TryAddCustomTool(
             DiffTool basedOn,
             string name,
@@ -65,6 +43,36 @@ namespace DiffEngine
             );
         }
 
+        public static void AddTool(
+            string name,
+            bool autoRefresh,
+            bool isMdi,
+            bool supportsText,
+            bool requiresTarget,
+            string[] binaryExtensions,
+            BuildArguments? windowsArguments,
+            IEnumerable<string> windowsPaths,
+            BuildArguments? linuxArguments,
+            IEnumerable<string> linuxPaths,
+            BuildArguments? osxArguments,
+            IEnumerable<string> osxPaths)
+        {
+            AddTool(
+                name,
+                null,
+                autoRefresh,
+                isMdi,
+                supportsText,
+                requiresTarget,
+                binaryExtensions,
+                windowsArguments,
+                windowsPaths,
+                linuxArguments,
+                linuxPaths,
+                osxArguments,
+                osxPaths);
+        }
+
         static void AddTool(
             string name,
             DiffTool? diffTool,
@@ -86,6 +94,28 @@ namespace DiffEngine
             }
 
             var arguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
+            AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments);
+        }
+
+        static void AddInner(
+            string name,
+            DiffTool? diffTool,
+            bool autoRefresh,
+            bool isMdi,
+            bool supportsText,
+            bool requiresTarget,
+            IEnumerable<string> binaries,
+            string exePath,
+            BuildArguments arguments)
+        {
+            Guard.AgainstNullOrEmpty(name, nameof(name));
+            Guard.AgainstNull(binaries, nameof(binaries));
+            Guard.AgainstNull(arguments, nameof(arguments));
+            if (resolved.Any(x => x.Name == name))
+            {
+                throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
+            }
+            var binariesList = binaries.ToList();
             var resolvedTool = new ResolvedTool(
                 name,
                 diffTool,
@@ -93,14 +123,15 @@ namespace DiffEngine
                 arguments,
                 isMdi,
                 autoRefresh,
-                binaryExtensions,
+                binariesList,
                 requiresTarget,
                 supportsText);
 
             resolved.Insert(0, resolvedTool);
-            foreach (var ext in binaryExtensions)
+            foreach (var extension in binariesList)
             {
-                ExtensionLookup[ext] = resolvedTool;
+                var cleanedExtension = Extensions.GetExtension(extension);
+                ExtensionLookup[cleanedExtension] = resolvedTool;
             }
         }
 
@@ -123,28 +154,16 @@ namespace DiffEngine
                 return false;
             }
 
-            if (resolved.Any(x => x.Name == name))
-            {
-                throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
-            }
-
-            var extensions = binaryExtensions.ToArray();
-            var tool = new ResolvedTool(
+            AddInner(
                 name,
-                exePath,
-                buildArguments,
-                isMdi,
+                null,
                 autoRefresh,
-                extensions,
+                isMdi,
+                supportsText,
                 requiresTarget,
-                supportsText);
-
-            resolved.Insert(0,tool);
-            foreach (var extension in extensions)
-            {
-                var cleanedExtension = Extensions.GetExtension(extension);
-                ExtensionLookup[cleanedExtension] = tool;
-            }
+                binaryExtensions,
+                exePath,
+                buildArguments);
 
             return true;
         }

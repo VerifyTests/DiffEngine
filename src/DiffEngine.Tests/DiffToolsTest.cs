@@ -9,35 +9,6 @@ public class DiffToolsTest :
     XunitContextBase
 {
     [Fact]
-    public void TryGetPathFor()
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return;
-        }
-        #region TryGetPathFor
-
-        var foundPath = DiffTools.TryGetPathFor(DiffTool.VisualStudio, out var path);
-        #endregion
-        Assert.True(foundPath);
-        Assert.NotNull(path);
-        Assert.True(File.Exists(path));
-    }
-
-    [Fact]
-    public void GetPathFor()
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return;
-        }
-        #region GetPathFor
-        var toolPath = DiffTools.GetPathFor(DiffTool.VisualStudio);
-        #endregion
-        Assert.True(File.Exists(toolPath));
-    }
-
-    [Fact]
     public void MaxInstancesToLaunch()
     {
         #region MaxInstancesToLaunch
