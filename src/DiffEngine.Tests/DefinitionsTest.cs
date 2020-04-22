@@ -26,7 +26,7 @@ public class DefinitionsTest :
     [Fact]
     public void WriteDefaultOrder()
     {
-        var md = Path.Combine(SourceDirectory, "defaultDiffToolOrder.include.md");
+        var md = Path.Combine(SourceDirectory, "defaultOrder.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
 

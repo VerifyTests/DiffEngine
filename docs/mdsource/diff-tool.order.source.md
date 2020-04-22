@@ -3,7 +3,7 @@
 
 ## Default
 
-include: defaultDiffToolOrder
+include: defaultOrder
 
 
 ## Custom order
@@ -11,7 +11,7 @@ include: defaultDiffToolOrder
 
 ### ViaEnvironment Variable
 
-Set an `DiffEngine.DiffToolOrder` environment variable with the preferred order of toll resolution. The value can be comma (`,`), pipe (`|`), or space separated.
+Set an `DiffEngine.ToolOrder` environment variable with the preferred order of toll resolution. The value can be comma (`,`), pipe (`|`), or space separated.
 
 For example `VisualStudio,Meld` will result in VisualStudio then Meld then all other tools being the order.
 
