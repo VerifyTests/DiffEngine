@@ -37,7 +37,7 @@ namespace DiffEngine
             return true;
         }
 
-        public static bool AddCustomTool(
+        public static bool TryAddCustomTool(
             DiffTool basedOn,
             string name,
             bool? supportsAutoRefresh,
@@ -64,6 +64,48 @@ namespace DiffEngine
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions
             );
+        }
+
+        public static void AddTool(
+            string[] windowsPaths,
+            string[] linuxPaths,
+            string[] osxPaths,
+            BuildArguments? windowsArguments,
+            BuildArguments? linuxArguments,
+            BuildArguments? osxArguments,
+            string name,
+            DiffTool toolTool,
+            bool isMdi,
+            bool toolSupportsAutoRefresh,
+            string[] binaryExtensions,
+            bool requiresTarget,
+            bool toolSupportsText)
+        {
+            if (!ExeFinder.TryFindExe(windowsPaths, linuxPaths, osxPaths, out var exePath))
+            {
+                return;
+            }
+
+            var buildArguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
+            var diffTool = new ResolvedDiffTool(
+                name,
+                toolTool,
+                exePath,
+                buildArguments,
+                isMdi,
+                toolSupportsAutoRefresh,
+                binaryExtensions,
+                requiresTarget,
+                toolSupportsText);
+
+            resolved.Add(diffTool);
+            foreach (var ext in binaryExtensions)
+            {
+                if (!ExtensionLookup.ContainsKey(ext))
+                {
+                    ExtensionLookup[ext] = diffTool;
+                }
+            }
         }
 
         public static bool TryAddCustomTool(
@@ -124,31 +166,19 @@ namespace DiffEngine
 
             foreach (var tool in tools.Reverse())
             {
-                if (!ExeFinder.TryFindExe(tool.WindowsPaths, tool.LinuxPaths, tool.OsxPaths, out var exePath))
-                {
-                    continue;
-                }
-
-                var buildArguments = ArgumentBuilder.Build(tool.WindowsArguments, tool.LinuxArguments, tool.OsxArguments);
-                var diffTool = new ResolvedDiffTool(
+                AddTool(tool.WindowsPaths,
+                    tool.LinuxPaths,
+                    tool.OsxPaths,
+                    tool.WindowsArguments,
+                    tool.LinuxArguments,
+                    tool.OsxArguments,
                     tool.Tool.ToString(),
                     tool.Tool,
-                    exePath,
-                    buildArguments,
                     tool.IsMdi,
                     tool.SupportsAutoRefresh,
                     tool.BinaryExtensions,
                     tool.RequiresTarget,
                     tool.SupportsText);
-
-                resolved.Add(diffTool);
-                foreach (var ext in tool.BinaryExtensions)
-                {
-                    if (!ExtensionLookup.ContainsKey(ext))
-                    {
-                        ExtensionLookup[ext] = diffTool;
-                    }
-                }
             }
         }
 
