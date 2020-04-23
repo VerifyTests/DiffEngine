@@ -12,7 +12,8 @@ static class ExeFinder
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out BuildArguments? arguments)
     {
-        if (windows != null && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (windows != null &&
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             if (TryFindExe(windows.ExePaths, out path))
             {
@@ -21,7 +22,8 @@ static class ExeFinder
             }
         }
 
-        if (linux != null && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (linux != null && 
+            RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             if (TryFindExe(linux.ExePaths, out path))
             {
@@ -30,7 +32,8 @@ static class ExeFinder
             }
         }
 
-        if (osx != null && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (osx != null &&
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             if (TryFindExe(osx.ExePaths, out path))
             {

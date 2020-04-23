@@ -6,13 +6,6 @@ static partial class Implementation
 {
     public static Definition WinMerge()
     {
-        string BuildArguments(string tempFile, string targetFile)
-        {
-            var leftTitle = Path.GetFileName(tempFile);
-            var rightTitle = Path.GetFileName(targetFile);
-            return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
-        }
-
         return new Definition(
             name: DiffTool.WinMerge,
             url: "https://winmerge.org/",
@@ -20,10 +13,14 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings(BuildArguments, new[]
-            {
-                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"
-            }),
+            windows: new OsSettings(
+                (temp, target) =>
+                {
+                    var leftTitle = Path.GetFileName(temp);
+                    var rightTitle = Path.GetFileName(target);
+                    return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
+                },
+                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"),
             linux: null,
             osx: null,
             binaryExtensions: Array.Empty<string>(),

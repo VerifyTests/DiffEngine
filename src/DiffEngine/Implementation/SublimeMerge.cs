@@ -5,8 +5,8 @@ static partial class Implementation
 {
     public static Definition SublimeMerge()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"mergetool \"{tempFile}\" \"{targetFile}\"";
+        string Arguments(string tempFile, string target) =>
+            $"mergetool \"{tempFile}\" \"{target}\"";
 
         return new Definition(
             name: DiffTool.SublimeMerge,
@@ -15,18 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings( BuildArguments,new[]
-            {
-                @"%ProgramFiles%\Sublime Merge\smerge.exe"
-            }),
-            linux: new OsSettings( BuildArguments,new[]
-            {
-                @"/usr/bin/smerge"
-            }),
-            osx: new OsSettings( BuildArguments, new[]
-            {
-                @"/Applications/smerge.app/Contents/MacOS/smerge"
-            }),
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\Sublime Merge\smerge.exe"),
+            linux: new OsSettings(Arguments, @"/usr/bin/smerge"),
+            osx: new OsSettings(Arguments, @"/Applications/smerge.app/Contents/MacOS/smerge"),
             binaryExtensions: Array.Empty<string>());
     }
 }

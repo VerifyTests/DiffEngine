@@ -5,9 +5,6 @@ static partial class Implementation
 {
     public static Definition VisualStudio()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"/diff \"{targetFile}\" \"{tempFile}\"";
-
         return new Definition(
             name: DiffTool.VisualStudio,
             url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
@@ -15,13 +12,12 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings(BuildArguments, new[]
-            {
+            windows: new OsSettings(
+                (temp, target) => $"/diff \"{target}\" \"{temp}\"",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe",
-            }),
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe"),
             linux: null,
             osx: null,
             binaryExtensions: Array.Empty<string>());

@@ -11,18 +11,12 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             windows: new OsSettings(
-                (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
-                new[]
-                {
-                    @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"
-                }),
+                (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
             linux: null,
             osx: new OsSettings(
-                (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
-                new[]
-                {
-                    "/Applications/Araxis Merge.app/Contents/Utilities/compare"
-                }),
+                (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
+                "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             binaryExtensions: new[]
             {
                 "bmp",

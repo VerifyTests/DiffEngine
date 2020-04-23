@@ -5,8 +5,8 @@ static partial class Implementation
 {
     public static Definition Meld()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"\"{tempFile}\" \"{targetFile}\"";
+        string Arguments(string temp, string target) =>
+            $"\"{temp}\" \"{target}\"";
 
         return new Definition(
             name: DiffTool.Meld,
@@ -15,18 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings(BuildArguments, new[]
-            {
-                @"%ProgramFiles(x86)%\Meld\meld.exe"
-            }),
-            linux: new OsSettings(BuildArguments, new[]
-            {
-                @"/usr/bin/meld"
-            }),
-            osx: new OsSettings(BuildArguments, new[]
-            {
-                @"/Applications/meld.app/Contents/MacOS/meld"
-            }),
+            windows: new OsSettings(Arguments, @"%ProgramFiles(x86)%\Meld\meld.exe"),
+            linux: new OsSettings(Arguments, @"/usr/bin/meld"),
+            osx: new OsSettings(Arguments, @"/Applications/meld.app/Contents/MacOS/meld"),
             binaryExtensions: Array.Empty<string>()
         );
     }

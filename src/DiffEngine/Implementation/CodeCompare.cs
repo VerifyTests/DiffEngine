@@ -5,9 +5,6 @@ static partial class Implementation
 {
     public static Definition CodeCompare()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"\"{tempFile}\" \"{targetFile}\"";
-
         return new Definition(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
@@ -16,11 +13,8 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             windows: new OsSettings(
-                BuildArguments,
-                new[]
-                {
-                    @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"
-                }),
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"),
             linux: null,
             osx: null,
             binaryExtensions: Array.Empty<string>(),

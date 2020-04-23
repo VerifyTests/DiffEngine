@@ -4,8 +4,8 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"/solo \"{tempFile}\" \"{targetFile}\"";
+        string Arguments(string temp, string target) =>
+            $"/solo \"{temp}\" \"{target}\"";
 
         return new Definition(
             name: DiffTool.BeyondCompare,
@@ -14,25 +14,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: false,
-            windows: new OsSettings(
-                BuildArguments,
-                new[]
-                {
-                    @"%ProgramFiles%\Beyond Compare *\BCompare.exe"
-                }),
-            linux: new OsSettings(
-                BuildArguments,
-                new[]
-                {
-                    //TODO:
-                    "/usr/lib/beyondcompare/bcomp"
-                }),
-            osx: new OsSettings(
-                BuildArguments,
-                new[]
-                {
-                    "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"
-                }),
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
+            linux: new OsSettings(Arguments, "/usr/lib/beyondcompare/bcomp"),
+            osx: new OsSettings(Arguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             binaryExtensions: new[]
             {
                 "mp3", //?

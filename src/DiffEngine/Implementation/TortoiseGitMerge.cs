@@ -5,9 +5,6 @@ static partial class Implementation
 {
     public static Definition TortoiseGitMerge()
     {
-        string BuildArguments(string tempFile, string targetFile) =>
-            $"\"{tempFile}\" \"{targetFile}\"";
-
         return new Definition(
             name: DiffTool.TortoiseGitMerge,
             url: "https://tortoisegit.org/docs/tortoisegitmerge/",
@@ -15,10 +12,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings(BuildArguments,new[]
-            {
-                @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"
-            }),
+            windows: new OsSettings(
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"),
             linux: null,
             osx: null,
             binaryExtensions: Array.Empty<string>());
