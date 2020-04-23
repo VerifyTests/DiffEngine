@@ -146,7 +146,7 @@ namespace DiffEngine
             ExtensionLookup.Clear();
             resolved.Clear();
 
-            foreach (var tool in ToolsByOrder(resultFoundInEnvVar, resultOrder).Reverse())
+            foreach (var tool in ToolsOrder.ToolsByOrder(resultFoundInEnvVar, resultOrder).Reverse())
             {
                 AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
             }
@@ -164,32 +164,6 @@ namespace DiffEngine
             InitTools(throwForNoTool, order);
         }
 
-        static IEnumerable<Definition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
-        {
-            var allTools = Definitions.Tools()
-                .ToList();
-            foreach (var diffTool in order)
-            {
-                var definition = allTools.SingleOrDefault(x => x.Tool == diffTool);
-                if (definition == null)
-                {
-                    if (!throwForNoTool)
-                    {
-                        continue;
-                    }
-
-                    throw new Exception($"`DiffEngine.ToolOrder` is configured to use '{diffTool}' but it is not installed.");
-                }
-
-                yield return definition;
-                allTools.Remove(definition);
-            }
-
-            foreach (var definition in allTools)
-            {
-                yield return definition;
-            }
-        }
 
         internal static bool TryFind(
             string extension,
