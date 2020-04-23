@@ -15,21 +15,18 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings( BuildArguments,new[]
             {
                 @"%ProgramFiles%\Sublime Merge\smerge.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: new[]
+            }),
+            linux: new OsSettings( BuildArguments,new[]
             {
                 @"/usr/bin/smerge"
-            },
-            osxPaths: new[]
+            }),
+            osx: new OsSettings( BuildArguments, new[]
             {
                 @"/Applications/smerge.app/Contents/MacOS/smerge"
-            });
+            }),
+            binaryExtensions: Array.Empty<string>());
     }
 }

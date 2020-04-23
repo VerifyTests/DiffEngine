@@ -1,5 +1,4 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
@@ -15,13 +14,12 @@ static partial class Implementation
             isMdi: false,
             supportsText: false,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings(BuildArguments,new[]
             {
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"
-            },
+            }),
+            linux: null,
+            osx: null,
             binaryExtensions: new[]
             {
                 "bmp",
@@ -32,8 +30,6 @@ static partial class Implementation
                 "png",
                 "tif",
                 "tiff",
-            },
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: Array.Empty<string>());
+            });
     }
 }

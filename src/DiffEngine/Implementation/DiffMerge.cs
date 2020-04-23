@@ -15,21 +15,23 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
-            {
-                @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: new[]
-            {
-                "/usr/bin/diffmerge"
-            },
-            osxPaths: new[]
-            {
-                "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"
-            });
+            windows: new OsSettings(
+                BuildArguments,
+                new[]
+                {
+                    @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"
+                }),
+            linux: new OsSettings(
+                BuildArguments,
+                new[]
+                {
+                    "/usr/bin/diffmerge"
+                }),
+            osx: new OsSettings(BuildArguments,
+                new[]
+                {
+                    "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"
+                }),
+            binaryExtensions: Array.Empty<string>());
     }
 }

@@ -15,15 +15,12 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings(BuildArguments,new[]
             {
                 @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: Array.Empty<string>());
+            }),
+            linux: null,
+            osx: null,
+            binaryExtensions: Array.Empty<string>());
     }
 }

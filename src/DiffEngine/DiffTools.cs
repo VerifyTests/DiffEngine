@@ -25,7 +25,7 @@ namespace DiffEngine
             string? exePath,
             IEnumerable<string>? binaryExtensions)
         {
-            var existing = resolved.SingleOrDefault(x=>x.Tool ==basedOn);
+            var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
             if (existing == null)
             {
                 return false;
@@ -50,27 +50,11 @@ namespace DiffEngine
             bool supportsText,
             bool requiresTarget,
             string[] binaryExtensions,
-            BuildArguments? windowsArguments,
-            IEnumerable<string> windowsPaths,
-            BuildArguments? linuxArguments,
-            IEnumerable<string> linuxPaths,
-            BuildArguments? osxArguments,
-            IEnumerable<string> osxPaths)
+            OsSettings? windows,
+            OsSettings? linux,
+            OsSettings? osx)
         {
-            AddTool(
-                name,
-                null,
-                autoRefresh,
-                isMdi,
-                supportsText,
-                requiresTarget,
-                binaryExtensions,
-                windowsArguments,
-                windowsPaths,
-                linuxArguments,
-                linuxPaths,
-                osxArguments,
-                osxPaths);
+            AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx);
         }
 
         static void AddTool(
@@ -81,19 +65,14 @@ namespace DiffEngine
             bool supportsText,
             bool requiresTarget,
             string[] binaryExtensions,
-            BuildArguments? windowsArguments,
-            IEnumerable<string> windowsPaths,
-            BuildArguments? linuxArguments,
-            IEnumerable<string> linuxPaths,
-            BuildArguments? osxArguments,
-            IEnumerable<string> osxPaths)
+            OsSettings? windows,
+            OsSettings? linux,
+            OsSettings? osx)
         {
-            if (!ExeFinder.TryFindExe(windowsPaths, linuxPaths, osxPaths, out var exePath))
+            if (!ExeFinder.TryFindExe(windows, linux, osx, out var exePath, out var arguments))
             {
                 return;
             }
-
-            var arguments = ArgumentBuilder.Build(windowsArguments, linuxArguments, osxArguments);
             AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments);
         }
 
@@ -116,16 +95,7 @@ namespace DiffEngine
                 throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
             }
             var binariesList = binaries.ToList();
-            var resolvedTool = new ResolvedTool(
-                name,
-                diffTool,
-                exePath,
-                arguments,
-                isMdi,
-                autoRefresh,
-                binariesList,
-                requiresTarget,
-                supportsText);
+            var resolvedTool = new ResolvedTool(name, diffTool, exePath, arguments, isMdi, autoRefresh, binariesList, requiresTarget, supportsText);
 
             resolved.Insert(0, resolvedTool);
             foreach (var extension in binariesList)
@@ -154,16 +124,7 @@ namespace DiffEngine
                 return false;
             }
 
-            AddInner(
-                name,
-                null,
-                autoRefresh,
-                isMdi,
-                supportsText,
-                requiresTarget,
-                binaryExtensions,
-                exePath,
-                buildArguments);
+            AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, buildArguments);
 
             return true;
         }
@@ -187,20 +148,7 @@ namespace DiffEngine
 
             foreach (var tool in ToolsByOrder(resultFoundInEnvVar, resultOrder).Reverse())
             {
-                AddTool(
-                    tool.Tool.ToString(),
-                    tool.Tool,
-                    tool.AutoRefresh,
-                    tool.IsMdi,
-                    tool.SupportsText,
-                    tool.RequiresTarget,
-                    tool.BinaryExtensions,
-                    tool.WindowsArguments,
-                    tool.WindowsPaths,
-                    tool.LinuxArguments,
-                    tool.LinuxPaths,
-                    tool.OsxArguments,
-                    tool.OsxPaths);
+                AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
             }
         }
 

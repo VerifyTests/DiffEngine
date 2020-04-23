@@ -1,32 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using DiffEngine;
 
 static class ExeFinder
 {
     public static bool TryFindExe(
-        IEnumerable<string> windowsPaths,
-        IEnumerable<string> linuxPaths,
-        IEnumerable<string> osxPaths,
-        [NotNullWhen(true)] out string? path)
+        OsSettings? windows,
+        OsSettings? linux,
+        OsSettings? osx,
+        [NotNullWhen(true)] out string? path,
+        [NotNullWhen(true)] out BuildArguments? arguments)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (windows != null && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return TryFindExe(windowsPaths, out path);
+            if (TryFindExe(windows.ExePaths, out path))
+            {
+                arguments = windows.Arguments;
+                return true;
+            }
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (linux != null && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return TryFindExe(linuxPaths, out path);
+            if (TryFindExe(linux.ExePaths, out path))
+            {
+                arguments = linux.Arguments;
+                return true;
+            }
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (osx != null && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return TryFindExe(osxPaths, out path);
+            if (TryFindExe(osx.ExePaths, out path))
+            {
+                arguments = osx.Arguments;
+                return true;
+            }
         }
 
-        throw new Exception($"OS not supported: {RuntimeInformation.OSDescription}");
+        path = null;
+        arguments = null;
+        return false;
     }
 
     static bool TryFindExe(IEnumerable<string> paths, [NotNullWhen(true)] out string? exePath)

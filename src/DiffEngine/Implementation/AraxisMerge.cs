@@ -1,5 +1,4 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
@@ -11,18 +10,19 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
-            linuxArguments: null,
-            osxArguments: (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
-            windowsPaths: new[]
-            {
-                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"
-            },
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: new[]
-            {
-                "/Applications/Araxis Merge.app/Contents/Utilities/compare"
-            },
+            windows: new OsSettings(
+                (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
+                new[]
+                {
+                    @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"
+                }),
+            linux: null,
+            osx: new OsSettings(
+                (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
+                new[]
+                {
+                    "/Applications/Araxis Merge.app/Contents/Utilities/compare"
+                }),
             binaryExtensions: new[]
             {
                 "bmp",

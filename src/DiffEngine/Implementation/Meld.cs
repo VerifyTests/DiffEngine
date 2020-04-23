@@ -15,21 +15,19 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings(BuildArguments, new[]
             {
                 @"%ProgramFiles(x86)%\Meld\meld.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: new[]
+            }),
+            linux: new OsSettings(BuildArguments, new[]
             {
                 @"/usr/bin/meld"
-            },
-            osxPaths: new[]
+            }),
+            osx: new OsSettings(BuildArguments, new[]
             {
                 @"/Applications/meld.app/Contents/MacOS/meld"
-            });
+            }),
+            binaryExtensions: Array.Empty<string>()
+        );
     }
 }

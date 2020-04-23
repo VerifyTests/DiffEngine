@@ -15,16 +15,15 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
-            {
-                @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"
-            },
+            windows: new OsSettings(
+                BuildArguments,
+                new[]
+                {
+                    @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"
+                }),
+            linux: null,
+            osx: null,
             binaryExtensions: Array.Empty<string>(),
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)");
     }

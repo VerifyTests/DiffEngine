@@ -1,5 +1,4 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
@@ -15,11 +14,16 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: Array.Empty<string>(),
-            binaryExtensions: new[]
+            windows: null,
+            linux: null,
+            osx: new OsSettings(
+                BuildArguments,
+                new[]
+                {
+                    "/usr/local/bin/ksdiff"
+                }),
+            binaryExtensions:
+            new[]
             {
                 "bmp",
                 "gif",
@@ -29,11 +33,6 @@ static partial class Implementation
                 "png",
                 "tiff",
                 "tif",
-            },
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: new[]
-            {
-                "/usr/local/bin/ksdiff"
             });
     }
 }

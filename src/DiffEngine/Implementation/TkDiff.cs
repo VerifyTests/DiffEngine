@@ -15,15 +15,12 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: Array.Empty<string>(),
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: new[]
+            windows: null,
+            linux: null,
+            osx: new OsSettings(BuildArguments, new[]
             {
                 "/Applications/TkDiff.app/Contents/MacOS/tkdiff"
-            });
+            }),
+            binaryExtensions: Array.Empty<string>());
     }
 }

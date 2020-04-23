@@ -15,23 +15,20 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings(BuildArguments, new[]
             {
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
                 @"%ProgramFiles%\Microsoft VS Code\bin\code"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: new[]
+            }),
+            linux: new OsSettings(BuildArguments, new[]
             {
                 @"/usr/local/bin/code"
-            },
-            osxPaths: new[]
+            }),
+            osx: new OsSettings(BuildArguments, new[]
             {
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
-            },
+            }),
+            binaryExtensions: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }

@@ -14,13 +14,18 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows: new OsSettings(BuildArguments, new[]
             {
                 @"%ProgramFiles%\Perforce\p4merge.exe"
-            },
+            }),
+            linux: new OsSettings(BuildArguments, new[]
+            {
+                @"/usr/bin/p4merge"
+            }),
+            osx: new OsSettings(BuildArguments, new[]
+            {
+                @"/Applications/p4merge.app/Contents/MacOS/p4merge"
+            }),
             binaryExtensions: new[]
             {
                 "bmp",
@@ -35,14 +40,6 @@ static partial class Implementation
                 "tiff",
                 "xbm",
                 "xpm"
-            },
-            linuxPaths: new[]
-            {
-                @"/usr/bin/p4merge"
-            },
-            osxPaths: new[]
-            {
-                @"/Applications/p4merge.app/Contents/MacOS/p4merge"
             });
     }
 }

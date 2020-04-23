@@ -6,13 +6,10 @@ class Definition
     public string Url { get; }
     public bool AutoRefresh { get; }
     public bool IsMdi { get; }
-    public BuildArguments? WindowsArguments { get; }
-    public BuildArguments? LinuxArguments { get; }
-    public BuildArguments? OsxArguments { get; }
+    public OsSettings? Windows { get; }
+    public OsSettings? Linux { get; }
+    public OsSettings? Osx { get; }
     public string[] BinaryExtensions { get; }
-    public string[] WindowsPaths { get; }
-    public string[] LinuxPaths { get; }
-    public string[] OsxPaths { get; }
     public string? Notes { get; }
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
@@ -24,28 +21,22 @@ class Definition
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        BuildArguments? windowsArguments,
-        BuildArguments? linuxArguments,
-        BuildArguments? osxArguments,
-        string[] windowsPaths,
+        OsSettings? windows,
+        OsSettings? linux,
+        OsSettings? osx,
         string[] binaryExtensions,
-        string[] linuxPaths,
-        string[] osxPaths,
         string? notes = null)
     {
         Tool = name;
         Url = url;
         AutoRefresh = autoRefresh;
         IsMdi = isMdi;
-        WindowsArguments = windowsArguments;
-        LinuxArguments = linuxArguments;
-        OsxArguments = osxArguments;
         BinaryExtensions = binaryExtensions;
-        WindowsPaths = windowsPaths;
-        LinuxPaths = linuxPaths;
-        OsxPaths = osxPaths;
         Notes = notes;
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;
+        Windows = windows;
+        Linux = linux;
+        Osx = osx;
     }
 }

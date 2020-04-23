@@ -15,19 +15,16 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windowsArguments: BuildArguments,
-            linuxArguments: BuildArguments,
-            osxArguments: BuildArguments,
-            windowsPaths: new[]
+            windows:new OsSettings( BuildArguments,new[]
             {
                 @"%ProgramFiles%\KDiff3\kdiff3.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxPaths: Array.Empty<string>(),
-            osxPaths: new[]
+            }),
+            linux: null,
+            osx: new OsSettings(BuildArguments, new[]
             {
                 "/Applications/kdiff3.app/Contents/MacOS/kdiff3"
-            },
+            }),
+            binaryExtensions: Array.Empty<string>(),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

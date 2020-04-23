@@ -69,31 +69,31 @@ public class DefinitionsTest :
                 writer.WriteLine(tool.Notes);
             }
 
-            if (tool.WindowsPaths.Any())
+            if (tool.Windows != null)
             {
                 writer.WriteLine(@"
 ### Windows settings:
 ");
-                WriteArguments(writer, tool.WindowsArguments!);
-                WritePaths(writer, tool.WindowsPaths);
+                WriteArguments(writer, tool.Windows.Arguments!);
+                WritePaths(writer, tool.Windows.ExePaths);
             }
 
-            if (tool.OsxPaths.Any())
+            if (tool.Osx != null)
             {
                 writer.WriteLine(@"
 ### OSX settings:
 ");
-                WriteArguments(writer, tool.OsxArguments!);
-                WritePaths(writer, tool.OsxPaths);
+                WriteArguments(writer, tool.Osx.Arguments);
+                WritePaths(writer, tool.Osx.ExePaths);
             }
 
-            if (tool.LinuxPaths.Any())
+            if (tool.Linux != null)
             {
                 writer.WriteLine(@"
 ### Linux settings:
 ");
-                WriteArguments(writer, tool.LinuxArguments!);
-                WritePaths(writer, tool.LinuxPaths);
+                WriteArguments(writer, tool.Linux.Arguments);
+                WritePaths(writer, tool.Linux.ExePaths);
             }
         }
     }
