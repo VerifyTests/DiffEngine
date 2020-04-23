@@ -64,18 +64,6 @@ Supports:
  * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
 
 
-## Get path for tool
-
-
-### GetPathFor
-
-snippet: GetPathFor
-
-
-### TryGetPathFor
-
-snippet: TryGetPathFor
-
 ## Security contact information
 
 To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.

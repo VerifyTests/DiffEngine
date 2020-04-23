@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 ## Default
 
- * BeyondCompare <!-- include: defaultDiffToolOrder. path: /src/DiffEngine.Tests/defaultDiffToolOrder.include.md -->
+ * BeyondCompare <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
  * P4Merge
  * AraxisMerge
  * Meld
@@ -26,7 +26,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * TkDiff
  * VisualStudioCode
  * VisualStudio
- * Rider <!-- end include: defaultDiffToolOrder. path: /src/DiffEngine.Tests/defaultDiffToolOrder.include.md -->
+ * Rider <!-- end include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
 
 
 ## Custom order
@@ -34,7 +34,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 ### ViaEnvironment Variable
 
-Set an `DiffEngine.DiffToolOrder` environment variable with the preferred order of toll resolution. The value can be comma (`,`), pipe (`|`), or space separated.
+Set an `DiffEngine.ToolOrder` environment variable with the preferred order of toll resolution. The value can be comma (`,`), pipe (`|`), or space separated.
 
 For example `VisualStudio,Meld` will result in VisualStudio then Meld then all other tools being the order.
 

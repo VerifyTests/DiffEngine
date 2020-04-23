@@ -8,143 +8,160 @@ namespace DiffEngine
 {
     public static class DiffTools
     {
-        internal static Dictionary<string, ResolvedDiffTool> ExtensionLookup = new Dictionary<string, ResolvedDiffTool>();
-        internal static List<ResolvedDiffTool> ResolvedDiffTools = new List<ResolvedDiffTool>();
-        internal static List<ResolvedDiffTool> TextDiffTools = new List<ResolvedDiffTool>();
+        static Dictionary<string, ResolvedTool> ExtensionLookup = new Dictionary<string, ResolvedTool>();
+        static List<ResolvedTool> resolved = new List<ResolvedTool>();
 
-        public static string GetPathFor(DiffTool tool)
+        public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
+
+        public static bool AddTool(
+            string name,
+            bool autoRefresh,
+            bool isMdi,
+            bool supportsText,
+            bool requiresTarget,
+            BuildArguments arguments,
+            string exePath,
+            IEnumerable<string> binaryExtensions,
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
-            if (TryGetPathFor(tool, out var exePath))
-            {
-                return exePath;
-            }
-            throw new Exception($"Tool to found: {tool}");
+            return AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments,out resolvedTool);
         }
 
-        public static bool TryGetPathFor(DiffTool tool, [NotNullWhen(true)] out string? exePath)
+        public static bool AddToolBasedOn(
+            DiffTool basedOn,
+            string name,
+            bool? supportsAutoRefresh,
+            bool? isMdi,
+            bool? supportsText,
+            bool? requiresTarget,
+            BuildArguments? arguments,
+            string? exePath,
+            IEnumerable<string>? binaryExtensions,
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
-            var resolvedDiffTool = ResolvedDiffTools.SingleOrDefault(x => x.Tool == tool);
-            if (resolvedDiffTool == null)
+            var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
+            if (existing == null)
             {
-                exePath = null;
+                resolvedTool = null;
                 return false;
             }
 
-            exePath = resolvedDiffTool.ExePath;
-            return true;
+            return AddTool(
+                name,
+                supportsAutoRefresh ?? existing.AutoRefresh,
+                isMdi ?? existing.IsMdi,
+                supportsText ?? existing.SupportsText,
+                requiresTarget ?? existing.RequiresTarget,
+                arguments ?? existing.Arguments,
+                exePath ?? existing.ExePath,
+                binaryExtensions ?? existing.BinaryExtensions,
+                out resolvedTool
+            );
         }
 
-        public static void AddCustomTool(
-            bool supportsAutoRefresh,
+        public static bool AddTool(
+            string name,
+            bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            BuildArguments buildArguments,
-            string exePath,
-            params string[] binaryExtensions)
+            IEnumerable<string> binaryExtensions,
+            OsSettings? windows,
+            OsSettings? linux,
+            OsSettings? osx,
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
-            IEnumerable<string> extensions;
-            if (binaryExtensions == null)
-            {
-                extensions = Enumerable.Empty<string>();
-            }
-            else
-            {
-                extensions = binaryExtensions;
-            }
-
-            AddCustomTool(
-                supportsAutoRefresh,
-                isMdi,
-                supportsText,
-                requiresTarget,
-                buildArguments,
-                exePath,
-                extensions);
+            return AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx, out resolvedTool);
         }
 
-        public static void AddCustomTool(
-            bool supportsAutoRefresh,
+        static bool AddTool(
+            string name,
+            DiffTool? diffTool,
+            bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            BuildArguments buildArguments,
-            string exePath,
-            IEnumerable<string> binaryExtensions)
+            IEnumerable<string> binaryExtensions,
+            OsSettings? windows,
+            OsSettings? linux,
+            OsSettings? osx,
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
-            Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
-            Guard.AgainstNull(buildArguments, nameof(buildArguments));
-            Guard.FileExists(exePath, nameof(exePath));
-            var extensions = binaryExtensions.ToArray();
-            var tool = new ResolvedDiffTool(
-                null,
-                exePath,
-                buildArguments,
-                isMdi,
-                supportsAutoRefresh,
-                extensions,
-                requiresTarget);
-            if (supportsText)
+            if (windows == null &&
+                linux == null &&
+                osx == null)
             {
-                TextDiffTools.Insert(0, tool);
+                throw new ArgumentException("Must define settings for at least one OS.");
+            }
+            if (!ExeFinder.TryFindExe(windows, linux, osx, out var exePath, out var arguments))
+            {
+                resolvedTool = null;
+                return false;
             }
 
-            ResolvedDiffTools.Insert(0, tool);
-            foreach (var extension in extensions)
+            return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments, out resolvedTool);
+        }
+
+        static bool AddInner(
+            string name,
+            DiffTool? diffTool,
+            bool autoRefresh,
+            bool isMdi,
+            bool supportsText,
+            bool requiresTarget,
+            IEnumerable<string> binaries,
+            string exePath,
+            BuildArguments arguments,
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
+        {
+            Guard.AgainstNullOrEmpty(name, nameof(name));
+            Guard.AgainstNull(binaries, nameof(binaries));
+            Guard.AgainstNull(arguments, nameof(arguments));
+            if (resolved.Any(x => x.Name == name))
+            {
+                throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
+            }
+
+            if (!WildcardFileFinder.TryFind(exePath, out var resolvedExePath))
+            {
+                resolvedTool = null;
+                return false;
+            }
+
+            var binariesList = binaries.ToList();
+            resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, arguments, isMdi, autoRefresh, binariesList, requiresTarget, supportsText);
+
+            resolved.Insert(0, resolvedTool);
+            foreach (var extension in binariesList)
             {
                 var cleanedExtension = Extensions.GetExtension(extension);
-                ExtensionLookup[cleanedExtension] = tool;
+                ExtensionLookup[cleanedExtension] = resolvedTool;
             }
-        }
 
-        internal static List<ToolDefinition> Tools()
-        {
-            return new List<ToolDefinition>
-            {
-                Implementation.BeyondCompare(),
-                Implementation.P4Merge(),
-                Implementation.AraxisMerge(),
-                Implementation.Meld(),
-                Implementation.SublimeMerge(),
-                Implementation.Kaleidoscope(),
-                Implementation.CodeCompare(),
-                Implementation.WinMerge(),
-                Implementation.DiffMerge(),
-                Implementation.TortoiseMerge(),
-                Implementation.TortoiseGitMerge(),
-                Implementation.TortoiseIDiff(),
-                Implementation.KDiff3(),
-                Implementation.TkDiff(),
-                Implementation.VsCode(),
-                Implementation.VisualStudio(),
-                Implementation.Rider()
-            };
+            return true;
         }
 
         static DiffTools()
         {
-            var diffOrder = Environment.GetEnvironmentVariable("DiffEngine.ToolOrder");
-            if (diffOrder == null)
-            {
-                diffOrder = Environment.GetEnvironmentVariable("Verify.DiffToolOrder");
-            }
+            Reset();
+        }
 
-            IEnumerable<DiffTool> order;
-            bool throwForNoTool;
-            if (string.IsNullOrWhiteSpace(diffOrder))
-            {
-                throwForNoTool = false;
-                order = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>();
-            }
-            else
-            {
-                throwForNoTool = true;
-                order = ParseEnvironmentVariable(diffOrder);
-            }
+        internal static void Reset()
+        {
+            var result = OrderReader.ReadToolOrder();
 
-            var tools = ToolsByOrder(throwForNoTool, order);
+            InitTools(result.FoundInEnvVar, result.Order);
+        }
 
-            InitLookups(tools);
+        static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> tools)
+        {
+            ExtensionLookup.Clear();
+            resolved.Clear();
+
+            foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, tools).Reverse())
+            {
+                AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx,out _);
+            }
         }
 
         public static void UseOrder(params DiffTool[] order)
@@ -152,93 +169,20 @@ namespace DiffEngine
             UseOrder(false, order);
         }
 
-        public static void UseOrder(bool throwForNoTool, params DiffTool[] order)
+        public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
         {
             Guard.AgainstNullOrEmpty(order, nameof(order));
-            var tools = ToolsByOrder(throwForNoTool, order);
-            ExtensionLookup.Clear();
-            ResolvedDiffTools.Clear();
-            TextDiffTools.Clear();
-            InitLookups(tools);
-        }
 
-        static void InitLookups(IEnumerable<ToolDefinition> tools)
-        {
-            foreach (var tool in tools)
-            {
-                var diffTool = new ResolvedDiffTool(
-                    tool.Name,
-                    tool.ExePath!,
-                    tool.BuildArguments,
-                    tool.IsMdi,
-                    tool.SupportsAutoRefresh,
-                    tool.BinaryExtensions,
-                    tool.RequiresTarget);
-                if (tool.SupportsText)
-                {
-                    TextDiffTools.Add(diffTool);
-                }
-
-                ResolvedDiffTools.Add(diffTool);
-                foreach (var ext in tool.BinaryExtensions)
-                {
-                    if (!ExtensionLookup.ContainsKey(ext))
-                    {
-                        ExtensionLookup[ext] = diffTool;
-                    }
-                }
-            }
-        }
-
-        internal static IEnumerable<DiffTool> ParseEnvironmentVariable(string diffOrder)
-        {
-            foreach (var toolString in diffOrder
-                .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
-                {
-                    throw new Exception($"Unable to parse tool from `DiffEngine.DiffToolOrder` environment variable: {toolString}");
-                }
-
-                yield return diffTool;
-            }
-        }
-
-        static IEnumerable<ToolDefinition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
-        {
-            var allTools = Tools()
-                .Where(x => x.Exists)
-                .ToList();
-            foreach (var diffTool in order)
-            {
-                var definition = allTools.SingleOrDefault(x => x.Name == diffTool);
-                if (definition == null)
-                {
-                    if (!throwForNoTool)
-                    {
-                        continue;
-                    }
-
-                    throw new Exception($"`DiffEngine.DiffToolOrder` is configured to use '{diffTool}' but it is not installed.");
-                }
-
-                yield return definition;
-                allTools.Remove(definition);
-            }
-
-            foreach (var definition in allTools)
-            {
-                yield return definition;
-            }
+            InitTools(throwForNoTool, order);
         }
 
         internal static bool TryFind(
             string extension,
-            [NotNullWhen(true)] out ResolvedDiffTool? tool)
+            [NotNullWhen(true)] out ResolvedTool? tool)
         {
             if (Extensions.IsText(extension))
             {
-                tool = TextDiffTools.FirstOrDefault();
+                tool = resolved.FirstOrDefault(x => x.SupportsText);
                 return tool != null;
             }
 
@@ -247,42 +191,24 @@ namespace DiffEngine
 
         internal static bool TryFind(
             DiffTool tool,
-            string extension,
-            [NotNullWhen(true)] out ResolvedDiffTool? resolvedTool)
+            [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {
-            if (Extensions.IsText(extension))
-            {
-                resolvedTool = TextDiffTools.FirstOrDefault(x => x.Tool == tool);
-                return resolvedTool != null;
-            }
-
-            resolvedTool = ResolvedDiffTools.SingleOrDefault(x => x.Tool == tool);
-            if (resolvedTool == null)
-            {
-                return false;
-            }
-
-            if (!resolvedTool.BinaryExtensions.Contains(extension))
-            {
-                resolvedTool = null;
-                return false;
-            }
-
-            return true;
+            resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
+            return resolvedTool != null;
         }
 
         public static bool IsDetectedFor(DiffTool diffTool, string extensionOrPath)
         {
             var extension = Extensions.GetExtension(extensionOrPath);
-            if (Extensions.IsText(extension))
-            {
-                return TextDiffTools.Any(x => x.Tool == diffTool);
-            }
 
-            var tool = ResolvedDiffTools.SingleOrDefault(_ => _.Tool == diffTool);
+            var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
             if (tool == null)
             {
                 return false;
+            }
+            if (Extensions.IsText(extension))
+            {
+                return tool.SupportsText;
             }
 
             return tool.BinaryExtensions.Contains(extension);

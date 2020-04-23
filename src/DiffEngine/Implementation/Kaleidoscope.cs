@@ -1,19 +1,23 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Kaleidoscope() =>
-        new ToolDefinition(
+    public static Definition Kaleidoscope()
+    {
+        return new Definition(
             name: DiffTool.Kaleidoscope,
             url: "https://www.kaleidoscopeapp.com/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: Array.Empty<string>(),
-            binaryExtensions: new[]
+            windows: null,
+            linux: null,
+            osx: new OsSettings(
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                "/usr/local/bin/ksdiff"),
+            binaryExtensions:
+            new[]
             {
                 "bmp",
                 "gif",
@@ -23,10 +27,6 @@ static partial class Implementation
                 "png",
                 "tiff",
                 "tif",
-            },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
-            {
-                "/usr/local/bin/ksdiff"
             });
+    }
 }

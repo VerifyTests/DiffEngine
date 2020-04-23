@@ -1,21 +1,21 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TortoiseIDiff() =>
-        new ToolDefinition(
+    public static Definition TortoiseIDiff()
+    {
+        return new Definition(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: false,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"/left:\"{tempFile}\" /right:\"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"
-            },
+            windows: new OsSettings(
+                (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
+                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"),
+            linux: null,
+            osx: null,
             binaryExtensions: new[]
             {
                 "bmp",
@@ -26,7 +26,6 @@ static partial class Implementation
                 "png",
                 "tif",
                 "tiff",
-            },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+            });
+    }
 }

@@ -45,10 +45,9 @@ namespace DiffEngine
         public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            var extension = Extensions.GetExtension(tempFile);
-            if (!DiffTools.TryFind(tool, extension, out var resolvedTool))
+            if (!DiffTools.TryFind(tool, out var resolvedTool))
             {
-                return LaunchResult.NoDiffToolForExtension;
+                return LaunchResult.NoDiffToolFound;
             }
 
             return Launch(resolvedTool, tempFile, targetFile);
@@ -64,14 +63,16 @@ namespace DiffEngine
 
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
-                return LaunchResult.NoDiffToolForExtension;
+                return LaunchResult.NoDiffToolFound;
             }
 
             return Launch(diffTool, tempFile, targetFile);
         }
 
-        static LaunchResult Launch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
+        public static LaunchResult Launch(ResolvedTool diffTool, string tempFile, string targetFile)
         {
+            GuardFiles(tempFile, targetFile);
+            Guard.AgainstNull(diffTool, nameof(diffTool));
             if (CheckInstanceCount())
             {
                 return LaunchResult.TooManyRunningDiffTools;
@@ -89,7 +90,7 @@ namespace DiffEngine
             return InnerLaunch(diffTool, tempFile, targetFile);
         }
 
-        static LaunchResult InnerLaunch(ResolvedDiffTool diffTool, string tempFile, string targetFile)
+        static LaunchResult InnerLaunch(ResolvedTool diffTool, string tempFile, string targetFile)
         {
             launchedInstances++;
 
@@ -97,7 +98,7 @@ namespace DiffEngine
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
             if (isDiffToolRunning)
             {
-                if (diffTool.SupportsAutoRefresh)
+                if (diffTool.AutoRefresh)
                 {
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
@@ -108,7 +109,7 @@ namespace DiffEngine
                 }
             }
 
-            var arguments = diffTool.BuildArguments(tempFile, targetFile);
+            var arguments = diffTool.Arguments(tempFile, targetFile);
             try
             {
                 Process.Start(diffTool.ExePath, arguments);

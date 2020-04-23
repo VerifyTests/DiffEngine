@@ -3,26 +3,21 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition DiffMerge() =>
-        new ToolDefinition(
+    public static Definition DiffMerge()
+    {
+        string Arguments(string temp, string target) =>
+            $"--nosplash \"{temp}\" \"{target}\"";
+
+        return new Definition(
             name: DiffTool.DiffMerge,
             url: "https://www.sourcegear.com/diffmerge/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"--nosplash \"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: new[]
-            {
-                "/usr/bin/diffmerge"
-            },
-            osxExePaths: new[]
-            {
-                "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"
-            });
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
+            linux: new OsSettings(Arguments, "/usr/bin/diffmerge"),
+            osx: new OsSettings(Arguments, "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"),
+            binaryExtensions: Array.Empty<string>());
+    }
 }

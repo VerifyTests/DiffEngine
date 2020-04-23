@@ -3,20 +3,20 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TkDiff() =>
-        new ToolDefinition(
+    public static Definition TkDiff()
+    {
+        return new Definition(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: Array.Empty<string>(),
-            binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
-            {
-                "/Applications/TkDiff.app/Contents/MacOS/tkdiff"
-            });
+            windows: null,
+            linux: null,
+            osx: new OsSettings(
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                "/Applications/TkDiff.app/Contents/MacOS/tkdiff"),
+            binaryExtensions: Array.Empty<string>());
+    }
 }

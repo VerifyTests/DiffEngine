@@ -3,23 +3,23 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition VisualStudio() =>
-        new ToolDefinition(
+    public static Definition VisualStudio()
+    {
+        return new Definition(
             name: DiffTool.VisualStudio,
             url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"/diff \"{targetFile}\" \"{tempFile}\"",
-            windowsExePaths: new[]
-            {
+            windows: new OsSettings(
+                (temp, target) => $"/diff \"{target}\" \"{temp}\"",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe",
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe"),
+            linux: null,
+            osx: null,
+            binaryExtensions: Array.Empty<string>());
+    }
 }

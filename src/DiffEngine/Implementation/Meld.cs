@@ -3,26 +3,22 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition Meld() =>
-        new ToolDefinition(
+    public static Definition Meld()
+    {
+        string Arguments(string temp, string target) =>
+            $"\"{temp}\" \"{target}\"";
+
+        return new Definition(
             name: DiffTool.Meld,
             url: "https://meldmerge.org/",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles(x86)%\Meld\meld.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: new[]
-            {
-                @"/usr/bin/meld"
-            },
-            osxExePaths: new[]
-            {
-                @"/Applications/meld.app/Contents/MacOS/meld"
-            });
+            windows: new OsSettings(Arguments, @"%ProgramFiles(x86)%\Meld\meld.exe"),
+            linux: new OsSettings(Arguments, @"/usr/bin/meld"),
+            osx: new OsSettings(Arguments, @"/Applications/meld.app/Contents/MacOS/meld"),
+            binaryExtensions: Array.Empty<string>()
+        );
+    }
 }

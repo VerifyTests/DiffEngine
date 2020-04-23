@@ -4,31 +4,31 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition WinMerge() =>
-        new ToolDefinition(
+    public static Definition WinMerge()
+    {
+        return new Definition(
             name: DiffTool.WinMerge,
             url: "https://winmerge.org/",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) =>
-            {
-                var leftTitle = Path.GetFileName(tempFile);
-                var rightTitle = Path.GetFileName(targetFile);
-                return $"/u /wl /e \"{tempFile}\" \"{targetFile}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
-            },
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"
-            },
+            windows: new OsSettings(
+                (temp, target) =>
+                {
+                    var leftTitle = Path.GetFileName(temp);
+                    var rightTitle = Path.GetFileName(target);
+                    return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
+                },
+                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"),
+            linux: null,
+            osx: null,
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.
  * `/dl` and `/dr` Specifies file descriptions in the title bar.
  * `/e` Enables close with a single Esc key press.");
+    }
 }

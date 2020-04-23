@@ -2,19 +2,21 @@
 
 static partial class Implementation
 {
-    public static ToolDefinition BeyondCompare() =>
-        new ToolDefinition(
+    public static Definition BeyondCompare()
+    {
+        string Arguments(string temp, string target) =>
+            $"/solo \"{temp}\" \"{target}\"";
+
+        return new Definition(
             name: DiffTool.BeyondCompare,
             url: "https://www.scootersoftware.com",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: false,
-            buildArguments: (tempFile, targetFile) => $"/solo \"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\Beyond Compare *\BCompare.exe"
-            },
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
+            linux: new OsSettings(Arguments, "/usr/lib/beyondcompare/bcomp"),
+            osx: new OsSettings(Arguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             binaryExtensions: new[]
             {
                 "mp3", //?
@@ -38,15 +40,7 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
-            linuxExePaths: new[]
-            {
-                //TODO:
-                "/usr/lib/beyondcompare/bcomp"
-            },
-            osxExePaths: new[]
-            {
-                "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"
-            },
             notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
+    }
 }

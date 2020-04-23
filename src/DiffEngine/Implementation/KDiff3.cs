@@ -3,25 +3,23 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition KDiff3() =>
-        new ToolDefinition(
+    public static Definition KDiff3()
+    {
+        string Arguments(string temp, string target) =>
+            $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
+
+        return new Definition(
             name: DiffTool.KDiff3,
             url: "https://github.com/KDE/kdiff3",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\" --cs CreateBakFiles=0",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\KDiff3\kdiff3.exe"
-            },
+            windows:new OsSettings(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+            linux: null,
+            osx: new OsSettings(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
-            {
-                "/Applications/kdiff3.app/Contents/MacOS/kdiff3"
-            },
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
+    }
 }

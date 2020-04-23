@@ -1,28 +1,22 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition AraxisMerge() =>
-        new ToolDefinition(
+    public static Definition AraxisMerge() =>
+        new Definition(
             name: DiffTool.AraxisMerge,
             url: "https://www.araxis.com/merge",
-            supportsAutoRefresh: true,
+            autoRefresh: true,
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            buildWindowsArguments: (tempFile, targetFile) => $"/nowait \"{tempFile}\" \"{targetFile}\"",
-            buildLinuxArguments: null,
-            buildOsxArguments: (tempFile, targetFile) => $"-nowait \"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"
-            },
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: new[]
-            {
-                "/Applications/Araxis Merge.app/Contents/Utilities/compare"
-            },
+            windows: new OsSettings(
+                (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
+            linux: null,
+            osx: new OsSettings(
+                (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
+                "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             binaryExtensions: new[]
             {
                 "bmp",

@@ -40,14 +40,16 @@ public class DiffRunnerTests :
         {
             return;
         }
-        DiffTools.AddCustomTool(
-            supportsAutoRefresh: true,
+        DiffTools.AddTool(
+            name: "FakeDiffTool",
+            autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
             exePath: diffToolPath,
-            binaryExtensions: new[] {"knownBin"});
+            binaryExtensions: new[] {"knownBin"},
+            out _);
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);

@@ -3,20 +3,20 @@ using DiffEngine;
 
 static partial class Implementation
 {
-    public static ToolDefinition TortoiseMerge() =>
-        new ToolDefinition(
+    public static Definition TortoiseMerge()
+    {
+        return new Definition(
             name: DiffTool.TortoiseMerge,
             url: "https://tortoisesvn.net/TortoiseMerge.html",
-            supportsAutoRefresh: false,
+            autoRefresh: false,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
-            windowsExePaths: new[]
-            {
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"
-            },
-            binaryExtensions: Array.Empty<string>(),
-            linuxExePaths: Array.Empty<string>(),
-            osxExePaths: Array.Empty<string>());
+            windows: new OsSettings(
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"),
+            linux: null,
+            osx: null,
+            binaryExtensions: Array.Empty<string>());
+    }
 }
