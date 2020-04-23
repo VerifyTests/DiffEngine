@@ -1,5 +1,4 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,7 +18,7 @@ public class DiffToolsTest :
     void AddCustomTool(string diffToolPath)
     {
         #region AddCustomTool
-        DiffTools.TryAddCustomTool(
+        DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
             isMdi: false,
@@ -30,21 +29,6 @@ public class DiffToolsTest :
                 return $"\"{tempFile}\" \"{targetFile}\"";
             },
             exePath: diffToolPath,
-            binaryExtensions: new[] {"jpg"});
-        #endregion
-
-        #region AddCustomToolExpanded
-        DiffTools.TryAddCustomTool(
-            name: "MyCustomDiffTool",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            buildArguments: (tempFile, targetFile) =>
-            {
-                return $"\"{tempFile}\" \"{targetFile}\"";
-            },
-            exePath: Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\MyTool\MyTool.exe"),
             binaryExtensions: new[] {"jpg"});
         #endregion
     }

@@ -5,7 +5,7 @@ using DiffEngine;
 
 static class ToolsOrder
 {
-    public static IEnumerable<Definition> ToolsByOrder(bool throwForNoTool, IEnumerable<DiffTool> order)
+    public static IEnumerable<Definition> Sort(bool throwForNoTool, IEnumerable<DiffTool> order)
     {
         var allTools = Definitions.Tools()
             .ToList();
