@@ -81,6 +81,12 @@ namespace DiffEngine
             OsSettings? linux,
             OsSettings? osx)
         {
+            if (windows == null &&
+                linux == null &&
+                osx == null)
+            {
+                throw new ArgumentException("Must define settings for at least one OS.");
+            }
             if (!ExeFinder.TryFindExe(windows, linux, osx, out var exePath, out var arguments))
             {
                 return false;
