@@ -36,7 +36,6 @@ public class DiffToolsTest :
         Assert.True(DiffTools.TryFind("jpg", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
     }
-#endif
 
     [Fact]
     public void AddToolBasedOn()
@@ -52,6 +51,7 @@ public class DiffToolsTest :
         Assert.Equal(resolvedTool, forExtension);
         Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
     }
+#endif
 
     //[Fact]
     //public void LaunchImageDiff()
