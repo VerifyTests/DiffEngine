@@ -46,8 +46,7 @@ public class DiffRunnerTests :
             requiresTarget: true,
             arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
             exePath: FakeDiffTool.Exe,
-            binaryExtensions: new[] {"knownBin"},
-            out _);
+            binaryExtensions: new[] {"knownBin"});
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);

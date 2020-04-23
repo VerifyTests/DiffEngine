@@ -21,7 +21,7 @@ public class DiffToolsTest :
     {
         string diffToolPath = FakeDiffTool.Exe;
         #region AddCustomTool
-        DiffTools.AddTool(
+        var resolvedTool= DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
             isMdi: false,
@@ -32,8 +32,7 @@ public class DiffToolsTest :
                 return $"\"{tempFile}\" \"{targetFile}\"";
             },
             exePath: diffToolPath,
-            binaryExtensions: new[] {"jpg"},
-            out var resolvedTool);
+            binaryExtensions: new[] {"jpg"});
         #endregion
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFind("jpg", out var forExtension));

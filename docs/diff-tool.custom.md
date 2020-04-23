@@ -12,7 +12,7 @@ A custom tool can be added by calling `DiffTools.AddTool`
 <!-- snippet: AddCustomTool -->
 <a id='snippet-addcustomtool'/></a>
 ```cs
-DiffTools.AddTool(
+var resolvedTool= DiffTools.AddTool(
     name: "MyCustomDiffTool",
     autoRefresh: true,
     isMdi: false,
@@ -23,10 +23,9 @@ DiffTools.AddTool(
         return $"\"{tempFile}\" \"{targetFile}\"";
     },
     exePath: diffToolPath,
-    binaryExtensions: new[] {"jpg"},
-    out var resolvedTool);
+    binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L37' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L36' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
 `exePath` is the path to the executable.
