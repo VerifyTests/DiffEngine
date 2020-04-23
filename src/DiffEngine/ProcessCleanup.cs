@@ -55,7 +55,7 @@ namespace DiffEngine
             if (matchingCommands.Count == 0)
             {
                 var separator = Environment.NewLine + "\t";
-                Logging.Write($"No matching commands. All commands: {separator}{string.Join(separator, Commands)}.");
+                Logging.Write($"No matching commands. All commands: {separator}{string.Join(separator, Commands.Select(x => x.Command))}.");
             }
 
             foreach (var processCommand in matchingCommands)
