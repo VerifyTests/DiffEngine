@@ -19,21 +19,21 @@ namespace DiffEngine
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            BuildArguments buildArguments,
+            BuildArguments arguments,
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
-            return AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, buildArguments);
+            return AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments);
         }
 
-        public static bool AddTool(
+        public static bool AddToolBasedOn(
             DiffTool basedOn,
             string name,
             bool? supportsAutoRefresh,
             bool? isMdi,
             bool? supportsText,
             bool? requiresTarget,
-            BuildArguments? buildArguments,
+            BuildArguments? arguments,
             string? exePath,
             IEnumerable<string>? binaryExtensions)
         {
@@ -49,7 +49,7 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
-                buildArguments ?? existing.BuildArguments,
+                arguments ?? existing.Arguments,
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions
             );

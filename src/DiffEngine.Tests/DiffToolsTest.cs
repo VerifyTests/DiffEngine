@@ -24,7 +24,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (tempFile, targetFile) =>
+            arguments: (tempFile, targetFile) =>
             {
                 return $"\"{tempFile}\" \"{targetFile}\"";
             },

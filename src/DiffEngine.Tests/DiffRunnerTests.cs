@@ -46,7 +46,7 @@ public class DiffRunnerTests :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            buildArguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"knownBin"});
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");

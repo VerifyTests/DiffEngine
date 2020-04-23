@@ -107,7 +107,7 @@ namespace DiffEngine
                 }
             }
 
-            var arguments = diffTool.BuildArguments(tempFile, targetFile);
+            var arguments = diffTool.Arguments(tempFile, targetFile);
             try
             {
                 Process.Start(diffTool.ExePath, arguments);

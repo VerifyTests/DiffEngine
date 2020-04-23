@@ -10,7 +10,7 @@
             params string[] exePaths)
         {
             Guard.AgainstNull(arguments, nameof(arguments));
-            Guard.AgainstNull(arguments, nameof(exePaths));
+            Guard.AgainstNull(exePaths, nameof(exePaths));
             Arguments = arguments;
             ExePaths = exePaths;
         }

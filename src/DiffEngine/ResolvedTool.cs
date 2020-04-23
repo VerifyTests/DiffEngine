@@ -9,7 +9,7 @@ namespace DiffEngine
         public string Name { get; }
         public DiffTool? Tool { get; }
         public string ExePath { get; }
-        public BuildArguments BuildArguments { get; }
+        public BuildArguments Arguments { get; }
         public bool IsMdi { get; }
         public bool AutoRefresh { get; }
         public IReadOnlyList<string> BinaryExtensions { get; }
@@ -18,14 +18,14 @@ namespace DiffEngine
 
         public string BuildCommand(string tempFile, string targetFile)
         {
-            return $"\"{ExePath}\" {BuildArguments(tempFile, targetFile)}";
+            return $"\"{ExePath}\" {Arguments(tempFile, targetFile)}";
         }
 
         internal ResolvedTool(
             string name,
             DiffTool? tool,
             string exePath,
-            BuildArguments buildArguments,
+            BuildArguments arguments,
             bool isMdi,
             bool autoRefresh,
             IReadOnlyList<string> binaryExtensions,
@@ -35,7 +35,7 @@ namespace DiffEngine
             Name = name;
             Tool = tool;
             ExePath = exePath;
-            BuildArguments = buildArguments;
+            Arguments = arguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
@@ -46,7 +46,7 @@ namespace DiffEngine
         public ResolvedTool(
             string name,
             string exePath,
-            BuildArguments buildArguments,
+            BuildArguments arguments,
             bool isMdi,
             bool autoRefresh,
             string[] binaryExtensions,
@@ -56,10 +56,10 @@ namespace DiffEngine
             Guard.FileExists(exePath, nameof(exePath));
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
-            Guard.AgainstNull(buildArguments, nameof(buildArguments));
+            Guard.AgainstNull(arguments, nameof(arguments));
             Name = name;
             ExePath = exePath;
-            BuildArguments = buildArguments;
+            Arguments = arguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
