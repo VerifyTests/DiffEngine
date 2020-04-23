@@ -16,6 +16,7 @@ public class DiffToolsTest :
         #endregion
     }
 
+#if DEBUG
     [Fact]
     public void AddTool()
     {
@@ -35,6 +36,7 @@ public class DiffToolsTest :
         Assert.True(DiffTools.TryFind("jpg", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
     }
+#endif
 
     [Fact]
     public void AddToolBasedOn()
