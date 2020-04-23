@@ -24,38 +24,60 @@ static class WildcardFileFinder
         }
 
         var segments = expanded.Split(separators);
-        var currentSearchRoots = new List<string>{segments[0] + Path.DirectorySeparatorChar};
+        var currentRoots = new List<string>
+        {
+            segments[0] + Path.DirectorySeparatorChar
+        };
         foreach (var segment in segments.Skip(1))
         {
-            var newSearchRoots = new List<string>();
-            foreach (var searchRoot in currentSearchRoots)
+            var newRoots = new List<string>();
+            foreach (var root in currentRoots)
             {
                 if (segment.Contains('*'))
                 {
-                    newSearchRoots.AddRange(Directory.EnumerateDirectories(searchRoot, segment)
+                    newRoots.AddRange(Directory.EnumerateDirectories(root, segment)
                         .OrderByDescending(Directory.GetLastWriteTime));
                 }
                 else
                 {
-                    var newSearchRoot = Path.Combine(searchRoot, segment);
-                    if (Directory.Exists(newSearchRoot))
+                    var newRoot = Path.Combine(root, segment);
+                    if (Directory.Exists(newRoot))
                     {
-                        newSearchRoots.Add(newSearchRoot);
+                        newRoots.Add(newRoot);
                     }
                 }
             }
 
-            if (!newSearchRoots.Any())
+            if (!newRoots.Any())
             {
                 return Enumerable.Empty<string>();
             }
-            currentSearchRoots = newSearchRoots;
+
+            currentRoots = newRoots;
         }
 
-        return currentSearchRoots;
+        return currentRoots;
     }
 
-    public static bool TryFind(string path, [NotNullWhen(true)] out string? result)
+    public static bool TryFindExe(
+        IEnumerable<string> paths,
+        [NotNullWhen(true)] out string? exePath)
+    {
+        foreach (var path in paths)
+        {
+            if (TryFind(path, out exePath))
+            {
+                return true;
+            }
+        }
+
+        exePath = null;
+        return false;
+    }
+
+    public static bool TryFind(
+        string path,
+        [NotNullWhen(true)] out string? result)
     {
         var expanded = Environment.ExpandEnvironmentVariables(path);
         if (!path.Contains('*'))

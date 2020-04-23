@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using DiffEngine;
 
@@ -15,17 +14,17 @@ static class ExeFinder
         if (windows != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (TryFindExe(windows.ExePaths, out path))
+            if (WildcardFileFinder.TryFindExe(windows.ExePaths, out path))
             {
                 arguments = windows.Arguments;
                 return true;
             }
         }
 
-        if (linux != null && 
+        if (linux != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            if (TryFindExe(linux.ExePaths, out path))
+            if (WildcardFileFinder.TryFindExe(linux.ExePaths, out path))
             {
                 arguments = linux.Arguments;
                 return true;
@@ -35,7 +34,7 @@ static class ExeFinder
         if (osx != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            if (TryFindExe(osx.ExePaths, out path))
+            if (WildcardFileFinder.TryFindExe(osx.ExePaths, out path))
             {
                 arguments = osx.Arguments;
                 return true;
@@ -44,20 +43,6 @@ static class ExeFinder
 
         path = null;
         arguments = null;
-        return false;
-    }
-
-    static bool TryFindExe(IEnumerable<string> paths, [NotNullWhen(true)] out string? exePath)
-    {
-        foreach (var path in paths)
-        {
-            if (WildcardFileFinder.TryFind(path, out exePath))
-            {
-                return true;
-            }
-        }
-
-        exePath = null;
         return false;
     }
 }
