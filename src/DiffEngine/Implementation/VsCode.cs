@@ -15,6 +15,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
                 Arguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
@@ -25,7 +26,6 @@ static partial class Implementation
             osx: new OsSettings(
                 Arguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
-            binaryExtensions: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }

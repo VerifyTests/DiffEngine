@@ -11,11 +11,6 @@ static partial class Implementation
             isMdi: false,
             supportsText: false,
             requiresTarget: true,
-            windows: new OsSettings(
-                (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"),
-            linux: null,
-            osx: null,
             binaryExtensions: new[]
             {
                 "bmp",
@@ -26,6 +21,9 @@ static partial class Implementation
                 "png",
                 "tif",
                 "tiff",
-            });
+            },
+            windows: new OsSettings(
+                (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
+                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"));
     }
 }

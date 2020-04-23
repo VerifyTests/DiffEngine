@@ -10,13 +10,6 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
-            windows: new OsSettings(
-                (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
-            linux: null,
-            osx: new OsSettings(
-                (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
-                "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             binaryExtensions: new[]
             {
                 "bmp",
@@ -42,6 +35,12 @@ static partial class Implementation
                 "tga",
                 "wmf", //?
             },
+            windows: new OsSettings(
+                (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
+                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
+            osx: new OsSettings(
+                (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
+                "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             notes: @"
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)

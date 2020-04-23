@@ -14,17 +14,16 @@ class Definition
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
 
-    public Definition(
-        DiffTool name,
+    public Definition(DiffTool name,
         string url,
         bool autoRefresh,
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        OsSettings? windows,
-        OsSettings? linux,
-        OsSettings? osx,
         string[] binaryExtensions,
+        OsSettings? windows = null,
+        OsSettings? linux = null,
+        OsSettings? osx = null,
         string? notes = null)
     {
         Tool = name;

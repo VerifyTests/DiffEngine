@@ -29,13 +29,13 @@ namespace DiffEngine
         public static ResolvedTool? AddToolBasedOn(
             DiffTool basedOn,
             string name,
-            bool? autoRefresh,
-            bool? isMdi,
-            bool? supportsText,
-            bool? requiresTarget,
-            BuildArguments? arguments,
-            string? exePath,
-            IEnumerable<string>? binaryExtensions)
+            bool? autoRefresh = null,
+            bool? isMdi = null,
+            bool? supportsText = null,
+            bool? requiresTarget = null,
+            BuildArguments? arguments = null,
+            string? exePath = null,
+            IEnumerable<string>? binaryExtensions = null)
         {
             var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
             if (existing == null)
@@ -62,9 +62,9 @@ namespace DiffEngine
             bool supportsText,
             bool requiresTarget,
             IEnumerable<string> binaryExtensions,
-            OsSettings? windows,
-            OsSettings? linux,
-            OsSettings? osx)
+            OsSettings? windows = null,
+            OsSettings? linux = null,
+            OsSettings? osx = null)
         {
             return AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx);
         }

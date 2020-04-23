@@ -9,25 +9,35 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 A custom tool can be added by calling `DiffTools.AddTool`
 
-<!-- snippet: AddCustomTool -->
-<a id='snippet-addcustomtool'/></a>
+<!-- snippet: AddTool -->
+<a id='snippet-addtool'/></a>
 ```cs
-var resolvedTool= DiffTools.AddTool(
+var resolvedTool = DiffTools.AddTool(
     name: "MyCustomDiffTool",
     autoRefresh: true,
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    arguments: (tempFile, targetFile) =>
-    {
-        return $"\"{tempFile}\" \"{targetFile}\"";
-    },
+    arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"});
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L36' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L33' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
 `exePath` is the path to the executable.
 
 `Environment.ExpandEnvironmentVariables` is used to expand environment variables.
+
+Add a tool based on existing resolved tool:
+
+<!-- snippet: AddToolBasedOn -->
+<a id='snippet-addtoolbasedon'/></a>
+```cs
+var resolvedTool = DiffTools.AddToolBasedOn(
+    DiffTool.VisualStudio,
+    name: "MyCustomDiffTool",
+    arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+```
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L42-L47' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
+<!-- endsnippet -->

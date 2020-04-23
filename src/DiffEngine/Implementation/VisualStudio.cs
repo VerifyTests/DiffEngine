@@ -12,14 +12,12 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
                 (temp, target) => $"/diff \"{target}\" \"{temp}\"",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe"),
-            linux: null,
-            osx: null,
-            binaryExtensions: Array.Empty<string>());
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe"));
     }
 }

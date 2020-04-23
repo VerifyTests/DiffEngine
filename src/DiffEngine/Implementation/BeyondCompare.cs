@@ -14,9 +14,6 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: false,
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
-            linux: new OsSettings(Arguments, "/usr/lib/beyondcompare/bcomp"),
-            osx: new OsSettings(Arguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             binaryExtensions: new[]
             {
                 "mp3", //?
@@ -40,6 +37,9 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
+            linux: new OsSettings(Arguments, "/usr/lib/beyondcompare/bcomp"),
+            osx: new OsSettings(Arguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }

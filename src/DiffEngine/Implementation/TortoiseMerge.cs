@@ -12,11 +12,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"),
-            linux: null,
-            osx: null,
-            binaryExtensions: Array.Empty<string>());
+                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"));
     }
 }

@@ -20,17 +20,14 @@ public class DiffToolsTest :
     public void AddTool()
     {
         string diffToolPath = FakeDiffTool.Exe;
-        #region AddCustomTool
-        var resolvedTool= DiffTools.AddTool(
+        #region AddTool
+        var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (tempFile, targetFile) =>
-            {
-                return $"\"{tempFile}\" \"{targetFile}\"";
-            },
+            arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"});
         #endregion
@@ -39,6 +36,20 @@ public class DiffToolsTest :
         Assert.Equal(resolvedTool, forExtension);
     }
 
+    [Fact]
+    public void AddToolBasedOn()
+    {
+        #region AddToolBasedOn
+        var resolvedTool = DiffTools.AddToolBasedOn(
+            DiffTool.VisualStudio,
+            name: "MyCustomDiffTool",
+            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+        #endregion
+        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
+        Assert.True(DiffTools.TryFind("txt", out var forExtension));
+        Assert.Equal(resolvedTool, forExtension);
+        Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
+    }
 
     //[Fact]
     //public void LaunchImageDiff()

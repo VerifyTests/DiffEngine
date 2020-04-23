@@ -12,11 +12,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: null,
-            linux: null,
+            binaryExtensions: Array.Empty<string>(),
             osx: new OsSettings(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                "/Applications/TkDiff.app/Contents/MacOS/tkdiff"),
-            binaryExtensions: Array.Empty<string>());
+                "/Applications/TkDiff.app/Contents/MacOS/tkdiff"));
     }
 }

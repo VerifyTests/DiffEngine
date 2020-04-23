@@ -15,9 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Sublime Merge\smerge.exe"),
             linux: new OsSettings(Arguments, @"/usr/bin/smerge"),
-            osx: new OsSettings(Arguments, @"/Applications/smerge.app/Contents/MacOS/smerge"),
-            binaryExtensions: Array.Empty<string>());
+            osx: new OsSettings(Arguments, @"/Applications/smerge.app/Contents/MacOS/smerge"));
     }
 }

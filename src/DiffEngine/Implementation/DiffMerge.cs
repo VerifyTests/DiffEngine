@@ -15,9 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
             linux: new OsSettings(Arguments, "/usr/bin/diffmerge"),
-            osx: new OsSettings(Arguments, "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"),
-            binaryExtensions: Array.Empty<string>());
+            osx: new OsSettings(Arguments, "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"));
     }
 }

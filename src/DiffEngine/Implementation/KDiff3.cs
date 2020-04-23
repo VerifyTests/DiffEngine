@@ -15,10 +15,9 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows:new OsSettings(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
-            linux: null,
-            osx: new OsSettings(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             binaryExtensions: Array.Empty<string>(),
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+            osx: new OsSettings(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

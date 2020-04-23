@@ -11,13 +11,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            windows: null,
-            linux: null,
-            osx: new OsSettings(
-                (temp, target) => $"\"{temp}\" \"{target}\"",
-                "/usr/local/bin/ksdiff"),
-            binaryExtensions:
-            new[]
+            binaryExtensions: new[]
             {
                 "bmp",
                 "gif",
@@ -27,6 +21,9 @@ static partial class Implementation
                 "png",
                 "tiff",
                 "tif",
-            });
+            },
+            osx: new OsSettings(
+                (temp, target) => $"\"{temp}\" \"{target}\"",
+                "/usr/local/bin/ksdiff"));
     }
 }

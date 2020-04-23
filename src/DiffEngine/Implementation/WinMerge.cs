@@ -13,6 +13,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
                 (temp, target) =>
                 {
@@ -21,9 +22,6 @@ static partial class Implementation
                     return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
                 },
                 @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"),
-            linux: null,
-            osx: null,
-            binaryExtensions: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.

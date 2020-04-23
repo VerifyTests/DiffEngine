@@ -12,12 +12,10 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"),
-            linux: null,
-            osx: null,
-            binaryExtensions: Array.Empty<string>(),
             notes: @"
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)");
     }
