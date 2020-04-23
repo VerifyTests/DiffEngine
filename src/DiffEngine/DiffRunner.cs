@@ -69,8 +69,10 @@ namespace DiffEngine
             return Launch(diffTool, tempFile, targetFile);
         }
 
-        static LaunchResult Launch(ResolvedTool diffTool, string tempFile, string targetFile)
+        public static LaunchResult Launch(ResolvedTool diffTool, string tempFile, string targetFile)
         {
+            GuardFiles(tempFile, targetFile);
+            Guard.AgainstNull(diffTool, nameof(diffTool));
             if (CheckInstanceCount())
             {
                 return LaunchResult.TooManyRunningDiffTools;
