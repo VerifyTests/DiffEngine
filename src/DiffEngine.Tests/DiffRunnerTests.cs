@@ -31,8 +31,6 @@ public class DiffRunnerTests :
         #endregion
     }
 
-    static string diffToolPath = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/FakeDiffTool.exe"));
-
     [Fact]
     public void LaunchAndKill()
     {
@@ -47,7 +45,7 @@ public class DiffRunnerTests :
             supportsText: true,
             requiresTarget: true,
             arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
-            exePath: diffToolPath,
+            exePath: FakeDiffTool.Exe,
             binaryExtensions: new[] {"knownBin"},
             out _);
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");

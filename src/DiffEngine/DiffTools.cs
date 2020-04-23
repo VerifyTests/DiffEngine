@@ -30,7 +30,7 @@ namespace DiffEngine
         public static bool AddToolBasedOn(
             DiffTool basedOn,
             string name,
-            bool? supportsAutoRefresh,
+            bool? autoRefresh,
             bool? isMdi,
             bool? supportsText,
             bool? requiresTarget,
@@ -48,7 +48,7 @@ namespace DiffEngine
 
             return AddTool(
                 name,
-                supportsAutoRefresh ?? existing.AutoRefresh,
+                autoRefresh ?? existing.AutoRefresh,
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,

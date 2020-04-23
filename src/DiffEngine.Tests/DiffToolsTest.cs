@@ -1,4 +1,5 @@
-﻿using DiffEngine;
+﻿using System.Linq;
+using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -15,8 +16,10 @@ public class DiffToolsTest :
         #endregion
     }
 
-    void AddCustomTool(string diffToolPath)
+    [Fact]
+    public void AddTool()
     {
+        string diffToolPath = FakeDiffTool.Exe;
         #region AddCustomTool
         DiffTools.AddTool(
             name: "MyCustomDiffTool",
@@ -30,9 +33,13 @@ public class DiffToolsTest :
             },
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"},
-            out _);
+            out var resolvedTool);
         #endregion
+        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
+        Assert.True(DiffTools.TryFind("jpg", out var forExtension));
+        Assert.Equal(resolvedTool, forExtension);
     }
+
 
     //[Fact]
     //public void LaunchImageDiff()
