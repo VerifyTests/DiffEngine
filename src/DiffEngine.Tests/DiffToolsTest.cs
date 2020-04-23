@@ -29,7 +29,8 @@ public class DiffToolsTest :
                 return $"\"{tempFile}\" \"{targetFile}\"";
             },
             exePath: diffToolPath,
-            binaryExtensions: new[] {"jpg"});
+            binaryExtensions: new[] {"jpg"},
+            out _);
         #endregion
     }
 

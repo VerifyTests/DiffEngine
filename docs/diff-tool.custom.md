@@ -23,9 +23,10 @@ DiffTools.AddTool(
         return $"\"{tempFile}\" \"{targetFile}\"";
     },
     exePath: diffToolPath,
-    binaryExtensions: new[] {"jpg"});
+    binaryExtensions: new[] {"jpg"},
+    out _);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L20-L33' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L20-L34' title='File snippet `addcustomtool` was extracted from'>snippet source</a> | <a href='#snippet-addcustomtool' title='Navigate to start of snippet `addcustomtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
 `exePath` is the path to the executable.
