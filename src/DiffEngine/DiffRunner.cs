@@ -69,17 +69,17 @@ namespace DiffEngine
             return Launch(diffTool, tempFile, targetFile);
         }
 
-        public static LaunchResult Launch(ResolvedTool diffTool, string tempFile, string targetFile)
+        public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            Guard.AgainstNull(diffTool, nameof(diffTool));
+            Guard.AgainstNull(tool, nameof(tool));
             if (CheckInstanceCount())
             {
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
             var targetExists = File.Exists(targetFile);
-            if (diffTool.RequiresTarget && !targetExists)
+            if (tool.RequiresTarget && !targetExists)
             {
                 if (!AllFiles.TryCreateFile(targetFile, true))
                 {
@@ -87,38 +87,38 @@ namespace DiffEngine
                 }
             }
 
-            return InnerLaunch(diffTool, tempFile, targetFile);
+            return InnerLaunch(tool, tempFile, targetFile);
         }
 
-        static LaunchResult InnerLaunch(ResolvedTool diffTool, string tempFile, string targetFile)
+        static LaunchResult InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
             launchedInstances++;
 
-            var command = diffTool.BuildCommand(tempFile, targetFile);
+            var command = tool.BuildCommand(tempFile, targetFile);
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
             if (isDiffToolRunning)
             {
-                if (diffTool.AutoRefresh)
+                if (tool.AutoRefresh)
                 {
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
-                if (!diffTool.IsMdi)
+                if (!tool.IsMdi)
                 {
                     ProcessCleanup.Kill(command);
                 }
             }
 
-            var arguments = diffTool.Arguments(tempFile, targetFile);
+            var arguments = tool.Arguments(tempFile, targetFile);
             try
             {
-                Process.Start(diffTool.ExePath, arguments);
+                Process.Start(tool.ExePath, arguments);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)
             {
                 var message = $@"Failed to launch diff tool.
-{diffTool.ExePath} {arguments}";
+{tool.ExePath} {arguments}";
                 throw new Exception(message, exception);
             }
         }
