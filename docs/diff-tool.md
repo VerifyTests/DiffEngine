@@ -162,6 +162,12 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)
 
+### Windows settings:
+
+
+ * Example arguments: `-mi "tempFile" "targetFile"`
+ * Scanned path: `C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe`
+
 ### OSX settings:
 
 

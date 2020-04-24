@@ -85,6 +85,12 @@
 
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)
 
+### Windows settings:
+
+
+ * Example arguments: `-mi "tempFile" "targetFile"`
+ * Scanned path: `C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe`
+
 ### OSX settings:
 
 
