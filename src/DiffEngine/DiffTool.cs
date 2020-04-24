@@ -9,6 +9,7 @@ namespace DiffEngine
         SublimeMerge,
         Kaleidoscope,
         CodeCompare,
+        DeltaWalker,
         WinMerge,
         DiffMerge,
         TortoiseMerge,
@@ -18,7 +19,5 @@ namespace DiffEngine
         TkDiff,
         VisualStudio,
         VisualStudioCode,
-        Rider,
-        DeltaWalker
     }
 }
