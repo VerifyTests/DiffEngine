@@ -2,8 +2,12 @@
 
 static partial class Implementation
 {
-    public static Definition DeltaWalker() =>
-        new Definition(
+    public static Definition DeltaWalker()
+    {
+        string Arguments(string temp, string target) =>
+            $"-mi \"{temp}\" \"{target}\"";
+
+        return new Definition(
             name: DiffTool.DeltaWalker,
             url: "https://www.deltawalker.com/",
             autoRefresh: false,
@@ -47,8 +51,12 @@ static partial class Implementation
                 "htm"
             },
             osx: new OsSettings(
-                (temp, target) => $"-mi \"{temp}\" \"{target}\"",
+                Arguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
+            windows: new OsSettings(
+                Arguments,
+                @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
             notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
+    }
 }
