@@ -12,6 +12,7 @@ static class Definitions
             Implementation.Meld(),
             Implementation.SublimeMerge(),
             Implementation.Kaleidoscope(),
+            Implementation.DeltaWalker(),
             Implementation.CodeCompare(),
             Implementation.WinMerge(),
             Implementation.DiffMerge(),
