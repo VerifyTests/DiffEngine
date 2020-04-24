@@ -17,8 +17,14 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine", "DiffEngine\DiffEngine.csproj", "{F494B6C2-29B4-4D73-8533-AF197D882970}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine.Tests", "DiffEngine.Tests\DiffEngine.Tests.csproj", "{58DF5836-41EC-450B-9AAA-AFA4B79169EA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9} = {2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine.ToolOrder.Tests", "DiffEngine.ToolOrder.Tests\DiffEngine.ToolOrder.Tests.csproj", "{C58C3873-3F64-4A09-95A4-FB0BEE734A67}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9} = {2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
