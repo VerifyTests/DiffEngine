@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using DiffEngine;
 
 static class WildcardFileFinder
 {
@@ -87,7 +88,7 @@ static class WildcardFileFinder
                 result = expanded;
                 return true;
             }
-
+            Logging.Write($"Could not find file: {path}");
             result = null;
             return false;
         }
@@ -109,6 +110,7 @@ static class WildcardFileFinder
             }
         }
 
+        Logging.Write($"Could not find file: {path}");
         result = null;
         return false;
     }
