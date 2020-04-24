@@ -19,5 +19,6 @@ namespace DiffEngine
         TkDiff,
         VisualStudio,
         VisualStudioCode,
+        Rider
     }
 }
