@@ -16,7 +16,6 @@ public class DiffToolsTest :
         #endregion
     }
 
-#if DEBUG
     [Fact]
     public void AddTool()
     {
@@ -37,6 +36,7 @@ public class DiffToolsTest :
         Assert.Equal(resolvedTool, forExtension);
     }
 
+#if DEBUG
     [Fact]
     public void AddToolBasedOn()
     {
