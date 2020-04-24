@@ -2,9 +2,9 @@
 using System.Runtime.InteropServices;
 using DiffEngine;
 
-static class ExeFinder
+static class OsSettingsResolver
 {
-    public static bool TryFindExe(
+    public static bool Resolve(
         OsSettings? windows,
         OsSettings? linux,
         OsSettings? osx,
