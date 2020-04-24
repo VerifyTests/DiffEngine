@@ -16,6 +16,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * Meld
  * SublimeMerge
  * Kaleidoscope
+ * DeltaWalker
  * CodeCompare
  * WinMerge
  * DiffMerge

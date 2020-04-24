@@ -1,6 +1,7 @@
  * [AraxisMerge](/docs/diff-tool.md#araxismerge)
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
  * [CodeCompare](/docs/diff-tool.md#codecompare)
+ * [DeltaWalker](/docs/diff-tool.md#deltawalker)
  * [DiffMerge](/docs/diff-tool.md#diffmerge)
  * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
  * [KDiff3](/docs/diff-tool.md#kdiff3)

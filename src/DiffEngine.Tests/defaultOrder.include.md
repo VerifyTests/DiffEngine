@@ -4,6 +4,7 @@
  * Meld
  * SublimeMerge
  * Kaleidoscope
+ * DeltaWalker
  * CodeCompare
  * WinMerge
  * DiffMerge

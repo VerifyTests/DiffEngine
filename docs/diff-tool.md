@@ -150,6 +150,24 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `%ProgramFiles%\Devart\Code Compare\CodeCompare.exe`
 
+## [DeltaWalker](https://www.deltawalker.com/)
+
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: True
+ * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
+
+### Notes:
+
+
+ * [Command line usage](https://www.deltawalker.com/integrate/command-line)
+
+### OSX settings:
+
+
+ * Example arguments: `-mi "tempFile" "targetFile"`
+ * Scanned path: `/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker`
+
 ## [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
   * Is MDI: False
