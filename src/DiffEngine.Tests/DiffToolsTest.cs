@@ -76,6 +76,16 @@ public class DiffToolsTest :
     //}
 
 #if DEBUG
+
+    [Fact]
+    public void ChangeOrder()
+    {
+        #region UseOrder
+        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+        #endregion
+        Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First().Tool);
+    }
+
     [Fact]
     public void TryFind()
     {
