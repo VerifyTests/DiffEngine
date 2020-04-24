@@ -29,11 +29,30 @@ public class DiffToolsTest :
             requiresTarget: true,
             arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
             exePath: diffToolPath,
-            binaryExtensions: new[] {"jpg"});
+            binaryExtensions: new[] {"jpg"})!;
         #endregion
-        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
+        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
         Assert.True(DiffTools.TryFind("jpg", out var forExtension));
-        Assert.Equal(resolvedTool, forExtension);
+        Assert.Equal(resolvedTool.Name, forExtension!.Name);
+    }
+
+    [Fact]
+    public void OrderShouldNotMessWithAddTool()
+    {
+        string diffToolPath = FakeDiffTool.Exe;
+        var resolvedTool = DiffTools.AddTool(
+            name: "MyCustomDiffTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
+            exePath: diffToolPath,
+            binaryExtensions: Enumerable.Empty<string>())!;
+        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
+        Assert.True(DiffTools.TryFind("txt", out var forExtension));
+        Assert.Equal(resolvedTool.Name, forExtension!.Name);
     }
 
 #if DEBUG

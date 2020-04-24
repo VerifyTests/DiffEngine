@@ -119,17 +119,21 @@ namespace DiffEngine
                 return null;
             }
 
-            var binariesList = binaries.ToList();
-            var resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, arguments, isMdi, autoRefresh, binariesList, requiresTarget, supportsText);
+            var resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, arguments, isMdi, autoRefresh, binaries.ToList(), requiresTarget, supportsText);
 
+            AddResolvedToolAtStart(resolvedTool);
+
+            return resolvedTool;
+        }
+
+        static void AddResolvedToolAtStart(ResolvedTool resolvedTool)
+        {
             resolved.Insert(0, resolvedTool);
-            foreach (var extension in binariesList)
+            foreach (var extension in resolvedTool.BinaryExtensions)
             {
                 var cleanedExtension = Extensions.GetExtension(extension);
                 ExtensionLookup[cleanedExtension] = resolvedTool;
             }
-
-            return resolvedTool;
         }
 
         static DiffTools()
@@ -139,6 +143,8 @@ namespace DiffEngine
 
         internal static void Reset()
         {
+            ExtensionLookup.Clear();
+            resolved.Clear();
             var result = OrderReader.ReadToolOrder();
 
             InitTools(result.FoundInEnvVar, result.Order);
@@ -146,12 +152,19 @@ namespace DiffEngine
 
         static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> tools)
         {
+            var custom = resolved.Where(x=>x.Tool == null).ToList();
             ExtensionLookup.Clear();
             resolved.Clear();
 
             foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, tools).Reverse())
             {
                 AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
+            }
+
+            custom.Reverse();
+            foreach (var tool in custom)
+            {
+                AddResolvedToolAtStart(tool);
             }
         }
 

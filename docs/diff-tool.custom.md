@@ -20,7 +20,7 @@ var resolvedTool = DiffTools.AddTool(
     requiresTarget: true,
     arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
     exePath: diffToolPath,
-    binaryExtensions: new[] {"jpg"});
+    binaryExtensions: new[] {"jpg"})!;
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L33' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
 <!-- endsnippet -->
@@ -39,5 +39,5 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L43-L48' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L62-L67' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
 <!-- endsnippet -->
