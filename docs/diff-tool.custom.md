@@ -18,7 +18,7 @@ var resolvedTool = DiffTools.AddTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
+    arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```

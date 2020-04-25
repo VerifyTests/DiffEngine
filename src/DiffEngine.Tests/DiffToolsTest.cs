@@ -27,7 +27,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
+            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"})!;
         #endregion
@@ -46,7 +46,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (temp, target) => $"\"{temp}\" \"{target}\"",
+            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
