@@ -18,7 +18,7 @@ If the file cannot be found `AddTool*` will return null.
 
 ### Path conventions
 
- * `Environment.ExpandEnvironmentVariables` is used to expand environment variables.
+ * [Environment.ExpandEnvironmentVariables](https://docs.microsoft.com/en-us/dotnet/api/system.environment.expandenvironmentvariables) is used to expand environment variables.
  * `*` can be used as a wildcard.
  * In the case where multiple matches are resolved the newest will be used.
 
