@@ -25,10 +25,6 @@ var resolvedTool = DiffTools.AddTool(
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L33' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
 <!-- endsnippet -->
 
-`exePath` is the path to the executable.
-
-`Environment.ExpandEnvironmentVariables` is used to expand environment variables.
-
 Add a tool based on existing resolved tool:
 
 <!-- snippet: AddToolBasedOn -->
@@ -41,3 +37,24 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L62-L67' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
 <!-- endsnippet -->
+
+
+## exePath
+
+`exePath` is the path to the executable.
+
+If the file cannot be found `AddTool*` will return null.
+
+
+### Path conventions
+
+ * `Environment.ExpandEnvironmentVariables` is used to expand environment variables.
+ * `*` can be used as a wildcard.
+ * In the case where multiple matches are resolved the newest will be used.
+
+So for example `%ProgramFiles(x86)%\Microsoft Visual Studio\*\*\Common7\IDE\devenv.exe` might discover the following:
+
+ * `C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe`
+ * `C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE\devenv.exe`
+
+Then `C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe` will be used.
