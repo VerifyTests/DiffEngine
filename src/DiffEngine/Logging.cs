@@ -13,7 +13,10 @@ namespace DiffEngine
 
         internal static void Write(string message)
         {
-            Trace.WriteLine(message);
+            if (enabled)
+            {
+                Trace.WriteLine(message);
+            }
         }
     }
 }
