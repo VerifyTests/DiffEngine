@@ -39,6 +39,11 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 <!-- endsnippet -->
 
 
+## Resolution order
+
+New tools are added to the top of the order, the last tool added will resolve before any existing tools.
+
+
 ## exePath
 
 `exePath` is the path to the executable.
