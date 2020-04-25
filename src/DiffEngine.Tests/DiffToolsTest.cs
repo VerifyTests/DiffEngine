@@ -71,6 +71,17 @@ public class DiffToolsTest :
         Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
     }
 #endif
+    void AddToolAndLaunch()
+    {
+        #region AddToolAndLaunch
+        var resolvedTool = DiffTools.AddToolBasedOn(
+            DiffTool.VisualStudio,
+            name: "MyCustomDiffTool",
+            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+
+        DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+        #endregion
+    }
 
     //[Fact]
     //public void LaunchImageDiff()

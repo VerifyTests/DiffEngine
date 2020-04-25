@@ -41,7 +41,30 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 ## Resolution order
 
-New tools are added to the top of the order, the last tool added will resolve before any existing tools.
+New tools are added to the top of the order, the last tool added will resolve before any existing tools. So when the following is executeed the last tool that supports the file types will launch:
+
+<!-- snippet: DiffRunnerLaunch -->
+<a id='snippet-diffrunnerlaunch'/></a>
+```cs
+DiffRunner.Launch(tempFile, targetFile);
+```
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L18-L20' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<!-- endsnippet -->
+
+Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
+
+<!-- snippet: AddToolAndLaunch -->
+<a id='snippet-addtoolandlaunch'/></a>
+```cs
+var resolvedTool = DiffTools.AddToolBasedOn(
+    DiffTool.VisualStudio,
+    name: "MyCustomDiffTool",
+    arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+
+DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+```
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L76-L83' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
+<!-- endsnippet -->
 
 
 ## exePath
