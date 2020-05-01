@@ -10,24 +10,24 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 ## Default
 
- * BeyondCompare <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
- * P4Merge
- * AraxisMerge
- * Meld
- * SublimeMerge
- * Kaleidoscope
- * DeltaWalker
- * CodeCompare
- * WinMerge
- * DiffMerge
- * TortoiseMerge
- * TortoiseGitMerge
- * TortoiseIDiff
- * KDiff3
- * TkDiff
- * VisualStudioCode
- * VisualStudio
- * Rider <!-- end include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
+ * [BeyondCompare](/docs/diff-tool.md#beyondcompare) <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
+ * [P4Merge](/docs/diff-tool.md#p4merge)
+ * [AraxisMerge](/docs/diff-tool.md#araxismerge)
+ * [Meld](/docs/diff-tool.md#meld)
+ * [SublimeMerge](/docs/diff-tool.md#sublimemerge)
+ * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
+ * [DeltaWalker](/docs/diff-tool.md#deltawalker)
+ * [CodeCompare](/docs/diff-tool.md#codecompare)
+ * [WinMerge](/docs/diff-tool.md#winmerge)
+ * [DiffMerge](/docs/diff-tool.md#diffmerge)
+ * [TortoiseMerge](/docs/diff-tool.md#tortoisemerge)
+ * [TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)
+ * [TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)
+ * [KDiff3](/docs/diff-tool.md#kdiff3)
+ * [TkDiff](/docs/diff-tool.md#tkdiff)
+ * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
+ * [VisualStudio](/docs/diff-tool.md#visualstudio)
+ * [Rider](/docs/diff-tool.md#rider) <!-- end include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
 
 
 ## Custom order

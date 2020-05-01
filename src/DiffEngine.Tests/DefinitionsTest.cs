@@ -19,8 +19,13 @@ public class DefinitionsTest :
         foreach (var tool in tools
             .OrderBy(x => x.Tool.ToString()))
         {
-            writer.WriteLine($@" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
+            AddToolLink(writer, tool);
         }
+    }
+
+    static void AddToolLink(StreamWriter writer, Definition tool)
+    {
+        writer.WriteLine($@" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
     }
 
     [Fact]
@@ -32,7 +37,7 @@ public class DefinitionsTest :
 
         foreach (var tool in Definitions.Tools())
         {
-            writer.WriteLine($@" * {tool.Tool}");
+            AddToolLink(writer, tool);
         }
     }
 
