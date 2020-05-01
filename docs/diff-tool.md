@@ -423,7 +423,8 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
  * Scanned paths:
 
    * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
-   * `%ProgramFiles%\Microsoft VS Code\bin\code`
+   * `%ProgramFiles%\Microsoft VS Code\bin\code.exe`
+   * `%ProgramFiles%\Microsoft VS Code\code.exe`
 
 ### OSX settings:
 

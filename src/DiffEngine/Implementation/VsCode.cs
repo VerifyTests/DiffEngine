@@ -19,7 +19,8 @@ static partial class Implementation
             windows: new OsSettings(
                 Arguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
-                @"%ProgramFiles%\Microsoft VS Code\bin\code"),
+                @"%ProgramFiles%\Microsoft VS Code\bin\code.exe",
+                @"%ProgramFiles%\Microsoft VS Code\code.exe"),
             linux: new OsSettings(
                 Arguments,
                 @"/usr/local/bin/code"),
