@@ -81,7 +81,7 @@ namespace DiffEngine
             var targetExists = File.Exists(targetFile);
             if (tool.RequiresTarget && !targetExists)
             {
-                if (!AllFiles.TryCreateFile(targetFile, true))
+                if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
                 {
                     return LaunchResult.NoEmptyFileForExtension;
                 }

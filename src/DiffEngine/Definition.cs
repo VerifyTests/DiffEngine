@@ -14,7 +14,8 @@ class Definition
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
 
-    public Definition(DiffTool name,
+    public Definition(
+        DiffTool name,
         string url,
         bool autoRefresh,
         bool isMdi,

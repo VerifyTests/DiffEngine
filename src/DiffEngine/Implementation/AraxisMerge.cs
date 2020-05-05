@@ -46,4 +46,5 @@ static partial class Implementation
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
  * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)
  * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)");
+    //TODO: add doco about auto refresh
 }
