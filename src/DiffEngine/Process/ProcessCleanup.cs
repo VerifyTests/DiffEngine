@@ -1,19 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Management;
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace DiffEngine
 {
     public static class ProcessCleanup
     {
         static List<ProcessCommand> commands;
+        static Func<IEnumerable<ProcessCommand>> findAll;
+        static Func<ProcessCommand, bool> tryTerminateProcess;
 
 #pragma warning disable CS8618
         static ProcessCleanup()
         {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                findAll = WindowsProcess.FindAll;
+                tryTerminateProcess = WindowsProcess.TryTerminateProcess;
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                findAll = LinuxProcess.FindAll;
+                tryTerminateProcess = LinuxProcess.TryTerminateProcess;
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                findAll = OsxProcess.FindAll;
+                tryTerminateProcess = OsxProcess.TryTerminateProcess;
+            }
+            else
+            {
+                throw new Exception("Onknown OS");
+            }
+
             Refresh();
         }
 
@@ -21,26 +41,8 @@ namespace DiffEngine
 
         public static void Refresh()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                commands = FindAll().ToList();
-            }
-            else
-            {
-                commands = new List<ProcessCommand>();
-            }
+            commands = findAll().ToList();
         }
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        static extern SafeProcessHandle OpenProcess(
-            int access,
-            bool inherit,
-            int processId);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        static extern bool TerminateProcess(
-            SafeProcessHandle processHandle,
-            int exitCode);
 
         /// <summary>
         /// Find a process with the matching command line and kill it.
@@ -60,7 +62,7 @@ namespace DiffEngine
 
             foreach (var processCommand in matchingCommands)
             {
-                TerminalProcessIfExists(processCommand);
+                TerminateProcessIfExists(processCommand);
             }
         }
 
@@ -70,18 +72,17 @@ namespace DiffEngine
             return commands.Any(x => x.Command == command);
         }
 
-        static void TerminalProcessIfExists(in ProcessCommand processCommand)
+        static void TerminateProcessIfExists(in ProcessCommand processCommand)
         {
             var processId = processCommand.Process;
-            using var processHandle = OpenProcess(4097, false, processId);
-            if (processHandle.IsInvalid)
+            if (tryTerminateProcess(processCommand))
+            {
+                Logging.Write($"TerminateProcess. Id: {processId}.");
+            }
+            else
             {
                 Logging.Write($"Process not valid. Id: {processId}.");
-                return;
             }
-
-            Logging.Write($"TerminateProcess. Id: {processId}.");
-            TerminateProcess(processHandle, -1);
         }
 
         /// <summary>
@@ -89,19 +90,7 @@ namespace DiffEngine
         /// </summary>
         public static IEnumerable<ProcessCommand> FindAll()
         {
-            var wmiQuery = @"
-select CommandLine, ProcessId
-from Win32_Process
-where CommandLine like '% %.%.%'";
-            using var searcher = new ManagementObjectSearcher(wmiQuery);
-            using var collection = searcher.Get();
-            foreach (var process in collection)
-            {
-                var command = (string) process["CommandLine"];
-                var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
-                process.Dispose();
-                yield return new ProcessCommand(command, id);
-            }
+            return findAll();
         }
     }
 }
