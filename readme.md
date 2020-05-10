@@ -47,6 +47,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
  * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
  * [DiffMerge](/docs/diff-tool.md#diffmerge)
+ * [Guiffy](/docs/diff-tool.md#guiffy)
  * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
  * [KDiff3](/docs/diff-tool.md#kdiff3)
  * [Meld](/docs/diff-tool.md#meld)
