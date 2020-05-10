@@ -21,6 +21,7 @@ static class Definitions
             Implementation.TortoiseIDiff(),
             Implementation.KDiff3(),
             Implementation.TkDiff(),
+            Implementation.Guiffy(),
             Implementation.VsCode(),
             Implementation.VisualStudio(),
             Implementation.Rider()
