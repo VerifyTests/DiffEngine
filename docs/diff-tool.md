@@ -198,6 +198,32 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
  * Example arguments: `--nosplash "tempFile" "targetFile"`
  * Scanned path: `/usr/bin/diffmerge`
 
+## [Guiffy](https://www.guiffy.com/)
+
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: True
+ * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
+
+### Notes:
+
+
+ * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
+ * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
+ * `-ge1`: Forbid 1st file view Editing
+
+### Windows settings:
+
+
+ * Example arguments: `"tempFile" "targetFile" -ge1`
+ * Scanned path: `%ProgramFiles%\Guiffy\guiffy.exe`
+
+### OSX settings:
+
+
+ * Example arguments: `"tempFile" "targetFile" -ge1`
+ * Scanned path: `/Applications/Guiffy/guiffyCL.command`
+
 ## [Kaleidoscope](https://www.kaleidoscopeapp.com/)
 
   * Is MDI: False
