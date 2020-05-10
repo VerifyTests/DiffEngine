@@ -1,5 +1,8 @@
-﻿namespace DiffEngine
+﻿using System.Diagnostics;
+
+namespace DiffEngine
 {
+    [DebuggerDisplay("Arguments={Arguments}, ExePaths={ExePaths}")]
     public class OsSettings
     {
         public BuildArguments Arguments { get; }

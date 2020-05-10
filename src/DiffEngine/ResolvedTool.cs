@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace DiffEngine
 {
-    [DebuggerDisplay("{Name} {ExePath}")]
+    [DebuggerDisplay("{Name} {ExePath}, Refresh={AutoRefresh}, Mdi={IsMdi}, RequiresTarget={RequiresTarget}, SupportsText={SupportsText}")]
     public class ResolvedTool
     {
         public string Name { get; }
