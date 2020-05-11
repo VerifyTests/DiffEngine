@@ -22,7 +22,8 @@ public class OrderReaderTest :
         Assert.Equal("Unable to parse tool from `DiffEngine.ToolOrder` environment variable: Foo", exception.Message);
     }
 
-    public OrderReaderTest(ITestOutputHelper output) : base(output)
+    public OrderReaderTest(ITestOutputHelper output) :
+        base(output)
     {
     }
 }

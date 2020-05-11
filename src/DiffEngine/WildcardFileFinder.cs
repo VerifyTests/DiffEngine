@@ -64,7 +64,7 @@ static class WildcardFileFinder
         IEnumerable<string> paths,
         [NotNullWhen(true)] out string? exePath)
     {
-        foreach (var path in paths)
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (TryFind(path, out exePath))
             {

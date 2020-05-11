@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using DiffEngine;
 
@@ -14,7 +15,9 @@ static class OsSettingsResolver
         if (windows != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (WildcardFileFinder.TryFindExe(windows.ExePaths, out path))
+            var paths = ExpandProgramFiles(windows.ExePaths);
+
+            if (WildcardFileFinder.TryFindExe(paths, out path))
             {
                 arguments = windows.Arguments;
                 return true;
@@ -44,5 +47,23 @@ static class OsSettingsResolver
         path = null;
         arguments = null;
         return false;
+    }
+
+    public static IEnumerable<string> ExpandProgramFiles(IEnumerable<string> paths)
+    {
+        // Note: Windows can have multiple paths, and will resolve %ProgramFiles% as 'C:\Program Files (x86)'
+        // when running inside a 32-bit process. To
+        // overcome this issue, we need to manually add any option so the correct paths will be resolved
+
+        foreach (var windowsPath in paths)
+        {
+            yield return windowsPath;
+
+            if (windowsPath.Contains("%ProgramFiles%"))
+            {
+                yield return windowsPath.Replace("%ProgramFiles%", "%ProgramW6432%");
+                yield return windowsPath.Replace("%ProgramFiles%", "%ProgramFiles(x86)%");
+            }
+        }
     }
 }
