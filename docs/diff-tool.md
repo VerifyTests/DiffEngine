@@ -423,7 +423,7 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 ### Windows settings:
 
 
- * Example arguments: `/diff "targetFile" "tempFile"`
+ * Example arguments: `/diff "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe`
