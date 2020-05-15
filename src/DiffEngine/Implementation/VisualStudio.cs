@@ -14,7 +14,7 @@ static partial class Implementation
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(
-                (temp, target) => $"/diff \"{target}\" \"{temp}\"",
+                (temp, target) => $"/diff \"{temp}\" \"{target}\"",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
