@@ -21,7 +21,8 @@ static partial class Implementation
                     var rightTitle = Path.GetFileName(target);
                     return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{leftTitle}\" /dr \"{rightTitle}\"";
                 },
-                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe"),
+                @"%ProgramFiles(x86)%\WinMerge\WinMergeU.exe",
+                @"%ProgramFiles%\WinMerge\WinMergeU.exe"),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
