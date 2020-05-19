@@ -16,7 +16,7 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(Arguments, @"%ProgramFiles(x86)%\Meld\meld.exe"),
+            windows: new OsSettings(Arguments, @"%ProgramFiles%\Meld\meld.exe"),
             linux: new OsSettings(Arguments, @"/usr/bin/meld"),
             osx: new OsSettings(Arguments, @"/Applications/meld.app/Contents/MacOS/meld"));
     }

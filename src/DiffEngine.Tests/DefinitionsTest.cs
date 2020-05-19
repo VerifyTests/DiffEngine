@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using DiffEngine;
 using Xunit;
@@ -80,7 +81,7 @@ public class DefinitionsTest :
 ### Windows settings:
 ");
                 WriteArguments(writer, tool.Windows.Arguments!);
-                WritePaths(writer, tool.Windows.ExePaths);
+                WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
             }
 
             if (tool.Osx != null)
@@ -110,9 +111,9 @@ public class DefinitionsTest :
  * Example arguments: `{argumentsWithTarget}`");
     }
 
-    static void WritePaths(TextWriter writer, string[] paths)
+    static void WritePaths(TextWriter writer, IReadOnlyCollection<string> paths)
     {
-        if (paths.Length > 1)
+        if (paths.Count > 1)
         {
             writer.WriteLine(@" * Scanned paths:
 ");
