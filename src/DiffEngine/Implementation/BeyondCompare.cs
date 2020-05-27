@@ -4,8 +4,10 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        string Arguments(string temp, string target) =>
-            $"/solo \"{temp}\" \"{target}\"";
+        string WindowsArguments(string temp, string target) =>
+            $"/solo /leftreadonly \"{temp}\" \"{target}\"";
+        string OsxLinuxArguments(string temp, string target) =>
+            $"-solo -leftreadonly \"{temp}\" \"{target}\"";
 
         return new Definition(
             name: DiffTool.BeyondCompare,
@@ -37,9 +39,9 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
-            linux: new OsSettings(Arguments, "/usr/lib/beyondcompare/bcomp"),
-            osx: new OsSettings(Arguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
+            windows: new OsSettings(WindowsArguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
+            linux: new OsSettings(OsxLinuxArguments, "/usr/lib/beyondcompare/bcomp"),
+            osx: new OsSettings(OsxLinuxArguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }

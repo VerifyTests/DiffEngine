@@ -122,7 +122,7 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 ### Windows settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `/solo /leftreadonly "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
@@ -132,13 +132,13 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 ### OSX settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/Applications/Beyond Compare.app/Contents/MacOS/bcomp`
 
 ### Linux settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/usr/lib/beyondcompare/bcomp`
 
 ## [CodeCompare](https://www.devart.com/codecompare/)
