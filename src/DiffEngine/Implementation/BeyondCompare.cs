@@ -15,7 +15,9 @@ static partial class Implementation
             autoRefresh: true,
             isMdi: false,
             supportsText: true,
-            requiresTarget: false,
+            // technically BC doesnt require a target.
+            // but if no target exists, the target cannot be edited
+            requiresTarget: true,
             binaryExtensions: new[]
             {
                 "mp3", //?
