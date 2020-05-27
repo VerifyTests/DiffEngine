@@ -45,7 +45,7 @@
 ### Windows settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `/solo /leftreadonly "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
@@ -55,13 +55,13 @@
 ### OSX settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/Applications/Beyond Compare.app/Contents/MacOS/bcomp`
 
 ### Linux settings:
 
 
- * Example arguments: `/solo "tempFile" "targetFile"`
+ * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/usr/lib/beyondcompare/bcomp`
 
 ## [CodeCompare](https://www.devart.com/codecompare/)
