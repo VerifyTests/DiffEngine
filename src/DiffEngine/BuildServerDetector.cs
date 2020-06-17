@@ -45,7 +45,7 @@ namespace DiffEngine
 
             // TeamCity
             // https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties
-            if (Environment.GetEnvironmentVariable("teamcity") != null)
+            if (Environment.GetEnvironmentVariable("TEAMCITY_VERSION") != null)
             {
                 Detected = true;
             }
