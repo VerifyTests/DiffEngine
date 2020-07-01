@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 ## Default
 
- * [BeyondCompare](/docs/diff-tool.md#beyondcompare) <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
+ * [BeyondCompare](/docs/diff-tool.md#beyondcompare) <!-- include: defaultOrder. path: /src/Tests/defaultOrder.include.md -->
  * [P4Merge](/docs/diff-tool.md#p4merge)
  * [AraxisMerge](/docs/diff-tool.md#araxismerge)
  * [Meld](/docs/diff-tool.md#meld)
@@ -28,7 +28,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [Guiffy](/docs/diff-tool.md#guiffy)
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
- * [Rider](/docs/diff-tool.md#rider) <!-- end include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
+ * [Rider](/docs/diff-tool.md#rider) <!-- end include: defaultOrder. path: /src/Tests/defaultOrder.include.md -->
 
 
 ## Custom order
@@ -48,5 +48,5 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 ```cs
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L113-L115' title='File snippet `useorder` was extracted from'>snippet source</a> | <a href='#snippet-useorder' title='Navigate to start of snippet `useorder`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffToolsTest.cs#L113-L115' title='File snippet `useorder` was extracted from'>snippet source</a> | <a href='#snippet-useorder' title='Navigate to start of snippet `useorder`'>anchor</a></sup>
 <!-- endsnippet -->

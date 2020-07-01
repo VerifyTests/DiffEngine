@@ -55,7 +55,7 @@ This value can be changed:
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 
@@ -75,7 +75,7 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 
 ## Supported Tools:
 
- <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
+ <!-- include: diffTools. path: /src/Tests/diffTools.include.md -->
 ## [AraxisMerge](https://www.araxis.com/merge)
 
   * Is MDI: True
@@ -541,4 +541,4 @@ This behavior is currently supported on Windows. On Linux and OSX, tool instance
 
    * `%ProgramFiles%\WinMerge\WinMergeU.exe`
    * `%ProgramW6432%\WinMerge\WinMergeU.exe`
-   * `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- end include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
+   * `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- end include: diffTools. path: /src/Tests/diffTools.include.md -->

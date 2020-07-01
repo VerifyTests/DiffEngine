@@ -16,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FakeDiffTool", "FakeDiffToo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine", "DiffEngine\DiffEngine.csproj", "{F494B6C2-29B4-4D73-8533-AF197D882970}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine.Tests", "DiffEngine.Tests\DiffEngine.Tests.csproj", "{58DF5836-41EC-450B-9AAA-AFA4B79169EA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{58DF5836-41EC-450B-9AAA-AFA4B79169EA}"
 	ProjectSection(ProjectDependencies) = postProject
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9} = {2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}
 	EndProjectSection

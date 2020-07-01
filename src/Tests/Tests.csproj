@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <RootNamespace>DiffEngine.Tests</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
     <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>

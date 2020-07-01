@@ -42,7 +42,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
 
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
- * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
+ * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/Tests/diffToolList.include.md -->
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
  * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
@@ -60,7 +60,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
  * [TortoiseMerge](/docs/diff-tool.md#tortoisemerge)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
- * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
+ * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/Tests/diffToolList.include.md -->
 
 
 ## Launching a tool
@@ -72,7 +72,7 @@ A tool can be launched using the following:
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L18-L20' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L18-L20' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -87,7 +87,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L29-L31' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L29-L31' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
