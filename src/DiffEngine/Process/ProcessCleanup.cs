@@ -31,7 +31,7 @@ namespace DiffEngine
             }
             else
             {
-                throw new Exception("Onknown OS");
+                throw new Exception("Unknown OS");
             }
 
             Refresh();
