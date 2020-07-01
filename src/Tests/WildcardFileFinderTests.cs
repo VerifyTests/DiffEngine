@@ -63,7 +63,7 @@ public class WildcardFileFinderTests :
     [Fact]
     public void WildCardInDir()
     {
-        var directory = SourceDirectory.Replace("DiffEngine.Tests", "Diff*.Tests");
+        var directory = SourceDirectory.Replace("Tests", "Test*");
         var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
         Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
@@ -72,7 +72,7 @@ public class WildcardFileFinderTests :
     [Fact]
     public void WildCardInDir_missing()
     {
-        var directory = SourceDirectory.Replace("DiffEngine.Tests", "Diff*.Foo");
+        var directory = SourceDirectory.Replace("Tests", "Test*.Foo");
         var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
         Assert.False(WildcardFileFinder.TryFind(path, out var result));
         Assert.Null(result);
