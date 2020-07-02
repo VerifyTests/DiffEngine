@@ -33,7 +33,7 @@ static class WindowsProcess
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
-        var wmiQuery = @"
+        const string? wmiQuery = @"
 select CommandLine, ProcessId
 from Win32_Process
 where CommandLine like '% %.%.%'";

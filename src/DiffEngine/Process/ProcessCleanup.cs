@@ -19,15 +19,11 @@ namespace DiffEngine
                 findAll = WindowsProcess.FindAll;
                 tryTerminateProcess = WindowsProcess.TryTerminateProcess;
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                findAll = LinuxProcess.FindAll;
-                tryTerminateProcess = LinuxProcess.TryTerminateProcess;
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                findAll = OsxProcess.FindAll;
-                tryTerminateProcess = OsxProcess.TryTerminateProcess;
+                findAll = LinuxOsxProcess.FindAll;
+                tryTerminateProcess = LinuxOsxProcess.TryTerminateProcess;
             }
             else
             {

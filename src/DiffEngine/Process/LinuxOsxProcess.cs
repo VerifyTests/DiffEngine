@@ -5,24 +5,34 @@ using System.IO;
 using System.Text;
 using DiffEngine;
 
-static class OsxProcess
+static class LinuxOsxProcess
 {
     public static bool TryTerminateProcess(ProcessCommand processCommand)
     {
-        try
+        using var process = new Process
         {
-            return Kill(processCommand.Process);
-        }
-        catch
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "kill",
+                Arguments = processCommand.Process.ToString(),
+                UseShellExecute = false,
+                CreateNoWindow = false,
+            }
+        };
+        process.Start();
+        if (!process.DoubleWaitForExit())
         {
-            return false;
+            var timeoutError = $@"Process timed out. Command line: kill {processCommand.Process}.";
+            throw new Exception(timeoutError);
         }
+
+        return process.ExitCode == 0;
     }
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
         var processList = RunPs();
-        using StringReader reader = new StringReader(processList);
+        using var reader = new StringReader(processList);
         string line;
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
@@ -40,33 +50,11 @@ static class OsxProcess
         }
     }
 
-    static bool Kill(int processId)
-    {
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "kill",
-                Arguments = processId.ToString(),
-                UseShellExecute = false,
-                CreateNoWindow = false,
-            }
-        };
-        process.Start();
-        if (!process.DoubleWaitForExit())
-        {
-            var timeoutError = $@"Process timed out. Command line: kill {processId}.";
-            throw new Exception(timeoutError);
-        }
-
-        return process.ExitCode == 0;
-    }
-
     static string RunPs()
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        var arguments = "-o pid,command -x";
+        const string? arguments = "-o pid,command -x";
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
