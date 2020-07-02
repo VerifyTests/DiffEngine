@@ -41,8 +41,6 @@ If a tool is running for the comparison of the current verification (per test), 
 
 This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
-This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
-
 
 ## MaxInstancesToLaunch
 
@@ -69,8 +67,6 @@ If a tool is running for the comparison of the current verification (per test), 
 | false | Kill current instance |
 
 This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
-
-This behavior is currently supported on Windows. On Linux and OSX, tool instances must be manually managed. <!-- end include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## Supported Tools:
