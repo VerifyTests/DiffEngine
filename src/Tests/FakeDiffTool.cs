@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 public class FakeDiffTool
@@ -7,17 +8,18 @@ public class FakeDiffTool
 
     static FakeDiffTool()
     {
-        var path = Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/FakeDiffTool");
-
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            path += ".exe";
-        }
-        else
-        {
-            path += ".dll";
+            Exe = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/win-x64/FakeDiffTool.exe"));
+            return;
         }
 
-        Exe = Path.GetFullPath(path);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Exe = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/osx-x64/FakeDiffTool"));
+            return;
+        }
+
+        throw new Exception();
     }
 }

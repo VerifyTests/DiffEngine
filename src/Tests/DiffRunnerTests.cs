@@ -1,7 +1,6 @@
 ﻿#if NETCOREAPP3_1
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using DiffEngine;
 using Xunit;
@@ -34,10 +33,6 @@ public class DiffRunnerTests :
     [Fact]
     public void LaunchAndKill()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return;
-        }
         DiffTools.AddTool(
             name: "FakeDiffTool",
             autoRefresh: true,
