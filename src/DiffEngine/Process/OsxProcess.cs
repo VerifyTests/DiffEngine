@@ -11,8 +11,7 @@ static class OsxProcess
     {
         try
         {
-            Run("kill", processCommand.Process.ToString());
-            return true;
+            return Kill(processCommand.Process);
         }
         catch
         {
@@ -22,7 +21,7 @@ static class OsxProcess
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
-        var processList = Run("ps", "-o pid,command -x");
+        var processList = RunPs();
         using StringReader reader = new StringReader(processList);
         string line;
         reader.ReadLine();
@@ -41,15 +40,38 @@ static class OsxProcess
         }
     }
 
-    static string Run(string exe, string arguments)
+    static bool Kill(int processId)
     {
-        var errorBuilder = new StringBuilder();
-        var outputBuilder = new StringBuilder();
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = exe,
+                FileName = "kill",
+                Arguments = processId.ToString(),
+                UseShellExecute = false,
+                CreateNoWindow = false,
+            }
+        };
+        process.Start();
+        if (!process.DoubleWaitForExit())
+        {
+            var timeoutError = $@"Process timed out. Command line: kill {processId}.";
+            throw new Exception(timeoutError);
+        }
+
+        return process.ExitCode == 0;
+    }
+
+    static string RunPs()
+    {
+        var errorBuilder = new StringBuilder();
+        var outputBuilder = new StringBuilder();
+        var arguments = "-o pid,command -x";
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "ps",
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -64,7 +86,7 @@ static class OsxProcess
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: {exe} {arguments}.
+            var timeoutError = $@"Process timed out. Command line: ps {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
             throw new Exception(timeoutError);
@@ -74,7 +96,7 @@ Error: {errorBuilder}";
             return outputBuilder.ToString();
         }
 
-        var error = $@"Could not execute process. Command line: {exe} {arguments}.
+        var error = $@"Could not execute process. Command line: ps {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
         throw new Exception(error);
