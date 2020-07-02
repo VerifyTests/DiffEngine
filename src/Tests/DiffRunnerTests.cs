@@ -45,6 +45,7 @@ public class DiffRunnerTests :
             binaryExtensions: new[] {"knownBin"});
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
+        Assert.False(IsRunning());
         DiffRunner.Launch(tempFile, targetFile);
         Assert.True(IsRunning());
         ProcessCleanup.Refresh();
