@@ -44,7 +44,7 @@ where CommandLine like '% %.%.%'";
             var command = (string) process["CommandLine"];
             var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
             process.Dispose();
-            yield return new ProcessCommand(command, id);
+            yield return new ProcessCommand(command.Replace("\"", ""), id);
         }
     }
 }

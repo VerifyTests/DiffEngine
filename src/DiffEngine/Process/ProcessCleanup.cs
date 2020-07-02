@@ -52,12 +52,13 @@ namespace DiffEngine
             Guard.AgainstNullOrEmpty(command, nameof(command));
             var trimmedCommand = command.Replace("\"", "");
             var matchingCommands = Commands
-                .Where(x => x.Command.Replace("\"", "") == trimmedCommand).ToList();
+                .Where(x => x.Command == trimmedCommand).ToList();
             Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
             if (matchingCommands.Count == 0)
             {
                 var separator = Environment.NewLine + "\t";
-                Logging.Write($"No matching commands. All commands: {separator}{string.Join(separator, Commands.Select(x => x.Command))}.");
+                var joined = string.Join(separator, Commands.Select(x => x.Command));
+                Logging.Write($"No matching commands. All commands: {separator}{joined}.");
             }
 
             foreach (var processCommand in matchingCommands)
