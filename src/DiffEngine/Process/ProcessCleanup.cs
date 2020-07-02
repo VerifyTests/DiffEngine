@@ -50,9 +50,9 @@ namespace DiffEngine
         public static void Kill(string command)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
+            var trimmedCommand = command.Replace("\"", "");
             var matchingCommands = Commands
-                .Where(x => x.Command == command).ToList();
-
+                .Where(x => x.Command.Replace("\"", "") == trimmedCommand).ToList();
             Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
             if (matchingCommands.Count == 0)
             {

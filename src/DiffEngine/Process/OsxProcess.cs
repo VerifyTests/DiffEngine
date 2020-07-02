@@ -9,12 +9,20 @@ static class OsxProcess
 {
     public static bool TryTerminateProcess(ProcessCommand processCommand)
     {
-        return false;
+        try
+        {
+            Run("kill", processCommand.Process.ToString());
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
-        var processList = Run();
+        var processList = Run("ps", "-o pid,command -x");
         using StringReader reader = new StringReader(processList);
         string line;
         reader.ReadLine();
@@ -33,16 +41,15 @@ static class OsxProcess
         }
     }
 
-    public static string Run()
+    public static string Run(string exe, string arguments)
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        var arguments = "-o pid,command -x";
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "ps",
+                FileName = exe,
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -57,7 +64,7 @@ static class OsxProcess
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: ps {arguments}.
+            var timeoutError = $@"Process timed out. Command line: {exe} {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
             throw new Exception(timeoutError);
@@ -67,7 +74,7 @@ Error: {errorBuilder}";
             return outputBuilder.ToString();
         }
 
-        var error = $@"Could not execute process. Command line: ps {arguments}.
+        var error = $@"Could not execute process. Command line: {exe} {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
         throw new Exception(error);
