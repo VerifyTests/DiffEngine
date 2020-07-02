@@ -41,7 +41,7 @@ static class OsxProcess
         }
     }
 
-    public static string Run(string exe, string arguments)
+    static string Run(string exe, string arguments)
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
