@@ -25,6 +25,7 @@ public class DiffRunnerTests :
         var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);
+        ProcessCleanup.Refresh();
         #region DiffRunnerKill
         DiffRunner.Kill(tempFile, targetFile);
         #endregion

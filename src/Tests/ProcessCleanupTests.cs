@@ -1,5 +1,4 @@
-﻿#if DEBUG
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Linq;
 using DiffEngine;
 using Xunit;
@@ -23,4 +22,3 @@ public class ProcessCleanupTests :
     {
     }
 }
-#endif

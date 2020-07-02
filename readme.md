@@ -87,7 +87,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L28-L30' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L29-L31' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
