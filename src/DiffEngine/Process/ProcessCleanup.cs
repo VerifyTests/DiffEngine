@@ -19,15 +19,11 @@ namespace DiffEngine
                 findAll = WindowsProcess.FindAll;
                 tryTerminateProcess = WindowsProcess.TryTerminateProcess;
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                findAll = LinuxProcess.FindAll;
-                tryTerminateProcess = LinuxProcess.TryTerminateProcess;
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                findAll = OsxProcess.FindAll;
-                tryTerminateProcess = OsxProcess.TryTerminateProcess;
+                findAll = LinuxOsxProcess.FindAll;
+                tryTerminateProcess = LinuxOsxProcess.TryTerminateProcess;
             }
             else
             {
@@ -52,12 +48,13 @@ namespace DiffEngine
             Guard.AgainstNullOrEmpty(command, nameof(command));
             var trimmedCommand = command.Replace("\"", "");
             var matchingCommands = Commands
-                .Where(x => x.Command.Replace("\"", "") == trimmedCommand).ToList();
+                .Where(x => x.Command == trimmedCommand).ToList();
             Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
             if (matchingCommands.Count == 0)
             {
                 var separator = Environment.NewLine + "\t";
-                Logging.Write($"No matching commands. All commands: {separator}{string.Join(separator, Commands.Select(x => x.Command))}.");
+                var joined = string.Join(separator, Commands.Select(x => x.Command));
+                Logging.Write($"No matching commands. All commands: {separator}{joined}.");
             }
 
             foreach (var processCommand in matchingCommands)
