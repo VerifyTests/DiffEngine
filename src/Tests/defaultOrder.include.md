@@ -14,6 +14,7 @@
  * [KDiff3](/docs/diff-tool.md#kdiff3)
  * [TkDiff](/docs/diff-tool.md#tkdiff)
  * [Guiffy](/docs/diff-tool.md#guiffy)
+ * [ExamDiff](/docs/diff-tool.md#examdiff)
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [Rider](/docs/diff-tool.md#rider)
