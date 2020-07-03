@@ -210,6 +210,29 @@ This allows, in most cases, for no manual closing of the tool to be required. <!
  * Example arguments: `--nosplash "tempFile" "targetFile"`
  * Scanned path: `/usr/bin/diffmerge`
 
+## [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
+
+  * Is MDI: False
+  * Supports auto-refresh: True
+  * Supports text files: True
+
+### Notes:
+
+
+ * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
+ * `/nh`: do not add files or directories to comparison history
+ * `/diffonly`: diff-only merge mode: hide the merge pane
+
+### Windows settings:
+
+
+ * Example arguments: `"tempFile" "targetFile" /nh /diffonly /dn1:tempFile /dn2:targetFile`
+ * Scanned paths:
+
+   * `%ProgramFiles%\ExamDiff Pro\ExamDiff.exe`
+   * `%ProgramW6432%\ExamDiff Pro\ExamDiff.exe`
+   * `%ProgramFiles(x86)%\ExamDiff Pro\ExamDiff.exe`
+
 ## [Guiffy](https://www.guiffy.com/)
 
   * Is MDI: False
