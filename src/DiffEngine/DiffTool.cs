@@ -19,6 +19,7 @@ namespace DiffEngine
         TkDiff,
         Guiffy,
         ExamDiff,
+        Diffinity,
         VisualStudio,
         VisualStudioCode,
         Rider
