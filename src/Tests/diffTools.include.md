@@ -109,6 +109,28 @@
  * Example arguments: `-mi "tempFile" "targetFile"`
  * Scanned path: `/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker`
 
+## [Diffinity](https://truehumandesign.se/s_diffinity.php)
+
+  * Is MDI: False
+  * Supports auto-refresh: True
+  * Supports text files: True
+
+### Notes:
+
+
+ * Disable single instance:
+   \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.
+
+### Windows settings:
+
+
+ * Example arguments: `"tempFile" "targetFile"`
+ * Scanned paths:
+
+   * `%ProgramFiles%\Diffinity\Diffinity.exe`
+   * `%ProgramW6432%\Diffinity\Diffinity.exe`
+   * `%ProgramFiles(x86)%\Diffinity\Diffinity.exe`
+
 ## [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
   * Is MDI: False

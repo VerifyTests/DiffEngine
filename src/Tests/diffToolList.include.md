@@ -2,6 +2,7 @@
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
  * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
+ * [Diffinity](/docs/diff-tool.md#diffinity)
  * [DiffMerge](/docs/diff-tool.md#diffmerge)
  * [ExamDiff](/docs/diff-tool.md#examdiff)
  * [Guiffy](/docs/diff-tool.md#guiffy)
