@@ -23,6 +23,7 @@ static class Definitions
             Implementation.TkDiff(),
             Implementation.Guiffy(),
             Implementation.ExamDiff(),
+            Implementation.Diffinity(),
             Implementation.VsCode(),
             Implementation.VisualStudio(),
             Implementation.Rider()
