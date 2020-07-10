@@ -46,9 +46,12 @@ namespace DiffEngine
         public static void Kill(string command)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
-            var trimmedCommand = command.Replace("\"", "");
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                command = TrimCommand(command);
+            }
             var matchingCommands = Commands
-                .Where(x => x.Command == trimmedCommand).ToList();
+                .Where(x => x.Command == command).ToList();
             Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
             if (matchingCommands.Count == 0)
             {
@@ -63,9 +66,19 @@ namespace DiffEngine
             }
         }
 
+        static string TrimCommand(string command)
+        {
+            return command.Replace("\"", "");
+        }
+
         public static bool IsRunning(string command)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return commands.Any(x => x.Command == command);
+            }
+            command = TrimCommand(command);
             return commands.Any(x => x.Command == command);
         }
 
