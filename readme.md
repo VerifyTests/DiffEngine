@@ -112,6 +112,8 @@ Supports:
  * [GitHub Actions](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/using-environment-variables#default-environment-variables)
  * [AzureDevops](https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables)
  * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
+ * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
+ * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
 
 
 ## Security contact information
