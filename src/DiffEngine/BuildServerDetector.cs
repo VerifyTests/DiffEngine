@@ -49,6 +49,20 @@ namespace DiffEngine
             {
                 Detected = true;
             }
+
+            // MyGet
+            // https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables
+            if (string.Equals(Environment.GetEnvironmentVariable("BuildRunner"), "MyGet", StringComparison.OrdinalIgnoreCase))
+            {
+                Detected = true;
+            }
+
+            // GitLab
+            // https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+            if (Environment.GetEnvironmentVariable("GITLAB_CI") != null)
+            {
+                Detected = true;
+            }
         }
 
         public static bool Detected { get; set; }
