@@ -1,5 +1,7 @@
 # Diff Tools
 
+toc
+
 
 ## Initial difference behavior
 
