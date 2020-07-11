@@ -432,6 +432,31 @@
    * `%ProgramW6432%\TortoiseSVN\bin\TortoiseMerge.exe`
    * `%ProgramFiles(x86)%\TortoiseSVN\bin\TortoiseMerge.exe`
 
+## [Vim](https://www.vim.org/)
+
+  * Is MDI: False
+  * Supports auto-refresh: True
+  * Supports text files: True
+
+### Notes:
+
+
+ * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
+ * [Vim help files](https://vimhelp.org/)
+ * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
+ * [nobackup](http://vimdoc.sourceforge.net/htmldoc/options.html#'backup')
+ * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')
+
+### Windows settings:
+
+
+ * Example arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
+ * Scanned paths:
+
+   * `%ProgramFiles%\Vim\*\vim.exe`
+   * `%ProgramW6432%\Vim\*\vim.exe`
+   * `%ProgramFiles(x86)%\Vim\*\vim.exe`
+
 ## [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
   * Is MDI: True

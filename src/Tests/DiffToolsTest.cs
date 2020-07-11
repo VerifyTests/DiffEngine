@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.IO;
+using System.Linq;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -27,6 +28,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            shellExecute: false,
             arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"})!;
@@ -46,6 +48,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            shellExecute: false,
             arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;

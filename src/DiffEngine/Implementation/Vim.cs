@@ -7,7 +7,7 @@ static partial class Implementation
     {
         string Arguments(string temp, string target)
         {
-            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup\"";
+            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
         }
 
         return new Definition(
@@ -16,12 +16,15 @@ static partial class Implementation
             autoRefresh: true,
             isMdi: false,
             supportsText: true,
+            shellExecute: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
- * `autoread`: When a file has been detected to have been changed outside of Vim and
-	it has not been changed inside of Vim, automatically read it again");
+ * [Vim help files](https://vimhelp.org/)
+ * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
+ * [nobackup](http://vimdoc.sourceforge.net/htmldoc/options.html#'backup')
+ * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')");
     }
 }

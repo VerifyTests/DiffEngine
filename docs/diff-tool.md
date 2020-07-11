@@ -53,7 +53,7 @@ This value can be changed:
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffToolsTest.cs#L13-L17' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 
@@ -523,6 +523,31 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe`
    * `%ProgramW6432%\TortoiseSVN\bin\TortoiseMerge.exe`
    * `%ProgramFiles(x86)%\TortoiseSVN\bin\TortoiseMerge.exe`
+
+## [Vim](https://www.vim.org/)
+
+  * Is MDI: False
+  * Supports auto-refresh: True
+  * Supports text files: True
+
+### Notes:
+
+
+ * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
+ * [Vim help files](https://vimhelp.org/)
+ * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
+ * [nobackup](http://vimdoc.sourceforge.net/htmldoc/options.html#'backup')
+ * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')
+
+### Windows settings:
+
+
+ * Example arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
+ * Scanned paths:
+
+   * `%ProgramFiles%\Vim\*\vim.exe`
+   * `%ProgramW6432%\Vim\*\vim.exe`
+   * `%ProgramFiles(x86)%\Vim\*\vim.exe`
 
 ## [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 

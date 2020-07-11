@@ -22,6 +22,7 @@ namespace DiffEngine
         Diffinity,
         VisualStudio,
         VisualStudioCode,
-        Rider
+        Rider,
+        Vim
     }
 }
