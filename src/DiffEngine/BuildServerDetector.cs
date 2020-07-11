@@ -48,6 +48,7 @@ namespace DiffEngine
             if (Environment.GetEnvironmentVariable("TEAMCITY_VERSION") != null)
             {
                 Detected = true;
+                return;
             }
 
             // MyGet
@@ -55,6 +56,7 @@ namespace DiffEngine
             if (string.Equals(Environment.GetEnvironmentVariable("BuildRunner"), "MyGet", StringComparison.OrdinalIgnoreCase))
             {
                 Detected = true;
+                return;
             }
 
             // GitLab
@@ -62,6 +64,7 @@ namespace DiffEngine
             if (Environment.GetEnvironmentVariable("GITLAB_CI") != null)
             {
                 Detected = true;
+                return;
             }
         }
 
