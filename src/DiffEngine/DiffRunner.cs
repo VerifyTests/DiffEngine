@@ -112,7 +112,11 @@ namespace DiffEngine
             var arguments = tool.Arguments(tempFile, targetFile);
             try
             {
-                Process.Start(tool.ExePath, arguments);
+                var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
+                {
+                    UseShellExecute = tool.ShellExecute
+                };
+                Process.Start(startInfo);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)

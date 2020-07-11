@@ -60,6 +60,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
  * [TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)
  * [TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)
  * [TortoiseMerge](/docs/diff-tool.md#tortoisemerge)
+ * [Vim](/docs/diff-tool.md#vim)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
  * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/Tests/diffToolList.include.md -->

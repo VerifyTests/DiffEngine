@@ -13,17 +13,27 @@ namespace DiffEngine
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
-        public static ResolvedTool? AddTool(
-            string name,
+        public static ResolvedTool? AddTool(string name,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
+            bool shellExecute,
             BuildArguments arguments,
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
-            return AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments);
+            return AddInner(
+                name,
+                null,
+                autoRefresh,
+                isMdi,
+                supportsText,
+                requiresTarget,
+                binaryExtensions,
+                exePath,
+                arguments,
+                shellExecute);
         }
 
         public static ResolvedTool? AddToolBasedOn(
@@ -35,7 +45,8 @@ namespace DiffEngine
             bool? requiresTarget = null,
             BuildArguments? arguments = null,
             string? exePath = null,
-            IEnumerable<string>? binaryExtensions = null)
+            IEnumerable<string>? binaryExtensions = null,
+            bool? shellExecute = null)
         {
             var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
             if (existing == null)
@@ -49,10 +60,10 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
+                shellExecute ?? existing.ShellExecute,
                 arguments ?? existing.Arguments,
                 exePath ?? existing.ExePath,
-                binaryExtensions ?? existing.BinaryExtensions
-            );
+                binaryExtensions ?? existing.BinaryExtensions);
         }
 
         public static ResolvedTool? AddTool(
@@ -61,12 +72,23 @@ namespace DiffEngine
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
+            bool useShellExecute,
             IEnumerable<string> binaryExtensions,
             OsSettings? windows = null,
             OsSettings? linux = null,
             OsSettings? osx = null)
         {
-            return AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx);
+            return AddTool(
+                name,
+                null,
+                autoRefresh,
+                isMdi, supportsText,
+                requiresTarget,
+                binaryExtensions,
+                windows,
+                linux,
+                osx,
+                useShellExecute);
         }
 
         static ResolvedTool? AddTool(
@@ -79,7 +101,8 @@ namespace DiffEngine
             IEnumerable<string> binaryExtensions,
             OsSettings? windows,
             OsSettings? linux,
-            OsSettings? osx)
+            OsSettings? osx,
+            bool useShellExecute)
         {
             if (windows == null &&
                 linux == null &&
@@ -92,7 +115,17 @@ namespace DiffEngine
                 return null;
             }
 
-            return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, arguments);
+            return AddInner(
+                name,
+                diffTool,
+                autoRefresh,
+                isMdi,
+                supportsText,
+                requiresTarget,
+                binaryExtensions,
+                exePath,
+                arguments,
+                useShellExecute);
         }
 
         static ResolvedTool? AddInner(
@@ -104,7 +137,8 @@ namespace DiffEngine
             bool requiresTarget,
             IEnumerable<string> binaries,
             string exePath,
-            BuildArguments arguments)
+            BuildArguments arguments,
+            bool useShellExecute)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
             Guard.AgainstNull(binaries, nameof(binaries));
@@ -119,7 +153,16 @@ namespace DiffEngine
                 return null;
             }
 
-            var resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, arguments, isMdi, autoRefresh, binaries.ToList(), requiresTarget, supportsText);
+            var resolvedTool = new ResolvedTool(
+                name,
+                diffTool,
+                resolvedExePath,
+                arguments, isMdi,
+                autoRefresh,
+                binaries.ToList(),
+                requiresTarget,
+                supportsText,
+                useShellExecute);
 
             AddResolvedToolAtStart(resolvedTool);
 
@@ -158,7 +201,18 @@ namespace DiffEngine
 
             foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, tools).Reverse())
             {
-                AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
+                AddTool(
+                    tool.Tool.ToString(),
+                    tool.Tool,
+                    tool.AutoRefresh,
+                    tool.IsMdi,
+                    tool.SupportsText,
+                    tool.RequiresTarget,
+                    tool.BinaryExtensions,
+                    tool.Windows,
+                    tool.Linux,
+                    tool.Osx,
+                    tool.ShellExecute);
             }
 
             custom.Reverse();

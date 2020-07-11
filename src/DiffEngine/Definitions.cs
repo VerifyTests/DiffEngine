@@ -26,7 +26,8 @@ static class Definitions
             Implementation.Diffinity(),
             Implementation.VsCode(),
             Implementation.VisualStudio(),
-            Implementation.Rider()
+            Implementation.Rider(),
+            Implementation.Vim()
         };
     }
 }

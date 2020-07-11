@@ -13,6 +13,7 @@ class Definition
     public OsSettings? Osx { get; }
     public string[] BinaryExtensions { get; }
     public string? Notes { get; }
+    public bool ShellExecute { get; }
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
 
@@ -27,7 +28,8 @@ class Definition
         OsSettings? windows = null,
         OsSettings? linux = null,
         OsSettings? osx = null,
-        string? notes = null)
+        string? notes = null,
+        bool shellExecute = false)
     {
         Tool = name;
         Url = url;
@@ -35,6 +37,7 @@ class Definition
         IsMdi = isMdi;
         BinaryExtensions = binaryExtensions;
         Notes = notes;
+        ShellExecute = shellExecute;
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;
         Windows = windows;
