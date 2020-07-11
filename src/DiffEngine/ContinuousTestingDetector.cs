@@ -10,10 +10,7 @@ namespace DiffEngine
         static ContinuousTestingDetector()
         {
             if (AppDomain.CurrentDomain.GetAssemblies()
-                .Any(a =>
-                {
-                    return a.GetName().Name == "Microsoft.CodeAnalysis.LiveUnitTesting.Runtime";
-                }))
+                .Any(a => a.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
             {
                 Detected = true;
                 return;
