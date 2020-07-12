@@ -36,7 +36,7 @@ public class DiffRunnerTests :
     [Fact]
     public void LaunchAndKillDisabled()
     {
-        DiffRunner.disabled = true;
+        DiffRunner.Disabled = true;
         try
         {
             Assert.False(IsRunning());
@@ -55,7 +55,7 @@ public class DiffRunnerTests :
         }
         finally
         {
-            DiffRunner.disabled = false;
+            DiffRunner.Disabled = false;
         }
     }
 

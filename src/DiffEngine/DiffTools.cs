@@ -13,7 +13,8 @@ namespace DiffEngine
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
-        public static ResolvedTool? AddTool(string name,
+        public static ResolvedTool? AddTool(
+            string name,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,

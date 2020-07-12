@@ -12,12 +12,19 @@ namespace DiffEngine
     {
         static int maxInstancesToLaunch = 5;
         static int launchedInstances;
-        internal static bool disabled;
+        public static bool Disabled { get; set; }
 
         static DiffRunner()
         {
+            Disabled = IsDisableByEnv() ||
+                       BuildServerDetector.Detected ||
+                       ContinuousTestingDetector.Detected;
+        }
+
+        static bool IsDisableByEnv()
+        {
             var disabledVariable = Environment.GetEnvironmentVariable("DiffEngine.Disabled");
-            disabled = string.Equals(disabledVariable, "true", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(disabledVariable, "true", StringComparison.OrdinalIgnoreCase);
         }
 
         public static void MaxInstancesToLaunch(int value)
@@ -31,7 +38,7 @@ namespace DiffEngine
         /// </summary>
         public static void Kill(string tempFile, string targetFile)
         {
-            if (disabled)
+            if (Disabled)
             {
                 return;
             }
@@ -58,7 +65,7 @@ namespace DiffEngine
         {
             GuardFiles(tempFile, targetFile);
 
-            if (disabled)
+            if (Disabled)
             {
                 return LaunchResult.Disabled;
             }
@@ -77,7 +84,7 @@ namespace DiffEngine
         public static LaunchResult Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            if (disabled)
+            if (Disabled)
             {
                 return LaunchResult.Disabled;
             }
@@ -96,7 +103,7 @@ namespace DiffEngine
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
-            if (disabled)
+            if (Disabled)
             {
                 return LaunchResult.Disabled;
             }
