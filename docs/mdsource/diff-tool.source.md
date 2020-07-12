@@ -41,6 +41,14 @@ By default a maximum of 5 tool instances will be launched. This prevents a chang
 
 This value can be changed:
 
+
+### Using an environment variable
+
+Setting the `DiffEngine.MaxInstances` environment variable to the number of instances to launch.
+
+
+### Using code
+
 snippet: MaxInstancesToLaunch
 
 

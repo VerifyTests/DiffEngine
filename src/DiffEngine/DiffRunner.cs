@@ -10,21 +10,33 @@ namespace DiffEngine
     /// </summary>
     public static class DiffRunner
     {
-        static int maxInstancesToLaunch = 5;
+        static int maxInstancesToLaunch = GetMaxInstances();
         static int launchedInstances;
-        public static bool Disabled { get; set; }
 
-        static DiffRunner()
+        public static bool Disabled { get; set; } = IsDisable();
+
+        static int GetMaxInstances()
         {
-            Disabled = IsDisableByEnv() ||
-                       BuildServerDetector.Detected ||
-                       ContinuousTestingDetector.Detected;
+            var variable = Environment.GetEnvironmentVariable("DiffEngine.MaxInstances");
+            if (string.IsNullOrEmpty(variable))
+            {
+                return 5;
+            }
+
+            if (!ushort.TryParse(variable, out var result))
+            {
+                throw new Exception("Could not parse the DiffEngine.MaxInstances environment variable: " + variable);
+            }
+
+            return result;
         }
 
-        static bool IsDisableByEnv()
+        static bool IsDisable()
         {
-            var disabledVariable = Environment.GetEnvironmentVariable("DiffEngine.Disabled");
-            return string.Equals(disabledVariable, "true", StringComparison.OrdinalIgnoreCase);
+            var variable = Environment.GetEnvironmentVariable("DiffEngine.Disabled");
+            return string.Equals(variable, "true", StringComparison.OrdinalIgnoreCase) ||
+                   BuildServerDetector.Detected ||
+                   ContinuousTestingDetector.Detected;
         }
 
         public static void MaxInstancesToLaunch(int value)

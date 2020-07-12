@@ -47,7 +47,7 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 
 ## File type detection
 
-DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text.
+DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text. Custom extensions can be added, or existing ones changed.
 
 
 ## BuildServerDetector

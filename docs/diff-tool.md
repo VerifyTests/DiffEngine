@@ -48,12 +48,20 @@ By default a maximum of 5 tool instances will be launched. This prevents a chang
 
 This value can be changed:
 
+
+### Using an environment variable
+
+Setting the `DiffEngine.MaxInstances` environment variable to the number of instances to launch.
+
+
+### Using code
+
 <!-- snippet: MaxInstancesToLaunch -->
 <a id='snippet-maxinstancestolaunch'/></a>
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/Tests/DiffToolsTest.cs#L13-L17' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 

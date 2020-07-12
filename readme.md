@@ -33,7 +33,8 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
   * [Security contact information](#security-contact-information)<!-- endtoc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
-  * [Custom Tool](/docs/diff-tool.custom.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Custom Tool](/docs/diff-tool.custom.md)
+  * [Code versus machine level settings](/docs/code-verus-machine-settings.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
 
 
 ## NuGet package
@@ -76,7 +77,7 @@ A tool can be launched using the following:
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L21-L23' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L20-L22' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -91,7 +92,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L31-L33' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L30-L32' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
@@ -99,7 +100,7 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 
 ## File type detection
 
-DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text.
+DiffEngine use [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) to determine if a given file or extension is a binary or text. Custom extensions can be added, or existing ones changed.
 
 
 ## BuildServerDetector

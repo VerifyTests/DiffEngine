@@ -1,5 +1,4 @@
 ﻿#if NETCOREAPP3_1
-using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
