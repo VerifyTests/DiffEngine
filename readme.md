@@ -77,7 +77,7 @@ A tool can be launched using the following:
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L20-L22' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -90,9 +90,9 @@ A tool can be closed using the following:
 <!-- snippet: DiffRunnerKill -->
 <a id='snippet-diffrunnerkill'/></a>
 ```cs
-DiffRunner.Kill(tempFile, targetFile);
+DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L30-L32' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L58-L60' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.

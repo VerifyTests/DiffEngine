@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using EmptyFiles;
 
 namespace DiffEngine
@@ -23,12 +24,12 @@ namespace DiffEngine
                 return 5;
             }
 
-            if (!ushort.TryParse(variable, out var result))
+            if (ushort.TryParse(variable, out var result))
             {
-                throw new Exception("Could not parse the DiffEngine.MaxInstances environment variable: " + variable);
+                return result;
             }
+            throw new Exception($"Could not parse the DiffEngine.MaxInstances environment variable: {variable}");
 
-            return result;
         }
 
         static bool IsDisable()
@@ -120,10 +121,6 @@ namespace DiffEngine
                 return LaunchResult.Disabled;
             }
 
-            if (CheckInstanceCount())
-            {
-                return LaunchResult.TooManyRunningDiffTools;
-            }
 
             var targetExists = File.Exists(targetFile);
             if (tool.RequiresTarget && !targetExists)
@@ -139,7 +136,11 @@ namespace DiffEngine
 
         static LaunchResult InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
-            launchedInstances++;
+            var instanceCount = Interlocked.Increment(ref launchedInstances);
+            if (instanceCount > maxInstancesToLaunch)
+            {
+                return LaunchResult.TooManyRunningDiffTools;
+            }
 
             var command = tool.BuildCommand(tempFile, targetFile);
             var isDiffToolRunning = ProcessCleanup.IsRunning(command);
@@ -178,11 +179,6 @@ namespace DiffEngine
         {
             Guard.FileExists(tempFile, nameof(tempFile));
             Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
-        }
-
-        static bool CheckInstanceCount()
-        {
-            return launchedInstances >= maxInstancesToLaunch;
         }
     }
 }

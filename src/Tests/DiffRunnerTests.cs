@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -10,25 +11,52 @@ public class DiffRunnerTests :
     XunitContextBase
 {
     static ResolvedTool tool;
-    string targetFile;
-    string tempFile;
+    string file2;
+    string file1;
     string command;
-
     [Fact(Skip = "Explicit")]
-    public void Launch()
+    public async Task MaxInstancesToLaunch()
     {
+        DiffRunner.MaxInstancesToLaunch(1);
+        try
+        {
+            await Task.Delay(500);
+            ProcessCleanup.Refresh();
+            var result = DiffRunner.Launch(file1, "fake.txt");
+            await Task.Delay(300);
+            Assert.Equal(LaunchResult.StartedNewInstance, result);
+            ProcessCleanup.Refresh();
+            result = DiffRunner.Launch(file2, "fake.txt");
+            Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
+            ProcessCleanup.Refresh();
+            DiffRunner.Kill(file1, "fake.txt");
+            DiffRunner.Kill(file2, "fake.txt");
+        }
+        finally
+        {
+            DiffRunner.MaxInstancesToLaunch(5);
+        }
+    }
+
+    void Launch()
+    {
+        string targetFile = "";
+        string tempFile = "";
+
         #region DiffRunnerLaunch
+
         DiffRunner.Launch(tempFile, targetFile);
+
         #endregion
     }
 
     [Fact(Skip = "Explicit")]
     public void Kill()
     {
-        DiffRunner.Launch(tempFile, targetFile);
+        DiffRunner.Launch(file1, file2);
         ProcessCleanup.Refresh();
         #region DiffRunnerKill
-        DiffRunner.Kill(tempFile, targetFile);
+        DiffRunner.Kill(file1, file2);
         #endregion
     }
 
@@ -40,13 +68,13 @@ public class DiffRunnerTests :
         {
             Assert.False(IsRunning());
             Assert.False(ProcessCleanup.IsRunning(command));
-            var result = DiffRunner.Launch(tempFile, targetFile);
+            var result = DiffRunner.Launch(file1, file2);
             Assert.Equal(LaunchResult.Disabled, result);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
             Assert.False(IsRunning());
             Assert.False(ProcessCleanup.IsRunning(command));
-            DiffRunner.Kill(tempFile, targetFile);
+            DiffRunner.Kill(file1, file2);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
             Assert.False(IsRunning());
@@ -63,13 +91,13 @@ public class DiffRunnerTests :
     {
         Assert.False(IsRunning());
         Assert.False(ProcessCleanup.IsRunning(command));
-        var result = DiffRunner.Launch(tempFile, targetFile);
+        var result = DiffRunner.Launch(file1, file2);
         Assert.Equal(LaunchResult.StartedNewInstance, result);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
         Assert.True(IsRunning());
         Assert.True(ProcessCleanup.IsRunning(command));
-        DiffRunner.Kill(tempFile, targetFile);
+        DiffRunner.Kill(file1, file2);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
         Assert.False(IsRunning());
@@ -86,9 +114,9 @@ public class DiffRunnerTests :
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)
     {
-        tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
-        targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
-        command = tool.BuildCommand(tempFile, targetFile);
+        file1 = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
+        file2 = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
+        command = tool.BuildCommand(file1, file2);
     }
 
     static DiffRunnerTests()
