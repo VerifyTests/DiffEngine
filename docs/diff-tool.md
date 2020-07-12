@@ -380,6 +380,23 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/usr/bin/meld`
 
+## [Neovim](https://neovim.io/)
+
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: True
+
+### Notes:
+
+
+ * Assume installed through Chocolatey https://chocolatey.org/packages/neovim/)
+
+### Windows settings:
+
+
+ * Example arguments: `-d "tempFile" "targetFile"`
+ * Scanned path: `%ChocolateyToolsLocation%\neovim\*\nvim.exe`
+
 ## [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
   * Is MDI: False

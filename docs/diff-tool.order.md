@@ -31,7 +31,8 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [Rider](/docs/diff-tool.md#rider)
- * [Vim](/docs/diff-tool.md#vim) <!-- end include: defaultOrder. path: /src/Tests/defaultOrder.include.md -->
+ * [Vim](/docs/diff-tool.md#vim)
+ * [Neovim](/docs/diff-tool.md#neovim) <!-- end include: defaultOrder. path: /src/Tests/defaultOrder.include.md -->
 
 
 ## Custom order

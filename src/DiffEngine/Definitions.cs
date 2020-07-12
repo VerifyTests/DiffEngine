@@ -27,7 +27,8 @@ static class Definitions
             Implementation.VsCode(),
             Implementation.VisualStudio(),
             Implementation.Rider(),
-            Implementation.Vim()
+            Implementation.Vim(),
+            Implementation.Neovim()
         };
     }
 }

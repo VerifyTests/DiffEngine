@@ -23,6 +23,7 @@ namespace DiffEngine
         VisualStudio,
         VisualStudioCode,
         Rider,
-        Vim
+        Vim,
+        Neovim
     }
 }

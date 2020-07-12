@@ -55,6 +55,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
  * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
  * [KDiff3](/docs/diff-tool.md#kdiff3)
  * [Meld](/docs/diff-tool.md#meld)
+ * [Neovim](/docs/diff-tool.md#neovim)
  * [P4Merge](/docs/diff-tool.md#p4merge)
  * [Rider](/docs/diff-tool.md#rider)
  * [SublimeMerge](/docs/diff-tool.md#sublimemerge)
