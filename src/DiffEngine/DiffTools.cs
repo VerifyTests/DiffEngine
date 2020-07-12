@@ -234,10 +234,11 @@ namespace DiffEngine
             InitTools(throwForNoTool, order);
         }
 
-        internal static bool TryFind(
+        public static bool TryFind(
             string extension,
             [NotNullWhen(true)] out ResolvedTool? tool)
         {
+            extension = Extensions.GetExtension(extension);
             if (Extensions.IsText(extension))
             {
                 tool = resolved.FirstOrDefault(x => x.SupportsText);
@@ -247,7 +248,7 @@ namespace DiffEngine
             return ExtensionLookup.TryGetValue(extension, out tool);
         }
 
-        internal static bool TryFind(
+        public static bool TryFind(
             DiffTool tool,
             [NotNullWhen(true)] out ResolvedTool? resolvedTool)
         {

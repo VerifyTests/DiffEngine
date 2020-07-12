@@ -12,6 +12,13 @@ namespace DiffEngine
     {
         static int maxInstancesToLaunch = 5;
         static int launchedInstances;
+        internal static bool disabled;
+
+        static DiffRunner()
+        {
+            var disabledVariable = Environment.GetEnvironmentVariable("DiffEngine.Disabled");
+            disabled = string.Equals(disabledVariable, "true", StringComparison.OrdinalIgnoreCase);
+        }
 
         public static void MaxInstancesToLaunch(int value)
         {
@@ -24,6 +31,11 @@ namespace DiffEngine
         /// </summary>
         public static void Kill(string tempFile, string targetFile)
         {
+            if (disabled)
+            {
+                return;
+            }
+
             var extension = Extensions.GetExtension(tempFile);
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
@@ -45,6 +57,12 @@ namespace DiffEngine
         public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
+
+            if (disabled)
+            {
+                return LaunchResult.Disabled;
+            }
+
             if (!DiffTools.TryFind(tool, out var resolvedTool))
             {
                 return LaunchResult.NoDiffToolFound;
@@ -59,6 +77,11 @@ namespace DiffEngine
         public static LaunchResult Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
+            if (disabled)
+            {
+                return LaunchResult.Disabled;
+            }
+
             var extension = Extensions.GetExtension(tempFile);
 
             if (!DiffTools.TryFind(extension, out var diffTool))
@@ -73,6 +96,11 @@ namespace DiffEngine
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
+            if (disabled)
+            {
+                return LaunchResult.Disabled;
+            }
+
             if (CheckInstanceCount())
             {
                 return LaunchResult.TooManyRunningDiffTools;

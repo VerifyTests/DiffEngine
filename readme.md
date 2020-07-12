@@ -29,6 +29,7 @@ Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
+  * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Security contact information](#security-contact-information)<!-- endtoc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
@@ -75,7 +76,7 @@ A tool can be launched using the following:
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L17-L19' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L21-L23' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -90,7 +91,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L29-L31' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/Tests/DiffRunnerTests.cs#L31-L33' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endsnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
@@ -115,6 +116,11 @@ Supports:
  * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
  * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
+
+
+## Disable for a machine/process
+
+Set an environment variable `DiffEngine.Disabled` with the value `true`.
 
 
 ## Security contact information

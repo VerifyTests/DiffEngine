@@ -6,6 +6,7 @@
         AlreadyRunningAndSupportsRefresh,
         StartedNewInstance,
         TooManyRunningDiffTools,
-        NoDiffToolFound
+        NoDiffToolFound,
+        Disabled
     }
 }

@@ -66,6 +66,11 @@ Supports:
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
 
 
+## Disable for a machine/process
+
+Set an environment variable `DiffEngine.Disabled` with the value `true`.
+
+
 ## Security contact information
 
 To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.

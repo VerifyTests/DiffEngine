@@ -1,4 +1,5 @@
 ﻿#if NETCOREAPP3_1
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -9,11 +10,14 @@ using Xunit.Abstractions;
 public class DiffRunnerTests :
     XunitContextBase
 {
+    static ResolvedTool tool;
+    string targetFile;
+    string tempFile;
+    string command;
+
     [Fact(Skip = "Explicit")]
     public void Launch()
     {
-        var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
-        var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         #region DiffRunnerLaunch
         DiffRunner.Launch(tempFile, targetFile);
         #endregion
@@ -22,8 +26,6 @@ public class DiffRunnerTests :
     [Fact(Skip = "Explicit")]
     public void Kill()
     {
-        var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
-        var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
         DiffRunner.Launch(tempFile, targetFile);
         ProcessCleanup.Refresh();
         #region DiffRunnerKill
@@ -32,21 +34,34 @@ public class DiffRunnerTests :
     }
 
     [Fact]
+    public void LaunchAndKillDisabled()
+    {
+        DiffRunner.disabled = true;
+        try
+        {
+            Assert.False(IsRunning());
+            Assert.False(ProcessCleanup.IsRunning(command));
+            var result = DiffRunner.Launch(tempFile, targetFile);
+            Assert.Equal(LaunchResult.Disabled, result);
+            Thread.Sleep(500);
+            ProcessCleanup.Refresh();
+            Assert.False(IsRunning());
+            Assert.False(ProcessCleanup.IsRunning(command));
+            DiffRunner.Kill(tempFile, targetFile);
+            Thread.Sleep(500);
+            ProcessCleanup.Refresh();
+            Assert.False(IsRunning());
+            Assert.False(ProcessCleanup.IsRunning(command));
+        }
+        finally
+        {
+            DiffRunner.disabled = false;
+        }
+    }
+
+    [Fact]
     public void LaunchAndKill()
     {
-        var tool = DiffTools.AddTool(
-            name: "FakeDiffTool",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            shellExecute: false,
-            arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
-            exePath: FakeDiffTool.Exe,
-            binaryExtensions: new[] {"knownBin"});
-        var tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
-        var targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
-        var command = tool!.BuildCommand(tempFile, targetFile);
         Assert.False(IsRunning());
         Assert.False(ProcessCleanup.IsRunning(command));
         var result = DiffRunner.Launch(tempFile, targetFile);
@@ -72,6 +87,23 @@ public class DiffRunnerTests :
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)
     {
+        tempFile = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
+        targetFile = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
+        command = tool.BuildCommand(tempFile, targetFile);
+    }
+
+    static DiffRunnerTests()
+    {
+        tool = DiffTools.AddTool(
+            name: "FakeDiffTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            shellExecute: false,
+            arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            exePath: FakeDiffTool.Exe,
+            binaryExtensions: new[] {"knownBin"})!;
     }
 }
 #endif
