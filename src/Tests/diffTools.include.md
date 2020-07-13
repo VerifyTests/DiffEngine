@@ -474,6 +474,12 @@
    * `%ProgramW6432%\Vim\*\vim.exe`
    * `%ProgramFiles(x86)%\Vim\*\vim.exe`
 
+### OSX settings:
+
+
+ * Example arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
+ * Scanned path: `/Applications/MacVim.app/Contents/bin/mvim`
+
 ## [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
   * Is MDI: True
