@@ -21,6 +21,6 @@ static partial class Implementation
             binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
             notes: @"
- * Assume installed through Chocolatey https://chocolatey.org/packages/neovim/)");
+ * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }
 }

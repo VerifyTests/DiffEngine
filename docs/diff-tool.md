@@ -389,7 +389,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 ### Notes:
 
 
- * Assume installed through Chocolatey https://chocolatey.org/packages/neovim/)
+ * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/
 
 ### Windows settings:
 
