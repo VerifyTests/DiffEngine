@@ -1,4 +1,4 @@
-name: on-push-do-doco
+name: on-push-do-docs
 on:
   push:
 jobs:
