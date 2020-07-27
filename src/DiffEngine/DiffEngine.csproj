@@ -8,7 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Caseless.Fody" Version="1.9.0" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" Version="2.0.3" PrivateAssets="None" />
-    <PackageReference Include="Fody" Version="6.2.0" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.2.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.43" PrivateAssets="All" />
     <PackageReference Include="Nullable" Version="1.2.1" PrivateAssets="All" />
