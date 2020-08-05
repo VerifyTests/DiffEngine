@@ -57,7 +57,7 @@ Setting the `DiffEngine.MaxInstances` environment variable to the number of inst
 ### Using code
 
 <!-- snippet: MaxInstancesToLaunch -->
-<a id='snippet-maxinstancestolaunch'/></a>
+<a id='snippet-maxinstancestolaunch'></a>
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
