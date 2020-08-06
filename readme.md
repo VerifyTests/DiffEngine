@@ -76,7 +76,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 A tool can be launched using the following:
 
 <!-- snippet: DiffRunnerLaunch -->
-<a id='snippet-diffrunnerlaunch'/></a>
+<a id='snippet-diffrunnerlaunch'></a>
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
@@ -91,7 +91,7 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 A tool can be closed using the following:
 
 <!-- snippet: DiffRunnerKill -->
-<a id='snippet-diffrunnerkill'/></a>
+<a id='snippet-diffrunnerkill'></a>
 ```cs
 DiffRunner.Kill(file1, file2);
 ```

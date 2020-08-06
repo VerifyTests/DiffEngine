@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 A custom tool can be added by calling `DiffTools.AddTool`
 
 <!-- snippet: AddTool -->
-<a id='snippet-addtool'/></a>
+<a id='snippet-addtool'></a>
 ```cs
 var resolvedTool = DiffTools.AddTool(
     name: "MyCustomDiffTool",
@@ -29,7 +29,7 @@ var resolvedTool = DiffTools.AddTool(
 Add a tool based on existing resolved tool:
 
 <!-- snippet: AddToolBasedOn -->
-<a id='snippet-addtoolbasedon'/></a>
+<a id='snippet-addtoolbasedon'></a>
 ```cs
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
@@ -45,7 +45,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 New tools are added to the top of the order, the last tool added will resolve before any existing tools. So when the following is executeed the last tool that supports the file types will launch:
 
 <!-- snippet: DiffRunnerLaunch -->
-<a id='snippet-diffrunnerlaunch'/></a>
+<a id='snippet-diffrunnerlaunch'></a>
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
@@ -55,7 +55,7 @@ DiffRunner.Launch(tempFile, targetFile);
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
 
 <!-- snippet: AddToolAndLaunch -->
-<a id='snippet-addtoolandlaunch'/></a>
+<a id='snippet-addtoolandlaunch'></a>
 ```cs
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
