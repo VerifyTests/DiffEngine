@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.43" PrivateAssets="All" />
     <PackageReference Include="Nullable" Version="1.2.1" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.Windows.Compatibility" Version="3.1.0" Condition="$(TargetFramework) != 'net461'" />
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="3.1.1" Condition="$(TargetFramework) != 'net461'" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" Condition="$(TargetFramework) == 'net461'" />
     <Reference Include="System.Management" Condition="$(TargetFramework) == 'net461'" />
   </ItemGroup>
