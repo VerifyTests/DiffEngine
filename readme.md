@@ -46,7 +46,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
- * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/Tests/diffToolList.include.md -->
+<!-- include: diffToolList. path: /src/Tests/diffToolList.include.md --> * [AraxisMerge](/docs/diff-tool.md#araxismerge)
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
  * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
