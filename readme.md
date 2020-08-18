@@ -32,11 +32,11 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
-  * [Security contact information](#security-contact-information)<!-- endtoc -->
+  * [Security contact information](#security-contact-information)<!-- endToc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
-  * [Code versus machine level settings](/docs/code-verus-machine-settings.md) <!-- end include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Code versus machine level settings](/docs/code-verus-machine-settings.md) <!-- endInclude -->
 
 
 ## NuGet package
@@ -68,7 +68,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
  * [Vim](/docs/diff-tool.md#vim)
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
- * [WinMerge](/docs/diff-tool.md#winmerge) <!-- end include: diffToolList. path: /src/Tests/diffToolList.include.md -->
+ * [WinMerge](/docs/diff-tool.md#winmerge) <!-- endInclude -->
 
 
 ## Launching a tool
@@ -81,7 +81,7 @@ A tool can be launched using the following:
 DiffRunner.Launch(tempFile, targetFile);
 ```
 <sup><a href='/src/Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
@@ -96,7 +96,7 @@ A tool can be closed using the following:
 DiffRunner.Kill(file1, file2);
 ```
 <sup><a href='/src/Tests/DiffRunnerTests.cs#L58-L60' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
 

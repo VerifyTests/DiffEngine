@@ -24,7 +24,7 @@ var resolvedTool = DiffTools.AddTool(
     binaryExtensions: new[] {"jpg"})!;
 ```
 <sup><a href='/src/Tests/DiffToolsTest.cs#L23-L34' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
 
@@ -37,7 +37,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
 <sup><a href='/src/Tests/DiffToolsTest.cs#L64-L69' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 
 ## Resolution order
@@ -50,7 +50,7 @@ New tools are added to the top of the order, the last tool added will resolve be
 DiffRunner.Launch(tempFile, targetFile);
 ```
 <sup><a href='/src/Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
 
@@ -65,7 +65,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
 <sup><a href='/src/Tests/DiffToolsTest.cs#L78-L85' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 
 ## exePath

@@ -39,7 +39,7 @@ If a tool is running for the comparison of the current verification (per test), 
 | false        | true  | Open new instance. Previous instance must be manually closed |
 | false        | false | Kill current and open new instance |
 
-This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required. <!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## MaxInstancesToLaunch
@@ -62,7 +62,7 @@ Setting the `DiffEngine.MaxInstances` environment variable to the number of inst
 DiffRunner.MaxInstancesToLaunch(10);
 ```
 <sup><a href='/src/Tests/DiffToolsTest.cs#L12-L16' title='File snippet `maxinstancestolaunch` was extracted from'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Navigate to start of snippet `maxinstancestolaunch`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
 
 
 ## Successful verification behavior
@@ -74,7 +74,7 @@ If a tool is running for the comparison of the current verification (per test), 
 | true  | No action taken. Previous instance must be manually closed |
 | false | Kill current instance |
 
-This allows, in most cases, for no manual closing of the tool to be required. <!-- include: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required. <!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## Disable orphaned process detection
@@ -657,4 +657,4 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
    * `%ProgramFiles%\WinMerge\WinMergeU.exe`
    * `%ProgramW6432%\WinMerge\WinMergeU.exe`
-   * `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- end include: diffTools. path: /src/Tests/diffTools.include.md -->
+   * `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe` <!-- endInclude -->

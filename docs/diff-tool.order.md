@@ -32,7 +32,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [Rider](/docs/diff-tool.md#rider)
  * [Vim](/docs/diff-tool.md#vim)
- * [Neovim](/docs/diff-tool.md#neovim) <!-- end include: defaultOrder. path: /src/Tests/defaultOrder.include.md -->
+ * [Neovim](/docs/diff-tool.md#neovim) <!-- endInclude -->
 
 
 ## Custom order
@@ -53,4 +53,4 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
 <sup><a href='/src/Tests/DiffToolsTest.cs#L115-L117' title='File snippet `useorder` was extracted from'>snippet source</a> | <a href='#snippet-useorder' title='Navigate to start of snippet `useorder`'>anchor</a></sup>
-<!-- endsnippet -->
+<!-- endSnippet -->
