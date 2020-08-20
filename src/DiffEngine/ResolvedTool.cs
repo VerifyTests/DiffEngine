@@ -15,7 +15,6 @@ namespace DiffEngine
         public IReadOnlyList<string> BinaryExtensions { get; }
         public bool RequiresTarget { get; }
         public bool SupportsText { get; }
-        public bool ShellExecute { get; }
 
         public string BuildCommand(string tempFile, string targetFile)
         {
@@ -31,8 +30,7 @@ namespace DiffEngine
             bool autoRefresh,
             IReadOnlyList<string> binaryExtensions,
             bool requiresTarget,
-            bool supportsText,
-            bool shellExecute)
+            bool supportsText)
         {
             Name = name;
             Tool = tool;
@@ -43,7 +41,6 @@ namespace DiffEngine
             BinaryExtensions = binaryExtensions;
             RequiresTarget = requiresTarget;
             SupportsText = supportsText;
-            ShellExecute = shellExecute;
         }
 
         public ResolvedTool(
@@ -54,8 +51,7 @@ namespace DiffEngine
             bool autoRefresh,
             string[] binaryExtensions,
             bool requiresTarget,
-            bool supportsText,
-            bool shellExecute)
+            bool supportsText)
         {
             Guard.FileExists(exePath, nameof(exePath));
             Guard.AgainstNullOrEmpty(name, nameof(name));
@@ -69,7 +65,6 @@ namespace DiffEngine
             BinaryExtensions = binaryExtensions;
             RequiresTarget = requiresTarget;
             SupportsText = supportsText;
-            ShellExecute = shellExecute;
         }
     }
 }

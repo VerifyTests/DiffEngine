@@ -16,7 +16,6 @@ static partial class Implementation
             autoRefresh: true,
             isMdi: false,
             supportsText: true,
-            shellExecute: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
