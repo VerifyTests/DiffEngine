@@ -164,7 +164,11 @@ namespace DiffEngine
                 {
                     UseShellExecute = tool.ShellExecute
                 };
-                Process.Start(startInfo);
+
+                using (Process.Start(startInfo))
+                {
+                }
+
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)
