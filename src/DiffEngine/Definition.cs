@@ -29,7 +29,7 @@ class Definition
         OsSettings? linux = null,
         OsSettings? osx = null,
         string? notes = null,
-        bool shellExecute = false)
+        bool shellExecute = true)
     {
         Tool = name;
         Url = url;
