@@ -33,9 +33,7 @@ static class Program
         {
             Icon = icon,
             Visible = true,
-            BalloonTipText = "Hello from My Kitten",
-            BalloonTipTitle = "Cat Talk",
-            BalloonTipIcon = ToolTipIcon.Info,
+            Text = "DiffEngine",
             ContextMenuStrip = menu,
         };
 
