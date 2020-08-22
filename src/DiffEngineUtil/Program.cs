@@ -8,21 +8,19 @@ static class Program
 {
     static void Main()
     {
-        NotifyIcon icon;
-        using (var iconStream = Resource.AsStream("icon.ico"))
+        using var iconStream = Resource.AsStream("icon.ico");
+        using var icon = new Icon(iconStream);
+        var notifyIcon = new NotifyIcon
         {
-            icon = new NotifyIcon
-            {
-                Icon = new Icon(iconStream),
-                Visible = true,
-                BalloonTipText = "Hello from My Kitten",
-                BalloonTipTitle = "Cat Talk",
-                BalloonTipIcon = ToolTipIcon.Info
-            };
-        }
+            Icon = icon,
+            Visible = true,
+            BalloonTipText = "Hello from My Kitten",
+            BalloonTipTitle = "Cat Talk",
+            BalloonTipIcon = ToolTipIcon.Info
+        };
 
-        icon.ContextMenuStrip = new ContextMenuStrip();
-        icon.ShowBalloonTip(2000);
+        notifyIcon.ContextMenuStrip = new ContextMenuStrip();
+        //icon.ShowBalloonTip(2000);
 
         //Application.Run(new Form1());
         new ManualResetEvent(false).WaitOne();
