@@ -17,25 +17,31 @@ static class Program
             Environment.Exit(0);
         }
 
-        //if()
+        var resetEvent = new ManualResetEvent(false);
         using var iconStream = Resource.AsStream("icon.ico");
         using var icon = new Icon(iconStream);
-        var contextMenuStrip = new ContextMenuStrip();
-        contextMenuStrip.Items.Add(new ToolStripButton("Exit"));
-        using (var notifyIcon = new NotifyIcon
+        using var menu = new ContextMenuStrip();
+        using var exit = new ToolStripButton("Exit");
+        exit.Click += (o, args) =>
+        {
+            resetEvent.Set();
+            Application.Exit();
+        };
+        menu.Items.Add(exit);
+
+        using var notifyIcon = new NotifyIcon
         {
             Icon = icon,
             Visible = true,
             BalloonTipText = "Hello from My Kitten",
             BalloonTipTitle = "Cat Talk",
             BalloonTipIcon = ToolTipIcon.Info,
-            ContextMenuStrip = contextMenuStrip,
-        })
-        {
-            Application.Run();
-            new ManualResetEvent(false).WaitOne();
+            ContextMenuStrip = menu,
+        };
 
-            mutex.Dispose();
-        }
+        Application.Run();
+        resetEvent.WaitOne();
+
+        mutex.Dispose();
     }
 }
