@@ -13,7 +13,6 @@ static class Program
         mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
         if (!createdNew)
         {
-            mutex.Dispose();
             Environment.Exit(0);
         }
 
@@ -24,8 +23,7 @@ static class Program
         using var exit = new ToolStripButton("Exit");
         exit.Click += (o, args) =>
         {
-            resetEvent.Set();
-            Application.Exit();
+            Environment.Exit(0);
         };
         menu.Items.Add(exit);
 
