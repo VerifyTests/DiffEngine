@@ -6,13 +6,15 @@ using System.Threading.Tasks;
 
 public static class Piper
 {
+    const PipeOptions pipeOptions = PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly;
+
     public static async Task Send(string[] args, CancellationToken cancellation = default)
     {
         await using var pipe = new NamedPipeClientStream(
             ".",
             "DiffEngineUtil",
             PipeDirection.Out,
-            PipeOptions.Asynchronous);
+            pipeOptions);
         await using var stream = new StreamWriter(pipe);
         await pipe.ConnectAsync(1000, cancellation);
         var message = string.Join(Environment.NewLine, args);
@@ -33,7 +35,7 @@ public static class Piper
                 PipeDirection.In,
                 1,
                 PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                pipeOptions);
             await pipe.WaitForConnectionAsync(cancellation);
             using var reader = new StreamReader(pipe);
             var message = await reader.ReadToEndAsync();
