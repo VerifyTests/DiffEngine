@@ -8,7 +8,11 @@ public static class Piper
 {
     public static async Task Send(string message, CancellationToken cancellation)
     {
-        await using var pipe = new NamedPipeClientStream(".", "DiffEngineUtil", PipeDirection.Out, PipeOptions.Asynchronous);
+        await using var pipe = new NamedPipeClientStream(
+            ".",
+            "DiffEngineUtil",
+            PipeDirection.Out,
+            PipeOptions.Asynchronous);
         await using var stream = new StreamWriter(pipe);
         await pipe.ConnectAsync(1000, cancellation);
         await stream.WriteAsync(message.AsMemory(), cancellation);
@@ -23,18 +27,16 @@ public static class Piper
                 break;
             }
 
-            var pipe = new NamedPipeServerStream(
+            await using var pipe = new NamedPipeServerStream(
                 "DiffEngineUtil",
                 PipeDirection.In,
                 1,
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-
             await pipe.WaitForConnectionAsync(cancellation);
             using var streamReader = new StreamReader(pipe);
             var message = await streamReader.ReadToEndAsync();
             receive(message);
-
 
             if (pipe.IsConnected)
             {
@@ -43,5 +45,4 @@ public static class Piper
             }
         }
     }
-
 }

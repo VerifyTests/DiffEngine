@@ -11,8 +11,10 @@ public class PiperTest :
     {
         string? received = null;
         var source = new CancellationTokenSource();
-        await Piper.Start(s => received = s, source.Token);
+        var task = Piper.Start(s => received = s, source.Token);
         await Piper.Send("Foo", source.Token);
+        source.Cancel();
+        await task;
         Assert.Equal("Foo", received);
     }
 
