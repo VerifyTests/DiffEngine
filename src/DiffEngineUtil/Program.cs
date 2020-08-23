@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,23 +8,26 @@ using Resourcer;
 
 static class Program
 {
-    static Mutex mutex;
+    static ConcurrentBag<TrackedPair> tracked = new ConcurrentBag<TrackedPair>();
 
     static async Task Main(string[] args)
     {
-        mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
+        var tokenSource = new CancellationTokenSource();
+        var cancellation = tokenSource.Token;
+        using var mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
         if (!createdNew)
         {
-            await Piper.Send(args);
-            Environment.Exit(0);
+            await Piper.Send(args, cancellation);
+            return;
         }
 
-        var resetEvent = new ManualResetEvent(false);
+        var task = Piper.Start(strings => tracked.Add(new TrackedPair()), cancellation);
         var icon = BuildIcon();
         using var menu = new ContextMenuStrip();
         using var exit = new ToolStripButton("Exit");
-        exit.Click += (o, args) =>
+        exit.Click += delegate
         {
+            mutex!.Dispose();
             Environment.Exit(0);
         };
         menu.Items.Add(exit);
@@ -37,9 +41,7 @@ static class Program
         };
 
         Application.Run();
-        resetEvent.WaitOne();
-
-        mutex.Dispose();
+        await task;
     }
 
     static Icon BuildIcon()
@@ -47,4 +49,8 @@ static class Program
         using var iconStream = Resource.AsStream("icon.ico");
         return new Icon(iconStream);
     }
+}
+
+class TrackedPair
+{
 }

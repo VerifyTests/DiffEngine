@@ -35,8 +35,8 @@ public static class Piper
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
             await pipe.WaitForConnectionAsync(cancellation);
-            using var streamReader = new StreamReader(pipe);
-            var message = await streamReader.ReadToEndAsync();
+            using var reader = new StreamReader(pipe);
+            var message = await reader.ReadToEndAsync();
             receive(message.Split(Environment.NewLine));
 
             if (pipe.IsConnected)
