@@ -31,7 +31,7 @@ static class Program
             Icon = icon,
             Visible = true,
             Text = "DiffEngine",
-            ContextMenuStrip = menu,
+            ContextMenuStrip = menu
         };
 
         Application.Run();
