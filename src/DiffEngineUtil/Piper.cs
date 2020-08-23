@@ -21,7 +21,7 @@ public static class Piper
         await stream.WriteAsync(message.AsMemory(), cancellation);
     }
 
-    public static async Task Start(Action<string[]> receive, CancellationToken cancellation)
+    public static async Task Start(Action<string[]> receive, CancellationToken cancellation = default)
     {
         while (true)
         {
@@ -30,22 +30,27 @@ public static class Piper
                 break;
             }
 
-            await using var pipe = new NamedPipeServerStream(
-                "DiffEngineUtil",
-                PipeDirection.In,
-                1,
-                PipeTransmissionMode.Byte,
-                pipeOptions);
-            await pipe.WaitForConnectionAsync(cancellation);
-            using var reader = new StreamReader(pipe);
-            var message = await reader.ReadToEndAsync();
-            receive(message.Split(Environment.NewLine));
+            await Handle(receive, cancellation);
+        }
+    }
 
-            if (pipe.IsConnected)
-            {
-                // must disconnect
-                await pipe.DisposeAsync();
-            }
+    static async Task Handle(Action<string[]> receive, CancellationToken cancellation)
+    {
+        await using var pipe = new NamedPipeServerStream(
+            "DiffEngineUtil",
+            PipeDirection.In,
+            1,
+            PipeTransmissionMode.Byte,
+            pipeOptions);
+        await pipe.WaitForConnectionAsync(cancellation);
+        using var reader = new StreamReader(pipe);
+        var message = await reader.ReadToEndAsync();
+        receive(message.Split(Environment.NewLine));
+
+        if (pipe.IsConnected)
+        {
+            // must disconnect
+            await pipe.DisposeAsync();
         }
     }
 }
