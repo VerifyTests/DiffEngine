@@ -10,5 +10,6 @@
     <None Remove="icon.ico" />
     <EmbeddedResource Include="icon.ico" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" />
+    <PackageReference Include="Fody" Version="6.2.4" PrivateAssets="all" />
   </ItemGroup>
 </Project>
