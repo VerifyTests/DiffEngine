@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 public static class Piper
 {
-    const PipeOptions pipeOptions = PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly;
+    const PipeOptions pipeOptions = PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly;
 
     public static async Task Send(string[] args, CancellationToken cancellation = default)
     {
