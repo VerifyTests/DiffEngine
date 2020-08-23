@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Resourcer;
 
@@ -8,11 +9,12 @@ static class Program
 {
     static Mutex mutex;
 
-    static void Main()
+    static async Task Main(string[] args)
     {
         mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
         if (!createdNew)
         {
+            await Piper.Send(args);
             Environment.Exit(0);
         }
 

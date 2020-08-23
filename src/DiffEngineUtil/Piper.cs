@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 public static class Piper
 {
-    public static async Task Send(string message, CancellationToken cancellation)
+    public static async Task Send(string[] args, CancellationToken cancellation = default)
     {
         await using var pipe = new NamedPipeClientStream(
             ".",
@@ -15,10 +15,11 @@ public static class Piper
             PipeOptions.Asynchronous);
         await using var stream = new StreamWriter(pipe);
         await pipe.ConnectAsync(1000, cancellation);
+        var message = string.Join(Environment.NewLine, args);
         await stream.WriteAsync(message.AsMemory(), cancellation);
     }
 
-    public static async Task Start(Action<string> receive, CancellationToken cancellation)
+    public static async Task Start(Action<string[]> receive, CancellationToken cancellation)
     {
         while (true)
         {
@@ -36,7 +37,7 @@ public static class Piper
             await pipe.WaitForConnectionAsync(cancellation);
             using var streamReader = new StreamReader(pipe);
             var message = await streamReader.ReadToEndAsync();
-            receive(message);
+            receive(message.Split(Environment.NewLine));
 
             if (pipe.IsConnected)
             {
