@@ -17,8 +17,7 @@ static class Program
         }
 
         var resetEvent = new ManualResetEvent(false);
-        using var iconStream = Resource.AsStream("icon.ico");
-        using var icon = new Icon(iconStream);
+        var icon = BuildIcon();
         using var menu = new ContextMenuStrip();
         using var exit = new ToolStripButton("Exit");
         exit.Click += (o, args) =>
@@ -39,5 +38,11 @@ static class Program
         resetEvent.WaitOne();
 
         mutex.Dispose();
+    }
+
+    static Icon BuildIcon()
+    {
+        using var iconStream = Resource.AsStream("icon.ico");
+        return new Icon(iconStream);
     }
 }
