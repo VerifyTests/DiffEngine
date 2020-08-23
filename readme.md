@@ -46,7 +46,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
- * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/Tests/diffToolList.include.md -->
+ * [AraxisMerge](/docs/diff-tool.md#araxismerge) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare)
  * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
@@ -80,7 +80,7 @@ A tool can be launched using the following:
 ```cs
 DiffRunner.Launch(tempFile, targetFile);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -95,7 +95,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/Tests/DiffRunnerTests.cs#L58-L60' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L58-L60' title='File snippet `diffrunnerkill` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Navigate to start of snippet `diffrunnerkill`'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
