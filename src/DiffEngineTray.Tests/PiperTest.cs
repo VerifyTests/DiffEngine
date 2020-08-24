@@ -16,8 +16,9 @@ public class PiperTest :
         source.Cancel();
         await task;
         Assert.NotNull(received);
-        Assert.Equal("Foo", received.Target);
+        Assert.Equal("Foo", received.File);
     }
+
     [Fact]
     public async Task Move()
     {

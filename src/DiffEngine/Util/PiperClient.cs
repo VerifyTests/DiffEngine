@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 static class PiperClient
 {
     public static Task SendDelete(
-        string targetFile,
+        string file,
         CancellationToken cancellation = default)
     {
         var payload = $@"{{
 ""Type"":""Delete"",
-""Target"":""{targetFile}""
+""File"":""{file}""
 }}
 ";
         return Send(payload, cancellation);

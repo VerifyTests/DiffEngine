@@ -1,15 +1,11 @@
 using System;
-using System.Collections.Concurrent;
-using System.Drawing;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Resourcer;
 
 static class Program
 {
-    static ConcurrentBag<TrackedMove> trackedMoves = new ConcurrentBag<TrackedMove>();
-    static ConcurrentBag<TrackedDelete> trackedDeletes = new ConcurrentBag<TrackedDelete>();
 
     static async Task Main()
     {
@@ -22,10 +18,10 @@ static class Program
         }
 
         var task = PiperServer.Start(
-            payload => trackedMoves.Add(new TrackedMove()),
-            payload => trackedDeletes.Add(new TrackedDelete()),
+            payload => Tracking.AddMove(payload.Temp, payload.Target, payload.IsMdi, payload.AutoRefresh, payload.ProcessId),
+            payload => Tracking.AddDelete(payload.File),
             cancellation);
-        var icon = BuildIcon();
+        var icon = Resources.Icon();
         using var menu = new ContextMenuStrip();
         using var exit = new ToolStripButton("Exit");
         exit.Click += delegate
@@ -34,6 +30,26 @@ static class Program
             Environment.Exit(0);
         };
         menu.Items.Add(exit);
+
+        menu.Opening += (sender, e) =>
+        {
+            if (Tracking.TrackingAny)
+            {
+                var approveAll = new ToolStripButton("Approve All");
+                approveAll.Click += delegate { Tracking.ApproveAll(); };
+            }
+        };
+        menu.Closed += delegate
+        {
+            var toRemove = menu.Items.Cast<ToolStripItem>()
+                .Where(x => x.Text != "Exit")
+                .ToList();
+            foreach (var toolStripItem in toRemove)
+            {
+                menu.Items.Remove(toolStripItem);
+                toolStripItem.Dispose();
+            }
+        };
 
         using var notifyIcon = new NotifyIcon
         {
@@ -46,18 +62,4 @@ static class Program
         Application.Run();
         await task;
     }
-
-    static Icon BuildIcon()
-    {
-        using var iconStream = Resource.AsStream("icon.ico");
-        return new Icon(iconStream);
-    }
-}
-
-class TrackedDelete
-{
-}
-
-class TrackedMove
-{
 }

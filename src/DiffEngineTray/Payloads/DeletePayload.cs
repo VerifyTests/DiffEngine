@@ -1,4 +1,4 @@
 ﻿class DeletePayload
 {
-    public string Target { get; set; } = null!;
+    public string File { get; set; } = null!;
 }
