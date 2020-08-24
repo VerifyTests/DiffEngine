@@ -5,7 +5,18 @@ using System.Threading.Tasks;
 
 static class PiperClient
 {
-    public static async Task Send(
+    public static Task SendDelete(
+        string targetFile,
+        CancellationToken cancellation = default)
+    {
+        var payload = $@"{{
+""Type"":""Delete"",
+""Target"":""{targetFile}""
+}}
+";
+        return Send(payload, cancellation);
+    }
+    public static Task SendMove(
         string tempFile,
         string targetFile,
         bool isMdi,
@@ -13,7 +24,8 @@ static class PiperClient
         int processId,
         CancellationToken cancellation = default)
     {
-        var payload=$@"{{
+        var payload = $@"{{
+""Type"":""Move"",
 ""Temp"":""{tempFile}"",
 ""Target"":""{targetFile}"",
 ""IsMdi"":{isMdi.ToString().ToLower()},
@@ -21,6 +33,11 @@ static class PiperClient
 ""ProcessId"":{processId}
 }}
 ";
+        return Send(payload, cancellation);
+    }
+
+    static async Task Send(string payload, CancellationToken cancellation = default)
+    {
 #if(NETSTANDARD2_1)
         await using var pipe = new NamedPipeClientStream(
             ".",

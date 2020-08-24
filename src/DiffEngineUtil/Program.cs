@@ -8,7 +8,8 @@ using Resourcer;
 
 static class Program
 {
-    static ConcurrentBag<TrackedPair> tracked = new ConcurrentBag<TrackedPair>();
+    static ConcurrentBag<TrackedMove> trackedMoves = new ConcurrentBag<TrackedMove>();
+    static ConcurrentBag<TrackedDelete> trackedDeletes = new ConcurrentBag<TrackedDelete>();
 
     static async Task Main()
     {
@@ -20,7 +21,10 @@ static class Program
             return;
         }
 
-        var task = PiperServer.Start(strings => tracked.Add(new TrackedPair()), cancellation);
+        var task = PiperServer.Start(
+            payload => trackedMoves.Add(new TrackedMove()),
+            payload => trackedDeletes.Add(new TrackedDelete()),
+            cancellation);
         var icon = BuildIcon();
         using var menu = new ContextMenuStrip();
         using var exit = new ToolStripButton("Exit");
@@ -50,6 +54,10 @@ static class Program
     }
 }
 
-class TrackedPair
+class TrackedDelete
+{
+}
+
+class TrackedMove
 {
 }

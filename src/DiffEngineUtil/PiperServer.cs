@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 
 static class PiperServer
 {
-    public static async Task Start(Action<Payload> receive, CancellationToken cancellation = default)
+    public static async Task Start(
+        Action<MovePayload> receiveMove,
+        Action<DeletePayload> receiveDelete,
+        CancellationToken cancellation = default)
     {
         while (true)
         {
@@ -16,11 +19,11 @@ static class PiperServer
                 break;
             }
 
-            await Handle(receive, cancellation);
+            await Handle(receiveMove, receiveDelete, cancellation);
         }
     }
 
-    static async Task Handle(Action<Payload> receive, CancellationToken cancellation)
+    static async Task Handle(Action<MovePayload> receiveMove, Action<DeletePayload> receiveDelete, CancellationToken cancellation)
     {
         await using var pipe = new NamedPipeServerStream(
             "DiffEngineUtil",
@@ -31,8 +34,21 @@ static class PiperServer
         await pipe.WaitForConnectionAsync(cancellation);
         using var reader = new StreamReader(pipe);
         var message = await reader.ReadToEndAsync();
-        var payload = JsonSerializer.Deserialize<Payload>(message);
-        receive(payload);
+
+        if (message.Contains("\"Type\":\"Move\""))
+        {
+            var payload = JsonSerializer.Deserialize<MovePayload>(message);
+            receiveMove(payload);
+        }
+        else if (message.Contains("\"Type\":\"Delete\""))
+        {
+            var payload = JsonSerializer.Deserialize<DeletePayload>(message);
+            receiveDelete(payload);
+        }
+        else
+        {
+            throw new Exception($"Unknown message: {message}");
+        }
 
         if (pipe.IsConnected)
         {

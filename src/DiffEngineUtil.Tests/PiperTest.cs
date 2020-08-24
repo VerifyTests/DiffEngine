@@ -7,12 +7,24 @@ public class PiperTest :
     XunitContextBase
 {
     [Fact]
-    public async Task Simple()
+    public async Task Delete()
     {
-        Payload received = null!;
+        DeletePayload received = null!;
         var source = new CancellationTokenSource();
-        var task = PiperServer.Start(s => received = s, source.Token);
-        await PiperClient.Send("Foo", "Bar",true,true,10, source.Token);
+        var task = PiperServer.Start(s => { },s => received = s, source.Token);
+        await PiperClient.SendDelete("Foo", source.Token);
+        source.Cancel();
+        await task;
+        Assert.NotNull(received);
+        Assert.Equal("Foo", received.Target);
+    }
+    [Fact]
+    public async Task Move()
+    {
+        MovePayload received = null!;
+        var source = new CancellationTokenSource();
+        var task = PiperServer.Start(s => received = s,s => { }, source.Token);
+        await PiperClient.SendMove("Foo", "Bar",true,true,10, source.Token);
         source.Cancel();
         await task;
         Assert.NotNull(received);
