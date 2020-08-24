@@ -22,7 +22,7 @@ static class PiperClient
         string targetFile,
         bool isMdi,
         bool autoRefresh,
-        int processId,
+        int? processId,
         CancellationToken cancellation = default)
     {
         var payload = $@"{{

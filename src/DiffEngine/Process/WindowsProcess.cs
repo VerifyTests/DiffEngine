@@ -18,9 +18,8 @@ static class WindowsProcess
         SafeProcessHandle processHandle,
         int exitCode);
 
-    public static bool TryTerminateProcess(ProcessCommand processCommand)
+    public static bool TryTerminateProcess(int processId)
     {
-        var processId = processCommand.Process;
         using var processHandle = OpenProcess(4097, false, processId);
         if (processHandle.IsInvalid)
         {

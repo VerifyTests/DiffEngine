@@ -29,6 +29,7 @@ namespace DiffEngine
             {
                 return result;
             }
+
             throw new Exception($"Could not parse the DiffEngine.MaxInstances environment variable: {variable}");
 
         }
@@ -95,31 +96,31 @@ namespace DiffEngine
         /// <summary>
         /// Launch a diff tool for the given paths.
         /// </summary>
-        public static async Task<LaunchResult> Launch(string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
 
             var extension = Extensions.GetExtension(tempFile);
 
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
-                return LaunchResult.NoDiffToolFound;
+                return Task.FromResult(LaunchResult.NoDiffToolFound);
             }
 
-            return await Launch(diffTool, tempFile, targetFile);
+            return Launch(diffTool, tempFile, targetFile);
         }
 
-        public static async Task<LaunchResult> Launch(ResolvedTool tool, string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
 
             var targetExists = File.Exists(targetFile);
@@ -127,27 +128,21 @@ namespace DiffEngine
             {
                 if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
                 {
-                    return LaunchResult.NoEmptyFileForExtension;
+                    return Task.FromResult(LaunchResult.NoEmptyFileForExtension);
                 }
             }
 
-            return await InnerLaunch(tool, tempFile, targetFile);
+            return InnerLaunch(tool, tempFile, targetFile);
         }
 
         static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
-            var instanceCount = Interlocked.Increment(ref launchedInstances);
-            if (instanceCount > maxInstancesToLaunch)
-            {
-                return LaunchResult.TooManyRunningDiffTools;
-            }
-
             var command = tool.BuildCommand(tempFile, targetFile);
-            var isDiffToolRunning = ProcessCleanup.IsRunning(command);
-            if (isDiffToolRunning)
+            if (ProcessCleanup.TryGetProcessId(command, out var processId))
             {
                 if (tool.AutoRefresh)
                 {
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, processId);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -155,6 +150,13 @@ namespace DiffEngine
                 {
                     ProcessCleanup.Kill(command);
                 }
+            }
+
+            var instanceCount = Interlocked.Increment(ref launchedInstances);
+            if (instanceCount > maxInstancesToLaunch)
+            {
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, null);
+                return LaunchResult.TooManyRunningDiffTools;
             }
 
             var arguments = tool.Arguments(tempFile, targetFile);
@@ -172,10 +174,8 @@ namespace DiffEngine
 {tool.ExePath} {arguments}";
                     throw new Exception(message);
                 }
-                if (DiffEngineTray.IsRunning)
-                {
-                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, process.Id);
-                }
+
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, process.Id);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)

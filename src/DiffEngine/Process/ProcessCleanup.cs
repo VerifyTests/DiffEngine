@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -9,7 +10,7 @@ namespace DiffEngine
     {
         static List<ProcessCommand> commands;
         static Func<IEnumerable<ProcessCommand>> findAll;
-        static Func<ProcessCommand, bool> tryTerminateProcess;
+        static Func<int, bool> tryTerminateProcess;
 
 #pragma warning disable CS8618
         static ProcessCleanup()
@@ -62,7 +63,7 @@ namespace DiffEngine
 
             foreach (var processCommand in matchingCommands)
             {
-                TerminateProcessIfExists(processCommand);
+                TerminateProcessIfExists(processCommand.Process);
             }
         }
 
@@ -73,19 +74,31 @@ namespace DiffEngine
 
         public static bool IsRunning(string command)
         {
-            Guard.AgainstNullOrEmpty(command, nameof(command));
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return commands.Any(x => x.Command == command);
-            }
-            command = TrimCommand(command);
-            return commands.Any(x => x.Command == command);
+            return TryGetProcessId(command, out _);
         }
 
-        static void TerminateProcessIfExists(in ProcessCommand processCommand)
+        public static bool TryGetProcessId(string command, [NotNullWhen(true)] out int? processId)
         {
-            var processId = processCommand.Process;
-            if (tryTerminateProcess(processCommand))
+            Guard.AgainstNullOrEmpty(command, nameof(command));
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                command = TrimCommand(command);
+            }
+
+            var process = commands.SingleOrDefault(x => x.Command == command);
+            if (process.Equals(default(ProcessCommand)))
+            {
+                processId = null;
+                return false;
+            }
+
+            processId = process.Process;
+            return true;
+        }
+
+        static void TerminateProcessIfExists(in int processId)
+        {
+            if (tryTerminateProcess(processId))
             {
                 Logging.Write($"TerminateProcess. Id: {processId}.");
             }

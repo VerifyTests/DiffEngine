@@ -19,7 +19,7 @@ static class Tracking
         string target,
         bool isMdi,
         bool autoRefresh,
-        int processId)
+        int? processId)
     {
         moves[target] = new TrackedMove(temp, target, isMdi, autoRefresh, processId);
     }

@@ -18,6 +18,11 @@ namespace DiffEngine
 
         public static Task AddDelete(string file, CancellationToken cancellation = default)
         {
+            if (!IsRunning)
+            {
+                return Task.CompletedTask;
+            }
+
             return PiperClient.SendDelete(file, cancellation);
         }
 
@@ -26,9 +31,14 @@ namespace DiffEngine
             string targetFile,
             bool isMdi,
             bool autoRefresh,
-            int processId,
+            int? processId,
             CancellationToken cancellation = default)
         {
+            if (!IsRunning)
+            {
+                return Task.CompletedTask;
+            }
+
             return PiperClient.SendMove(tempFile, targetFile, isMdi, autoRefresh, processId, cancellation);
         }
     }

@@ -7,7 +7,7 @@ class TrackedMove
         string target,
         bool isMdi,
         bool autoRefresh,
-        int processId)
+        int? processId)
     {
         Temp = temp;
         Target = target;
@@ -23,5 +23,5 @@ class TrackedMove
     public string Target { get; }
     public bool IsMdi { get; }
     public bool AutoRefresh { get; }
-    public int ProcessId { get; }
+    public int? ProcessId { get; }
 }
