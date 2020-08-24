@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using EmptyFiles;
 
 namespace DiffEngine
@@ -74,7 +75,7 @@ namespace DiffEngine
             ProcessCleanup.Kill(command);
         }
 
-        public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
+        public static async Task<LaunchResult> Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
 
@@ -88,13 +89,13 @@ namespace DiffEngine
                 return LaunchResult.NoDiffToolFound;
             }
 
-            return Launch(resolvedTool, tempFile, targetFile);
+            return await Launch(resolvedTool, tempFile, targetFile);
         }
 
         /// <summary>
         /// Launch a diff tool for the given paths.
         /// </summary>
-        public static LaunchResult Launch(string tempFile, string targetFile)
+        public static async Task<LaunchResult> Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             if (Disabled)
@@ -109,10 +110,10 @@ namespace DiffEngine
                 return LaunchResult.NoDiffToolFound;
             }
 
-            return Launch(diffTool, tempFile, targetFile);
+            return await Launch(diffTool, tempFile, targetFile);
         }
 
-        public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
+        public static async Task<LaunchResult> Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
@@ -130,10 +131,10 @@ namespace DiffEngine
                 }
             }
 
-            return InnerLaunch(tool, tempFile, targetFile);
+            return await InnerLaunch(tool, tempFile, targetFile);
         }
 
-        static LaunchResult InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
+        static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
             var instanceCount = Interlocked.Increment(ref launchedInstances);
             if (instanceCount > maxInstancesToLaunch)
@@ -170,6 +171,10 @@ namespace DiffEngine
                     var message = $@"Failed to launch diff tool.
 {tool.ExePath} {arguments}";
                     throw new Exception(message);
+                }
+                if (DiffEngineTray.IsRunning)
+                {
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, process.Id);
                 }
                 return LaunchResult.StartedNewInstance;
             }

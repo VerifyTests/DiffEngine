@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading.Tasks;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -73,7 +74,7 @@ public class DiffToolsTest :
         Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
     }
 #endif
-    void AddToolAndLaunch()
+    async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
         var resolvedTool = DiffTools.AddToolBasedOn(
@@ -81,27 +82,27 @@ public class DiffToolsTest :
             name: "MyCustomDiffTool",
             arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
-        DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+        await DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
         #endregion
     }
 
     //[Fact]
-    //public void LaunchImageDiff()
+    //public Task LaunchImageDiff()
     //{
     //    foreach (var tool in DiffTools.Resolved)
     //    {
-    //        DiffRunner.Launch(tool,
+    //        await DiffRunner.Launch(tool,
     //            Path.Combine(SourceDirectory, "input.file1.png"),
     //            Path.Combine(SourceDirectory, "input.file2.png"));
     //    }
     //}
 
     //[Fact]
-    //public void LaunchTextDiff()
+    //public Task LaunchTextDiff()
     //{
     //    foreach (var tool in DiffTools.Resolved)
     //    {
-    //        DiffRunner.Launch(tool,
+    //        await DiffRunner.Launch(tool,
     //            Path.Combine(SourceDirectory, "input.file1.txt"),
     //            Path.Combine(SourceDirectory, "input.file2.txt"));
     //    }

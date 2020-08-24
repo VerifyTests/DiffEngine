@@ -78,7 +78,7 @@ A tool can be launched using the following:
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'></a>
 ```cs
-DiffRunner.Launch(tempFile, targetFile);
+await DiffRunner.Launch(tempFile, targetFile);
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endSnippet -->

@@ -23,7 +23,7 @@ var resolvedTool = DiffTools.AddTool(
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L34' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L35' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -36,7 +36,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L64-L69' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L65-L70' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -47,7 +47,7 @@ New tools are added to the top of the order, the last tool added will resolve be
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'></a>
 ```cs
-DiffRunner.Launch(tempFile, targetFile);
+await DiffRunner.Launch(tempFile, targetFile);
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
@@ -62,9 +62,9 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
-DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+await DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L78-L85' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L79-L86' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
 
 
