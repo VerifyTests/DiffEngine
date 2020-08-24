@@ -121,7 +121,6 @@ namespace DiffEngine
                 return LaunchResult.Disabled;
             }
 
-
             var targetExists = File.Exists(targetFile);
             if (tool.RequiresTarget && !targetExists)
             {

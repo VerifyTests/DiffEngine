@@ -16,6 +16,7 @@ static class PiperClient
 ";
         return Send(payload, cancellation);
     }
+
     public static Task SendMove(
         string tempFile,
         string targetFile,
