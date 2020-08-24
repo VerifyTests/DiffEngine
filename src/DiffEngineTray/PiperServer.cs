@@ -26,7 +26,7 @@ static class PiperServer
     static async Task Handle(Action<MovePayload> receiveMove, Action<DeletePayload> receiveDelete, CancellationToken cancellation)
     {
         await using var pipe = new NamedPipeServerStream(
-            "DiffEngineUtil",
+            "DiffEngine",
             PipeDirection.In,
             1,
             PipeTransmissionMode.Byte,

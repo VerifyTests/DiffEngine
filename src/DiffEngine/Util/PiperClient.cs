@@ -41,7 +41,7 @@ static class PiperClient
 #if(NETSTANDARD2_1)
         await using var pipe = new NamedPipeClientStream(
             ".",
-            "DiffEngineUtil",
+            "DiffEngine",
             PipeDirection.Out,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         await using var stream = new StreamWriter(pipe);
@@ -50,7 +50,7 @@ static class PiperClient
 #else
         using var pipe = new NamedPipeClientStream(
             ".",
-            "DiffEngineUtil",
+            "DiffEngine",
             PipeDirection.Out,
             PipeOptions.Asynchronous);
         using var stream = new StreamWriter(pipe);
