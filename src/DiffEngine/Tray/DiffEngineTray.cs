@@ -1,4 +1,5 @@
 ﻿using System.Threading;
+using System.Threading.Tasks;
 
 namespace DiffEngine
 {
@@ -14,5 +15,21 @@ namespace DiffEngine
         }
 
         public static bool IsRunning { get; }
+
+        public static Task AddDelete(string file, CancellationToken cancellation = default)
+        {
+            return PiperClient.SendDelete(file, cancellation);
+        }
+
+        public static Task AddMove(
+            string tempFile,
+            string targetFile,
+            bool isMdi,
+            bool autoRefresh,
+            int processId,
+            CancellationToken cancellation = default)
+        {
+            return PiperClient.SendMove(tempFile, targetFile, isMdi, autoRefresh, processId, cancellation);
+        }
     }
 }

@@ -164,10 +164,13 @@ namespace DiffEngine
                     UseShellExecute = tool.ShellExecute
                 };
 
-                using (Process.Start(startInfo))
+                using var process = Process.Start(startInfo);
+                if (process == null)
                 {
+                    var message = $@"Failed to launch diff tool.
+{tool.ExePath} {arguments}";
+                    throw new Exception(message);
                 }
-
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)
