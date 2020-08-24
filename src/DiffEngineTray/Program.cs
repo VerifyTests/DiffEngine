@@ -6,7 +6,6 @@ using System.Windows.Forms;
 
 static class Program
 {
-
     static async Task Main()
     {
         var tokenSource = new CancellationTokenSource();
@@ -21,9 +20,9 @@ static class Program
             payload => Tracking.AddMove(payload.Temp, payload.Target, payload.IsMdi, payload.AutoRefresh, payload.ProcessId),
             payload => Tracking.AddDelete(payload.File),
             cancellation);
-        var icon = Resources.Icon();
+
         using var menu = new ContextMenuStrip();
-        using var exit = new ToolStripButton("Exit");
+        using var exit = new ToolStripMenuItem("Exit");
         exit.Click += delegate
         {
             mutex!.Dispose();
@@ -33,10 +32,21 @@ static class Program
 
         menu.Opening += (sender, e) =>
         {
-            if (Tracking.TrackingAny)
+            if (!Tracking.TrackingAny)
             {
-                var approveAll = new ToolStripButton("Approve All");
-                approveAll.Click += delegate { Tracking.ApproveAll(); };
+                return;
+            }
+            var approveAll = new ToolStripMenuItem("Approve All");
+            approveAll.Click += delegate { Tracking.ApproveAll(); };
+            foreach (var delete in Tracking.Deletes)
+            {
+                var item = new ToolStripMenuItem($"Delete {delete.Name}");
+                item.Click += delegate { Tracking.Delete(delete); };
+            }
+            foreach (var move in Tracking.Moves)
+            {
+                var item = new ToolStripMenuItem($"Accept {move.Name}");
+                item.Click += delegate { Tracking.Move(move); };
             }
         };
         menu.Closed += delegate
@@ -53,7 +63,7 @@ static class Program
 
         using var notifyIcon = new NotifyIcon
         {
-            Icon = icon,
+            Icon = Resources.Icon(),
             Visible = true,
             Text = "DiffEngine",
             ContextMenuStrip = menu

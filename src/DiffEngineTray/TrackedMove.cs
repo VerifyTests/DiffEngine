@@ -1,3 +1,5 @@
+using System.IO;
+
 class TrackedMove
 {
     public TrackedMove(
@@ -9,10 +11,13 @@ class TrackedMove
     {
         Temp = temp;
         Target = target;
+        Name = Path.GetFileName(target);
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         ProcessId = processId;
     }
+
+    public string Name { get; }
 
     public string Temp { get; }
     public string Target { get; }

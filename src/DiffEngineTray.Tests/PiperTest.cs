@@ -11,7 +11,7 @@ public class PiperTest :
     {
         DeletePayload received = null!;
         var source = new CancellationTokenSource();
-        var task = PiperServer.Start(s => { },s => received = s, source.Token);
+        var task = PiperServer.Start(s => { }, s => received = s, source.Token);
         await PiperClient.SendDelete("Foo", source.Token);
         source.Cancel();
         await task;
@@ -24,8 +24,8 @@ public class PiperTest :
     {
         MovePayload received = null!;
         var source = new CancellationTokenSource();
-        var task = PiperServer.Start(s => received = s,s => { }, source.Token);
-        await PiperClient.SendMove("Foo", "Bar",true,true,10, source.Token);
+        var task = PiperServer.Start(s => received = s, s => { }, source.Token);
+        await PiperClient.SendMove("Foo", "Bar", true, true, 10, source.Token);
         source.Cancel();
         await task;
         Assert.NotNull(received);
