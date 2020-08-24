@@ -6,8 +6,3 @@
     public bool AutoRefresh { get; set; }
     public int ProcessId { get; set; }
 }
-
-class DeletePayload
-{
-    public string Target { get; set; } = null!;
-}
