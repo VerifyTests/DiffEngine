@@ -11,8 +11,8 @@ public class PiperTest :
     {
         string[] received = null!;
         var source = new CancellationTokenSource();
-        var task = Piper.Start(s => received = s, source.Token);
-        await Piper.Send(new []{"Foo", "Bar"}, source.Token);
+        var task = PiperServer.Start(s => received = s, source.Token);
+        await PiperClient.Send(new []{"Foo", "Bar"}, source.Token);
         source.Cancel();
         await task;
         Assert.NotNull(received);

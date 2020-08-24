@@ -10,18 +10,17 @@ static class Program
 {
     static ConcurrentBag<TrackedPair> tracked = new ConcurrentBag<TrackedPair>();
 
-    static async Task Main(string[] args)
+    static async Task Main()
     {
         var tokenSource = new CancellationTokenSource();
         var cancellation = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
         if (!createdNew)
         {
-            await Piper.Send(args, cancellation);
             return;
         }
 
-        var task = Piper.Start(strings => tracked.Add(new TrackedPair()), cancellation);
+        var task = PiperServer.Start(strings => tracked.Add(new TrackedPair()), cancellation);
         var icon = BuildIcon();
         using var menu = new ContextMenuStrip();
         using var exit = new ToolStripButton("Exit");

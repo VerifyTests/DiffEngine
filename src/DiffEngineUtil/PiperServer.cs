@@ -4,23 +4,8 @@ using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 
-public static class Piper
+static class PiperServer
 {
-    const PipeOptions pipeOptions = PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly;
-
-    public static async Task Send(string[] args, CancellationToken cancellation = default)
-    {
-        await using var pipe = new NamedPipeClientStream(
-            ".",
-            "DiffEngineUtil",
-            PipeDirection.Out,
-            pipeOptions);
-        await using var stream = new StreamWriter(pipe);
-        await pipe.ConnectAsync(1000, cancellation);
-        var message = string.Join(Environment.NewLine, args);
-        await stream.WriteAsync(message.AsMemory(), cancellation);
-    }
-
     public static async Task Start(Action<string[]> receive, CancellationToken cancellation = default)
     {
         while (true)
@@ -41,7 +26,7 @@ public static class Piper
             PipeDirection.In,
             1,
             PipeTransmissionMode.Byte,
-            pipeOptions);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         await pipe.WaitForConnectionAsync(cancellation);
         using var reader = new StreamReader(pipe);
         var message = await reader.ReadToEndAsync();
@@ -49,8 +34,7 @@ public static class Piper
 
         if (pipe.IsConnected)
         {
-            // must disconnect
-            await pipe.DisposeAsync();
+            pipe.Disconnect();
         }
     }
 }
