@@ -1,12 +1,13 @@
 ﻿using System;
 using System.IO;
 using System.IO.Pipes;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 static class PiperServer
 {
-    public static async Task Start(Action<string[]> receive, CancellationToken cancellation = default)
+    public static async Task Start(Action<Payload> receive, CancellationToken cancellation = default)
     {
         while (true)
         {
@@ -19,7 +20,7 @@ static class PiperServer
         }
     }
 
-    static async Task Handle(Action<string[]> receive, CancellationToken cancellation)
+    static async Task Handle(Action<Payload> receive, CancellationToken cancellation)
     {
         await using var pipe = new NamedPipeServerStream(
             "DiffEngineUtil",
@@ -30,7 +31,8 @@ static class PiperServer
         await pipe.WaitForConnectionAsync(cancellation);
         using var reader = new StreamReader(pipe);
         var message = await reader.ReadToEndAsync();
-        receive(message.Split(Environment.NewLine));
+        var payload = JsonSerializer.Deserialize<Payload>(message);
+        receive(payload);
 
         if (pipe.IsConnected)
         {
