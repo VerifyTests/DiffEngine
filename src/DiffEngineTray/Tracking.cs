@@ -76,8 +76,23 @@ class Tracking:IAsyncDisposable
         bool canKill,
         int? processId)
     {
-        moves[target] = new TrackedMove(temp, target, canKill, processId);
-        ToggleActive();
+        var updated = false;
+        moves.AddOrUpdate(
+            target,
+            addValueFactory: s =>
+            {
+                updated = true;
+                return new TrackedMove(temp, target, canKill, processId);
+            },
+            updateValueFactory: (s, existing) =>
+            {
+                existing.ProcessId ??= processId;
+                return existing;
+            });
+        if (updated)
+        {
+            ToggleActive();
+        }
     }
 
     public void AddDelete(string file)

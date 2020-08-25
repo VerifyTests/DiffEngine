@@ -10,7 +10,7 @@ class TrackedMove
     {
         Temp = temp;
         Target = target;
-        Name = Path.GetFileNameWithoutExtension(Path.GetFileName(target));
+        Name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(target));
         Extension = Path.GetExtension(target).TrimStart('.');
         CanKill = canKill;
         ProcessId = processId;
@@ -21,5 +21,5 @@ class TrackedMove
     public string Temp { get; }
     public string Target { get; }
     public bool CanKill { get; }
-    public int? ProcessId { get; }
+    public int? ProcessId { get; set; }
 }
