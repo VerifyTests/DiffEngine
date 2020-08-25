@@ -17,7 +17,7 @@ static class Program
 
         using var notifyIcon = new NotifyIcon
         {
-            Icon = Resources.ActiveIcon,
+            Icon = Resources.DefaultIcon,
             Visible = true,
             Text = "DiffEngine"
         };
@@ -31,7 +31,7 @@ static class Program
             payload => tracking.AddDelete(payload.File),
             cancellation);
 
-        var menu = MenuBuilder.BuildDefaultMenu(
+        var menu = MenuBuilder.Build(
             () =>
             {
                 mutex!.Dispose();

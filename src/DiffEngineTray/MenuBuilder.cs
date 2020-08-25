@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 static class MenuBuilder
 {
-    public static ContextMenuStrip BuildDefaultMenu(Action exit, Tracking tracking)
+    public static ContextMenuStrip Build(Action exit, Tracking tracking)
     {
         var menu = new ContextMenuStrip();
         var exitItem = new ToolStripMenuItem("Exit");
