@@ -4,52 +4,103 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-
-//class TimerLoop
-//{
-//    public TimerLoop()
-//    {
-//        new AsyncTimer().Start();
-//    }
-//}
-static class Tracking
+class Tracking:IAsyncDisposable
 {
-    static ConcurrentDictionary<string, TrackedMove> moves = new ConcurrentDictionary<string, TrackedMove>(StringComparer.OrdinalIgnoreCase);
-    static ConcurrentDictionary<string, TrackedDelete> deletes = new ConcurrentDictionary<string, TrackedDelete>(StringComparer.OrdinalIgnoreCase);
+    Action active;
+    Action inactive;
+    ConcurrentDictionary<string, TrackedMove> moves = new ConcurrentDictionary<string, TrackedMove>(StringComparer.OrdinalIgnoreCase);
+    ConcurrentDictionary<string, TrackedDelete> deletes = new ConcurrentDictionary<string, TrackedDelete>(StringComparer.OrdinalIgnoreCase);
+    Timer timer;
 
-    public static bool TrackingAny
+    TimeSpan timeSpan = TimeSpan.FromSeconds(2);
+    public Tracking(Action active, Action inactive)
+    {
+        this.active = active;
+        this.inactive = inactive;
+        timer = new Timer(state => { ScanFiles(); }, null, timeSpan, timeSpan);
+    }
+
+    void ScanFiles()
+    {
+        var changed = false;
+        timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        foreach (var delete in deletes.ToList())
+        {
+            if (!File.Exists(delete.Value.File))
+            {
+                deletes.TryRemove(delete.Key, out _);
+                changed = true;
+            }
+        }
+        foreach (var move in moves.ToList())
+        {
+            if (!File.Exists(move.Value.Temp))
+            {
+                changed = true;
+                if (moves.TryRemove(move.Key, out var removed))
+                {
+                    KillProcess(removed);
+                }
+            }
+        }
+        timer.Change(timeSpan, timeSpan);
+        if (changed)
+        {
+            ToggleActive();
+        }
+    }
+
+    void ToggleActive()
+    {
+        if (TrackingAny)
+        {
+            active();
+        }
+        else
+        {
+            inactive();
+        }
+    }
+
+    public bool TrackingAny
     {
         get => moves.Any() || deletes.Any();
     }
 
-    public static void AddMove(
+    public void AddMove(
         string temp,
         string target,
         bool canKill,
         int? processId)
     {
         moves[target] = new TrackedMove(temp, target, canKill, processId);
+        ToggleActive();
     }
 
-    public static void AddDelete(string file)
+    public void AddDelete(string file)
     {
         deletes[file] = new TrackedDelete(file);
+        ToggleActive();
     }
 
-    public static void Delete(TrackedDelete delete)
+    public void Delete(TrackedDelete delete)
     {
-        if (deletes.Remove(delete.File, out _))
+        if (deletes.Remove(delete.File, out var removed))
         {
-            File.Delete(delete.File);
+            File.Delete(removed.File);
+            ToggleActive();
         }
     }
 
-    public static void Move(TrackedMove move)
+    public void Move(TrackedMove move)
     {
-        if (moves.Remove(move.Target, out _))
+        if (moves.Remove(move.Target, out var removed))
         {
-            InnerMove(move);
+            InnerMove(removed);
+            ToggleActive();
         }
     }
 
@@ -60,14 +111,28 @@ static class Tracking
             File.Move(move.Temp, move.Target, true);
         }
 
-        if (move.CanKill && move.ProcessId != null)
+        KillProcess(move);
+    }
+
+    static void KillProcess(TrackedMove move)
+    {
+        if (!move.CanKill || move.ProcessId == null)
+        {
+            return;
+        }
+
+        try
         {
             using var process = Process.GetProcessById(move.ProcessId.Value);
             process.Kill();
         }
+        catch (ArgumentException)
+        {
+            //If process doesnt exists
+        }
     }
 
-    public static void AcceptAll()
+    public void AcceptAll()
     {
         foreach (var delete in deletes.Values)
         {
@@ -81,15 +146,21 @@ static class Tracking
         }
 
         moves.Clear();
+        ToggleActive();
     }
 
-    public static ICollection<TrackedDelete> Deletes
+    public ICollection<TrackedDelete> Deletes
     {
         get => deletes.Values;
     }
 
-    public static ICollection<TrackedMove> Moves
+    public ICollection<TrackedMove> Moves
     {
         get => moves.Values;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return timer.DisposeAsync();
     }
 }

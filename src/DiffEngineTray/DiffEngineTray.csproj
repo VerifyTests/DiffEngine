@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="icon.ico" />
-    <EmbeddedResource Include="icon.ico" />
+    <None Remove="*.ico" />
+    <EmbeddedResource Include="*.ico" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
     <PackageReference Include="Fody" Version="6.2.4" PrivateAssets="all" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
