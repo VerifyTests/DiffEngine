@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,14 +11,14 @@ static class Program
     {
         var tokenSource = new CancellationTokenSource();
         var cancellation = tokenSource.Token;
-        using var mutex = new Mutex(true, "DiffEngineUtil", out var createdNew);
+        using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
             return;
         }
 
         var task = PiperServer.Start(
-            payload => Tracking.AddMove(payload.Temp, payload.Target, payload.IsMdi, payload.AutoRefresh, payload.ProcessId),
+            payload => Tracking.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId),
             payload => Tracking.AddDelete(payload.File),
             cancellation);
 
@@ -36,17 +37,10 @@ static class Program
             {
                 return;
             }
-            var approveAll = new ToolStripMenuItem("Approve All");
-            approveAll.Click += delegate { Tracking.ApproveAll(); };
-            foreach (var delete in Tracking.Deletes)
+
+            foreach (var item in BuildMenuItems())
             {
-                var item = new ToolStripMenuItem($"Delete {delete.Name}");
-                item.Click += delegate { Tracking.Delete(delete); };
-            }
-            foreach (var move in Tracking.Moves)
-            {
-                var item = new ToolStripMenuItem($"Accept {move.Name}");
-                item.Click += delegate { Tracking.Move(move); };
+                menu.Items.Insert(0, item);
             }
         };
         menu.Closed += delegate
@@ -71,5 +65,25 @@ static class Program
 
         Application.Run();
         await task;
+    }
+
+    static IEnumerable<ToolStripMenuItem> BuildMenuItems()
+    {
+        var acceptAll = new ToolStripMenuItem("Accept All");
+        acceptAll.Click += delegate { Tracking.AcceptAll(); };
+        yield return acceptAll;
+        foreach (var delete in Tracking.Deletes)
+        {
+            var item = new ToolStripMenuItem($"Delete {delete.Name}");
+            item.Click += delegate { Tracking.Delete(delete); };
+            yield return item;
+        }
+
+        foreach (var move in Tracking.Moves)
+        {
+            var item = new ToolStripMenuItem($"Accept {move.Name} ({move.Extension})");
+            item.Click += delegate { Tracking.Move(move); };
+            yield return item;
+        }
     }
 }

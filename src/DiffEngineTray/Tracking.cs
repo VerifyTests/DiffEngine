@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -17,11 +18,10 @@ static class Tracking
     public static void AddMove(
         string temp,
         string target,
-        bool isMdi,
-        bool autoRefresh,
+        bool canKill,
         int? processId)
     {
-        moves[target] = new TrackedMove(temp, target, isMdi, autoRefresh, processId);
+        moves[target] = new TrackedMove(temp, target, canKill, processId);
     }
 
     public static void AddDelete(string file)
@@ -41,14 +41,25 @@ static class Tracking
     {
         if (moves.Remove(move.Target, out _))
         {
-            if (File.Exists(move.Temp))
-            {
-                File.Move(move.Temp, move.Target, true);
-            }
+            InnerMove(move);
         }
     }
 
-    public static void ApproveAll()
+    static void InnerMove(TrackedMove move)
+    {
+        if (File.Exists(move.Temp))
+        {
+            File.Move(move.Temp, move.Target, true);
+        }
+
+        if (move.CanKill && move.ProcessId != null)
+        {
+            using var process = Process.GetProcessById(move.ProcessId.Value);
+            process.Kill();
+        }
+    }
+
+    public static void AcceptAll()
     {
         foreach (var delete in deletes.Values)
         {
@@ -58,10 +69,7 @@ static class Tracking
         deletes.Clear();
         foreach (var move in moves.Values)
         {
-            if (File.Exists(move.Temp))
-            {
-                File.Move(move.Temp, move.Target, true);
-            }
+            InnerMove(move);
         }
 
         moves.Clear();

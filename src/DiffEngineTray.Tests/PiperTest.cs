@@ -25,14 +25,13 @@ public class PiperTest :
         MovePayload received = null!;
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, s => { }, source.Token);
-        await PiperClient.SendMove("Foo", "Bar", true, true, 10, source.Token);
+        await PiperClient.SendMove("Foo", "Bar", true, 10, source.Token);
         source.Cancel();
         await task;
         Assert.NotNull(received);
         Assert.Equal("Foo", received.Temp);
         Assert.Equal("Bar", received.Target);
-        Assert.True(received.IsMdi);
-        Assert.True(received.AutoRefresh);
+        Assert.True(received.CanKill);
         Assert.Equal(10, received.ProcessId);
     }
 

@@ -20,21 +20,24 @@ static class PiperClient
     public static Task SendMove(
         string tempFile,
         string targetFile,
-        bool isMdi,
-        bool autoRefresh,
+        bool canKill,
         int? processId,
         CancellationToken cancellation = default)
     {
         var payload = $@"{{
 ""Type"":""Move"",
-""Temp"":""{tempFile}"",
-""Target"":""{targetFile}"",
-""IsMdi"":{isMdi.ToString().ToLower()},
-""AutoRefresh"":{autoRefresh.ToString().ToLower()},
+""Temp"":""{tempFile.JsonEscape()}"",
+""Target"":""{targetFile.JsonEscape()}"",
+""CanKill"":{canKill.ToString().ToLower()},
 ""ProcessId"":{processId}
 }}
 ";
         return Send(payload, cancellation);
+    }
+
+    static string JsonEscape(this string tempFile)
+    {
+        return tempFile.Replace(@"\", @"\\");
     }
 
     static async Task Send(string payload, CancellationToken cancellation = default)

@@ -76,21 +76,21 @@ namespace DiffEngine
             ProcessCleanup.Kill(command);
         }
 
-        public static async Task<LaunchResult> Launch(DiffTool tool, string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
 
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
 
             if (!DiffTools.TryFind(tool, out var resolvedTool))
             {
-                return LaunchResult.NoDiffToolFound;
+                return Task.FromResult(LaunchResult.NoDiffToolFound);
             }
 
-            return await Launch(resolvedTool, tempFile, targetFile);
+            return Launch(resolvedTool, tempFile, targetFile);
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace DiffEngine
             {
                 if (tool.AutoRefresh)
                 {
-                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, processId);
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, processId);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -155,7 +155,7 @@ namespace DiffEngine
             var instanceCount = Interlocked.Increment(ref launchedInstances);
             if (instanceCount > maxInstancesToLaunch)
             {
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, null);
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, null);
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
@@ -175,7 +175,7 @@ namespace DiffEngine
                     throw new Exception(message);
                 }
 
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi, tool.AutoRefresh, process.Id);
+                await DiffEngineTray.AddMove(tempFile, targetFile, !tool.IsMdi, process.Id);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)

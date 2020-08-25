@@ -29,8 +29,7 @@ namespace DiffEngine
         public static Task AddMove(
             string tempFile,
             string targetFile,
-            bool isMdi,
-            bool autoRefresh,
+            bool canKill,
             int? processId,
             CancellationToken cancellation = default)
         {
@@ -39,7 +38,7 @@ namespace DiffEngine
                 return Task.CompletedTask;
             }
 
-            return PiperClient.SendMove(tempFile, targetFile, isMdi, autoRefresh, processId, cancellation);
+            return PiperClient.SendMove(tempFile, targetFile, canKill, processId, cancellation);
         }
     }
 }
