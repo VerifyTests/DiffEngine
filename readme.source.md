@@ -81,3 +81,5 @@ To report a security vulnerability, use the [Tidelift security contact](https://
 ## Icon
 
 [Engine](https://thenounproject.com/term/engine/3358421/) designed by [Ian Rahmadi Kurniawan](https://thenounproject.com/irk.aminin/) from [The Noun Project](https://thenounproject.com).
+
+https://lineicons.com/icons/
