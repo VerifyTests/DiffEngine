@@ -7,14 +7,14 @@ using DiffEngine;
 
 static class LinuxOsxProcess
 {
-    public static bool TryTerminateProcess(ProcessCommand processCommand)
+    public static bool TryTerminateProcess(int processId)
     {
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "kill",
-                Arguments = processCommand.Process.ToString(),
+                Arguments = processId.ToString(),
                 UseShellExecute = false,
                 CreateNoWindow = false,
             }
@@ -22,7 +22,7 @@ static class LinuxOsxProcess
         process.Start();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: kill {processCommand.Process}.";
+            var timeoutError = $@"Process timed out. Command line: kill {processId}.";
             throw new Exception(timeoutError);
         }
 

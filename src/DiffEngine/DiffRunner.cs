@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using EmptyFiles;
 
 namespace DiffEngine
@@ -28,6 +29,7 @@ namespace DiffEngine
             {
                 return result;
             }
+
             throw new Exception($"Could not parse the DiffEngine.MaxInstances environment variable: {variable}");
 
         }
@@ -74,18 +76,18 @@ namespace DiffEngine
             ProcessCleanup.Kill(command);
         }
 
-        public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
 
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
 
             if (!DiffTools.TryFind(tool, out var resolvedTool))
             {
-                return LaunchResult.NoDiffToolFound;
+                return Task.FromResult(LaunchResult.NoDiffToolFound);
             }
 
             return Launch(resolvedTool, tempFile, targetFile);
@@ -94,60 +96,53 @@ namespace DiffEngine
         /// <summary>
         /// Launch a diff tool for the given paths.
         /// </summary>
-        public static LaunchResult Launch(string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
 
             var extension = Extensions.GetExtension(tempFile);
 
             if (!DiffTools.TryFind(extension, out var diffTool))
             {
-                return LaunchResult.NoDiffToolFound;
+                return Task.FromResult(LaunchResult.NoDiffToolFound);
             }
 
             return Launch(diffTool, tempFile, targetFile);
         }
 
-        public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
+        public static Task<LaunchResult> Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
             if (Disabled)
             {
-                return LaunchResult.Disabled;
+                return Task.FromResult(LaunchResult.Disabled);
             }
-
 
             var targetExists = File.Exists(targetFile);
             if (tool.RequiresTarget && !targetExists)
             {
                 if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
                 {
-                    return LaunchResult.NoEmptyFileForExtension;
+                    return Task.FromResult(LaunchResult.NoEmptyFileForExtension);
                 }
             }
 
             return InnerLaunch(tool, tempFile, targetFile);
         }
 
-        static LaunchResult InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
+        static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
-            var instanceCount = Interlocked.Increment(ref launchedInstances);
-            if (instanceCount > maxInstancesToLaunch)
-            {
-                return LaunchResult.TooManyRunningDiffTools;
-            }
-
             var command = tool.BuildCommand(tempFile, targetFile);
-            var isDiffToolRunning = ProcessCleanup.IsRunning(command);
-            if (isDiffToolRunning)
+            if (ProcessCleanup.TryGetProcessId(command, out var processId))
             {
                 if (tool.AutoRefresh)
                 {
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, processId);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -155,6 +150,13 @@ namespace DiffEngine
                 {
                     ProcessCleanup.Kill(command);
                 }
+            }
+
+            var instanceCount = Interlocked.Increment(ref launchedInstances);
+            if (instanceCount > maxInstancesToLaunch)
+            {
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, null);
+                return LaunchResult.TooManyRunningDiffTools;
             }
 
             var arguments = tool.Arguments(tempFile, targetFile);
@@ -165,10 +167,15 @@ namespace DiffEngine
                     UseShellExecute = tool.ShellExecute
                 };
 
-                using (Process.Start(startInfo))
+                using var process = Process.Start(startInfo);
+                if (process == null)
                 {
+                    var message = $@"Failed to launch diff tool.
+{tool.ExePath} {arguments}";
+                    throw new Exception(message);
                 }
 
+                await DiffEngineTray.AddMove(tempFile, targetFile, !tool.IsMdi, process.Id);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)
