@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
