@@ -5,6 +5,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
+
+//class TimerLoop
+//{
+//    public TimerLoop()
+//    {
+//        new AsyncTimer().Start();
+//    }
+//}
 static class Tracking
 {
     static ConcurrentDictionary<string, TrackedMove> moves = new ConcurrentDictionary<string, TrackedMove>(StringComparer.OrdinalIgnoreCase);
