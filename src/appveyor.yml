@@ -3,11 +3,27 @@ image:
 - macos
 skip_commits:
   message: /docs|Merge pull request.*/
-build_script:
-- ps: >-
-    dotnet build src --configuration Release
-
-    dotnet test src --configuration Release --no-build --no-restore
 test: off
 artifacts:
 - path: nugets\*.nupkg
+
+for:
+  -
+    matrix:
+      only:
+        - image: Visual Studio 2019
+    build_script:
+      - ps: >-
+          dotnet build src --configuration Release
+
+          dotnet test src --configuration Release --no-build --no-restore
+
+  -
+    matrix:
+      only:
+        - image: macos
+    build_script:
+      - ps: >-
+          dotnet build src --configuration MacOs
+
+          dotnet test src --configuration MacOs --no-build --no-restore
