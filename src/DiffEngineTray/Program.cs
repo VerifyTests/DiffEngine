@@ -26,14 +26,14 @@ static class Program
             active: () => notifyIcon.Icon=Resources.ActiveIcon,
             inactive: () => notifyIcon.Icon=Resources.DefaultIcon);
 
-        var task = PiperServer.Start(
+        using var task = PiperServer.Start(
             payload => tracker.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId),
             payload => tracker.AddDelete(payload.File),
             cancellation);
-
         var menu = MenuBuilder.Build(
             () =>
             {
+                tokenSource.Cancel();
                 mutex!.Dispose();
                 Environment.Exit(0);
             },

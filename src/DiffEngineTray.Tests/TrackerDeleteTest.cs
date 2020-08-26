@@ -1,7 +1,9 @@
 ﻿using System.IO;
+using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
+[Collection("Sequential")]
 public class TrackerDeleteTest :
     XunitContextBase
 {
@@ -14,6 +16,18 @@ public class TrackerDeleteTest :
         Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Deletes.Count);
         Assert.True(tracker.TrackingAny);
+    }
+
+    [Fact]
+    public void AddSingle_BackgroundDelete()
+    {
+        var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        File.Delete(file1);
+        Thread.Sleep(2100);
+        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
+        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        tracker.AssertEmpty();
     }
 
     [Fact]
@@ -73,7 +87,6 @@ public class TrackerDeleteTest :
         Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
-
 
     [Fact]
     public void AcceptSingle_NotEmpty()
