@@ -51,6 +51,7 @@ public class PiperTest :
         try
         {
             await PiperClient.SendMove(file, file, true, 10, null);
+            await PiperClient.SendDelete(file);
         }
         catch (InvalidOperationException)
         {

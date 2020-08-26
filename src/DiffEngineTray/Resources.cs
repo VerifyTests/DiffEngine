@@ -9,7 +9,6 @@ public static class Resources
         ActiveIcon = new Icon(activeStream);
         using var defaultStream = Resource.AsStream("icon_default.ico");
         DefaultIcon = new Icon(defaultStream);
-
         using var exitStream = Resource.AsStream("image_exit.png");
         ExitIcon = Image.FromStream(exitStream);
         using var deleteStream = Resource.AsStream("image_delete.png");
@@ -18,17 +17,15 @@ public static class Resources
         AcceptAllIcon = Image.FromStream(acceptAllStream);
         using var acceptStream = Resource.AsStream("image_accept.png");
         AcceptIcon = Image.FromStream(acceptStream);
+        using var clearStream = Resource.AsStream("image_clear.png");
+        ClearIcon = Image.FromStream(clearStream);
     }
 
+    public static Image ClearIcon { get; }
     public static Image AcceptIcon { get; }
-
     public static Image AcceptAllIcon { get; }
-
     public static Image DeleteIcon { get; }
-
     public static Image ExitIcon { get; }
-
     public static Icon ActiveIcon { get; }
-
     public static Icon DefaultIcon { get; }
 }
