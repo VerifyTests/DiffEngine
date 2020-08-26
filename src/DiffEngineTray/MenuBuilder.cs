@@ -8,7 +8,7 @@ static class MenuBuilder
     public static ContextMenuStrip Build(Action exit, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
-        var exitItem = new ActionMenuItem("Exit", Images.ExitIcon, exit);
+        var exitItem = new MenuButton("Exit", Images.Exit, exit);
         var items = menu.Items;
         items.Add(exitItem);
 
@@ -39,18 +39,18 @@ static class MenuBuilder
         }
 
         yield return new ToolStripSeparator();
-        yield return new ActionMenuItem("Accept All", Images.AcceptAllIcon, tracker.AcceptAll);
-        yield return new ActionMenuItem("Clear", Images.ClearIcon, tracker.Clear);
+        yield return new MenuButton("Accept All", Images.AcceptAll, tracker.AcceptAll);
+        yield return new MenuButton("Clear", Images.Clear, tracker.Clear);
         yield return new ToolStripSeparator();
 
         foreach (var delete in tracker.Deletes)
         {
-            yield return new ActionMenuItem($"Delete: {delete.Name}", Images.DeleteIcon, () => tracker.Accept(delete));
+            yield return new MenuButton($"Delete: {delete.Name}", Images.Delete, () => tracker.Accept(delete));
         }
 
         foreach (var move in tracker.Moves)
         {
-            yield return new ActionMenuItem($"Accept: {move.Name} ({move.Extension})", Images.AcceptIcon, () => tracker.Accept(move));
+            yield return new MenuButton($"Accept: {move.Name} ({move.Extension})", Images.Accept, () => tracker.Accept(move));
         }
     }
 }
