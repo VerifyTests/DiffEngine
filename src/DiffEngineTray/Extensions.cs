@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 
-static class ToolTopExtensions
+static class Extensions
 {
     public static void RemoveRange(this ToolStripItemCollection target, IEnumerable<ToolStripItem> items)
     {
