@@ -13,6 +13,7 @@ public class PiperTest :
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => { }, s => received = s, source.Token);
         await PiperClient.SendDelete("Foo", source.Token);
+        await Task.Delay(1000);
         source.Cancel();
         await task;
         Assert.NotNull(received);
@@ -26,6 +27,7 @@ public class PiperTest :
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, s => { }, source.Token);
         await PiperClient.SendMove("Foo", "Bar", true, 10, source.Token);
+        await Task.Delay(1000);
         source.Cancel();
         await task;
         Assert.NotNull(received);
