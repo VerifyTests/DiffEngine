@@ -26,6 +26,7 @@ class Tracker :
     {
         var changed = false;
         timer.Pause();
+        var wasActive = TrackingAny;
         foreach (var delete in deletes.ToList())
         {
             if (!File.Exists(delete.Value.File))
@@ -48,19 +49,25 @@ class Tracker :
         timer.Resume();
         if (changed)
         {
-            ToggleActive();
+            ToggleActive(wasActive);
         }
     }
 
-    void ToggleActive()
+    void ToggleActive(bool wasActive)
     {
         if (TrackingAny)
         {
-            active();
+            if (!wasActive)
+            {
+                active();
+            }
         }
-        else
+        else if (!TrackingAny)
         {
-            inactive();
+            if (wasActive)
+            {
+                inactive();
+            }
         }
     }
 
@@ -69,14 +76,15 @@ class Tracker :
         get => moves.Any() || deletes.Any();
     }
 
-    public void AddMove(
+    public TrackedMove AddMove(
         string temp,
         string target,
         bool canKill,
         int? processId)
     {
         var updated = false;
-        moves.AddOrUpdate(
+        var wasActive = TrackingAny;
+        var update = moves.AddOrUpdate(
             target,
             addValueFactory: s =>
             {
@@ -90,31 +98,49 @@ class Tracker :
             });
         if (updated)
         {
-            ToggleActive();
+            ToggleActive(wasActive);
         }
+
+        return update;
     }
 
-    public void AddDelete(string file)
+    public TrackedDelete AddDelete(string file)
     {
-        deletes[file] = new TrackedDelete(file);
-        ToggleActive();
+        var updated = false;
+        var wasActive = TrackingAny;
+        var delete = deletes.AddOrUpdate(
+            file,
+            addValueFactory: s =>
+            {
+                updated = true;
+                return new TrackedDelete(file);
+            },
+            updateValueFactory: (s, existing) => existing);
+        if (updated)
+        {
+            ToggleActive(wasActive);
+        }
+
+        return delete;
     }
 
-    public void Delete(TrackedDelete delete)
+    public void Accept(TrackedDelete delete)
     {
+        var wasActive = TrackingAny;
         if (deletes.Remove(delete.File, out var removed))
         {
             File.Delete(removed.File);
-            ToggleActive();
+            ToggleActive(wasActive);
         }
     }
 
-    public void Move(TrackedMove move)
+    public void Accept(TrackedMove move)
     {
+        var wasActive = TrackingAny;
         if (moves.Remove(move.Target, out var removed))
         {
             InnerMove(removed);
-            ToggleActive();
+            ToggleActive(wasActive);
         }
     }
 
@@ -149,6 +175,7 @@ class Tracker :
 
     public void AcceptAll()
     {
+        var wasActive = TrackingAny;
         foreach (var delete in deletes.Values)
         {
             File.Delete(delete.File);
@@ -161,7 +188,7 @@ class Tracker :
         }
 
         moves.Clear();
-        ToggleActive();
+        ToggleActive(wasActive);
     }
 
     public ICollection<TrackedDelete> Deletes

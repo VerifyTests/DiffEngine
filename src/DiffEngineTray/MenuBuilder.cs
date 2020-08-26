@@ -54,7 +54,7 @@ static class MenuBuilder
             {
                 Image = Resources.DeleteIcon
             };
-            item.Click += delegate { tracker.Delete(delete); };
+            item.Click += delegate { tracker.Accept(delete); };
             yield return item;
         }
 
@@ -64,7 +64,7 @@ static class MenuBuilder
             {
                 Image = Resources.AcceptIcon
             };
-            item.Click += delegate { tracker.Move(move); };
+            item.Click += delegate { tracker.Accept(move); };
             yield return item;
         }
     }
