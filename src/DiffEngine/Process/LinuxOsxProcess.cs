@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using DiffEngine;
@@ -38,7 +39,7 @@ static class LinuxOsxProcess
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
         {
-            if (TryParse(line, out var processCommand))
+            if (!TryParse(line, out var processCommand))
             {
                 continue;
             }
@@ -46,7 +47,7 @@ static class LinuxOsxProcess
         }
     }
 
-    static bool TryParse(string line, out ProcessCommand? processCommand)
+    public static bool TryParse(string line, out ProcessCommand? processCommand)
     {
         try
         {
@@ -55,21 +56,23 @@ static class LinuxOsxProcess
             if (firstSpace < 1)
             {
                 processCommand = null;
-                return true;
+                return false;
             }
 
             var pidString = trim.Substring(0, firstSpace);
             var pid = int.Parse(pidString);
 
 
-            var secondSpace = trim.IndexOf(' ', firstSpace);
-            var startTimeString = trim.Substring(firstSpace, secondSpace);
-            var startTime = DateTime.Parse(startTimeString);
+            var timeAndCommandString = trim.Substring(firstSpace +1);
+            var slashIndex = timeAndCommandString.IndexOf('/', firstSpace);
 
-            var command = trim.Substring(secondSpace + 1);
+            var startTimeString = timeAndCommandString.Substring(0, slashIndex).Trim();
+            var startTime = DateTime.ParseExact(startTimeString,"ddd MMM dd HH:mm:ss yyyy", CultureInfo.CurrentCulture);
+
+            var command = timeAndCommandString.Substring(slashIndex);
 
             processCommand = new ProcessCommand(command, in pid, in startTime);
-            return false;
+            return true;
         }
         catch (Exception exception)
         {
