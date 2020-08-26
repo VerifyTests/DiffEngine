@@ -1,6 +1,8 @@
 ﻿using DiffEngine;
 using Xunit;
-[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
+[assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true)]
+
 [GlobalSetUp]
 public static class GlobalSetup
 {

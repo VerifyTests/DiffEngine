@@ -22,13 +22,13 @@ static class Program
             Text = "DiffEngine"
         };
 
-        await using var tracking = new Tracking(
+        await using var tracker = new Tracker(
             active: () => notifyIcon.Icon=Resources.ActiveIcon,
             inactive: () => notifyIcon.Icon=Resources.DefaultIcon);
 
         var task = PiperServer.Start(
-            payload => tracking.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId),
-            payload => tracking.AddDelete(payload.File),
+            payload => tracker.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId),
+            payload => tracker.AddDelete(payload.File),
             cancellation);
 
         var menu = MenuBuilder.Build(
@@ -37,7 +37,7 @@ static class Program
                 mutex!.Dispose();
                 Environment.Exit(0);
             },
-            tracking);
+            tracker);
 
         notifyIcon.ContextMenuStrip = menu;
 

@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 static class MenuBuilder
 {
-    public static ContextMenuStrip Build(Action exit, Tracking tracking)
+    public static ContextMenuStrip Build(Action exit, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
         var exitItem = new ToolStripMenuItem("Exit")
@@ -20,7 +20,7 @@ static class MenuBuilder
 
         menu.Opening += delegate
         {
-            foreach (var item in BuildTrackingMenuItems(tracking))
+            foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 menu.Items.Insert(0, item);
             }
@@ -34,9 +34,9 @@ static class MenuBuilder
         return menu;
     }
 
-    static IEnumerable<ToolStripMenuItem> BuildTrackingMenuItems(Tracking tracking)
+    static IEnumerable<ToolStripMenuItem> BuildTrackingMenuItems(Tracker tracker)
     {
-        if (!tracking.TrackingAny)
+        if (!tracker.TrackingAny)
         {
             yield break;
         }
@@ -46,25 +46,25 @@ static class MenuBuilder
             Image = Resources.AcceptAllIcon
         };
 
-        acceptAll.Click += delegate { tracking.AcceptAll(); };
+        acceptAll.Click += delegate { tracker.AcceptAll(); };
         yield return acceptAll;
-        foreach (var delete in tracking.Deletes)
+        foreach (var delete in tracker.Deletes)
         {
             var item = new ToolStripMenuItem($"Delete {delete.Name}")
             {
                 Image = Resources.DeleteIcon
             };
-            item.Click += delegate { tracking.Delete(delete); };
+            item.Click += delegate { tracker.Delete(delete); };
             yield return item;
         }
 
-        foreach (var move in tracking.Moves)
+        foreach (var move in tracker.Moves)
         {
             var item = new ToolStripMenuItem($"Accept {move.Name} ({move.Extension})")
             {
                 Image = Resources.AcceptIcon
             };
-            item.Click += delegate { tracking.Move(move); };
+            item.Click += delegate { tracker.Move(move); };
             yield return item;
         }
     }

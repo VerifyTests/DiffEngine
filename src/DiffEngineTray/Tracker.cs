@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
-class Tracking:IAsyncDisposable
+class Tracker :
+    IAsyncDisposable
 {
     Action active;
     Action inactive;
@@ -15,18 +15,17 @@ class Tracking:IAsyncDisposable
     ConcurrentDictionary<string, TrackedDelete> deletes = new ConcurrentDictionary<string, TrackedDelete>(StringComparer.OrdinalIgnoreCase);
     Timer timer;
 
-    TimeSpan timeSpan = TimeSpan.FromSeconds(2);
-    public Tracking(Action active, Action inactive)
+    public Tracker(Action active, Action inactive)
     {
         this.active = active;
         this.inactive = inactive;
-        timer = new Timer(state => { ScanFiles(); }, null, timeSpan, timeSpan);
+        timer = new Timer(ScanFiles);
     }
 
     void ScanFiles()
     {
         var changed = false;
-        timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        timer.Pause();
         foreach (var delete in deletes.ToList())
         {
             if (!File.Exists(delete.Value.File))
@@ -46,7 +45,7 @@ class Tracking:IAsyncDisposable
                 }
             }
         }
-        timer.Change(timeSpan, timeSpan);
+        timer.Resume();
         if (changed)
         {
             ToggleActive();
