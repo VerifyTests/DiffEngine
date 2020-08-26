@@ -8,8 +8,10 @@ static class MenuBuilder
     public static ContextMenuStrip Build(Action exit, Tracking tracking)
     {
         var menu = new ContextMenuStrip();
-        var exitItem = new ToolStripMenuItem("Exit");
-        exitItem.Image = Resources.ExitIcon;
+        var exitItem = new ToolStripMenuItem("Exit")
+        {
+            Image = Resources.ExitIcon
+        };
         exitItem.Click += delegate
         {
             exit();
