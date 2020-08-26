@@ -173,6 +173,13 @@ class Tracker :
         }
     }
 
+    public void Clear()
+    {
+        deletes.Clear();
+        moves.Clear();
+        ToggleActive(true);
+    }
+
     public void AcceptAll()
     {
         var wasActive = TrackingAny;

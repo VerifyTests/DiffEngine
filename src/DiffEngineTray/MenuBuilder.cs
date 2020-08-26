@@ -20,18 +20,21 @@ static class MenuBuilder
 
         menu.Opening += delegate
         {
+            CleanTransientMenus(menu);
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 menu.Items.Insert(0, item);
             }
         };
-        menu.Closed += delegate
-        {
-            var toRemove = menu.Items.Cast<ToolStripItem>()
-                .Where(x => x.Text != "Exit");
-            menu.RemoveRange(toRemove);
-        };
+        menu.Closed += delegate { CleanTransientMenus(menu); };
         return menu;
+    }
+
+    static void CleanTransientMenus(ContextMenuStrip menu)
+    {
+        var toRemove = menu.Items.Cast<ToolStripItem>()
+            .Where(x => x.Text != "Exit");
+        menu.RemoveRange(toRemove);
     }
 
     static IEnumerable<ToolStripMenuItem> BuildTrackingMenuItems(Tracker tracker)
@@ -48,6 +51,11 @@ static class MenuBuilder
 
         acceptAll.Click += delegate { tracker.AcceptAll(); };
         yield return acceptAll;
+
+        var clear = new ToolStripMenuItem("Clear");
+
+        clear.Click += delegate { tracker.Clear(); };
+        yield return clear;
         foreach (var delete in tracker.Deletes)
         {
             var item = new ToolStripMenuItem($"Delete {delete.Name}")
