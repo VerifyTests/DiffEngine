@@ -138,11 +138,11 @@ namespace DiffEngine
         static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
             var command = tool.BuildCommand(tempFile, targetFile);
-            if (ProcessCleanup.TryGetProcessId(command, out var processId))
+            if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
             {
                 if (tool.AutoRefresh)
                 {
-                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, processId);
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, processCommand.Process,processCommand.StartTime);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -155,7 +155,7 @@ namespace DiffEngine
             var instanceCount = Interlocked.Increment(ref launchedInstances);
             if (instanceCount > maxInstancesToLaunch)
             {
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, null);
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.IsMdi!, null, null);
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
@@ -175,7 +175,7 @@ namespace DiffEngine
                     throw new Exception(message);
                 }
 
-                await DiffEngineTray.AddMove(tempFile, targetFile, !tool.IsMdi, process.Id);
+                await DiffEngineTray.AddMove(tempFile, targetFile, !tool.IsMdi, process.Id, process.StartTime);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)

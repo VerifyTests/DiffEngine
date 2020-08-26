@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using DiffEngine;
@@ -23,7 +24,7 @@ static class LinuxOsxProcess
         process.Start();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: kill {processId}.";
+            var timeoutError = $"Process timed out. Command line: kill {processId}.";
             throw new Exception(timeoutError);
         }
 
@@ -38,16 +39,44 @@ static class LinuxOsxProcess
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
         {
-            var trim = line.Trim();
-            var indexOf = trim.IndexOf(' ');
-            if (indexOf < 1)
+            if (!TryParse(line, out var processCommand))
             {
                 continue;
             }
-            var pidString = trim.Substring(0, indexOf);
+            yield return processCommand!.Value;
+        }
+    }
+
+    public static bool TryParse(string line, out ProcessCommand? processCommand)
+    {
+        try
+        {
+            var trim = line.Trim();
+            var firstSpace = trim.IndexOf(' ');
+            if (firstSpace < 1)
+            {
+                processCommand = null;
+                return false;
+            }
+
+            var pidString = trim.Substring(0, firstSpace);
             var pid = int.Parse(pidString);
-            var command = trim.Substring(indexOf + 1);
-            yield return new ProcessCommand(command, in pid);
+
+
+            var timeAndCommandString = trim.Substring(firstSpace +1);
+            var doubleSpaceIndex = timeAndCommandString.IndexOf("  ", firstSpace);
+
+            var startTimeString = timeAndCommandString.Substring(0, doubleSpaceIndex).Trim();
+            var startTime = DateTime.ParseExact(startTimeString,"ddd MMM dd HH:mm:ss yyyy", CultureInfo.CurrentCulture);
+
+            var command = timeAndCommandString.Substring(doubleSpaceIndex+1).Trim();
+
+            processCommand = new ProcessCommand(command, in pid, in startTime);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Could not parser command: {line}", exception);
         }
     }
 
@@ -55,7 +84,7 @@ static class LinuxOsxProcess
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        const string? arguments = "-o pid,command -x";
+        const string? arguments = "-o pid,lstart,command -x";
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo

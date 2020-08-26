@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -80,7 +79,8 @@ class Tracker :
         string temp,
         string target,
         bool canKill,
-        int? processId)
+        int? processId,
+        DateTime? processStartTime)
     {
         var updated = false;
         var wasActive = TrackingAny;
@@ -89,7 +89,7 @@ class Tracker :
             addValueFactory: s =>
             {
                 updated = true;
-                return new TrackedMove(temp, target, canKill, processId);
+                return new TrackedMove(temp, target, canKill, processId, processStartTime);
             },
             updateValueFactory: (s, existing) =>
             {
@@ -161,16 +161,17 @@ class Tracker :
             return;
         }
 
-        try
+        if (!ProcessEx.TryGet(move.ProcessId.Value, out var process))
         {
-            //TODO verify command line matches
-            using var process = Process.GetProcessById(move.ProcessId.Value);
-            process.Kill();
+            return;
         }
-        catch (ArgumentException)
+
+        if (move.ProcessStartTime!.Value != process.StartTime)
         {
-            //If process doesnt exists
+            return;
         }
+
+        process.Kill();
     }
 
     public void Clear()

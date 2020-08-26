@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,15 +23,23 @@ static class PiperClient
         string targetFile,
         bool canKill,
         int? processId,
+        DateTime? processStartTime,
         CancellationToken cancellation = default)
     {
+        string datePart = "";
+        if (processStartTime != null)
+        {
+            datePart = $@",
+""ProcessStartTime"":""{processStartTime.Value:O}""";
+        }
+
         var payload = $@"{{
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
 ""CanKill"":{canKill.ToString().ToLower()},
-""ProcessId"":{processId}
-}}
+""ProcessId"":{processId}" + datePart + @"
+}
 ";
         return Send(payload, cancellation);
     }
@@ -50,7 +59,7 @@ static class PiperClient
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         await using var stream = new StreamWriter(pipe);
         await pipe.ConnectAsync(1000, cancellation);
-        await stream.WriteAsync(System.MemoryExtensions.AsMemory(payload), cancellation);
+        await stream.WriteAsync(payload.AsMemory(), cancellation);
 #else
         using var pipe = new NamedPipeClientStream(
             ".",
