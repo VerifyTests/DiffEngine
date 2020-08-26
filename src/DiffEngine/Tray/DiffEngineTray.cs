@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiffEngine
@@ -31,6 +32,7 @@ namespace DiffEngine
             string targetFile,
             bool canKill,
             int? processId,
+            DateTime? processStartTime,
             CancellationToken cancellation = default)
         {
             if (!IsRunning)
@@ -38,7 +40,7 @@ namespace DiffEngine
                 return Task.CompletedTask;
             }
 
-            return PiperClient.SendMove(tempFile, targetFile, canKill, processId, cancellation);
+            return PiperClient.SendMove(tempFile, targetFile, canKill, processId, processStartTime, cancellation);
         }
     }
 }

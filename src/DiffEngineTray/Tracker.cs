@@ -80,7 +80,8 @@ class Tracker :
         string temp,
         string target,
         bool canKill,
-        int? processId)
+        int? processId,
+        DateTime? processStartTime)
     {
         var updated = false;
         var wasActive = TrackingAny;
@@ -89,7 +90,7 @@ class Tracker :
             addValueFactory: s =>
             {
                 updated = true;
-                return new TrackedMove(temp, target, canKill, processId);
+                return new TrackedMove(temp, target, canKill, processId, processStartTime);
             },
             updateValueFactory: (s, existing) =>
             {

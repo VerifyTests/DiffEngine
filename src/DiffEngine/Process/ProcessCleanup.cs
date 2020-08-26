@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -77,7 +76,7 @@ namespace DiffEngine
             return TryGetProcessInfo(command, out _);
         }
 
-        public static bool TryGetProcessInfo(string command, [NotNullWhen(true)] out int? processId)
+        public static bool TryGetProcessInfo(string command, out ProcessCommand process)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -85,15 +84,8 @@ namespace DiffEngine
                 command = TrimCommand(command);
             }
 
-            var process = commands.SingleOrDefault(x => x.Command == command);
-            if (process.Equals(default(ProcessCommand)))
-            {
-                processId = null;
-                return false;
-            }
-
-            processId = process.Process;
-            return true;
+            process = commands.SingleOrDefault(x => x.Command == command);
+            return !process.Equals(default(ProcessCommand));
         }
 
         static void TerminateProcessIfExists(in int processId)
