@@ -7,6 +7,7 @@ using DiffEngine;
 
 static class LinuxOsxProcess
 {
+    //https://www.man7.org/linux/man-pages/man1/ps.1.html
     public static bool TryTerminateProcess(int processId)
     {
         using var process = new Process
