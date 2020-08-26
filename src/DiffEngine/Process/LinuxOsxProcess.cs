@@ -22,7 +22,7 @@ static class LinuxOsxProcess
         process.Start();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: kill {processId}.";
+            var timeoutError = $"Process timed out. Command line: kill {processId}.";
             throw new Exception(timeoutError);
         }
 
@@ -38,15 +38,22 @@ static class LinuxOsxProcess
         while ((line = reader.ReadLine()) != null)
         {
             var trim = line.Trim();
-            var indexOf = trim.IndexOf(' ');
-            if (indexOf < 1)
+            var firstSpace = trim.IndexOf(' ');
+            if (firstSpace < 1)
             {
                 continue;
             }
-            var pidString = trim.Substring(0, indexOf);
+            var pidString = trim.Substring(0, firstSpace);
             var pid = int.Parse(pidString);
-            var command = trim.Substring(indexOf + 1);
-            yield return new ProcessCommand(command, in pid);
+
+
+            var secondSpace = trim.IndexOf(' ',firstSpace);
+            var startTimeString = trim.Substring(firstSpace, secondSpace);
+            var startTime = DateTime.Parse(startTimeString);
+
+            var command = trim.Substring(secondSpace + 1);
+
+            yield return new ProcessCommand(command, in pid, in startTime);
         }
     }
 
@@ -54,7 +61,7 @@ static class LinuxOsxProcess
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        const string? arguments = "-o pid,command -x";
+        const string? arguments = "-o pid,lstart,command -x";
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo

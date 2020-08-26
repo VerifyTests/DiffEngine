@@ -138,7 +138,7 @@ namespace DiffEngine
         static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
         {
             var command = tool.BuildCommand(tempFile, targetFile);
-            if (ProcessCleanup.TryGetProcessId(command, out var processId))
+            if (ProcessCleanup.TryGetProcessInfo(command, out var processId))
             {
                 if (tool.AutoRefresh)
                 {

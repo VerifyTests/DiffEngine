@@ -74,10 +74,10 @@ namespace DiffEngine
 
         public static bool IsRunning(string command)
         {
-            return TryGetProcessId(command, out _);
+            return TryGetProcessInfo(command, out _);
         }
 
-        public static bool TryGetProcessId(string command, [NotNullWhen(true)] out int? processId)
+        public static bool TryGetProcessInfo(string command, [NotNullWhen(true)] out int? processId)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
