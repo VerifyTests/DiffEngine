@@ -16,25 +16,26 @@ static class MenuBuilder
         {
             exit();
         };
-        menu.Items.Add(exitItem);
+        var items = menu.Items;
+        items.Add(exitItem);
 
         menu.Opening += delegate
         {
-            CleanTransientMenus(menu);
+            CleanTransientMenus(items);
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
-                menu.Items.Insert(0, item);
+                items.Insert(0, item);
             }
         };
-        menu.Closed += delegate { CleanTransientMenus(menu); };
+        menu.Closed += delegate { CleanTransientMenus(items); };
         return menu;
     }
 
-    static void CleanTransientMenus(ContextMenuStrip menu)
+    static void CleanTransientMenus(ToolStripItemCollection items)
     {
-        var toRemove = menu.Items.Cast<ToolStripItem>()
+        var toRemove = items.Cast<ToolStripItem>()
             .Where(x => x.Text != "Exit");
-        menu.RemoveRange(toRemove);
+        items.RemoveRange(toRemove);
     }
 
     static IEnumerable<ToolStripMenuItem> BuildTrackingMenuItems(Tracker tracker)

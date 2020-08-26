@@ -4,11 +4,11 @@ using System.Windows.Forms;
 
 static class ToolTopExtensions
 {
-    public static void RemoveRange(this ContextMenuStrip menu, IEnumerable<ToolStripItem> items)
+    public static void RemoveRange(this ToolStripItemCollection target, IEnumerable<ToolStripItem> items)
     {
         foreach (var toolStripItem in items.ToList())
         {
-            menu.Items.Remove(toolStripItem);
+            target.Remove(toolStripItem);
             toolStripItem.Dispose();
         }
     }
