@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Linq;
 
-// ReSharper disable CommentTypo
-
 namespace DiffEngine
 {
     public static class ContinuousTestingDetector
