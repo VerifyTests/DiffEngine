@@ -12,8 +12,8 @@ public class TrackerDeleteTest :
     {
         var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Deletes.Count);
         Assert.True(tracker.TrackingAny);
     }
@@ -25,8 +25,8 @@ public class TrackerDeleteTest :
         tracker.AddDelete(file1);
         File.Delete(file1);
         Thread.Sleep(2100);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -36,8 +36,8 @@ public class TrackerDeleteTest :
         var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(2, tracker.Deletes.Count);
         Assert.True(tracker.TrackingAny);
     }
@@ -48,8 +48,8 @@ public class TrackerDeleteTest :
         var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file1);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Deletes.Count);
         Assert.True(tracker.TrackingAny);
     }
@@ -60,8 +60,8 @@ public class TrackerDeleteTest :
         var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AcceptAll();
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -72,8 +72,8 @@ public class TrackerDeleteTest :
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.AcceptAll();
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -83,8 +83,8 @@ public class TrackerDeleteTest :
         var tracker = new RecordingTracker();
         var tracked = tracker.AddDelete(file1);
         tracker.Accept(tracked);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -95,8 +95,8 @@ public class TrackerDeleteTest :
         var tracked = tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.Accept(tracked);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Deletes.Count);
         Assert.True(tracker.TrackingAny);
     }

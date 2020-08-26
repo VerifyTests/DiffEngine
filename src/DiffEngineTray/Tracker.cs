@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 class Tracker :
     IAsyncDisposable
 {
-    Action active;
-    Action inactive;
+    protected Action active;
+    protected Action inactive;
     ConcurrentDictionary<string, TrackedMove> moves = new ConcurrentDictionary<string, TrackedMove>(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new ConcurrentDictionary<string, TrackedDelete>(StringComparer.OrdinalIgnoreCase);
     Timer timer;

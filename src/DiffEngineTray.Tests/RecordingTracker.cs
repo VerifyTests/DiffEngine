@@ -4,16 +4,14 @@ using Xunit;
 class RecordingTracker :
     Tracker
 {
-    public static int ActiveReceivedCount;
-    public static int InactiveReceivedCount;
+    public int ActiveReceivedCount;
+    public int InactiveReceivedCount;
 
     public RecordingTracker() :
-        base(
-            () => Interlocked.Increment(ref ActiveReceivedCount),
-            () => Interlocked.Increment(ref InactiveReceivedCount))
+        base(null!, null!)
     {
-        ActiveReceivedCount = 0;
-        InactiveReceivedCount = 0;
+        inactive = () => Interlocked.Increment(ref InactiveReceivedCount);
+        active = () => Interlocked.Increment(ref ActiveReceivedCount);
     }
 
     public void AssertEmpty()

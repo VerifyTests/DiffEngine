@@ -12,8 +12,8 @@ public class TrackerMoveTest :
     {
         var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Moves.Count);
         Assert.True(tracker.TrackingAny);
     }
@@ -24,8 +24,8 @@ public class TrackerMoveTest :
         var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null);
         tracker.AddMove(file2, file2, true, null);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(2, tracker.Moves.Count);
         Assert.True(tracker.TrackingAny);
     }
@@ -36,8 +36,8 @@ public class TrackerMoveTest :
         var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null);
         var tracked = tracker.AddMove(file1, file1, true, 1);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Moves.Count);
         Assert.Equal(1, tracked.ProcessId);
         Assert.True(tracker.TrackingAny);
@@ -49,8 +49,8 @@ public class TrackerMoveTest :
         var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null);
         tracker.AcceptAll();
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -61,8 +61,8 @@ public class TrackerMoveTest :
         tracker.AddMove(file1, file1, true, null);
         tracker.AddMove(file2, file2, true, null);
         tracker.AcceptAll();
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -72,8 +72,8 @@ public class TrackerMoveTest :
         var tracker = new RecordingTracker();
         var tracked = tracker.AddMove(file1, file1, true, null);
         tracker.Accept(tracked);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -84,8 +84,8 @@ public class TrackerMoveTest :
         tracker.AddMove(file1, file1, true, null);
         File.Delete(file1);
         Thread.Sleep(2100);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(1, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
     }
 
@@ -96,8 +96,8 @@ public class TrackerMoveTest :
         var tracked = tracker.AddMove(file1, file1, true, null);
         tracker.AddMove(file2, file2, true, null);
         tracker.Accept(tracked);
-        Assert.Equal(1, RecordingTracker.ActiveReceivedCount);
-        Assert.Equal(0, RecordingTracker.InactiveReceivedCount);
+        Assert.Equal(1, tracker.ActiveReceivedCount);
+        Assert.Equal(0, tracker.InactiveReceivedCount);
         Assert.Equal(1, tracker.Moves.Count);
         Assert.True(tracker.TrackingAny);
     }
