@@ -42,7 +42,8 @@ where CommandLine like '% %.%.%'";
         {
             var command = (string) process["CommandLine"];
             var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
-            var creationDate = (DateTime) Convert.ChangeType(process["CreationDate"], typeof(DateTime));
+            var creationDateString = (string) process["CreationDate"];
+            var creationDate = ManagementDateTimeConverter.ToDateTime(creationDateString);
             process.Dispose();
             yield return new ProcessCommand(command, id, creationDate);
         }
