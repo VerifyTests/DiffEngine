@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -38,6 +40,21 @@ public class PiperTest :
         Assert.Equal("Bar", received.Target);
         Assert.True(received.CanKill);
         Assert.Equal(10, received.ProcessId);
+    }
+
+    [Fact]
+    public async Task SendOnly()
+    {
+        var file = Path.GetFullPath("temp.txt");
+        File.Delete(file);
+        await File.WriteAllTextAsync(file, "a");
+        try
+        {
+            await PiperClient.SendMove(file, file, true, 10, null);
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     public PiperTest(ITestOutputHelper output) :
