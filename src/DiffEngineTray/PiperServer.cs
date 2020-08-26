@@ -19,7 +19,14 @@ static class PiperServer
                 break;
             }
 
-            await Handle(receiveMove, receiveDelete, cancellation);
+            try
+            {
+                await Handle(receiveMove, receiveDelete, cancellation);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
         }
     }
 
