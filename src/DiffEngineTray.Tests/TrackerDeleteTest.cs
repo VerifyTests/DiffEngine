@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -7,9 +8,9 @@ public class TrackerDeleteTest :
     XunitContextBase
 {
     [Fact]
-    public void AddSingle()
+    public async Task AddSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         Assert.Equal(1, tracker.ActiveReceivedCount);
         Assert.Equal(0, tracker.InactiveReceivedCount);
@@ -18,9 +19,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AddSingle_BackgroundDelete()
+    public async Task AddSingle_BackgroundDelete()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         File.Delete(file1);
         Thread.Sleep(2100);
@@ -30,9 +31,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AddMultiple()
+    public async Task AddMultiple()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -54,9 +55,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AcceptAllSingle()
+    public async Task AcceptAllSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AcceptAll();
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -65,9 +66,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AcceptAllMultiple()
+    public async Task AcceptAllMultiple()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.AcceptAll();
@@ -77,9 +78,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AcceptSingle()
+    public async Task AcceptSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         var tracked = tracker.AddDelete(file1);
         tracker.Accept(tracked);
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -88,9 +89,9 @@ public class TrackerDeleteTest :
     }
 
     [Fact]
-    public void AcceptSingle_NotEmpty()
+    public async Task AcceptSingle_NotEmpty()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         var tracked = tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.Accept(tracked);

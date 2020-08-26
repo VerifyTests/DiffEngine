@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -6,9 +7,9 @@ public class TrackerClearTest :
     XunitContextBase
 {
     [Fact]
-    public void Simple()
+    public async Task Simple()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddMove(file2, file2, true, null, null);
         tracker.Clear();

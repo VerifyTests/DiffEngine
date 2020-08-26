@@ -8,9 +8,7 @@ static class MenuBuilder
     public static ContextMenuStrip Build(Action exit, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
-        var exitItem = new MenuButton("Exit", Images.Exit, exit);
         var items = menu.Items;
-        items.Add(exitItem);
 
         menu.Opening += delegate
         {
@@ -21,6 +19,10 @@ static class MenuBuilder
             }
         };
         menu.Closed += delegate { CleanTransientMenus(items); };
+
+        var exitItem = new MenuButton("Exit", Images.Exit, exit);
+        items.Add(exitItem);
+
         return menu;
     }
 
@@ -41,16 +43,25 @@ static class MenuBuilder
         yield return new ToolStripSeparator();
         yield return new MenuButton("Accept All", Images.AcceptAll, tracker.AcceptAll);
         yield return new MenuButton("Clear", Images.Clear, tracker.Clear);
-        yield return new ToolStripSeparator();
 
-        foreach (var delete in tracker.Deletes)
+        if (tracker.Moves.Any())
         {
-            yield return new MenuButton($"Delete: {delete.Name}", Images.Delete, () => tracker.Accept(delete));
+            yield return new ToolStripSeparator();
+            foreach (var delete in tracker.Deletes)
+            {
+                yield return new MenuButton($"{delete.Name}", Images.Delete, () => tracker.Accept(delete));
+            }
+            yield return new ToolStripLabel("Pending Deletes:");
         }
 
-        foreach (var move in tracker.Moves)
+        if (tracker.Moves.Any())
         {
-            yield return new MenuButton($"Accept: {move.Name} ({move.Extension})", Images.Accept, () => tracker.Accept(move));
+            yield return new ToolStripSeparator();
+            foreach (var move in tracker.Moves)
+            {
+                yield return new MenuButton($"{move.Name} ({move.Extension})", Images.Accept, () => tracker.Accept(move));
+            }
+            yield return new ToolStripLabel("Pending Moves:");
         }
     }
 }

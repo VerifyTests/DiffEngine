@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -7,9 +8,9 @@ public class TrackerMoveTest :
     XunitContextBase
 {
     [Fact]
-    public void AddSingle()
+    public async Task AddSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         Assert.Equal(1, tracker.ActiveReceivedCount);
         Assert.Equal(0, tracker.InactiveReceivedCount);
@@ -18,9 +19,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AddMultiple()
+    public async Task AddMultiple()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         tracker.AddMove(file2, file2, true, null, null);
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -30,9 +31,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AddSame()
+    public async Task AddSame()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         var tracked = tracker.AddMove(file1, file1, true, 1, null);
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -43,9 +44,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AcceptAllSingle()
+    public async Task AcceptAllSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         tracker.AcceptAll();
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -54,9 +55,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AcceptAllMultiple()
+    public async Task AcceptAllMultiple()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         tracker.AddMove(file2, file2, true, null, null);
         tracker.AcceptAll();
@@ -66,9 +67,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AcceptSingle()
+    public async Task AcceptSingle()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         var tracked = tracker.AddMove(file1, file1, true, null, null);
         tracker.Accept(tracked);
         Assert.Equal(1, tracker.ActiveReceivedCount);
@@ -77,9 +78,9 @@ public class TrackerMoveTest :
     }
 
     [Fact]
-    public void AddSingle_BackgroundDelete()
+    public async Task AddSingle_BackgroundDelete()
     {
-        var tracker = new RecordingTracker();
+        await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, true, null, null);
         File.Delete(file1);
         Thread.Sleep(2100);
