@@ -8,11 +8,7 @@ static class MenuBuilder
     public static ContextMenuStrip Build(Action exit, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
-        var exitItem = new ToolStripMenuItem("Exit", Resources.ExitIcon)
-        {
-            ImageScaling = ToolStripItemImageScaling.None
-        };
-        exitItem.Click += delegate { exit(); };
+        var exitItem = new ActionMenuItem("Exit", Images.ExitIcon, exit);
         var items = menu.Items;
         items.Add(exitItem);
 
@@ -43,40 +39,18 @@ static class MenuBuilder
         }
 
         yield return new ToolStripSeparator();
-        var acceptAll = new ToolStripMenuItem("Accept All", Resources.AcceptAllIcon)
-        {
-            ImageScaling = ToolStripItemImageScaling.None
-        };
-        acceptAll.Click += delegate { tracker.AcceptAll(); };
-        yield return acceptAll;
-
-        var clear = new ToolStripMenuItem("Clear", Resources.ClearIcon)
-        {
-            ImageScaling = ToolStripItemImageScaling.None,
-        };
-        clear.Click += delegate { tracker.Clear(); };
-        yield return clear;
+        yield return new ActionMenuItem("Accept All", Images.AcceptAllIcon, tracker.AcceptAll);
+        yield return new ActionMenuItem("Clear", Images.ClearIcon, tracker.Clear);
         yield return new ToolStripSeparator();
 
         foreach (var delete in tracker.Deletes)
         {
-            var item = new ToolStripMenuItem($"Delete {delete.Name}", Resources.DeleteIcon)
-            {
-                ImageScaling = ToolStripItemImageScaling.None
-            };
-            item.Click += delegate { tracker.Accept(delete); };
-            yield return item;
+            yield return new ActionMenuItem($"Delete: {delete.Name}", Images.DeleteIcon, () => tracker.Accept(delete));
         }
 
         foreach (var move in tracker.Moves)
         {
-            var item = new ToolStripMenuItem($"Accept {move.Name} ({move.Extension})")
-            {
-                Image = Resources.AcceptIcon,
-                ImageScaling = ToolStripItemImageScaling.None
-            };
-            item.Click += delegate { tracker.Accept(move); };
-            yield return item;
+            yield return new ActionMenuItem($"Accept: {move.Name} ({move.Extension})", Images.AcceptIcon, () => tracker.Accept(move));
         }
     }
 }

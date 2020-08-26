@@ -1,9 +1,9 @@
 using System.Drawing;
 using Resourcer;
 
-public static class Resources
+public static class Images
 {
-    static Resources()
+    static Images()
     {
         using var activeStream = Resource.AsStream("icon_active.ico");
         ActiveIcon = new Icon(activeStream);

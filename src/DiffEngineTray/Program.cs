@@ -17,14 +17,14 @@ static class Program
 
         using var notifyIcon = new NotifyIcon
         {
-            Icon = Resources.DefaultIcon,
+            Icon = Images.DefaultIcon,
             Visible = true,
             Text = "DiffEngine"
         };
 
         await using var tracker = new Tracker(
-            active: () => notifyIcon.Icon=Resources.ActiveIcon,
-            inactive: () => notifyIcon.Icon=Resources.DefaultIcon);
+            active: () => notifyIcon.Icon=Images.ActiveIcon,
+            inactive: () => notifyIcon.Icon=Images.DefaultIcon);
 
         using var task = PiperServer.Start(
             payload => tracker.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId, payload.ProcessStartTime),
