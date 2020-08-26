@@ -37,23 +37,42 @@ static class LinuxOsxProcess
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
         {
+            if (TryParse(line, out var processCommand))
+            {
+                continue;
+            }
+            yield return processCommand!.Value;
+        }
+    }
+
+    static bool TryParse(string line, out ProcessCommand? processCommand)
+    {
+        try
+        {
             var trim = line.Trim();
             var firstSpace = trim.IndexOf(' ');
             if (firstSpace < 1)
             {
-                continue;
+                processCommand = null;
+                return true;
             }
+
             var pidString = trim.Substring(0, firstSpace);
             var pid = int.Parse(pidString);
 
 
-            var secondSpace = trim.IndexOf(' ',firstSpace);
+            var secondSpace = trim.IndexOf(' ', firstSpace);
             var startTimeString = trim.Substring(firstSpace, secondSpace);
             var startTime = DateTime.Parse(startTimeString);
 
             var command = trim.Substring(secondSpace + 1);
 
-            yield return new ProcessCommand(command, in pid, in startTime);
+            processCommand = new ProcessCommand(command, in pid, in startTime);
+            return false;
+        }
+        catch (Exception exception)
+        {
+            throw new Exception($"Could not parser command: {line}", exception);
         }
     }
 
