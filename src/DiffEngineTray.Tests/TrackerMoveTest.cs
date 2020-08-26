@@ -34,7 +34,7 @@ public class TrackerMoveTest :
     public void AddSame()
     {
         var tracker = new RecordingTracker();
-        tracker.AddMove(file1, file1, true, null);
+        tracker.AddMove(file1, file1, true, null, null);
         var tracked = tracker.AddMove(file1, file1, true, 1, null);
         Assert.Equal(1, tracker.ActiveReceivedCount);
         Assert.Equal(0, tracker.InactiveReceivedCount);
