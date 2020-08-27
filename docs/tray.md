@@ -22,8 +22,6 @@ Install the tool via NuGet then run `diffenginetray` to start the app.
 
 ## UI
 
-The UI has
-
 <img src="..\src\DiffEngineTray.Tests\MenuBuilderTest.Full.verified.png">
 
 
