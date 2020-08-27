@@ -6,6 +6,9 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1;net461</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\DiffEngineTray\PiperClient.cs" Link="PiperClient.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Caseless.Fody" Version="1.9.0" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" Version="2.0.4" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.2.4" PrivateAssets="All" />
