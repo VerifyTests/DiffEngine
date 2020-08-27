@@ -16,8 +16,6 @@ System.InvalidOperationException: Pipe hasn\'t been connected yet.
    at System.IO.StreamWriter.Flush(Boolean flushStream, Boolean flushEncoder)
    at System.IO.StreamWriter.Dispose(Boolean disposing)
    at System.IO.TextWriter.Dispose()
-   at PiperClient.InnerSend(String payload, CancellationToken cancellation) in C:\Code\VerifyTests\DiffEngine\src\DiffEngineTray\PiperClient.cs:line 92
-   at PiperClient.Send(String payload, CancellationToken cancellation) in C:\Code\VerifyTests\DiffEngine\src\DiffEngineTray\PiperClient.cs:line 58',
   'Failed to send payload to DiffEngineTray.
 
 Payload:
@@ -33,6 +31,4 @@ System.InvalidOperationException: Pipe hasn\'t been connected yet.
    at System.IO.StreamWriter.Flush(Boolean flushStream, Boolean flushEncoder)
    at System.IO.StreamWriter.Dispose(Boolean disposing)
    at System.IO.TextWriter.Dispose()
-   at PiperClient.InnerSend(String payload, CancellationToken cancellation) in C:\Code\VerifyTests\DiffEngine\src\DiffEngineTray\PiperClient.cs:line 92
-   at PiperClient.Send(String payload, CancellationToken cancellation) in C:\Code\VerifyTests\DiffEngine\src\DiffEngineTray\PiperClient.cs:line 58'
 ]

@@ -62,6 +62,8 @@ public class PiperTest :
 
         var settings = new VerifySettings();
         settings.ScrubLinesContaining("temp.txt");
+        //TODO: add "scrub source dir" to verify and remove the below
+        settings.ScrubLinesContaining("PiperClient");
         await Verifier.Verify(Logs, settings);
     }
 

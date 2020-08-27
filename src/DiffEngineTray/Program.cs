@@ -2,16 +2,20 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Serilog;
 
 static class Program
 {
     static async Task Main()
     {
+        Logging.Init();
+
         var tokenSource = new CancellationTokenSource();
         var cancellation = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
+            Log.Logger.Information("Mutex already exists. Exiting.");
             return;
         }
 
@@ -23,8 +27,8 @@ static class Program
         };
 
         await using var tracker = new Tracker(
-            active: () => notifyIcon.Icon=Images.Active,
-            inactive: () => notifyIcon.Icon=Images.Default);
+            active: () => notifyIcon.Icon = Images.Active,
+            inactive: () => notifyIcon.Icon = Images.Default);
 
         using var task = PiperServer.Start(
             payload => tracker.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId, payload.ProcessStartTime),
