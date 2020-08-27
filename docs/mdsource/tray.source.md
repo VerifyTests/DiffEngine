@@ -27,7 +27,7 @@ Clicking "file3" or "file4" will accept the changes to  "file3" or "file4" respe
 
 ### Deletes
 
-A since test can produce multiple resulting snapshots. If the accepted versions has a different number of snapshots to the current test run, then some of those snapshots need to be deleted. The deletes functionality in the tray tool handles this scenario.
+A test can produce multiple resulting snapshots. If the accepted versions has a different number of snapshots to the current test run, then some of those snapshots need to be deleted. The delete functionality in the tray tool handles this scenario.
 
 "Pending Deletes" will delete file1 and file2.
 
