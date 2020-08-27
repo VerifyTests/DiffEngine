@@ -20,7 +20,7 @@ static class MenuBuilder
         };
         menu.Closed += delegate { CleanTransientMenus(items); };
 
-        var exitItem = new MenuButton("Exit", exit, Images.Exit);
+        var exitItem = new MenuButton("Exit", exit, "Close the app", Images.Exit);
         items.Add(exitItem);
 
         return menu;
@@ -41,18 +41,18 @@ static class MenuBuilder
         }
 
         yield return new ToolStripSeparator();
-        yield return new MenuButton("Accept All", tracker.AcceptAll, Images.AcceptAll);
-        yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
+        yield return new MenuButton("Accept all", tracker.AcceptAll, "Accept all changes to all files", Images.AcceptAll);
+        yield return new MenuButton("Clear", tracker.Clear, @"Clear the current racked files", Images.Clear);
 
         if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
             foreach (var delete in tracker.Deletes)
             {
-                yield return new MenuButton($"{delete.Name}", () => tracker.Accept(delete));
+                yield return new MenuButton($"{delete.Name}", () => tracker.Accept(delete), $"Accept delete: {delete.File}");
             }
 
-            yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
+            yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, "Accept all pending deletes", Images.Delete);
         }
 
         if (tracker.Moves.Any())
@@ -60,10 +60,15 @@ static class MenuBuilder
             yield return new ToolStripSeparator();
             foreach (var move in tracker.Moves)
             {
-                yield return new MenuButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
+                yield return new MenuButton(
+                    $"{move.Name} ({move.Extension})",
+                    () => tracker.Accept(move),
+                    $@"Accept move.
+Temp: '{move.Temp}'
+Target '{move.Target}");
             }
 
-            yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
+            yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, "Accept all pending moves", Images.Accept);
         }
     }
 }
