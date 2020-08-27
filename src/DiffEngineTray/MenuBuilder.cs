@@ -44,7 +44,7 @@ static class MenuBuilder
         yield return new MenuButton("Accept All", Images.AcceptAll, tracker.AcceptAll);
         yield return new MenuButton("Clear", Images.Clear, tracker.Clear);
 
-        if (tracker.Moves.Any())
+        if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
             foreach (var delete in tracker.Deletes)

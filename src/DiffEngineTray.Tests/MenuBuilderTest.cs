@@ -18,6 +18,24 @@ public class MenuBuilderTest :
     }
 
     [Fact]
+    public async Task OnlyMove()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(file2, file2, true, null, null);
+        var menu = MenuBuilder.Build(() => { }, tracker);
+        await Verifier.Verify(menu, settings);
+    }
+
+    [Fact]
+    public async Task OnlyDelete()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        var menu = MenuBuilder.Build(() => { }, tracker);
+        await Verifier.Verify(menu, settings);
+    }
+
+    [Fact]
     public async Task Full()
     {
         await using var tracker = new RecordingTracker();
