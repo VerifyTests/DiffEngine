@@ -199,6 +199,30 @@ class Tracker :
         ToggleActive(wasActive);
     }
 
+    public void AcceptAllDeletes()
+    {
+        var wasActive = TrackingAny;
+        foreach (var delete in deletes.Values)
+        {
+            File.Delete(delete.File);
+        }
+
+        deletes.Clear();
+        ToggleActive(wasActive);
+    }
+
+    public void AcceptAllMoves()
+    {
+        var wasActive = TrackingAny;
+        foreach (var move in moves.Values)
+        {
+            InnerMove(move);
+        }
+
+        moves.Clear();
+        ToggleActive(wasActive);
+    }
+
     public ICollection<TrackedDelete> Deletes
     {
         get => deletes.Values;

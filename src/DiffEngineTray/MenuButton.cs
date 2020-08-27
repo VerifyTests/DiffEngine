@@ -5,7 +5,7 @@ using System.Windows.Forms;
 class MenuButton :
     ToolStripMenuItem
 {
-    public MenuButton(string text, Image image, Action action) :
+    public MenuButton(string text, Action action, Image? image = null) :
         base(text, image)
     {
         ImageScaling = ToolStripItemImageScaling.None;
