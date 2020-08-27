@@ -20,6 +20,39 @@ DiffEngineTray sits in the Windows tray. For supported snapshot testing librarie
 Install the tool via NuGet then run `diffenginetray` to start the app.
 
 
+## UI
+
+The UI has
+
+<img src="src\DiffEngineTray.Tests\MenuBuilderTest.Full.verified.png">
+
+
+### Moves
+
+"Pending Moves" will accept the changes to file3 and file4.
+
+Clicking "file3" or "file4" will accept the changes to  "file3" or "file4" respectively. Hover over the menu item to see the full path of both files.
+
+
+### Deletes
+
+A since test can produce multiple resulting snapshots. If the accepted versions has a different number of snapshots to the current test run, then some of those snapshots need to be deleted. The deletes functionality in the tray tool handles this scenario.
+
+"Pending Deletes" will delete file1 and file2.
+
+Clicking "file1" or "file2" will delete "file1" or "file2" respectively. Hover over the menu item to see the full path.
+
+
+### Accept all
+
+"Accept all" will accept all pending moves and all pending deletes.
+
+
+### Clear
+
+Clear will clear all currently tracked items.
+
+
 ## Currently supported in
 
  * [Verify](https://github.com/VerifyTests/Verify) v6.10 and above
