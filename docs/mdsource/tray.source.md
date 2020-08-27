@@ -10,7 +10,7 @@ DiffEngineTray sits in the Windows tray. For supported snapshot testing librarie
 
 ## Running
 
-Install the tool via NuGet then run `diffenginetray` to start the app.
+Install the tool via `dotnet tool` then run `diffenginetray` to start the app.
 
 
 ## UI
