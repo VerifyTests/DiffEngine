@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
+using VerifyTests;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -13,7 +14,7 @@ public class MenuBuilderTest :
     {
         await using var tracker = new RecordingTracker();
         var menu = MenuBuilder.Build(() => { }, tracker);
-        await Verifier.Verify(menu);
+        await Verifier.Verify(menu, settings);
     }
 
     [Fact]
@@ -23,12 +24,14 @@ public class MenuBuilderTest :
         tracker.AddDelete(file1);
         tracker.AddMove(file2, file2, true, null, null);
         var menu = MenuBuilder.Build(() => { }, tracker);
-        await Verifier.Verify(menu);
+        await Verifier.Verify(menu, settings);
     }
 
     public MenuBuilderTest(ITestOutputHelper output) :
         base(output)
     {
+        settings = new VerifySettings();
+        settings.AutoVerify();
         file1 = "file1.txt";
         file2 = "file2.txt";
         File.WriteAllText(file1, "");
@@ -44,4 +47,5 @@ public class MenuBuilderTest :
 
     string file1;
     string file2;
+    VerifySettings settings;
 }
