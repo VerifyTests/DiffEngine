@@ -42,7 +42,7 @@ static class MenuBuilder
 
         yield return new ToolStripSeparator();
         yield return new MenuButton("Accept all", tracker.AcceptAll, "Accept all changes to all files", Images.AcceptAll);
-        yield return new MenuButton("Clear", tracker.Clear, @"Clear the current racked files", Images.Clear);
+        yield return new MenuButton("Clear", tracker.Clear, "Clear the current racked files", Images.Clear);
 
         if (tracker.Deletes.Any())
         {
@@ -64,8 +64,8 @@ static class MenuBuilder
                     $"{move.Name} ({move.Extension})",
                     () => tracker.Accept(move),
                     $@"Accept move.
-Temp: '{move.Temp}'
-Target '{move.Target}");
+Source: '{move.Temp}'
+Target: '{move.Target}");
             }
 
             yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, "Accept all pending moves", Images.Accept);
