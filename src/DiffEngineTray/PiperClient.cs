@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
@@ -50,6 +52,24 @@ static class PiperClient
     }
 
     static async Task Send(string payload, CancellationToken cancellation = default)
+    {
+        try
+        {
+            await InnerSend(payload, cancellation);
+        }
+        catch (Exception exception)
+        {
+            Trace.WriteLine($@"Failed to send payload to DiffEngineTray.
+
+Payload:
+{payload}
+
+Exception:
+{exception}");
+        }
+    }
+
+    static async Task InnerSend(string payload, CancellationToken cancellation)
     {
 #if(NETSTANDARD2_1)
         await using var pipe = new NamedPipeClientStream(

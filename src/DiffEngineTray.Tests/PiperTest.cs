@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VerifyTests;
+using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
+[UsesVerify]
 public class PiperTest :
     XunitContextBase
 {
@@ -56,6 +60,10 @@ public class PiperTest :
         catch (InvalidOperationException)
         {
         }
+
+        var settings = new VerifySettings();
+        settings.ScrubLinesContaining("temp.txt");
+        await Verifier.Verify(Logs, settings);
     }
 
     public PiperTest(ITestOutputHelper output) :
