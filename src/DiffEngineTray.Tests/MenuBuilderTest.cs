@@ -40,7 +40,9 @@ public class MenuBuilderTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        tracker.AddMove(file2, file2, true, null, null);
+        tracker.AddDelete(file2);
+        tracker.AddMove(file3, file3, true, null, null);
+        tracker.AddMove(file4, file4, true, null, null);
         var menu = MenuBuilder.Build(() => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
@@ -52,18 +54,26 @@ public class MenuBuilderTest :
         settings.AutoVerify();
         file1 = "file1.txt";
         file2 = "file2.txt";
+        file3 = "file3.txt";
+        file4 = "file4.txt";
         File.WriteAllText(file1, "");
         File.WriteAllText(file2, "");
+        File.WriteAllText(file3, "");
+        File.WriteAllText(file4, "");
     }
 
     public override void Dispose()
     {
         File.Delete(file1);
         File.Delete(file2);
+        File.Delete(file3);
+        File.Delete(file4);
         base.Dispose();
     }
 
     string file1;
     string file2;
+    string file3;
+    string file4;
     VerifySettings settings;
 }
