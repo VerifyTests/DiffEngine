@@ -83,7 +83,7 @@ public class TrackerMoveTest :
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null, null);
         File.Delete(file1);
-        Thread.Sleep(2100);
+        Thread.Sleep(3000);
         Assert.Equal(1, tracker.ActiveReceivedCount);
         Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
