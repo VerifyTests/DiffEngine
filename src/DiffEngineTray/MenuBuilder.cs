@@ -19,7 +19,7 @@ static class MenuBuilder
                 items.Add(item);
             }
         };
-        menu.Closed += delegate { CleanTransientMenus(items); };
+        //menu.Closed += delegate { CleanTransientMenus(items); };
 
         var submenu = new MenuButton("Options", "Expand to more options", image: Images.Options);
         submenu.DropDownItems.Add(new MenuButton("Exit", "Close the app", exit, Images.Exit));
