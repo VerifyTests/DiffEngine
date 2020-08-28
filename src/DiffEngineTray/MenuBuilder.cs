@@ -65,10 +65,6 @@ static class MenuBuilder
 Source: {move.Temp}
 Target: {move.Target}",
                     () => tracker.Accept(move));
-                moveMenu.Click += delegate
-                {
-                    tracker.Accept(move);
-                };
                 var directory = Path.GetDirectoryName(move.Temp)!;
                 moveMenu.DropDownItems.Add(
                     new MenuButton(

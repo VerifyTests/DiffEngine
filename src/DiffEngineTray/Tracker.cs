@@ -182,24 +182,46 @@ class Tracker :
 
     static void KillProcess(TrackedMove move)
     {
-        if (!move.CanKill ||
-            move.ProcessId == null ||
-            move.ProcessStartTime == null)
+        if (!move.CanKill)
         {
+            Log.Information($"Did not kill for `{move.Temp}` since CanKill=false");
             return;
         }
 
-        if (!ProcessEx.TryGet(move.ProcessId.Value, out var process))
+        if (move.ProcessId == null)
         {
+            Log.Information($"Did not kill for `{move.Temp}` since ProcessId=null");
+            return;
+        }
+
+        if (move.ProcessStartTime == null)
+        {
+            Log.Information($"Did not kill for `{move.Temp}` since ProcessStartTime=null");
+            return;
+        }
+
+        var processId = move.ProcessId.Value;
+        if (!ProcessEx.TryGet(processId, out var process))
+        {
+            Log.Information($"Did not kill for `{move.Temp}` since processId {processId} not found");
             return;
         }
 
         if (move.ProcessStartTime.Value != process.StartTime)
         {
+            Log.Information($"Did not kill {processId}  for `{move.Temp}` since move.ProcessStartTime ({move.ProcessStartTime.Value}) does not equal process.StartTime ({process.StartTime})");
             return;
         }
 
-        process.Kill();
+        try
+        {
+            process.Kill();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
     }
 
     public void Clear()
