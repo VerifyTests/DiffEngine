@@ -1,17 +1,11 @@
-﻿using System.Threading;
-using Xunit;
+﻿using Xunit;
 
 class RecordingTracker :
     Tracker
 {
-    public int ActiveReceivedCount;
-    public int InactiveReceivedCount;
-
     public RecordingTracker() :
-        base(null!, null!)
+        base(() => {}, () => {})
     {
-        inactive = () => Interlocked.Increment(ref InactiveReceivedCount);
-        active = () => Interlocked.Increment(ref ActiveReceivedCount);
     }
 
     public void AssertEmpty()
