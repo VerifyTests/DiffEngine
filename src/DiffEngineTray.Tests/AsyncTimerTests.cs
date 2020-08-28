@@ -65,7 +65,7 @@ public class AsyncTimerTests
             });
 
         await delayStarted.Task;
-        await timer.Stop();
+        await timer.DisposeAsync();
 
         Assert.True(waitCanceled);
     }
@@ -89,7 +89,7 @@ public class AsyncTimerTests
             interval: TimeSpan.Zero);
 
         await callbackStarted.Task;
-        var stopTask = timer.Stop();
+        var stopTask = timer.DisposeAsync();
         stopInitiated.SetResult(true);
         await stopTask;
         Assert.True(callbackCanceled);
@@ -110,7 +110,7 @@ public class AsyncTimerTests
 
         await callbackTaskStarted.Task;
 
-        var stopTask = timer.Stop();
+        var stopTask = timer.DisposeAsync().AsTask();
         var delayTask = Task.Delay(1000);
 
         var firstToComplete = await Task.WhenAny(stopTask, delayTask);

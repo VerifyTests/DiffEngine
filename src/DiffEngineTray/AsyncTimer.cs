@@ -2,14 +2,13 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-class AsyncTimer
+class AsyncTimer   :IAsyncDisposable
 {
     Func<DateTime, CancellationToken, Task> callback;
     TimeSpan interval;
     Action<Exception> errorCallback;
     Func<TimeSpan, CancellationToken, Task> delayStrategy;
-
-    Task? task;
+    Task task;
     CancellationTokenSource tokenSource = new CancellationTokenSource();
 
     public AsyncTimer(
@@ -48,16 +47,10 @@ class AsyncTimer
         }
     }
 
-    public virtual Task Stop()
+    public async ValueTask DisposeAsync()
     {
-        if (tokenSource == null)
-        {
-            return Task.FromResult(0);
-        }
-
         tokenSource.Cancel();
         tokenSource.Dispose();
-
-        return task ?? Task.FromResult(0);
+        await task;
     }
 }
