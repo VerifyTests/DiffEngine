@@ -49,10 +49,6 @@ static class PiperClient
         return Send(payload, cancellation);
     }
 
-    static string JsonEscape(this string tempFile)
-    {
-        return tempFile.Replace(@"\", @"\\").Replace("\"", "\\\"");
-    }
 
     static async Task Send(string payload, CancellationToken cancellation = default)
     {

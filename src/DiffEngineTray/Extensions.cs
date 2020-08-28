@@ -12,4 +12,5 @@ static class Extensions
             toolStripItem.Dispose();
         }
     }
+
 }
