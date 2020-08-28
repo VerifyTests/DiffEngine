@@ -31,7 +31,13 @@ static class Program
             inactive: () => notifyIcon.Icon = Images.Default);
 
         using var task = PiperServer.Start(
-            payload => tracker.AddMove(payload.Temp, payload.Target, payload.CanKill, payload.ProcessId, payload.ProcessStartTime),
+            payload => tracker.AddMove(
+                payload.Temp, payload.Target,
+                payload.Exe,
+                payload.Arguments,
+                payload.CanKill,
+                payload.ProcessId,
+                payload.ProcessStartTime),
             payload => tracker.AddDelete(payload.File),
             cancellation);
         var menu = MenuBuilder.Build(

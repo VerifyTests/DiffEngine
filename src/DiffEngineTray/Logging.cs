@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using Serilog;
 
@@ -22,14 +21,6 @@ static class Logging
 
     public static void OpenDirectory()
     {
-        var info = new ProcessStartInfo
-        {
-            FileName = directory,
-            UseShellExecute = true,
-            Verb = "open"
-        };
-        using (Process.Start(info))
-        {
-        }
+        DirectoryLauncher.Open(directory);
     }
 }

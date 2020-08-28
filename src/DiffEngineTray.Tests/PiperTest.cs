@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using VerifyTests;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -22,8 +21,7 @@ public class PiperTest :
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        Assert.NotNull(received);
-        Assert.Equal("Foo", received.File);
+        await Verifier.Verify(received);
     }
 
     [Fact]
@@ -33,16 +31,11 @@ public class PiperTest :
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, s => { }, source.Token);
         var processStartTime = Process.GetCurrentProcess().StartTime;
-        await PiperClient.SendMove("Foo", "Bar", true, 10, processStartTime, source.Token);
+        await PiperClient.SendMove("Foo", "Bar", "theExe", "TheArguments", true, 10, processStartTime, source.Token);
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        Assert.NotNull(received);
-        Assert.Equal("Foo", received.Temp);
-        Assert.Equal(processStartTime, received.ProcessStartTime);
-        Assert.Equal("Bar", received.Target);
-        Assert.True(received.CanKill);
-        Assert.Equal(10, received.ProcessId);
+        await Verifier.Verify(received);
     }
 
     [Fact]
@@ -53,18 +46,18 @@ public class PiperTest :
         await File.WriteAllTextAsync(file, "a");
         try
         {
-            await PiperClient.SendMove(file, file, true, 10, null);
+            await PiperClient.SendMove(file, file,"theExe", "TheArguments", true, 10, null);
             await PiperClient.SendDelete(file);
         }
         catch (InvalidOperationException)
         {
         }
 
-        var settings = new VerifySettings();
-        settings.ScrubLinesContaining("temp.txt");
-        //TODO: add "scrub source dir" to verify and remove the below
-        settings.ScrubLinesContaining("PiperClient");
-        await Verifier.Verify(Logs, settings);
+        //var settings = new VerifySettings();
+        //settings.ScrubLinesContaining("temp.txt");
+        ////TODO: add "scrub source dir" to verify and remove the below
+        //settings.ScrubLinesContaining("PiperClient");
+        //await Verifier.Verify(Logs, settings);
     }
 
     public PiperTest(ITestOutputHelper output) :

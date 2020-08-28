@@ -22,6 +22,8 @@ static class PiperClient
     public static Task SendMove(
         string tempFile,
         string targetFile,
+        string exe,
+        string arguments,
         bool canKill,
         int? processId,
         DateTime? processStartTime,
@@ -38,6 +40,8 @@ static class PiperClient
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
+""Exe"":""{exe.JsonEscape()}"",
+""Arguments"":""{arguments.JsonEscape()}"",
 ""CanKill"":{canKill.ToString().ToLower()},
 ""ProcessId"":{processId}" + datePart + @"
 }

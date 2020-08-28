@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -41,6 +42,7 @@ static class MenuBuilder
         {
             yield break;
         }
+
         if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
@@ -57,11 +59,28 @@ static class MenuBuilder
             yield return new MenuButton("Pending Moves:", "Accept all pending moves", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in tracker.Moves)
             {
-                yield return new MenuButton(
+                var moveMenu = new SplitButton(
                     $"{move.Name} ({move.Extension})",
                     $@"Accept move.
-Source: '{move.Temp}'
-Target: '{move.Target}", () => tracker.Accept(move));
+Source: {move.Temp}
+Target: {move.Target}",
+                    () => tracker.Accept(move));
+                moveMenu.Click += delegate
+                {
+                    tracker.Accept(move);
+                };
+                var directory = Path.GetDirectoryName(move.Temp)!;
+                moveMenu.DropDownItems.Add(
+                    new MenuButton(
+                        "Launch diff tool",
+                        $"Re-launch the diff tool: {move.Exe} {move.Arguments}",
+                        () => tracker.Launch(move)));
+                moveMenu.DropDownItems.Add(
+                    new MenuButton(
+                        "Open directory",
+                        $"Open the directory: {directory}",
+                        () => DirectoryLauncher.Open(directory)));
+                yield return moveMenu;
             }
         }
 
@@ -69,4 +88,5 @@ Target: '{move.Target}", () => tracker.Accept(move));
         yield return new MenuButton("Accept all", "Accept all changes to all files", tracker.AcceptAll, Images.AcceptAll);
         yield return new MenuButton("Clear", "Clear the current racked files", tracker.Clear, Images.Clear);
     }
+
 }

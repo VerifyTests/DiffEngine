@@ -34,6 +34,7 @@ class Tracker :
                 changed = true;
             }
         }
+
         foreach (var move in moves.ToList())
         {
             if (!File.Exists(move.Value.Temp))
@@ -45,6 +46,7 @@ class Tracker :
                 }
             }
         }
+
         timer.Resume();
         if (changed)
         {
@@ -78,6 +80,8 @@ class Tracker :
     public TrackedMove AddMove(
         string temp,
         string target,
+        string exe,
+        string arguments,
         bool canKill,
         int? processId,
         DateTime? processStartTime)
@@ -89,7 +93,7 @@ class Tracker :
             addValueFactory: s =>
             {
                 updated = true;
-                return new TrackedMove(temp, target, canKill, processId, processStartTime);
+                return new TrackedMove(temp, target, exe, arguments, canKill, processId, processStartTime);
             },
             updateValueFactory: (s, existing) =>
             {
@@ -135,6 +139,16 @@ class Tracker :
     }
 
     public void Accept(TrackedMove move)
+    {
+        var wasActive = TrackingAny;
+        if (moves.Remove(move.Target, out var removed))
+        {
+            InnerMove(removed);
+            ToggleActive(wasActive);
+        }
+    }
+
+    public void Launch(TrackedMove move)
     {
         var wasActive = TrackingAny;
         if (moves.Remove(move.Target, out var removed))

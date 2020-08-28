@@ -30,6 +30,8 @@ namespace DiffEngine
         public static Task AddMove(
             string tempFile,
             string targetFile,
+            string exe,
+            string arguments,
             bool canKill,
             int? processId,
             DateTime? processStartTime,
@@ -40,7 +42,7 @@ namespace DiffEngine
                 return Task.CompletedTask;
             }
 
-            return PiperClient.SendMove(tempFile, targetFile, canKill, processId, processStartTime, cancellation);
+            return PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId, processStartTime, cancellation);
         }
     }
 }

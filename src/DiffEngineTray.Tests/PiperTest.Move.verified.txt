@@ -1,0 +1,9 @@
+{
+  Temp: 'Foo',
+  Target: 'Bar',
+  Exe: 'theExe',
+  Arguments: 'TheArguments',
+  CanKill: true,
+  ProcessId: 10,
+  ProcessStartTime: DateTime_1
+}

@@ -4,6 +4,8 @@
 Payload:
 {
 "Type":"Move",
+"Exe":"theExe",
+"Arguments":"TheArguments",
 "CanKill":true,
 "ProcessId":10
 }

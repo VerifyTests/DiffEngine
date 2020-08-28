@@ -29,4 +29,10 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
 
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Controls\SplitButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+  </ItemGroup>
 </Project>
