@@ -182,7 +182,9 @@ class Tracker :
 
     static void KillProcess(TrackedMove move)
     {
-        if (!move.CanKill || move.ProcessId == null)
+        if (!move.CanKill ||
+            move.ProcessId == null ||
+            move.ProcessStartTime == null)
         {
             return;
         }
@@ -192,7 +194,7 @@ class Tracker :
             return;
         }
 
-        if (move.ProcessStartTime!.Value != process.StartTime)
+        if (move.ProcessStartTime.Value != process.StartTime)
         {
             return;
         }
