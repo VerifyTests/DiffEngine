@@ -18,12 +18,11 @@ var resolvedTool = DiffTools.AddTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    shellExecute: false,
     arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L35' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L34' title='File snippet `addtool` was extracted from'>snippet source</a> | <a href='#snippet-addtool' title='Navigate to start of snippet `addtool`'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -36,7 +35,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L65-L70' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L68' title='File snippet `addtoolbasedon` was extracted from'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Navigate to start of snippet `addtoolbasedon`'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -64,7 +63,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 await DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L79-L86' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L77-L84' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
 
 

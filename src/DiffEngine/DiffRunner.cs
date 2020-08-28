@@ -164,7 +164,7 @@ namespace DiffEngine
             {
                 var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
                 {
-                    UseShellExecute = tool.ShellExecute
+                    UseShellExecute = true
                 };
 
                 using var process = Process.Start(startInfo);

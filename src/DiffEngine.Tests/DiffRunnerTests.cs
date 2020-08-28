@@ -127,7 +127,6 @@ public class DiffRunnerTests :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            shellExecute: false,
             arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
             exePath: FakeDiffTool.Exe,
             binaryExtensions: new[] {"knownBin"})!;
