@@ -27,22 +27,18 @@ class Tracker :
     {
         try
         {
-            foreach (var delete in deletes.ToList())
+            foreach (var delete in deletes.ToList()
+                .Where(delete => !File.Exists(delete.Value.File)))
             {
-                if (!File.Exists(delete.Value.File))
-                {
-                    deletes.TryRemove(delete.Key, out _);
-                }
+                deletes.TryRemove(delete.Key, out _);
             }
 
-            foreach (var move in moves.ToList())
+            foreach (var move in moves.ToList()
+                .Where(move => !File.Exists(move.Value.Temp)))
             {
-                if (!File.Exists(move.Value.Temp))
+                if (moves.TryRemove(move.Key, out var removed))
                 {
-                    if (moves.TryRemove(move.Key, out var removed))
-                    {
-                        KillProcesses(removed);
-                    }
+                    KillProcesses(removed);
                 }
             }
 
