@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,26 +30,29 @@ static class PiperClient
         DateTime? processStartTime,
         CancellationToken cancellation = default)
     {
-        string datePart = "";
-        if (processStartTime != null)
-        {
-            datePart = $@",
-""ProcessStartTime"":""{processStartTime.Value:O}""";
-        }
-
-        var payload = $@"{{
+        var builder = new StringBuilder($@"{{
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
 ""Exe"":""{exe.JsonEscape()}"",
 ""Arguments"":""{arguments.JsonEscape()}"",
-""CanKill"":{canKill.ToString().ToLower()},
-""ProcessId"":{processId}" + datePart + @"
-}
-";
-        return Send(payload, cancellation);
-    }
+""CanKill"":{canKill.ToString().ToLower()}");
 
+        if (processId != null)
+        {
+            builder.AppendLine(",");
+            builder.AppendLine($"\"ProcessId\":{processId}");
+        }
+
+        if (processStartTime != null)
+        {
+            builder.AppendLine(",");
+            builder.AppendLine($"\"ProcessStartTime\":\"{processStartTime.Value:O}\"");
+        }
+
+        builder.Append('}');
+        return Send(builder.ToString(), cancellation);
+    }
 
     static async Task Send(string payload, CancellationToken cancellation = default)
     {

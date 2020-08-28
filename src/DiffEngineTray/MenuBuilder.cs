@@ -74,7 +74,7 @@ static class MenuBuilder
                 var directory = Path.GetDirectoryName(move.Temp)!;
                 var dropDown = moveMenu.DropDownItems;
                 dropDown.Add(new MenuButton("Accept change", () => tracker.Accept(move)));
-                dropDown.Add(new MenuButton("Launch diff tool", () => Tracker.Launch(move)));
+                dropDown.Add(new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)));
                 dropDown.Add(new MenuButton("Open directory", () => DirectoryLauncher.Open(directory)));
                 yield return moveMenu;
             }

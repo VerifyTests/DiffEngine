@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -46,7 +45,7 @@ class Tracker :
                     changed = true;
                     if (moves.TryRemove(move.Key, out var removed))
                     {
-                        KillProcess(removed);
+                        KillProcesses(removed);
                     }
                 }
             }
@@ -96,89 +95,111 @@ class Tracker :
         string exe,
         string arguments,
         bool canKill,
-        int? processId,
-        DateTime? processStartTime)
+        (int id, DateTime startTime)? process)
     {
-        var updated = false;
-        var wasActive = TrackingAny;
-        var update = moves.AddOrUpdate(
-            target,
-            addValueFactory: s =>
-            {
-                updated = true;
-                return new TrackedMove(temp, target, exe, arguments, canKill, processId, processStartTime);
-            },
-            updateValueFactory: (s, existing) =>
-            {
-                existing.ProcessId ??= processId;
-                return existing;
-            });
-        if (updated)
+        timer.Pause();
+        try
         {
-            ToggleActive(wasActive);
-        }
 
-        return update;
+            var updated = false;
+            var wasActive = TrackingAny;
+            var update = moves.AddOrUpdate(
+                target,
+                addValueFactory: s =>
+                {
+                    updated = true;
+                    var move = new TrackedMove(temp, target, exe, arguments, canKill);
+                    if (process.HasValue)
+                    {
+                        move.AddProcess(process.Value);
+                    }
+
+                    return move;
+                },
+                updateValueFactory: (s, existing) =>
+                {
+                    if (process.HasValue)
+                    {
+                        existing.AddProcess(process.Value);
+                    }
+
+                    return existing;
+                });
+            if (updated)
+            {
+                ToggleActive(wasActive);
+            }
+
+            return update;
+        }
+        finally
+        {
+            timer.Resume();
+        }
     }
 
     public TrackedDelete AddDelete(string file)
     {
-        var updated = false;
-        var wasActive = TrackingAny;
-        var delete = deletes.AddOrUpdate(
-            file,
-            addValueFactory: s =>
-            {
-                updated = true;
-                return new TrackedDelete(file);
-            },
-            updateValueFactory: (s, existing) => existing);
-        if (updated)
+        timer.Pause();
+        try
         {
-            ToggleActive(wasActive);
-        }
+            var updated = false;
+            var wasActive = TrackingAny;
+            var delete = deletes.AddOrUpdate(
+                file,
+                addValueFactory: s =>
+                {
+                    updated = true;
+                    return new TrackedDelete(file);
+                },
+                updateValueFactory: (s, existing) => existing);
+            if (updated)
+            {
+                ToggleActive(wasActive);
+            }
 
-        return delete;
+            return delete;
+        }
+        finally
+        {
+            timer.Resume();
+        }
     }
 
     public void Accept(TrackedDelete delete)
     {
-        var wasActive = TrackingAny;
-        if (deletes.Remove(delete.File, out var removed))
+        timer.Pause();
+        try
         {
-            File.Delete(removed.File);
-            ToggleActive(wasActive);
+            var wasActive = TrackingAny;
+            if (deletes.Remove(delete.File, out var removed))
+            {
+                File.Delete(removed.File);
+                ToggleActive(wasActive);
+            }
+        }
+        finally
+        {
+            timer.Resume();
         }
     }
 
     public void Accept(TrackedMove move)
     {
-        var wasActive = TrackingAny;
-        if (moves.Remove(move.Target, out var removed))
+        timer.Pause();
+        try
         {
-            InnerMove(removed);
-            ToggleActive(wasActive);
+            var wasActive = TrackingAny;
+            if (moves.Remove(move.Target, out var removed))
+            {
+                InnerMove(removed);
+                ToggleActive(wasActive);
+            }
         }
-    }
-
-    public static void Launch(TrackedMove move)
-    {
-        var startInfo = new ProcessStartInfo(move.Exe, move.Arguments)
+        finally
         {
-            UseShellExecute = true
-        };
-
-        using var process = Process.Start(startInfo);
-        if (process != null)
-        {
-            //TODO: should probably add to a list of process ids
-            move.ProcessId = process.Id;
-            move.ProcessStartTime = process.StartTime;
-            return;
+            timer.Resume();
         }
-        var message = $@"Failed to launch diff tool.
-{move.Exe} {move.Arguments}";
-        Log.Error(message);
     }
 
     static void InnerMove(TrackedMove move)
@@ -188,10 +209,10 @@ class Tracker :
             File.Move(move.Temp, move.Target, true);
         }
 
-        KillProcess(move);
+        KillProcesses(move);
     }
 
-    static void KillProcess(TrackedMove move)
+    static void KillProcesses(TrackedMove move)
     {
         if (!move.CanKill)
         {
@@ -199,28 +220,29 @@ class Tracker :
             return;
         }
 
-        if (move.ProcessId == null)
+        if (!move.Processes.Any())
         {
-            Log.Information($"Did not kill for `{move.Temp}` since ProcessId=null");
+            Log.Information($"No processes to kill for  for `{move.Temp}`");
             return;
         }
 
-        if (move.ProcessStartTime == null)
+        foreach (var (processId, startTime) in move.Processes)
         {
-            Log.Information($"Did not kill for `{move.Temp}` since ProcessStartTime=null");
+            KillProcess(move, processId, startTime);
+        }
+    }
+
+    static void KillProcess(TrackedMove move, int id, DateTime startTime)
+    {
+        if (!ProcessEx.TryGet(id, out var process))
+        {
+            Log.Information($"Did not kill for `{move.Temp}` since processId {id} not found");
             return;
         }
 
-        var processId = move.ProcessId.Value;
-        if (!ProcessEx.TryGet(processId, out var process))
+        if (startTime != process.StartTime)
         {
-            Log.Information($"Did not kill for `{move.Temp}` since processId {processId} not found");
-            return;
-        }
-
-        if (move.ProcessStartTime.Value != process.StartTime)
-        {
-            Log.Information($"Did not kill {processId}  for `{move.Temp}` since move.ProcessStartTime ({move.ProcessStartTime.Value}) does not equal process.StartTime ({process.StartTime})");
+            Log.Information($"Did not kill {id}  for `{move.Temp}` since move.ProcessStartTime ({startTime}) does not equal process.StartTime ({process.StartTime})");
             return;
         }
 
@@ -228,60 +250,91 @@ class Tracker :
         {
             process.Kill();
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            Console.WriteLine(e);
-            throw;
+            Log.Logger.Error(exception, $"Failed to kill {id}. Command: {move.Exe} {move.Arguments}");
         }
     }
 
     public void Clear()
     {
-        deletes.Clear();
-        moves.Clear();
-        ToggleActive(true);
+        timer.Pause();
+        try
+        {
+            deletes.Clear();
+            moves.Clear();
+            ToggleActive(true);
+        }
+        finally
+        {
+            timer.Resume();
+        }
     }
 
     public void AcceptAll()
     {
-        var wasActive = TrackingAny;
-        foreach (var delete in deletes.Values)
+        timer.Pause();
+        try
         {
-            File.Delete(delete.File);
-        }
+            var wasActive = TrackingAny;
+            foreach (var delete in deletes.Values)
+            {
+                File.Delete(delete.File);
+            }
 
-        deletes.Clear();
-        foreach (var move in moves.Values)
+            deletes.Clear();
+            foreach (var move in moves.Values)
+            {
+                InnerMove(move);
+            }
+
+            moves.Clear();
+            ToggleActive(wasActive);
+        }
+        finally
         {
-            InnerMove(move);
+            timer.Resume();
         }
-
-        moves.Clear();
-        ToggleActive(wasActive);
     }
 
     public void AcceptAllDeletes()
     {
-        var wasActive = TrackingAny;
-        foreach (var delete in deletes.Values)
+        timer.Pause();
+        try
         {
-            File.Delete(delete.File);
-        }
+            var wasActive = TrackingAny;
+            foreach (var delete in deletes.Values)
+            {
+                File.Delete(delete.File);
+            }
 
-        deletes.Clear();
-        ToggleActive(wasActive);
+            deletes.Clear();
+            ToggleActive(wasActive);
+        }
+        finally
+        {
+            timer.Resume();
+        }
     }
 
     public void AcceptAllMoves()
     {
-        var wasActive = TrackingAny;
-        foreach (var move in moves.Values)
+        timer.Pause();
+        try
         {
-            InnerMove(move);
-        }
+            var wasActive = TrackingAny;
+            foreach (var move in moves.Values)
+            {
+                InnerMove(move);
+            }
 
-        moves.Clear();
-        ToggleActive(wasActive);
+            moves.Clear();
+            ToggleActive(wasActive);
+        }
+        finally
+        {
+            timer.Resume();
+        }
     }
 
     public ICollection<TrackedDelete> Deletes
