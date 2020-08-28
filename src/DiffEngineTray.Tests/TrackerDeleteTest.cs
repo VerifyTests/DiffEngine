@@ -24,7 +24,7 @@ public class TrackerDeleteTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         File.Delete(file1);
-        Thread.Sleep(2100);
+        Thread.Sleep(3000);
         Assert.Equal(1, tracker.ActiveReceivedCount);
         Assert.Equal(1, tracker.InactiveReceivedCount);
         tracker.AssertEmpty();
