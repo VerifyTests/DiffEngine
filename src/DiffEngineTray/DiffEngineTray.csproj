@@ -15,6 +15,15 @@
     <EmbeddedResource Include="*.ico" />
     <None Remove="*.png" />
     <EmbeddedResource Include="*.png" />
+    <EmbeddedResource Include="Images\active.ico" />
+    <EmbeddedResource Include="Images\default.ico" />
+    <EmbeddedResource Include="Images\accept.png" />
+    <EmbeddedResource Include="Images\acceptAll.png" />
+    <EmbeddedResource Include="Images\clear.png" />
+    <EmbeddedResource Include="Images\cogs.png" />
+    <EmbeddedResource Include="Images\delete.png" />
+    <EmbeddedResource Include="Images\exit.png" />
+    <EmbeddedResource Include="Images\folder.png" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
     <PackageReference Include="Fody" Version="6.2.4" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.9.0" />

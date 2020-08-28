@@ -5,23 +5,23 @@ public static class Images
 {
     static Images()
     {
-        using var activeStream = Resource.AsStream("icon_active.ico");
+        using var activeStream = Resource.AsStream("Images/active.ico");
         Active = new Icon(activeStream);
-        using var defaultStream = Resource.AsStream("icon_default.ico");
+        using var defaultStream = Resource.AsStream("Images/default.ico");
         Default = new Icon(defaultStream);
-        using var exitStream = Resource.AsStream("image_exit.png");
+        using var exitStream = Resource.AsStream("Images/exit.png");
         Exit = Image.FromStream(exitStream);
-        using var deleteStream = Resource.AsStream("image_delete.png");
+        using var deleteStream = Resource.AsStream("Images/delete.png");
         Delete = Image.FromStream(deleteStream);
-        using var acceptAllStream = Resource.AsStream("image_acceptAll.png");
+        using var acceptAllStream = Resource.AsStream("Images/acceptAll.png");
         AcceptAll = Image.FromStream(acceptAllStream);
-        using var acceptStream = Resource.AsStream("image_accept.png");
+        using var acceptStream = Resource.AsStream("Images/accept.png");
         Accept = Image.FromStream(acceptStream);
-        using var clearStream = Resource.AsStream("image_clear.png");
+        using var clearStream = Resource.AsStream("Images/clear.png");
         Clear = Image.FromStream(clearStream);
-        using var folderStream = Resource.AsStream("image_folder.png");
+        using var folderStream = Resource.AsStream("Images/folder.png");
         Folder = Image.FromStream(folderStream);
-        using var optionsStream = Resource.AsStream("image_cogs.png");
+        using var optionsStream = Resource.AsStream("Images/cogs.png");
         Options = Image.FromStream(optionsStream);
     }
 

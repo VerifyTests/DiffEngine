@@ -35,30 +35,9 @@ class Tracker :
             deletes.TryRemove(delete.Key, out _);
         }
 
-        void RemoveAndKill(KeyValuePair<string, TrackedMove> keyValuePair)
-        {
-            if (moves.TryRemove(keyValuePair.Key, out var removed))
-            {
-                KillProcesses(removed);
-            }
-        }
-
         foreach (var move in moves.ToList())
         {
-            if (File.Exists(move.Value.Temp))
-            {
-                if (File.Exists(move.Value.Target))
-                {
-                    if (await FileComparer.FilesAreEqual(move.Value.Temp, move.Value.Target))
-                    {
-                        RemoveAndKill(move);
-                    }
-                }
-            }
-            else
-            {
-                RemoveAndKill(move);
-            }
+            await HandleScanMove(move);
         }
 
         var newCount = moves.Count + deletes.Count;
@@ -68,6 +47,35 @@ class Tracker :
         }
 
         lastScanCount = newCount;
+    }
+
+    async Task HandleScanMove(KeyValuePair<string, TrackedMove> move)
+    {
+        void RemoveAndKill(KeyValuePair<string, TrackedMove> keyValuePair)
+        {
+            if (moves.TryRemove(keyValuePair.Key, out var removed))
+            {
+                KillProcesses(removed);
+            }
+        }
+
+        if (!File.Exists(move.Value.Temp))
+        {
+            RemoveAndKill(move);
+            return;
+        }
+
+        if (!File.Exists(move.Value.Target))
+        {
+            return;
+        }
+
+        if (!await FileComparer.FilesAreEqual(move.Value.Temp, move.Value.Target))
+        {
+            return;
+        }
+
+        RemoveAndKill(move);
     }
 
     void ToggleActive()
