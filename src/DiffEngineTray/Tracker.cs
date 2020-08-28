@@ -171,6 +171,8 @@ class Tracker :
         using var process = Process.Start(startInfo);
         if (process != null)
         {
+            //TODO: should probably add to a list of process ids
+            move.ProcessId = process.Id;
             return;
         }
         var message = $@"Failed to launch diff tool.
