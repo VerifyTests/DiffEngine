@@ -13,7 +13,6 @@ public class AsyncTimerTests
             callback: (time, token) => throw new Exception("Simulated!"),
             interval: TimeSpan.Zero,
             errorCallback: e => { errorCallbackInvoked.SetResult(true); });
-        timer.Start();
 
         Assert.True(await errorCallbackInvoked.Task);
     }
@@ -40,7 +39,6 @@ public class AsyncTimerTests
             },
             interval: TimeSpan.Zero,
             errorCallback: e => { exceptionThrown = true; });
-        timer.Start();
 
         Assert.True(await callbackInvokedAfterError.Task);
     }
@@ -66,7 +64,6 @@ public class AsyncTimerTests
                 }
             });
 
-        timer.Start();
         await delayStarted.Task;
         await timer.Stop();
 
@@ -91,8 +88,6 @@ public class AsyncTimerTests
             },
             interval: TimeSpan.Zero);
 
-        timer.Start();
-
         await callbackStarted.Task;
         var stopTask = timer.Stop();
         stopInitiated.SetResult(true);
@@ -112,8 +107,6 @@ public class AsyncTimerTests
                 return callbackCompleted.Task;
             },
             interval: TimeSpan.Zero);
-
-        timer.Start();
 
         await callbackTaskStarted.Task;
 
