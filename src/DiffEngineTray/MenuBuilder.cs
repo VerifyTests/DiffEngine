@@ -15,13 +15,15 @@ static class MenuBuilder
             CleanTransientMenus(items);
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
-                items.Insert(0, item);
+                items.Add(item);
             }
         };
         menu.Closed += delegate { CleanTransientMenus(items); };
 
-        var exitItem = new MenuButton("Exit", exit, "Close the app", Images.Exit);
-        items.Add(exitItem);
+        var submenu = new MenuButton("Options", "Expand to more options", image: Images.Options);
+        submenu.DropDownItems.Add(new MenuButton("Exit", "Close the app", exit, Images.Exit));
+        submenu.DropDownItems.Add(new MenuButton("Open logs", "Open logs directory", Logging.OpenDirectory, Images.Folder));
+        items.Add(submenu);
 
         return menu;
     }
@@ -29,7 +31,7 @@ static class MenuBuilder
     static void CleanTransientMenus(ToolStripItemCollection items)
     {
         var toRemove = items.Cast<ToolStripItem>()
-            .Where(x => x.Text != "Exit");
+            .Where(x => x.Text != "Options");
         items.RemoveRange(toRemove);
     }
 
@@ -39,36 +41,32 @@ static class MenuBuilder
         {
             yield break;
         }
-
-        yield return new ToolStripSeparator();
-        yield return new MenuButton("Accept all", tracker.AcceptAll, "Accept all changes to all files", Images.AcceptAll);
-        yield return new MenuButton("Clear", tracker.Clear, "Clear the current racked files", Images.Clear);
-
         if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
+            yield return new MenuButton("Pending Deletes:", "Accept all pending deletes", tracker.AcceptAllDeletes, Images.Delete);
             foreach (var delete in tracker.Deletes)
             {
-                yield return new MenuButton($"{delete.Name}", () => tracker.Accept(delete), $"Accept delete: {delete.File}");
+                yield return new MenuButton($"{delete.Name}", $"Accept delete: {delete.File}", () => tracker.Accept(delete));
             }
-
-            yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, "Accept all pending deletes", Images.Delete);
         }
 
         if (tracker.Moves.Any())
         {
             yield return new ToolStripSeparator();
+            yield return new MenuButton("Pending Moves:", "Accept all pending moves", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in tracker.Moves)
             {
                 yield return new MenuButton(
                     $"{move.Name} ({move.Extension})",
-                    () => tracker.Accept(move),
                     $@"Accept move.
 Source: '{move.Temp}'
-Target: '{move.Target}");
+Target: '{move.Target}", () => tracker.Accept(move));
             }
-
-            yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, "Accept all pending moves", Images.Accept);
         }
+
+        yield return new ToolStripSeparator();
+        yield return new MenuButton("Accept all", "Accept all changes to all files", tracker.AcceptAll, Images.AcceptAll);
+        yield return new MenuButton("Clear", "Clear the current racked files", tracker.Clear, Images.Clear);
     }
 }

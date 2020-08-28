@@ -5,11 +5,14 @@ using System.Windows.Forms;
 class MenuButton :
     ToolStripMenuItem
 {
-    public MenuButton(string text, Action action, string tooltip, Image? image = null) :
+    public MenuButton(string text, string tooltip, Action? action= null, Image? image = null) :
         base(text, image)
     {
         ImageScaling = ToolStripItemImageScaling.None;
         ToolTipText = tooltip;
-        Click += delegate { action(); };
+        if (action != null)
+        {
+            Click += delegate { action(); };
+        }
     }
 }

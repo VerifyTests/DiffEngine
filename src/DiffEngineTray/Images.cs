@@ -19,6 +19,10 @@ public static class Images
         Accept = Image.FromStream(acceptStream);
         using var clearStream = Resource.AsStream("image_clear.png");
         Clear = Image.FromStream(clearStream);
+        using var folderStream = Resource.AsStream("image_folder.png");
+        Folder = Image.FromStream(folderStream);
+        using var optionsStream = Resource.AsStream("image_cogs.png");
+        Options = Image.FromStream(optionsStream);
     }
 
     public static Image Clear { get; }
@@ -26,6 +30,8 @@ public static class Images
     public static Image AcceptAll { get; }
     public static Image Delete { get; }
     public static Image Exit { get; }
+    public static Image Folder { get; }
+    public static Image Options { get; }
     public static Icon Active { get; }
     public static Icon Default { get; }
 }
