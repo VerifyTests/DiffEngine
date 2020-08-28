@@ -51,6 +51,12 @@ class AsyncTimer   :IAsyncDisposable
     {
         tokenSource.Cancel();
         tokenSource.Dispose();
-        await task;
+        try
+        {
+            await task;
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 }
