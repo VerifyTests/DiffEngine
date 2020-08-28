@@ -20,9 +20,9 @@ static class MenuBuilder
         };
         menu.Closed += delegate { CleanTransientMenus(items); };
 
-        var submenu = new MenuButton("Options", "Expand to more options", image: Images.Options);
-        submenu.DropDownItems.Add(new MenuButton("Exit", "Close the app", exit, Images.Exit));
-        submenu.DropDownItems.Add(new MenuButton("Open logs", "Open logs directory", Logging.OpenDirectory, Images.Folder));
+        var submenu = new MenuButton("Options", image: Images.Options);
+        submenu.DropDownItems.Add(new MenuButton("Exit", exit, Images.Exit));
+        submenu.DropDownItems.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
         items.Add(submenu);
 
         return menu;
@@ -51,43 +51,38 @@ static class MenuBuilder
         if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
-            yield return new MenuButton("Pending Deletes:", "Accept all pending deletes", tracker.AcceptAllDeletes, Images.Delete);
+            yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
             foreach (var delete in tracker.Deletes)
             {
-                yield return new MenuButton($"{delete.Name}", $"Accept delete: {delete.File}", () => tracker.Accept(delete));
+                yield return new MenuButton($"{delete.Name}", () => tracker.Accept(delete));
             }
         }
 
         if (tracker.Moves.Any())
         {
             yield return new ToolStripSeparator();
-            yield return new MenuButton("Pending Moves:", "Accept all pending moves", tracker.AcceptAllMoves, Images.Accept);
+            yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in tracker.Moves)
             {
                 var moveMenu = new SplitButton(
                     $"{move.Name} ({move.Extension})",
-                    $@"Accept move.
-Source: {move.Temp}
-Target: {move.Target}",
                     () => tracker.Accept(move));
                 var directory = Path.GetDirectoryName(move.Temp)!;
                 moveMenu.DropDownItems.Add(
                     new MenuButton(
                         "Launch diff tool",
-                        $"Re-launch the diff tool: {move.Exe} {move.Arguments}",
                         () => Tracker.Launch(move)));
                 moveMenu.DropDownItems.Add(
                     new MenuButton(
                         "Open directory",
-                        $"Open the directory: {directory}",
                         () => DirectoryLauncher.Open(directory)));
                 yield return moveMenu;
             }
         }
 
         yield return new ToolStripSeparator();
-        yield return new MenuButton("Accept all", "Accept all changes to all files", tracker.AcceptAll, Images.AcceptAll);
-        yield return new MenuButton("Clear", "Clear the current racked files", tracker.Clear, Images.Clear);
+        yield return new MenuButton("Accept all", tracker.AcceptAll, Images.AcceptAll);
+        yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
     }
 
 }
