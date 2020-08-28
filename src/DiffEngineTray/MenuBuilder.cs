@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
 static class MenuBuilder
 {
+    static List<ToolStripItem>? itemsToCleanup;
+
     public static ContextMenuStrip Build(Action exit, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
@@ -13,6 +14,8 @@ static class MenuBuilder
 
         menu.Opening += delegate
         {
+            DisposePreviousItems();
+
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 items.Add(item);
@@ -28,10 +31,22 @@ static class MenuBuilder
         return menu;
     }
 
+    static void DisposePreviousItems()
+    {
+        if (itemsToCleanup == null)
+        {
+            return;
+        }
+        foreach (var item in itemsToCleanup)
+        {
+            item.Dispose();
+        }
+    }
+
     static void CleanTransientMenus(ToolStripItemCollection items)
     {
-        var toRemove = NonDefaultMenus(items);
-        items.RemoveRange(toRemove);
+        itemsToCleanup = NonDefaultMenus(items);
+        items.RemoveRange(itemsToCleanup);
     }
 
     static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
@@ -55,12 +70,11 @@ static class MenuBuilder
             yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
             foreach (var delete in tracker.Deletes)
             {
-                var deleteMenu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
-                var directory = Path.GetDirectoryName(delete.File)!;
-                var dropDown = deleteMenu.DropDownItems;
-                dropDown.Add(new MenuButton("Accept change", () => tracker.Accept(delete)));
-                dropDown.Add(new MenuButton("Open directory", () => DirectoryLauncher.Open(directory)));
-                yield return deleteMenu;
+                var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
+                var items = menu.DropDownItems;
+                items.Add(new MenuButton("Accept change", () => tracker.Accept(delete)));
+                items.Add(new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(delete.File)));
+                yield return menu;
             }
         }
 
@@ -70,13 +84,12 @@ static class MenuBuilder
             yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in tracker.Moves)
             {
-                var moveMenu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
-                var directory = Path.GetDirectoryName(move.Temp)!;
-                var dropDown = moveMenu.DropDownItems;
-                dropDown.Add(new MenuButton("Accept change", () => tracker.Accept(move)));
-                dropDown.Add(new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)));
-                dropDown.Add(new MenuButton("Open directory", () => DirectoryLauncher.Open(directory)));
-                yield return moveMenu;
+                var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
+                var items = menu.DropDownItems;
+                items.Add(new MenuButton("Accept change", () => tracker.Accept(move)));
+                items.Add(new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)));
+                items.Add(new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(move.Temp)));
+                yield return menu;
             }
         }
 

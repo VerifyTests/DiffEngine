@@ -21,6 +21,6 @@ static class Logging
 
     public static void OpenDirectory()
     {
-        DirectoryLauncher.Open(directory);
+        ExplorerLauncher.OpenDirectory(directory);
     }
 }
