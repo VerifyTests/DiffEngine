@@ -32,7 +32,8 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
-  * [Security contact information](#security-contact-information)<!-- endToc -->
+  * [Security contact information](#security-contact-information)
+  * [Icons](#icons)<!-- endToc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
@@ -133,8 +134,8 @@ Set an environment variable `DiffEngine.Disabled` with the value `true`.
 To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
 
 
-## Icon
+## Icons
 
 [Engine](https://thenounproject.com/term/engine/3358421/) designed by [Ian Rahmadi Kurniawan](https://thenounproject.com/irk.aminin/) from [The Noun Project](https://thenounproject.com).
 
-https://lineicons.com/icons/
+Tray icons from [LineIcons](https://lineicons.com/icons/).
