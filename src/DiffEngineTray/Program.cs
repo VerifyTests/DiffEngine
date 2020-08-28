@@ -15,7 +15,7 @@ static class Program
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
-            Log.Logger.Information("Mutex already exists. Exiting.");
+            Log.Information("Mutex already exists. Exiting.");
             return;
         }
 

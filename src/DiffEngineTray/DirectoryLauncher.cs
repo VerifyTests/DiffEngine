@@ -6,40 +6,40 @@ static class ExplorerLauncher
 {
     public static void OpenDirectory(string directory)
     {
+        var info = new ProcessStartInfo
+        {
+            FileName = directory,
+            UseShellExecute = true,
+            Verb = "open"
+        };
         try
         {
-            var info = new ProcessStartInfo
-            {
-                FileName = directory,
-                UseShellExecute = true,
-                Verb = "open"
-            };
             using (Process.Start(info))
             {
             }
         }
         catch (Exception exception)
         {
-            Log.Logger.Error(exception, "Failed to open directory: " + directory);
+            Log.Error(exception, $"Failed to open directory: {directory}");
         }
     }
 
     public static void OpenFile(string file)
     {
+        var info = new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = $"/select, \"{file}\"",
+        };
         try
         {
-            var info = new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = $"/select, \"{file}\"",
-            };
             using (Process.Start(info))
             {
             }
         }
         catch (Exception exception)
         {
-            Log.Logger.Error(exception, "Failed to open file: " + file);
+            Log.Error(exception, $"Failed to open file: {file}");
         }
     }
 }

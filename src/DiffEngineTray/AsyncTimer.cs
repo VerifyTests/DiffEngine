@@ -40,9 +40,9 @@ class AsyncTimer   :IAsyncDisposable
             {
                 // noop
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                errorCallback(ex);
+                errorCallback(exception);
             }
         }
     }

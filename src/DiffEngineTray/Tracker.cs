@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
 
@@ -13,52 +14,60 @@ class Tracker :
     Action inactive;
     ConcurrentDictionary<string, TrackedMove> moves = new ConcurrentDictionary<string, TrackedMove>(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new ConcurrentDictionary<string, TrackedDelete>(StringComparer.OrdinalIgnoreCase);
-    Timer timer;
+    AsyncTimer timer;
     int lastScanCount;
 
     public Tracker(Action active, Action inactive)
     {
         this.active = active;
         this.inactive = inactive;
-        timer = new Timer(ScanFiles);
+        timer = new AsyncTimer(
+            ScanFiles,
+            TimeSpan.FromSeconds(2),
+            exception => Log.Error(exception, "Failed to scan files"));
     }
 
-    void ScanFiles()
+    async Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
     {
-        try
+        foreach (var delete in deletes.ToList()
+            .Where(delete => !File.Exists(delete.Value.File)))
         {
-            foreach (var delete in deletes.ToList()
-                .Where(delete => !File.Exists(delete.Value.File)))
-            {
-                deletes.TryRemove(delete.Key, out _);
-            }
+            deletes.TryRemove(delete.Key, out _);
+        }
 
-            foreach (var move in moves.ToList()
-                .Where(move => !File.Exists(move.Value.Temp)))
+        void RemoveAndKill(KeyValuePair<string, TrackedMove> keyValuePair)
+        {
+            if (moves.TryRemove(keyValuePair.Key, out var removed))
             {
-                if (moves.TryRemove(move.Key, out var removed))
+                KillProcesses(removed);
+            }
+        }
+
+        foreach (var move in moves.ToList())
+        {
+            if (File.Exists(move.Value.Temp))
+            {
+                if (File.Exists(move.Value.Target))
                 {
-                    KillProcesses(removed);
+                    if (await FileComparer.FilesAreEqual(move.Value.Temp, move.Value.Target))
+                    {
+                        RemoveAndKill(move);
+                    }
                 }
             }
-
-            timer.Resume();
-            var newCount = moves.Count + deletes.Count;
-            if (lastScanCount != newCount)
+            else
             {
-                ToggleActive();
+                RemoveAndKill(move);
             }
+        }
 
-            lastScanCount = newCount;
-        }
-        catch (Exception exception)
+        var newCount = moves.Count + deletes.Count;
+        if (lastScanCount != newCount)
         {
-            Log.Error(exception, "Failed to scan files");
+            ToggleActive();
         }
-        finally
-        {
-            timer.Resume();
-        }
+
+        lastScanCount = newCount;
     }
 
     void ToggleActive()
@@ -183,7 +192,7 @@ class Tracker :
         }
         catch (Exception exception)
         {
-            Log.Logger.Error(exception, $"Failed to kill {id}. Command: {move.Exe} {move.Arguments}");
+            Log.Error(exception, $"Failed to kill {id}. Command: {move.Exe} {move.Arguments}");
         }
     }
 
@@ -211,7 +220,6 @@ class Tracker :
 
     public void AcceptAllDeletes()
     {
-        timer.Pause();
         foreach (var delete in deletes.Values)
         {
             File.Delete(delete.File);
@@ -222,7 +230,6 @@ class Tracker :
 
     public void AcceptAllMoves()
     {
-        timer.Pause();
         foreach (var move in moves.Values)
         {
             InnerMove(move);
