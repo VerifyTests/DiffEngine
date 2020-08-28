@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using VerifyTests;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -53,11 +54,11 @@ public class PiperTest :
         {
         }
 
-        //var settings = new VerifySettings();
-        //settings.ScrubLinesContaining("temp.txt");
-        ////TODO: add "scrub source dir" to verify and remove the below
-        //settings.ScrubLinesContaining("PiperClient");
-        //await Verifier.Verify(Logs, settings);
+        var settings = new VerifySettings();
+        settings.ScrubLinesContaining("temp.txt");
+        //TODO: add "scrub source dir" to verify and remove the below
+        settings.ScrubLinesContaining("PiperClient");
+        await Verifier.Verify(Logs, settings);
     }
 
     public PiperTest(ITestOutputHelper output) :
