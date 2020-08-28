@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Serilog;
 
 class Tracker :
     IAsyncDisposable
@@ -23,34 +24,45 @@ class Tracker :
 
     void ScanFiles()
     {
-        var changed = false;
         timer.Pause();
-        var wasActive = TrackingAny;
-        foreach (var delete in deletes.ToList())
+        try
         {
-            if (!File.Exists(delete.Value.File))
+            var changed = false;
+            var wasActive = TrackingAny;
+            foreach (var delete in deletes.ToList())
             {
-                deletes.TryRemove(delete.Key, out _);
-                changed = true;
-            }
-        }
-
-        foreach (var move in moves.ToList())
-        {
-            if (!File.Exists(move.Value.Temp))
-            {
-                changed = true;
-                if (moves.TryRemove(move.Key, out var removed))
+                if (!File.Exists(delete.Value.File))
                 {
-                    KillProcess(removed);
+                    deletes.TryRemove(delete.Key, out _);
+                    changed = true;
                 }
             }
-        }
 
-        timer.Resume();
-        if (changed)
+            foreach (var move in moves.ToList())
+            {
+                if (!File.Exists(move.Value.Temp))
+                {
+                    changed = true;
+                    if (moves.TryRemove(move.Key, out var removed))
+                    {
+                        KillProcess(removed);
+                    }
+                }
+            }
+
+            timer.Resume();
+            if (changed)
+            {
+                ToggleActive(wasActive);
+            }
+        }
+        catch (Exception exception)
         {
-            ToggleActive(wasActive);
+            Log.Error(exception, "Failed to scan files");
+        }
+        finally
+        {
+            timer.Resume();
         }
     }
 

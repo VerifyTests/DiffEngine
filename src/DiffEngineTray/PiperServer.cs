@@ -1,9 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.IO.Pipes;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 static class PiperServer
 {
@@ -27,6 +27,10 @@ static class PiperServer
             {
                 break;
             }
+            catch (Exception exception)
+            {
+                Log.Error(exception, "Failed to receive payload");
+            }
         }
     }
 
@@ -44,12 +48,12 @@ static class PiperServer
 
         if (message.Contains("\"Type\":\"Move\""))
         {
-            var payload = JsonSerializer.Deserialize<MovePayload>(message);
+            var payload = Serializer.Deserialize<MovePayload>(message);
             receiveMove(payload);
         }
         else if (message.Contains("\"Type\":\"Delete\""))
         {
-            var payload = JsonSerializer.Deserialize<DeletePayload>(message);
+            var payload = Serializer.Deserialize<DeletePayload>(message);
             receiveDelete(payload);
         }
         else
