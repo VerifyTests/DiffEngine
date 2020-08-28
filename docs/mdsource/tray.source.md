@@ -22,7 +22,7 @@ Install the tool via `dotnet tool` then run `diffenginetray` to start the app.
 
 "Pending Moves" will accept the changes to file3 and file4.
 
-Clicking "file3" or "file4" will accept the changes to  "file3" or "file4" respectively. The drop down will expose extra actions relative to that change.
+Clicking "file3" or "file4" will accept the changes to  "file3" or "file4" respectively. The drop down will expose extra actions for that change.
 
 
 ### Deletes
@@ -31,7 +31,7 @@ A test can produce multiple resulting snapshots. If the accepted versions has a 
 
 "Pending Deletes" will delete file1 and file2.
 
-Clicking "file1" or "file2" will delete "file1" or "file2" respectively. The drop down will expose extra actions relative to that change.
+Clicking "file1" or "file2" will delete "file1" or "file2" respectively. The drop down will expose extra actions for that change.
 
 
 ### Accept all
