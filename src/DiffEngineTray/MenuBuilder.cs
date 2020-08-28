@@ -48,13 +48,19 @@ static class MenuBuilder
             yield break;
         }
 
+        yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
         if (tracker.Deletes.Any())
         {
             yield return new ToolStripSeparator();
             yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
             foreach (var delete in tracker.Deletes)
             {
-                yield return new MenuButton($"{delete.Name}", () => tracker.Accept(delete));
+                var deleteMenu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
+                var directory = Path.GetDirectoryName(delete.File)!;
+                var dropDown = deleteMenu.DropDownItems;
+                dropDown.Add(new MenuButton("Accept change", () => tracker.Accept(delete)));
+                dropDown.Add(new MenuButton("Open directory", () => DirectoryLauncher.Open(directory)));
+                yield return deleteMenu;
             }
         }
 
@@ -64,25 +70,18 @@ static class MenuBuilder
             yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in tracker.Moves)
             {
-                var moveMenu = new SplitButton(
-                    $"{move.Name} ({move.Extension})",
-                    () => tracker.Accept(move));
+                var moveMenu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
                 var directory = Path.GetDirectoryName(move.Temp)!;
-                moveMenu.DropDownItems.Add(
-                    new MenuButton(
-                        "Launch diff tool",
-                        () => Tracker.Launch(move)));
-                moveMenu.DropDownItems.Add(
-                    new MenuButton(
-                        "Open directory",
-                        () => DirectoryLauncher.Open(directory)));
+                var dropDown = moveMenu.DropDownItems;
+                dropDown.Add(new MenuButton("Accept change", () => tracker.Accept(move)));
+                dropDown.Add(new MenuButton("Launch diff tool", () => Tracker.Launch(move)));
+                dropDown.Add(new MenuButton("Open directory", () => DirectoryLauncher.Open(directory)));
                 yield return moveMenu;
             }
         }
 
         yield return new ToolStripSeparator();
         yield return new MenuButton("Accept all", tracker.AcceptAll, Images.AcceptAll);
-        yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
     }
 
 }
