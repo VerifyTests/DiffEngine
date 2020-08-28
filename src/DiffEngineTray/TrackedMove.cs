@@ -31,5 +31,5 @@ class TrackedMove
     public string Arguments { get; }
     public bool CanKill { get; }
     public int? ProcessId { get; set; }
-    public DateTime? ProcessStartTime { get; }
+    public DateTime? ProcessStartTime { get; set;}
 }

@@ -173,6 +173,7 @@ class Tracker :
         {
             //TODO: should probably add to a list of process ids
             move.ProcessId = process.Id;
+            move.ProcessStartTime = process.StartTime;
             return;
         }
         var message = $@"Failed to launch diff tool.
