@@ -13,13 +13,12 @@ static class MenuBuilder
 
         menu.Opening += delegate
         {
-            CleanTransientMenus(items);
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 items.Add(item);
             }
         };
-        //menu.Closed += delegate { CleanTransientMenus(items); };
+        menu.Closed += delegate { CleanTransientMenus(items); };
 
         var submenu = new MenuButton("Options", "Expand to more options", image: Images.Options);
         submenu.DropDownItems.Add(new MenuButton("Exit", "Close the app", exit, Images.Exit));
@@ -31,9 +30,15 @@ static class MenuBuilder
 
     static void CleanTransientMenus(ToolStripItemCollection items)
     {
-        var toRemove = items.Cast<ToolStripItem>()
-            .Where(x => x.Text != "Options");
+        var toRemove = NonDefaultMenus(items);
         items.RemoveRange(toRemove);
+    }
+
+    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
+    {
+        return items.Cast<ToolStripItem>()
+            .Where(x => x.Text != "Options")
+            .ToList();
     }
 
     static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
@@ -70,7 +75,7 @@ Target: {move.Target}",
                     new MenuButton(
                         "Launch diff tool",
                         $"Re-launch the diff tool: {move.Exe} {move.Arguments}",
-                        () => tracker.Launch(move)));
+                        () => Tracker.Launch(move)));
                 moveMenu.DropDownItems.Add(
                     new MenuButton(
                         "Open directory",

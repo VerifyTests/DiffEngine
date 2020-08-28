@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -160,14 +161,21 @@ class Tracker :
         }
     }
 
-    public void Launch(TrackedMove move)
+    public static void Launch(TrackedMove move)
     {
-        var wasActive = TrackingAny;
-        if (moves.Remove(move.Target, out var removed))
+        var startInfo = new ProcessStartInfo(move.Exe, move.Arguments)
         {
-            InnerMove(removed);
-            ToggleActive(wasActive);
+            UseShellExecute = true
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process != null)
+        {
+            return;
         }
+        var message = $@"Failed to launch diff tool.
+{move.Exe} {move.Arguments}";
+        Log.Error(message);
     }
 
     static void InnerMove(TrackedMove move)

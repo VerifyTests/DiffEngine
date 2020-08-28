@@ -9,7 +9,6 @@ static class Extensions
         foreach (var toolStripItem in items.ToList())
         {
             target.Remove(toolStripItem);
-            toolStripItem.Dispose();
         }
     }
 
