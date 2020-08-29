@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using Serilog;
 
 static class ExplorerLauncher
 {
@@ -20,7 +19,7 @@ static class ExplorerLauncher
         }
         catch (Exception exception)
         {
-            Log.Error(exception, $"Failed to open directory: {directory}");
+            ExceptionHandler.Handle($"Failed to open directory: {directory}", exception);
         }
     }
 
@@ -39,7 +38,7 @@ static class ExplorerLauncher
         }
         catch (Exception exception)
         {
-            Log.Error(exception, $"Failed to open file: {file}");
+            ExceptionHandler.Handle($"Failed to open file: {file}", exception);
         }
     }
 }

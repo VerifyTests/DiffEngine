@@ -3,7 +3,6 @@ using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
-using Serilog;
 
 static class PiperServer
 {
@@ -29,7 +28,7 @@ static class PiperServer
             }
             catch (Exception exception)
             {
-                Log.Error(exception, "Failed to receive payload");
+                ExceptionHandler.Handle("Failed to receive payload", exception);
             }
         }
     }
@@ -44,21 +43,21 @@ static class PiperServer
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         await pipe.WaitForConnectionAsync(cancellation);
         using var reader = new StreamReader(pipe);
-        var message = await reader.ReadToEndAsync();
+        var payload = await reader.ReadToEndAsync();
 
-        if (message.Contains("\"Type\":\"Move\""))
+        if (payload.Contains("\"Type\":\"Move\""))
         {
-            var payload = Serializer.Deserialize<MovePayload>(message);
-            receiveMove(payload);
+            var movePayload = Serializer.Deserialize<MovePayload>(payload);
+            receiveMove(movePayload);
         }
-        else if (message.Contains("\"Type\":\"Delete\""))
+        else if (payload.Contains("\"Type\":\"Delete\""))
         {
-            var payload = Serializer.Deserialize<DeletePayload>(message);
-            receiveDelete(payload);
+            var deletePayload = Serializer.Deserialize<DeletePayload>(payload);
+            receiveDelete(deletePayload);
         }
         else
         {
-            throw new Exception($"Unknown message: {message}");
+            throw new Exception($"Unknown payload: {payload}");
         }
 
         if (pipe.IsConnected)

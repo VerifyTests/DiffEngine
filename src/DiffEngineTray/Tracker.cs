@@ -24,7 +24,10 @@ class Tracker :
         timer = new AsyncTimer(
             ScanFiles,
             TimeSpan.FromSeconds(2),
-            exception => Log.Error(exception, "Failed to scan files"));
+            exception =>
+            {
+                ExceptionHandler.Handle("Failed to scan files", exception);
+            });
     }
 
     async Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
@@ -84,7 +87,7 @@ class Tracker :
         {
             active();
         }
-        else if (!TrackingAny)
+        else
         {
             inactive();
         }
@@ -92,7 +95,8 @@ class Tracker :
 
     public bool TrackingAny
     {
-        get => moves.Any() || deletes.Any();
+        get => moves.Any() ||
+               deletes.Any();
     }
 
     public TrackedMove AddMove(
@@ -200,7 +204,7 @@ class Tracker :
         }
         catch (Exception exception)
         {
-            Log.Error(exception, $"Failed to kill {id}. Command: {move.Exe} {move.Arguments}");
+            ExceptionHandler.Handle($"Failed to kill {id}. Command: {move.Exe} {move.Arguments}", exception);
         }
     }
 

@@ -22,12 +22,17 @@ static class MenuBuilder
             }
         };
         menu.Closed += delegate { CleanTransientMenus(items); };
+        items.Add(BuildOptions(exit));
+        return menu;
+    }
 
-        var submenu = new MenuButton("Options", image: Images.Options);
-        submenu.DropDownItems.Add(new MenuButton("Exit", exit, Images.Exit));
-        submenu.DropDownItems.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
-        items.Add(submenu);
-
+    static MenuButton BuildOptions(Action exit)
+    {
+        var menu = new MenuButton("Options", image: Images.Options);
+        menu.AddRange(
+            new MenuButton("Exit", exit, Images.Exit),
+            new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
+            new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
     }
 
@@ -71,9 +76,9 @@ static class MenuBuilder
             foreach (var delete in tracker.Deletes)
             {
                 var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
-                var items = menu.DropDownItems;
-                items.Add(new MenuButton("Accept change", () => tracker.Accept(delete)));
-                items.Add(new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(delete.File)));
+                menu.AddRange(
+                    new MenuButton("Accept change", () => tracker.Accept(delete)),
+                    new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(delete.File)));
                 yield return menu;
             }
         }
@@ -85,10 +90,10 @@ static class MenuBuilder
             foreach (var move in tracker.Moves)
             {
                 var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
-                var items = menu.DropDownItems;
-                items.Add(new MenuButton("Accept change", () => tracker.Accept(move)));
-                items.Add(new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)));
-                items.Add(new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(move.Temp)));
+                menu.AddRange(
+                    new MenuButton("Accept change", () => tracker.Accept(move)),
+                    new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)),
+                    new MenuButton("Open directory", () => ExplorerLauncher.OpenFile(move.Temp)));
                 yield return menu;
             }
         }
@@ -96,5 +101,4 @@ static class MenuBuilder
         yield return new ToolStripSeparator();
         yield return new MenuButton("Accept all", tracker.AcceptAll, Images.AcceptAll);
     }
-
 }
