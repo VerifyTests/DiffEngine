@@ -54,3 +54,4 @@ Clear will clear all currently tracked items.
 ## Currently supported in
 
  * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
+ * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
