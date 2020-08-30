@@ -52,7 +52,7 @@ class Tracker :
         lastScanCount = newCount;
     }
 
-    async Task HandleScanMove(KeyValuePair<string, TrackedMove> move)
+    async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
     {
         void RemoveAndKill(KeyValuePair<string, TrackedMove> keyValuePair)
         {
@@ -62,23 +62,24 @@ class Tracker :
             }
         }
 
-        if (!File.Exists(move.Value.Temp))
+        var move = pair.Value;
+        if (!File.Exists(move.Temp))
         {
-            RemoveAndKill(move);
+            RemoveAndKill(pair);
             return;
         }
 
-        if (!File.Exists(move.Value.Target))
-        {
-            return;
-        }
-
-        if (!await FileComparer.FilesAreEqual(move.Value.Temp, move.Value.Target))
+        if (!File.Exists(move.Target))
         {
             return;
         }
 
-        RemoveAndKill(move);
+        if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
+        {
+            return;
+        }
+
+        RemoveAndKill(pair);
     }
 
     void ToggleActive()
