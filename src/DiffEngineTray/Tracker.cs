@@ -174,13 +174,13 @@ class Tracker :
 
         if (!move.Processes.Any())
         {
-            Log.Information($"No processes to kill for  for `{move.Temp}`");
+            Log.Information($"No processes to kill for `{move.Temp}`");
             return;
         }
 
-        foreach (var (processId, startTime) in move.Processes)
+        foreach (var (id, startTime) in move.Processes)
         {
-            KillProcess(move, processId, startTime);
+            KillProcess(move, id, startTime);
         }
     }
 
