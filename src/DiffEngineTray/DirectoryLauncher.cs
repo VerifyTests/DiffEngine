@@ -23,7 +23,7 @@ static class ExplorerLauncher
         }
     }
 
-    public static void OpenFile(string file)
+    public static void ShowFileInExplorer(string file)
     {
         var info = new ProcessStartInfo
         {
