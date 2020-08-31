@@ -44,6 +44,7 @@ static class MenuBuilder
         {
             return;
         }
+
         foreach (var item in itemsToCleanup)
         {
             item.Dispose();
@@ -71,11 +72,14 @@ static class MenuBuilder
         }
 
         yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
-        if (tracker.Deletes.Any())
+        var deletes = tracker.Deletes
+            .OrderBy(x => x.File)
+            .ToList();
+        if (deletes.Any())
         {
             yield return new ToolStripSeparator();
             yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
-            foreach (var delete in tracker.Deletes)
+            foreach (var delete in deletes)
             {
                 var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
                 menu.AddRange(
@@ -85,11 +89,14 @@ static class MenuBuilder
             }
         }
 
-        if (tracker.Moves.Any())
+        var moves = tracker.Moves
+            .OrderBy(x => x.Temp)
+            .ToList();
+        if (moves.Any())
         {
             yield return new ToolStripSeparator();
             yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
-            foreach (var move in tracker.Moves)
+            foreach (var move in moves)
             {
                 var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
                 menu.AddRange(
