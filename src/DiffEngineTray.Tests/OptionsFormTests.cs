@@ -30,7 +30,7 @@ public class OptionsFormTests :
         form.ShowDialog();
         form.BringToFront();
     }
-
+#if DEBUG
     [Fact]
     public async Task WithKeys()
     {
@@ -57,4 +57,5 @@ public class OptionsFormTests :
         };
         await Verifier.Verify(form);
     }
+#endif
 }
