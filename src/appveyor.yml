@@ -27,3 +27,6 @@ for:
           dotnet build src --configuration MacOs
 
           dotnet test src --configuration MacOs --no-build --no-restore
+
+on_failure:
+  - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
