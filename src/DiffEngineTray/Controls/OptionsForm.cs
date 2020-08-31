@@ -6,8 +6,6 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 
-namespace DiffEngineTray.Controls
-{
     public partial class OptionsForm : Form
     {
         public OptionsForm()
@@ -15,4 +13,3 @@ namespace DiffEngineTray.Controls
             InitializeComponent();
         }
     }
-}

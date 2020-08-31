@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using DiffEngineTray.Controls;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
