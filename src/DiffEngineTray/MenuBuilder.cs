@@ -30,9 +30,25 @@ static class MenuBuilder
 
     static MenuButton BuildOptions(Action exit)
     {
-        var menu = new MenuButton("Options", image: Images.Options);
+        var menu = new MenuButton("More", image: Images.Options);
         menu.AddRange(
             new MenuButton("Exit", exit, Images.Exit),
+            new MenuButton(
+                "Options",
+                async () =>
+                {
+                    var settings = await SettingsHelper.Read();
+                    var form = new OptionsForm
+                    {
+                        Settings = settings
+                    };
+                    var result = form.ShowDialog();
+                    if (result == DialogResult.OK)
+                    {
+                        await SettingsHelper.Write(settings);
+                    }
+                },
+                Images.Options),
             new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
             new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
@@ -60,7 +76,7 @@ static class MenuBuilder
     static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
     {
         return items.Cast<ToolStripItem>()
-            .Where(x => x.Text != "Options")
+            .Where(x => x.Text != "More")
             .ToList();
     }
 
