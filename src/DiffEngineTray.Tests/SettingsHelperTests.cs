@@ -12,21 +12,24 @@ public class SettingsHelperTests :
     public async Task ReadWrite()
     {
         var tempFile = "ReadWrite.txt";
-         File.Delete(tempFile);
+        File.Delete(tempFile);
         try
         {
             SettingsHelper.FilePath = tempFile;
             await SettingsHelper.Write(
                 new Settings
                 {
-                    AcceptHotKeys = "TheKeys"
+                    HotKey = new HotKey
+                    {
+                        Key = "T"
+                    }
                 });
             var result = await SettingsHelper.Read();
             await Verifier.Verify(result);
         }
         finally
         {
-          //  File.Delete(tempFile);
+            File.Delete(tempFile);
         }
     }
 

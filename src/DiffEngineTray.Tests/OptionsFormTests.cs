@@ -13,8 +13,47 @@ public class OptionsFormTests :
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
+    public void Launch()
+    {
+        using var form = new OptionsForm
+        {
+            Settings = new Settings
+            {
+                HotKey = new HotKey
+                {
+                    Shift = true,
+                    Key = "A"
+                }
+            }
+        };
+        form.ShowDialog();
+    }
+
+    [Fact]
+    public async Task WithKeys()
+    {
+        using var form = new OptionsForm
+        {
+            Settings = new Settings
+            {
+                HotKey = new HotKey
+                {
+                    Shift = true,
+                    Key = "A"
+                }
+            }
+        };
+        await Verifier.Verify(form);
+    }
+
+    [Fact]
     public async Task Default()
     {
-        await Verifier.Verify(new OptionsForm());
+        using var form = new OptionsForm
+        {
+            Settings = new Settings()
+        };
+        await Verifier.Verify(form);
     }
 }

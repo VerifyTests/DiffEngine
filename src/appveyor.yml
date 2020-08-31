@@ -16,7 +16,7 @@ for:
       - ps: >-
           dotnet build src --configuration Release
 
-          dotnet test src --configuration Release --no-build --no-restore
+          dotnet test src --configuration Release --no-build --no-restore --filter Category!=Integration
 
   -
     matrix:
@@ -26,7 +26,7 @@ for:
       - ps: >-
           dotnet build src --configuration MacOs
 
-          dotnet test src --configuration MacOs --no-build --no-restore
+          dotnet test src --configuration MacOs --no-build --no-restore --filter Category!=Integration
 
 on_failure:
   - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }

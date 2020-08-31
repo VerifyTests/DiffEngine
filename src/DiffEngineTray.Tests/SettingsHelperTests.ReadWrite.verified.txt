@@ -1,3 +1,5 @@
 {
-  AcceptHotKeys: 'TheKeys'
+  HotKey: {
+    Key: 'T'
+  }
 }
