@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -21,6 +22,7 @@ static class MenuBuilder
                 items.Add(item);
             }
         };
+        menu.Font = new Font(menu.Font.FontFamily, 12);
         menu.Closed += delegate { CleanTransientMenus(items); };
         items.Add(BuildOptions(exit));
         return menu;

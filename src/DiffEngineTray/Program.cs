@@ -10,6 +10,8 @@ static class Program
     {
         Logging.Init();
 
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancellationTokenSource();
         var cancellation = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);

@@ -8,7 +8,6 @@ class SplitButton :
     public SplitButton(string text, Action? action = null, Image? image = null) :
         base(text, image)
     {
-        ImageScaling = ToolStripItemImageScaling.None;
         AutoToolTip = false;
 
         if (action != null)
