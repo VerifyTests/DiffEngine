@@ -66,6 +66,15 @@ namespace DiffEngine
                 Detected = true;
                 return;
             }
+
+            // Bamboo
+            // https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html
+            // Variable name is 'bamboo.buildKey' but must be referenced with an underscore
+            if (Environment.GetEnvironmentVariable("bamboo_buildKey") != null)
+            {
+                Detected = true;
+                return;
+            }
         }
 
         public static bool Detected { get; set; }

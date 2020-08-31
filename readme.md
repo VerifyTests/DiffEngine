@@ -124,6 +124,7 @@ Supports:
  * [TeamCity](https://www.jetbrains.com/help/teamcity/predefined-build-parameters.html#PredefinedBuildParameters-ServerBuildProperties)
  * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
+ * [Bamboo](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html)
 
 
 ## Disable for a machine/process
