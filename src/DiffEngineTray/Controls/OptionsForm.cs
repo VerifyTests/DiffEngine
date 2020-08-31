@@ -8,9 +8,9 @@ using System.Windows.Forms;
 
 namespace DiffEngineTray.Controls
 {
-    public partial class Options : Form
+    public partial class OptionsForm : Form
     {
-        public Options()
+        public OptionsForm()
         {
             InitializeComponent();
         }
