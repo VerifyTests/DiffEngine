@@ -22,7 +22,7 @@ static class MenuBuilder
                 items.Add(item);
             }
         };
-        menu.Font = new Font(menu.Font.FontFamily, 12);
+        menu.Font = new Font(menu.Font.FontFamily, 10);
         menu.Closed += delegate { CleanTransientMenus(items); };
         items.Add(BuildOptions(exit));
         return menu;
