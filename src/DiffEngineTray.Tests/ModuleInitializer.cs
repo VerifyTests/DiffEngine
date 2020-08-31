@@ -6,6 +6,7 @@ public static class ModuleInitializer
     {
         VerifierSettings.DisableNewLineEscaping();
         VerifyWinForms.Enable();
-        VerifyPhash.RegisterComparer("png", .999f);
+        VerifyImageMagick.Initialize();
+        VerifyImageMagick.RegisterComparers();
     }
 }

@@ -51,7 +51,6 @@ public class MenuBuilderTest :
         base(output)
     {
         settings = new VerifySettings();
-        settings.AutoVerify();
         file1 = "file1.txt";
         file2 = "file2.txt";
         file3 = "file3.txt";
