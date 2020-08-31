@@ -10,7 +10,9 @@ class SettingsHelper
     static SettingsHelper()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        FilePath = Path.Combine(appData, "DiffEngine", "settings.json");
+        string directory = Path.Combine(appData, "DiffEngine");
+        Directory.CreateDirectory(directory);
+        FilePath = Path.Combine(directory, "settings.json");
     }
 
     public static async Task<Settings> Read()

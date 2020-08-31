@@ -48,4 +48,25 @@ public partial class OptionsForm :
     {
         keysSelectionPanel.Enabled = hotKeyEnabled.Checked;
     }
+
+    void save_Click(object sender, EventArgs e)
+    {
+        if (hotKeyEnabled.Checked)
+        {
+            Settings.HotKey = new HotKey
+            {
+                Key = (string) keyCombo.SelectedItem,
+                Shift = shift.Checked,
+                Alt = alt.Checked,
+                Control = control.Checked
+            };
+        }
+        else
+        {
+            Settings.HotKey = null;
+        }
+
+        this.DialogResult = DialogResult.OK;
+
+    }
 }

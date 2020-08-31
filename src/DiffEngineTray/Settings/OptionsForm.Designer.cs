@@ -56,13 +56,13 @@
             // 
             // save
             // 
-            this.save.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.save.Location = new System.Drawing.Point(723, 3);
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(150, 46);
             this.save.TabIndex = 1;
             this.save.Text = "Save";
             this.save.UseVisualStyleBackColor = true;
+            this.save.Click += new System.EventHandler(this.save_Click);
             // 
             // hotKey
             // 

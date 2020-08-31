@@ -28,6 +28,7 @@ public class OptionsFormTests :
             }
         };
         form.ShowDialog();
+        form.BringToFront();
     }
 
     [Fact]

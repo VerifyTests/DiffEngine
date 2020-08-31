@@ -35,19 +35,7 @@ static class MenuBuilder
             new MenuButton("Exit", exit, Images.Exit),
             new MenuButton(
                 "Options",
-                async () =>
-                {
-                    var settings = await SettingsHelper.Read();
-                    var form = new OptionsForm
-                    {
-                        Settings = settings
-                    };
-                    var result = form.ShowDialog();
-                    if (result == DialogResult.OK)
-                    {
-                        await SettingsHelper.Write(settings);
-                    }
-                },
+                async () => { await OptionsFormLauncher.Launch(); },
                 Images.Options),
             new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
             new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
