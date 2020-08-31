@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 
 public partial class OptionsForm :
@@ -66,7 +67,16 @@ public partial class OptionsForm :
             Settings.HotKey = null;
         }
 
-        this.DialogResult = DialogResult.OK;
+        if (!Settings.IsValidate(out var errors))
+        {
+            var builder = new StringBuilder();
+            foreach (var error in errors)
+            {
+                builder.AppendLine($" * {error}");
+            }
 
+            MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        DialogResult = DialogResult.OK;
     }
 }
