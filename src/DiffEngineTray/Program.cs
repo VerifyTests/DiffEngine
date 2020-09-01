@@ -32,7 +32,28 @@ static class Program
             active: () => notifyIcon.Icon = Images.Active,
             inactive: () => notifyIcon.Icon = Images.Default);
 
-        using var task = PiperServer.Start(
+        using var task = StartServer(tracker, cancellation);
+
+        using var keyRegister = new KeyRegister(notifyIcon.Handle());
+        keyRegister.TryAddBinding(
+            100,
+            KeyModifiers.Control | KeyModifiers.Shift,
+            Keys.A,
+            () => tracker.AcceptAll());
+        notifyIcon.ContextMenuStrip = MenuBuilder.Build(
+            Application.Exit,
+            async () => await OptionsFormLauncher.Launch(),
+            tracker);
+
+
+        Application.Run();
+        tokenSource.Cancel();
+        await task;
+    }
+
+    static Task StartServer(Tracker tracker, CancellationToken cancellation)
+    {
+        return PiperServer.Start(
             payload =>
             {
                 (int, DateTime)? process = null;
@@ -52,19 +73,5 @@ static class Program
             },
             payload => tracker.AddDelete(payload.File),
             cancellation);
-
-        notifyIcon.ContextMenuStrip = MenuBuilder.Build(Application.Exit, tracker);
-
-        var handle = notifyIcon.ContextMenuStrip.Handle;
-        using var keyRegister = new KeyRegister(
-            handle,
-            100,
-            KeyModifiers.Control | KeyModifiers.Shift,
-            Keys.A,
-            () => tracker.AcceptAll());
-
-        Application.Run();
-        tokenSource.Cancel();
-        await task;
     }
 }

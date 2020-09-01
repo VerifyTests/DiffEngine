@@ -8,7 +8,7 @@ static class MenuBuilder
 {
     static List<ToolStripItem>? itemsToCleanup;
 
-    public static ContextMenuStrip Build(Action exit, Tracker tracker)
+    public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
         var items = menu.Items;
@@ -24,19 +24,16 @@ static class MenuBuilder
         };
         menu.Font = new Font(menu.Font.FontFamily, 10);
         menu.Closed += delegate { CleanTransientMenus(items); };
-        items.Add(BuildOptions(exit));
+        items.Add(BuildOptions(exit, launchOptions));
         return menu;
     }
 
-    static MenuButton BuildOptions(Action exit)
+    static MenuButton BuildOptions(Action exit, Action launchOptions)
     {
         var menu = new MenuButton("More", image: Images.Options);
         menu.AddRange(
             new MenuButton("Exit", exit, Images.Exit),
-            new MenuButton(
-                "Options",
-                async () => { await OptionsFormLauncher.Launch(); },
-                Images.Options),
+            new MenuButton("Options", launchOptions, Images.Options),
             new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
             new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
