@@ -63,12 +63,9 @@ static class Program
 
         notifyIcon.ContextMenuStrip = menu;
 
-        using var hotKeyToRegister = new HotKeyRegister(notifyIcon.ContextMenuStrip.Handle, 100, KeyModifiers.Control | KeyModifiers.Shift, Keys.A);
+        var handle = notifyIcon.ContextMenuStrip.Handle;
+        using var keyRegister = new KeyRegister(handle, 100, KeyModifiers.Control | KeyModifiers.Shift, Keys.A,() =>  tracker.AcceptAll());
 
-        hotKeyToRegister.HotKeyPressed += delegate
-        {
-            tracker.AcceptAll();
-        };
         Application.Run();
         await task;
     }
