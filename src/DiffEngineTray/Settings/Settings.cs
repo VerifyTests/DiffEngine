@@ -1,5 +1,5 @@
 public class Settings
 {
-    public HotKey? HotKey { get; set; }
+    public HotKey? AcceptAllHotKey { get; set; }
 
 }

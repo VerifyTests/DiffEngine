@@ -20,7 +20,7 @@ public class OptionsFormTests :
         {
             Settings = new Settings
             {
-                HotKey = new HotKey
+                AcceptAllHotKey = new HotKey
                 {
                     Shift = true,
                     Key = "A"
@@ -38,7 +38,7 @@ public class OptionsFormTests :
         {
             Settings = new Settings
             {
-                HotKey = new HotKey
+                AcceptAllHotKey = new HotKey
                 {
                     Shift = true,
                     Key = "A"

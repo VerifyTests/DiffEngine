@@ -1,5 +1,5 @@
 {
-  HotKey: {
+  AcceptAllHotKey: {
     Key: 'T'
   }
 }

@@ -35,11 +35,17 @@ static class Program
         using var task = StartServer(tracker, cancellation);
 
         using var keyRegister = new KeyRegister(notifyIcon.Handle());
-        keyRegister.TryAddBinding(
-            100,
-            KeyModifiers.Control | KeyModifiers.Shift,
-            Keys.A,
-            () => tracker.AcceptAll());
+        var settings = await SettingsHelper.Read();
+        var acceptAllHotKey = settings.AcceptAllHotKey;
+        if (acceptAllHotKey != null)
+        {
+            keyRegister.TryAddBinding(
+                100,
+                KeyModifiers.Control | KeyModifiers.Shift,
+                Keys.A,
+                () => tracker.AcceptAll());
+        }
+
         notifyIcon.ContextMenuStrip = MenuBuilder.Build(
             Application.Exit,
             async () => await OptionsFormLauncher.Launch(),

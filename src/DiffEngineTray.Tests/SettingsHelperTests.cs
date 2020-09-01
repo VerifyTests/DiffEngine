@@ -19,7 +19,7 @@ public class SettingsHelperTests :
             await SettingsHelper.Write(
                 new Settings
                 {
-                    HotKey = new HotKey
+                    AcceptAllHotKey = new HotKey
                     {
                         Key = "T"
                     }

@@ -76,7 +76,7 @@
             this.hotKey.Size = new System.Drawing.Size(1032, 277);
             this.hotKey.TabIndex = 2;
             this.hotKey.TabStop = false;
-            this.hotKey.Text = "HotKey";
+            this.hotKey.Text = "Accep all HotKey";
             // 
             // keysSelectionPanel
             // 

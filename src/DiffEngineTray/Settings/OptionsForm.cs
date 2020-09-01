@@ -25,7 +25,7 @@ public partial class OptionsForm :
 
     void RefreshSettings()
     {
-        var key = Settings.HotKey;
+        var key = Settings.AcceptAllHotKey;
         if (key != null)
         {
             hotKeyEnabled.Checked = true;
@@ -54,7 +54,7 @@ public partial class OptionsForm :
     {
         if (hotKeyEnabled.Checked)
         {
-            Settings.HotKey = new HotKey
+            Settings.AcceptAllHotKey = new HotKey
             {
                 Key = (string) keyCombo.SelectedItem,
                 Shift = shift.Checked,
@@ -64,7 +64,7 @@ public partial class OptionsForm :
         }
         else
         {
-            Settings.HotKey = null;
+            Settings.AcceptAllHotKey = null;
         }
 
         if (!Settings.IsValidate(out var errors))

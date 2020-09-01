@@ -6,7 +6,7 @@ public static class SettingsValidator
     public static bool IsValidate(this Settings settings, out List<string> errors)
     {
         errors = new List<string>();
-        var hotKey = settings.HotKey;
+        var hotKey = settings.AcceptAllHotKey;
         if (hotKey != null)
         {
             if (!hotKey.Alt && !hotKey.Shift && !hotKey.Control)
