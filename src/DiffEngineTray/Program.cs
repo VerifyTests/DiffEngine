@@ -37,36 +37,34 @@ static class Program
             {
                 (int, DateTime)? process = null;
                 if (payload.ProcessId != null &&
-                    payload.ProcessStartTime != null )
+                    payload.ProcessStartTime != null)
                 {
                     process = (payload.ProcessId.Value, payload.ProcessStartTime.Value);
                 }
 
                 tracker.AddMove(
-                        payload.Temp,
-                        payload.Target,
-                        payload.Exe,
-                        payload.Arguments,
-                        payload.CanKill,
-                        process);
+                    payload.Temp,
+                    payload.Target,
+                    payload.Exe,
+                    payload.Arguments,
+                    payload.CanKill,
+                    process);
             },
             payload => tracker.AddDelete(payload.File),
             cancellation);
-        var menu = MenuBuilder.Build(
-            () =>
-            {
-                tokenSource.Cancel();
-                mutex!.Dispose();
-                Environment.Exit(0);
-            },
-            tracker);
 
-        notifyIcon.ContextMenuStrip = menu;
+        notifyIcon.ContextMenuStrip = MenuBuilder.Build(Application.Exit, tracker);
 
         var handle = notifyIcon.ContextMenuStrip.Handle;
-        using var keyRegister = new KeyRegister(handle, 100, KeyModifiers.Control | KeyModifiers.Shift, Keys.A,() =>  tracker.AcceptAll());
+        using var keyRegister = new KeyRegister(
+            handle,
+            100,
+            KeyModifiers.Control | KeyModifiers.Shift,
+            Keys.A,
+            () => tracker.AcceptAll());
 
         Application.Run();
+        tokenSource.Cancel();
         await task;
     }
 }
