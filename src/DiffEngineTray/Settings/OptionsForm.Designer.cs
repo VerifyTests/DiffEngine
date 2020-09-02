@@ -60,7 +60,7 @@
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(150, 46);
             this.save.TabIndex = 1;
-            this.save.Text = "Save";
+            this.save.Text = "Apply";
             this.save.UseVisualStyleBackColor = true;
             this.save.Click += new System.EventHandler(this.save_Click);
             // 
@@ -76,7 +76,7 @@
             this.hotKey.Size = new System.Drawing.Size(1032, 277);
             this.hotKey.TabIndex = 2;
             this.hotKey.TabStop = false;
-            this.hotKey.Text = "Accep all HotKey";
+            this.hotKey.Text = "Accept all HotKey";
             // 
             // keysSelectionPanel
             // 
@@ -165,7 +165,7 @@
             this.hotKeyEnabled.Name = "hotKeyEnabled";
             this.hotKeyEnabled.Size = new System.Drawing.Size(1012, 36);
             this.hotKeyEnabled.TabIndex = 0;
-            this.hotKeyEnabled.Text = "enabled";
+            this.hotKeyEnabled.Text = "Enabled";
             this.hotKeyEnabled.UseVisualStyleBackColor = true;
             this.hotKeyEnabled.CheckedChanged += new System.EventHandler(this.hotKeyEnabled_CheckedChanged);
             // 

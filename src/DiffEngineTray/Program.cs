@@ -50,7 +50,7 @@ static class Program
 
         notifyIcon.ContextMenuStrip = MenuBuilder.Build(
             Application.Exit,
-            async () => await OptionsFormLauncher.Launch(keyRegister,tracker),
+            async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
             tracker);
 
         Application.Run();

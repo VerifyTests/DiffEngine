@@ -2,7 +2,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-class AsyncTimer   :IAsyncDisposable
+class AsyncTimer :
+    IAsyncDisposable
 {
     Func<DateTime, CancellationToken, Task> callback;
     TimeSpan interval;

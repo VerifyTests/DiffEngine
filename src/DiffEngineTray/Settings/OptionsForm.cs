@@ -8,7 +8,6 @@ using System.Windows.Forms;
 public partial class OptionsForm :
     Form
 {
-    Settings settings= null!;
     Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;
 
     public OptionsForm()
@@ -22,7 +21,6 @@ public partial class OptionsForm :
     public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave):
         this()
     {
-        this.settings = settings;
         this.trySave = trySave;
         var key = settings.AcceptAllHotKey;
         if (key != null)

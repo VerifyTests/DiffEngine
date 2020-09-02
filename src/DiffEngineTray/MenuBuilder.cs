@@ -24,19 +24,21 @@ static class MenuBuilder
         };
         menu.Font = new Font(menu.Font.FontFamily, 10);
         menu.Closed += delegate { CleanTransientMenus(items); };
-        items.Add(BuildOptions(exit, launchOptions));
+        items.Add(new MenuButton("Exit", exit, Images.Exit));
+        items.Add(new MenuButton("Options", launchOptions, Images.Options));
+        items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
+        items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
     }
 
-    static MenuButton BuildOptions(Action exit, Action launchOptions)
+    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
     {
-        var menu = new MenuButton("More", image: Images.Options);
-        menu.AddRange(
-            new MenuButton("Exit", exit, Images.Exit),
-            new MenuButton("Options", launchOptions, Images.Options),
-            new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
-            new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
-        return menu;
+        return items.Cast<ToolStripItem>()
+            .Where(x => x.Text != "Exit" &&
+                        x.Text != "Options" &&
+                        x.Text != "Open logs" &&
+                        x.Text != "Raise issue" )
+            .ToList();
     }
 
     static void DisposePreviousItems()
@@ -56,13 +58,6 @@ static class MenuBuilder
     {
         itemsToCleanup = NonDefaultMenus(items);
         items.RemoveRange(itemsToCleanup);
-    }
-
-    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
-    {
-        return items.Cast<ToolStripItem>()
-            .Where(x => x.Text != "More")
-            .ToList();
     }
 
     static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
