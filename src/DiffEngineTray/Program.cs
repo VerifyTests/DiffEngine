@@ -22,7 +22,7 @@ static class Program
             return;
         }
 
-        using var notifyIcon = new NotifyIcon
+        using var icon = new NotifyIcon
         {
             Icon = Images.Default,
             Visible = true,
@@ -30,25 +30,25 @@ static class Program
         };
 
         await using var tracker = new Tracker(
-            active: () => notifyIcon.Icon = Images.Active,
-            inactive: () => notifyIcon.Icon = Images.Default);
+            active: () => icon.Icon = Images.Active,
+            inactive: () => icon.Icon = Images.Default);
 
         using var task = StartServer(tracker, cancellation);
 
-        using var keyRegister = new KeyRegister(notifyIcon.Handle());
-        var acceptAllHotKey = settings.AcceptAllHotKey;
-        if (acceptAllHotKey != null)
+        using var keyRegister = new KeyRegister(icon.Handle());
+        var acceptHotKey = settings.AcceptAllHotKey;
+        if (acceptHotKey != null)
         {
             keyRegister.TryAddBinding(
                 KeyBindingIds.AcceptAll,
-                acceptAllHotKey.Shift,
-                acceptAllHotKey.Control,
-                acceptAllHotKey.Alt,
-                acceptAllHotKey.Key,
+                acceptHotKey.Shift,
+                acceptHotKey.Control,
+                acceptHotKey.Alt,
+                acceptHotKey.Key,
                 () => tracker.AcceptAll());
         }
 
-        notifyIcon.ContextMenuStrip = MenuBuilder.Build(
+        icon.ContextMenuStrip = MenuBuilder.Build(
             Application.Exit,
             async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
             tracker);
