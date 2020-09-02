@@ -1,4 +1,4 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
@@ -26,7 +26,7 @@ public class OptionsFormTests :
                     Key = "A"
                 }
             },
-            () => Task.FromResult(Enumerable.Empty<string>()));
+            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         form.ShowDialog();
         form.BringToFront();
     }
@@ -43,7 +43,7 @@ public class OptionsFormTests :
                     Key = "A"
                 }
             },
-            () => Task.FromResult(Enumerable.Empty<string>()));
+            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
 
@@ -52,7 +52,7 @@ public class OptionsFormTests :
     {
         using var form = new OptionsForm(
             new Settings(),
-            () => Task.FromResult(Enumerable.Empty<string>()));
+            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
 #endif

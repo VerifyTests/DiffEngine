@@ -9,7 +9,7 @@ public partial class OptionsForm :
     Form
 {
     Settings settings= null!;
-    Func<Task<IEnumerable<string>>> trySave = null!;
+    Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;
 
     public OptionsForm()
     {
@@ -19,7 +19,7 @@ public partial class OptionsForm :
         Icon = Images.Active;
     }
 
-    public OptionsForm(Settings settings, Func<Task<IEnumerable<string>>> trySave):
+    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave):
         this()
     {
         this.settings = settings;
@@ -49,11 +49,12 @@ public partial class OptionsForm :
         keysSelectionPanel.Enabled = hotKeyEnabled.Checked;
     }
 
-    void save_Click(object sender, EventArgs e)
+    async void save_Click(object sender, EventArgs e)
     {
+        var newSettings = new Settings();
         if (hotKeyEnabled.Checked)
         {
-            settings.AcceptAllHotKey = new HotKey
+            newSettings.AcceptAllHotKey = new HotKey
             {
                 Key = (string) keyCombo.SelectedItem,
                 Shift = shift.Checked,
@@ -61,21 +62,20 @@ public partial class OptionsForm :
                 Control = control.Checked
             };
         }
-        else
+
+        var errors = (await trySave(newSettings)).ToList();
+        if (!errors.Any())
         {
-            settings.AcceptAllHotKey = null;
+            DialogResult = DialogResult.OK;
+            return;
         }
 
-        if (!settings.IsValidate(out var errors))
+        var builder = new StringBuilder();
+        foreach (var error in errors)
         {
-            var builder = new StringBuilder();
-            foreach (var error in errors)
-            {
-                builder.AppendLine($" * {error}");
-            }
-
-            MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            builder.AppendLine($" * {error}");
         }
-        DialogResult = DialogResult.OK;
+
+        MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

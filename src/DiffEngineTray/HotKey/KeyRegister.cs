@@ -25,13 +25,30 @@ public class KeyRegister :
         Application.AddMessageFilter(this);
     }
 
+    public bool TryAddBinding(int id, bool shift, bool control, bool alt, string key, Action action)
+    {
+        var modifiers = KeyModifiers.None;
+        if (shift)
+        {
+            modifiers |= KeyModifiers.Shift;
+        }
+
+        if (control)
+        {
+            modifiers |= KeyModifiers.Control;
+        }
+
+        if (alt)
+        {
+            modifiers |= KeyModifiers.Alt;
+        }
+
+        return TryAddBinding(id, modifiers, Enum.Parse<Keys>(key, true), action);
+    }
+
     public bool TryAddBinding(int id, KeyModifiers modifiers, Keys keys, Action action)
     {
-        if (bindings.TryGetValue(id, out _))
-        {
-            UnregisterHotKey(IntPtr.Zero, id);
-            bindings.Remove(id);
-        }
+        ClearBinding(id);
 
         if (RegisterHotKey(handle, id, modifiers, keys))
         {
@@ -55,6 +72,15 @@ public class KeyRegister :
 
         bindings.Add(id, action);
         return true;
+    }
+
+    public void ClearBinding(int id)
+    {
+        if (bindings.TryGetValue(id, out _))
+        {
+            UnregisterHotKey(IntPtr.Zero, id);
+            bindings.Remove(id);
+        }
     }
 
     [PermissionSetAttribute(SecurityAction.LinkDemand, Name = "FullTrust")]

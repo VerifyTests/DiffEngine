@@ -40,15 +40,17 @@ static class Program
         if (acceptAllHotKey != null)
         {
             keyRegister.TryAddBinding(
-                100,
-                KeyModifiers.Control | KeyModifiers.Shift,
-                Keys.A,
+                KeyBindingIds.AcceptAll,
+                acceptAllHotKey.Shift,
+                acceptAllHotKey.Control,
+                acceptAllHotKey.Alt,
+                acceptAllHotKey.Key,
                 () => tracker.AcceptAll());
         }
 
         notifyIcon.ContextMenuStrip = MenuBuilder.Build(
             Application.Exit,
-            async () => await OptionsFormLauncher.Launch(),
+            async () => await OptionsFormLauncher.Launch(keyRegister,tracker),
             tracker);
 
         Application.Run();
