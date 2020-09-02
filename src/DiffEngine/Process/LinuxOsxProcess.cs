@@ -22,13 +22,14 @@ static class LinuxOsxProcess
             }
         };
         process.Start();
-        if (!process.DoubleWaitForExit())
+
+        if (process.DoubleWaitForExit())
         {
-            var timeoutError = $"Process timed out. Command line: kill {processId}.";
-            throw new Exception(timeoutError);
+            return process.ExitCode == 0;
         }
 
-        return process.ExitCode == 0;
+        var timeoutError = $"Process timed out. Command line: kill {processId}.";
+        throw new Exception(timeoutError);
     }
 
     public static IEnumerable<ProcessCommand> FindAll()
@@ -43,6 +44,7 @@ static class LinuxOsxProcess
             {
                 continue;
             }
+
             yield return processCommand!.Value;
         }
     }
@@ -63,15 +65,15 @@ static class LinuxOsxProcess
             var pid = int.Parse(pidString);
 
 
-            var timeAndCommandString = trim.Substring(firstSpace +1);
+            var timeAndCommandString = trim.Substring(firstSpace + 1);
             var multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace);
 
             var startTimeString = timeAndCommandString.Substring(0, multiSpaceIndex)
                 .Trim()
-                .Replace("  "," ");
-            var startTime = DateTime.ParseExact(startTimeString,"ddd MMM d HH:mm:ss yyyy", CultureInfo.CurrentCulture);
+                .Replace("  ", " ");
+            var startTime = DateTime.ParseExact(startTimeString, "ddd MMM d HH:mm:ss yyyy", CultureInfo.CurrentCulture);
 
-            var command = timeAndCommandString.Substring(multiSpaceIndex+1).Trim();
+            var command = timeAndCommandString.Substring(multiSpaceIndex + 1).Trim();
 
             processCommand = new ProcessCommand(command, in pid, in startTime);
             return true;
@@ -111,6 +113,7 @@ Output: {outputBuilder}
 Error: {errorBuilder}";
             throw new Exception(timeoutError);
         }
+
         if (process.ExitCode == 0)
         {
             return outputBuilder.ToString();
@@ -130,6 +133,7 @@ Error: {errorBuilder}";
         {
             process.WaitForExit();
         }
+
         return result;
     }
 }
