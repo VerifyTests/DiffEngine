@@ -10,6 +10,7 @@ static class Program
     {
         Logging.Init();
 
+        var settings = await SettingsHelper.Read();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancellationTokenSource();
@@ -32,38 +33,52 @@ static class Program
             active: () => notifyIcon.Icon = Images.Active,
             inactive: () => notifyIcon.Icon = Images.Default);
 
-        using var task = PiperServer.Start(
+        using var task = StartServer(tracker, cancellation);
+
+        using var keyRegister = new KeyRegister(notifyIcon.Handle());
+        var acceptAllHotKey = settings.AcceptAllHotKey;
+        if (acceptAllHotKey != null)
+        {
+            keyRegister.TryAddBinding(
+                KeyBindingIds.AcceptAll,
+                acceptAllHotKey.Shift,
+                acceptAllHotKey.Control,
+                acceptAllHotKey.Alt,
+                acceptAllHotKey.Key,
+                () => tracker.AcceptAll());
+        }
+
+        notifyIcon.ContextMenuStrip = MenuBuilder.Build(
+            Application.Exit,
+            async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
+            tracker);
+
+        Application.Run();
+        tokenSource.Cancel();
+        await task;
+    }
+
+    static Task StartServer(Tracker tracker, CancellationToken cancellation)
+    {
+        return PiperServer.Start(
             payload =>
             {
                 (int, DateTime)? process = null;
                 if (payload.ProcessId != null &&
-                    payload.ProcessStartTime != null )
+                    payload.ProcessStartTime != null)
                 {
                     process = (payload.ProcessId.Value, payload.ProcessStartTime.Value);
                 }
 
                 tracker.AddMove(
-                        payload.Temp,
-                        payload.Target,
-                        payload.Exe,
-                        payload.Arguments,
-                        payload.CanKill,
-                        process);
+                    payload.Temp,
+                    payload.Target,
+                    payload.Exe,
+                    payload.Arguments,
+                    payload.CanKill,
+                    process);
             },
             payload => tracker.AddDelete(payload.File),
             cancellation);
-        var menu = MenuBuilder.Build(
-            () =>
-            {
-                tokenSource.Cancel();
-                mutex!.Dispose();
-                Environment.Exit(0);
-            },
-            tracker);
-
-        notifyIcon.ContextMenuStrip = menu;
-
-        Application.Run();
-        await task;
     }
 }
