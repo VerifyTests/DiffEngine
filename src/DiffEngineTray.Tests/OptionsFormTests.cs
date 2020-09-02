@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -16,17 +17,16 @@ public class OptionsFormTests :
     [Trait("Category", "Integration")]
     public void Launch()
     {
-        using var form = new OptionsForm
-        {
-            Settings = new Settings
+        using var form = new OptionsForm(
+            new Settings
             {
                 AcceptAllHotKey = new HotKey
                 {
                     Shift = true,
                     Key = "A"
                 }
-            }
-        };
+            },
+            () => Task.FromResult(Enumerable.Empty<string>()));
         form.ShowDialog();
         form.BringToFront();
     }
@@ -34,27 +34,25 @@ public class OptionsFormTests :
     [Fact]
     public async Task WithKeys()
     {
-        using var form = new OptionsForm
-        {
-            Settings = new Settings
+        using var form = new OptionsForm(
+            new Settings
             {
                 AcceptAllHotKey = new HotKey
                 {
                     Shift = true,
                     Key = "A"
                 }
-            }
-        };
+            },
+            () => Task.FromResult(Enumerable.Empty<string>()));
         await Verifier.Verify(form);
     }
 
     [Fact]
     public async Task Default()
     {
-        using var form = new OptionsForm
-        {
-            Settings = new Settings()
-        };
+        using var form = new OptionsForm(
+            new Settings(),
+            () => Task.FromResult(Enumerable.Empty<string>()));
         await Verifier.Verify(form);
     }
 #endif

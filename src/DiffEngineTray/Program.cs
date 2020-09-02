@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,7 +9,7 @@ static class Program
     static async Task Main()
     {
         Logging.Init();
-        
+
         var settings = await SettingsHelper.Read();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
@@ -51,7 +50,6 @@ static class Program
             Application.Exit,
             async () => await OptionsFormLauncher.Launch(),
             tracker);
-
 
         Application.Run();
         tokenSource.Cancel();

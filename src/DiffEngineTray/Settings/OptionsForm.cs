@@ -2,11 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 public partial class OptionsForm :
     Form
 {
+    Settings settings= null!;
+    Func<Task<IEnumerable<string>>> trySave = null!;
+
     public OptionsForm()
     {
         InitializeComponent();
@@ -15,17 +19,12 @@ public partial class OptionsForm :
         Icon = Images.Active;
     }
 
-    public Settings Settings { get; set; } = null!;
-
-    protected override void OnLoad(EventArgs e)
+    public OptionsForm(Settings settings, Func<Task<IEnumerable<string>>> trySave):
+        this()
     {
-        RefreshSettings();
-        base.OnLoad(e);
-    }
-
-    void RefreshSettings()
-    {
-        var key = Settings.AcceptAllHotKey;
+        this.settings = settings;
+        this.trySave = trySave;
+        var key = settings.AcceptAllHotKey;
         if (key != null)
         {
             hotKeyEnabled.Checked = true;
@@ -37,7 +36,7 @@ public partial class OptionsForm :
         }
     }
 
-    IEnumerable<string> GetAlphabet()
+    static IEnumerable<string> GetAlphabet()
     {
         for (var c = 'A'; c <= 'Z'; c++)
         {
@@ -54,7 +53,7 @@ public partial class OptionsForm :
     {
         if (hotKeyEnabled.Checked)
         {
-            Settings.AcceptAllHotKey = new HotKey
+            settings.AcceptAllHotKey = new HotKey
             {
                 Key = (string) keyCombo.SelectedItem,
                 Shift = shift.Checked,
@@ -64,10 +63,10 @@ public partial class OptionsForm :
         }
         else
         {
-            Settings.AcceptAllHotKey = null;
+            settings.AcceptAllHotKey = null;
         }
 
-        if (!Settings.IsValidate(out var errors))
+        if (!settings.IsValidate(out var errors))
         {
             var builder = new StringBuilder();
             foreach (var error in errors)
