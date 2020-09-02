@@ -28,8 +28,8 @@ static class LinuxOsxProcess
             return process.ExitCode == 0;
         }
 
-        var timeoutError = $"Process timed out. Command line: kill {processId}.";
-        throw new Exception(timeoutError);
+        var message = $"Process timed out. Command line: kill {processId}.";
+        throw new Exception(message);
     }
 
     public static IEnumerable<ProcessCommand> FindAll()
