@@ -39,27 +39,30 @@
             this.bottomPanel.Controls.Add(this.save);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.bottomPanel.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.bottomPanel.Location = new System.Drawing.Point(10, 388);
+            this.bottomPanel.Location = new System.Drawing.Point(6, 228);
+            this.bottomPanel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.bottomPanel.Name = "bottomPanel";
-            this.bottomPanel.Size = new System.Drawing.Size(1012, 52);
+            this.bottomPanel.Size = new System.Drawing.Size(351, 33);
             this.bottomPanel.TabIndex = 1;
             // 
             // cancel
             // 
             this.cancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancel.Location = new System.Drawing.Point(859, 3);
+            this.cancel.Location = new System.Drawing.Point(257, 2);
+            this.cancel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.cancel.Name = "cancel";
             this.cancel.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.cancel.Size = new System.Drawing.Size(150, 46);
+            this.cancel.Size = new System.Drawing.Size(92, 29);
             this.cancel.TabIndex = 0;
             this.cancel.Text = "Cancel";
             this.cancel.UseVisualStyleBackColor = true;
             // 
             // save
             // 
-            this.save.Location = new System.Drawing.Point(703, 3);
+            this.save.Location = new System.Drawing.Point(161, 2);
+            this.save.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.save.Name = "save";
-            this.save.Size = new System.Drawing.Size(150, 46);
+            this.save.Size = new System.Drawing.Size(92, 29);
             this.save.TabIndex = 1;
             this.save.Text = "Apply";
             this.save.UseVisualStyleBackColor = true;
@@ -71,10 +74,11 @@
             this.hotKey.Controls.Add(this.keysSelectionPanel);
             this.hotKey.Controls.Add(this.hotKeyEnabled);
             this.hotKey.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKey.Location = new System.Drawing.Point(10, 10);
+            this.hotKey.Location = new System.Drawing.Point(6, 6);
+            this.hotKey.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.hotKey.Name = "hotKey";
-            this.hotKey.Padding = new System.Windows.Forms.Padding(10);
-            this.hotKey.Size = new System.Drawing.Size(1012, 277);
+            this.hotKey.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.hotKey.Size = new System.Drawing.Size(351, 178);
             this.hotKey.TabIndex = 2;
             this.hotKey.TabStop = false;
             this.hotKey.Text = "Accept all HotKey";
@@ -88,10 +92,11 @@
             this.keysSelectionPanel.Controls.Add(this.shift);
             this.keysSelectionPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.keysSelectionPanel.Enabled = false;
-            this.keysSelectionPanel.Location = new System.Drawing.Point(10, 78);
+            this.keysSelectionPanel.Location = new System.Drawing.Point(6, 50);
+            this.keysSelectionPanel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.keysSelectionPanel.Name = "keysSelectionPanel";
-            this.keysSelectionPanel.Padding = new System.Windows.Forms.Padding(10);
-            this.keysSelectionPanel.Size = new System.Drawing.Size(992, 189);
+            this.keysSelectionPanel.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.keysSelectionPanel.Size = new System.Drawing.Size(339, 122);
             this.keysSelectionPanel.TabIndex = 1;
             // 
             // keyPanel
@@ -99,10 +104,11 @@
             this.keyPanel.Controls.Add(this.keyCombo);
             this.keyPanel.Controls.Add(this.keyLabel);
             this.keyPanel.Dock = System.Windows.Forms.DockStyle.Top;
-            this.keyPanel.Location = new System.Drawing.Point(10, 118);
+            this.keyPanel.Location = new System.Drawing.Point(6, 78);
+            this.keyPanel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.keyPanel.Name = "keyPanel";
-            this.keyPanel.Padding = new System.Windows.Forms.Padding(10);
-            this.keyPanel.Size = new System.Drawing.Size(972, 61);
+            this.keyPanel.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.keyPanel.Size = new System.Drawing.Size(327, 38);
             this.keyPanel.TabIndex = 6;
             // 
             // keyCombo
@@ -110,18 +116,20 @@
             this.keyCombo.Dock = System.Windows.Forms.DockStyle.Left;
             this.keyCombo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.keyCombo.FormattingEnabled = true;
-            this.keyCombo.Location = new System.Drawing.Point(68, 10);
+            this.keyCombo.Location = new System.Drawing.Point(42, 6);
+            this.keyCombo.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.keyCombo.Name = "keyCombo";
-            this.keyCombo.Size = new System.Drawing.Size(79, 40);
+            this.keyCombo.Size = new System.Drawing.Size(50, 28);
             this.keyCombo.TabIndex = 5;
             // 
             // keyLabel
             // 
             this.keyLabel.AutoSize = true;
             this.keyLabel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.keyLabel.Location = new System.Drawing.Point(10, 10);
+            this.keyLabel.Location = new System.Drawing.Point(6, 6);
+            this.keyLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.keyLabel.Name = "keyLabel";
-            this.keyLabel.Size = new System.Drawing.Size(58, 32);
+            this.keyLabel.Size = new System.Drawing.Size(36, 20);
             this.keyLabel.TabIndex = 0;
             this.keyLabel.Text = "Key:";
             // 
@@ -129,9 +137,10 @@
             // 
             this.control.AutoSize = true;
             this.control.Dock = System.Windows.Forms.DockStyle.Top;
-            this.control.Location = new System.Drawing.Point(10, 82);
+            this.control.Location = new System.Drawing.Point(6, 54);
+            this.control.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.control.Name = "control";
-            this.control.Size = new System.Drawing.Size(972, 36);
+            this.control.Size = new System.Drawing.Size(327, 24);
             this.control.TabIndex = 4;
             this.control.Text = "Control";
             this.control.UseVisualStyleBackColor = true;
@@ -140,9 +149,10 @@
             // 
             this.alt.AutoSize = true;
             this.alt.Dock = System.Windows.Forms.DockStyle.Top;
-            this.alt.Location = new System.Drawing.Point(10, 46);
+            this.alt.Location = new System.Drawing.Point(6, 30);
+            this.alt.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.alt.Name = "alt";
-            this.alt.Size = new System.Drawing.Size(972, 36);
+            this.alt.Size = new System.Drawing.Size(327, 24);
             this.alt.TabIndex = 1;
             this.alt.Text = "Alt";
             this.alt.UseVisualStyleBackColor = true;
@@ -151,9 +161,10 @@
             // 
             this.shift.AutoSize = true;
             this.shift.Dock = System.Windows.Forms.DockStyle.Top;
-            this.shift.Location = new System.Drawing.Point(10, 10);
+            this.shift.Location = new System.Drawing.Point(6, 6);
+            this.shift.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.shift.Name = "shift";
-            this.shift.Size = new System.Drawing.Size(972, 36);
+            this.shift.Size = new System.Drawing.Size(327, 24);
             this.shift.TabIndex = 0;
             this.shift.Text = "Shift";
             this.shift.UseVisualStyleBackColor = true;
@@ -162,9 +173,10 @@
             // 
             this.hotKeyEnabled.AutoSize = true;
             this.hotKeyEnabled.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKeyEnabled.Location = new System.Drawing.Point(10, 42);
+            this.hotKeyEnabled.Location = new System.Drawing.Point(6, 26);
+            this.hotKeyEnabled.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.hotKeyEnabled.Name = "hotKeyEnabled";
-            this.hotKeyEnabled.Size = new System.Drawing.Size(992, 36);
+            this.hotKeyEnabled.Size = new System.Drawing.Size(339, 24);
             this.hotKeyEnabled.TabIndex = 0;
             this.hotKeyEnabled.Text = "Enabled";
             this.hotKeyEnabled.UseVisualStyleBackColor = true;
@@ -174,10 +186,11 @@
             // 
             this.startupCheckBox.AutoSize = true;
             this.startupCheckBox.Dock = System.Windows.Forms.DockStyle.Top;
-            this.startupCheckBox.Location = new System.Drawing.Point(10, 287);
+            this.startupCheckBox.Location = new System.Drawing.Point(6, 184);
+            this.startupCheckBox.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.startupCheckBox.Name = "startupCheckBox";
-            this.startupCheckBox.Padding = new System.Windows.Forms.Padding(10);
-            this.startupCheckBox.Size = new System.Drawing.Size(1012, 56);
+            this.startupCheckBox.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            this.startupCheckBox.Size = new System.Drawing.Size(351, 36);
             this.startupCheckBox.TabIndex = 3;
             this.startupCheckBox.Text = "Run at startup";
             this.startupCheckBox.UseVisualStyleBackColor = true;
@@ -185,17 +198,18 @@
             // OptionsForm
             // 
             this.AcceptButton = this.save;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 32F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancel;
-            this.ClientSize = new System.Drawing.Size(1032, 450);
+            this.ClientSize = new System.Drawing.Size(363, 267);
             this.Controls.Add(this.startupCheckBox);
             this.Controls.Add(this.hotKey);
             this.Controls.Add(this.bottomPanel);
+            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "OptionsForm";
-            this.Padding = new System.Windows.Forms.Padding(10);
+            this.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.ShowInTaskbar = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Text = "Options";
