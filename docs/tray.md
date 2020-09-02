@@ -61,10 +61,14 @@ Clear will clear all currently tracked items.
 <img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">
 
 
-####
+#### Accept all HotKey
+
+Registers a system wide HotKey to accept all pending changes.
 
 
-####
+#### Run at startup
+
+Runs DiffEngineTray at system startup.
 
 
 ## Currently supported in
