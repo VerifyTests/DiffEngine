@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -9,7 +10,8 @@ static class Program
     static async Task Main()
     {
         Logging.Init();
-
+        
+        var settings = await SettingsHelper.Read();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancellationTokenSource();
@@ -35,7 +37,6 @@ static class Program
         using var task = StartServer(tracker, cancellation);
 
         using var keyRegister = new KeyRegister(notifyIcon.Handle());
-        var settings = await SettingsHelper.Read();
         var acceptAllHotKey = settings.AcceptAllHotKey;
         if (acceptAllHotKey != null)
         {
