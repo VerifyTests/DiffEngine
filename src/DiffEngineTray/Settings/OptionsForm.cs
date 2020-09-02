@@ -32,6 +32,8 @@ public partial class OptionsForm :
             control.Checked = key.Control;
             keyCombo.SelectedItem = key.Key;
         }
+
+        startupCheckBox.Checked = settings.RunAtStartup;
     }
 
     static IEnumerable<string> GetAlphabet()
@@ -49,7 +51,10 @@ public partial class OptionsForm :
 
     async void save_Click(object sender, EventArgs e)
     {
-        var newSettings = new Settings();
+        var newSettings = new Settings
+        {
+            RunAtStartup = startupCheckBox.Checked
+        };
         if (hotKeyEnabled.Checked)
         {
             newSettings.AcceptAllHotKey = new HotKey

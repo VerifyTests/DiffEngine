@@ -25,6 +25,7 @@
             this.alt = new System.Windows.Forms.CheckBox();
             this.shift = new System.Windows.Forms.CheckBox();
             this.hotKeyEnabled = new System.Windows.Forms.CheckBox();
+            this.startupCheckBox = new System.Windows.Forms.CheckBox();
             this.bottomPanel.SuspendLayout();
             this.hotKey.SuspendLayout();
             this.keysSelectionPanel.SuspendLayout();
@@ -38,15 +39,15 @@
             this.bottomPanel.Controls.Add(this.save);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.bottomPanel.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.bottomPanel.Location = new System.Drawing.Point(0, 333);
+            this.bottomPanel.Location = new System.Drawing.Point(10, 388);
             this.bottomPanel.Name = "bottomPanel";
-            this.bottomPanel.Size = new System.Drawing.Size(1032, 52);
+            this.bottomPanel.Size = new System.Drawing.Size(1012, 52);
             this.bottomPanel.TabIndex = 1;
             // 
             // cancel
             // 
             this.cancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancel.Location = new System.Drawing.Point(879, 3);
+            this.cancel.Location = new System.Drawing.Point(859, 3);
             this.cancel.Name = "cancel";
             this.cancel.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.cancel.Size = new System.Drawing.Size(150, 46);
@@ -56,7 +57,7 @@
             // 
             // save
             // 
-            this.save.Location = new System.Drawing.Point(723, 3);
+            this.save.Location = new System.Drawing.Point(703, 3);
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(150, 46);
             this.save.TabIndex = 1;
@@ -70,10 +71,10 @@
             this.hotKey.Controls.Add(this.keysSelectionPanel);
             this.hotKey.Controls.Add(this.hotKeyEnabled);
             this.hotKey.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKey.Location = new System.Drawing.Point(0, 0);
+            this.hotKey.Location = new System.Drawing.Point(10, 10);
             this.hotKey.Name = "hotKey";
             this.hotKey.Padding = new System.Windows.Forms.Padding(10);
-            this.hotKey.Size = new System.Drawing.Size(1032, 277);
+            this.hotKey.Size = new System.Drawing.Size(1012, 277);
             this.hotKey.TabIndex = 2;
             this.hotKey.TabStop = false;
             this.hotKey.Text = "Accept all HotKey";
@@ -90,7 +91,7 @@
             this.keysSelectionPanel.Location = new System.Drawing.Point(10, 78);
             this.keysSelectionPanel.Name = "keysSelectionPanel";
             this.keysSelectionPanel.Padding = new System.Windows.Forms.Padding(10);
-            this.keysSelectionPanel.Size = new System.Drawing.Size(1012, 189);
+            this.keysSelectionPanel.Size = new System.Drawing.Size(992, 189);
             this.keysSelectionPanel.TabIndex = 1;
             // 
             // keyPanel
@@ -101,7 +102,7 @@
             this.keyPanel.Location = new System.Drawing.Point(10, 118);
             this.keyPanel.Name = "keyPanel";
             this.keyPanel.Padding = new System.Windows.Forms.Padding(10);
-            this.keyPanel.Size = new System.Drawing.Size(992, 61);
+            this.keyPanel.Size = new System.Drawing.Size(972, 61);
             this.keyPanel.TabIndex = 6;
             // 
             // keyCombo
@@ -130,7 +131,7 @@
             this.control.Dock = System.Windows.Forms.DockStyle.Top;
             this.control.Location = new System.Drawing.Point(10, 82);
             this.control.Name = "control";
-            this.control.Size = new System.Drawing.Size(992, 36);
+            this.control.Size = new System.Drawing.Size(972, 36);
             this.control.TabIndex = 4;
             this.control.Text = "Control";
             this.control.UseVisualStyleBackColor = true;
@@ -141,7 +142,7 @@
             this.alt.Dock = System.Windows.Forms.DockStyle.Top;
             this.alt.Location = new System.Drawing.Point(10, 46);
             this.alt.Name = "alt";
-            this.alt.Size = new System.Drawing.Size(992, 36);
+            this.alt.Size = new System.Drawing.Size(972, 36);
             this.alt.TabIndex = 1;
             this.alt.Text = "Alt";
             this.alt.UseVisualStyleBackColor = true;
@@ -152,7 +153,7 @@
             this.shift.Dock = System.Windows.Forms.DockStyle.Top;
             this.shift.Location = new System.Drawing.Point(10, 10);
             this.shift.Name = "shift";
-            this.shift.Size = new System.Drawing.Size(992, 36);
+            this.shift.Size = new System.Drawing.Size(972, 36);
             this.shift.TabIndex = 0;
             this.shift.Text = "Shift";
             this.shift.UseVisualStyleBackColor = true;
@@ -163,11 +164,23 @@
             this.hotKeyEnabled.Dock = System.Windows.Forms.DockStyle.Top;
             this.hotKeyEnabled.Location = new System.Drawing.Point(10, 42);
             this.hotKeyEnabled.Name = "hotKeyEnabled";
-            this.hotKeyEnabled.Size = new System.Drawing.Size(1012, 36);
+            this.hotKeyEnabled.Size = new System.Drawing.Size(992, 36);
             this.hotKeyEnabled.TabIndex = 0;
             this.hotKeyEnabled.Text = "Enabled";
             this.hotKeyEnabled.UseVisualStyleBackColor = true;
             this.hotKeyEnabled.CheckedChanged += new System.EventHandler(this.hotKeyEnabled_CheckedChanged);
+            // 
+            // startupCheckBox
+            // 
+            this.startupCheckBox.AutoSize = true;
+            this.startupCheckBox.Dock = System.Windows.Forms.DockStyle.Top;
+            this.startupCheckBox.Location = new System.Drawing.Point(10, 287);
+            this.startupCheckBox.Name = "startupCheckBox";
+            this.startupCheckBox.Padding = new System.Windows.Forms.Padding(10);
+            this.startupCheckBox.Size = new System.Drawing.Size(1012, 56);
+            this.startupCheckBox.TabIndex = 3;
+            this.startupCheckBox.Text = "Run at startup";
+            this.startupCheckBox.UseVisualStyleBackColor = true;
             // 
             // OptionsForm
             // 
@@ -175,12 +188,14 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(13F, 32F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancel;
-            this.ClientSize = new System.Drawing.Size(1032, 385);
+            this.ClientSize = new System.Drawing.Size(1032, 450);
+            this.Controls.Add(this.startupCheckBox);
             this.Controls.Add(this.hotKey);
             this.Controls.Add(this.bottomPanel);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "OptionsForm";
+            this.Padding = new System.Windows.Forms.Padding(10);
             this.ShowInTaskbar = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Text = "Options";
@@ -207,4 +222,5 @@
     private System.Windows.Forms.CheckBox hotKeyEnabled;
     private System.Windows.Forms.Panel keyPanel;
     private System.Windows.Forms.Label keyLabel;
+    private System.Windows.Forms.CheckBox startupCheckBox;
 }

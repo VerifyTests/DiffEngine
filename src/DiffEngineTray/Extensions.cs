@@ -22,11 +22,6 @@ static class Extensions
         }
     }
 
-    public static void AddRange(this ToolStripMenuItem target, params ToolStripItem[] items)
-    {
-        target.DropDownItems.AddRange(items);
-    }
-
     public static void AddRange(this ToolStripSplitButton target, params ToolStripItem[] items)
     {
         target.DropDownItems.AddRange(items);

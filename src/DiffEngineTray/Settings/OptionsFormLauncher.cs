@@ -28,6 +28,14 @@ static class OptionsFormLauncher
                     }
                 }
 
+                if (newSettings.RunAtStartup)
+                {
+                    Startup.Add();
+                }
+                else
+                {
+                    Startup.Remove();
+                }
                 await SettingsHelper.Write(newSettings);
                 return new List<string>();
             });

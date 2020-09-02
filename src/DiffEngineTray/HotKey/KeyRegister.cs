@@ -48,39 +48,21 @@ public class KeyRegister :
 
     public bool TryAddBinding(int id, KeyModifiers modifiers, Keys keys, Action action)
     {
-        ClearBinding(id);
+        var unregisterHotKey = UnregisterHotKey(handle, id);
 
-        if (RegisterHotKey(handle, id, modifiers, keys))
-        {
-            bindings.Add(id, action);
-            return true;
-        }
-
-        // If the operation failed, try to unregister the
-        // HotKey if the thread has registered it before.
-
-        // IntPtr.Zero means the HotKey registered by the thread.
-        UnregisterHotKey(IntPtr.Zero, id);
-
-        // Try to register the HotKey again.
-        // If the operation still failed, it means that the HotKey
-        // was already used in another thread or process.
         if (!RegisterHotKey(handle, id, modifiers, keys))
         {
             return false;
         }
 
-        bindings.Add(id, action);
+        bindings[id] = action;
         return true;
     }
 
     public void ClearBinding(int id)
     {
-        if (bindings.TryGetValue(id, out _))
-        {
-            UnregisterHotKey(IntPtr.Zero, id);
-            bindings.Remove(id);
-        }
+        bindings.Remove(id);
+        UnregisterHotKey(handle, id);
     }
 
     [PermissionSetAttribute(SecurityAction.LinkDemand, Name = "FullTrust")]

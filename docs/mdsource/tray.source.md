@@ -49,6 +49,21 @@ Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop do
 Clear will clear all currently tracked items.
 
 
+### Options
+
+<img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">
+
+
+#### Accept all HotKey
+
+Registers a system wide HotKey to accept all pending changes.
+
+
+#### Run at startup
+
+Runs DiffEngineTray at system startup.
+
+
 ## Currently supported in
 
  * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
