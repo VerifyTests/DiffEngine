@@ -30,7 +30,7 @@ public class LinuxOsxProcessTests :
     [Fact]
     public void TryParse_singleDigit()
     {
-        var parse = LinuxOsxProcess.TryParse("309 Thu Aug 6 02:17:40 2020     System/Library/coreauthd -foo", out var command);
+        var parse = LinuxOsxProcess.TryParse("309 Thu Aug  6 02:17:40 2020     System/Library/coreauthd -foo", out var command);
         Assert.True(parse);
         var processCommand = command!.Value;
         Assert.Equal(309, processCommand.Process);

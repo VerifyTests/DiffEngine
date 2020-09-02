@@ -64,12 +64,14 @@ static class LinuxOsxProcess
 
 
             var timeAndCommandString = trim.Substring(firstSpace +1);
-            var doubleSpaceIndex = timeAndCommandString.IndexOf("  ", firstSpace);
+            var multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace);
 
-            var startTimeString = timeAndCommandString.Substring(0, doubleSpaceIndex).Trim();
+            var startTimeString = timeAndCommandString.Substring(0, multiSpaceIndex)
+                .Trim()
+                .Replace("  "," ");
             var startTime = DateTime.ParseExact(startTimeString,"ddd MMM d HH:mm:ss yyyy", CultureInfo.CurrentCulture);
 
-            var command = timeAndCommandString.Substring(doubleSpaceIndex+1).Trim();
+            var command = timeAndCommandString.Substring(multiSpaceIndex+1).Trim();
 
             processCommand = new ProcessCommand(command, in pid, in startTime);
             return true;
