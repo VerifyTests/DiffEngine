@@ -67,7 +67,7 @@ static class LinuxOsxProcess
             var doubleSpaceIndex = timeAndCommandString.IndexOf("  ", firstSpace);
 
             var startTimeString = timeAndCommandString.Substring(0, doubleSpaceIndex).Trim();
-            var startTime = DateTime.ParseExact(startTimeString,"ddd MMM dd HH:mm:ss yyyy", CultureInfo.CurrentCulture);
+            var startTime = DateTime.ParseExact(startTimeString,"ddd MMM d HH:mm:ss yyyy", CultureInfo.CurrentCulture);
 
             var command = timeAndCommandString.Substring(doubleSpaceIndex+1).Trim();
 
@@ -76,7 +76,7 @@ static class LinuxOsxProcess
         }
         catch (Exception exception)
         {
-            throw new Exception($"Could not parser command: {line}", exception);
+            throw new Exception($"Could not parse command: {line}", exception);
         }
     }
 
