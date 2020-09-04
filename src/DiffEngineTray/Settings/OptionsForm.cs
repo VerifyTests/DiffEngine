@@ -13,8 +13,6 @@ public partial class OptionsForm :
     public OptionsForm()
     {
         InitializeComponent();
-        keyCombo.Items.AddRange(GetAlphabet().ToArray());
-
         Icon = Images.Active;
     }
 
@@ -25,12 +23,11 @@ public partial class OptionsForm :
         var key = settings.AcceptAllHotKey;
         if (key != null)
         {
-            hotKeyEnabled.Checked = true;
-            keysSelectionPanel.Enabled = true;
-            shift.Checked = key.Shift;
-            alt.Checked = key.Alt;
-            control.Checked = key.Control;
-            keyCombo.SelectedItem = key.Key;
+            hotKey.KeyEnabled = true;
+            hotKey.IsShift =key.Shift;
+            hotKey.IsAlt =key.Alt;
+            hotKey.IsControl = key.Control;
+            hotKey.Key = key.Key;
         }
 
         startupCheckBox.Checked = settings.RunAtStartup;
@@ -44,25 +41,20 @@ public partial class OptionsForm :
         }
     }
 
-    void hotKeyEnabled_CheckedChanged(object sender, EventArgs e)
-    {
-        keysSelectionPanel.Enabled = hotKeyEnabled.Checked;
-    }
-
     async void save_Click(object sender, EventArgs e)
     {
         var newSettings = new Settings
         {
             RunAtStartup = startupCheckBox.Checked
         };
-        if (hotKeyEnabled.Checked)
+        if (hotKey.KeyEnabled)
         {
             newSettings.AcceptAllHotKey = new HotKey
             {
-                Key = (string) keyCombo.SelectedItem,
-                Shift = shift.Checked,
-                Alt = alt.Checked,
-                Control = control.Checked
+                Key = hotKey.Key!,
+                Shift = hotKey.IsShift,
+                Alt = hotKey.IsAlt,
+                Control = hotKey.IsControl
             };
         }
 

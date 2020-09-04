@@ -19,7 +19,7 @@ public class HotKeyControlTests :
         using var target = new HotKeyControl()
         {
             IsShift = true,
-            Key = 'A',
+            Key = "A",
             KeyEnabled = true
         };
         await Verifier.Verify(target);

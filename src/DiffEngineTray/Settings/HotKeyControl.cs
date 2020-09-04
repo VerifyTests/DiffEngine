@@ -11,9 +11,9 @@ public partial class HotKeyControl :
         keyCombo.Items.AddRange(GetAlphabet().ToArray());
     }
 
-    public char? Key
+    public string? Key
     {
-        get => (char?) keyCombo.SelectedItem;
+        get => (string?) keyCombo.SelectedItem;
         set => keyCombo.SelectedItem = value;
     }
 
@@ -41,11 +41,11 @@ public partial class HotKeyControl :
         set => control.Checked = value;
     }
 
-    static IEnumerable<object> GetAlphabet()
+    static IEnumerable<string> GetAlphabet()
     {
         for (var c = 'A'; c <= 'Z'; c++)
         {
-            yield return c;
+            yield return c.ToString();
         }
     }
 
