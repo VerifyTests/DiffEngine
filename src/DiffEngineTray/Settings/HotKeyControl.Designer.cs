@@ -31,11 +31,11 @@
             this.keyPanel = new System.Windows.Forms.Panel();
             this.keyCombo = new System.Windows.Forms.ComboBox();
             this.keyLabel = new System.Windows.Forms.Label();
-            this.hotKeyEnabled = new System.Windows.Forms.CheckBox();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.control = new System.Windows.Forms.CheckBox();
             this.alt = new System.Windows.Forms.CheckBox();
             this.shift = new System.Windows.Forms.CheckBox();
+            this.hotKeyEnabled = new System.Windows.Forms.CheckBox();
             this.hotKey.SuspendLayout();
             this.keysSelectionPanel.SuspendLayout();
             this.keyPanel.SuspendLayout();
@@ -100,18 +100,6 @@
             this.keyLabel.TabIndex = 0;
             this.keyLabel.Text = "Key:";
             // 
-            // hotKeyEnabled
-            // 
-            this.hotKeyEnabled.AutoSize = true;
-            this.hotKeyEnabled.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKeyEnabled.Location = new System.Drawing.Point(9, 37);
-            this.hotKeyEnabled.Name = "hotKeyEnabled";
-            this.hotKeyEnabled.Size = new System.Drawing.Size(611, 34);
-            this.hotKeyEnabled.TabIndex = 0;
-            this.hotKeyEnabled.Text = "Enabled";
-            this.hotKeyEnabled.UseVisualStyleBackColor = true;
-            this.hotKeyEnabled.CheckedChanged += new System.EventHandler(this.hotKeyEnabled_CheckedChanged);
-            // 
             // flowLayoutPanel1
             // 
             this.flowLayoutPanel1.AutoSize = true;
@@ -156,6 +144,18 @@
             this.shift.TabIndex = 5;
             this.shift.Text = "Shift";
             this.shift.UseVisualStyleBackColor = true;
+            // 
+            // hotKeyEnabled
+            // 
+            this.hotKeyEnabled.AutoSize = true;
+            this.hotKeyEnabled.Dock = System.Windows.Forms.DockStyle.Top;
+            this.hotKeyEnabled.Location = new System.Drawing.Point(9, 37);
+            this.hotKeyEnabled.Name = "hotKeyEnabled";
+            this.hotKeyEnabled.Size = new System.Drawing.Size(611, 34);
+            this.hotKeyEnabled.TabIndex = 0;
+            this.hotKeyEnabled.Text = "Enabled";
+            this.hotKeyEnabled.UseVisualStyleBackColor = true;
+            this.hotKeyEnabled.CheckedChanged += new System.EventHandler(this.hotKeyEnabled_CheckedChanged);
             // 
             // HotKeyControl
             // 
