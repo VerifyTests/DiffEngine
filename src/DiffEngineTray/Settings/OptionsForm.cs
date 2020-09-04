@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,9 +15,10 @@ public partial class OptionsForm :
     {
         InitializeComponent();
         Icon = Images.Active;
+        versionLabel.Text = $"Version: {VersionReader.VersionString}";
     }
 
-    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave):
+    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave) :
         this()
     {
         this.trySave = trySave;
@@ -24,21 +26,13 @@ public partial class OptionsForm :
         if (key != null)
         {
             hotKey.KeyEnabled = true;
-            hotKey.IsShift =key.Shift;
-            hotKey.IsAlt =key.Alt;
+            hotKey.IsShift = key.Shift;
+            hotKey.IsAlt = key.Alt;
             hotKey.IsControl = key.Control;
             hotKey.Key = key.Key;
         }
 
         startupCheckBox.Checked = settings.RunAtStartup;
-    }
-
-    static IEnumerable<string> GetAlphabet()
-    {
-        for (var c = 'A'; c <= 'Z'; c++)
-        {
-            yield return c.ToString();
-        }
     }
 
     async void save_Click(object sender, EventArgs e)
@@ -72,5 +66,15 @@ public partial class OptionsForm :
         }
 
         MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    void diffEngineLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+    {
+        LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine");
+    }
+
+    void trayDocsLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+    {
+        LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine/blob/master/docs/tray.md");
     }
 }

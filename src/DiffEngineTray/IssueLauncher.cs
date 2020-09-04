@@ -18,17 +18,7 @@ static class IssueLauncher
 
     public static void Launch()
     {
-        LaunchUrl($"https://github.com/VerifyTests/DiffEngine/issues/new?title=TODO&body={defaultBody}");
-    }
-
-    static void LaunchUrl(string url)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            UseShellExecute = true,
-            FileName = url
-        };
-        using var process = Process.Start(startInfo);
+        LinkLauncher.LaunchUrl($"https://github.com/VerifyTests/DiffEngine/issues/new?title=TODO&body={defaultBody}");
     }
 
     public static void LaunchForException(string message, Exception exception)
@@ -62,6 +52,6 @@ Open an issue on GitHub?",
 {exception}
 ```");
         var url = $"https://github.com/VerifyTests/DiffEngine/issues/new?title={message}&body={defaultBody}{extraBody}";
-        LaunchUrl(url);
+        LinkLauncher.LaunchUrl(url);
     }
 }
