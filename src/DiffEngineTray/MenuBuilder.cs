@@ -37,7 +37,7 @@ static class MenuBuilder
             .Where(x => x.Text != "Exit" &&
                         x.Text != "Options" &&
                         x.Text != "Open logs" &&
-                        x.Text != "Raise issue" )
+                        x.Text != "Raise issue")
             .ToList();
     }
 
@@ -67,14 +67,23 @@ static class MenuBuilder
             yield break;
         }
 
-        yield return new MenuButton("Clear", tracker.Clear, Images.Clear);
         var deletes = tracker.Deletes
             .OrderBy(x => x.File)
             .ToList();
+
+        var moves = tracker.Moves
+            .OrderBy(x => x.Temp)
+            .ToList();
+        var count = moves.Count + deletes.Count;
+
+        yield return new ToolStripSeparator();
+
+        yield return new MenuButton($"Clear ({count})", tracker.Clear, Images.Clear);
+
         if (deletes.Any())
         {
             yield return new ToolStripSeparator();
-            yield return new MenuButton("Pending Deletes:", tracker.AcceptAllDeletes, Images.Delete);
+            yield return new MenuButton($"Pending Deletes ({deletes.Count}):", tracker.AcceptAllDeletes, Images.Delete);
             foreach (var delete in deletes)
             {
                 var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
@@ -85,13 +94,10 @@ static class MenuBuilder
             }
         }
 
-        var moves = tracker.Moves
-            .OrderBy(x => x.Temp)
-            .ToList();
         if (moves.Any())
         {
             yield return new ToolStripSeparator();
-            yield return new MenuButton("Pending Moves:", tracker.AcceptAllMoves, Images.Accept);
+            yield return new MenuButton($"Pending Moves ({moves.Count}):", tracker.AcceptAllMoves, Images.Accept);
             foreach (var move in moves)
             {
                 var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
@@ -104,6 +110,6 @@ static class MenuBuilder
         }
 
         yield return new ToolStripSeparator();
-        yield return new MenuButton("Accept all", tracker.AcceptAll, Images.AcceptAll);
+        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
     }
 }
