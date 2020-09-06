@@ -49,6 +49,12 @@ public partial class HotKeyControl :
         set => hotKey.Text = value;
     }
 
+    public string? Help
+    {
+        get => (string?)helpLabel.Text;
+        set => helpLabel.Text = value;
+    }
+
     static IEnumerable<string> GetAlphabet()
     {
         for (var c = 'A'; c <= 'Z'; c++)

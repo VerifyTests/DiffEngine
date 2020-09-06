@@ -34,15 +34,15 @@
             this.bottomPanel.Controls.Add(this.save);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.bottomPanel.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.bottomPanel.Location = new System.Drawing.Point(9, 618);
+            this.bottomPanel.Location = new System.Drawing.Point(9, 767);
             this.bottomPanel.Name = "bottomPanel";
-            this.bottomPanel.Size = new System.Drawing.Size(582, 50);
+            this.bottomPanel.Size = new System.Drawing.Size(755, 50);
             this.bottomPanel.TabIndex = 1;
             // 
             // cancel
             // 
             this.cancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancel.Location = new System.Drawing.Point(441, 3);
+            this.cancel.Location = new System.Drawing.Point(614, 3);
             this.cancel.Name = "cancel";
             this.cancel.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.cancel.Size = new System.Drawing.Size(138, 44);
@@ -52,7 +52,7 @@
             // 
             // save
             // 
-            this.save.Location = new System.Drawing.Point(297, 3);
+            this.save.Location = new System.Drawing.Point(470, 3);
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(138, 44);
             this.save.TabIndex = 1;
@@ -64,12 +64,13 @@
             // 
             this.acceptAllHotKey.AutoSize = true;
             this.acceptAllHotKey.Dock = System.Windows.Forms.DockStyle.Top;
+            this.acceptAllHotKey.Help = "Accepts all pending deletes and pending moves";
             this.acceptAllHotKey.HotKey = null;
             this.acceptAllHotKey.Label = "Accept all HotKey";
             this.acceptAllHotKey.Location = new System.Drawing.Point(9, 9);
             this.acceptAllHotKey.Margin = new System.Windows.Forms.Padding(4);
             this.acceptAllHotKey.Name = "acceptAllHotKey";
-            this.acceptAllHotKey.Size = new System.Drawing.Size(582, 195);
+            this.acceptAllHotKey.Size = new System.Drawing.Size(755, 225);
             this.acceptAllHotKey.TabIndex = 2;
             this.acceptAllHotKey.TabStop = false;
             // 
@@ -77,10 +78,10 @@
             // 
             this.startupCheckBox.AutoSize = true;
             this.startupCheckBox.Dock = System.Windows.Forms.DockStyle.Top;
-            this.startupCheckBox.Location = new System.Drawing.Point(9, 399);
+            this.startupCheckBox.Location = new System.Drawing.Point(9, 459);
             this.startupCheckBox.Name = "startupCheckBox";
             this.startupCheckBox.Padding = new System.Windows.Forms.Padding(9);
-            this.startupCheckBox.Size = new System.Drawing.Size(582, 52);
+            this.startupCheckBox.Size = new System.Drawing.Size(755, 52);
             this.startupCheckBox.TabIndex = 3;
             this.startupCheckBox.Text = "Run at startup";
             this.startupCheckBox.UseVisualStyleBackColor = true;
@@ -92,10 +93,10 @@
             this.groupBox1.Controls.Add(this.trayDocsLink);
             this.groupBox1.Controls.Add(this.diffEngineLink);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox1.Location = new System.Drawing.Point(9, 451);
+            this.groupBox1.Location = new System.Drawing.Point(9, 511);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(10);
-            this.groupBox1.Size = new System.Drawing.Size(582, 138);
+            this.groupBox1.Size = new System.Drawing.Size(755, 138);
             this.groupBox1.TabIndex = 5;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "More information:";
@@ -138,12 +139,13 @@
             // 
             this.acceptOpenHotKey.AutoSize = true;
             this.acceptOpenHotKey.Dock = System.Windows.Forms.DockStyle.Top;
+            this.acceptOpenHotKey.Help = "Accepts all peding deletes and pending moves with an open diff tool";
             this.acceptOpenHotKey.HotKey = null;
             this.acceptOpenHotKey.Label = "Accept all open HotKey";
-            this.acceptOpenHotKey.Location = new System.Drawing.Point(9, 204);
+            this.acceptOpenHotKey.Location = new System.Drawing.Point(9, 234);
             this.acceptOpenHotKey.Margin = new System.Windows.Forms.Padding(4);
             this.acceptOpenHotKey.Name = "acceptOpenHotKey";
-            this.acceptOpenHotKey.Size = new System.Drawing.Size(582, 195);
+            this.acceptOpenHotKey.Size = new System.Drawing.Size(755, 225);
             this.acceptOpenHotKey.TabIndex = 6;
             this.acceptOpenHotKey.TabStop = false;
             // 
@@ -153,7 +155,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 30F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.cancel;
-            this.ClientSize = new System.Drawing.Size(600, 677);
+            this.ClientSize = new System.Drawing.Size(773, 826);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.startupCheckBox);
             this.Controls.Add(this.bottomPanel);
