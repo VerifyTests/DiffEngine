@@ -143,7 +143,7 @@ namespace DiffEngine
             {
                 if (tool.AutoRefresh)
                 {
-                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process, processCommand.StartTime);
+                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -156,7 +156,7 @@ namespace DiffEngine
             var instanceCount = Interlocked.Increment(ref launchedInstances);
             if (instanceCount > maxInstancesToLaunch)
             {
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null, null);
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
@@ -175,7 +175,7 @@ namespace DiffEngine
                     throw new Exception(message);
                 }
 
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, process.Id, process.StartTime);
+                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, process.Id);
                 return LaunchResult.StartedNewInstance;
             }
             catch (Exception exception)

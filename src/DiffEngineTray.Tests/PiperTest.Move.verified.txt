@@ -4,6 +4,5 @@
   Exe: 'theExe',
   Arguments: 'TheArguments "s"',
   CanKill: true,
-  ProcessId: 10,
-  ProcessStartTime: DateTime_1
+  ProcessId: 10
 }
