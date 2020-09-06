@@ -21,8 +21,8 @@ public partial class OptionsForm :
         this()
     {
         this.trySave = trySave;
-        hotKey.HotKey = settings.AcceptAllHotKey;
-
+        acceptAllHotKey.HotKey = settings.AcceptAllHotKey;
+        acceptOpenHotKey.HotKey = settings.AcceptOpenHotKey;
         startupCheckBox.Checked = settings.RunAtStartup;
     }
 
@@ -31,7 +31,7 @@ public partial class OptionsForm :
         var newSettings = new Settings
         {
             RunAtStartup = startupCheckBox.Checked,
-            AcceptAllHotKey = hotKey.HotKey
+            AcceptAllHotKey = acceptAllHotKey.HotKey
         };
 
         var errors = (await trySave(newSettings)).ToList();

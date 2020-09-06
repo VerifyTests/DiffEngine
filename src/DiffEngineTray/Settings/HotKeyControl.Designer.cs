@@ -164,7 +164,7 @@
             this.Controls.Add(this.hotKey);
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "HotKeyControl";
-            this.Size = new System.Drawing.Size(629, 231);
+            this.Size = new System.Drawing.Size(629, 221);
             this.hotKey.ResumeLayout(false);
             this.hotKey.PerformLayout();
             this.keysSelectionPanel.ResumeLayout(false);
