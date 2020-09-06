@@ -81,7 +81,7 @@ static class LinuxOsxProcess
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        const string? arguments = "-o pid,lstart,command -x";
+        const string? arguments = "-o pid,command -x";
         using var process = new Process
         {
             StartInfo = new ProcessStartInfo
