@@ -192,23 +192,41 @@ class Tracker :
     public void Clear()
     {
         deletes.Clear();
+
+        foreach (var move in moves.Values)
+        {
+            move.Process?.Dispose();
+        }
+
         moves.Clear();
+    }
+
+    public void AcceptOpen()
+    {
+        AcceptAllDeletes();
+
+        foreach (var (key, move) in moves)
+        {
+            if (move.Process == null)
+            {
+                continue;
+            }
+
+            if (move.Process.HasExited)
+            {
+                continue;
+            }
+
+            InnerMove(move);
+            moves.Remove(key, out _);
+        }
     }
 
     public void AcceptAll()
     {
-        foreach (var delete in deletes.Values)
-        {
-            File.Delete(delete.File);
-        }
+        AcceptAllDeletes();
 
-        deletes.Clear();
-        foreach (var move in moves.Values)
-        {
-            InnerMove(move);
-        }
-
-        moves.Clear();
+        AcceptAllMoves();
     }
 
     public void AcceptAllDeletes()
@@ -243,10 +261,7 @@ class Tracker :
 
     public ValueTask DisposeAsync()
     {
-        foreach (var move in moves.Values)
-        {
-            move.Process?.Dispose();
-        }
+        Clear();
         return timer.DisposeAsync();
     }
 }

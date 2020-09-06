@@ -16,11 +16,13 @@ public class HotKeyControlTests :
     [Fact]
     public async Task WithKeys()
     {
-        using var target = new HotKeyControl()
+        using var target = new HotKeyControl
         {
-            IsShift = true,
-            Key = "A",
-            KeyEnabled = true
+            HotKey = new HotKey
+            {
+                Shift = true,
+                Key = "A"
+            }
         };
         await Verifier.Verify(target);
     }

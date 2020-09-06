@@ -36,6 +36,7 @@
             this.alt = new System.Windows.Forms.CheckBox();
             this.shift = new System.Windows.Forms.CheckBox();
             this.hotKeyEnabled = new System.Windows.Forms.CheckBox();
+            this.helpLabel = new System.Windows.Forms.Label();
             this.hotKey.SuspendLayout();
             this.keysSelectionPanel.SuspendLayout();
             this.keyPanel.SuspendLayout();
@@ -45,13 +46,15 @@
             // hotKey
             // 
             this.hotKey.AutoSize = true;
+            this.hotKey.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.hotKey.Controls.Add(this.keysSelectionPanel);
             this.hotKey.Controls.Add(this.hotKeyEnabled);
+            this.hotKey.Controls.Add(this.helpLabel);
             this.hotKey.Dock = System.Windows.Forms.DockStyle.Top;
             this.hotKey.Location = new System.Drawing.Point(0, 0);
             this.hotKey.Name = "hotKey";
             this.hotKey.Padding = new System.Windows.Forms.Padding(9);
-            this.hotKey.Size = new System.Drawing.Size(629, 195);
+            this.hotKey.Size = new System.Drawing.Size(629, 225);
             this.hotKey.TabIndex = 3;
             this.hotKey.TabStop = false;
             this.hotKey.Text = "HotKey Label";
@@ -63,7 +66,7 @@
             this.keysSelectionPanel.Controls.Add(this.flowLayoutPanel1);
             this.keysSelectionPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.keysSelectionPanel.Enabled = false;
-            this.keysSelectionPanel.Location = new System.Drawing.Point(9, 71);
+            this.keysSelectionPanel.Location = new System.Drawing.Point(9, 101);
             this.keysSelectionPanel.Name = "keysSelectionPanel";
             this.keysSelectionPanel.Padding = new System.Windows.Forms.Padding(9);
             this.keysSelectionPanel.Size = new System.Drawing.Size(611, 115);
@@ -149,13 +152,23 @@
             // 
             this.hotKeyEnabled.AutoSize = true;
             this.hotKeyEnabled.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKeyEnabled.Location = new System.Drawing.Point(9, 37);
+            this.hotKeyEnabled.Location = new System.Drawing.Point(9, 67);
             this.hotKeyEnabled.Name = "hotKeyEnabled";
             this.hotKeyEnabled.Size = new System.Drawing.Size(611, 34);
             this.hotKeyEnabled.TabIndex = 0;
             this.hotKeyEnabled.Text = "Enabled";
             this.hotKeyEnabled.UseVisualStyleBackColor = true;
             this.hotKeyEnabled.CheckedChanged += new System.EventHandler(this.hotKeyEnabled_CheckedChanged);
+            // 
+            // helpLabel
+            // 
+            this.helpLabel.AutoSize = true;
+            this.helpLabel.Dock = System.Windows.Forms.DockStyle.Top;
+            this.helpLabel.Location = new System.Drawing.Point(9, 37);
+            this.helpLabel.Name = "helpLabel";
+            this.helpLabel.Size = new System.Drawing.Size(56, 30);
+            this.helpLabel.TabIndex = 2;
+            this.helpLabel.Text = "Help";
             // 
             // HotKeyControl
             // 
@@ -164,7 +177,7 @@
             this.Controls.Add(this.hotKey);
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "HotKeyControl";
-            this.Size = new System.Drawing.Size(629, 231);
+            this.Size = new System.Drawing.Size(629, 259);
             this.hotKey.ResumeLayout(false);
             this.hotKey.PerformLayout();
             this.keysSelectionPanel.ResumeLayout(false);
@@ -190,4 +203,5 @@
     private System.Windows.Forms.CheckBox control;
     private System.Windows.Forms.CheckBox alt;
     private System.Windows.Forms.CheckBox shift;
+    private System.Windows.Forms.Label helpLabel;
 }
