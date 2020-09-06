@@ -6,6 +6,9 @@ static class ProcessLauncher
 {
     public static void Launch(TrackedMove move)
     {
+        move.Process?.Dispose();
+        move.Process = null;
+
         var startInfo = new ProcessStartInfo(move.Exe, move.Arguments)
         {
             UseShellExecute = true
@@ -16,7 +19,7 @@ static class ProcessLauncher
             var process = Process.Start(startInfo);
             if (process != null)
             {
-                move.AddProcess(process);
+                move.Process = process;
                 return;
             }
 

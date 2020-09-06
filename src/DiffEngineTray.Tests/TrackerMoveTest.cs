@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -37,7 +36,7 @@ public class TrackerMoveTest :
         var processId = process.Id;
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, processId);
         Assert.Equal(1, tracker.Moves.Count);
-        Assert.Equal(process.Id, tracked.Processes.Single().Id);
+        Assert.Equal(process.Id, tracked.Process!.Id);
         Assert.True(tracker.TrackingAny);
     }
 

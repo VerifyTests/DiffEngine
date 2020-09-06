@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -9,7 +8,8 @@ class TrackedMove
         string target,
         string exe,
         string arguments,
-        bool canKill)
+        bool canKill,
+        Process? process)
     {
         Temp = temp;
         Target = target;
@@ -18,6 +18,7 @@ class TrackedMove
         Name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(target));
         Extension = Path.GetExtension(target).TrimStart('.');
         CanKill = canKill;
+        Process = process;
     }
 
     public string Extension { get; }
@@ -27,15 +28,5 @@ class TrackedMove
     public string Exe { get; }
     public string Arguments { get; }
     public bool CanKill { get; }
-
-    public void AddProcess(int id)
-    {
-        var process = Process.GetProcessById(id);
-        AddProcess(process);
-    }
-    public void AddProcess(Process process)
-    {
-        Processes.Add(process);
-    }
-    public List<Process> Processes = new List<Process>();
+    public Process? Process { get; set; }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -31,17 +32,12 @@ class Tracker :
             });
     }
 
-    async Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
+    Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
     {
         foreach (var delete in deletes.ToList()
             .Where(delete => !File.Exists(delete.Value.File)))
         {
             deletes.TryRemove(delete.Key, out _);
-        }
-
-        foreach (var move in moves.ToList())
-        {
-            await HandleScanMove(move);
         }
 
         var newCount = moves.Count + deletes.Count;
@@ -51,6 +47,7 @@ class Tracker :
         }
 
         lastScanCount = newCount;
+        return Task.WhenAll(moves.Select(HandleScanMove));
     }
 
     async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
@@ -108,26 +105,21 @@ class Tracker :
         bool canKill,
         int? processId)
     {
+        Process? process = null;
+        if (processId != null)
+        {
+            ProcessEx.TryGet(processId.Value, out process);
+        }
+
+        var move = new TrackedMove(temp, target, exe, arguments, canKill, process);
+
         return moves.AddOrUpdate(
             target,
-            addValueFactory: s =>
-            {
-                var move = new TrackedMove(temp, target, exe, arguments, canKill);
-                if (processId.HasValue)
-                {
-                    move.AddProcess(processId.Value);
-                }
-
-                return move;
-            },
+            addValueFactory: s => move,
             updateValueFactory: (s, existing) =>
             {
-                if (processId.HasValue)
-                {
-                    existing.AddProcess(processId.Value);
-                }
-
-                return existing;
+                existing.Process?.Dispose();
+                return move;
             });
     }
 
@@ -173,16 +165,13 @@ class Tracker :
             return;
         }
 
-        if (!move.Processes.Any())
+        if (move.Process == null)
         {
             Log.Information($"No processes to kill for `{move.Temp}`");
             return;
         }
 
-        foreach (var process in move.Processes)
-        {
-            KillProcess(move, process);
-        }
+        KillProcess(move, move.Process);
     }
 
     static void KillProcess(TrackedMove move, Process process)
@@ -256,5 +245,23 @@ class Tracker :
     public ValueTask DisposeAsync()
     {
         return timer.DisposeAsync();
+    }
+}
+
+static class ProcessEx
+{
+    public static bool TryGet(int id, [NotNullWhen(true)] out Process? process)
+    {
+        try
+        {
+            process = Process.GetProcessById(id);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            //If process doesnt exists
+            process = null;
+            return false;
+        }
     }
 }
