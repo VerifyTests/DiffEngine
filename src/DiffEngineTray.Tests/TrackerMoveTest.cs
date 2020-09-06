@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -33,9 +33,11 @@ public class TrackerMoveTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
-        var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, (1, DateTime.Now));
+        using var process = Process.GetCurrentProcess();
+        var processId = process.Id;
+        var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, processId);
         Assert.Equal(1, tracker.Moves.Count);
-        Assert.Equal(1, tracked.Processes.Single().id);
+        Assert.Equal(process.Id, tracked.Processes.Single().Id);
         Assert.True(tracker.TrackingAny);
     }
 

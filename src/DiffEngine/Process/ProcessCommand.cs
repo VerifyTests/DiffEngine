@@ -16,17 +16,11 @@ namespace DiffEngine
         /// </summary>
         public int Process { get; }
 
-        /// <summary>
-        /// The process StartTime.
-        /// </summary>
-        public DateTime StartTime { get; }
-
-        public ProcessCommand(string command, in int process, in DateTime startTime)
+        public ProcessCommand(string command, in int process)
         {
             Guard.AgainstNullOrEmpty(command, nameof(command));
             Command = command;
             Process = process;
-            StartTime = startTime;
         }
     }
 }

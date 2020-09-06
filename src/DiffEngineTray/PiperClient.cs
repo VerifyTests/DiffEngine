@@ -27,7 +27,6 @@ static class PiperClient
         string arguments,
         bool canKill,
         int? processId,
-        DateTime? processStartTime,
         CancellationToken cancellation = default)
     {
         var builder = new StringBuilder($@"{{
@@ -42,12 +41,6 @@ static class PiperClient
         {
             builder.AppendLine(",");
             builder.AppendLine($"\"ProcessId\":{processId}");
-        }
-
-        if (processStartTime != null)
-        {
-            builder.AppendLine(",");
-            builder.AppendLine($"\"ProcessStartTime\":\"{processStartTime.Value:O}\"");
         }
 
         builder.Append('}');

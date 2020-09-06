@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using Serilog;
 
@@ -10,14 +11,24 @@ static class ProcessLauncher
             UseShellExecute = true
         };
 
-        using var process = Process.Start(startInfo);
-        if (process != null)
+        try
         {
-            move.AddProcess(process.Id, process.StartTime);
-            return;
-        }
-        var message = $@"Failed to launch diff tool.
+            var process = Process.Start(startInfo);
+            if (process != null)
+            {
+                move.AddProcess(process);
+                return;
+            }
+
+            var message = $@"Failed to launch diff tool.
 {move.Exe} {move.Arguments}";
-        Log.Error(message);
+            Log.Error(message);
+        }
+        catch (Exception exception)
+        {
+            var message = $@"Failed to launch diff tool.
+{move.Exe} {move.Arguments}";
+            Log.Error(exception, message);
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -74,12 +75,11 @@ class Tracker :
             return;
         }
 
-        if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
+        if (await FileComparer.FilesAreEqual(move.Temp, move.Target))
         {
+            RemoveAndKill(pair);
             return;
         }
-
-        RemoveAndKill(pair);
     }
 
     void ToggleActive()
@@ -106,25 +106,25 @@ class Tracker :
         string exe,
         string arguments,
         bool canKill,
-        (int id, DateTime startTime)? process)
+        int? processId)
     {
         return moves.AddOrUpdate(
             target,
             addValueFactory: s =>
             {
                 var move = new TrackedMove(temp, target, exe, arguments, canKill);
-                if (process.HasValue)
+                if (processId.HasValue)
                 {
-                    move.AddProcess(process.Value);
+                    move.AddProcess(processId.Value);
                 }
 
                 return move;
             },
             updateValueFactory: (s, existing) =>
             {
-                if (process.HasValue)
+                if (processId.HasValue)
                 {
-                    existing.AddProcess(process.Value);
+                    existing.AddProcess(processId.Value);
                 }
 
                 return existing;
@@ -179,33 +179,25 @@ class Tracker :
             return;
         }
 
-        foreach (var (id, startTime) in move.Processes)
+        foreach (var process in move.Processes)
         {
-            KillProcess(move, id, startTime);
+            KillProcess(move, process);
         }
     }
 
-    static void KillProcess(TrackedMove move, int id, DateTime startTime)
+    static void KillProcess(TrackedMove move, Process process)
     {
-        if (!ProcessEx.TryGet(id, out var process))
-        {
-            Log.Information($"Did not kill for `{move.Temp}` since processId {id} not found");
-            return;
-        }
-
-        if (startTime != process.StartTime)
-        {
-            Log.Information($"Did not kill {id} for `{move.Temp}` since move.ProcessStartTime ({startTime}) does not equal process.StartTime ({process.StartTime})");
-            return;
-        }
-
         try
         {
             process.Kill();
         }
         catch (Exception exception)
         {
-            ExceptionHandler.Handle($"Failed to kill {id}. Command: {move.Exe} {move.Arguments}", exception);
+            ExceptionHandler.Handle($"Failed to kill {process.Id}. Command: {move.Exe} {move.Arguments}", exception);
+        }
+        finally
+        {
+            process.Dispose();
         }
     }
 

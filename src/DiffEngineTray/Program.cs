@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -63,20 +62,13 @@ static class Program
         return PiperServer.Start(
             payload =>
             {
-                (int, DateTime)? process = null;
-                if (payload.ProcessId != null &&
-                    payload.ProcessStartTime != null)
-                {
-                    process = (payload.ProcessId.Value, payload.ProcessStartTime.Value);
-                }
-
                 tracker.AddMove(
                     payload.Temp,
                     payload.Target,
                     payload.Exe,
                     payload.Arguments,
                     payload.CanKill,
-                    process);
+                    payload.ProcessId);
             },
             payload => tracker.AddDelete(payload.File),
             cancellation);

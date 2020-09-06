@@ -33,7 +33,7 @@ static class WindowsProcess
     public static IEnumerable<ProcessCommand> FindAll()
     {
         const string? wmiQuery = @"
-select CommandLine, ProcessId, CreationDate
+select CommandLine, ProcessId
 from Win32_Process
 where CommandLine like '% %.%.%'";
         using var searcher = new ManagementObjectSearcher(wmiQuery);
@@ -42,10 +42,8 @@ where CommandLine like '% %.%.%'";
         {
             var command = (string) process["CommandLine"];
             var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
-            var creationDateString = (string) process["CreationDate"];
-            var creationDate = ManagementDateTimeConverter.ToDateTime(creationDateString);
             process.Dispose();
-            yield return new ProcessCommand(command, id, creationDate);
+            yield return new ProcessCommand(command, id);
         }
     }
 }

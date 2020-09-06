@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 
 class TrackedMove
@@ -28,13 +28,14 @@ class TrackedMove
     public string Arguments { get; }
     public bool CanKill { get; }
 
-    public void AddProcess((int id, DateTime startTime) process)
+    public void AddProcess(int id)
+    {
+        var process = Process.GetProcessById(id);
+        AddProcess(process);
+    }
+    public void AddProcess(Process process)
     {
         Processes.Add(process);
     }
-    public void AddProcess(int id, DateTime startTime)
-    {
-        Processes.Add((id, startTime));
-    }
-    public List<( int id, DateTime startTime)> Processes = new List<(int id, DateTime startTime)>();
+    public List<Process> Processes = new List<Process>();
 }
