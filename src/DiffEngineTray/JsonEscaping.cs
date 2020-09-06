@@ -6,6 +6,7 @@ static class JsonEscaping
     {
         var c = src[i];
         return c < 32 || c == '"' || c == '\\'
+
                ||
                // Broken lead surrogate
                c >= '\uD800' &&
@@ -28,7 +29,7 @@ static class JsonEscaping
 
     public static string JsonEscape(this string contents)
     {
-        var builder = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
 
         var start = 0;
         for (var i = 0; i < contents.Length; i++)
@@ -38,8 +39,7 @@ static class JsonEscaping
                 continue;
             }
             builder.Append(contents, start, i - start);
-            var content = contents[i];
-            switch (content)
+            switch (contents[i])
             {
                 case '\b':
                     builder.Append("\\b");
@@ -67,7 +67,7 @@ static class JsonEscaping
                     break;
                 default:
                     builder.Append("\\u");
-                    builder.Append(((int) content).ToString("x04"));
+                    builder.Append(((int) contents[i]).ToString("x04"));
                     break;
             }
 

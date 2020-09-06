@@ -21,7 +21,7 @@ static class FileComparer
             useAsync: true);
     }
 
-   public static async Task<bool> FilesAreEqual(string file1, string file2)
+    public static async Task<bool> FilesAreEqual(string file1, string file2)
     {
         if (!FilesAreSameSize(file1, file2))
         {
@@ -41,8 +41,8 @@ static class FileComparer
 
         while (true)
         {
-            var t1 = ReadBufferAsync(stream1, buffer1);
-            await ReadBufferAsync(stream2, buffer2);
+            var t1 = ReadBuffer(stream1, buffer1);
+            await ReadBuffer(stream2, buffer2);
 
             var count = await t1;
 
@@ -63,7 +63,7 @@ static class FileComparer
         }
     }
 
-    static async Task<int> ReadBufferAsync(Stream stream, byte[] buffer)
+    static async Task<int> ReadBuffer(Stream stream, byte[] buffer)
     {
         var bytesRead = 0;
         while (bytesRead < buffer.Length)
