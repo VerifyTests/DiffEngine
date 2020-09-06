@@ -6,7 +6,6 @@ static class JsonEscaping
     {
         var c = src[i];
         return c < 32 || c == '"' || c == '\\'
-
                ||
                // Broken lead surrogate
                c >= '\uD800' &&
@@ -29,47 +28,51 @@ static class JsonEscaping
 
     public static string JsonEscape(this string contents)
     {
-        StringBuilder builder = new StringBuilder();
+        var builder = new StringBuilder();
 
         var start = 0;
         for (var i = 0; i < contents.Length; i++)
-            if (NeedEscape(contents, i))
+        {
+            if (!NeedEscape(contents, i))
             {
-                builder.Append(contents, start, i - start);
-                switch (contents[i])
-                {
-                    case '\b':
-                        builder.Append("\\b");
-                        break;
-                    case '\f':
-                        builder.Append("\\f");
-                        break;
-                    case '\n':
-                        builder.Append("\\n");
-                        break;
-                    case '\r':
-                        builder.Append("\\r");
-                        break;
-                    case '\t':
-                        builder.Append("\\t");
-                        break;
-                    case '\"':
-                        builder.Append("\\\"");
-                        break;
-                    case '\\':
-                        builder.Append("\\\\");
-                        break;
-                    case '/':
-                        builder.Append("\\/");
-                        break;
-                    default:
-                        builder.Append("\\u");
-                        builder.Append(((int) contents[i]).ToString("x04"));
-                        break;
-                }
-
-                start = i + 1;
+                continue;
             }
+            builder.Append(contents, start, i - start);
+            var content = contents[i];
+            switch (content)
+            {
+                case '\b':
+                    builder.Append("\\b");
+                    break;
+                case '\f':
+                    builder.Append("\\f");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\t':
+                    builder.Append("\\t");
+                    break;
+                case '\"':
+                    builder.Append("\\\"");
+                    break;
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '/':
+                    builder.Append("\\/");
+                    break;
+                default:
+                    builder.Append("\\u");
+                    builder.Append(((int) content).ToString("x04"));
+                    break;
+            }
+
+            start = i + 1;
+        }
 
         builder.Append(contents, start, contents.Length - start);
         return builder.ToString();
