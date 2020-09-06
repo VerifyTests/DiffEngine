@@ -21,15 +21,7 @@ public partial class OptionsForm :
         this()
     {
         this.trySave = trySave;
-        var key = settings.AcceptAllHotKey;
-        if (key != null)
-        {
-            hotKey.KeyEnabled = true;
-            hotKey.IsShift = key.Shift;
-            hotKey.IsAlt = key.Alt;
-            hotKey.IsControl = key.Control;
-            hotKey.Key = key.Key;
-        }
+        hotKey.HotKey = settings.AcceptAllHotKey;
 
         startupCheckBox.Checked = settings.RunAtStartup;
     }
@@ -38,18 +30,9 @@ public partial class OptionsForm :
     {
         var newSettings = new Settings
         {
-            RunAtStartup = startupCheckBox.Checked
+            RunAtStartup = startupCheckBox.Checked,
+            AcceptAllHotKey = hotKey.HotKey
         };
-        if (hotKey.KeyEnabled)
-        {
-            newSettings.AcceptAllHotKey = new HotKey
-            {
-                Key = hotKey.Key!,
-                Shift = hotKey.IsShift,
-                Alt = hotKey.IsAlt,
-                Control = hotKey.IsControl
-            };
-        }
 
         var errors = (await trySave(newSettings)).ToList();
         if (!errors.Any())

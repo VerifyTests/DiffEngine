@@ -63,11 +63,6 @@
             // 
             this.hotKey.AutoSize = true;
             this.hotKey.Dock = System.Windows.Forms.DockStyle.Top;
-            this.hotKey.IsAlt = false;
-            this.hotKey.IsControl = false;
-            this.hotKey.IsShift = false;
-            this.hotKey.Key = null;
-            this.hotKey.KeyEnabled = false;
             this.hotKey.Label = "Accept all HotKey";
             this.hotKey.Location = new System.Drawing.Point(9, 9);
             this.hotKey.Margin = new System.Windows.Forms.Padding(4);

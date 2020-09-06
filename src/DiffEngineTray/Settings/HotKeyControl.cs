@@ -11,40 +11,42 @@ public partial class HotKeyControl :
         keyCombo.Items.AddRange(GetAlphabet().ToArray());
     }
 
-    public string? Key
+    public HotKey? HotKey
     {
-        get => (string?) keyCombo.SelectedItem;
-        set => keyCombo.SelectedItem = value;
+        get
+        {
+            if (!hotKeyEnabled.Checked)
+            {
+                return null;
+            }
+
+            return new HotKey
+            {
+                Shift = shift.Checked,
+                Control = control.Checked,
+                Alt = alt.Checked,
+                Key = (string) keyCombo.SelectedItem
+            };
+        }
+        set
+        {
+            if (value == null)
+            {
+                return;
+            }
+
+            hotKeyEnabled.Checked = true;
+            keyCombo.SelectedItem = value.Key;
+            shift.Checked = value.Shift;
+            control.Checked = value.Control;
+            alt.Checked = value.Alt;
+        }
     }
 
     public string? Label
     {
         get => (string?)hotKey.Text;
         set => hotKey.Text = value;
-    }
-
-    public bool KeyEnabled
-    {
-        get => hotKeyEnabled.Checked;
-        set => hotKeyEnabled.Checked = value;
-    }
-
-    public bool IsShift
-    {
-        get => shift.Checked;
-        set => shift.Checked = value;
-    }
-
-    public bool IsAlt
-    {
-        get => alt.Checked;
-        set => alt.Checked = value;
-    }
-
-    public bool IsControl
-    {
-        get => control.Checked;
-        set => control.Checked = value;
     }
 
     static IEnumerable<string> GetAlphabet()
