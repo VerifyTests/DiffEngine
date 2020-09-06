@@ -23,7 +23,7 @@
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
     <PackageReference Include="ProjectDefaults" Version="1.0.43" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
-    <!-- not sure why, but the below are needing to allo the donet tool to resovle the assemblies -->
+    <!-- not sure why, but the below are needing so donet tool can resovle the assemblies -->
     <PackageReference Include="System.Globalization.Extensions" Version="4.3.0" PrivateAssets="none" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />

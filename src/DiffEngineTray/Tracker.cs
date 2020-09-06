@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -244,24 +243,10 @@ class Tracker :
 
     public ValueTask DisposeAsync()
     {
+        foreach (var move in moves.Values)
+        {
+            move.Process?.Dispose();
+        }
         return timer.DisposeAsync();
-    }
-}
-
-static class ProcessEx
-{
-    public static bool TryGet(int id, [NotNullWhen(true)] out Process? process)
-    {
-        try
-        {
-            process = Process.GetProcessById(id);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            //If process doesnt exists
-            process = null;
-            return false;
-        }
     }
 }

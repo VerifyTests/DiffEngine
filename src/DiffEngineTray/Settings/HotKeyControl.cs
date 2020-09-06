@@ -17,6 +17,12 @@ public partial class HotKeyControl :
         set => keyCombo.SelectedItem = value;
     }
 
+    public string? Label
+    {
+        get => (string?)hotKey.Text;
+        set => hotKey.Text = value;
+    }
+
     public bool KeyEnabled
     {
         get => hotKeyEnabled.Checked;

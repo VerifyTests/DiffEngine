@@ -68,10 +68,11 @@
             this.hotKey.IsShift = false;
             this.hotKey.Key = null;
             this.hotKey.KeyEnabled = false;
+            this.hotKey.Label = "Accept all HotKey";
             this.hotKey.Location = new System.Drawing.Point(9, 9);
             this.hotKey.Margin = new System.Windows.Forms.Padding(4);
             this.hotKey.Name = "hotKey";
-            this.hotKey.Size = new System.Drawing.Size(582, 257);
+            this.hotKey.Size = new System.Drawing.Size(582, 195);
             this.hotKey.TabIndex = 2;
             this.hotKey.TabStop = false;
             // 
@@ -79,7 +80,7 @@
             // 
             this.startupCheckBox.AutoSize = true;
             this.startupCheckBox.Dock = System.Windows.Forms.DockStyle.Top;
-            this.startupCheckBox.Location = new System.Drawing.Point(9, 266);
+            this.startupCheckBox.Location = new System.Drawing.Point(9, 204);
             this.startupCheckBox.Name = "startupCheckBox";
             this.startupCheckBox.Padding = new System.Windows.Forms.Padding(9);
             this.startupCheckBox.Size = new System.Drawing.Size(582, 52);
@@ -94,7 +95,7 @@
             this.groupBox1.Controls.Add(this.trayDocsLink);
             this.groupBox1.Controls.Add(this.diffEngineLink);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox1.Location = new System.Drawing.Point(9, 318);
+            this.groupBox1.Location = new System.Drawing.Point(9, 256);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(10);
             this.groupBox1.Size = new System.Drawing.Size(582, 138);
