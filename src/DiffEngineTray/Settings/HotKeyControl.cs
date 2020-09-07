@@ -43,15 +43,15 @@ public partial class HotKeyControl :
         }
     }
 
-    public string? Label
+    public string Label
     {
-        get => (string?)hotKey.Text;
-        set => hotKey.Text = value;
+        get => hotKeyEnabled.Text;
+        set => hotKeyEnabled.Text = value;
     }
 
     public string? Help
     {
-        get => (string?)helpLabel.Text;
+        get => (string?) helpLabel.Text;
         set => helpLabel.Text = value;
     }
 
