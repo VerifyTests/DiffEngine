@@ -83,6 +83,6 @@ To report a security vulnerability, use the [Tidelift security contact](https://
 
 ## Icons
 
-[Engine](https://thenounproject.com/term/engine/3358421/) designed by [Ian Rahmadi Kurniawan](https://thenounproject.com/irk.aminin/) from [The Noun Project](https://thenounproject.com).
+[Gears](https://thenounproject.com/term/gear/172042/) designed by [Gregor Cresnar](https://thenounproject.com/grega.cresnar/) from [The Noun Project](https://thenounproject.com).
 
 Tray icons from [LineIcons](https://lineicons.com/icons/).
