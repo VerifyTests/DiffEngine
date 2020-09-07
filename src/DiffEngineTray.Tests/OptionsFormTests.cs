@@ -13,23 +13,23 @@ public class OptionsFormTests :
     {
     }
 
-    [Fact]
-    [Trait("Category", "Integration")]
-    public void Launch()
-    {
-        using var form = new OptionsForm(
-            new Settings
-            {
-                AcceptAllHotKey = new HotKey
-                {
-                    Shift = true,
-                    Key = "A"
-                }
-            },
-            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
-        form.ShowDialog();
-        form.BringToFront();
-    }
+    //[Fact]
+    //[Trait("Category", "Integration")]
+    //public void Launch()
+    //{
+    //    using var form = new OptionsForm(
+    //        new Settings
+    //        {
+    //            AcceptAllHotKey = new HotKey
+    //            {
+    //                Shift = true,
+    //                Key = "A"
+    //            }
+    //        },
+    //        x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
+    //    form.ShowDialog();
+    //    form.BringToFront();
+    //}
 #if DEBUG
     [Fact]
     public async Task WithKeys()
