@@ -7,8 +7,7 @@ static class ToolsOrder
 {
     public static IEnumerable<Definition> Sort(bool throwForNoTool, IEnumerable<DiffTool> order)
     {
-        var allTools = Definitions.Tools()
-            .ToList();
+        var allTools = Definitions.Tools.ToList();
         foreach (var diffTool in order)
         {
             var definition = allTools.SingleOrDefault(x => x.Tool == diffTool);

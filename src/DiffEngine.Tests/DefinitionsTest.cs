@@ -14,10 +14,8 @@ public class DefinitionsTest :
         var md = Path.Combine(SourceDirectory, "diffToolList.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
-        var tools = Definitions
-            .Tools();
 
-        foreach (var tool in tools
+        foreach (var tool in Definitions.Tools
             .OrderBy(x => x.Tool.ToString()))
         {
             AddToolLink(writer, tool);
@@ -36,7 +34,7 @@ public class DefinitionsTest :
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        foreach (var tool in Definitions.Tools())
+        foreach (var tool in Definitions.Tools)
         {
             AddToolLink(writer, tool);
         }
@@ -48,10 +46,8 @@ public class DefinitionsTest :
         var md = Path.Combine(SourceDirectory, "diffTools.include.md");
         File.Delete(md);
         using var writer = File.CreateText(md);
-        var tools = Definitions
-            .Tools();
 
-        foreach (var tool in tools
+        foreach (var tool in Definitions.Tools
             .OrderBy(x => x.Tool.ToString()))
         {
             writer.WriteLine($@"

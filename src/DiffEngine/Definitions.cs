@@ -2,9 +2,11 @@
 
 static class Definitions
 {
-    internal static List<Definition> Tools()
+    public static IReadOnlyList<Definition> Tools { get; }
+
+    static Definitions()
     {
-        return new List<Definition>
+        Tools = new List<Definition>
         {
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),
