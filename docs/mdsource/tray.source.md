@@ -54,14 +54,25 @@ Clear will clear all currently tracked items.
 <img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">
 
 
-#### Accept all HotKey
-
-Registers a system wide HotKey to accept all pending changes.
-
-
 #### Run at startup
 
 Runs DiffEngineTray at system startup.
+
+
+#### Accept all HotKey
+
+Registers a system wide HotKey to accept pending:
+
+ * Deletes 
+ * Moves
+
+
+#### Accept all open HotKey
+
+Registers a system wide HotKey to accept pending:
+
+ * Deletes 
+ * Moves that are currently open in a diff tool
 
 
 ## Currently supported in
