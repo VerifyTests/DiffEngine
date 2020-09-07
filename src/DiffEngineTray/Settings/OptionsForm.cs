@@ -31,7 +31,8 @@ public partial class OptionsForm :
         var newSettings = new Settings
         {
             RunAtStartup = startupCheckBox.Checked,
-            AcceptAllHotKey = acceptAllHotKey.HotKey
+            AcceptAllHotKey = acceptAllHotKey.HotKey,
+            AcceptOpenHotKey = acceptOpenHotKey.HotKey
         };
 
         var errors = (await trySave(newSettings)).ToList();
