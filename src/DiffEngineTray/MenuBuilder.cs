@@ -88,7 +88,7 @@ static class MenuBuilder
             {
                 var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
                 menu.AddRange(
-                    new MenuButton("Accept change", () => tracker.Accept(delete)),
+                    new MenuButton("Accept delete", () => tracker.Accept(delete)),
                     new MenuButton("Open directory", () => ExplorerLauncher.ShowFileInExplorer(delete.File)));
                 yield return menu;
             }
@@ -102,8 +102,8 @@ static class MenuBuilder
             {
                 var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
                 menu.AddRange(
-                    new MenuButton("Accept change", () => tracker.Accept(move)),
-                    new MenuButton("Launch diff tool", () => ProcessLauncher.Launch(move)),
+                    new MenuButton("Accept move", () => tracker.Accept(move)),
+                    new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)),
                     new MenuButton("Open directory", () => ExplorerLauncher.ShowFileInExplorer(move.Temp)));
                 yield return menu;
             }

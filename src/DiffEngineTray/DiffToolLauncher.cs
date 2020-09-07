@@ -1,12 +1,33 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Serilog;
 
-static class ProcessLauncher
+static class DiffToolLauncher
 {
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
     public static void Launch(TrackedMove move)
     {
-        move.Process?.Dispose();
+        var process = move.Process;
+        if (process != null)
+        {
+            if (!process.HasExited)
+            {
+                if (SetForegroundWindow(process.MainWindowHandle))
+                {
+                    return;
+                }
+            }
+        }
+
+        if (move.CanKill)
+        {
+            process?.Kill();
+        }
+
+        process?.Dispose();
         move.Process = null;
 
         var startInfo = new ProcessStartInfo(move.Exe, move.Arguments)
@@ -16,7 +37,7 @@ static class ProcessLauncher
 
         try
         {
-            var process = Process.Start(startInfo);
+            process = Process.Start(startInfo);
             if (process != null)
             {
                 move.Process = process;
