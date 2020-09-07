@@ -12,7 +12,7 @@ static class IssueLauncher
     static IssueLauncher()
     {
         defaultBody = WebUtility.UrlEncode($@" * DiffEngineTray Version: {VersionReader.VersionString}
- * Windows Version: {Environment.OSVersion.VersionString}");
+ * OS: {Environment.OSVersion.VersionString}");
     }
 
     public static void Launch()
@@ -39,7 +39,7 @@ Open an issue on GitHub?",
             "DiffEngineTray Error",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Error);
-        if (result != DialogResult.Yes)
+        if (result == DialogResult.No)
         {
             return;
         }
