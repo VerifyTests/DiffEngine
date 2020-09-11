@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,6 +27,15 @@ static class Program
             Icon = Images.Default,
             Visible = true,
             Text = "DiffEngine"
+        };
+
+        var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        icon.MouseUp += (sender, args) =>
+        {
+            if (args.Button == MouseButtons.Left)
+            {
+                showMenu.Invoke(icon, null);
+            }
         };
 
         await using var tracker = new Tracker(
