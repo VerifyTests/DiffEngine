@@ -18,7 +18,7 @@ static class ToolsOrder
                     continue;
                 }
 
-                throw new Exception($"`DiffEngine.ToolOrder` is configured to use '{diffTool}' but it is not installed.");
+                throw new Exception($"`DiffEngine_ToolOrder` is configured to use '{diffTool}' but it is not installed.");
             }
 
             yield return definition;

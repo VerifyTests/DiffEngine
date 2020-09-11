@@ -19,7 +19,7 @@ namespace DiffEngine
 
         static int GetMaxInstances()
         {
-            var variable = Environment.GetEnvironmentVariable("DiffEngine.MaxInstances");
+            var variable = EnvironmentEx.GetEnvironmentVariable("DiffEngine_MaxInstances");
             if (string.IsNullOrEmpty(variable))
             {
                 return 5;
@@ -30,13 +30,13 @@ namespace DiffEngine
                 return result;
             }
 
-            throw new Exception($"Could not parse the DiffEngine.MaxInstances environment variable: {variable}");
+            throw new Exception($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
 
         }
 
         static bool IsDisable()
         {
-            var variable = Environment.GetEnvironmentVariable("DiffEngine.Disabled");
+            var variable = EnvironmentEx.GetEnvironmentVariable("DiffEngine_Disabled");
             return string.Equals(variable, "true", StringComparison.OrdinalIgnoreCase) ||
                    BuildServerDetector.Detected ||
                    ContinuousTestingDetector.Detected;

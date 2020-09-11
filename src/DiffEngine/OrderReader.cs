@@ -19,13 +19,13 @@ static class OrderReader
 
     public static Result ReadToolOrder()
     {
-        var diffOrder = Environment.GetEnvironmentVariable("DiffEngine.ToolOrder");
+        var diffOrder = EnvironmentEx.GetEnvironmentVariable("DiffEngine_ToolOrder");
 
         var found = !string.IsNullOrWhiteSpace(diffOrder);
         IEnumerable<DiffTool> order;
         if (found)
         {
-            order = ParseEnvironment(diffOrder);
+            order = ParseEnvironment(diffOrder!);
         }
         else
         {
@@ -42,7 +42,7 @@ static class OrderReader
         {
             if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
             {
-                throw new Exception($"Unable to parse tool from `DiffEngine.ToolOrder` environment variable: {toolString}");
+                throw new Exception($"Unable to parse tool from `DiffEngine_ToolOrder` environment variable: {toolString}");
             }
 
             yield return diffTool;
