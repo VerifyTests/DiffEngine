@@ -51,8 +51,7 @@ namespace DiffEngine
             bool autoRefresh,
             string[] binaryExtensions,
             bool requiresTarget,
-            bool supportsText,
-            bool shellExecute)
+            bool supportsText)
         {
             Guard.FileExists(exePath, nameof(exePath));
             Guard.AgainstNullOrEmpty(name, nameof(name));
