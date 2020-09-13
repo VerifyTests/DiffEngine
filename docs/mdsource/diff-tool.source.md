@@ -44,7 +44,7 @@ This value can be changed:
 
 ### Using an environment variable
 
-Setting the `DiffEngine.MaxInstances` environment variable to the number of instances to launch.
+Setting the `DiffEngine_MaxInstances` environment variable to the number of instances to launch.
 
 
 ### Using code

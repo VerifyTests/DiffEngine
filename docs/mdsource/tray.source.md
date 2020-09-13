@@ -74,6 +74,10 @@ Registers a system wide HotKey to accept pending:
  * Deletes 
  * Moves that are currently open in a diff tool
 
+To limit impact on system resources, the [default max concurrent open tool instances is limited to 5](/docs/diff-tool.md#maxinstancestolaunch).
+
+Accept all open HotKey allows the current batch of open diffs to be accepted.
+
 
 ## Currently supported in
 

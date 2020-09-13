@@ -73,7 +73,7 @@ Supports:
 
 ## Disable for a machine/process
 
-Set an environment variable `DiffEngine.Disabled` with the value `true`.
+Set an environment variable `DiffEngine_Disabled` with the value `true`.
 
 
 ## Security contact information

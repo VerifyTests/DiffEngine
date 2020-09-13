@@ -12,7 +12,6 @@ static class MenuBuilder
     {
         var menu = new ContextMenuStrip();
         var items = menu.Items;
-
         menu.Opening += delegate
         {
             DisposePreviousItems();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,5 +60,17 @@ public partial class OptionsForm :
     void trayDocsLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
     {
         LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine/blob/master/docs/tray.md");
+    }
+
+    void updateButton_Click(object sender, EventArgs e)
+    {
+        var info = new ProcessStartInfo(
+            "dotnet",
+            "tool update --global DiffEngineTray")
+        {
+            UseShellExecute = true
+        };
+        Process.Start(info);
+        Application.Exit();
     }
 }
