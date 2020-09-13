@@ -35,9 +35,10 @@ namespace DiffEngine
 
             // AzureDevops
             // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables
-            // Variable name is 'Agent.Id' but must be referenced with an underscore
-            // https://docs.microsoft.com/en-us/azure/devops/pipelines/release/variables?view=azure-devops&tabs=powershell#using-default-variables
-            if (Environment.GetEnvironmentVariable("Agent_Id") != null)
+            // Variable name is 'Agent.Id' to detect if this is a Azure Pipelines agent.
+            // Note that variables are upper-cased and '.' is replaced with '_' on Azure Pipelines.
+            // https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#access-variables-through-the-environment
+            if (Environment.GetEnvironmentVariable("AGENT_ID") != null)
             {
                 Detected = true;
                 return;
