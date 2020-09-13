@@ -29,6 +29,7 @@ class SettingsHelper
 
     public static async Task Write(Settings settings)
     {
+        File.Delete(FilePath);
         await using var stream = File.OpenWrite(FilePath);
         await JsonSerializer.SerializeAsync(stream, settings);
     }

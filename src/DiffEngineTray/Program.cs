@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -9,7 +10,11 @@ static class Program
     {
         Logging.Init();
 
-        var settings = await SettingsHelper.Read();
+        var settings = await GetSettings();
+        if (settings == null)
+        {
+            return;
+        }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancellationTokenSource();
@@ -55,6 +60,21 @@ static class Program
         Application.Run();
         tokenSource.Cancel();
         await task;
+    }
+
+    static async Task<Settings?> GetSettings()
+    {
+        try
+        {
+            return await SettingsHelper.Read();
+        }
+        catch (Exception exception)
+        {
+            var message = $"Cannot start. Failed to read settings: {SettingsHelper.FilePath}";
+            Log.Fatal(exception, message);
+            IssueLauncher.LaunchForException(message, exception);
+            return null;
+        }
     }
 
     static Task StartServer(Tracker tracker, CancellationToken cancellation)
