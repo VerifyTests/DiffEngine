@@ -16,17 +16,17 @@ namespace DiffEngine
 
         public static bool IsRunning { get; }
 
-        public static Task AddDelete(string file, CancellationToken cancellation = default)
+        public static Task AddDeleteAsync(string file, CancellationToken cancellation = default)
         {
             if (!IsRunning)
             {
                 return Task.CompletedTask;
             }
 
-            return PiperClient.SendDelete(file, cancellation);
+            return PiperClient.SendDeleteAsync(file, cancellation);
         }
 
-        public static Task AddMove(
+        public static Task AddMoveAsync(
             string tempFile,
             string targetFile,
             string exe,
@@ -40,7 +40,7 @@ namespace DiffEngine
                 return Task.CompletedTask;
             }
 
-            return PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId, cancellation);
+            return PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancellation);
         }
     }
 }

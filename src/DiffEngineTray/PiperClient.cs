@@ -8,19 +8,40 @@ using System.Threading.Tasks;
 
 static class PiperClient
 {
-    public static Task SendDelete(
+    public static void SendDelete(string file)
+    {
+        Send(BuildDeletePayload(file));
+    }
+
+    public static Task SendDeleteAsync(
         string file,
         CancellationToken cancellation = default)
     {
-        var payload = $@"{{
+        var payload = BuildDeletePayload(file);
+        return SendAsync(payload, cancellation);
+    }
+
+    static string BuildDeletePayload(string file)
+    {
+        return $@"{{
 ""Type"":""Delete"",
 ""File"":""{file}""
 }}
 ";
-        return Send(payload, cancellation);
     }
 
-    public static Task SendMove(
+    public static void SendMove(
+        string tempFile,
+        string targetFile,
+        string exe,
+        string arguments,
+        bool canKill,
+        int? processId)
+    {
+        Send(BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId));
+    }
+
+    public static Task SendMoveAsync(
         string tempFile,
         string targetFile,
         string exe,
@@ -28,6 +49,12 @@ static class PiperClient
         bool canKill,
         int? processId,
         CancellationToken cancellation = default)
+    {
+        var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId);
+        return SendAsync(payload, cancellation);
+    }
+
+    static string BuildMovePayload(string tempFile, string targetFile, string exe, string arguments, bool canKill, int? processId)
     {
         var builder = new StringBuilder($@"{{
 ""Type"":""Move"",
@@ -44,28 +71,68 @@ static class PiperClient
         }
 
         builder.Append('}');
-        return Send(builder.ToString(), cancellation);
+        return builder.ToString();
     }
 
-    static async Task Send(string payload, CancellationToken cancellation = default)
+    static void Send(string payload)
     {
         try
         {
-            await InnerSend(payload, cancellation);
+            InnerSend(payload);
         }
         catch (Exception exception)
         {
-            Trace.WriteLine($@"Failed to send payload to DiffEngineTray.
+            HandleSendException(payload, exception);
+        }
+    }
+
+    static async Task SendAsync(string payload, CancellationToken cancellation = default)
+    {
+        try
+        {
+            await InnerSendAsync(payload, cancellation);
+        }
+        catch (Exception exception)
+        {
+            HandleSendException(payload, exception);
+        }
+    }
+
+    static void HandleSendException(string payload, Exception exception)
+    {
+        Trace.WriteLine($@"Failed to send payload to DiffEngineTray.
 
 Payload:
 {payload}
 
 Exception:
 {exception}");
-        }
     }
 
-    static async Task InnerSend(string payload, CancellationToken cancellation)
+    static void InnerSend(string payload)
+    {
+#if(NETSTANDARD2_1)
+        using var pipe = new NamedPipeClientStream(
+            ".",
+            "DiffEngine",
+            PipeDirection.Out,
+            PipeOptions.CurrentUserOnly);
+        using var stream = new StreamWriter(pipe);
+        pipe.Connect(1000);
+        stream.Write(payload.AsMemory());
+#else
+        using var pipe = new NamedPipeClientStream(
+            ".",
+            "DiffEngine",
+            PipeDirection.Out,
+            PipeOptions.None);
+        using var stream = new StreamWriter(pipe);
+        pipe.Connect(1000);
+        stream.Write(payload);
+#endif
+    }
+
+    static async Task InnerSendAsync(string payload, CancellationToken cancellation)
     {
 #if(NETSTANDARD2_1)
         await using var pipe = new NamedPipeClientStream(

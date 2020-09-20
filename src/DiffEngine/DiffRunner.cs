@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using EmptyFiles;
 
@@ -12,27 +11,7 @@ namespace DiffEngine
     /// </summary>
     public static class DiffRunner
     {
-        static int maxInstancesToLaunch = GetMaxInstances();
-        static int launchedInstances;
-
         public static bool Disabled { get; set; } = IsDisable();
-
-        static int GetMaxInstances()
-        {
-            var variable = EnvironmentEx.GetEnvironmentVariable("DiffEngine_MaxInstances");
-            if (string.IsNullOrEmpty(variable))
-            {
-                return 5;
-            }
-
-            if (ushort.TryParse(variable, out var result))
-            {
-                return result;
-            }
-
-            throw new Exception($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
-
-        }
 
         static bool IsDisable()
         {
@@ -45,7 +24,7 @@ namespace DiffEngine
         public static void MaxInstancesToLaunch(int value)
         {
             Guard.AgainstNegativeAndZero(value, nameof(value));
-            maxInstancesToLaunch = value;
+            MaxInstance.Set(value);
         }
 
         /// <summary>
@@ -99,6 +78,7 @@ namespace DiffEngine
         public static Task<LaunchResult> Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
+
             if (Disabled)
             {
                 return Task.FromResult(LaunchResult.Disabled);
@@ -123,13 +103,9 @@ namespace DiffEngine
                 return Task.FromResult(LaunchResult.Disabled);
             }
 
-            var targetExists = File.Exists(targetFile);
-            if (tool.RequiresTarget && !targetExists)
+            if (!TryCreate(tool, targetFile))
             {
-                if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
-                {
-                    return Task.FromResult(LaunchResult.NoEmptyFileForExtension);
-                }
+                return Task.FromResult(LaunchResult.NoEmptyFileForExtension);
             }
 
             return InnerLaunch(tool, tempFile, targetFile);
@@ -143,46 +119,71 @@ namespace DiffEngine
             {
                 if (tool.AutoRefresh)
                 {
-                    await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
+                    await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
-                if (!tool.IsMdi)
-                {
-                    ProcessCleanup.Kill(command);
-                }
+                KillIfMdi(tool, command);
             }
 
-            var instanceCount = Interlocked.Increment(ref launchedInstances);
-            if (instanceCount > maxInstancesToLaunch)
+            if (MaxInstance.Reached())
             {
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
+                await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
+            var processId = LaunchProcess(tool, arguments);
+
+            await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, processId);
+
+            return LaunchResult.StartedNewInstance;
+        }
+
+        static bool TryCreate(ResolvedTool tool, string targetFile)
+        {
+            var targetExists = File.Exists(targetFile);
+            if (tool.RequiresTarget && !targetExists)
+            {
+                if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        static int LaunchProcess(ResolvedTool tool, string arguments)
+        {
             try
             {
                 var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
                 {
                     UseShellExecute = true
                 };
-
                 using var process = Process.Start(startInfo);
-                if (process == null)
+                if (process != null)
                 {
-                    var message = $@"Failed to launch diff tool.
-{tool.ExePath} {arguments}";
-                    throw new Exception(message);
+                    return process.Id;
                 }
 
-                await DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, process.Id);
-                return LaunchResult.StartedNewInstance;
+                var message = $@"Failed to launch diff tool.
+{tool.ExePath} {arguments}";
+                throw new Exception(message);
             }
             catch (Exception exception)
             {
                 var message = $@"Failed to launch diff tool.
 {tool.ExePath} {arguments}";
                 throw new Exception(message, exception);
+            }
+        }
+
+        static void KillIfMdi(ResolvedTool tool, string command)
+        {
+            if (!tool.IsMdi)
+            {
+                ProcessCleanup.Kill(command);
             }
         }
 
