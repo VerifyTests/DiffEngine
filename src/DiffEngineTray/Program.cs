@@ -50,17 +50,7 @@ static class Program
         using var task = StartServer(tracker, cancellation);
 
         using var keyRegister = new KeyRegister(icon.Handle());
-        var acceptHotKey = settings.AcceptAllHotKey;
-        if (acceptHotKey != null)
-        {
-            keyRegister.TryAddBinding(
-                KeyBindingIds.AcceptAll,
-                acceptHotKey.Shift,
-                acceptHotKey.Control,
-                acceptHotKey.Alt,
-                acceptHotKey.Key,
-                () => tracker.AcceptAll());
-        }
+        ReBindKeys(settings, keyRegister, tracker);
 
         icon.ContextMenuStrip = MenuBuilder.Build(
             Application.Exit,
@@ -70,6 +60,33 @@ static class Program
         Application.Run();
         tokenSource.Cancel();
         await task;
+    }
+
+    static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
+    {
+        var acceptAllHotKey = settings.AcceptAllHotKey;
+        if (acceptAllHotKey != null)
+        {
+            keyRegister.TryAddBinding(
+                KeyBindingIds.AcceptAll,
+                acceptAllHotKey.Shift,
+                acceptAllHotKey.Control,
+                acceptAllHotKey.Alt,
+                acceptAllHotKey.Key,
+                tracker.AcceptAll);
+        }
+
+        var acceptOpenHotKey = settings.AcceptOpenHotKey;
+        if (acceptOpenHotKey != null)
+        {
+            keyRegister.TryAddBinding(
+                KeyBindingIds.AcceptAll,
+                acceptOpenHotKey.Shift,
+                acceptOpenHotKey.Control,
+                acceptOpenHotKey.Alt,
+                acceptOpenHotKey.Key,
+                tracker.AcceptOpen);
+        }
     }
 
     static async Task<Settings?> GetSettings()
