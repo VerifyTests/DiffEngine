@@ -16,6 +16,12 @@ namespace DiffEngine
         public bool RequiresTarget { get; }
         public bool SupportsText { get; }
 
+        internal void CommandAndArguments(string tempFile, string targetFile, out string arguments, out string command)
+        {
+            arguments = Arguments(tempFile, targetFile);
+            command = $"\"{ExePath}\" {arguments}";
+        }
+
         public string BuildCommand(string tempFile, string targetFile)
         {
             return $"\"{ExePath}\" {Arguments(tempFile, targetFile)}";

@@ -20,7 +20,7 @@ public class DiffToolsTest :
     [Fact]
     public void AddTool()
     {
-        string diffToolPath = FakeDiffTool.Exe;
+        var diffToolPath = FakeDiffTool.Exe;
         #region AddTool
         var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
@@ -40,7 +40,7 @@ public class DiffToolsTest :
     [Fact]
     public void OrderShouldNotMessWithAddTool()
     {
-        string diffToolPath = FakeDiffTool.Exe;
+        var diffToolPath = FakeDiffTool.Exe;
         var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
@@ -80,7 +80,7 @@ public class DiffToolsTest :
             name: "MyCustomDiffTool",
             arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
-        await DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+        await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
         #endregion
     }
 

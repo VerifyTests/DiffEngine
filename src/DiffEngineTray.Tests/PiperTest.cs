@@ -17,7 +17,7 @@ public class PiperTest :
         DeletePayload received = null!;
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => { }, s => received = s, source.Token);
-        await PiperClient.SendDelete("Foo", source.Token);
+        await PiperClient.SendDeleteAsync("Foo", source.Token);
         await Task.Delay(1000);
         source.Cancel();
         await task;
@@ -30,7 +30,7 @@ public class PiperTest :
         MovePayload received = null!;
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, s => { }, source.Token);
-        await PiperClient.SendMove("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
+        await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
         await Task.Delay(1000);
         source.Cancel();
         await task;
@@ -45,8 +45,8 @@ public class PiperTest :
         await File.WriteAllTextAsync(file, "a");
         try
         {
-            await PiperClient.SendMove(file, file, "theExe", "TheArguments \"s\"", true, 10);
-            await PiperClient.SendDelete(file);
+            await PiperClient.SendMoveAsync(file, file, "theExe", "TheArguments \"s\"", true, 10);
+            await PiperClient.SendDeleteAsync(file);
         }
         catch (InvalidOperationException)
         {
