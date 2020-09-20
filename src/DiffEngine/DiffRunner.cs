@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using EmptyFiles;
@@ -9,17 +10,9 @@ namespace DiffEngine
     /// <summary>
     /// Manages diff tools processes.
     /// </summary>
-    public static class DiffRunner
+    public static partial class DiffRunner
     {
-        public static bool Disabled { get; set; } = IsDisable();
-
-        static bool IsDisable()
-        {
-            var variable = EnvironmentEx.GetEnvironmentVariable("DiffEngine_Disabled");
-            return string.Equals(variable, "true", StringComparison.OrdinalIgnoreCase) ||
-                   BuildServerDetector.Detected ||
-                   ContinuousTestingDetector.Detected;
-        }
+        public static bool Disabled { get; set; } = DisabledChecker.IsDisable();
 
         public static void MaxInstancesToLaunch(int value)
         {
@@ -27,94 +20,132 @@ namespace DiffEngine
             MaxInstance.Set(value);
         }
 
-        /// <summary>
-        /// Find and kill a diff tool process.
-        /// </summary>
-        public static void Kill(string tempFile, string targetFile)
-        {
-            if (Disabled)
-            {
-                return;
-            }
-
-            var extension = Extensions.GetExtension(tempFile);
-            if (!DiffTools.TryFind(extension, out var diffTool))
-            {
-                Logging.Write($"Extension not found. {extension}");
-                return;
-            }
-
-            var command = diffTool.BuildCommand(tempFile, targetFile);
-
-            if (diffTool.IsMdi)
-            {
-                Logging.Write($"DiffTool is Mdi so not killing. diffTool: {diffTool.ExePath}");
-                return;
-            }
-
-            ProcessCleanup.Kill(command);
-        }
-
-        public static Task<LaunchResult> Launch(DiffTool tool, string tempFile, string targetFile)
+        public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
 
-            if (Disabled)
-            {
-                return Task.FromResult(LaunchResult.Disabled);
-            }
+            return InnerLaunch(
+                (out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+                tempFile,
+                targetFile);
+        }
 
-            if (!DiffTools.TryFind(tool, out var resolvedTool))
-            {
-                return Task.FromResult(LaunchResult.NoDiffToolFound);
-            }
+        public static Task<LaunchResult> LaunchAsync(DiffTool tool, string tempFile, string targetFile)
+        {
+            GuardFiles(tempFile, targetFile);
 
-            return Launch(resolvedTool, tempFile, targetFile);
+            return InnerLaunchAsync(
+                (out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+                tempFile,
+                targetFile);
         }
 
         /// <summary>
         /// Launch a diff tool for the given paths.
         /// </summary>
-        public static Task<LaunchResult> Launch(string tempFile, string targetFile)
+        public static LaunchResult Launch(string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
 
-            if (Disabled)
-            {
-                return Task.FromResult(LaunchResult.Disabled);
-            }
-
-            var extension = Extensions.GetExtension(tempFile);
-
-            if (!DiffTools.TryFind(extension, out var diffTool))
-            {
-                return Task.FromResult(LaunchResult.NoDiffToolFound);
-            }
-
-            return Launch(diffTool, tempFile, targetFile);
+            return InnerLaunch(
+                (out ResolvedTool? tool) =>
+                {
+                    var extension = Extensions.GetExtension(tempFile);
+                    return DiffTools.TryFind(extension, out tool);
+                },
+                tempFile,
+                targetFile);
         }
 
-        public static Task<LaunchResult> Launch(ResolvedTool tool, string tempFile, string targetFile)
+        /// <summary>
+        /// Launch a diff tool for the given paths.
+        /// </summary>
+        public static Task<LaunchResult> LaunchAsync(string tempFile, string targetFile)
+        {
+            GuardFiles(tempFile, targetFile);
+
+            return InnerLaunchAsync(
+                (out ResolvedTool? tool) =>
+                {
+                    var extension = Extensions.GetExtension(tempFile);
+                    return DiffTools.TryFind(extension, out tool);
+                },
+                tempFile,
+                targetFile);
+        }
+
+        public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
             Guard.AgainstNull(tool, nameof(tool));
-            if (Disabled)
-            {
-                return Task.FromResult(LaunchResult.Disabled);
-            }
 
-            if (!TryCreate(tool, targetFile))
-            {
-                return Task.FromResult(LaunchResult.NoEmptyFileForExtension);
-            }
-
-            return InnerLaunch(tool, tempFile, targetFile);
+            return InnerLaunch(
+                (out ResolvedTool? resolvedTool) =>
+                {
+                    resolvedTool = tool;
+                    return true;
+                },
+                tempFile,
+                targetFile);
         }
 
-        static async Task<LaunchResult> InnerLaunch(ResolvedTool tool, string tempFile, string targetFile)
+        public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile)
         {
-            var arguments = tool.Arguments(tempFile, targetFile);
-            var command = tool.BuildCommand(tempFile, targetFile);
+            GuardFiles(tempFile, targetFile);
+            Guard.AgainstNull(tool, nameof(tool));
+
+            return InnerLaunchAsync(
+                (out ResolvedTool? resolvedTool) =>
+                {
+                    resolvedTool = tool;
+                    return true;
+                },
+                tempFile,
+                targetFile);
+        }
+
+        static LaunchResult InnerLaunch(TryResolveTool tryResolveTool, string tempFile, string targetFile)
+        {
+            if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
+            {
+                return result.Value;
+            }
+
+            tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
+
+            if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
+            {
+                if (tool.AutoRefresh)
+                {
+                    DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
+                    return LaunchResult.AlreadyRunningAndSupportsRefresh;
+                }
+
+                KillIfMdi(tool, command);
+            }
+
+            if (MaxInstance.Reached())
+            {
+                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
+                return LaunchResult.TooManyRunningDiffTools;
+            }
+
+            var processId = LaunchProcess(tool, arguments);
+
+            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, processId);
+
+            return LaunchResult.StartedNewInstance;
+        }
+
+        static async Task<LaunchResult> InnerLaunchAsync(TryResolveTool tryResolveTool, string tempFile, string targetFile)
+        {
+            if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
+            {
+                return result.Value;
+            }
+
+            tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
+
             if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
             {
                 if (tool.AutoRefresh)
@@ -137,6 +168,35 @@ namespace DiffEngine
             await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, processId);
 
             return LaunchResult.StartedNewInstance;
+        }
+
+        static bool ShouldExitLaunch(
+            TryResolveTool tryResolveTool,
+            string targetFile,
+            [NotNullWhen(false)] out ResolvedTool? tool,
+            [NotNullWhen(true)] out LaunchResult? result)
+        {
+            if (Disabled)
+            {
+                result = LaunchResult.Disabled;
+                tool = null;
+                return true;
+            }
+
+            if (!tryResolveTool(out tool))
+            {
+                result = LaunchResult.NoDiffToolFound;
+                return true;
+            }
+
+            if (!TryCreate(tool, targetFile))
+            {
+                result = LaunchResult.NoEmptyFileForExtension;
+                return true;
+            }
+
+            result = null;
+            return false;
         }
 
         static bool TryCreate(ResolvedTool tool, string targetFile)
@@ -192,5 +252,7 @@ namespace DiffEngine
             Guard.FileExists(tempFile, nameof(tempFile));
             Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
         }
+
+        delegate bool TryResolveTool([NotNullWhen(true)] out ResolvedTool? resolved);
     }
 }

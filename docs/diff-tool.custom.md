@@ -46,9 +46,9 @@ New tools are added to the top of the order, the last tool added will resolve be
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'></a>
 ```cs
-await DiffRunner.Launch(tempFile, targetFile);
+await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L46-L50' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L71-L75' title='File snippet `diffrunnerlaunch` was extracted from'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Navigate to start of snippet `diffrunnerlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
 
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
@@ -61,7 +61,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
-await DiffRunner.Launch(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L77-L84' title='File snippet `addtoolandlaunch` was extracted from'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Navigate to start of snippet `addtoolandlaunch`'>anchor</a></sup>
 <!-- endSnippet -->
