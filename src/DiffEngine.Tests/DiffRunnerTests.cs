@@ -65,8 +65,8 @@ public class DiffRunnerTests :
 
     async Task Launch()
     {
-        string targetFile = "";
-        string tempFile = "";
+        var targetFile = "";
+        var tempFile = "";
 
         #region DiffRunnerLaunch
 
