@@ -4,7 +4,6 @@ using Microsoft.Win32;
 
 public class Startup
 {
-
     public static void Add()
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

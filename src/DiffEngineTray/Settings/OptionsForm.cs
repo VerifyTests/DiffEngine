@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,16 +63,6 @@ public partial class OptionsForm :
 
     void updateButton_Click(object sender, EventArgs e)
     {
-        var psCommandBytes = Encoding.Unicode.GetBytes("dotnet tool update diffenginetray --global; diffenginetray");
-        var psCommandBase64 = Convert.ToBase64String(psCommandBytes);
-        var info = new ProcessStartInfo(
-            "powershell.exe",
-            $"-NoProfile -ExecutionPolicy unrestricted -EncodedCommand {psCommandBase64}")
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        Process.Start(info);
-        Application.Exit();
+        Updater.Run();
     }
 }
