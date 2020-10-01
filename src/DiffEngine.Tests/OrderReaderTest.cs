@@ -1,30 +1,28 @@
 ﻿using System;
+using System.Linq;
+using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
-public class EnvironmentExTest :
+public class OrderReaderTest :
     XunitContextBase
 {
     [Fact]
-    public void NotFound()
+    public void ParseEnvironmentVariable()
     {
-        Assert.Null(EnvironmentEx.GetEnvironmentVariable("Foo"));
-        Assert.Null(EnvironmentEx.GetEnvironmentVariable("Foo.Bar"));
-        Assert.Null(EnvironmentEx.GetEnvironmentVariable("Foo_Bar"));
+        var diffTools = OrderReader.ParseEnvironment("VisualStudio,Meld").ToList();
+        Assert.Equal(DiffTool.VisualStudio, diffTools[0]);
+        Assert.Equal(DiffTool.Meld, diffTools[1]);
     }
 
     [Fact]
-    public void Found()
+    public void BadEnvironmentVariable()
     {
-        Environment.SetEnvironmentVariable("AB", "Value1");
-        Environment.SetEnvironmentVariable("A.B", "Value2");
-        Environment.SetEnvironmentVariable("A_C", "Value3");
-        Assert.Equal("Value1", EnvironmentEx.GetEnvironmentVariable("AB"));
-        Assert.Equal("Value2", EnvironmentEx.GetEnvironmentVariable("A_B"));
-        Assert.Equal("Value3", EnvironmentEx.GetEnvironmentVariable("A_C"));
+        var exception = Assert.Throws<Exception>(() => OrderReader.ParseEnvironment("Foo").ToList());
+        Assert.Equal("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo", exception.Message);
     }
 
-    public EnvironmentExTest(ITestOutputHelper output) :
+    public OrderReaderTest(ITestOutputHelper output) :
         base(output)
     {
     }
