@@ -64,9 +64,18 @@ static class LinuxOsxProcess
             var pid = int.Parse(pidString);
 
             var timeAndCommandString = trim.Substring(firstSpace + 1);
-            var multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace);
-
-            var command = timeAndCommandString.Substring(multiSpaceIndex + 1).Trim();
+            var multiSpaceIndex = 0;
+            string command;
+            
+            if (timeAndCommandString.IndexOf("   ", StringComparison.InvariantCulture) > 0)
+            {
+                multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace, StringComparison.InvariantCulture);
+                command = timeAndCommandString.Substring(multiSpaceIndex + 1).Trim();
+            }
+            else
+            {
+                command = timeAndCommandString.Substring(multiSpaceIndex).Trim();
+            }
 
             processCommand = new ProcessCommand(command, in pid);
             return true;
