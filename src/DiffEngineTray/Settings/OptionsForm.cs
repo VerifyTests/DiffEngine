@@ -64,11 +64,14 @@ public partial class OptionsForm :
 
     void updateButton_Click(object sender, EventArgs e)
     {
+        var psCommandBytes = Encoding.Unicode.GetBytes("dotnet tool update diffenginetray --global; diffenginetray");
+        var psCommandBase64 = Convert.ToBase64String(psCommandBytes);
         var info = new ProcessStartInfo(
-            "dotnet",
-            "tool update --global DiffEngineTray")
+            "powershell.exe",
+            $"-NoProfile -ExecutionPolicy unrestricted -EncodedCommand {psCommandBase64}")
         {
-            UseShellExecute = true
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
         Process.Start(info);
         Application.Exit();
