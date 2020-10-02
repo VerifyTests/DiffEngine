@@ -60,8 +60,16 @@
         <None Include="Entitlements.plist" />
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="App.cs" />
         <Compile Include="Main.cs" />
         <Compile Include="AppDelegate.cs" />
+        <Compile Include="MainPage.xaml.cs">
+          <DependentUpon>MainPage.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="PopupMenu.cs" />
+        <Compile Include="SettingsPage.xaml.cs">
+          <DependentUpon>SettingsPage.xaml</DependentUpon>
+        </Compile>
         <Compile Include="ViewController.cs" />
         <Compile Include="ViewController.designer.cs">
             <DependentUpon>ViewController.cs</DependentUpon>
@@ -80,10 +88,22 @@
       </ProjectReference>
     </ItemGroup>
     <ItemGroup>
-      <Resource Include="Resources\icon.png" />
+      <EmbeddedResource Include="MainPage.xaml" />
+      <EmbeddedResource Include="Resources\icon.png" />
+      <EmbeddedResource Include="SettingsPage.xaml" />
     </ItemGroup>
     <ItemGroup>
+      <Content Include="Resources\accept.png" />
+      <Content Include="Resources\acceptAll.png" />
+      <Content Include="Resources\active.ico" />
+      <Content Include="Resources\clear.png" />
+      <Content Include="Resources\cogs.png" />
+      <Content Include="Resources\default.ico" />
+      <Content Include="Resources\delete.png" />
+      <Content Include="Resources\exit.png" />
+      <Content Include="Resources\folder.png" />
       <Content Include="Resources\icon.ico" />
+      <Content Include="Resources\link.png" />
     </ItemGroup>
     <Import Project="$(MSBuildExtensionsPath)\Xamarin\Mac\Xamarin.Mac.CSharp.targets" />
 </Project>
