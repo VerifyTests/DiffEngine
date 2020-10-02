@@ -2,10 +2,11 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using System.Windows.Forms;
+using DiffEngineTray.Common;
 
-static class Updater
+class WindowsAppUpdater : IUpdater
 {
-    public static void Run()
+    public void Run()
     {
         var psCommandBytes = Encoding.Unicode.GetBytes("dotnet tool update diffenginetray --global; diffenginetray");
         var psCommandBase64 = Convert.ToBase64String(psCommandBytes);

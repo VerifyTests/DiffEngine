@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DiffEngineTray;
 using Serilog;
 
 static class Program
@@ -26,6 +27,8 @@ static class Program
             Log.Information("Mutex already exists. Exiting.");
             return;
         }
+        
+        IssueLauncher.Initialize(new WindowsMessageBox());
 
         using var icon = new NotifyIcon
         {

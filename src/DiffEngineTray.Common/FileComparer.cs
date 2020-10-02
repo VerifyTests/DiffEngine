@@ -28,8 +28,8 @@ static class FileComparer
             return false;
         }
 
-        await using var fs1 = OpenRead(file1);
-        await using var fs2 = OpenRead(file2);
+        using var fs1 = OpenRead(file1);
+        using var fs2 = OpenRead(file2);
         return await StreamsAreEqual(fs1, fs2);
     }
 

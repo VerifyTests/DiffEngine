@@ -6,8 +6,8 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1;net461</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\DiffEngineTray\JsonEscaping.cs" Link="Tray\JsonEscaping.cs" />
-    <Compile Include="..\DiffEngineTray\PiperClient.cs" Link="Tray\PiperClient.cs" />
+    <Compile Include="..\DiffEngineTray.Common\JsonEscaping.cs" Link="Tray\JsonEscaping.cs" />
+    <Compile Include="..\DiffEngineTray.Common\PiperClient.cs" Link="Tray\PiperClient.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Caseless.Fody" Version="1.9.0" PrivateAssets="All" />
