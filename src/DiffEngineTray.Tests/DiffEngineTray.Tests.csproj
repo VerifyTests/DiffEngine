@@ -11,7 +11,7 @@
     <PackageReference Include="Fody" Version="6.2.6" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="Verify.WinForms" Version="2.2.1" />
-    <PackageReference Include="Verify.Xunit" Version="6.23.1" />
+    <PackageReference Include="Verify.Xunit" Version="6.23.3" />
     <PackageReference Include="Verify.ImageMagick" Version="2.2.0" />
     <PackageReference Include="Xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3" />
