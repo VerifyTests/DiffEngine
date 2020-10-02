@@ -11,6 +11,7 @@ public class OptionsFormTests :
     public OptionsFormTests(ITestOutputHelper output) :
         base(output)
     {
+        VersionReader.VersionString = "TheVersion";
     }
 
     //[Fact]
