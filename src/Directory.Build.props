@@ -2,10 +2,10 @@
 <Project>
   <PropertyGroup>
     <NoWarn>CS1591;CS0649</NoWarn>
-    <Version>6.0.2</Version>
+    <Version>6.0.3</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
-    <PackageTags>Json, Testing, Verify, Snapshot, Approvals</PackageTags>
-    <Description>Enables simple verification of complex models and documents.</Description>
+    <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
+    <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
     <!-- below required for TargetLib and Shared -->
     <Nullable>enable</Nullable>
     <LangVersion>8.0</LangVersion>

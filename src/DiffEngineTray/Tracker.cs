@@ -104,21 +104,32 @@ class Tracker :
         bool canKill,
         int? processId)
     {
-        Process? process = null;
-        if (processId != null)
-        {
-            ProcessEx.TryGet(processId.Value, out process);
-        }
-
-        var move = new TrackedMove(temp, target, exe, arguments, canKill, process);
-
         return moves.AddOrUpdate(
             target,
-            addValueFactory: s => move,
-            updateValueFactory: (s, existing) =>
+            addValueFactory: key =>
             {
-                existing.Process?.Dispose();
-                return move;
+                Process? process = null;
+                if (processId != null)
+                {
+                    ProcessEx.TryGet(processId.Value, out process);
+                }
+
+                return new TrackedMove(temp, key, exe, arguments, canKill, process);
+            },
+            updateValueFactory: (key, existing) =>
+            {
+                Process? process;
+                if (processId == null)
+                {
+                    process = existing.Process;
+                }
+                else
+                {
+                    existing.Process?.Dispose();
+                    ProcessEx.TryGet(processId.Value, out process);
+                }
+
+                return new TrackedMove(temp, key, exe, arguments, canKill, process);
             });
     }
 
@@ -126,7 +137,7 @@ class Tracker :
     {
         return deletes.AddOrUpdate(
             file,
-            addValueFactory: s => new TrackedDelete(file),
+            addValueFactory: key => new TrackedDelete(key),
             updateValueFactory: (s, existing) => existing);
     }
 
