@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 static class PiperClient
 {
+    public static int PORT = 3492;
+
     public static void SendDelete(string file)
     {
         Send(BuildDeletePayload(file));
@@ -111,47 +114,49 @@ Exception:
 
     static void InnerSend(string payload)
     {
-#if(NETSTANDARD2_1)
-        using var pipe = new NamedPipeClientStream(
-            ".",
-            "DiffEngine",
-            PipeDirection.Out,
-            PipeOptions.CurrentUserOnly);
-        using var stream = new StreamWriter(pipe);
-        pipe.Connect(1000);
-        stream.Write(payload.AsMemory());
-#else
-        using var pipe = new NamedPipeClientStream(
-            ".",
-            "DiffEngine",
-            PipeDirection.Out,
-            PipeOptions.None);
-        using var stream = new StreamWriter(pipe);
-        pipe.Connect(1000);
-        stream.Write(payload);
-#endif
+        TcpClient? client = default;
+        
+        try
+        {
+            var endpoint = GetEndpoint();
+            
+            client = CreateClient();
+            client.Connect(endpoint);
+            using var stream = new StreamWriter(client.GetStream());
+            stream.Write(payload);
+        }
+        finally
+        {
+            client?.Close();
+        }
     }
 
     static async Task InnerSendAsync(string payload, CancellationToken cancellation)
     {
-#if(NETSTANDARD2_1)
-        await using var pipe = new NamedPipeClientStream(
-            ".",
-            "DiffEngine",
-            PipeDirection.Out,
-            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        await using var stream = new StreamWriter(pipe);
-        await pipe.ConnectAsync(1000, cancellation);
-        await stream.WriteAsync(payload.AsMemory(), cancellation);
-#else
-        using var pipe = new NamedPipeClientStream(
-            ".",
-            "DiffEngine",
-            PipeDirection.Out,
-            PipeOptions.Asynchronous);
-        using var stream = new StreamWriter(pipe);
-        await pipe.ConnectAsync(1000, cancellation);
-        await stream.WriteAsync(payload);
-#endif
+        TcpClient? client = default;
+        
+        try
+        {
+            client = CreateClient();
+            var endpoint = GetEndpoint();
+            await client.ConnectAsync(endpoint.Address, endpoint.Port);
+            using var stream = new StreamWriter(client.GetStream());
+            await stream.WriteAsync(payload);
+        }
+        finally
+        {
+            client?.Close();
+        }
+    }
+
+    static TcpClient CreateClient()
+    {
+        var client = new TcpClient();
+        return client;
+    }
+
+    static IPEndPoint GetEndpoint()
+    {
+        return new IPEndPoint(IPAddress.Loopback, PORT);
     }
 }
