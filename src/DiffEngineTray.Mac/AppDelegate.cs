@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using AppKit;
 using Foundation;
 using Xamarin.Forms;
@@ -15,18 +17,20 @@ namespace DiffEngineTray.Mac
         public AppDelegate()
         {
             Forms.Init();
+            Application.SetCurrentApplication(app = new App());
             CreateStatusItems();
             SubscribeEvents();
-            Application.SetCurrentApplication(app = new App());
+            
+            IssueLauncher.Initialize(new MacMessageBox());
         }
-
-        private void SubscribeEvents()
+        
+        void SubscribeEvents()
         {
             popup.CloseApp = () => Exit();
             popup.ShowOptions = () => app.ShowSettings(statusBarItem);
         }
 
-        private void CreateStatusItems()
+        void CreateStatusItems()
         {
             // Create the status bar item
             statusBarItem = PopupMenu.CreateStatusBarItem();
@@ -36,7 +40,7 @@ namespace DiffEngineTray.Mac
             popup = new PopupMenuItems();
         }
         
-        private void StatusItemActivated(object sender, EventArgs e)
+        void StatusItemActivated(object sender, EventArgs e)
         {
             statusBarItem.PopUpStatusItemMenu(popup);
         }
@@ -46,17 +50,46 @@ namespace DiffEngineTray.Mac
             NSApplication.SharedApplication.Terminate(this);
         }
 
-        public override void DidFinishLaunching(NSNotification notification)
+        public override async void DidFinishLaunching(NSNotification notification)
         {
-            // Insert code here to initialize your application
+            await StartServer();
         }
 
         public override void WillTerminate(NSNotification notification)
         {
             // Insert code here to tear down your application
         }
+        
+        async Task StartServer()
+        {
+            var tokenSource = new CancellationTokenSource();
+            var cancellation = tokenSource.Token;
+            
+            await using var tracker = new Tracker(
+                active: () => statusBarItem.Image = NSImage.ImageNamed("activate.ico"),
+                inactive: () => statusBarItem.Image = NSImage.ImageNamed("default.ico"));
+            
+            using var task = StartServer(tracker, cancellation);
+        }
+        
+        static Task StartServer(Tracker tracker, CancellationToken cancellation)
+        {
+            return PiperServer.Start(
+                payload =>
+                {
+                    tracker.AddMove(
+                        payload.Temp,
+                        payload.Target,
+                        payload.Exe,
+                        payload.Arguments,
+                        payload.CanKill,
+                        payload.ProcessId);
+                },
+                payload => tracker.AddDelete(payload.File),
+                cancellation);
+        }
     }
-    
+
     public class PopoverDelegate : NSPopoverDelegate
     {
         public override void DidClose(NSNotification notification)

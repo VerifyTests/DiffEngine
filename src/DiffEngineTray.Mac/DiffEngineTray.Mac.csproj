@@ -61,6 +61,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="App.cs" />
+        <Compile Include="MacMessageBox.cs" />
         <Compile Include="Main.cs" />
         <Compile Include="AppDelegate.cs" />
         <Compile Include="MainPage.xaml.cs">
@@ -80,6 +81,8 @@
     </ItemGroup>
     <ItemGroup>
       <PackageReference Include="Xamarin.Forms" Version="4.8.0.1451" />
+      <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+      <PackageReference Include="System.Net.Http" Version="4.3.4" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\DiffEngineTray.Common\DiffEngineTray.Common.csproj">
@@ -100,6 +103,7 @@
       <Content Include="Resources\cogs.png" />
       <Content Include="Resources\default.ico" />
       <Content Include="Resources\delete.png" />
+      <Content Include="Resources\error.png" />
       <Content Include="Resources\exit.png" />
       <Content Include="Resources\folder.png" />
       <Content Include="Resources\icon.ico" />
