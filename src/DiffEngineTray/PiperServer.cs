@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 
 static class PiperServer
 {
-    public const int PORT = 3492;
-    
     public static async Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
@@ -18,7 +16,7 @@ static class PiperServer
 
         try
         {
-            listener = new TcpListener(IPAddress.Loopback, PORT);
+            listener = new TcpListener(IPAddress.Loopback, PiperClient.Port);
             listener.Start();
 
             while (true)
@@ -55,10 +53,9 @@ static class PiperServer
 
     static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, CancellationToken cancellation)
     {
-        using (cancellation.Register(() => listener.Stop()))
+        await using (cancellation.Register(listener.Stop))
         {
-            var client = await listener.AcceptTcpClientAsync();
-
+            using var client = await listener.AcceptTcpClientAsync();
             using var reader = new StreamReader(client.GetStream());
             var payload = await reader.ReadToEndAsync();
 

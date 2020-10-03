@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 static class PiperClient
 {
-    public static int PORT = 3492;
+    public static int Port = 3492;
 
     public static void SendDelete(string file)
     {
@@ -114,49 +114,45 @@ Exception:
 
     static void InnerSend(string payload)
     {
-        TcpClient? client = default;
-        
+        using var client = new TcpClient();
+        var endpoint = GetEndpoint();
         try
         {
-            var endpoint = GetEndpoint();
-            
-            client = CreateClient();
             client.Connect(endpoint);
-            using var stream = new StreamWriter(client.GetStream());
-            stream.Write(payload);
+            using var stream = client.GetStream();
+            using var writer = new StreamWriter(stream);
+            writer.Write(payload);
         }
         finally
         {
-            client?.Close();
+            client.Close();
         }
     }
 
     static async Task InnerSendAsync(string payload, CancellationToken cancellation)
     {
-        TcpClient? client = default;
-        
+        using var client = new TcpClient();
+        var endpoint = GetEndpoint();
         try
         {
-            client = CreateClient();
-            var endpoint = GetEndpoint();
             await client.ConnectAsync(endpoint.Address, endpoint.Port);
-            using var stream = new StreamWriter(client.GetStream());
-            await stream.WriteAsync(payload);
+#if NETCOREAPP || netstandard21
+            await using var stream = client.GetStream();
+            await using var writer = new StreamWriter(stream);
+#else
+            using var stream = client.GetStream();
+            using var writer = new StreamWriter(stream);
+#endif
+            await writer.WriteAsync(payload);
         }
         finally
         {
-            client?.Close();
+            client.Close();
         }
-    }
-
-    static TcpClient CreateClient()
-    {
-        var client = new TcpClient();
-        return client;
     }
 
     static IPEndPoint GetEndpoint()
     {
-        return new IPEndPoint(IPAddress.Loopback, PORT);
+        return new IPEndPoint(IPAddress.Loopback, Port);
     }
 }
