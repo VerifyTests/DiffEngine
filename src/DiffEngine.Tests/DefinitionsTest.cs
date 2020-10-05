@@ -51,6 +51,7 @@ public class DefinitionsTest :
             .OrderBy(x => x.Tool.ToString()))
         {
             writer.WriteLine($@"
+
 ## [{tool.Tool}]({tool.Url})");
 
             writer.WriteLine($@"
@@ -60,22 +61,20 @@ public class DefinitionsTest :
 
             if (tool.BinaryExtensions.Any())
             {
-                writer.WriteLine(@" * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
+                writer.WriteLine(@"  * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
             }
 
             if (tool.Notes != null)
             {
                 writer.WriteLine(@"
-### Notes:
-");
+### Notes:");
                 writer.WriteLine(tool.Notes);
             }
 
             if (tool.Windows != null)
             {
                 writer.WriteLine(@"
-### Windows settings:
-");
+### Windows settings:");
                 WriteArguments(writer, tool.Windows.Arguments!);
                 WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
             }
@@ -83,8 +82,7 @@ public class DefinitionsTest :
             if (tool.Osx != null)
             {
                 writer.WriteLine(@"
-### OSX settings:
-");
+### OSX settings:");
                 WriteArguments(writer, tool.Osx.Arguments);
                 WritePaths(writer, tool.Osx.ExePaths);
             }
@@ -92,8 +90,7 @@ public class DefinitionsTest :
             if (tool.Linux != null)
             {
                 writer.WriteLine(@"
-### Linux settings:
-");
+### Linux settings:");
                 WriteArguments(writer, tool.Linux.Arguments);
                 WritePaths(writer, tool.Linux.ExePaths);
             }

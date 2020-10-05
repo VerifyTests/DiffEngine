@@ -99,15 +99,15 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 ## Supported Tools:
 
  <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
+
 ## [AraxisMerge](https://www.araxis.com/merge)
 
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
- * Supported binaries: bmp, dib, emf, gif, jif, j2c, j2k, jp2, jpc, jpeg, jpg, jpx, pbm, pcx, pgm, png, ppm, ras, tif, tiff, tga, wmf
+  * Supported binaries: bmp, dib, emf, gif, jif, j2c, j2k, jp2, jpc, jpeg, jpg, jpx, pbm, pcx, pgm, png, ppm, ras, tif, tiff, tga, wmf
 
 ### Notes:
-
 
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
@@ -115,7 +115,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)
 
 ### Windows settings:
-
 
  * Example arguments: `/nowait "tempFile" "targetFile"`
  * Scanned paths:
@@ -126,24 +125,22 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `-nowait "tempFile" "targetFile"`
  * Scanned path: `/Applications/Araxis Merge.app/Contents/Utilities/compare`
+
 
 ## [BeyondCompare](https://www.scootersoftware.com)
 
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
- * Supported binaries: mp3, xls, xlsm, xlsx, doc, docm, docx, dot, dotm, dotx, pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
+  * Supported binaries: mp3, xls, xlsm, xlsx, doc, docm, docx, dot, dotm, dotx, pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
 
 ### Notes:
-
 
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
 
 ### Windows settings:
-
 
  * Example arguments: `/solo /leftreadonly "tempFile" "targetFile"`
  * Scanned paths:
@@ -154,15 +151,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/Applications/Beyond Compare.app/Contents/MacOS/bcomp`
 
 ### Linux settings:
 
-
  * Example arguments: `-solo -leftreadonly "tempFile" "targetFile"`
  * Scanned path: `/usr/lib/beyondcompare/bcomp`
+
 
 ## [CodeCompare](https://www.devart.com/codecompare/)
 
@@ -172,11 +168,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
@@ -185,29 +179,28 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramW6432%\Devart\Code Compare\CodeCompare.exe`
    * `%ProgramFiles(x86)%\Devart\Code Compare\CodeCompare.exe`
 
+
 ## [DeltaWalker](https://www.deltawalker.com/)
 
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
- * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
+  * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
 
 ### Notes:
-
 
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)
 
 ### Windows settings:
-
 
  * Example arguments: `-mi "tempFile" "targetFile"`
  * Scanned path: `C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe`
 
 ### OSX settings:
 
-
  * Example arguments: `-mi "tempFile" "targetFile"`
  * Scanned path: `/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker`
+
 
 ## [Diffinity](https://truehumandesign.se/s_diffinity.php)
 
@@ -217,12 +210,10 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
@@ -231,6 +222,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramW6432%\Diffinity\Diffinity.exe`
    * `%ProgramFiles(x86)%\Diffinity\Diffinity.exe`
 
+
 ## [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
   * Is MDI: False
@@ -238,7 +230,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
   * Supports text files: True
 
 ### Windows settings:
-
 
  * Example arguments: `--nosplash "tempFile" "targetFile"`
  * Scanned paths:
@@ -249,15 +240,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `--nosplash "tempFile" "targetFile"`
  * Scanned path: `/Applications/DiffMerge.app/Contents/MacOS/DiffMerge`
 
 ### Linux settings:
 
-
  * Example arguments: `--nosplash "tempFile" "targetFile"`
  * Scanned path: `/usr/bin/diffmerge`
+
 
 ## [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
 
@@ -267,13 +257,11 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
  * `/nh`: do not add files or directories to comparison history
  * `/diffonly`: diff-only merge mode: hide the merge pane
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile" /nh /diffonly /dn1:tempFile /dn2:targetFile`
  * Scanned paths:
@@ -282,22 +270,21 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramW6432%\ExamDiff Pro\ExamDiff.exe`
    * `%ProgramFiles(x86)%\ExamDiff Pro\ExamDiff.exe`
 
+
 ## [Guiffy](https://www.guiffy.com/)
 
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
- * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
+  * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
 
 ### Notes:
-
 
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
  * `-ge1`: Forbid 1st file view Editing
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile" -ge1`
  * Scanned paths:
@@ -308,22 +295,22 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile" -ge1`
  * Scanned path: `/Applications/Guiffy/guiffyCL.command`
+
 
 ## [Kaleidoscope](https://www.kaleidoscopeapp.com/)
 
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
- * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tiff, tif
+  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tiff, tif
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/usr/local/bin/ksdiff`
+
 
 ## [KDiff3](https://github.com/KDE/kdiff3)
 
@@ -333,11 +320,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile" --cs CreateBakFiles=0`
  * Scanned paths:
@@ -348,9 +333,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile" --cs CreateBakFiles=0`
  * Scanned path: `/Applications/kdiff3.app/Contents/MacOS/kdiff3`
+
 
 ## [Meld](https://meldmerge.org/)
 
@@ -359,7 +344,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
   * Supports text files: True
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
@@ -370,15 +354,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/Applications/meld.app/Contents/MacOS/meld`
 
 ### Linux settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/usr/bin/meld`
+
 
 ## [Neovim](https://neovim.io/)
 
@@ -388,24 +371,22 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/
 
 ### Windows settings:
 
-
  * Example arguments: `-d "tempFile" "targetFile"`
  * Scanned path: `%ChocolateyToolsLocation%\neovim\*\nvim.exe`
+
 
 ## [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
- * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
+  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
 
 ### Windows settings:
-
 
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
@@ -416,15 +397,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 ### Linux settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
+
 
 ## [Rider](https://www.jetbrains.com/rider/)
 
@@ -434,11 +414,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html
 
 ### Windows settings:
-
 
  * Example arguments: ` diff "tempFile" "targetFile"`
  * Scanned paths:
@@ -451,7 +429,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: ` diff "tempFile" "targetFile"`
  * Scanned paths:
 
@@ -460,6 +437,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `/Applications/Rider EAP.app/Contents/MacOS/rider`
    * `/Applications/Rider.app/Contents/MacOS/rider`
 
+
 ## [SublimeMerge](https://www.sublimemerge.com/)
 
   * Is MDI: False
@@ -467,7 +445,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
   * Supports text files: True
 
 ### Windows settings:
-
 
  * Example arguments: `mergetool "tempFile" "targetFile"`
  * Scanned paths:
@@ -478,15 +455,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `mergetool "tempFile" "targetFile"`
  * Scanned path: `/Applications/smerge.app/Contents/MacOS/smerge`
 
 ### Linux settings:
 
-
  * Example arguments: `mergetool "tempFile" "targetFile"`
  * Scanned path: `/usr/bin/smerge`
+
 
 ## [TkDiff](https://sourceforge.net/projects/tkdiff/)
 
@@ -496,9 +472,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned path: `/Applications/TkDiff.app/Contents/MacOS/tkdiff`
+
 
 ## [TortoiseGitMerge](https://tortoisegit.org/docs/tortoisegitmerge/)
 
@@ -508,7 +484,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Windows settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
 
@@ -516,15 +491,15 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramW6432%\TortoiseGit\bin\TortoiseGitMerge.exe`
    * `%ProgramFiles(x86)%\TortoiseGit\bin\TortoiseGitMerge.exe`
 
+
 ## [TortoiseIDiff](https://tortoisesvn.net/TortoiseIDiff.html)
 
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
- * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
+  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
 
 ### Windows settings:
-
 
  * Example arguments: `/left:"tempFile" /right:"targetFile"`
  * Scanned paths:
@@ -532,6 +507,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe`
    * `%ProgramW6432%\TortoiseSVN\bin\TortoiseIDiff.exe`
    * `%ProgramFiles(x86)%\TortoiseSVN\bin\TortoiseIDiff.exe`
+
 
 ## [TortoiseMerge](https://tortoisesvn.net/TortoiseMerge.html)
 
@@ -541,13 +517,13 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Windows settings:
 
-
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe`
    * `%ProgramW6432%\TortoiseSVN\bin\TortoiseMerge.exe`
    * `%ProgramFiles(x86)%\TortoiseSVN\bin\TortoiseMerge.exe`
+
 
 ## [Vim](https://www.vim.org/)
 
@@ -557,7 +533,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)
  * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
@@ -565,7 +540,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')
 
 ### Windows settings:
-
 
  * Example arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
  * Scanned paths:
@@ -576,9 +550,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
  * Scanned path: `/Applications/MacVim.app/Contents/bin/mvim`
+
 
 ## [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
@@ -588,7 +562,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Windows settings:
 
-
  * Example arguments: `/diff "tempFile" "targetFile"`
  * Scanned paths:
 
@@ -596,6 +569,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe`
+
 
 ## [VisualStudioCode](https://code.visualstudio.com)
 
@@ -605,11 +579,9 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)
 
 ### Windows settings:
-
 
  * Example arguments: `--diff "targetFile" "tempFile"`
  * Scanned paths:
@@ -624,15 +596,14 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
-
  * Example arguments: `--diff "targetFile" "tempFile"`
  * Scanned path: `/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code`
 
 ### Linux settings:
 
-
  * Example arguments: `--diff "targetFile" "tempFile"`
  * Scanned path: `/usr/local/bin/code`
+
 
 ## [WinMerge](https://winmerge.org/)
 
@@ -642,7 +613,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Notes:
 
-
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.
@@ -650,7 +620,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * `/e` Enables close with a single Esc key press.
 
 ### Windows settings:
-
 
  * Example arguments: `/u /wl /e "tempFile" "targetFile" /dl "tempFile" /dr "targetFile"`
  * Scanned paths:
