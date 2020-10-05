@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition SublimeMerge()
     {
-        string Arguments(string tempFile, string target) =>
+        static string Arguments(string tempFile, string target) =>
             $"mergetool \"{tempFile}\" \"{target}\"";
 
         return new Definition(

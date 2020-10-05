@@ -4,7 +4,7 @@ static partial class Implementation
 {
     public static Definition Guiffy()
     {
-        string Arguments(string temp, string target)
+        static string Arguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\" -ge1";
         }

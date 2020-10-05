@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition Vim()
     {
-        string Arguments(string temp, string target)
+        static string Arguments(string temp, string target)
         {
             return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
         }

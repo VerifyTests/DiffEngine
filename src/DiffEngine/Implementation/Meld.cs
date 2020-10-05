@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition Meld()
     {
-        string Arguments(string temp, string target) =>
+        static string Arguments(string temp, string target) =>
             $"\"{temp}\" \"{target}\"";
 
         return new Definition(

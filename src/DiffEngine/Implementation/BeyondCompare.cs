@@ -4,9 +4,10 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        string WindowsArguments(string temp, string target) =>
+        static string WindowsArguments(string temp, string target) =>
             $"/solo /leftreadonly \"{temp}\" \"{target}\"";
-        string OsxLinuxArguments(string temp, string target) =>
+
+        static string OsxLinuxArguments(string temp, string target) =>
             $"-solo -leftreadonly \"{temp}\" \"{target}\"";
 
         return new Definition(

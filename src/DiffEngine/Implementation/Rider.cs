@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition Rider()
     {
-        string Arguments(string temp, string target) =>
+        static string Arguments(string temp, string target) =>
             $" diff \"{temp}\" \"{target}\"";
 
         return new Definition(

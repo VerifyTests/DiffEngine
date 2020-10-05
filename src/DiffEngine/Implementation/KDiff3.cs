@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition KDiff3()
     {
-        string Arguments(string temp, string target) =>
+        static string Arguments(string temp, string target) =>
             $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
 
         return new Definition(

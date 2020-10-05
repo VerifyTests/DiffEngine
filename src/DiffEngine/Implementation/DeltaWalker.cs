@@ -4,7 +4,7 @@ static partial class Implementation
 {
     public static Definition DeltaWalker()
     {
-        string Arguments(string temp, string target) =>
+        static string Arguments(string temp, string target) =>
             $"-mi \"{temp}\" \"{target}\"";
 
         return new Definition(
