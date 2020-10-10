@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 A custom tool can be added by calling `DiffTools.AddTool`
 
 <!-- snippet: AddTool -->
-<a id='0aa0e41a'></a>
+<a id='addtool'></a>
 ```cs
 var resolvedTool = DiffTools.AddTool(
     name: "MyCustomDiffTool",
@@ -22,20 +22,20 @@ var resolvedTool = DiffTools.AddTool(
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L34' title='Snippet source file'>snippet source</a> | <a href='#0aa0e41a' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L34' title='Snippet source file'>snippet source</a> | <a href='#addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
 
 <!-- snippet: AddToolBasedOn -->
-<a id='ce81b66e'></a>
+<a id='addtoolbasedon'></a>
 ```cs
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
     arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L68' title='Snippet source file'>snippet source</a> | <a href='#ce81b66e' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L68' title='Snippet source file'>snippet source</a> | <a href='#addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -44,17 +44,17 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 New tools are added to the top of the order, the last tool added will resolve before any existing tools. So when the following is executeed the last tool that supports the file types will launch:
 
 <!-- snippet: DiffRunnerLaunch -->
-<a id='c43246ef'></a>
+<a id='diffrunnerlaunch'></a>
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L71-L75' title='Snippet source file'>snippet source</a> | <a href='#c43246ef' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L71-L75' title='Snippet source file'>snippet source</a> | <a href='#diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
 
 <!-- snippet: AddToolAndLaunch -->
-<a id='d1e82626'></a>
+<a id='addtoolandlaunch'></a>
 ```cs
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
@@ -63,7 +63,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L77-L84' title='Snippet source file'>snippet source</a> | <a href='#d1e82626' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L77-L84' title='Snippet source file'>snippet source</a> | <a href='#addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
