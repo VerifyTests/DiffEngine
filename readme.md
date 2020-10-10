@@ -80,11 +80,11 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 A tool can be launched using the following:
 
 <!-- snippet: DiffRunnerLaunch -->
-<a id='c43246ef'></a>
+<a id='diffrunnerlaunch'></a>
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L71-L75' title='Snippet source file'>snippet source</a> | <a href='#c43246ef' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L71-L75' title='Snippet source file'>snippet source</a> | <a href='#diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -95,11 +95,11 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 A tool can be closed using the following:
 
 <!-- snippet: DiffRunnerKill -->
-<a id='b0f036ef'></a>
+<a id='diffrunnerkill'></a>
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L84-L88' title='Snippet source file'>snippet source</a> | <a href='#b0f036ef' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L84-L88' title='Snippet source file'>snippet source</a> | <a href='#diffrunnerkill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
