@@ -114,7 +114,8 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                return new TrackedMove(temp, key, exe, arguments, canKill, process);
+                var solutionName = SolutionDirectoryFinder.Find(key);
+                return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             },
             updateValueFactory: (key, existing) =>
             {
@@ -129,7 +130,8 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                return new TrackedMove(temp, key, exe, arguments, canKill, process);
+                var solutionName = SolutionDirectoryFinder.Find(key);
+                return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             });
     }
 
@@ -137,7 +139,11 @@ class Tracker :
     {
         return deletes.AddOrUpdate(
             file,
-            addValueFactory: key => new TrackedDelete(key),
+            addValueFactory: key =>
+            {
+                var solutionName = SolutionDirectoryFinder.Find(key);
+                return new TrackedDelete(key, solutionName);
+            },
             updateValueFactory: (s, existing) => existing);
     }
 
@@ -146,6 +152,28 @@ class Tracker :
         if (deletes.Remove(delete.File, out var removed))
         {
             File.Delete(removed.File);
+        }
+    }
+
+    public void Accept(IEnumerable<TrackedDelete> toAccept)
+    {
+        foreach (var delete in toAccept)
+        {
+            if (deletes.Remove(delete.File, out var removed))
+            {
+                File.Delete(removed.File);
+            }
+        }
+    }
+
+    public void Accept(IEnumerable<TrackedMove> toAccept)
+    {
+        foreach (var move in toAccept)
+        {
+            if (moves.Remove(move.Target, out var removed))
+            {
+                InnerMove(removed);
+            }
         }
     }
 

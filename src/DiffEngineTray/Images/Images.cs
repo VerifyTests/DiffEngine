@@ -19,6 +19,8 @@ public static class Images
         Accept = Image.FromStream(acceptStream);
         using var clearStream = Resource.AsStream("clear.png");
         Clear = Image.FromStream(clearStream);
+        using var vsStream = Resource.AsStream("vs.png");
+        VisualStudio = Image.FromStream(vsStream);
         using var folderStream = Resource.AsStream("folder.png");
         Folder = Image.FromStream(folderStream);
         using var optionsStream = Resource.AsStream("cogs.png");
@@ -27,6 +29,7 @@ public static class Images
         Link = Image.FromStream(linkStream);
     }
 
+    public static Image VisualStudio { get; }
     public static Image Link { get; }
     public static Image Clear { get; }
     public static Image Accept { get; }

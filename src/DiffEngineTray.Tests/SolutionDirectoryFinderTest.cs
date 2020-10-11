@@ -13,9 +13,8 @@ public class SolutionDirectoryFinderTests :
     }
 
     [Fact]
-    public async Task TryFind()
+    public Task Find()
     {
-        var found = SolutionDirectoryFinder.TryFind(SourceFile, out var path);
-        await Verifier.Verify(new {found, path});
+        return Verifier.Verify(SolutionDirectoryFinder.Find(SourceFile));
     }
 }

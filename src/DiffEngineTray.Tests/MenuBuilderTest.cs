@@ -47,14 +47,26 @@ public class MenuBuilderTest :
         await Verifier.Verify(menu, settings);
     }
 
+    [Fact]
+    public async Task FullGrouped()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        tracker.AddDelete("bar.txt");
+        tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
+        tracker.AddMove(file4, "foo.txt", "theExe", "theArguments", true, null);
+        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        await Verifier.Verify(menu, settings);
+    }
+
     public MenuBuilderTest(ITestOutputHelper output) :
         base(output)
     {
         settings = new VerifySettings();
-        file1 = "file1.txt";
-        file2 = "file2.txt";
-        file3 = "file3.txt";
-        file4 = "file4.txt";
+        file1 = Path.GetFullPath("file1.txt");
+        file2 = Path.GetFullPath("file2.txt");
+        file3 = Path.GetFullPath("file3.txt");
+        file4 = Path.GetFullPath("file4.txt");
         File.WriteAllText(file1, "");
         File.WriteAllText(file2, "");
         File.WriteAllText(file3, "");

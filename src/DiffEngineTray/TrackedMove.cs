@@ -9,7 +9,8 @@ class TrackedMove
         string exe,
         string arguments,
         bool canKill,
-        Process? process)
+        Process? process,
+        string? group)
     {
         Temp = temp;
         Target = target;
@@ -19,6 +20,7 @@ class TrackedMove
         Extension = Path.GetExtension(target).TrimStart('.');
         CanKill = canKill;
         Process = process;
+        Group = group;
     }
 
     public string Extension { get; }
@@ -29,4 +31,5 @@ class TrackedMove
     public string Arguments { get; }
     public bool CanKill { get; }
     public Process? Process { get; set; }
+    public string? Group { get; }
 }

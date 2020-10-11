@@ -77,38 +77,86 @@ static class MenuBuilder
 
         yield return new ToolStripSeparator();
 
+        var groups = deletes.Select(x => x.Group)
+            .Concat(moves.Select(x => x.Group))
+            .Distinct()
+            .ToList();
+
+        if (groups.Count == 1)
+        {
+            foreach (var toolStripItem in BuildMovesAndDeletes(null, tracker, deletes, moves))
+            {
+                yield return toolStripItem;
+            }
+        }
+        else
+        {
+            foreach (var group in groups)
+            {
+                foreach (var toolStripItem in BuildMovesAndDeletes(
+                    group,
+                    tracker,
+                    deletes.Where(x => x.Group == group).ToList(),
+                    moves.Where(x => x.Group == group).ToList()))
+                {
+                    yield return toolStripItem;
+                }
+            }
+        }
+
         yield return new MenuButton($"Clear ({count})", tracker.Clear, Images.Clear);
+        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
+    }
+
+    static IEnumerable<ToolStripItem> BuildMovesAndDeletes(string? name, Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)
+    {
+        if (name != null)
+        {
+            yield return new MenuButton(name, null, Images.VisualStudio);
+        }
 
         if (deletes.Any())
         {
-            yield return new ToolStripSeparator();
-            yield return new MenuButton($"Pending Deletes ({deletes.Count}):", tracker.AcceptAllDeletes, Images.Delete);
+            yield return new MenuButton($"Pending Deletes ({deletes.Count}):", () => tracker.Accept(deletes), Images.Delete);
             foreach (var delete in deletes)
             {
-                var menu = new SplitButton($"{delete.Name}", () => tracker.Accept(delete));
-                menu.AddRange(
-                    new MenuButton("Accept delete", () => tracker.Accept(delete)),
-                    new MenuButton("Open directory", () => ExplorerLauncher.ShowFileInExplorer(delete.File)));
-                yield return menu;
+                yield return BuildDelete(delete, () => tracker.Accept(delete));
             }
         }
 
         if (moves.Any())
         {
-            yield return new ToolStripSeparator();
-            yield return new MenuButton($"Pending Moves ({moves.Count}):", tracker.AcceptAllMoves, Images.Accept);
+            yield return new MenuButton($"Pending Moves ({moves.Count}):", () => tracker.Accept(moves), Images.Accept);
             foreach (var move in moves)
             {
-                var menu = new SplitButton($"{move.Name} ({move.Extension})", () => tracker.Accept(move));
-                menu.AddRange(
-                    new MenuButton("Accept move", () => tracker.Accept(move)),
-                    new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)),
-                    new MenuButton("Open directory", () => ExplorerLauncher.ShowFileInExplorer(move.Temp)));
-                yield return menu;
+                yield return BuildMove(move, () => tracker.Accept(move));
             }
         }
 
         yield return new ToolStripSeparator();
-        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
+    }
+
+    static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
+    {
+        var menu = new SplitButton($"{delete.Name}", accept);
+        menu.AddRange(
+            new MenuButton("Accept delete", accept),
+            BuildShowInExplorer(delete.File));
+        return menu;
+    }
+
+    static ToolStripItem BuildMove(TrackedMove move, Action accept)
+    {
+        var menu = new SplitButton($"{move.Name} ({move.Extension})", accept);
+        menu.AddRange(
+            new MenuButton("Accept move", accept),
+            new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)),
+            BuildShowInExplorer(move.Temp));
+        return menu;
+    }
+
+    static MenuButton BuildShowInExplorer(string file)
+    {
+        return new MenuButton("Open directory", () => ExplorerLauncher.ShowFileInExplorer(file));
     }
 }

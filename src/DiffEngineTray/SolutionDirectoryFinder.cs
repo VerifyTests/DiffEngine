@@ -1,28 +1,51 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 
 static class SolutionDirectoryFinder
 {
-    static ConcurrentDictionary<string, string?> cache = new ConcurrentDictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-    public static bool TryFind(string file, [NotNullWhen(true)] out string? path)
+    class Result
     {
-        path = cache.GetOrAdd(file, Inner);
-        return path != null;
+        public string Directory { get; }
+        public string Name { get; }
+
+        public Result(string directory, string name)
+        {
+            Directory = directory;
+            Name = name;
+        }
     }
 
-    static string? Inner(string file)
+    static ConcurrentDictionary<string, Result?> cache = new ConcurrentDictionary<string, Result?>(StringComparer.OrdinalIgnoreCase);
+
+    public static string? Find(string file)
     {
-        var currentDirectory = Path.GetDirectoryName(file)!;
+        return cache.GetOrAdd(file, Inner)?.Name;
+    }
+
+    static Result? Inner(string file)
+    {
+        foreach (var result in cache.Values.Where(x => x != null))
+        {
+            if (file.StartsWith(result!.Directory))
+            {
+                return result;
+            }
+        }
+
+        var currentDirectory = Path.GetDirectoryName(file);
+        if (string.IsNullOrEmpty(currentDirectory))
+        {
+            return null;
+        }
+
         do
         {
             var solutions = Directory.GetFiles(currentDirectory, "*.sln");
             if (solutions.Any())
             {
-                return Path.GetFileNameWithoutExtension(solutions.First());
+                return new Result(currentDirectory, Path.GetFileNameWithoutExtension(solutions.First()));
             }
 
             var parent = Directory.GetParent(currentDirectory);

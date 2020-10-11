@@ -1,4 +1,0 @@
-{
-  found: true,
-  path: 'DiffEngine'
-}
