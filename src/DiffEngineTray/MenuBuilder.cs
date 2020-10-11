@@ -82,25 +82,15 @@ static class MenuBuilder
             .Distinct()
             .ToList();
 
-        if (groups.Count == 1)
+        foreach (var group in groups)
         {
-            foreach (var toolStripItem in BuildMovesAndDeletes(null, tracker, deletes, moves))
+            foreach (var toolStripItem in BuildMovesAndDeletes(
+                group,
+                tracker,
+                deletes.Where(x => x.Group == group).ToList(),
+                moves.Where(x => x.Group == group).ToList()))
             {
                 yield return toolStripItem;
-            }
-        }
-        else
-        {
-            foreach (var group in groups)
-            {
-                foreach (var toolStripItem in BuildMovesAndDeletes(
-                    group,
-                    tracker,
-                    deletes.Where(x => x.Group == group).ToList(),
-                    moves.Where(x => x.Group == group).ToList()))
-                {
-                    yield return toolStripItem;
-                }
             }
         }
 

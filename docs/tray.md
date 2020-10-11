@@ -30,6 +30,11 @@ Run `diffenginetray` in a console to start the app.
 <img src="..\src\DiffEngineTray.Tests\MenuBuilderTest.Full.verified.png">
 
 
+### Grouping
+
+Moves and deletes will be grouped by the containing solution. In the above, the files exist in DiffEngine, so the they are grouped under it.
+
+
 ### Moves
 
 "Pending Moves" will accept the changes to file3 and file4.
