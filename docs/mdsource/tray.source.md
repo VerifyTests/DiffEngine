@@ -68,7 +68,7 @@ Runs DiffEngineTray at system startup.
 
 Registers a system wide HotKey to accept pending:
 
- * Deletes 
+ * Deletes
  * Moves
 
 
@@ -76,7 +76,7 @@ Registers a system wide HotKey to accept pending:
 
 Registers a system wide HotKey to accept pending:
 
- * Deletes 
+ * Deletes
  * Moves that are currently open in a diff tool
 
 To limit impact on system resources, the [default max concurrent open tool instances is limited to 5](/docs/diff-tool.md#maxinstancestolaunch).
@@ -88,3 +88,4 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
 
  * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
+ * [Shouldly](https://github.com/shouldly/shouldly) v4.0.0 and above
