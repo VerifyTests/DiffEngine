@@ -17,7 +17,7 @@
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.2.6" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.3.0" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.10.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />

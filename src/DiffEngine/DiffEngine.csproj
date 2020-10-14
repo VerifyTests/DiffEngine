@@ -14,7 +14,7 @@
                       PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" Version="2.0.5"
                       PrivateAssets="None" />
-    <PackageReference Include="Fody" Version="6.2.6"
+    <PackageReference Include="Fody" Version="6.3.0"
                       PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub"
                       Version="1.0.0"
