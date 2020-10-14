@@ -6,15 +6,13 @@ using System.Windows.Forms;
 
 static class MenuBuilder
 {
-    static List<ToolStripItem>? itemsToCleanup;
-
     public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
     {
         var menu = new ContextMenuStrip();
         var items = menu.Items;
         menu.Opening += delegate
         {
-            DisposePreviousItems();
+            DisposePreviousItems(items);
 
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
@@ -22,7 +20,6 @@ static class MenuBuilder
             }
         };
         menu.Font = new Font(menu.Font.FontFamily, 10);
-        menu.Closed += delegate { CleanTransientMenus(items); };
         items.Add(new MenuButton("Exit", exit, Images.Exit));
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
@@ -40,23 +37,13 @@ static class MenuBuilder
             .ToList();
     }
 
-    static void DisposePreviousItems()
+    static void DisposePreviousItems(ToolStripItemCollection items)
     {
-        if (itemsToCleanup == null)
+        foreach (var item in NonDefaultMenus(items))
         {
-            return;
-        }
-
-        foreach (var item in itemsToCleanup)
-        {
+            items.Remove(item);
             item.Dispose();
         }
-    }
-
-    static void CleanTransientMenus(ToolStripItemCollection items)
-    {
-        itemsToCleanup = NonDefaultMenus(items);
-        items.RemoveRange(itemsToCleanup);
     }
 
     static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
