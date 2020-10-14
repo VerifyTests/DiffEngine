@@ -2,8 +2,8 @@
 
 namespace DiffEngine
 {
-    [DebuggerDisplay("FirstExePath={ExePaths[0]}")]
-    public record OsSettings
+    [DebuggerDisplay("Arguments={Arguments}, ExePaths={ExePaths}")]
+    public class OsSettings
     {
         public BuildArguments Arguments { get; }
         public string[] ExePaths { get; }
