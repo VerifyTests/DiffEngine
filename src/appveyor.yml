@@ -1,5 +1,5 @@
 image:
-- Visual Studio 2019
+- Visual Studio 2019 Preview
 - macos
 skip_commits:
   message: /docs|Merge pull request.*/
@@ -11,7 +11,7 @@ for:
   -
     matrix:
       only:
-        - image: Visual Studio 2019
+        - image: Visual Studio 2019 Preview
     build_script:
       - ps: >-
           dotnet build src --configuration Release
