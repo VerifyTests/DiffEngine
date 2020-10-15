@@ -17,6 +17,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 **Currently used by:**
 
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net)
+ * [Shouldly](https://github.com/shouldly/shouldly/)
  * [Verify](https://github.com/VerifyTests/Verify)
 
 Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).

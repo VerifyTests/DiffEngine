@@ -86,6 +86,6 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
 
 ## Currently supported in
 
- * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
  * [Shouldly](https://github.com/shouldly/shouldly) v4.0.0 and above
+ * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
