@@ -50,9 +50,9 @@ namespace DiffEngineTray.Mac
             NSApplication.SharedApplication.Terminate(this);
         }
 
-        public override async void DidFinishLaunching(NSNotification notification)
+        public override void DidFinishLaunching(NSNotification notification)
         {
-            await StartServer();
+            Task.Run(StartServer);
         }
 
         public override void WillTerminate(NSNotification notification)

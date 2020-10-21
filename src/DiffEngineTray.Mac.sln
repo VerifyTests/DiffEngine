@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngine.Tests", "DiffEng
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FakeDiffTool", "FakeDiffTool\FakeDiffTool.csproj", "{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngineTray.Mac.Tests", "DiffEngineTray.Mac.Tests\DiffEngineTray.Mac.Tests.csproj", "{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -38,5 +40,9 @@ Global
 		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Debug|x86.Build.0 = Debug|Any CPU
 		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Release|x86.ActiveCfg = Release|Any CPU
 		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Release|x86.Build.0 = Release|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Debug|x86.Build.0 = Debug|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Release|x86.ActiveCfg = Release|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -71,6 +71,15 @@
         <Compile Include="SettingsPage.xaml.cs">
           <DependentUpon>SettingsPage.xaml</DependentUpon>
         </Compile>
+        <Compile Include="Settings\HotKeyControl.cs" />
+        <Compile Include="Settings\HotKeyControl.Designer.cs" />
+        <Compile Include="Settings\OptionsForm.xaml.cs">
+          <DependentUpon>OptionsForm.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="Settings\OptionsFormLauncher.cs" />
+        <Compile Include="Settings\Settings.cs" />
+        <Compile Include="Settings\SettingsHelper.cs" />
+        <Compile Include="Settings\SettingsValidator.cs" />
         <Compile Include="ViewController.cs" />
         <Compile Include="ViewController.designer.cs">
             <DependentUpon>ViewController.cs</DependentUpon>
@@ -94,6 +103,8 @@
       <EmbeddedResource Include="MainPage.xaml" />
       <EmbeddedResource Include="Resources\icon.png" />
       <EmbeddedResource Include="SettingsPage.xaml" />
+      <EmbeddedResource Include="Settings\HotKeyControl.resx" />
+      <EmbeddedResource Include="Settings\OptionsForm.xaml" />
     </ItemGroup>
     <ItemGroup>
       <Content Include="Resources\accept.png" />
