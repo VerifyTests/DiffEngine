@@ -4,12 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DiffEngineTray.Common;
+using MessageBoxIcon = System.Windows.Forms.MessageBoxIcon;
 
 public partial class OptionsForm :
     Form
 {
     Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;
 
+    IUpdater updater = new WindowsAppUpdater();
+    
     public OptionsForm()
     {
         InitializeComponent();
@@ -63,6 +67,6 @@ public partial class OptionsForm :
 
     void updateButton_Click(object sender, EventArgs e)
     {
-        Updater.Run();
+        updater.Run();
     }
 }

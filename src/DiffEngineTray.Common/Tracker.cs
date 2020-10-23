@@ -189,7 +189,7 @@ class Tracker :
     {
         if (File.Exists(move.Temp))
         {
-            File.Move(move.Temp, move.Target, true);
+            File.Move(move.Temp, move.Target); //Overload not available here
         }
 
         KillProcesses(move);

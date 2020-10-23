@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
+    <PackageReference Include="ModuleInit.Fody" Version="2.1.1" PrivateAssets="All" />
+    <PackageReference Include="Fody" Version="6.2.6" PrivateAssets="All" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Verify.Xunit" Version="6.23.3" />
+    <PackageReference Include="Verify.ImageMagick" Version="2.2.0" />
+    <PackageReference Include="Xunit" Version="2.4.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.46" PrivateAssets="All" />
+    <PackageReference Include="XunitContext" Version="2.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DiffEngineTray.Common\DiffEngineTray.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="HotKeyControlTests.cs" />
+    <Compile Remove="MenuBuilderTest.cs" />
+    <Compile Remove="SettingsHelperTests.cs" />
+    <Compile Remove="OptionsFormTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="HotKeyControlTests.Default.verified.png" />
+    <None Remove="HotKeyControlTests.WithKeys.verified.png" />
+    <None Remove="MenuBuilderTest.Empty.verified.png" />
+    <None Remove="MenuBuilderTest.Full.verified.png" />
+    <None Remove="MenuBuilderTest.OnlyDelete.verified.png" />
+    <None Remove="MenuBuilderTest.OnlyMove.verified.png" />
+    <None Remove="SettingsHelperTests.ReadWrite.verified.txt" />
+    <None Remove="OptionsFormTests.Default.received.png" />
+    <None Remove="OptionsFormTests.Default.verified.png" />
+    <None Remove="OptionsFormTests.WithKeys.received.png" />
+    <None Remove="OptionsFormTests.WithKeys.verified.png" />
+  </ItemGroup>
+</Project>

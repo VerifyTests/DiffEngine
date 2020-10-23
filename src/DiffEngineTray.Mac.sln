@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngineTray.Mac", "DiffEngineTray.Mac\DiffEngineTray.Mac.csproj", "{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngineTray.Common", "DiffEngineTray.Common\DiffEngineTray.Common.csproj", "{CD26DF8E-447A-49CE-9B8C-C31E251FFC84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngine", "DiffEngine\DiffEngine.csproj", "{0978620F-897F-4BF4-AB1E-D47B1A17C2F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngine.Tests", "DiffEngine.Tests\DiffEngine.Tests.csproj", "{29435A62-0E93-42EA-8831-F72B4144C1EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FakeDiffTool", "FakeDiffTool\FakeDiffTool.csproj", "{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngineTray.Mac.Tests", "DiffEngineTray.Mac.Tests\DiffEngineTray.Mac.Tests.csproj", "{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Debug|x86.ActiveCfg = Debug|x86
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Debug|x86.Build.0 = Debug|x86
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Debug|x86.Deploy.0 = Debug|x86
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Release|x86.ActiveCfg = Release|x86
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Release|x86.Build.0 = Release|x86
+		{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}.Release|x86.Deploy.0 = Release|x86
+		{CD26DF8E-447A-49CE-9B8C-C31E251FFC84}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CD26DF8E-447A-49CE-9B8C-C31E251FFC84}.Debug|x86.Build.0 = Debug|Any CPU
+		{CD26DF8E-447A-49CE-9B8C-C31E251FFC84}.Release|x86.ActiveCfg = Release|Any CPU
+		{CD26DF8E-447A-49CE-9B8C-C31E251FFC84}.Release|x86.Build.0 = Release|Any CPU
+		{0978620F-897F-4BF4-AB1E-D47B1A17C2F9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0978620F-897F-4BF4-AB1E-D47B1A17C2F9}.Debug|x86.Build.0 = Debug|Any CPU
+		{0978620F-897F-4BF4-AB1E-D47B1A17C2F9}.Release|x86.ActiveCfg = Release|Any CPU
+		{0978620F-897F-4BF4-AB1E-D47B1A17C2F9}.Release|x86.Build.0 = Release|Any CPU
+		{29435A62-0E93-42EA-8831-F72B4144C1EB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{29435A62-0E93-42EA-8831-F72B4144C1EB}.Debug|x86.Build.0 = Debug|Any CPU
+		{29435A62-0E93-42EA-8831-F72B4144C1EB}.Release|x86.ActiveCfg = Release|Any CPU
+		{29435A62-0E93-42EA-8831-F72B4144C1EB}.Release|x86.Build.0 = Release|Any CPU
+		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Debug|x86.Build.0 = Debug|Any CPU
+		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Release|x86.ActiveCfg = Release|Any CPU
+		{C614433F-1C56-4CA4-BE35-CD7B4D224A5C}.Release|x86.Build.0 = Release|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Debug|x86.Build.0 = Debug|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Release|x86.ActiveCfg = Release|Any CPU
+		{74C91284-6F82-43B4-B4B7-BFDD67FB4F26}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -22,6 +22,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngine.Tests", "DiffEng
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngineTray.Tests", "DiffEngineTray.Tests\DiffEngineTray.Tests.csproj", "{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffEngineTray.Common", "DiffEngineTray.Common\DiffEngineTray.Common.csproj", "{B62FBE96-EB1E-4621-AA31-8971862FC4FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,12 @@ Global
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.MacOS|Any CPU.ActiveCfg = Debug|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.MacOS|Any CPU.Build.0 = Debug|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B62FBE96-EB1E-4621-AA31-8971862FC4FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

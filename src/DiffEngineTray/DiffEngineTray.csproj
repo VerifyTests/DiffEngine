@@ -23,10 +23,15 @@
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
     <PackageReference Include="ProjectDefaults" Version="1.0.47" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
+    <PackageReference Include="Fody" Version="6.2.6" PrivateAssets="all" />
     <!-- not sure why, but the below are needing so donet tool can resolve the assemblies -->
     <PackageReference Include="System.Globalization.Extensions" Version="4.3.0" PrivateAssets="none" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiffEngineTray.Common\DiffEngineTray.Common.csproj" />
   </ItemGroup>
 </Project>

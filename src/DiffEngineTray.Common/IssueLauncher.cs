@@ -2,17 +2,23 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Net;
-using System.Windows.Forms;
+using DiffEngineTray.Common;
 
-static class IssueLauncher
+class IssueLauncher 
 {
     static ConcurrentBag<string> recorded = new ConcurrentBag<string>();
     static string defaultBody;
-
+    static IMessageBox? messageBox;
+    
     static IssueLauncher()
     {
         defaultBody = WebUtility.UrlEncode($@" * DiffEngineTray Version: {VersionReader.VersionString}
  * OS: {Environment.OSVersion.VersionString}");
+    }
+
+    public static void Initialize(IMessageBox message)
+    {
+        messageBox = message;
     }
 
     public static void Launch()
@@ -28,7 +34,7 @@ static class IssueLauncher
         }
         recorded.Add(message);
 
-        var result = MessageBox.Show(
+        var result = messageBox?.Show(
             $@"An error occurred: {message}
 
 Logged to: {Logging.Directory}
@@ -37,9 +43,8 @@ Logged to: {Logging.Directory}
 
 Open an issue on GitHub?",
             "DiffEngineTray Error",
-            MessageBoxButtons.YesNo,
             MessageBoxIcon.Error);
-        if (result == DialogResult.No)
+        if (result != true)
         {
             return;
         }

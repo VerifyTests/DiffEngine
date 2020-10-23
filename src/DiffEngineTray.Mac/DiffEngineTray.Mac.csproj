@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+        <ProjectGuid>{FAFC7DE7-FACE-4947-8332-5D644DDC8DB7}</ProjectGuid>
+        <ProjectTypeGuids>{A3F8F2AB-B479-4A4A-A458-A89E7DC349F1};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>DiffEngineTray.Mac</RootNamespace>
+        <AssemblyName>DiffEngineTray.Mac</AssemblyName>
+        <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+        <TargetFrameworkIdentifier>Xamarin.Mac</TargetFrameworkIdentifier>
+        <MonoMacResourcePrefix>Resources</MonoMacResourcePrefix>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug</OutputPath>
+        <DefineConstants>DEBUG;</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <EnableCodeSigning>false</EnableCodeSigning>
+        <CodeSigningKey>Mac Developer</CodeSigningKey>
+        <CreatePackage>false</CreatePackage>
+        <EnablePackageSigning>false</EnablePackageSigning>
+        <IncludeMonoRuntime>false</IncludeMonoRuntime>
+        <UseSGen>true</UseSGen>
+        <UseRefCounting>true</UseRefCounting>
+        <PlatformTarget>x86</PlatformTarget>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release</OutputPath>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <EnableCodeSigning>false</EnableCodeSigning>
+        <CreatePackage>true</CreatePackage>
+        <EnablePackageSigning>false</EnablePackageSigning>
+        <IncludeMonoRuntime>true</IncludeMonoRuntime>
+        <UseSGen>true</UseSGen>
+        <UseRefCounting>true</UseRefCounting>
+        <LinkMode>SdkOnly</LinkMode>
+        <PlatformTarget>x86</PlatformTarget>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="System" />
+        <Reference Include="System.Core" />
+        <Reference Include="Xamarin.Mac" />
+    </ItemGroup>
+    <ItemGroup>
+        <ImageAsset Include="Assets.xcassets\Contents.json" />
+    </ItemGroup>
+    <ItemGroup>
+        <Folder Include="Resources\" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="Info.plist" />
+        <None Include="Entitlements.plist" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="App.cs" />
+        <Compile Include="MacMessageBox.cs" />
+        <Compile Include="Main.cs" />
+        <Compile Include="AppDelegate.cs" />
+        <Compile Include="MainPage.xaml.cs">
+          <DependentUpon>MainPage.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="PopupMenu.cs" />
+        <Compile Include="SettingsPage.xaml.cs">
+          <DependentUpon>SettingsPage.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="Settings\HotKeyControl.cs" />
+        <Compile Include="Settings\HotKeyControl.Designer.cs" />
+        <Compile Include="Settings\OptionsForm.xaml.cs">
+          <DependentUpon>OptionsForm.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="Settings\OptionsFormLauncher.cs" />
+        <Compile Include="Settings\Settings.cs" />
+        <Compile Include="Settings\SettingsHelper.cs" />
+        <Compile Include="Settings\SettingsValidator.cs" />
+        <Compile Include="ViewController.cs" />
+        <Compile Include="ViewController.designer.cs">
+            <DependentUpon>ViewController.cs</DependentUpon>
+        </Compile>
+    </ItemGroup>
+    <ItemGroup>
+        <InterfaceDefinition Include="Main.storyboard" />
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Include="Xamarin.Forms" Version="4.8.0.1451" />
+      <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+      <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\DiffEngineTray.Common\DiffEngineTray.Common.csproj">
+        <Project>{cd26df8e-447a-49ce-9b8c-c31e251ffc84}</Project>
+        <Name>DiffEngineTray.Common</Name>
+      </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="MainPage.xaml" />
+      <EmbeddedResource Include="Resources\icon.png" />
+      <EmbeddedResource Include="SettingsPage.xaml" />
+      <EmbeddedResource Include="Settings\HotKeyControl.resx" />
+      <EmbeddedResource Include="Settings\OptionsForm.xaml" />
+    </ItemGroup>
+    <ItemGroup>
+      <Content Include="Resources\accept.png" />
+      <Content Include="Resources\acceptAll.png" />
+      <Content Include="Resources\active.ico" />
+      <Content Include="Resources\clear.png" />
+      <Content Include="Resources\cogs.png" />
+      <Content Include="Resources\default.ico" />
+      <Content Include="Resources\delete.png" />
+      <Content Include="Resources\error.png" />
+      <Content Include="Resources\exit.png" />
+      <Content Include="Resources\folder.png" />
+      <Content Include="Resources\icon.ico" />
+      <Content Include="Resources\link.png" />
+    </ItemGroup>
+    <Import Project="$(MSBuildExtensionsPath)\Xamarin\Mac\Xamarin.Mac.CSharp.targets" />
+</Project>
