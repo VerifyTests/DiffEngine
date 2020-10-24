@@ -24,9 +24,9 @@ for:
         - image: macos
     build_script:
       - ps: >-
-          dotnet build src --configuration MacOs
+          dotnet build src/DiffEngineTray.Mac.sln --configuration MacOs
 
-          dotnet test src --configuration MacOs --no-build --no-restore --filter Category!=Integration
+          dotnet test src/DiffEngineTray.Mac.sln --configuration MacOs --no-build --no-restore --filter Category!=Integration
 
 on_failure:
   - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
