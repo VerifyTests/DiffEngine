@@ -6,9 +6,8 @@ using System.Windows.Forms;
 
 static class MenuBuilder
 {
-    public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
+    public static void Build(ContextMenuStrip menu, Action exit, Action launchOptions, Tracker tracker)
     {
-        var menu = new ContextMenuStrip();
         var items = menu.Items;
         menu.Opening += delegate
         {
@@ -24,7 +23,6 @@ static class MenuBuilder
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
         items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
-        return menu;
     }
 
     static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)

@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using VerifyTests;
 using VerifyXunit;
 using Xunit;
@@ -13,7 +14,8 @@ public class MenuBuilderTest :
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 
@@ -22,7 +24,8 @@ public class MenuBuilderTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 
@@ -31,7 +34,8 @@ public class MenuBuilderTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 
@@ -43,7 +47,8 @@ public class MenuBuilderTest :
         tracker.AddDelete(file2);
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, file4, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 
@@ -53,7 +58,8 @@ public class MenuBuilderTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 
@@ -65,7 +71,8 @@ public class MenuBuilderTest :
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        var menu = new ContextMenuStrip();
+        MenuBuilder.Build(menu, () => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
 

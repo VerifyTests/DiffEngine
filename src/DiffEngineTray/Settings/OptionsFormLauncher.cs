@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DiffEngineTray.Common;
 
 static class OptionsFormLauncher
 {
-    public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
+    public static async Task Launch(IMessageBox messageBox, KeyRegister keyRegister, Tracker tracker)
     {
         var settings = await SettingsHelper.Read();
         var form = new OptionsForm(
+            messageBox,
             settings,
             async newSettings => await Save(keyRegister, tracker, newSettings));
         form.ShowDialog();

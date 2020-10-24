@@ -9,12 +9,18 @@ namespace DiffEngineTray
 {
     public class WindowsMessageBox : IMessageBox
     {
+        IWin32Window window;
         Dictionary<Icon, WinIcon> iconMap = new Dictionary<Icon, WinIcon>();
+
+        public WindowsMessageBox(IWin32Window window)
+        {
+            this.window = window;
+        }
 
         public bool? Show(string message, string title, Icon icon, MessageBoxButtons buttons = MessageBoxButtons.YesNo)
         {
             var mappedIcon = iconMap[icon];
-            var result = MessageBox.Show(message, title, MessageBoxButtons.YesNo, mappedIcon);
+            var result = MessageBox.Show(window, message, title, System.Windows.Forms.MessageBoxButtons.YesNo, mappedIcon);
 
             return ReturnResult(result);
         }

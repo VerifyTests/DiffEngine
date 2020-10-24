@@ -27,8 +27,7 @@ static class Program
             Log.Information("Mutex already exists. Exiting.");
             return;
         }
-        
-        IssueLauncher.Initialize(new WindowsMessageBox());
+
 
         using var icon = new NotifyIcon
         {
@@ -55,10 +54,15 @@ static class Program
         using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);
 
-        icon.ContextMenuStrip = MenuBuilder.Build(
+
+        icon.ContextMenuStrip = new ContextMenuStrip();
+        var messageBox = new WindowsMessageBox(icon.ContextMenuStrip);
+
+        MenuBuilder.Build(icon.ContextMenuStrip,
             Application.Exit,
-            async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
+            async () => await OptionsFormLauncher.Launch(messageBox, keyRegister, tracker),
             tracker);
+        IssueLauncher.Initialize(messageBox);
 
         Application.Run();
         tokenSource.Cancel();

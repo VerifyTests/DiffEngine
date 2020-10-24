@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DiffEngine;
 using DiffEngine.Tests;
@@ -41,20 +42,23 @@ public class DiffToolsTest :
     [Fact]
     public void MacDiffOrderShouldNotMessWithAddTool()
     {
-        var diffToolPath = MacDiffTool.Exe;
-        var resolvedTool = DiffTools.AddTool(
-            name: "MacDiffTool",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
-            exePath: diffToolPath,
-            binaryExtensions: Enumerable.Empty<string>())!;
-        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
-        Assert.True(DiffTools.TryFind("txt", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension!.Name);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var diffToolPath = MacDiffTool.Exe;
+            var resolvedTool = DiffTools.AddTool(
+                name: "MacDiffTool",
+                autoRefresh: true,
+                isMdi: false,
+                supportsText: true,
+                requiresTarget: true,
+                arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+                exePath: diffToolPath,
+                binaryExtensions: Enumerable.Empty<string>())!;
+            DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+            Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
+            Assert.True(DiffTools.TryFind("txt", out var forExtension));
+            Assert.Equal(resolvedTool.Name, forExtension!.Name);
+        }
     }
 
     [Fact]

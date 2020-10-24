@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using DiffEngineTray.Common;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -36,6 +37,7 @@ public class OptionsFormTests :
     public async Task WithKeys()
     {
         using var form = new OptionsForm(
+            new MockMessageBox(),
             new Settings
             {
                 AcceptAllHotKey = new HotKey
@@ -52,9 +54,18 @@ public class OptionsFormTests :
     public async Task Default()
     {
         using var form = new OptionsForm(
+            new MockMessageBox(),
             new Settings(),
             x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
 #endif
+}
+
+public class MockMessageBox : IMessageBox
+{
+    public bool? Show(string message, string title, MessageBoxIcon icon, MessageBoxButtons buttons = MessageBoxButtons.YesNo)
+    {
+        return null;
+    }
 }

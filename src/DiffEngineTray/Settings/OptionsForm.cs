@@ -5,24 +5,26 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DiffEngineTray.Common;
-using MessageBoxIcon = System.Windows.Forms.MessageBoxIcon;
+using MessageBoxButtons = DiffEngineTray.Common.MessageBoxButtons;
+using MessageBoxIcon = DiffEngineTray.Common.MessageBoxIcon;
 
 public partial class OptionsForm :
     Form
 {
     Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;
-
     IUpdater updater = new WindowsAppUpdater();
-    
-    public OptionsForm()
+    IMessageBox messageBox;
+
+    public OptionsForm(IMessageBox messageBox)
     {
+        this.messageBox = messageBox;
         InitializeComponent();
         Icon = Images.Active;
         versionLabel.Text = $"Version: {VersionReader.VersionString}";
     }
 
-    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave) :
-        this()
+    public OptionsForm(IMessageBox messageBox, Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave) :
+        this(messageBox)
     {
         this.trySave = trySave;
         acceptAllHotKey.HotKey = settings.AcceptAllHotKey;
@@ -52,7 +54,7 @@ public partial class OptionsForm :
             builder.AppendLine($" * {error}");
         }
 
-        MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        messageBox.Show(builder.ToString(), "Errors", MessageBoxIcon.Error, MessageBoxButtons.OK);
     }
 
     void diffEngineLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
