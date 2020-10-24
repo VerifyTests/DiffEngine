@@ -56,7 +56,7 @@ public class DiffToolsTest :
         Assert.True(DiffTools.TryFind("txt", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension!.Name);
     }
-    
+
     [Fact]
     public void OrderShouldNotMessWithAddTool()
     {
