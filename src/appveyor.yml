@@ -14,9 +14,9 @@ for:
         - image: Visual Studio 2019 Preview
     build_script:
       - ps: >-
-          dotnet build src --configuration Release
+          dotnet build src/DiffEngine.sln --configuration Release
 
-          dotnet test src --configuration Release --no-build --no-restore --filter Category!=Integration
+          dotnet test src/DiffEngine.sln --configuration Release --no-build --no-restore --filter Category!=Integration
 
   -
     matrix:
