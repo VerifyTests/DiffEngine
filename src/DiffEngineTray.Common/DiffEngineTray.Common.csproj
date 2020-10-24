@@ -6,7 +6,7 @@
         <SignAssembly>false</SignAssembly>
         <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
     </PropertyGroup>
-    
+
     <ItemGroup>
         <PackageReference Include="Serilog" Version="2.10.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
