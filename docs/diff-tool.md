@@ -61,7 +61,7 @@ Setting the `DiffEngine_MaxInstances` environment variable to the number of inst
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L14-L18' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L15-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
