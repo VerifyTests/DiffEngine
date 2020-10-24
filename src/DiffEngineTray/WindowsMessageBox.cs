@@ -2,6 +2,7 @@
 using System.Windows.Forms;
 using DiffEngineTray.Common;
 using Icon = DiffEngineTray.Common.MessageBoxIcon;
+using MessageBoxButtons = DiffEngineTray.Common.MessageBoxButtons;
 using WinIcon = System.Windows.Forms.MessageBoxIcon;
 
 namespace DiffEngineTray
@@ -9,8 +10,8 @@ namespace DiffEngineTray
     public class WindowsMessageBox : IMessageBox
     {
         Dictionary<Icon, WinIcon> iconMap = new Dictionary<Icon, WinIcon>();
-        
-        public bool? Show(string message, string title, Icon icon)
+
+        public bool? Show(string message, string title, Icon icon, MessageBoxButtons buttons = MessageBoxButtons.YesNo)
         {
             var mappedIcon = iconMap[icon];
             var result = MessageBox.Show(message, title, MessageBoxButtons.YesNo, mappedIcon);
