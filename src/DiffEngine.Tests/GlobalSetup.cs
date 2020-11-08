@@ -1,11 +1,12 @@
-﻿using DiffEngine;
+﻿using System.Runtime.CompilerServices;
+using DiffEngine;
 using Xunit;
 
 [assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true)]
 
-[GlobalSetUp]
 public static class GlobalSetup
 {
+    [ModuleInitializer]
     public static void Setup()
     {
         Logging.Enable();
