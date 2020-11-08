@@ -1,8 +1,8 @@
 {
-  Temp: 'Foo',
-  Target: 'Bar',
-  Exe: 'theExe',
-  Arguments: 'TheArguments "s"',
+  Temp: Foo,
+  Target: Bar,
+  Exe: theExe,
+  Arguments: TheArguments "s",
   CanKill: true,
   ProcessId: 10
 }
