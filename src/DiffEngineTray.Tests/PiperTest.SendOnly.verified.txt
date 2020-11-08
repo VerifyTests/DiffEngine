@@ -1,6 +1,5 @@
 [
-  
-Failed to send payload to DiffEngineTray.
+  'Failed to send payload to DiffEngineTray.
 
 Payload:
 {
@@ -19,8 +18,7 @@ System.Net.Internals.SocketExceptionFactory+ExtendedSocketException (10061): No 
    at System.Net.Sockets.TcpClient.<>c.<ConnectAsync>b__27_1(IAsyncResult asyncResult)
    at System.Threading.Tasks.TaskFactory`1.FromAsyncCoreLogic(IAsyncResult iar, Func`2 endFunction, Action`1 endAction, Task`1 promise, Boolean requiresSynchronization)
 --- End of stack trace from previous location where exception was thrown ---
-  
-Failed to send payload to DiffEngineTray.
+  'Failed to send payload to DiffEngineTray.
 
 Payload:
 {
