@@ -1,21 +1,15 @@
-image:
-- Visual Studio 2019 Preview
+image: Visual Studio 2019 Preview
 skip_commits:
   message: /docs|Merge pull request.*/
 test: off
 artifacts:
 - path: nugets\*.nupkg
 
-for:
-  -
-    matrix:
-      only:
-        - image: Visual Studio 2019 Preview
-    build_script:
-      - ps: >-
-          dotnet build src --configuration Release
+build_script:
+  - ps: >-
+      dotnet build src --configuration Release
 
-          dotnet test src --configuration Release --no-build --no-restore --filter Category!=Integration
+      dotnet test src --configuration Release --no-build --no-restore --filter Category!=Integration
 
 on_failure:
   - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
