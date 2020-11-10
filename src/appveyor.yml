@@ -1,6 +1,6 @@
 image:
 - Visual Studio 2019 Preview
-- macos
+#- macos
 skip_commits:
   message: /docs|Merge pull request.*/
 test: off
@@ -18,15 +18,15 @@ for:
 
           dotnet test src --configuration Release --no-build --no-restore --filter Category!=Integration
 
-  -
-    matrix:
-      only:
-        - image: macos
-    build_script:
-      - ps: >-
-          dotnet build src --configuration MacOs
-
-          dotnet test src --configuration MacOs --no-build --no-restore --filter Category!=Integration
+#  -
+#    matrix:
+#      only:
+#        - image: macos
+#    build_script:
+#      - ps: >-
+#          dotnet build src --configuration MacOs
+#
+#          dotnet test src --configuration MacOs --no-build --no-restore --filter Category!=Integration
 
 on_failure:
   - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
