@@ -19,6 +19,6 @@
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="3.1.1" Condition="$(TargetFramework) != 'net461'" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" Condition="$(TargetFramework) == 'net461'" />
     <Reference Include="System.Management" Condition="$(TargetFramework) == 'net461'" />
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.1.1" Condition="$(TargetFramework) == 'netstandard2.0' Or $(TargetFramework) == 'net461'" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" Condition="$(TargetFramework) == 'netstandard2.0' Or $(TargetFramework) == 'net461'" />
   </ItemGroup>
 </Project>
