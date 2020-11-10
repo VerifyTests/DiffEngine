@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>

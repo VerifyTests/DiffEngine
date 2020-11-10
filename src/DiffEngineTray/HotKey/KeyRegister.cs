@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using System.Security.Permissions;
 
 //https://stackoverflow.com/a/35591706/53158
 public class KeyRegister :
@@ -65,7 +64,6 @@ public class KeyRegister :
         UnregisterHotKey(handle, id);
     }
 
-    [PermissionSetAttribute(SecurityAction.LinkDemand, Name = "FullTrust")]
     public bool PreFilterMessage(ref Message message)
     {
         // false to allow the message to continue to the next filter
