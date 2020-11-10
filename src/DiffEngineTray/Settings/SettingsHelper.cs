@@ -10,7 +10,7 @@ class SettingsHelper
     static SettingsHelper()
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var directory = Path.Combine(appData, "DiffEngine");
+        string directory = Path.Combine(appData, "DiffEngine");
         Directory.CreateDirectory(directory);
         FilePath = Path.Combine(directory, "settings.json");
     }
@@ -20,7 +20,7 @@ class SettingsHelper
         if (File.Exists(FilePath))
         {
             await using var stream = File.OpenRead(FilePath);
-            return (await JsonSerializer.DeserializeAsync<Settings>(stream))!;
+            return await JsonSerializer.DeserializeAsync<Settings>(stream);
         }
 
         await File.WriteAllTextAsync(FilePath, "{}");

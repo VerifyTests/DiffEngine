@@ -7,7 +7,7 @@ static class Serializer
     {
         try
         {
-            return JsonSerializer.Deserialize<T>(payload)!;
+            return JsonSerializer.Deserialize<T>(payload);
         }
         catch (Exception exception)
         {

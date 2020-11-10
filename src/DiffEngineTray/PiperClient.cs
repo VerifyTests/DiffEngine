@@ -21,7 +21,7 @@ static class PiperClient
         CancellationToken cancellation = default)
     {
         var payload = BuildDeletePayload(file);
-        return SendAsync(payload);
+        return SendAsync(payload, cancellation);
     }
 
     static string BuildDeletePayload(string file)
@@ -54,7 +54,7 @@ static class PiperClient
         CancellationToken cancellation = default)
     {
         var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId);
-        return SendAsync(payload);
+        return SendAsync(payload, cancellation);
     }
 
     static string BuildMovePayload(string tempFile, string targetFile, string exe, string arguments, bool canKill, int? processId)
@@ -89,11 +89,11 @@ static class PiperClient
         }
     }
 
-    static async Task SendAsync(string payload)
+    static async Task SendAsync(string payload, CancellationToken cancellation = default)
     {
         try
         {
-            await InnerSendAsync(payload);
+            await InnerSendAsync(payload, cancellation);
         }
         catch (Exception exception)
         {
@@ -129,7 +129,7 @@ Exception:
         }
     }
 
-    static async Task InnerSendAsync(string payload)
+    static async Task InnerSendAsync(string payload, CancellationToken cancellation)
     {
         using var client = new TcpClient();
         var endpoint = GetEndpoint();

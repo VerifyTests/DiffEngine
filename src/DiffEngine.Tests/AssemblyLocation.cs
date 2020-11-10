@@ -7,7 +7,7 @@ static class AssemblyLocation
     {
         var assembly = typeof(AssemblyLocation).Assembly;
 
-        var uri = new UriBuilder(assembly.Location!);
+        var uri = new UriBuilder(assembly.CodeBase!);
         var path = Uri.UnescapeDataString(uri.Path);
 
         CurrentDirectory = Path.GetDirectoryName(path)!;
