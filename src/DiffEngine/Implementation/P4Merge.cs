@@ -30,7 +30,7 @@ static partial class Implementation
                 "xpm"
             },
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Perforce\p4merge.exe"),
-            linux: new OsSettings(Arguments, @"/usr/bin/p4merge"),
-            osx: new OsSettings(Arguments, @"/Applications/p4merge.app/Contents/MacOS/p4merge"));
+            linux: new OsSettings(Arguments, "/usr/bin/p4merge"),
+            osx: new OsSettings(Arguments, "/Applications/p4merge.app/Contents/MacOS/p4merge"));
     }
 }

@@ -23,7 +23,7 @@ static partial class Implementation
                 @"%ProgramFiles%\Microsoft VS Code\code.exe"),
             linux: new OsSettings(
                 Arguments,
-                @"/usr/local/bin/code"),
+                "/usr/local/bin/code"),
             osx: new OsSettings(
                 Arguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),

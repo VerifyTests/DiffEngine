@@ -24,7 +24,7 @@ public class DefinitionsTest :
 
     static void AddToolLink(StreamWriter writer, Definition tool)
     {
-        writer.WriteLine($@" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
+        writer.WriteLine($" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class DefinitionsTest :
 
             if (tool.BinaryExtensions.Any())
             {
-                writer.WriteLine(@"  * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
+                writer.WriteLine("  * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
             }
 
             if (tool.Notes != null)
@@ -117,7 +117,7 @@ public class DefinitionsTest :
         }
         else
         {
-            writer.WriteLine($@" * Scanned path: `{paths.Single()}`");
+            writer.WriteLine($" * Scanned path: `{paths.Single()}`");
         }
     }
 

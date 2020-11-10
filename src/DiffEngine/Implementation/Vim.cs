@@ -19,7 +19,7 @@ static partial class Implementation
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
-            osx: new OsSettings(Arguments, @"/Applications/MacVim.app/Contents/bin/mvim"),
+            osx: new OsSettings(Arguments, "/Applications/MacVim.app/Contents/bin/mvim"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

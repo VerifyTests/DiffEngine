@@ -21,7 +21,7 @@ static partial class Implementation
                 "bmp", "gif", "jpeg", "jpg", "png", "wbmp"
             },
             windows: new OsSettings(Arguments, @"%ProgramFiles%\Guiffy\guiffy.exe"),
-            osx: new OsSettings(Arguments, @"/Applications/Guiffy/guiffyCL.command"),
+            osx: new OsSettings(Arguments, "/Applications/Guiffy/guiffyCL.command"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
