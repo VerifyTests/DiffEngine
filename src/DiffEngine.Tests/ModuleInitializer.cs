@@ -3,10 +3,9 @@ using Xunit;
 
 [assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true)]
 
-[GlobalSetUp]
-public static class GlobalSetup
+public static class ModuleInitializer
 {
-    public static void Setup()
+    public static void Initialize()
     {
         Logging.Enable();
         DiffRunner.Disabled = false;
