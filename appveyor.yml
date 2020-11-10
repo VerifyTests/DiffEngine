@@ -1,5 +1,5 @@
 image:
-- Visual Studio 2019 Previews
+- Visual Studio 2019 Preview
 skip_commits:
   message: /docs|Merge pull request.*/
 test: off
