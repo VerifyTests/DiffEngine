@@ -94,7 +94,7 @@ static class WildcardFileFinder
         }
 
         var filePart = Path.GetFileName(expanded);
-        var directoryPart = Path.GetDirectoryName(expanded);
+        var directoryPart = Path.GetDirectoryName(expanded)!;
         foreach (var directory in EnumerateDirectories(directoryPart))
         {
             if (filePart.Contains('*'))
