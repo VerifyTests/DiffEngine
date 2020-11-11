@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net5-windows</TargetFramework>
+    <TargetFramework>net5</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
@@ -11,14 +11,14 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
-  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_PackToolValidation">
-    <PropertyGroup>
-      <TargetPlatformIdentifier></TargetPlatformIdentifier>
-    </PropertyGroup>
-  </Target>
-  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_PackToolValidation">
+  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
     <PropertyGroup>
       <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
     </PropertyGroup>
   </Target>
 
