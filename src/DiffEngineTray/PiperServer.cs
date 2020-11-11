@@ -41,6 +41,10 @@ static class PiperServer
                 }
                 catch (Exception exception)
                 {
+                    if (cancellation.IsCancellationRequested)
+                    {
+                        break;
+                    }
                     ExceptionHandler.Handle("Failed to receive payload", exception);
                 }
             }
