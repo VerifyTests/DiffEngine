@@ -29,7 +29,7 @@ static class MenuBuilder
 
     static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
     {
-        return items.Cast<ToolStripItem>()
+        return items.Cast<ToolStripItem>()!
             .Where(x => x.Text != "Exit" &&
                         x.Text != "Options" &&
                         x.Text != "Open logs" &&
