@@ -11,6 +11,16 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup>
     <None Remove="**\*.ico" />
