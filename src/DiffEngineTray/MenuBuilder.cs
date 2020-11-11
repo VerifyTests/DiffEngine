@@ -27,14 +27,18 @@ static class MenuBuilder
         return menu;
     }
 
-    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
+    static IEnumerable<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
     {
-        return items.Cast<ToolStripItem>()!
-            .Where(x => x.Text != "Exit" &&
-                        x.Text != "Options" &&
-                        x.Text != "Open logs" &&
-                        x.Text != "Raise issue")
-            .ToList();
+        foreach (ToolStripItem item in items)
+        {
+            if (item.Text != "Exit" &&
+                item.Text != "Options" &&
+                item.Text != "Open logs" &&
+                item.Text != "Raise issue")
+            {
+                yield return item;
+            }
+        }
     }
 
     static void DisposePreviousItems(ToolStripItemCollection items)
