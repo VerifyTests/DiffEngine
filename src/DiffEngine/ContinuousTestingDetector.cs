@@ -14,7 +14,8 @@ namespace DiffEngine
                 return;
             }
 
-            if (Environment.GetEnvironmentVariable("NCRUNCH") != null)
+            if (Environment.GetEnvironmentVariable("NCRUNCH") != null &&
+                Environment.GetEnvironmentVariable("NCrunch.IsHighPriority") != "1")
             {
                 Detected = true;
                 return;
