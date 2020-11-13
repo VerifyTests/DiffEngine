@@ -43,7 +43,8 @@ static class MenuBuilder
 
     static void DisposePreviousItems(ToolStripItemCollection items)
     {
-        foreach (var item in NonDefaultMenus(items))
+        // Use ToList to avoid deferred execution of NonDefaultMenus
+        foreach (var item in NonDefaultMenus(items).ToList())
         {
             items.Remove(item);
             item.Dispose();
