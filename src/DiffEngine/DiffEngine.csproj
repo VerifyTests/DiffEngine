@@ -8,8 +8,6 @@
   <ItemGroup>
     <Compile Include="..\DiffEngineTray\JsonEscaping.cs" Link="Tray\JsonEscaping.cs" />
     <Compile Include="..\DiffEngineTray\PiperClient.cs" Link="Tray\PiperClient.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Caseless.Fody" Version="1.9.0" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" Version="2.3.1" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.3.0" PrivateAssets="All" />
