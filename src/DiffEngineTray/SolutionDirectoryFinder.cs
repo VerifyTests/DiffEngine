@@ -17,7 +17,7 @@ static class SolutionDirectoryFinder
         }
     }
 
-    static ConcurrentDictionary<string, Result?> cache = new ConcurrentDictionary<string, Result?>(StringComparer.OrdinalIgnoreCase);
+    static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
 
     public static string? Find(string file)
     {

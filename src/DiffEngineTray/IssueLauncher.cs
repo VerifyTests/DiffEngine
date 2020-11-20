@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 static class IssueLauncher
 {
-    static ConcurrentBag<string> recorded = new ConcurrentBag<string>();
+    static ConcurrentBag<string> recorded = new();
     static string defaultBody;
 
     static IssueLauncher()

@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition TkDiff()
     {
-        return new Definition(
+        return new(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
             autoRefresh: false,

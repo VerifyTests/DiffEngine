@@ -153,6 +153,6 @@ Exception:
 
     static IPEndPoint GetEndpoint()
     {
-        return new IPEndPoint(IPAddress.Loopback, Port);
+        return new(IPAddress.Loopback, Port);
     }
 }

@@ -8,8 +8,8 @@ namespace DiffEngine
 {
     public static class DiffTools
     {
-        static Dictionary<string, ResolvedTool> ExtensionLookup = new Dictionary<string, ResolvedTool>();
-        static List<ResolvedTool> resolved = new List<ResolvedTool>();
+        static Dictionary<string, ResolvedTool> ExtensionLookup = new();
+        static List<ResolvedTool> resolved = new();
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 

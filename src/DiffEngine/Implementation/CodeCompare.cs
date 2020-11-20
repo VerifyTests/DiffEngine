@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition CodeCompare()
     {
-        return new Definition(
+        return new(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
             autoRefresh: false,

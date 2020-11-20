@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition VisualStudio()
     {
-        return new Definition(
+        return new(
             name: DiffTool.VisualStudio,
             url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
             autoRefresh: true,

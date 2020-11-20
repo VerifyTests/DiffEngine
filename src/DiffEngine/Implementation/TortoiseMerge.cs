@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition TortoiseMerge()
     {
-        return new Definition(
+        return new(
             name: DiffTool.TortoiseMerge,
             url: "https://tortoisesvn.net/TortoiseMerge.html",
             autoRefresh: false,

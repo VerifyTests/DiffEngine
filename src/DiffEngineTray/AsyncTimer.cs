@@ -10,7 +10,7 @@ class AsyncTimer :
     Action<Exception> errorCallback;
     Func<TimeSpan, CancellationToken, Task> delayStrategy;
     Task task;
-    CancellationTokenSource tokenSource = new CancellationTokenSource();
+    CancellationTokenSource tokenSource = new();
 
     public AsyncTimer(
         Func<DateTime, CancellationToken, Task> callback,

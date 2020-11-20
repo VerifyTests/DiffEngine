@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#if DEBUG
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
@@ -31,7 +32,6 @@ public class OptionsFormTests :
     //    form.ShowDialog();
     //    form.BringToFront();
     //}
-#if DEBUG
     [Fact]
     public async Task WithKeys()
     {
@@ -56,5 +56,5 @@ public class OptionsFormTests :
             x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
-#endif
 }
+#endif

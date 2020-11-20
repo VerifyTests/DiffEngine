@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿#if DEBUG
+using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -12,7 +13,6 @@ public class HotKeyControlTests :
     {
     }
 
-#if DEBUG
     [Fact]
     public async Task WithKeys()
     {
@@ -33,5 +33,5 @@ public class HotKeyControlTests :
         using var target = new HotKeyControl();
         await Verifier.Verify(target);
     }
-#endif
 }
+#endif

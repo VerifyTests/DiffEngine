@@ -4,7 +4,7 @@ static partial class Implementation
 {
     public static Definition TortoiseIDiff()
     {
-        return new Definition(
+        return new(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
             autoRefresh: false,

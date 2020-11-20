@@ -13,7 +13,7 @@ static class FileComparer
 
     static FileStream OpenRead(string path)
     {
-        return new FileStream(path,
+        return new(path,
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,

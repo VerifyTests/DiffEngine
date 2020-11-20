@@ -5,7 +5,7 @@ static partial class Implementation
 {
     public static Definition Diffinity()
     {
-        return new Definition(
+        return new(
             name: DiffTool.Diffinity,
             url: "https://truehumandesign.se/s_diffinity.php",
             autoRefresh: true,

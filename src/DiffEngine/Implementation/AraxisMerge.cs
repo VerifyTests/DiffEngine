@@ -3,7 +3,7 @@
 static partial class Implementation
 {
     public static Definition AraxisMerge() =>
-        new Definition(
+        new(
             name: DiffTool.AraxisMerge,
             url: "https://www.araxis.com/merge",
             autoRefresh: true,

@@ -6,7 +6,7 @@ static partial class Implementation
 {
     public static Definition ExamDiff()
     {
-        return new Definition(
+        return new(
             name: DiffTool.ExamDiff ,
             url: "https://www.prestosoft.com/edp_examdiffpro.asp",
             autoRefresh: true,

@@ -4,7 +4,7 @@ static partial class Implementation
 {
     public static Definition Kaleidoscope()
     {
-        return new Definition(
+        return new(
             name: DiffTool.Kaleidoscope,
             url: "https://www.kaleidoscopeapp.com/",
             autoRefresh: false,

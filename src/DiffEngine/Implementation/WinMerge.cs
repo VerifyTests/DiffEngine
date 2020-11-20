@@ -6,7 +6,7 @@ static partial class Implementation
 {
     public static Definition WinMerge()
     {
-        return new Definition(
+        return new(
             name: DiffTool.WinMerge,
             url: "https://winmerge.org/",
             autoRefresh: true,
