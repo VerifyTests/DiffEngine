@@ -146,11 +146,12 @@ namespace DiffEngine
 
             tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
+            var canKill = !tool.IsMdi;
             if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
             {
                 if (tool.AutoRefresh)
                 {
-                    await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
+                    await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process);
                     return LaunchResult.AlreadyRunningAndSupportsRefresh;
                 }
 
@@ -159,13 +160,13 @@ namespace DiffEngine
 
             if (MaxInstance.Reached())
             {
-                await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
+                await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
                 return LaunchResult.TooManyRunningDiffTools;
             }
 
             var processId = LaunchProcess(tool, arguments);
 
-            await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, processId);
+            await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
 
             return LaunchResult.StartedNewInstance;
         }
