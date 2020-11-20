@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net5</TargetFrameworks>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <NoWarn>SYSLIB0012</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
     <TargetFrameworks>net5;net48</TargetFrameworks>
