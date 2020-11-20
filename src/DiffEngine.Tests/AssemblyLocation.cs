@@ -1,16 +1,11 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 static class AssemblyLocation
 {
     static AssemblyLocation()
     {
         var assembly = typeof(AssemblyLocation).Assembly;
-
-        var uri = new UriBuilder(assembly.CodeBase!);
-        var path = Uri.UnescapeDataString(uri.Path);
-
-        CurrentDirectory = Path.GetDirectoryName(path)!;
+        CurrentDirectory = Path.GetDirectoryName(assembly.Location)!;
     }
 
     public static string CurrentDirectory;
