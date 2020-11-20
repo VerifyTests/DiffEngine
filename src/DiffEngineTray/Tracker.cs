@@ -115,6 +115,8 @@ class Tracker :
                 }
 
                 var solutionName = SolutionDirectoryFinder.Find(key);
+
+                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", target, canKill, processId, $"{exe} {arguments}");
                 return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             },
             updateValueFactory: (key, existing) =>
@@ -131,6 +133,7 @@ class Tracker :
                 }
 
                 var solutionName = SolutionDirectoryFinder.Find(key);
+                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", target, canKill, processId, $"{exe} {arguments}");
                 return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             });
     }
@@ -142,9 +145,14 @@ class Tracker :
             addValueFactory: key =>
             {
                 var solutionName = SolutionDirectoryFinder.Find(key);
+                Log.Information("DeleteAdded. File:{file}", file, solutionName);
                 return new TrackedDelete(key, solutionName);
             },
-            updateValueFactory: (s, existing) => existing);
+            updateValueFactory: (s, existing) =>
+            {
+                Log.Information("DeleteUpdated. File:{file}", file);
+                return existing;
+            });
     }
 
     public void Accept(TrackedDelete delete)
