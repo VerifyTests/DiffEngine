@@ -104,6 +104,8 @@ class Tracker :
         bool canKill,
         int? processId)
     {
+        var exeFile = Path.GetFileName(exe);
+        var targetFile = Path.GetFileName(target);
         return moves.AddOrUpdate(
             target,
             addValueFactory: key =>
@@ -116,7 +118,7 @@ class Tracker :
 
                 var solutionName = SolutionDirectoryFinder.Find(key);
 
-                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", target, canKill, processId, $"{exe} {arguments}");
+                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
                 return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             },
             updateValueFactory: (key, existing) =>
@@ -133,7 +135,7 @@ class Tracker :
                 }
 
                 var solutionName = SolutionDirectoryFinder.Find(key);
-                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", target, canKill, processId, $"{exe} {arguments}");
+                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
                 return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
             });
     }
@@ -207,13 +209,13 @@ class Tracker :
     {
         if (!move.CanKill)
         {
-            Log.Information($"Did not kill for `{move.Temp}` since CanKill=false");
+            Log.Information($"Did not kill for `{move.Name}` since CanKill=false");
             return;
         }
 
         if (move.Process == null)
         {
-            Log.Information($"No processes to kill for `{move.Temp}`");
+            Log.Information($"No processes to kill for `{move.Name}`");
             return;
         }
 
