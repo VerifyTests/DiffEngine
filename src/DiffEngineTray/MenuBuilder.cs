@@ -69,11 +69,23 @@ static class MenuBuilder
 
         yield return new ToolStripSeparator();
 
+        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves))
+        {
+            yield return item;
+        }
+
+        yield return new MenuButton($"Clear ({count})", tracker.Clear, Images.Clear);
+        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
+    }
+
+    static IEnumerable<ToolStripItem> BuildGroupedMenuItems(Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)
+    {
         var groups = deletes.Select(x => x.Group)
             .Concat(moves.Select(x => x.Group))
             .Distinct()
             .ToList();
 
+        var addedCount = 0;
         foreach (var group in groups)
         {
             foreach (var toolStripItem in BuildMovesAndDeletes(
@@ -83,11 +95,14 @@ static class MenuBuilder
                 moves.Where(x => x.Group == group).ToList()))
             {
                 yield return toolStripItem;
+                addedCount++;
+                if (addedCount == 20)
+                {
+                    yield return new MenuButton("Only 20 items rendered");
+                    yield break;
+                }
             }
         }
-
-        yield return new MenuButton($"Clear ({count})", tracker.Clear, Images.Clear);
-        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
     }
 
     static IEnumerable<ToolStripItem> BuildMovesAndDeletes(string? name, Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)

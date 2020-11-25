@@ -48,6 +48,19 @@ public class MenuBuilderTest :
     }
 
     [Fact]
+    public async Task Many()
+    {
+        await using var tracker = new RecordingTracker();
+        foreach (var file in EmptyFiles.AllFiles.AllPaths)
+        {
+            tracker.AddDelete(file);
+        }
+
+        var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
+        await Verifier.Verify(menu, settings);
+    }
+
+    [Fact]
     public async Task Grouped()
     {
         await using var tracker = new RecordingTracker();
