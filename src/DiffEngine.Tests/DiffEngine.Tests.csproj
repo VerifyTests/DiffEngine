@@ -11,7 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Fody" Version="6.3.0" PrivateAssets="All"/>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="MarkdownSnippets.MsBuild" Version="21.7.0" />
+    <PackageReference Include="MarkdownSnippets.MsBuild" Version="21.7.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.0" />
     <PackageReference Include="ModuleInit.Fody" Version="2.1.1" PrivateAssets="All" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
