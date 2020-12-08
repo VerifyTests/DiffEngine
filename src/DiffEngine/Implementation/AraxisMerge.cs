@@ -35,10 +35,10 @@ static partial class Implementation
                 "tga",
                 "wmf", //?
             },
-            windows: new OsSettings(
+            windows: new(
                 (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
-            osx: new OsSettings(
+            osx: new(
                 (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
                 "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             notes: @"

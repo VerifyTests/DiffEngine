@@ -25,13 +25,13 @@ static class WildcardFileFinder
         }
 
         var segments = expanded.Split(separators);
-        var currentRoots = new List<string>
+        List<string> currentRoots = new()
         {
             segments[0] + Path.DirectorySeparatorChar
         };
         foreach (var segment in segments.Skip(1))
         {
-            var newRoots = new List<string>();
+            List<string> newRoots = new();
             foreach (var root in currentRoots)
             {
                 if (segment.Contains('*'))
@@ -99,7 +99,7 @@ static class WildcardFileFinder
         {
             if (filePart.Contains('*'))
             {
-                throw new Exception("Wildcard in file part currently not supported.");
+                throw new("Wildcard in file part currently not supported.");
             }
 
             var filePath = Path.Combine(directory, filePart);

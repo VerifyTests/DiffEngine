@@ -8,7 +8,7 @@ static class MenuBuilder
 {
     public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
     {
-        var menu = new ContextMenuStrip();
+        ContextMenuStrip menu = new();
         var items = menu.Items;
         menu.Opening += delegate
         {
@@ -19,7 +19,7 @@ static class MenuBuilder
                 items.Add(item);
             }
         };
-        menu.Font = new Font(menu.Font.FontFamily, 10);
+        menu.Font = new(menu.Font.FontFamily, 10);
         items.Add(new MenuButton("Exit", exit, Images.Exit));
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
@@ -135,7 +135,7 @@ static class MenuBuilder
 
     static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
     {
-        var menu = new SplitButton($"{delete.Name}", accept);
+        SplitButton menu = new($"{delete.Name}", accept);
         menu.AddRange(
             new MenuButton("Accept delete", accept),
             BuildShowInExplorer(delete.File));
@@ -144,7 +144,7 @@ static class MenuBuilder
 
     static ToolStripItem BuildMove(TrackedMove move, Action accept)
     {
-        var menu = new SplitButton($"{move.Name} ({move.Extension})", accept);
+        SplitButton menu = new($"{move.Name} ({move.Extension})", accept);
         menu.AddRange(
             new MenuButton("Accept move", accept),
             new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)),

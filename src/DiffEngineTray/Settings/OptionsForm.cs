@@ -28,7 +28,7 @@ public partial class OptionsForm :
 
     async void save_Click(object sender, EventArgs e)
     {
-        var newSettings = new Settings
+        Settings newSettings = new()
         {
             RunAtStartup = startupCheckBox.Checked,
             AcceptAllHotKey = acceptAllHotKey.HotKey,
@@ -42,7 +42,7 @@ public partial class OptionsForm :
             return;
         }
 
-        var builder = new StringBuilder();
+        StringBuilder builder = new();
         foreach (var error in errors)
         {
             builder.AppendLine($" * {error}");

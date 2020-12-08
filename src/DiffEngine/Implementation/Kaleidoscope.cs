@@ -22,7 +22,7 @@ static partial class Implementation
                 "tiff",
                 "tif",
             },
-            osx: new OsSettings(
+            osx: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 "/usr/local/bin/ksdiff"));
     }

@@ -10,7 +10,7 @@ static partial class Implementation
             return $"-d \"{temp}\" \"{target}\"";
         }
 
-        return new Definition(
+        return new(
             name: DiffTool.Neovim,
             url: "https://neovim.io/",
             autoRefresh: false,
@@ -18,7 +18,7 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(Arguments, @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
+            windows: new(Arguments, @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
             notes: @"
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }

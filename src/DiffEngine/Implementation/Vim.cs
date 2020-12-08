@@ -10,7 +10,7 @@ static partial class Implementation
             return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
         }
 
-        return new Definition(
+        return new(
             name: DiffTool.Vim,
             url: "https://www.vim.org/",
             autoRefresh: true,
@@ -18,8 +18,8 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
-            osx: new OsSettings(Arguments, "/Applications/MacVim.app/Contents/bin/mvim"),
+            windows: new(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
+            osx: new(Arguments, "/Applications/MacVim.app/Contents/bin/mvim"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

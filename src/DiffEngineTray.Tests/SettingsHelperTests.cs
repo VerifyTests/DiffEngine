@@ -17,9 +17,9 @@ public class SettingsHelperTests :
         {
             SettingsHelper.FilePath = tempFile;
             await SettingsHelper.Write(
-                new Settings
+                new()
                 {
-                    AcceptAllHotKey = new HotKey
+                    AcceptAllHotKey = new()
                     {
                         Key = "T"
                     }

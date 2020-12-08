@@ -8,7 +8,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $"--diff \"{target}\" \"{temp}\"";
 
-        return new Definition(
+        return new(
             name: DiffTool.VisualStudioCode,
             url: "https://code.visualstudio.com",
             autoRefresh: true,
@@ -16,15 +16,15 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(
+            windows: new(
                 Arguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
                 @"%ProgramFiles%\Microsoft VS Code\bin\code.exe",
                 @"%ProgramFiles%\Microsoft VS Code\code.exe"),
-            linux: new OsSettings(
+            linux: new(
                 Arguments,
                 "/usr/local/bin/code"),
-            osx: new OsSettings(
+            osx: new(
                 Arguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
             notes: @"

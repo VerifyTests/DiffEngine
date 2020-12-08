@@ -36,14 +36,14 @@ static class WindowsProcess
 select CommandLine, ProcessId
 from Win32_Process
 where CommandLine like '% %.%.%'";
-        using var searcher = new ManagementObjectSearcher(wmiQuery);
+        using ManagementObjectSearcher searcher = new(wmiQuery);
         using var collection = searcher.Get();
         foreach (var process in collection)
         {
             var command = (string) process["CommandLine"];
             var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
             process.Dispose();
-            yield return new ProcessCommand(command, id);
+            yield return new(command, id);
         }
     }
 }

@@ -146,7 +146,7 @@ namespace DiffEngine
                 return null;
             }
 
-            var resolvedTool = new ResolvedTool(
+            ResolvedTool resolvedTool = new(
                 name,
                 diffTool,
                 resolvedExePath,

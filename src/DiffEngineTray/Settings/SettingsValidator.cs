@@ -5,7 +5,7 @@ public static class SettingsValidator
 {
     public static bool IsValidate(this Settings settings, out List<string> errors)
     {
-        errors = new List<string>();
+        errors = new();
         var hotKey = settings.AcceptAllHotKey;
         if (hotKey != null)
         {

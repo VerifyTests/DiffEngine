@@ -45,7 +45,7 @@ static class SolutionDirectoryFinder
             var solutions = Directory.GetFiles(currentDirectory, "*.sln");
             if (solutions.Any())
             {
-                return new Result(currentDirectory, Path.GetFileNameWithoutExtension(solutions.First()));
+                return new(currentDirectory, Path.GetFileNameWithoutExtension(solutions.First()));
             }
 
             var parent = Directory.GetParent(currentDirectory);

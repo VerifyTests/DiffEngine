@@ -13,7 +13,7 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(
+            windows: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"),
             notes: @"

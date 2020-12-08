@@ -20,6 +20,6 @@ public class FakeDiffTool
             return;
         }
 
-        throw new Exception();
+        throw new();
     }
 }

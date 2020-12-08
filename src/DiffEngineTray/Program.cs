@@ -18,16 +18,16 @@ static class Program
         }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        var tokenSource = new CancellationTokenSource();
+        CancellationTokenSource tokenSource = new();
         var cancellation = tokenSource.Token;
-        using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
+        using Mutex mutex = new(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
             Log.Information("Mutex already exists. Exiting.");
             return;
         }
 
-        using var icon = new NotifyIcon
+        using NotifyIcon icon = new()
         {
             Icon = Images.Default,
             Visible = true,
@@ -35,7 +35,7 @@ static class Program
         };
 
         var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        icon.MouseUp += (sender, args) =>
+        icon.MouseUp += (_, args) =>
         {
             if (args.Button == MouseButtons.Left)
             {
@@ -43,13 +43,13 @@ static class Program
             }
         };
 
-        await using var tracker = new Tracker(
+        await using Tracker tracker = new(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default);
 
         using var task = StartServer(tracker, cancellation);
 
-        using var keyRegister = new KeyRegister(icon.Handle());
+        using KeyRegister keyRegister = new(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);
 
         icon.ContextMenuStrip = MenuBuilder.Build(

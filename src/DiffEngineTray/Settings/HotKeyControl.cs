@@ -20,7 +20,7 @@ public partial class HotKeyControl :
                 return null;
             }
 
-            return new HotKey
+            return new()
             {
                 Shift = shift.Checked,
                 Control = control.Checked,

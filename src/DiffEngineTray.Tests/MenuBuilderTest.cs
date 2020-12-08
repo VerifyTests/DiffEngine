@@ -12,7 +12,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task Empty()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
     }
@@ -20,7 +20,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task OnlyMove()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
@@ -29,7 +29,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task OnlyDelete()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         tracker.AddDelete(file1);
         var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
         await Verifier.Verify(menu, settings);
@@ -38,7 +38,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task Full()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
@@ -50,7 +50,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task Many()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         foreach (var file in EmptyFiles.AllFiles.AllPaths)
         {
             tracker.AddDelete(file);
@@ -63,7 +63,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task Grouped()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(() => { }, () => { }, tracker);
@@ -73,7 +73,7 @@ public class MenuBuilderTest :
     [Fact]
     public async Task FullGrouped()
     {
-        await using var tracker = new RecordingTracker();
+        await using RecordingTracker tracker = new();
         tracker.AddDelete(file1);
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
@@ -85,7 +85,7 @@ public class MenuBuilderTest :
     public MenuBuilderTest(ITestOutputHelper output) :
         base(output)
     {
-        settings = new VerifySettings();
+        settings = new();
         file1 = Path.GetFullPath("file1.txt");
         file2 = Path.GetFullPath("file2.txt");
         file3 = Path.GetFullPath("file3.txt");

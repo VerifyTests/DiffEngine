@@ -14,7 +14,7 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(
+            windows: new(
                 (temp, target) =>
                 {
                     var leftTitle = Path.GetFileName(temp);

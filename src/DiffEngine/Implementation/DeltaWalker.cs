@@ -7,7 +7,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $"-mi \"{temp}\" \"{target}\"";
 
-        return new Definition(
+        return new(
             name: DiffTool.DeltaWalker,
             url: "https://www.deltawalker.com/",
             autoRefresh: false,
@@ -50,10 +50,10 @@ static partial class Implementation
                 "html",
                 "htm"
             },
-            osx: new OsSettings(
+            osx: new(
                 Arguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
-            windows: new OsSettings(
+            windows: new(
                 Arguments,
                 @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
             notes: @"

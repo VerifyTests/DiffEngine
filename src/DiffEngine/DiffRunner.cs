@@ -218,7 +218,7 @@ namespace DiffEngine
         {
             try
             {
-                var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
+                ProcessStartInfo startInfo = new(tool.ExePath, arguments)
                 {
                     UseShellExecute = true
                 };
@@ -230,13 +230,13 @@ namespace DiffEngine
 
                 var message = $@"Failed to launch diff tool.
 {tool.ExePath} {arguments}";
-                throw new Exception(message);
+                throw new(message);
             }
             catch (Exception exception)
             {
                 var message = $@"Failed to launch diff tool.
 {tool.ExePath} {arguments}";
-                throw new Exception(message, exception);
+                throw new(message, exception);
             }
         }
 

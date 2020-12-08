@@ -6,9 +6,9 @@ public static class Images
     static Images()
     {
         using var activeStream = Resource.AsStream("active.ico");
-        Active = new Icon(activeStream);
+        Active = new(activeStream);
         using var defaultStream = Resource.AsStream("default.ico");
-        Default = new Icon(defaultStream);
+        Default = new(defaultStream);
         using var exitStream = Resource.AsStream("exit.png");
         Exit = Image.FromStream(exitStream);
         using var deleteStream = Resource.AsStream("delete.png");

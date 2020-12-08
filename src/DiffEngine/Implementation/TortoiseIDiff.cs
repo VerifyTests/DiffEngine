@@ -22,7 +22,7 @@ static partial class Implementation
                 "tif",
                 "tiff",
             },
-            windows: new OsSettings(
+            windows: new(
                 (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"));
     }

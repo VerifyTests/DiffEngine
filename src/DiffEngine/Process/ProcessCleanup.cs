@@ -27,7 +27,7 @@ namespace DiffEngine
             }
             else
             {
-                throw new Exception("Unknown OS");
+                throw new("Unknown OS");
             }
 
             Refresh();

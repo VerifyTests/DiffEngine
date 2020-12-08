@@ -5,7 +5,7 @@ static class ExplorerLauncher
 {
     public static void OpenDirectory(string directory)
     {
-        var info = new ProcessStartInfo
+        ProcessStartInfo info = new()
         {
             FileName = directory,
             UseShellExecute = true,
@@ -25,7 +25,7 @@ static class ExplorerLauncher
 
     public static void ShowFileInExplorer(string file)
     {
-        var info = new ProcessStartInfo
+        ProcessStartInfo info = new()
         {
             FileName = "explorer.exe",
             Arguments = $"/select, \"{file}\"",

@@ -30,7 +30,7 @@ static class DiffToolLauncher
         process?.Dispose();
         move.Process = null;
 
-        var startInfo = new ProcessStartInfo(move.Exe, move.Arguments)
+        ProcessStartInfo startInfo = new(move.Exe, move.Arguments)
         {
             UseShellExecute = true
         };

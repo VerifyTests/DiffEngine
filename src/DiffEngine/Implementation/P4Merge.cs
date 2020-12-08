@@ -7,7 +7,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $"\"{temp}\" \"{target}\"";
 
-        return new Definition(
+        return new(
             name: DiffTool.P4Merge,
             url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
             autoRefresh: false,
@@ -29,8 +29,8 @@ static partial class Implementation
                 "xbm",
                 "xpm"
             },
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\Perforce\p4merge.exe"),
-            linux: new OsSettings(Arguments, "/usr/bin/p4merge"),
-            osx: new OsSettings(Arguments, "/Applications/p4merge.app/Contents/MacOS/p4merge"));
+            windows: new(Arguments, @"%ProgramFiles%\Perforce\p4merge.exe"),
+            linux: new(Arguments, "/usr/bin/p4merge"),
+            osx: new(Arguments, "/Applications/p4merge.app/Contents/MacOS/p4merge"));
     }
 }

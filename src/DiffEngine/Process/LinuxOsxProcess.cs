@@ -10,9 +10,9 @@ static class LinuxOsxProcess
     //https://www.man7.org/linux/man-pages/man1/ps.1.html
     public static bool TryTerminateProcess(int processId)
     {
-        using var process = new Process
+        using Process process = new()
         {
-            StartInfo = new ProcessStartInfo
+            StartInfo = new()
             {
                 FileName = "kill",
                 Arguments = processId.ToString(),
@@ -28,13 +28,13 @@ static class LinuxOsxProcess
         }
 
         var message = $"Process timed out. Command line: kill {processId}.";
-        throw new Exception(message);
+        throw new(message);
     }
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
         var processList = RunPs();
-        using var reader = new StringReader(processList);
+        using StringReader reader = new(processList);
         string line;
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
@@ -77,23 +77,23 @@ static class LinuxOsxProcess
                 command = timeAndCommandString.Substring(multiSpaceIndex).Trim();
             }
 
-            processCommand = new ProcessCommand(command, in pid);
+            processCommand = new(command, in pid);
             return true;
         }
         catch (Exception exception)
         {
-            throw new Exception($"Could not parse command: {line}", exception);
+            throw new($"Could not parse command: {line}", exception);
         }
     }
 
     static string RunPs()
     {
-        var errorBuilder = new StringBuilder();
-        var outputBuilder = new StringBuilder();
+        StringBuilder errorBuilder = new();
+        StringBuilder outputBuilder = new();
         const string? arguments = "-o pid,command -x";
-        using var process = new Process
+        using Process process = new()
         {
-            StartInfo = new ProcessStartInfo
+            StartInfo = new()
             {
                 FileName = "ps",
                 Arguments = arguments,
@@ -113,7 +113,7 @@ static class LinuxOsxProcess
             var timeoutError = $@"Process timed out. Command line: ps {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
-            throw new Exception(timeoutError);
+            throw new(timeoutError);
         }
 
         if (process.ExitCode == 0)
@@ -124,7 +124,7 @@ Error: {errorBuilder}";
         var error = $@"Could not execute process. Command line: ps {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
-        throw new Exception(error);
+        throw new(error);
     }
 
     //To work around https://github.com/dotnet/runtime/issues/27128

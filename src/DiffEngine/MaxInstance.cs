@@ -19,7 +19,7 @@ static class MaxInstance
             return result;
         }
 
-        throw new Exception($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
+        throw new($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
     }
 
     public static void Set(int value)

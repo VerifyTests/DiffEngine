@@ -8,7 +8,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $"--nosplash \"{temp}\" \"{target}\"";
 
-        return new Definition(
+        return new(
             name: DiffTool.DiffMerge,
             url: "https://www.sourcegear.com/diffmerge/",
             autoRefresh: false,
@@ -16,8 +16,8 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
-            linux: new OsSettings(Arguments, "/usr/bin/diffmerge"),
-            osx: new OsSettings(Arguments, "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"));
+            windows: new(Arguments, @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
+            linux: new(Arguments, "/usr/bin/diffmerge"),
+            osx: new(Arguments, "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"));
     }
 }

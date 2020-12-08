@@ -13,7 +13,7 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            osx: new OsSettings(
+            osx: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 "/Applications/TkDiff.app/Contents/MacOS/tkdiff"));
     }

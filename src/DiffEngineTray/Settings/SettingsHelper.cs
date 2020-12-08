@@ -24,7 +24,7 @@ class SettingsHelper
         }
 
         await File.WriteAllTextAsync(FilePath, "{}");
-        return new Settings();
+        return new();
     }
 
     public static async Task Write(Settings settings)

@@ -8,7 +8,7 @@ static class Logging
     public static void Init()
     {
         System.IO.Directory.CreateDirectory(Directory);
-        var configuration = new LoggerConfiguration();
+        LoggerConfiguration configuration = new();
         configuration.MinimumLevel.Debug();
         configuration.WriteTo.File(
             Path.Combine(Directory, "log.txt"),

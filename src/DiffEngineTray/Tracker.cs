@@ -22,7 +22,7 @@ class Tracker :
     {
         this.active = active;
         this.inactive = inactive;
-        timer = new AsyncTimer(
+        timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
             exception =>
@@ -119,7 +119,7 @@ class Tracker :
                 var solutionName = SolutionDirectoryFinder.Find(key);
 
                 Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
-                return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
+                return new(temp, key, exe, arguments, canKill, process, solutionName);
             },
             updateValueFactory: (key, existing) =>
             {
@@ -136,7 +136,7 @@ class Tracker :
 
                 var solutionName = SolutionDirectoryFinder.Find(key);
                 Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
-                return new TrackedMove(temp, key, exe, arguments, canKill, process, solutionName);
+                return new(temp, key, exe, arguments, canKill, process, solutionName);
             });
     }
 
@@ -148,7 +148,7 @@ class Tracker :
             {
                 var solutionName = SolutionDirectoryFinder.Find(key);
                 Log.Information("DeleteAdded. File:{file}", file, solutionName);
-                return new TrackedDelete(key, solutionName);
+                return new(key, solutionName);
             },
             updateValueFactory: (s, existing) =>
             {

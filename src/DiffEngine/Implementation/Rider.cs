@@ -8,7 +8,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $" diff \"{temp}\" \"{target}\"";
 
-        return new Definition(
+        return new(
             name: DiffTool.Rider,
             url: "https://www.jetbrains.com/rider/",
             autoRefresh: false,
@@ -16,12 +16,12 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(
+            windows: new(
                 Arguments,
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
                 @"%JetBrains Rider%\rider64.exe",
                 @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe"),
-            osx: new OsSettings(
+            osx: new(
                 Arguments,
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider",
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",

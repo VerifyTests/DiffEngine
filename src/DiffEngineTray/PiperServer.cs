@@ -16,7 +16,7 @@ static class PiperServer
 
         try
         {
-            listener = new TcpListener(IPAddress.Loopback, PiperClient.Port);
+            listener = new(IPAddress.Loopback, PiperClient.Port);
             listener.Start();
 
             while (true)
@@ -60,7 +60,7 @@ static class PiperServer
         await using (cancellation.Register(listener.Stop))
         {
             using var client = await listener.AcceptTcpClientAsync();
-            using var reader = new StreamReader(client.GetStream());
+            using StreamReader reader = new(client.GetStream());
             var payload = await reader.ReadToEndAsync();
 
             if (payload.Contains("\"Type\":\"Move\""))
@@ -75,7 +75,7 @@ static class PiperServer
             }
             else
             {
-                throw new Exception($"Unknown payload: {payload}");
+                throw new($"Unknown payload: {payload}");
             }
 
             if (client.Connected)

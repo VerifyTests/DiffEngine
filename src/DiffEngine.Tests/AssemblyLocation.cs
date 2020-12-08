@@ -7,7 +7,7 @@ static class AssemblyLocation
     {
         var assembly = typeof(AssemblyLocation).Assembly;
 #pragma warning disable 618
-        var uri = new UriBuilder(assembly.CodeBase!);
+        UriBuilder uri = new(assembly.CodeBase!);
 #pragma warning restore 618
         var path = Uri.UnescapeDataString(uri.Path);
 

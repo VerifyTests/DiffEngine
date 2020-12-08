@@ -8,7 +8,7 @@ static partial class Implementation
         static string Arguments(string temp, string target) =>
             $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
 
-        return new Definition(
+        return new(
             name: DiffTool.KDiff3,
             url: "https://github.com/KDE/kdiff3",
             autoRefresh: false,
@@ -16,8 +16,8 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new OsSettings(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
-            osx: new OsSettings(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
+            windows: new(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+            osx: new(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

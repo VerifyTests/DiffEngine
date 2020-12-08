@@ -9,7 +9,7 @@ static class Updater
     {
         var psCommandBytes = Encoding.Unicode.GetBytes("dotnet tool update diffenginetray --global; diffenginetray");
         var psCommandBase64 = Convert.ToBase64String(psCommandBytes);
-        var info = new ProcessStartInfo(
+        ProcessStartInfo info = new(
             "powershell.exe",
             $"-NoProfile -ExecutionPolicy unrestricted -EncodedCommand {psCommandBase64}")
         {

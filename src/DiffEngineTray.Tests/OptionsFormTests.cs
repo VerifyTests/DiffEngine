@@ -35,24 +35,24 @@ public class OptionsFormTests :
     [Fact]
     public async Task WithKeys()
     {
-        using var form = new OptionsForm(
-            new Settings
+        using OptionsForm form = new(
+            new()
             {
-                AcceptAllHotKey = new HotKey
+                AcceptAllHotKey = new()
                 {
                     Shift = true,
                     Key = "A"
                 }
             },
-            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
+            _ => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
 
     [Fact]
     public async Task Default()
     {
-        using var form = new OptionsForm(
-            new Settings(),
+        using OptionsForm form = new(
+            new(),
             x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }

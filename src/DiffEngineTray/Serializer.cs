@@ -11,7 +11,7 @@ static class Serializer
         }
         catch (Exception exception)
         {
-            throw new Exception($@"Failed to Deserialize payload:
+            throw new($@"Failed to Deserialize payload:
 {payload}", exception);
         }
     }

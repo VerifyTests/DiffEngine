@@ -32,7 +32,7 @@ static class OrderReader
             order = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>();
         }
 
-        return new Result(found, order);
+        return new(found, order);
     }
 
     internal static IEnumerable<DiffTool> ParseEnvironment(string diffOrder)
@@ -42,7 +42,7 @@ static class OrderReader
         {
             if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
             {
-                throw new Exception($"Unable to parse tool from `DiffEngine_ToolOrder` environment variable: {toolString}");
+                throw new($"Unable to parse tool from `DiffEngine_ToolOrder` environment variable: {toolString}");
             }
 
             yield return diffTool;
