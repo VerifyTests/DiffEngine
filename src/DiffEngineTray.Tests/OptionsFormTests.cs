@@ -53,7 +53,7 @@ public class OptionsFormTests :
     {
         using OptionsForm form = new(
             new(),
-            x => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
+            _ => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);
     }
 }

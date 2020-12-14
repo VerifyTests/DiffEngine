@@ -20,7 +20,7 @@ class AsyncTimer :
     {
         this.callback = callback;
         this.interval = interval;
-        this.errorCallback = errorCallback ?? (exception => { });
+        this.errorCallback = errorCallback ?? (_ => { });
         this.delayStrategy = delayStrategy ?? Task.Delay;
         var cancellation = tokenSource.Token;
 

@@ -150,7 +150,7 @@ class Tracker :
                 Log.Information("DeleteAdded. File:{file}", file, solutionName);
                 return new(key, solutionName);
             },
-            updateValueFactory: (s, existing) =>
+            updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
                 return existing;

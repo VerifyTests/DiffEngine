@@ -104,9 +104,9 @@ static class LinuxOsxProcess
             }
         };
         process.Start();
-        process.OutputDataReceived += (sender, args) => { outputBuilder.AppendLine(args.Data); };
+        process.OutputDataReceived += (_, args) => { outputBuilder.AppendLine(args.Data); };
         process.BeginOutputReadLine();
-        process.ErrorDataReceived += (sender, args) => { errorBuilder.AppendLine(args.Data); };
+        process.ErrorDataReceived += (_, args) => { errorBuilder.AppendLine(args.Data); };
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
