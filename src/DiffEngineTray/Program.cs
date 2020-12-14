@@ -35,7 +35,7 @@ static class Program
         };
 
         var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        icon.MouseUp += (_, args) =>
+        icon.MouseClick += (_, args) =>
         {
             if (args.Button == MouseButtons.Left)
             {
@@ -52,10 +52,12 @@ static class Program
         using KeyRegister keyRegister = new(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);
 
-        icon.ContextMenuStrip = MenuBuilder.Build(
+        var menuStrip = MenuBuilder.Build(
             Application.Exit,
             async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
             tracker);
+        menuStrip.Opening += delegate { menuStrip.Location = Cursor.Position; };
+        icon.ContextMenuStrip = menuStrip;
 
         Application.Run();
         tokenSource.Cancel();
