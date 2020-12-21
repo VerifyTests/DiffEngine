@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ static class Program
         {
             return;
         }
+
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         CancellationTokenSource tokenSource = new();
@@ -34,14 +36,6 @@ static class Program
             Text = "DiffEngine"
         };
 
-        var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        icon.MouseClick += (_, args) =>
-        {
-            if (args.Button == MouseButtons.Left)
-            {
-                showMenu.Invoke(icon, null);
-            }
-        };
 
         await using Tracker tracker = new(
             active: () => icon.Icon = Images.Active,
@@ -56,7 +50,19 @@ static class Program
             Application.Exit,
             async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
             tracker);
-        menuStrip.Opening += delegate { menuStrip.Location = Cursor.Position; };
+
+        var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        icon.MouseClick += (_, args) =>
+        {
+            if (args.Button == MouseButtons.Left)
+            {
+                var position = Cursor.Position;
+                position.Offset(-menuStrip.Width, -menuStrip.Height);
+                menuStrip.Location = position;
+                showMenu.Invoke(icon, null);
+            }
+        };
+
         icon.ContextMenuStrip = menuStrip;
 
         Application.Run();
