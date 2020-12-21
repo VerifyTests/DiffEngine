@@ -8,6 +8,7 @@
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <SignAssembly>false</SignAssembly>
+    <NoWarn>NETSDK1137</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
