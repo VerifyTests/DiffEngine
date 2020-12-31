@@ -8,6 +8,7 @@
     <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
     <Nullable>enable</Nullable>
     <SignAssembly>true</SignAssembly>
+    <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
     <AssemblyOriginatorKeyFile>..\key.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 </Project>
