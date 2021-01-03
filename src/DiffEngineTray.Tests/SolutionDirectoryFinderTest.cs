@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿#if DEBUG
+using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,3 +19,4 @@ public class SolutionDirectoryFinderTests :
         return Verifier.Verify(SolutionDirectoryFinder.Find(SourceFile));
     }
 }
+#endif
