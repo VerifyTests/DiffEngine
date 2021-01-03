@@ -9,10 +9,12 @@ static class MenuBuilder
     {
         ContextMenuStrip menu = new();
         var items = menu.Items;
-        menu.Opening += delegate
+        menu.Closed += delegate
         {
             DisposePreviousItems(items);
-
+        };
+        menu.Opening += delegate
+        {
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 items.Add(item);
