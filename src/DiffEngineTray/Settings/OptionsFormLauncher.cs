@@ -8,9 +8,7 @@ static class OptionsFormLauncher
     public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
     {
         var settings = await SettingsHelper.Read();
-        OptionsForm form = new(
-            settings,
-            async newSettings => await Save(keyRegister, tracker, newSettings));
+        using OptionsForm form = new(settings, async newSettings => await Save(keyRegister, tracker, newSettings));
         form.ShowDialog();
     }
 
