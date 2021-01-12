@@ -28,7 +28,7 @@ static class PiperClient
     {
         return $@"{{
 ""Type"":""Delete"",
-""File"":""{file}""
+""File"":""{file.JsonEscape()}""
 }}
 ";
     }
