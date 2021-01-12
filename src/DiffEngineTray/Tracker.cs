@@ -244,7 +244,7 @@ class Tracker :
 
         foreach (var move in moves.Values)
         {
-            move.Process?.Dispose();
+            KillProcesses(move);
         }
 
         moves.Clear();
