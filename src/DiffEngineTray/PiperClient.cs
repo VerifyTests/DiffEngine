@@ -63,16 +63,19 @@ static class PiperClient
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
-""CanKill"":{canKill.ToString().ToLower()},
+""CanKill"":{canKill.ToString().ToLower()}");
+
+        builder.Append($@",
 ""Exe"":""{exe.JsonEscape()}"",
 ""Arguments"":""{arguments.JsonEscape()}""");
 
         if (processId != null)
         {
-            builder.AppendLine(",");
-            builder.AppendLine($"\"ProcessId\":{processId}");
+            builder.Append(@$",
+""ProcessId"":{processId}");
         }
 
+        builder.AppendLine();
         builder.Append('}');
         return builder.ToString();
     }
