@@ -11,10 +11,11 @@ static class MenuBuilder
         var items = menu.Items;
         menu.Closed += delegate
         {
-            DisposePreviousItems(items);
+            RemovePreviousItems(items);
         };
         menu.Opening += delegate
         {
+            DisposePreviousItems(items);
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 items.Add(item);
@@ -42,12 +43,20 @@ static class MenuBuilder
         }
     }
 
-    static void DisposePreviousItems(ToolStripItemCollection items)
+    static void RemovePreviousItems(ToolStripItemCollection items)
     {
         // Use ToList to avoid deferred execution of NonDefaultMenus
         foreach (var item in NonDefaultMenus(items).ToList())
         {
             items.Remove(item);
+        }
+    }
+
+    static void DisposePreviousItems(ToolStripItemCollection items)
+    {
+        // Use ToList to avoid deferred execution of NonDefaultMenus
+        foreach (var item in NonDefaultMenus(items).ToList())
+        {
             item.Dispose();
         }
     }
