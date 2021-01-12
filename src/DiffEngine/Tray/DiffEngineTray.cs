@@ -29,8 +29,8 @@ namespace DiffEngine
         public static void AddMove(
             string tempFile,
             string targetFile,
-            string exe,
-            string arguments,
+            string? exe,
+            string? arguments,
             bool canKill,
             int? processId)
         {
@@ -55,8 +55,8 @@ namespace DiffEngine
         public static Task AddMoveAsync(
             string tempFile,
             string targetFile,
-            string exe,
-            string arguments,
+            string? exe,
+            string? arguments,
             bool canKill,
             int? processId,
             CancellationToken cancellation = default)

@@ -108,6 +108,7 @@ namespace DiffEngine
         {
             if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
             {
+                DiffEngineTray.AddMove(tempFile, targetFile, null, null, false, null);
                 return result.Value;
             }
 
@@ -141,6 +142,7 @@ namespace DiffEngine
         {
             if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
             {
+                await DiffEngineTray.AddMoveAsync(tempFile, targetFile, null, null, false, null);
                 return result.Value;
             }
 

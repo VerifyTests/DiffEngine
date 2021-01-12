@@ -155,10 +155,12 @@ static class MenuBuilder
     static ToolStripItem BuildMove(TrackedMove move, Action accept)
     {
         SplitButton menu = new($"{move.Name} ({move.Extension})", accept);
-        menu.AddRange(
-            new MenuButton("Accept move", accept),
-            new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)),
-            BuildShowInExplorer(move.Temp));
+        menu.AddRange(new MenuButton("Accept move", accept));
+        if (move.Exe != null)
+        {
+            menu.AddRange(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
+        }
+        menu.AddRange(BuildShowInExplorer(move.Temp));
         return menu;
     }
 

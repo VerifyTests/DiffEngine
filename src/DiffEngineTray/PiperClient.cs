@@ -36,8 +36,8 @@ static class PiperClient
     public static void SendMove(
         string tempFile,
         string targetFile,
-        string exe,
-        string arguments,
+        string? exe,
+        string? arguments,
         bool canKill,
         int? processId)
     {
@@ -47,8 +47,8 @@ static class PiperClient
     public static Task SendMoveAsync(
         string tempFile,
         string targetFile,
-        string exe,
-        string arguments,
+        string? exe,
+        string? arguments,
         bool canKill,
         int? processId,
         CancellationToken cancellation = default)
@@ -57,7 +57,7 @@ static class PiperClient
         return SendAsync(payload);
     }
 
-    static string BuildMovePayload(string tempFile, string targetFile, string exe, string arguments, bool canKill, int? processId)
+    static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
     {
         StringBuilder builder = new($@"{{
 ""Type"":""Move"",
@@ -65,9 +65,12 @@ static class PiperClient
 ""Target"":""{targetFile.JsonEscape()}"",
 ""CanKill"":{canKill.ToString().ToLower()}");
 
-        builder.Append($@",
+        if (exe != null)
+        {
+            builder.Append($@",
 ""Exe"":""{exe.JsonEscape()}"",
-""Arguments"":""{arguments.JsonEscape()}""");
+""Arguments"":""{arguments!.JsonEscape()}""");
+        }
 
         if (processId != null)
         {

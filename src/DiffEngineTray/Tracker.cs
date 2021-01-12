@@ -99,8 +99,8 @@ class Tracker :
     public TrackedMove AddMove(
         string temp,
         string target,
-        string exe,
-        string arguments,
+        string? exe,
+        string? arguments,
         bool canKill,
         int? processId)
     {

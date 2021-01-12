@@ -6,8 +6,8 @@ class TrackedMove
     public TrackedMove(
         string temp,
         string target,
-        string exe,
-        string arguments,
+        string? exe,
+        string? arguments,
         bool canKill,
         Process? process,
         string? group)
@@ -27,8 +27,8 @@ class TrackedMove
     public string Name { get; }
     public string Temp { get; }
     public string Target { get; }
-    public string Exe { get; }
-    public string Arguments { get; }
+    public string? Exe { get; }
+    public string? Arguments { get; }
     public bool CanKill { get; }
     public Process? Process { get; set; }
     public string? Group { get; }

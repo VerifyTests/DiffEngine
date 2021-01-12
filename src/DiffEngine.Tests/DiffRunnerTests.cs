@@ -1,5 +1,4 @@
-﻿#if NETCOREAPP3_1
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -204,4 +203,3 @@ public class DiffRunnerTests :
             binaryExtensions: new[] {"knownBin"})!;
     }
 }
-#endif
