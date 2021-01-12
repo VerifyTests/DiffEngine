@@ -34,7 +34,7 @@ public class TrackerMoveTest :
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         using var process = Process.GetCurrentProcess();
         var processId = process.Id;
-        var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, processId);
+        var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", false, processId);
         Assert.Equal(1, tracker.Moves.Count);
         Assert.Equal(process.Id, tracked.Process!.Id);
         Assert.True(tracker.TrackingAny);
