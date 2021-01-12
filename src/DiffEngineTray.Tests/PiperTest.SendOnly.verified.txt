@@ -5,9 +5,9 @@ Failed to send payload to DiffEngineTray.
 Payload:
 {
 "Type":"Move",
+"CanKill":true,
 "Exe":"theExe",
 "Arguments":"TheArguments \"s\"",
-"CanKill":true,
 "ProcessId":10
 }
 

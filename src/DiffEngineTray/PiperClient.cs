@@ -63,9 +63,9 @@ static class PiperClient
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
+""CanKill"":{canKill.ToString().ToLower()},
 ""Exe"":""{exe.JsonEscape()}"",
-""Arguments"":""{arguments.JsonEscape()}"",
-""CanKill"":{canKill.ToString().ToLower()}");
+""Arguments"":""{arguments.JsonEscape()}""");
 
         if (processId != null)
         {
