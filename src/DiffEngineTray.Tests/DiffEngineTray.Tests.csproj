@@ -10,11 +10,11 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="Verify.WinForms" Version="2.4.1" />
-    <PackageReference Include="Verify.Xunit" Version="10.9.1" />
+    <PackageReference Include="Verify.Xunit" Version="11.0.0-beta.3" />
     <PackageReference Include="Verify.ImageMagick" Version="2.6.1" />
     <PackageReference Include="Xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.53" PrivateAssets="All" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.54" PrivateAssets="All" />
     <PackageReference Include="XunitContext" Version="3.0.0" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
   </ItemGroup>
