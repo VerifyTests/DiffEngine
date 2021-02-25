@@ -66,7 +66,7 @@ static class LinuxOsxProcess
             var timeAndCommandString = trim.Substring(firstSpace + 1);
             var multiSpaceIndex = 0;
             string command;
-            
+
             if (timeAndCommandString.IndexOf("   ", StringComparison.InvariantCulture) > 0)
             {
                 multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace, StringComparison.InvariantCulture);
