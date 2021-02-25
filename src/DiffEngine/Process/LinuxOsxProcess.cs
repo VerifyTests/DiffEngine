@@ -35,7 +35,7 @@ static class LinuxOsxProcess
     {
         var processList = RunPs();
         using StringReader reader = new(processList);
-        string line;
+        string? line;
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
         {
