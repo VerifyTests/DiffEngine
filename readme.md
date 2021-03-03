@@ -41,7 +41,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
   * [DiffEngineTray](/docs/tray.md)
-  * [Code versus machine level settings](/docs/code-verus-machine-settings.md) <!-- endInclude -->
+  * [Code versus machine level settings](/docs/code-versus-machine-settings.md) <!-- endInclude -->
 
 
 ## NuGet package
