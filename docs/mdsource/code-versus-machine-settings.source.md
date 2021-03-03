@@ -14,7 +14,7 @@ Settings that are personal preferences ideally should
 Examples:
 
  * [Custom order](diff-tool.order.md#custom-order) which depend on the tools a specific person has installed.
- * [Disable launching](/readme.md#disable-for-a-machineprocess)..
+ * [Disable launching](/readme.md#disable-for-a-machineprocess).
  * [Max instances to launch](diff-tool.md#maxinstancestolaunch).
 
 
@@ -28,6 +28,7 @@ Settings that are shared ideally should
  * Apply to CI.
 
 Examples:
+
 
  * [File type detection](/readme.md#file-type-detection).
  * [Adding a share custom tool](/docs/diff-tool.custom.md). A team may be comparing custom file types, and require a shared custom tool to verify that file.
