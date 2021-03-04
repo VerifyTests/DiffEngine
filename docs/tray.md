@@ -56,9 +56,9 @@ Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop do
 "Accept all" will accept all pending moves and all pending deletes.
 
 
-### Clear
+### Discard
 
-Clear will clear all currently tracked items.
+Discard will clear all currently tracked items.
 
 
 ### Options

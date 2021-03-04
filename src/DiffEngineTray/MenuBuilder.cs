@@ -84,7 +84,7 @@ static class MenuBuilder
             yield return item;
         }
 
-        yield return new MenuButton($"Clear ({count})", tracker.Clear, Images.Clear);
+        yield return new MenuButton($"Discard ({count})", tracker.Clear, Images.Discard);
         yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
     }
 
