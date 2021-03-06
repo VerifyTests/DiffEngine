@@ -230,7 +230,7 @@ class Tracker :
         }
         catch (Exception exception)
         {
-            ExceptionHandler.Handle($"Failed to kill {process.Id}. Command: {move.Exe} {move.Arguments}", exception);
+            ExceptionHandler.Handle($"Failed to kill process. Command: {move.Exe} {move.Arguments}", exception);
         }
         finally
         {
