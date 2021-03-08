@@ -228,6 +228,10 @@ class Tracker :
         {
             process.Kill();
         }
+        catch (InvalidOperationException)
+        {
+            // Race condition can cause "No process is associated with this object"
+        }
         catch (Exception exception)
         {
             ExceptionHandler.Handle($"Failed to kill process. Command: {move.Exe} {move.Arguments}", exception);
