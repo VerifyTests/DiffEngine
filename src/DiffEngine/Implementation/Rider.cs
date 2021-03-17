@@ -6,7 +6,7 @@ static partial class Implementation
     public static Definition Rider()
     {
         static string Arguments(string temp, string target) =>
-            $" diff \"{temp}\" \"{target}\"";
+            $"diff \"{temp}\" \"{target}\"";
 
         return new(
             name: DiffTool.Rider,
@@ -27,6 +27,10 @@ static partial class Implementation
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",
                 "/Applications/Rider EAP.app/Contents/MacOS/rider",
                 "/Applications/Rider.app/Contents/MacOS/rider"),
+            linux: new(
+                Arguments,
+                "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh",
+                "/opt/jetbrains/rider/bin/rider.sh"),
             notes: @"
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
     }

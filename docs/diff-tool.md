@@ -418,7 +418,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### Windows settings:
 
- * Example arguments: ` diff "tempFile" "targetFile"`
+ * Example arguments: `diff "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
@@ -429,13 +429,21 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ### OSX settings:
 
- * Example arguments: ` diff "tempFile" "targetFile"`
+ * Example arguments: `diff "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider`
    * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider`
    * `/Applications/Rider EAP.app/Contents/MacOS/rider`
    * `/Applications/Rider.app/Contents/MacOS/rider`
+
+### Linux settings:
+
+ * Example arguments: `diff "tempFile" "targetFile"`
+ * Scanned paths:
+
+   * `%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh`
+   * `/opt/jetbrains/rider/bin/rider.sh`
 
 
 ## [SublimeMerge](https://www.sublimemerge.com/)
