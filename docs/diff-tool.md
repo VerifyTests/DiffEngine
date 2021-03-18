@@ -444,6 +444,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
    * `%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh`
    * `/opt/jetbrains/rider/bin/rider.sh`
+   * `/usr/share/rider/bin/rider.sh`
 
 
 ## [SublimeMerge](https://www.sublimemerge.com/)

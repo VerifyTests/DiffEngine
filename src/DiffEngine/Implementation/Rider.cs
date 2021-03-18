@@ -30,7 +30,8 @@ static partial class Implementation
             linux: new(
                 Arguments,
                 "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh",
-                "/opt/jetbrains/rider/bin/rider.sh"),
+                "/opt/jetbrains/rider/bin/rider.sh",
+                "/usr/share/rider/bin/rider.sh"),
             notes: @"
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
     }
