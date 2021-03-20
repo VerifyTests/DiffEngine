@@ -511,7 +511,10 @@
 ### Linux settings:
 
  * Example arguments: `--diff "targetFile" "tempFile"`
- * Scanned path: `/usr/local/bin/code`
+ * Scanned paths:
+
+   * `/usr/local/bin/code`
+   * `/usr/bin/code`
 
 
 ## [WinMerge](https://winmerge.org/)
