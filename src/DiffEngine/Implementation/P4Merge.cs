@@ -5,7 +5,7 @@ static partial class Implementation
     public static Definition P4Merge()
     {
         static string Arguments(string temp, string target) =>
-            $"\"{temp}\" \"{target}\"";
+            $"\"{temp}\" \"{target}\" \"{target}\" \"{temp}\"";
 
         return new(
             name: DiffTool.P4Merge,

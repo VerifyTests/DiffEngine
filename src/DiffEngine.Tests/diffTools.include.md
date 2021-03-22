@@ -288,7 +288,7 @@
 
 ### Windows settings:
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `"tempFile" "targetFile" "targetFile" "tempFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Perforce\p4merge.exe`
@@ -297,12 +297,12 @@
 
 ### OSX settings:
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `"tempFile" "targetFile" "targetFile" "tempFile"`
  * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 ### Linux settings:
 
- * Example arguments: `"tempFile" "targetFile"`
+ * Example arguments: `"tempFile" "targetFile" "targetFile" "tempFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 
