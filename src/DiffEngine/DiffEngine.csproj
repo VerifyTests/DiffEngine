@@ -9,7 +9,7 @@
     <Compile Include="..\DiffEngineTray\JsonEscaping.cs" Link="Tray\JsonEscaping.cs" />
     <Compile Include="..\DiffEngineTray\PiperClient.cs" Link="Tray\PiperClient.cs" />
     <PackageReference Include="Caseless.Fody" Version="1.9.1" PrivateAssets="All" />
-    <PackageReference Include="EmptyFiles" Version="2.6.0" PrivateAssets="None" />
+    <PackageReference Include="EmptyFiles" Version="2.7.0-beta.1" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.5.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.54" PrivateAssets="All" />

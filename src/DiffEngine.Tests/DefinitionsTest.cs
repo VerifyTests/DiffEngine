@@ -112,7 +112,7 @@ public class DefinitionsTest :
 ");
             foreach (var path in paths)
             {
-                writer.WriteLine($@"   * `{path}`");
+                writer.WriteLine($"   * `{path}`");
             }
         }
         else
