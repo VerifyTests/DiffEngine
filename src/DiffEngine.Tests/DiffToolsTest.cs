@@ -96,11 +96,11 @@ public class DiffToolsTest :
     //}
 
     //[Fact]
-    //public Task LaunchTextDiff()
+    //public async Task LaunchTextDiff()
     //{
     //    foreach (var tool in DiffTools.Resolved)
     //    {
-    //        await DiffRunner.Launch(tool,
+    //        await DiffRunner.LaunchAsync(tool,
     //            Path.Combine(SourceDirectory, "input.file1.txt"),
     //            Path.Combine(SourceDirectory, "input.file2.txt"));
     //    }
