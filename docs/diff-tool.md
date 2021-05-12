@@ -421,6 +421,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * Example arguments: `diff "tempFile" "targetFile"`
  * Scanned paths:
 
+   * `%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe`
    * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
    * `%ProgramW6432%\JetBrains\JetBrains Rider *\bin\rider64.exe`
    * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
