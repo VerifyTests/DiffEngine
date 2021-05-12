@@ -18,6 +18,7 @@ static partial class Implementation
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 Arguments,
+                @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
                 @"%JetBrains Rider%\rider64.exe",
                 @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe"),

@@ -61,7 +61,7 @@ Setting the `DiffEngine_MaxInstances` environment variable to the number of inst
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L13-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L14-L18' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -421,6 +421,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * Example arguments: `diff "tempFile" "targetFile"`
  * Scanned paths:
 
+   * `%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe`
    * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
    * `%ProgramW6432%\JetBrains\JetBrains Rider *\bin\rider64.exe`
    * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
