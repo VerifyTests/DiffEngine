@@ -34,7 +34,8 @@ public class PiperTest :
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        await Verifier.Verify(received);
+        await Verifier.Verify(received)
+            .ModifySerialization(x => x.DontScrubNumericIds());
     }
 
     [Fact]
