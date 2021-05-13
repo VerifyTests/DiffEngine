@@ -348,6 +348,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
  * Example arguments: `"tempFile" "targetFile"`
  * Scanned paths:
 
+   * `%LOCALAPPDATA%\Programs\Meld\meld.exe`
    * `%ProgramFiles%\Meld\meld.exe`
    * `%ProgramW6432%\Meld\meld.exe`
    * `%ProgramFiles(x86)%\Meld\meld.exe`
