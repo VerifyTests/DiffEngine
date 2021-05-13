@@ -16,7 +16,10 @@ static partial class Implementation
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: Array.Empty<string>(),
-            windows: new(Arguments, @"%ProgramFiles%\Meld\meld.exe"),
+            windows: new(
+                Arguments,
+                @"%LOCALAPPDATA%\Programs\Meld\meld.exe",
+                @"%ProgramFiles%\Meld\meld.exe"),
             linux: new(Arguments, "/usr/bin/meld"),
             osx: new(Arguments, "/Applications/meld.app/Contents/MacOS/meld"));
     }
