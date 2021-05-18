@@ -60,21 +60,21 @@ static class LinuxOsxProcess
                 return false;
             }
 
-            var pidString = trim.Substring(0, firstSpace);
+            var pidString = trim[..firstSpace];
             var pid = int.Parse(pidString);
 
-            var timeAndCommandString = trim.Substring(firstSpace + 1);
+            var timeAndCommandString = trim[(firstSpace + 1)..];
             var multiSpaceIndex = 0;
             string command;
 
             if (timeAndCommandString.IndexOf("   ", StringComparison.InvariantCulture) > 0)
             {
                 multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace, StringComparison.InvariantCulture);
-                command = timeAndCommandString.Substring(multiSpaceIndex + 1).Trim();
+                command = timeAndCommandString[(multiSpaceIndex + 1)..].Trim();
             }
             else
             {
-                command = timeAndCommandString.Substring(multiSpaceIndex).Trim();
+                command = timeAndCommandString[multiSpaceIndex..].Trim();
             }
 
             processCommand = new(command, in pid);
