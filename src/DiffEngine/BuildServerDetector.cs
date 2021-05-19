@@ -76,6 +76,14 @@ namespace DiffEngine
                 Detected = true;
                 return;
             }
+
+            // Docker
+            // https://www.hanselman.com/blog/detecting-that-a-net-core-app-is-running-in-a-docker-container-and-skippablefacts-in-xunit
+            if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+            {
+                Detected = true;
+                return;
+            }
         }
 
         public static bool Detected { get; set; }
