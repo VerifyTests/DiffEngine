@@ -133,10 +133,6 @@ Supports:
 Set an environment variable `DiffEngine_Disabled` with the value `true`.
 
 
-## Security contact information
-
-To report a security vulnerability, use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
-
 
 ## Icons
 
