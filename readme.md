@@ -20,7 +20,6 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [Shouldly](https://github.com/shouldly/shouldly/)
  * [Verify](https://github.com/VerifyTests/Verify)
 
-Support is available via [Tidelift](https://tidelift.com/subscription/pkg/nuget-diffengine?utm_source=nuget-diffengine&utm_medium=referral&utm_campaign=enterprise).
 
 <a href='https://dotnetfoundation.org' alt='Part of the .NET Foundation'><img src='https://raw.githubusercontent.com/VerifyTests/Verify/master/docs/dotNetFoundation.svg' height='30px'></a><br>
 Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
@@ -35,7 +34,6 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
-  * [Security contact information](#security-contact-information)
   * [Icons](#icons)<!-- endToc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
