@@ -1,5 +1,4 @@
-[
-  
+﻿[  
 Failed to send payload to DiffEngineTray.
 
 Payload:
