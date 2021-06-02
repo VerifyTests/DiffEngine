@@ -85,15 +85,15 @@ Resharper has a feature [Check for orphaned processes spawned by test runner](ht
 
 Since this project launches diff tools, it will trigger this feature an a dialog will show:
 
-> All unit tests are finished, but chid processes spawned by the test runner proces are still running. Terminate child process?
+> All unit tests are finished, but chid processes spawned by the test runner process are still running. Terminate child process?
 
-<img src="TerminateProcess.png" alt="R# terminate process dialog" width="400">
+<img src="resharper-spawned.png" alt="R# terminate process dialog" width="400">
 
 As such this feature needs to be disabled:
 
 ReSharper | Options | Tools | Unit Testing | Test Runner
 
-<img src="DisableProcessDetection.png" alt="Disable R# orphaned processes detection" width="400">
+<img src="resharper-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="400">
 
 
 ## Supported Tools:
