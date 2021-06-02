@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -53,6 +55,13 @@ public partial class HotKeyControl :
     {
         get => (string?) helpLabel.Text;
         set => helpLabel.Text = value;
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        var padding = hotKey.Padding;
+        helpLabel.MaximumSize = new Size(hotKey.Width - (padding.Left + padding.Right + 10), 0);
     }
 
     static IEnumerable<string> GetAlphabet()

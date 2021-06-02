@@ -152,7 +152,7 @@
             // 
             this.acceptOpenHotKey.AutoSize = true;
             this.acceptOpenHotKey.Dock = System.Windows.Forms.DockStyle.Top;
-            this.acceptOpenHotKey.Help = "Accept pending deletes and pending moves with a currently open diff tool";
+            this.acceptOpenHotKey.Help = "Accept pending deletes and pending moves with a currently open diff tool. This only works for diff tools that are not MDI, eg it does not work for Visual Studio, Rider, or Visual Studio Code.";
             this.acceptOpenHotKey.HotKey = null;
             this.acceptOpenHotKey.Label = "Accept all open HotKey";
             this.acceptOpenHotKey.Location = new System.Drawing.Point(5, 145);
