@@ -61,7 +61,7 @@ public partial class HotKeyControl :
     {
         base.OnSizeChanged(e);
         var padding = hotKey.Padding;
-        helpLabel.MaximumSize = new Size(hotKey.Width - padding.Left - padding.Right, 0);
+        helpLabel.MaximumSize = new Size(hotKey.Width - (padding.Left + padding.Right + 10), 0);
     }
 
     static IEnumerable<string> GetAlphabet()
