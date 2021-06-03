@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using DiffEngine;
 using Xunit;
@@ -85,13 +86,13 @@ public class DiffToolsTest :
     }
 
     //[Fact]
-    //public Task LaunchImageDiff()
+    //public async Task LaunchImageDiff()
     //{
     //    foreach (var tool in DiffTools.Resolved)
     //    {
-    //        await DiffRunner.Launch(tool,
-    //            Path.Combine(SourceDirectory, "input.file1.png"),
-    //            Path.Combine(SourceDirectory, "input.file2.png"));
+    //        await DiffRunner.LaunchAsync(tool,
+    //            Path.Combine(SourceDirectory, "input.temp.png"),
+    //            Path.Combine(SourceDirectory, "input.target.png"));
     //    }
     //}
 
@@ -101,8 +102,8 @@ public class DiffToolsTest :
     //    foreach (var tool in DiffTools.Resolved)
     //    {
     //        await DiffRunner.LaunchAsync(tool,
-    //            Path.Combine(SourceDirectory, "input.file1.txt"),
-    //            Path.Combine(SourceDirectory, "input.file2.txt"));
+    //            Path.Combine(SourceDirectory, "input.temp.txt"),
+    //            Path.Combine(SourceDirectory, "input.target.txt"));
     //    }
     //}
 
