@@ -17,5 +17,6 @@
     <PackageReference Include="ProjectDefaults" Version="1.0.54" PrivateAssets="All" />
     <PackageReference Include="XunitContext" Version="3.0.0" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
 </Project>

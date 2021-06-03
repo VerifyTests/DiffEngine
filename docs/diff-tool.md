@@ -61,7 +61,7 @@ Setting the `DiffEngine_MaxInstances` environment variable to the number of inst
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L14-L18' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L13-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -320,7 +320,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 #### Windows settings:
 
- * Example arguments: ` -C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Perforce\p4merge.exe`
@@ -329,12 +329,12 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 #### OSX settings:
 
- * Example arguments: ` -C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 #### Linux settings:
 
- * Example arguments: ` -C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 
