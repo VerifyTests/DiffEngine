@@ -207,7 +207,7 @@ class Tracker :
             {
                 Log.Error(exception, $"Filed to move '{move.Temp}' to '{move.Target}'.");
                 //Swallow this since it is likely that a running test it reading or
-                //writing to the files, and the result will re-add thetracked item
+                //writing to the files, and the result will re-add the tracked item
             }
         }
 
