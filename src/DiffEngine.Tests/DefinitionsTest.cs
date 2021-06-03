@@ -47,53 +47,78 @@ public class DefinitionsTest :
         File.Delete(md);
         using var writer = File.CreateText(md);
 
+        writer.WriteLine($@"
+
+## Non-MDI tools
+
+Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track and close diffs.
+
+");
+
         foreach (var tool in Definitions.Tools
+            .Where(x => !x.IsMdi)
             .OrderBy(x => x.Tool.ToString()))
         {
-            writer.WriteLine($@"
+            AddTool(writer, tool);
+        }
 
-## [{tool.Tool}]({tool.Url})");
+        writer.WriteLine($@"
 
-            writer.WriteLine($@"
-  * Is MDI: {tool.IsMdi}
+## MDI tools
+
+");
+        foreach (var tool in Definitions.Tools
+            .Where(x => x.IsMdi)
+            .OrderBy(x => x.Tool.ToString()))
+        {
+            AddTool(writer, tool);
+        }
+    }
+
+    static void AddTool(StreamWriter writer, Definition tool)
+    {
+        writer.WriteLine($@"
+
+### [{tool.Tool}]({tool.Url})");
+
+        writer.WriteLine($@"
   * Supports auto-refresh: {tool.AutoRefresh}
   * Supports text files: {tool.SupportsText}");
 
-            if (tool.BinaryExtensions.Any())
-            {
-                writer.WriteLine("  * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
-            }
+        if (tool.BinaryExtensions.Any())
+        {
+            writer.WriteLine("  * Supported binaries: " + string.Join(", ", tool.BinaryExtensions));
+        }
 
-            if (tool.Notes != null)
-            {
-                writer.WriteLine(@"
-### Notes:");
-                writer.WriteLine(tool.Notes);
-            }
+        if (tool.Notes != null)
+        {
+            writer.WriteLine(@"
+#### Notes:");
+            writer.WriteLine(tool.Notes);
+        }
 
-            if (tool.Windows != null)
-            {
-                writer.WriteLine(@"
-### Windows settings:");
-                WriteArguments(writer, tool.Windows.Arguments!);
-                WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
-            }
+        if (tool.Windows != null)
+        {
+            writer.WriteLine(@"
+#### Windows settings:");
+            WriteArguments(writer, tool.Windows.Arguments!);
+            WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
+        }
 
-            if (tool.Osx != null)
-            {
-                writer.WriteLine(@"
-### OSX settings:");
-                WriteArguments(writer, tool.Osx.Arguments);
-                WritePaths(writer, tool.Osx.ExePaths);
-            }
+        if (tool.Osx != null)
+        {
+            writer.WriteLine(@"
+#### OSX settings:");
+            WriteArguments(writer, tool.Osx.Arguments);
+            WritePaths(writer, tool.Osx.ExePaths);
+        }
 
-            if (tool.Linux != null)
-            {
-                writer.WriteLine(@"
-### Linux settings:");
-                WriteArguments(writer, tool.Linux.Arguments);
-                WritePaths(writer, tool.Linux.ExePaths);
-            }
+        if (tool.Linux != null)
+        {
+            writer.WriteLine(@"
+#### Linux settings:");
+            WriteArguments(writer, tool.Linux.Arguments);
+            WritePaths(writer, tool.Linux.ExePaths);
         }
     }
 
