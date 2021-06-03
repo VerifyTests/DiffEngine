@@ -10,12 +10,8 @@ static class Definitions
         {
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),
-            Implementation.AraxisMerge(),
-            Implementation.Meld(),
-            Implementation.SublimeMerge(),
             Implementation.Kaleidoscope(),
             Implementation.DeltaWalker(),
-            Implementation.CodeCompare(),
             Implementation.WinMerge(),
             Implementation.DiffMerge(),
             Implementation.TortoiseMerge(),
@@ -26,11 +22,15 @@ static class Definitions
             Implementation.Guiffy(),
             Implementation.ExamDiff(),
             Implementation.Diffinity(),
-            Implementation.VsCode(),
-            Implementation.VisualStudio(),
             Implementation.Rider(),
             Implementation.Vim(),
-            Implementation.Neovim()
+            Implementation.Neovim(),
+            Implementation.AraxisMerge(),
+            Implementation.Meld(),
+            Implementation.SublimeMerge(),
+            Implementation.CodeCompare(),
+            Implementation.VsCode(),
+            Implementation.VisualStudio(),
         };
     }
 }

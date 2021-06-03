@@ -12,12 +12,8 @@ To change this file edit the source file and then run MarkdownSnippets.
 
  * [BeyondCompare](/docs/diff-tool.md#beyondcompare) <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
  * [P4Merge](/docs/diff-tool.md#p4merge)
- * [AraxisMerge](/docs/diff-tool.md#araxismerge)
- * [Meld](/docs/diff-tool.md#meld)
- * [SublimeMerge](/docs/diff-tool.md#sublimemerge)
  * [Kaleidoscope](/docs/diff-tool.md#kaleidoscope)
  * [DeltaWalker](/docs/diff-tool.md#deltawalker)
- * [CodeCompare](/docs/diff-tool.md#codecompare)
  * [WinMerge](/docs/diff-tool.md#winmerge)
  * [DiffMerge](/docs/diff-tool.md#diffmerge)
  * [TortoiseMerge](/docs/diff-tool.md#tortoisemerge)
@@ -28,11 +24,15 @@ To change this file edit the source file and then run MarkdownSnippets.
  * [Guiffy](/docs/diff-tool.md#guiffy)
  * [ExamDiff](/docs/diff-tool.md#examdiff)
  * [Diffinity](/docs/diff-tool.md#diffinity)
- * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
- * [VisualStudio](/docs/diff-tool.md#visualstudio)
  * [Rider](/docs/diff-tool.md#rider)
  * [Vim](/docs/diff-tool.md#vim)
- * [Neovim](/docs/diff-tool.md#neovim) <!-- endInclude -->
+ * [Neovim](/docs/diff-tool.md#neovim)
+ * [AraxisMerge](/docs/diff-tool.md#araxismerge)
+ * [Meld](/docs/diff-tool.md#meld)
+ * [SublimeMerge](/docs/diff-tool.md#sublimemerge)
+ * [CodeCompare](/docs/diff-tool.md#codecompare)
+ * [VisualStudioCode](/docs/diff-tool.md#visualstudiocode)
+ * [VisualStudio](/docs/diff-tool.md#visualstudio) <!-- endInclude -->
 
 
 ## Custom order
