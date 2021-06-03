@@ -72,7 +72,7 @@ public partial class HotKeyControl :
         }
     }
 
-    void hotKeyEnabled_CheckedChanged(object sender, System.EventArgs e)
+    void hotKeyEnabled_CheckedChanged(object sender, EventArgs e)
     {
         keysSelectionPanel.Enabled = hotKeyEnabled.Checked;
     }
