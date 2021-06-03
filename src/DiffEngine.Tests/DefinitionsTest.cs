@@ -82,6 +82,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 ### [{tool.Tool}]({tool.Url})");
 
         writer.WriteLine($@"
+  * Is MDI: {tool.IsMdi}
   * Supports auto-refresh: {tool.AutoRefresh}
   * Supports text files: {tool.SupportsText}");
 

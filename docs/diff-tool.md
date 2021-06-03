@@ -109,6 +109,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [BeyondCompare](https://www.scootersoftware.com)
 
+  * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
   * Supported binaries: mp3, xls, xlsm, xlsx, doc, docm, docx, dot, dotm, dotx, pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
@@ -139,6 +140,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [DeltaWalker](https://www.deltawalker.com/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
   * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
@@ -160,6 +162,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)
 
+  * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
 
@@ -180,6 +183,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -205,6 +209,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
 
+  * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
 
@@ -226,6 +231,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Guiffy](https://www.guiffy.com/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
   * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
@@ -253,6 +259,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Kaleidoscope](https://www.kaleidoscopeapp.com/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
   * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tiff, tif
@@ -265,6 +272,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [KDiff3](https://github.com/KDE/kdiff3)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -289,6 +297,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Neovim](https://neovim.io/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -304,6 +313,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
   * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
@@ -330,6 +340,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Rider](https://www.jetbrains.com/rider/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -371,6 +382,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TkDiff](https://sourceforge.net/projects/tkdiff/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -382,6 +394,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseGitMerge](https://tortoisegit.org/docs/tortoisegitmerge/)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -397,6 +410,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseIDiff](https://tortoisesvn.net/TortoiseIDiff.html)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
   * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
@@ -413,6 +427,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseMerge](https://tortoisesvn.net/TortoiseMerge.html)
 
+  * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -428,6 +443,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Vim](https://www.vim.org/)
 
+  * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
 
@@ -456,6 +472,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [WinMerge](https://winmerge.org/)
 
+  * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
 
@@ -484,6 +501,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [AraxisMerge](https://www.araxis.com/merge)
 
+  * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
   * Supported binaries: bmp, dib, emf, gif, jif, j2c, j2k, jp2, jpc, jpeg, jpg, jpx, pbm, pcx, pgm, png, ppm, ras, tif, tiff, tga, wmf
@@ -512,6 +530,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [CodeCompare](https://www.devart.com/codecompare/)
 
+  * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -531,6 +550,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Meld](https://meldmerge.org/)
 
+  * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -560,6 +580,7 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 ### [SublimeMerge](https://www.sublimemerge.com/)
 
+  * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
 
@@ -588,6 +609,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 ### [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
+  * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
 
@@ -604,6 +626,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 ### [VisualStudioCode](https://code.visualstudio.com)
 
+  * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
 
