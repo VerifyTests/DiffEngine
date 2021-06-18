@@ -146,7 +146,7 @@ static class MenuBuilder
     static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
     {
         SplitButton menu = new($"{delete.Name}", accept);
-        menu.AddRange(
+        menu.Add(
             new MenuButton("Accept delete", accept),
             BuildShowInExplorer(delete.File));
         return menu;
@@ -155,12 +155,13 @@ static class MenuBuilder
     static ToolStripItem BuildMove(TrackedMove move, Action accept)
     {
         SplitButton menu = new($"{move.Name} ({move.Extension})", accept);
-        menu.AddRange(new MenuButton("Accept move", accept));
+
+        menu.Add(new MenuButton("Accept move", accept));
         if (move.Exe != null)
         {
-            menu.AddRange(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
+            menu.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
         }
-        menu.AddRange(BuildShowInExplorer(move.Temp));
+        menu.Add(BuildShowInExplorer(move.Temp));
         return menu;
     }
 
