@@ -14,6 +14,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: false,
+            cost: "Paid",
             binaryExtensions: new[]
             {
                 "jpg",

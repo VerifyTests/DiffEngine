@@ -12,6 +12,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",

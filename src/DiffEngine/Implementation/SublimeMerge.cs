@@ -15,6 +15,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            cost: "Paid",
             binaryExtensions: Array.Empty<string>(),
             windows: new(Arguments, @"%ProgramFiles%\Sublime Merge\smerge.exe"),
             linux: new(Arguments, "/usr/bin/smerge"),

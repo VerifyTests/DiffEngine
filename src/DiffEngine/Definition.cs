@@ -12,6 +12,7 @@ class Definition
     public OsSettings? Linux { get; }
     public OsSettings? Osx { get; }
     public string[] BinaryExtensions { get; }
+    public string Cost { get; }
     public string? Notes { get; }
     public bool SupportsText { get; }
     public bool RequiresTarget { get; }
@@ -24,6 +25,7 @@ class Definition
         bool supportsText,
         bool requiresTarget,
         string[] binaryExtensions,
+        string cost,
         OsSettings? windows = null,
         OsSettings? linux = null,
         OsSettings? osx = null,
@@ -34,6 +36,7 @@ class Definition
         AutoRefresh = autoRefresh;
         IsMdi = isMdi;
         BinaryExtensions = binaryExtensions;
+        Cost = cost;
         Notes = notes;
         SupportsText = supportsText;
         RequiresTarget = requiresTarget;

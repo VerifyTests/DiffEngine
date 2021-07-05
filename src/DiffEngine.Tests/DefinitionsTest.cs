@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
@@ -24,7 +25,30 @@ public class DefinitionsTest :
 
     static void AddToolLink(StreamWriter writer, Definition tool)
     {
-        writer.WriteLine($" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})");
+        var osSupport = GetOsSupport(tool);
+        writer.WriteLine($" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()}) {osSupport} (Cost: {tool.Cost})");
+    }
+
+    static string GetOsSupport(Definition tool)
+    {
+        StringBuilder builder = new();
+        if (tool.Windows != null)
+        {
+            builder.Append("Win/");
+        }
+
+        if (tool.Osx != null)
+        {
+            builder.Append("OSX/");
+        }
+
+        if (tool.Windows != null)
+        {
+            builder.Append("Linux/");
+        }
+
+        builder.Length--;
+        return builder.ToString();
     }
 
     [Fact]
@@ -51,7 +75,7 @@ public class DefinitionsTest :
 
 ## Non-MDI tools
 
-Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track and close diffs.
+Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
 
 ");
 
@@ -82,6 +106,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 ### [{tool.Tool}]({tool.Url})");
 
         writer.WriteLine($@"
+  * Cost: {tool.Cost}
   * Is MDI: {tool.IsMdi}
   * Supports auto-refresh: {tool.AutoRefresh}
   * Supports text files: {tool.SupportsText}");

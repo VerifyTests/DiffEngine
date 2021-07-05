@@ -15,6 +15,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
             osx: new(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),

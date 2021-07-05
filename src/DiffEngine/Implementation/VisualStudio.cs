@@ -12,6 +12,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            cost: "Paid and free options",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 (temp, target) => $"/diff \"{temp}\" \"{target}\"",

@@ -17,6 +17,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
             osx: new(Arguments, "/Applications/MacVim.app/Contents/bin/mvim"),

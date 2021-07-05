@@ -15,6 +15,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(Arguments, @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
             linux: new(Arguments, "/usr/bin/diffmerge"),

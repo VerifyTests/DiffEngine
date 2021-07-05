@@ -15,6 +15,7 @@ static partial class Implementation
             isMdi: true,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 Arguments,

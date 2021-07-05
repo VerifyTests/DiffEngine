@@ -17,6 +17,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free with option to sponsor",
             binaryExtensions: Array.Empty<string>(),
             windows: new(Arguments, @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
             notes: @"

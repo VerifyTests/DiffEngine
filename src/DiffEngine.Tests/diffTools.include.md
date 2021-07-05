@@ -2,13 +2,14 @@
 
 ## Non-MDI tools
 
-Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track and close diffs.
+Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
 
 
 
 
 ### [BeyondCompare](https://www.scootersoftware.com)
 
+  * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
@@ -40,6 +41,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [DeltaWalker](https://www.deltawalker.com/)
 
+  * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -62,6 +64,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)
 
+  * Cost: Free with option to donate
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
@@ -83,6 +86,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -109,6 +113,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
 
+  * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
@@ -131,6 +136,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Guiffy](https://www.guiffy.com/)
 
+  * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -159,6 +165,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Kaleidoscope](https://www.kaleidoscopeapp.com/)
 
+  * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -172,6 +179,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [KDiff3](https://github.com/KDE/kdiff3)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -197,6 +205,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Neovim](https://neovim.io/)
 
+  * Cost: Free with option to sponsor
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -213,6 +222,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -240,6 +250,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Rider](https://www.jetbrains.com/rider/)
 
+  * Cost: Paid with free option for OSS
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -282,6 +293,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TkDiff](https://sourceforge.net/projects/tkdiff/)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -294,6 +306,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseGitMerge](https://tortoisegit.org/docs/tortoisegitmerge/)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -310,6 +323,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseIDiff](https://tortoisesvn.net/TortoiseIDiff.html)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
@@ -327,6 +341,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [TortoiseMerge](https://tortoisesvn.net/TortoiseMerge.html)
 
+  * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
@@ -343,6 +358,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Vim](https://www.vim.org/)
 
+  * Cost: Free with option to donate
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
@@ -372,6 +388,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [WinMerge](https://winmerge.org/)
 
+  * Cost: Free with option to donate
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
@@ -401,6 +418,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [AraxisMerge](https://www.araxis.com/merge)
 
+  * Cost: Paid
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
@@ -430,6 +448,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [CodeCompare](https://www.devart.com/codecompare/)
 
+  * Cost: Paid
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
@@ -450,6 +469,7 @@ Non-MDI tools are prefered since it allows [DiffEngineTray](tray.md) to track an
 
 ### [Meld](https://meldmerge.org/)
 
+  * Cost: Free
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
@@ -480,6 +500,7 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 ### [SublimeMerge](https://www.sublimemerge.com/)
 
+  * Cost: Paid
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
@@ -509,6 +530,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 ### [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
+  * Cost: Paid and free options
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
@@ -526,6 +548,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 ### [VisualStudioCode](https://code.visualstudio.com)
 
+  * Cost: Free
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True

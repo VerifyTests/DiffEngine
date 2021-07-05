@@ -12,6 +12,7 @@ static partial class Implementation
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             osx: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",

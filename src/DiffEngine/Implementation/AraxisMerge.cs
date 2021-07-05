@@ -8,6 +8,7 @@ static partial class Implementation
             url: "https://www.araxis.com/merge",
             autoRefresh: true,
             isMdi: true,
+            cost: "Paid",
             supportsText: true,
             requiresTarget: true,
             binaryExtensions: new[]
