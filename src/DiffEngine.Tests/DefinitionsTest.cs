@@ -26,7 +26,7 @@ public class DefinitionsTest :
     static void AddToolLink(StreamWriter writer, Definition tool)
     {
         var osSupport = GetOsSupport(tool);
-        writer.WriteLine($" * [{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()}) {osSupport} (Cost: {tool.Cost})");
+        writer.WriteLine($" * **[{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})** {osSupport} (Cost: {tool.Cost})");
     }
 
     static string GetOsSupport(Definition tool)
