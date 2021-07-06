@@ -9,23 +9,20 @@ static class MenuBuilder
     {
         ContextMenuStrip menu = new();
         var items = menu.Items;
-        menu.Closed += delegate
-        {
-            RemovePreviousItems(items);
-        };
+        menu.Closed += delegate { RemovePreviousItems(items); };
         menu.Opening += delegate
         {
             DisposePreviousItems(items);
-            foreach (var item in BuildTrackingMenuItems(tracker))
-            {
-                items.Add(item);
-            }
+            items.AddRange(BuildTrackingMenuItems(tracker).ToArray());
         };
         menu.Font = new(menu.Font.FontFamily, 10);
-        items.Add(new MenuButton("Exit", exit, Images.Exit));
-        items.Add(new MenuButton("Options", launchOptions, Images.Options));
-        items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
-        items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
+        items.AddRange(new ToolStripItem[]
+        {
+            new MenuButton("Exit", exit, Images.Exit),
+            new MenuButton("Options", launchOptions, Images.Options),
+            new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder),
+            new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link)
+        });
         return menu;
     }
 
