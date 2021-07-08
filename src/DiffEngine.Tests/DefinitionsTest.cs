@@ -16,8 +16,7 @@ public class DefinitionsTest :
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        foreach (var tool in Definitions.Tools
-            .OrderBy(x => x.Tool.ToString()))
+        foreach (var tool in Definitions.Tools)
         {
             AddToolLink(writer, tool);
         }
