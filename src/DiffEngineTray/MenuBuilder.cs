@@ -75,6 +75,7 @@ static class MenuBuilder
         var moves = tracker.Moves
             .OrderBy(x => x.Temp)
             .ToList();
+
         var count = moves.Count + deletes.Count;
 
         yield return new ToolStripSeparator();
@@ -145,23 +146,22 @@ static class MenuBuilder
 
     static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
     {
-        SplitButton menu = new($"{delete.Name}", accept);
-        menu.Add(
-            new MenuButton("Accept delete", accept),
-            BuildShowInExplorer(delete.File));
+        ToolStripDropDownButton menu = new($"{delete.Name}");
+        menu.DropDownItems.Add(new MenuButton("Accept delete", accept));
+        menu.DropDownItems.Add(BuildShowInExplorer(delete.File));
         return menu;
     }
 
     static ToolStripItem BuildMove(TrackedMove move, Action accept)
     {
-        SplitButton menu = new($"{move.Name} ({move.Extension})", accept);
+        ToolStripDropDownButton menu = new($"{move.Name} ({move.Extension})");
 
-        menu.Add(new MenuButton("Accept move", accept));
+        menu.DropDownItems.Add(new MenuButton("Accept move", accept));
         if (move.Exe != null)
         {
-            menu.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
+            menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
         }
-        menu.Add(BuildShowInExplorer(move.Temp));
+        menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
         return menu;
     }
 
