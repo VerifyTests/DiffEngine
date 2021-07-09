@@ -16,7 +16,8 @@ static partial class Implementation
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\Diffinity\Diffinity.exe"),
+                @"%ProgramFiles%\Diffinity\Diffinity.exe",
+                @"%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe"),
         notes: @"
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.");

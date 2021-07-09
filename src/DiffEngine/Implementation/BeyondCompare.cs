@@ -43,7 +43,7 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
-            windows: new(WindowsArguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe"),
+            windows: new(WindowsArguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe", @"%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe"),
             linux: new(OsxLinuxArguments, "/usr/lib/beyondcompare/bcomp"),
             osx: new(OsxLinuxArguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             notes: @"
