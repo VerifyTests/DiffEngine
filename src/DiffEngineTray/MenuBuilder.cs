@@ -18,10 +18,10 @@ static class MenuBuilder
         menu.Font = new(menu.Font.FontFamily, 10);
         items.AddRange(new ToolStripItem[]
         {
-            new MenuButton("Exit", exit, Images.Exit) { Tag = "Default" },
-            new MenuButton("Options", launchOptions, Images.Options) { Tag = "Default" },
-            new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder) { Tag = "Default" },
-            new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link) { Tag = "Default" }
+            new MenuButton("Exit", exit, Images.Exit){Tag = "Default"},
+            new MenuButton("Options", launchOptions, Images.Options){Tag = "Default"},
+            new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder){Tag = "Default"},
+            new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link){Tag = "Default"}
         });
 
         return menu;
