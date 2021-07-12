@@ -4,7 +4,7 @@ static class LinkLauncher
 {
     public static void LaunchUrl(string url)
     {
-        ProcessStartInfo startInfo = new()
+        var startInfo = new ProcessStartInfo
         {
             UseShellExecute = true,
             FileName = url

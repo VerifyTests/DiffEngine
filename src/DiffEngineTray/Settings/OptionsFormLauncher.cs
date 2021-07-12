@@ -8,7 +8,7 @@ static class OptionsFormLauncher
     public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
     {
         var settings = await SettingsHelper.Read();
-        using OptionsForm form = new(settings, async newSettings => await Save(keyRegister, tracker, newSettings));
+        using var form = new OptionsForm(settings, async newSettings => await Save(keyRegister, tracker, newSettings));
         form.ShowDialog();
     }
 
@@ -19,7 +19,7 @@ static class OptionsFormLauncher
             return errors;
         }
 
-        List<string> saveErrors = new();
+        var saveErrors = new List<string>();
 
         AddHotKey(keyRegister, settings.AcceptAllHotKey, KeyBindingIds.AcceptAll, tracker.AcceptAll, saveErrors);
         AddHotKey(keyRegister, settings.AcceptOpenHotKey, KeyBindingIds.AcceptOpen, tracker.AcceptOpen, saveErrors);

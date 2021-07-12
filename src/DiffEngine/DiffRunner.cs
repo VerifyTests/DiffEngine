@@ -218,12 +218,12 @@ namespace DiffEngine
 
         static int LaunchProcess(ResolvedTool tool, string arguments)
         {
+            var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
+            {
+                UseShellExecute = true
+            };
             try
             {
-                ProcessStartInfo startInfo = new(tool.ExePath, arguments)
-                {
-                    UseShellExecute = true
-                };
                 using var process = Process.Start(startInfo);
                 if (process != null)
                 {

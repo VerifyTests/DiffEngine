@@ -4,7 +4,6 @@ using Xunit.Abstractions;
 public class LinuxOsxProcessTests :
     XunitContextBase
 {
-
     [Fact]
     public void TryParseWithZshInstalled()
     {
@@ -14,7 +13,7 @@ public class LinuxOsxProcessTests :
         Assert.Equal(20872, processCommand.Process);
         Assert.Equal("-zsh", processCommand.Command);
     }
-    
+
     [Fact]
     public void TryParse()
     {

@@ -16,7 +16,7 @@ public class HotKeyControlTests :
     [Fact]
     public async Task WithKeys()
     {
-        using HotKeyControl target = new()
+        using var target = new HotKeyControl
         {
             HotKey = new()
             {
@@ -30,7 +30,7 @@ public class HotKeyControlTests :
     [Fact]
     public async Task Default()
     {
-        using HotKeyControl target = new();
+        using var target = new HotKeyControl();
         await Verifier.Verify(target);
     }
 }

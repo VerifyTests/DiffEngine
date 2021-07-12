@@ -25,13 +25,13 @@ static class WildcardFileFinder
         }
 
         var segments = expanded.Split(separators);
-        List<string> currentRoots = new()
+        var currentRoots = new List<string>
         {
             segments[0] + Path.DirectorySeparatorChar
         };
         foreach (var segment in segments.Skip(1))
         {
-            List<string> newRoots = new();
+            var newRoots = new List<string>();
             foreach (var root in currentRoots)
             {
                 if (segment.Contains('*'))

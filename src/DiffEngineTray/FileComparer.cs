@@ -6,8 +6,8 @@ static class FileComparer
 {
     static bool FilesAreSameSize(string file1, string file2)
     {
-        FileInfo first = new(file1);
-        FileInfo second = new(file2);
+        var first = new FileInfo(file1);
+        var second = new FileInfo(file2);
         return first.Length == second.Length;
     }
 

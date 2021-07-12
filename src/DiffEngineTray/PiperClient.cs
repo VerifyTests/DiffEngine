@@ -59,7 +59,7 @@ static class PiperClient
 
     static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
     {
-        StringBuilder builder = new($@"{{
+        var builder = new StringBuilder($@"{{
 ""Type"":""Move"",
 ""Temp"":""{tempFile.JsonEscape()}"",
 ""Target"":""{targetFile.JsonEscape()}"",
@@ -120,13 +120,13 @@ Exception:
 
     static void InnerSend(string payload)
     {
-        using TcpClient client = new();
+        using var client = new TcpClient();
         var endpoint = GetEndpoint();
         try
         {
             client.Connect(endpoint);
             using var stream = client.GetStream();
-            using StreamWriter writer = new(stream);
+            using var writer = new StreamWriter(stream);
             writer.Write(payload);
         }
         finally
@@ -137,17 +137,17 @@ Exception:
 
     static async Task InnerSendAsync(string payload)
     {
-        using TcpClient client = new();
+        using var client = new TcpClient();
         var endpoint = GetEndpoint();
         try
         {
             await client.ConnectAsync(endpoint.Address, endpoint.Port);
 #if NETCOREAPP || netstandard21
             await using var stream = client.GetStream();
-            await using StreamWriter writer = new(stream);
+            await using var writer = new StreamWriter(stream);
 #else
             using var stream = client.GetStream();
-            using StreamWriter writer = new(stream);
+            using var writer = new StreamWriter(stream);
 #endif
             await writer.WriteAsync(payload);
         }

@@ -35,7 +35,7 @@ public class OptionsFormTests :
     [Fact]
     public async Task WithKeys()
     {
-        using OptionsForm form = new(
+        using var form = new OptionsForm(
             new()
             {
                 AcceptAllHotKey = new()
@@ -51,7 +51,7 @@ public class OptionsFormTests :
     [Fact]
     public async Task Default()
     {
-        using OptionsForm form = new(
+        using var form = new OptionsForm(
             new(),
             _ => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
         await Verifier.Verify(form);

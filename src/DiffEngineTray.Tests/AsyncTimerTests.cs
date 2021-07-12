@@ -7,9 +7,9 @@ public class AsyncTimerTests
     [Fact]
     public async Task It_calls_error_callback()
     {
-        TaskCompletionSource<bool> errorCallbackInvoked = new();
+        var errorCallbackInvoked = new TaskCompletionSource<bool>();
 
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: (_, _) => throw new("Simulated!"),
             interval: TimeSpan.Zero,
             errorCallback: _ => { errorCallbackInvoked.SetResult(true); });
@@ -20,11 +20,11 @@ public class AsyncTimerTests
     [Fact]
     public async Task It_continues_to_run_after_an_error()
     {
-        TaskCompletionSource<bool> callbackInvokedAfterError = new();
+        var callbackInvokedAfterError = new TaskCompletionSource<bool>();
 
         var fail = true;
         var exceptionThrown = false;
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: (_, _) =>
             {
                 if (fail)
@@ -47,8 +47,8 @@ public class AsyncTimerTests
     public async Task Stop_cancels_token_while_waiting()
     {
         var waitCanceled = false;
-        TaskCompletionSource<bool> delayStarted = new();
-        AsyncTimer timer = new(
+        var delayStarted = new TaskCompletionSource<bool>();
+        var timer = new AsyncTimer(
             callback: (_, _) => throw new("Simulated!"),
             interval: TimeSpan.FromDays(7),
             delayStrategy: async (delayTime, token) =>
@@ -74,9 +74,9 @@ public class AsyncTimerTests
     public async Task Stop_cancels_token_while_in_callback()
     {
         var callbackCanceled = false;
-        TaskCompletionSource<bool> callbackStarted = new();
-        TaskCompletionSource<bool> stopInitiated = new();
-        AsyncTimer timer = new(
+        var callbackStarted = new TaskCompletionSource<bool>();
+        var stopInitiated = new TaskCompletionSource<bool>();
+        var timer = new AsyncTimer(
             callback: async (_, token) =>
             {
                 callbackStarted.SetResult(true);
@@ -98,9 +98,9 @@ public class AsyncTimerTests
     [Fact]
     public async Task Stop_waits_for_callback_to_complete()
     {
-        TaskCompletionSource<bool> callbackCompleted = new();
-        TaskCompletionSource<bool> callbackTaskStarted = new();
-        AsyncTimer timer = new(
+        var callbackCompleted = new TaskCompletionSource<bool>();
+        var callbackTaskStarted = new TaskCompletionSource<bool>();
+        var timer = new  AsyncTimer(
             callback: (_, _) =>
             {
                 callbackTaskStarted.SetResult(true);

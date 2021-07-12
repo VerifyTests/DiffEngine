@@ -15,7 +15,7 @@ public class PiperTest :
     public async Task Delete()
     {
         DeletePayload received = null!;
-        CancellationTokenSource source = new();
+        var source = new CancellationTokenSource();
         var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
         await PiperClient.SendDeleteAsync("Foo", source.Token);
         await Task.Delay(1000);
@@ -28,7 +28,7 @@ public class PiperTest :
     public async Task Move()
     {
         MovePayload received = null!;
-        CancellationTokenSource source = new();
+        var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, _ => { }, source.Token);
         await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
         await Task.Delay(1000);
@@ -53,7 +53,7 @@ public class PiperTest :
         {
         }
 
-        VerifySettings settings = new();
+        var settings = new VerifySettings();
         settings.ScrubLinesContaining("temp.txt");
         //TODO: add "scrub source dir" to verify and remove the below
         settings.ScrubLinesContaining("PiperClient");
