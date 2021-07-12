@@ -30,7 +30,7 @@ public class DefinitionsTest :
 
     static string GetOsSupport(Definition tool)
     {
-        StringBuilder builder = new();
+        var builder = new StringBuilder();
         if (tool.Windows != null)
         {
             builder.Append("Win/");
