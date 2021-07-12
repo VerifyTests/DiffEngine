@@ -9,7 +9,7 @@ public class AsyncTimerTests
     {
         var errorCallbackInvoked = new TaskCompletionSource<bool>();
 
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: (_, _) => throw new("Simulated!"),
             interval: TimeSpan.Zero,
             errorCallback: _ => { errorCallbackInvoked.SetResult(true); });
@@ -24,7 +24,7 @@ public class AsyncTimerTests
 
         var fail = true;
         var exceptionThrown = false;
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: (_, _) =>
             {
                 if (fail)
@@ -48,7 +48,7 @@ public class AsyncTimerTests
     {
         var waitCanceled = false;
         var delayStarted = new TaskCompletionSource<bool>();
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: (_, _) => throw new("Simulated!"),
             interval: TimeSpan.FromDays(7),
             delayStrategy: async (delayTime, token) =>
@@ -76,7 +76,7 @@ public class AsyncTimerTests
         var callbackCanceled = false;
         var callbackStarted = new TaskCompletionSource<bool>();
         var stopInitiated = new TaskCompletionSource<bool>();
-        AsyncTimer timer = new(
+        var timer = new AsyncTimer(
             callback: async (_, token) =>
             {
                 callbackStarted.SetResult(true);
@@ -100,7 +100,7 @@ public class AsyncTimerTests
     {
         var callbackCompleted = new TaskCompletionSource<bool>();
         var callbackTaskStarted = new TaskCompletionSource<bool>();
-        AsyncTimer timer = new(
+        var timer = new  AsyncTimer(
             callback: (_, _) =>
             {
                 callbackTaskStarted.SetResult(true);
