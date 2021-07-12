@@ -29,7 +29,7 @@ static class JsonEscaping
 
     public static string JsonEscape(this string contents)
     {
-        StringBuilder builder = new();
+        var builder = new StringBuilder();
 
         var start = 0;
         for (var i = 0; i < contents.Length; i++)

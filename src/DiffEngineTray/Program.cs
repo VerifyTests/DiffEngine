@@ -21,14 +21,14 @@ static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         CancellationTokenSource tokenSource = new();
         var cancellation = tokenSource.Token;
-        using Mutex mutex = new(true, "DiffEngine", out var createdNew);
+        using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
             Log.Information("Mutex already exists. Exiting.");
             return;
         }
 
-        using NotifyIcon icon = new()
+        using var icon = new NotifyIcon
         {
             Icon = Images.Default,
             Visible = true,
@@ -36,13 +36,13 @@ static class Program
         };
 
 
-        await using Tracker tracker = new(
+        await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default);
 
         using var task = StartServer(tracker, cancellation);
 
-        using KeyRegister keyRegister = new(icon.Handle());
+        using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);
 
         var menuStrip = MenuBuilder.Build(
