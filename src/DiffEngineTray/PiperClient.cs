@@ -120,7 +120,7 @@ Exception:
 
     static void InnerSend(string payload)
     {
-        using TcpClient client = new();
+        using var client = new TcpClient();
         var endpoint = GetEndpoint();
         try
         {
@@ -137,7 +137,7 @@ Exception:
 
     static async Task InnerSendAsync(string payload)
     {
-        using TcpClient client = new();
+        using var client = new TcpClient();
         var endpoint = GetEndpoint();
         try
         {

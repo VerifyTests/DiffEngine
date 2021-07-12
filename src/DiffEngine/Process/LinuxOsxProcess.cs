@@ -10,7 +10,7 @@ static class LinuxOsxProcess
     //https://www.man7.org/linux/man-pages/man1/ps.1.html
     public static bool TryTerminateProcess(int processId)
     {
-        using Process process = new()
+        using var process = new Process
         {
             StartInfo = new()
             {
@@ -34,7 +34,7 @@ static class LinuxOsxProcess
     public static IEnumerable<ProcessCommand> FindAll()
     {
         var processList = RunPs();
-        using StringReader reader = new(processList);
+        using var reader = new StringReader(processList);
         string? line;
         reader.ReadLine();
         while ((line = reader.ReadLine()) != null)
@@ -88,10 +88,10 @@ static class LinuxOsxProcess
 
     static string RunPs()
     {
-        StringBuilder errorBuilder = new();
-        StringBuilder outputBuilder = new();
+        var errorBuilder = new StringBuilder();
+        var outputBuilder = new StringBuilder();
         const string? arguments = "-o pid,command -x";
-        using Process process = new()
+        using var process = new Process
         {
             StartInfo = new()
             {

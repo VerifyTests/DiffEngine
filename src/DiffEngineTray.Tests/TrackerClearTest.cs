@@ -9,7 +9,7 @@ public class TrackerClearTest :
     [Fact]
     public async Task Simple()
     {
-        await using RecordingTracker tracker = new();
+        await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         tracker.Clear();

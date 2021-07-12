@@ -7,7 +7,7 @@ static class MenuBuilder
 {
     public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
     {
-        ContextMenuStrip menu = new();
+        var menu = new ContextMenuStrip();
         var items = menu.Items;
         menu.Closed += delegate
         {
