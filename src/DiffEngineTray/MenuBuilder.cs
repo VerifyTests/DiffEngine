@@ -147,7 +147,7 @@ static class MenuBuilder
 
     static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
     {
-        var menu = new ToolStripMenuItem($"{delete.Name}");
+        var menu = new ToolStripDropDownButton($"{delete.Name}");
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
         menu.DropDownItems.Add(new MenuButton("Accept delete", accept));
         menu.DropDownItems.Add(BuildShowInExplorer(delete.File));
@@ -156,7 +156,7 @@ static class MenuBuilder
 
     static ToolStripItem BuildMove(TrackedMove move, Action accept)
     {
-        var menu = new ToolStripMenuItem($"{move.Name} ({move.Extension})");
+        var menu = new ToolStripDropDownButton($"{move.Name} ({move.Extension})");
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
         menu.DropDownItems.Add(new MenuButton("Accept move", accept));
         if (move.Exe != null)
