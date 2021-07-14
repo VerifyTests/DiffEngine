@@ -27,6 +27,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
    * `%ProgramW6432%\Beyond Compare *\BCompare.exe`
    * `%ProgramFiles(x86)%\Beyond Compare *\BCompare.exe`
+   * `%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe`
 
 #### OSX settings:
 
@@ -82,6 +83,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    * `%ProgramFiles%\Diffinity\Diffinity.exe`
    * `%ProgramW6432%\Diffinity\Diffinity.exe`
    * `%ProgramFiles(x86)%\Diffinity\Diffinity.exe`
+   * `%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe`
 
 
 ### [DiffMerge](https://www.sourcegear.com/diffmerge/)
