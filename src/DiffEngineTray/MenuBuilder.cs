@@ -138,7 +138,10 @@ static class MenuBuilder
             yield return new MenuButton($"Pending Moves ({moves.Count}):", () => tracker.Accept(moves), Images.Accept);
             foreach (var move in moves)
             {
-                yield return BuildMove(move, () => tracker.Accept(move));
+                yield return BuildMove(
+                    move, 
+                    () => tracker.Accept(move),
+                    () => tracker.Discard(move));
             }
         }
 
@@ -159,6 +162,7 @@ static class MenuBuilder
         var menu = new ToolStripDropDownButton($"{move.Name} ({move.Extension})");
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
         menu.DropDownItems.Add(new MenuButton("Accept move", accept));
+        menu.DropDownItems.Add(new MenuButton("Discard", discard));
         if (move.Exe != null)
         {
             menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));

@@ -195,8 +195,18 @@ class Tracker :
         }
     }
 
+    public void Discard(TrackedMove move)
+    {
+        if (moves.Remove(move.Target, out var removed))
+        {
+            InnerDiscard(removed);
+        }
+    }
+
     static void InnerMove(TrackedMove move)
     {
+        KillProcesses(move);
+
         if (File.Exists(move.Temp))
         {
             try
@@ -210,8 +220,25 @@ class Tracker :
                 //writing to the files, and the result will re-add the tracked item
             }
         }
+    }
 
+    static void InnerDiscard(TrackedMove move)
+    {
         KillProcesses(move);
+
+        if (File.Exists(move.Temp))
+        {
+            try
+            {
+                File.Delete(move.Temp);
+            }
+            catch (IOException exception)
+            {
+                Log.Error(exception, $"Filed to delete '{move.Temp}'.");
+                //Swallow this since it is likely that a running test it reading or
+                //writing to the files, and the result will re-add the tracked item
+            }
+        }
     }
 
     static void KillProcesses(TrackedMove move)
