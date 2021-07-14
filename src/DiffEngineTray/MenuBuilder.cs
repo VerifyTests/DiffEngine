@@ -157,7 +157,7 @@ static class MenuBuilder
         return menu;
     }
 
-    static ToolStripItem BuildMove(TrackedMove move, Action accept)
+    static ToolStripItem BuildMove(TrackedMove move, Action accept, Action discard)
     {
         var menu = new ToolStripDropDownButton($"{move.Name} ({move.Extension})");
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
