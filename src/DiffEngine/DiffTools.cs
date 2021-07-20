@@ -134,8 +134,6 @@ namespace DiffEngine
             BuildArguments arguments)
         {
             Guard.AgainstNullOrEmpty(name, nameof(name));
-            Guard.AgainstNull(binaries, nameof(binaries));
-            Guard.AgainstNull(arguments, nameof(arguments));
             if (resolved.Any(x => x.Name == name))
             {
                 throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));

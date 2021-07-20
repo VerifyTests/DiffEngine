@@ -77,7 +77,6 @@ namespace DiffEngine
         public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            Guard.AgainstNull(tool, nameof(tool));
 
             return InnerLaunch(
                 (out ResolvedTool? resolvedTool) =>
@@ -92,7 +91,6 @@ namespace DiffEngine
         public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile)
         {
             GuardFiles(tempFile, targetFile);
-            Guard.AgainstNull(tool, nameof(tool));
 
             return InnerLaunchAsync(
                 (out ResolvedTool? resolvedTool) =>

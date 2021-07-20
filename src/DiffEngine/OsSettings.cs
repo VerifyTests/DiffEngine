@@ -12,8 +12,6 @@ namespace DiffEngine
             BuildArguments arguments,
             params string[] exePaths)
         {
-            Guard.AgainstNull(arguments, nameof(arguments));
-            Guard.AgainstNull(exePaths, nameof(exePaths));
             Arguments = arguments;
             ExePaths = exePaths;
         }

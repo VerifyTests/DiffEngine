@@ -61,8 +61,6 @@ namespace DiffEngine
         {
             Guard.FileExists(exePath, nameof(exePath));
             Guard.AgainstNullOrEmpty(name, nameof(name));
-            Guard.AgainstNull(binaryExtensions, nameof(binaryExtensions));
-            Guard.AgainstNull(arguments, nameof(arguments));
             Name = name;
             ExePath = exePath;
             Arguments = arguments;
