@@ -133,7 +133,7 @@ namespace DiffEngine
             string exePath,
             BuildArguments arguments)
         {
-            Guard.AgainstNullOrEmpty(name, nameof(name));
+            Guard.AgainstEmpty(name, nameof(name));
             if (resolved.Any(x => x.Name == name))
             {
                 throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
@@ -219,7 +219,7 @@ namespace DiffEngine
 
         public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
         {
-            Guard.AgainstNullOrEmpty(order, nameof(order));
+            Guard.AgainstEmpty(order, nameof(order));
 
             InitTools(throwForNoTool, order);
         }

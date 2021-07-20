@@ -60,7 +60,7 @@ namespace DiffEngine
             bool supportsText)
         {
             Guard.FileExists(exePath, nameof(exePath));
-            Guard.AgainstNullOrEmpty(name, nameof(name));
+            Guard.AgainstEmpty(name, nameof(name));
             Name = name;
             ExePath = exePath;
             Arguments = arguments;

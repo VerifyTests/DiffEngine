@@ -14,14 +14,14 @@ static class Guard
 
     public static void FileExists(string path, string argumentName)
     {
-        AgainstNullOrEmpty(argumentName, path);
+        AgainstEmpty(argumentName, path);
         if (!File.Exists(path))
         {
             throw new ArgumentException($"File not found. Path: {path}");
         }
     }
 
-    public static void AgainstNullOrEmpty(string value, string argumentName)
+    public static void AgainstEmpty(string value, string argumentName)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -29,7 +29,7 @@ static class Guard
         }
     }
 
-    public static void AgainstNullOrEmpty(object[] value, string argumentName)
+    public static void AgainstEmpty(object[] value, string argumentName)
     {
         if (value == null)
         {
@@ -47,7 +47,7 @@ static class Guard
         }
     }
 
-    public static void AgainstNullOrEmpty<T>(T[] value, string argumentName)
+    public static void AgainstEmpty<T>(T[] value, string argumentName)
     {
         if (value == null)
         {
@@ -62,7 +62,7 @@ static class Guard
 
     public static void AgainstBadExtension(string value, string argumentName)
     {
-        AgainstNullOrEmpty(value, argumentName);
+        AgainstEmpty(value, argumentName);
 
         if (value.StartsWith("."))
         {

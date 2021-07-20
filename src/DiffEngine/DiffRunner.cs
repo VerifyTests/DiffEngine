@@ -251,7 +251,7 @@ namespace DiffEngine
         static void GuardFiles(string tempFile, string targetFile)
         {
             Guard.FileExists(tempFile, nameof(tempFile));
-            Guard.AgainstNullOrEmpty(targetFile, nameof(targetFile));
+            Guard.AgainstEmpty(targetFile, nameof(targetFile));
         }
 
         delegate bool TryResolveTool([NotNullWhen(true)] out ResolvedTool? resolved);

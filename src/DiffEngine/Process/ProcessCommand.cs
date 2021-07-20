@@ -17,7 +17,7 @@ namespace DiffEngine
 
         public ProcessCommand(string command, in int process)
         {
-            Guard.AgainstNullOrEmpty(command, nameof(command));
+            Guard.AgainstEmpty(command, nameof(command));
             Command = command;
             Process = process;
         }

@@ -45,7 +45,7 @@ namespace DiffEngine
         /// </summary>
         public static void Kill(string command)
         {
-            Guard.AgainstNullOrEmpty(command, nameof(command));
+            Guard.AgainstEmpty(command, nameof(command));
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 command = TrimCommand(command);
@@ -78,7 +78,7 @@ namespace DiffEngine
 
         public static bool TryGetProcessInfo(string command, out ProcessCommand process)
         {
-            Guard.AgainstNullOrEmpty(command, nameof(command));
+            Guard.AgainstEmpty(command, nameof(command));
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 command = TrimCommand(command);
