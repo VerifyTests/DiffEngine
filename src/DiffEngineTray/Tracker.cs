@@ -119,6 +119,8 @@ class Tracker :
                 var solution = SolutionDirectoryFinder.Find(key);
 
                 Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+
+                var solution = SolutionDirectoryFinder.Find(key);
                 return new(temp, key, exe, arguments, canKill, process, solution);
             },
             updateValueFactory: (key, existing) =>
@@ -134,8 +136,9 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                var solution = SolutionDirectoryFinder.Find(key);
                 Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+
+                var solution = SolutionDirectoryFinder.Find(key);
                 return new(temp, key, exe, arguments, canKill, process, solution);
             });
     }
@@ -146,8 +149,8 @@ class Tracker :
             file,
             addValueFactory: key =>
             {
+                Log.Information("DeleteAdded. File:{file}", file);
                 var solution = SolutionDirectoryFinder.Find(key);
-                Log.Information("DeleteAdded. File:{file}, Solution:{solution}", file, solution);
                 return new(key, solution);
             },
             updateValueFactory: (_, existing) =>
