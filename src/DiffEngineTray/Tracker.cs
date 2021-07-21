@@ -331,15 +331,9 @@ class Tracker :
         moves.Clear();
     }
 
-    public ICollection<TrackedDelete> Deletes
-    {
-        get => deletes.Values;
-    }
+    public ICollection<TrackedDelete> Deletes { get => deletes.Values; }
 
-    public ICollection<TrackedMove> Moves
-    {
-        get => moves.Values;
-    }
+    public ICollection<TrackedMove> Moves { get => moves.Values; }
 
     public ValueTask DisposeAsync()
     {
