@@ -116,8 +116,6 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                var solution = SolutionDirectoryFinder.Find(key);
-
                 Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
                 var solution = SolutionDirectoryFinder.Find(key);
@@ -220,7 +218,6 @@ class Tracker :
         FileEx.SafeDelete(move.Temp);
     }
 
-
     static void KillProcesses(TrackedMove move)
     {
         if (!move.CanKill)
@@ -235,27 +232,7 @@ class Tracker :
             return;
         }
 
-        KillProcess(move, move.Process);
-    }
-
-    static void KillProcess(TrackedMove move, Process process)
-    {
-        try
-        {
-            process.Kill();
-        }
-        catch (InvalidOperationException)
-        {
-            // Race condition can cause "No process is associated with this object"
-        }
-        catch (Exception exception)
-        {
-            ExceptionHandler.Handle($"Failed to kill process. Command: {move.Exe} {move.Arguments}", exception);
-        }
-        finally
-        {
-            process.Dispose();
-        }
+        move.Process.KillAndDispose();
     }
 
     public void Clear()
@@ -298,7 +275,7 @@ class Tracker :
         AcceptAllMoves();
     }
 
-    public void AcceptAllDeletes()
+    void AcceptAllDeletes()
     {
         foreach (var delete in deletes.Values)
         {

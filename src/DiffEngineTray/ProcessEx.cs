@@ -18,4 +18,24 @@ static class ProcessEx
             return false;
         }
     }
+
+    public static void KillAndDispose(this Process process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // Race condition can cause "No process is associated with this object"
+        }
+        catch (Exception exception)
+        {
+            ExceptionHandler.Handle($"Failed to kill process. Id:{process.Id} Name: {process.MainModule?.FileName}", exception);
+        }
+        finally
+        {
+            process.Dispose();
+        }
+    }
 }
