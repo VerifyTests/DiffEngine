@@ -207,32 +207,16 @@ class Tracker :
     {
         KillProcesses(move);
 
-        SafeDelete(move.Temp);
+        FileEx.SafeDelete(move.Temp);
     }
 
     static void InnerDiscard(TrackedMove move)
     {
         KillProcesses(move);
 
-        SafeDelete(move.Temp);
+        FileEx.SafeDelete(move.Temp);
     }
 
-    static void SafeDelete(string path)
-    {
-        if (File.Exists(path))
-        {
-            try
-            {
-                File.Delete(path);
-            }
-            catch (IOException exception)
-            {
-                Log.Error(exception, $"Filed to delete '{path}'.");
-                //Swallow this since it is likely that a running test it reading or
-                //writing to the files, and the result will re-add the tracked item
-            }
-        }
-    }
 
     static void KillProcesses(TrackedMove move)
     {
