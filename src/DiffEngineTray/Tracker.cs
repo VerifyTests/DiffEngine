@@ -285,7 +285,7 @@ class Tracker :
         deletes.Clear();
     }
 
-    public void AcceptAllMoves()
+    void AcceptAllMoves()
     {
         foreach (var move in moves.Values)
         {
