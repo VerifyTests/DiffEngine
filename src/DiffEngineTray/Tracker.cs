@@ -116,7 +116,7 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
                 var solution = SolutionDirectoryFinder.Find(key);
                 return new(temp, key, exe, arguments, canKill, process, solution);
@@ -134,7 +134,7 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, ProcessId:{processId}, CommandLine:{commandLine}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
                 var solution = SolutionDirectoryFinder.Find(key);
                 return new(temp, key, exe, arguments, canKill, process, solution);
