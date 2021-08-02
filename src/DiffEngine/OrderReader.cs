@@ -19,7 +19,7 @@ static class OrderReader
 
     public static Result ReadToolOrder()
     {
-        var diffOrder = EnvironmentEx.GetEnvironmentVariable("DiffEngine_ToolOrder");
+        var diffOrder = Environment.GetEnvironmentVariable("DiffEngine_ToolOrder");
 
         var found = !string.IsNullOrWhiteSpace(diffOrder);
         IEnumerable<DiffTool> order;
