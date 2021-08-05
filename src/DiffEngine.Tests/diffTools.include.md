@@ -539,7 +539,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### Windows settings:
 
- * Example arguments: `/diff "tempFile" "targetFile"`
+ * Example arguments: `/diff "tempFile" "targetFile" "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe`
