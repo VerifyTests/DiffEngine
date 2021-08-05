@@ -15,7 +15,7 @@ static partial class Implementation
             cost: "Paid and free options",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                (temp, target) => $"/diff \"{temp}\" \"{target}\"",
+                (temp, target) => $"/diff \"{target}\" \"{temp}\"",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
                 @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
