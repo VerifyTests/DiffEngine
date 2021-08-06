@@ -208,7 +208,7 @@ class Tracker :
     {
         KillProcesses(move);
 
-        FileEx.SafeDelete(move.Temp);
+        FileEx.SafeMove(move.Temp, move.Target);
     }
 
     static void InnerDiscard(TrackedMove move)
