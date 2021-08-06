@@ -139,7 +139,7 @@ static class MenuBuilder
             foreach (var move in moves)
             {
                 yield return BuildMove(
-                    move, 
+                    move,
                     () => tracker.Accept(move),
                     () => tracker.Discard(move));
             }
