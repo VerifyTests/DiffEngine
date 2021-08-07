@@ -5,10 +5,10 @@ static partial class Implementation
     public static Definition P4Merge()
     {
         static string TargetLeftArguments(string temp, string target) =>
-            $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+            $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
 
         static string TargetRightArguments(string temp, string target) =>
-            $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+            $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
 
         return new(
             name: DiffTool.P4Merge,

@@ -11,7 +11,10 @@ namespace DiffEngine
         static Dictionary<string, ResolvedTool> ExtensionLookup = new();
         static List<ResolvedTool> resolved = new();
 
-        public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
+        public static IEnumerable<ResolvedTool> Resolved
+        {
+            get => resolved;
+        }
 
         public static ResolvedTool? AddTool(
             string name,
@@ -32,7 +35,7 @@ namespace DiffEngine
                 supportsText,
                 requiresTarget,
                 binaryExtensions,
-                exePath, 
+                exePath,
                 targetLeftArguments, targetRightArguments);
         }
 
@@ -61,7 +64,7 @@ namespace DiffEngine
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
                 targetLeftArguments ?? existing.TargetLeftArguments,
-                targetRightArguments ?? existing.TargetRightArguments, 
+                targetRightArguments ?? existing.TargetRightArguments,
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions);
         }
@@ -122,7 +125,7 @@ namespace DiffEngine
                 supportsText,
                 requiresTarget,
                 binaryExtensions,
-                exePath, 
+                exePath,
                 targetLeftArguments,
                 targetRightArguments);
         }
@@ -154,7 +157,7 @@ namespace DiffEngine
                 name,
                 diffTool,
                 resolvedExePath,
-                targetRightArguments, 
+                targetRightArguments,
                 targetLeftArguments,
                 isMdi,
                 autoRefresh,
@@ -193,7 +196,7 @@ namespace DiffEngine
 
         static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> tools)
         {
-            var custom = resolved.Where(x=>x.Tool == null).ToList();
+            var custom = resolved.Where(x => x.Tool == null).ToList();
             ExtensionLookup.Clear();
             resolved.Clear();
 
@@ -262,6 +265,7 @@ namespace DiffEngine
             {
                 return false;
             }
+
             if (Extensions.IsText(extension))
             {
                 return tool.SupportsText;

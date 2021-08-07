@@ -233,7 +233,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
- * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Perforce\p4merge.exe`
@@ -242,12 +242,12 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
- * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 #### Linux settings:
 
- * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 
