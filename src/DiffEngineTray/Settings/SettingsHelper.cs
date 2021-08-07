@@ -29,7 +29,7 @@ static class SettingsHelper
             settings = new();
         }
 
-        settings.TargetOnLeft = TargetPositionHelper.ReadTargetOnLeft().GetValueOrDefault(false);
+        settings.TargetOnLeft = TargetPositionHelper.TargetOnLeft;
         return settings;
     }
 

@@ -2,14 +2,14 @@
 
 static class TargetPositionHelper
 {
-    public static bool TargetOnLeft { get; }
+    public static bool TargetOnLeft { get; private set; }
 
     static TargetPositionHelper()
     {
         TargetOnLeft = ReadTargetOnLeft().GetValueOrDefault(false);
     }
 
-    public static bool? ReadTargetOnLeft()
+    static bool? ReadTargetOnLeft()
     {
         var value = Environment.GetEnvironmentVariable("DiffEngine_TargetOnLeft");
 
@@ -31,10 +31,11 @@ static class TargetPositionHelper
         throw new($"Unable to parse Position from `DiffEngine_TargetOnLeft`. Must be `true` or `false`. Environment variable: {value}");
     }
 
-    public static void SetTargetOnLeft(bool? value)
+    public static void SetTargetOnLeft(bool value)
     {
+        TargetOnLeft = value;
         string? envVariable;
-        if (value == true)
+        if (value)
         {
             envVariable = "true";
         }
