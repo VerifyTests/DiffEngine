@@ -71,7 +71,7 @@ Discard will clear all currently tracked items.
 Runs DiffEngineTray at system startup.
 
 
-### Open on left
+#### Open on left
 
 By default, when a diff is opened, the temp file will be on the left and the target file will be on the right. To invert this, select "Open on left".
 
