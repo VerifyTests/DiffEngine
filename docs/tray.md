@@ -30,11 +30,6 @@ Run `diffenginetray` in a console to start the app.
 <img src="..\src\DiffEngineTray.Tests\MenuBuilderTest.Full.verified.png">
 
 
-### Open on left
-
-By default, when a diff is opened, the temp file will be on the left and the target file will be on the right. To invert this, select "Open on left".
-
-
 ### Grouping
 
 Moves and deletes will be grouped by the containing solution. In the above, the files exist in DiffEngine, so the they are grouped under it.
@@ -74,6 +69,11 @@ Discard will clear all currently tracked items.
 #### Run at startup
 
 Runs DiffEngineTray at system startup.
+
+
+### Open on left
+
+By default, when a diff is opened, the temp file will be on the left and the target file will be on the right. To invert this, select "Open on left".
 
 
 #### Accept all HotKey
