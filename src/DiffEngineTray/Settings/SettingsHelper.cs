@@ -26,10 +26,10 @@ static class SettingsHelper
         else
         {
             await File.WriteAllTextAsync(FilePath, "{}");
-            settings = new();   
+            settings = new();
         }
 
-        settings.TargetOnLeft = TargetPositionHelper.ReadTargetOnLeft();
+        settings.TargetOnLeft = TargetPositionHelper.ReadTargetOnLeft().GetValueOrDefault(false);
         return settings;
     }
 
