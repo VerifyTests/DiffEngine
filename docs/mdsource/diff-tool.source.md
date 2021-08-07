@@ -58,6 +58,8 @@ By default, when a diff is opened, the temp file is on the left and the target f
 
 This value can be changed by setting the `DiffEngine_TargetOnLeft` environment variable to `true`.
 
+This value can also be set using [the DiffEngineTray options dialog](https://github.com/VerifyTests/DiffEngine/blob/main/docs/tray.md#open-on-left).
+
 
 ## Successful verification behavior
 
