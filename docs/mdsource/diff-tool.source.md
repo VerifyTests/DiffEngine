@@ -52,6 +52,13 @@ Setting the `DiffEngine_MaxInstances` environment variable to the number of inst
 snippet: MaxInstancesToLaunch
 
 
+## Left/Right diff behavior
+
+By default, when a diff is opened, the temp file is on the left and the target file is on the right.
+
+This value can be changed by setting the `DiffEngine_TargetOnLeft` environment variable to `true`.
+
+
 ## Successful verification behavior
 
 If a tool is running for the comparison of the current verification (per test), and a new verification passes, the following logic will be applied:
