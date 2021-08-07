@@ -69,7 +69,7 @@ public class DiffToolsTest :
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFind("txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
+        Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.TargetRightArguments("foo", "bar"));
     }
 #endif
     async Task AddToolAndLaunch()

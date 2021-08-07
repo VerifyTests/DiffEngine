@@ -58,7 +58,7 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
-                arguments ?? existing.Arguments,
+                arguments ?? existing.TargetRightArguments,
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions);
         }
@@ -105,6 +105,7 @@ namespace DiffEngine
             {
                 throw new ArgumentException("Must define settings for at least one OS.");
             }
+
             if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var arguments))
             {
                 return null;
@@ -131,7 +132,7 @@ namespace DiffEngine
             bool requiresTarget,
             IEnumerable<string> binaries,
             string exePath,
-            BuildArguments arguments)
+            BuildArguments targetRightArguments)
         {
             Guard.AgainstEmpty(name, nameof(name));
             if (resolved.Any(x => x.Name == name))
@@ -148,7 +149,7 @@ namespace DiffEngine
                 name,
                 diffTool,
                 resolvedExePath,
-                arguments,
+                targetRightArguments,
                 isMdi,
                 autoRefresh,
                 binaries.ToList(),
