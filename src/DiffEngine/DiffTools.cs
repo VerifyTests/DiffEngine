@@ -13,15 +13,16 @@ namespace DiffEngine
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
-        public static ResolvedTool? AddTool(string name,
+        public static ResolvedTool? AddTool(
+            string name,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
+            BuildArguments targetLeftArguments,
             BuildArguments targetRightArguments,
             string exePath,
-            IEnumerable<string> binaryExtensions, 
-            BuildArguments targetLeftArguments)
+            IEnumerable<string> binaryExtensions)
         {
             return AddInner(
                 name,
@@ -31,9 +32,8 @@ namespace DiffEngine
                 supportsText,
                 requiresTarget,
                 binaryExtensions,
-                exePath,
-                targetRightArguments, 
-                targetLeftArguments);
+                exePath, 
+                targetLeftArguments, targetRightArguments);
         }
 
         public static ResolvedTool? AddToolBasedOn(
@@ -43,8 +43,8 @@ namespace DiffEngine
             bool? isMdi = null,
             bool? supportsText = null,
             bool? requiresTarget = null,
-            BuildArguments? targetRightArguments = null,
             BuildArguments? targetLeftArguments = null,
+            BuildArguments? targetRightArguments = null,
             string? exePath = null,
             IEnumerable<string>? binaryExtensions = null)
         {
@@ -60,10 +60,10 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
-                targetRightArguments ?? existing.TargetRightArguments,
+                targetLeftArguments ?? existing.TargetLeftArguments,
+                targetRightArguments ?? existing.TargetRightArguments, 
                 exePath ?? existing.ExePath,
-                binaryExtensions ?? existing.BinaryExtensions,
-                targetLeftArguments ?? existing.TargetLeftArguments);
+                binaryExtensions ?? existing.BinaryExtensions);
         }
 
         public static ResolvedTool? AddTool(
@@ -122,12 +122,13 @@ namespace DiffEngine
                 supportsText,
                 requiresTarget,
                 binaryExtensions,
-                exePath,
-                targetRightArguments, 
-                targetLeftArguments);
+                exePath, 
+                targetLeftArguments,
+                targetRightArguments);
         }
 
-        static ResolvedTool? AddInner(string name,
+        static ResolvedTool? AddInner(
+            string name,
             DiffTool? diffTool,
             bool autoRefresh,
             bool isMdi,
@@ -135,8 +136,8 @@ namespace DiffEngine
             bool requiresTarget,
             IEnumerable<string> binaries,
             string exePath,
-            BuildArguments targetRightArguments,
-            BuildArguments targetLeftArguments)
+            BuildArguments targetLeftArguments,
+            BuildArguments targetRightArguments)
         {
             Guard.AgainstEmpty(name, nameof(name));
             if (resolved.Any(x => x.Name == name))
