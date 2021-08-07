@@ -19,14 +19,25 @@ namespace DiffEngine
 
         internal void CommandAndArguments(string tempFile, string targetFile, out string arguments, out string command)
         {
-            arguments = TargetRightArguments(tempFile, targetFile);
+            arguments = GetArguments(tempFile, targetFile);
             command = $"\"{ExePath}\" {arguments}";
         }
 
         public string BuildCommand(string tempFile, string targetFile)
         {
-            return $"\"{ExePath}\" {TargetRightArguments(tempFile, targetFile)}";
+            return $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
         }
+
+        string GetArguments(string tempFile, string targetFile)
+        {
+            if (TargetPositionReader.Position == TargetPosition.Left)
+            {
+                return TargetLeftArguments(tempFile, targetFile);
+            }
+
+            return TargetRightArguments(tempFile, targetFile);
+        }
+
 
         internal ResolvedTool(string name,
             DiffTool? tool,
