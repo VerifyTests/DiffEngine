@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-class SettingsHelper
+static class SettingsHelper
 {
     public static string FilePath;
 
