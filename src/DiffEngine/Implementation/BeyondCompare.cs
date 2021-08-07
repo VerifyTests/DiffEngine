@@ -4,10 +4,16 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        static string WindowsArguments(string temp, string target) =>
+        static string TargetLeftWindowsArguments(string temp, string target) =>
+            $"/solo /rightreadonly \"{target}\" \"{temp}\"";
+
+        static string TargetRightWindowsArguments(string temp, string target) =>
             $"/solo /leftreadonly \"{temp}\" \"{target}\"";
 
-        static string OsxLinuxArguments(string temp, string target) =>
+        static string TargetLeftOsxLinuxArguments(string temp, string target) =>
+            $"-solo -rightreadonly \"{target}\" \"{temp}\"";
+
+        static string TargetRightOsxLinuxArguments(string temp, string target) =>
             $"-solo -leftreadonly \"{temp}\" \"{target}\"";
 
         return new(
@@ -43,9 +49,18 @@ static partial class Implementation
                 "tiff",
                 "rtf"
             },
-            windows: new(WindowsArguments, @"%ProgramFiles%\Beyond Compare *\BCompare.exe", @"%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe"),
-            linux: new(OsxLinuxArguments, "/usr/lib/beyondcompare/bcomp"),
-            osx: new(OsxLinuxArguments, "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
+            windows: new(
+                TargetLeftWindowsArguments, 
+                TargetRightWindowsArguments, 
+                @"%ProgramFiles%\Beyond Compare *\BCompare.exe", @"%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe"),
+            linux: new(
+                TargetLeftOsxLinuxArguments,
+                TargetRightOsxLinuxArguments,
+                "/usr/lib/beyondcompare/bcomp"),
+            osx: new(
+                TargetLeftOsxLinuxArguments,
+                TargetRightOsxLinuxArguments,
+                "/Applications/Beyond Compare.app/Contents/MacOS/bcomp"),
             notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }

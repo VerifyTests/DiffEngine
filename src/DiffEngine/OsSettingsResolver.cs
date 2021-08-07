@@ -5,12 +5,12 @@ using DiffEngine;
 
 static class OsSettingsResolver
 {
-    public static bool Resolve(
-        OsSettings? windows,
+    public static bool Resolve(OsSettings? windows,
         OsSettings? linux,
         OsSettings? osx,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out BuildArguments? arguments)
+        [NotNullWhen(true)] out BuildArguments? targetLeftArguments,
+        [NotNullWhen(true)] out BuildArguments? targetRightArguments)
     {
         if (windows != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -19,7 +19,8 @@ static class OsSettingsResolver
 
             if (WildcardFileFinder.TryFindExe(paths, out path))
             {
-                arguments = windows.Arguments;
+                targetLeftArguments = windows.TargetLeftArguments;
+                targetRightArguments = windows.TargetRightArguments;
                 return true;
             }
         }
@@ -29,7 +30,8 @@ static class OsSettingsResolver
         {
             if (WildcardFileFinder.TryFindExe(linux.ExePaths, out path))
             {
-                arguments = linux.Arguments;
+                targetLeftArguments = linux.TargetLeftArguments;
+                targetRightArguments = linux.TargetRightArguments;
                 return true;
             }
         }
@@ -39,13 +41,15 @@ static class OsSettingsResolver
         {
             if (WildcardFileFinder.TryFindExe(osx.ExePaths, out path))
             {
-                arguments = osx.Arguments;
+                targetLeftArguments = osx.TargetLeftArguments;
+                targetRightArguments = osx.TargetRightArguments;
                 return true;
             }
         }
 
         path = null;
-        arguments = null;
+        targetLeftArguments = null;
+        targetRightArguments = null;
         return false;
     }
 

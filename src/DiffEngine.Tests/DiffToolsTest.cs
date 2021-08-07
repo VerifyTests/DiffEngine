@@ -28,7 +28,8 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+            targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"})!;
         #endregion
@@ -47,7 +48,8 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+            targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
@@ -61,15 +63,20 @@ public class DiffToolsTest :
     public void AddToolBasedOn()
     {
         #region AddToolBasedOn
+
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
-            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+            targetLeftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
+            targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
+
         #endregion
+
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFind("txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args foo\" \"bar\"", resolvedTool!.Arguments("foo", "bar"));
+        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool!.TargetLeftArguments("foo", "bar"));
+        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool!.TargetRightArguments("foo", "bar"));
     }
 #endif
     async Task AddToolAndLaunch()
@@ -78,7 +85,8 @@ public class DiffToolsTest :
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
-            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+            targetLeftArguments: (temp, target) => $"\"custom args {target}\" \"{temp}\"",
+            targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
         await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
         #endregion

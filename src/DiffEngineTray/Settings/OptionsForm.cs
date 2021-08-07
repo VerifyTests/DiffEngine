@@ -24,12 +24,14 @@ public partial class OptionsForm :
         acceptAllHotKey.HotKey = settings.AcceptAllHotKey;
         acceptOpenHotKey.HotKey = settings.AcceptOpenHotKey;
         startupCheckBox.Checked = settings.RunAtStartup;
+        targetOnLeftCheckBox.Checked = settings.TargetOnLeft;
     }
 
     async void save_Click(object sender, EventArgs e)
     {
         var newSettings = new Settings
         {
+            TargetOnLeft = targetOnLeftCheckBox.Checked,
             RunAtStartup = startupCheckBox.Checked,
             AcceptAllHotKey = acceptAllHotKey.HotKey,
             AcceptOpenHotKey = acceptOpenHotKey.HotKey

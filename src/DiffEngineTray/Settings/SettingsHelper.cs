@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-class SettingsHelper
+static class SettingsHelper
 {
     public static string FilePath;
 
@@ -17,18 +17,25 @@ class SettingsHelper
 
     public static async Task<Settings> Read()
     {
+        Settings settings;
         if (File.Exists(FilePath))
         {
             await using var stream = File.OpenRead(FilePath);
-            return (await JsonSerializer.DeserializeAsync<Settings>(stream))!;
+            settings = (await JsonSerializer.DeserializeAsync<Settings>(stream))!;
+        }
+        else
+        {
+            await File.WriteAllTextAsync(FilePath, "{}");
+            settings = new();
         }
 
-        await File.WriteAllTextAsync(FilePath, "{}");
-        return new();
+        settings.TargetOnLeft = TargetPositionHelper.TargetOnLeft;
+        return settings;
     }
 
     public static async Task Write(Settings settings)
     {
+        TargetPositionHelper.SetTargetOnLeft(settings.TargetOnLeft);
         File.Delete(FilePath);
         await using var stream = File.OpenWrite(FilePath);
         await JsonSerializer.SerializeAsync(stream, settings);

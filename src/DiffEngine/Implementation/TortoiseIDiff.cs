@@ -24,6 +24,7 @@ static partial class Implementation
                 "tiff",
             },
             windows: new(
+                (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
                 (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"));
     }

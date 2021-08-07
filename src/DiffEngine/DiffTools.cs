@@ -11,7 +11,10 @@ namespace DiffEngine
         static Dictionary<string, ResolvedTool> ExtensionLookup = new();
         static List<ResolvedTool> resolved = new();
 
-        public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
+        public static IEnumerable<ResolvedTool> Resolved
+        {
+            get => resolved;
+        }
 
         public static ResolvedTool? AddTool(
             string name,
@@ -19,7 +22,8 @@ namespace DiffEngine
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            BuildArguments arguments,
+            BuildArguments targetLeftArguments,
+            BuildArguments targetRightArguments,
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
@@ -32,7 +36,7 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                arguments);
+                targetLeftArguments, targetRightArguments);
         }
 
         public static ResolvedTool? AddToolBasedOn(
@@ -42,7 +46,8 @@ namespace DiffEngine
             bool? isMdi = null,
             bool? supportsText = null,
             bool? requiresTarget = null,
-            BuildArguments? arguments = null,
+            BuildArguments? targetLeftArguments = null,
+            BuildArguments? targetRightArguments = null,
             string? exePath = null,
             IEnumerable<string>? binaryExtensions = null)
         {
@@ -58,7 +63,8 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
-                arguments ?? existing.Arguments,
+                targetLeftArguments ?? existing.TargetLeftArguments,
+                targetRightArguments ?? existing.TargetRightArguments,
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions);
         }
@@ -105,7 +111,8 @@ namespace DiffEngine
             {
                 throw new ArgumentException("Must define settings for at least one OS.");
             }
-            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var arguments))
+
+            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetLeftArguments, out var targetRightArguments))
             {
                 return null;
             }
@@ -119,7 +126,8 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                arguments);
+                targetLeftArguments,
+                targetRightArguments);
         }
 
         static ResolvedTool? AddInner(
@@ -131,7 +139,8 @@ namespace DiffEngine
             bool requiresTarget,
             IEnumerable<string> binaries,
             string exePath,
-            BuildArguments arguments)
+            BuildArguments targetLeftArguments,
+            BuildArguments targetRightArguments)
         {
             Guard.AgainstEmpty(name, nameof(name));
             if (resolved.Any(x => x.Name == name))
@@ -148,7 +157,8 @@ namespace DiffEngine
                 name,
                 diffTool,
                 resolvedExePath,
-                arguments,
+                targetRightArguments,
+                targetLeftArguments,
                 isMdi,
                 autoRefresh,
                 binaries.ToList(),
@@ -186,7 +196,7 @@ namespace DiffEngine
 
         static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> tools)
         {
-            var custom = resolved.Where(x=>x.Tool == null).ToList();
+            var custom = resolved.Where(x => x.Tool == null).ToList();
             ExtensionLookup.Clear();
             resolved.Clear();
 
@@ -255,6 +265,7 @@ namespace DiffEngine
             {
                 return false;
             }
+
             if (Extensions.IsText(extension))
             {
                 return tool.SupportsText;

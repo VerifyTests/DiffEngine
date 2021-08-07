@@ -198,7 +198,8 @@ public class DiffRunnerTests :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (path1, path2) => $"\"{path1}\" \"{path2}\"",
+            targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             exePath: FakeDiffTool.Exe,
             binaryExtensions: new[] {"knownBin"})!;
     }

@@ -37,9 +37,11 @@ static partial class Implementation
                 "wmf", //?
             },
             windows: new(
+                (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
                 (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
             osx: new(
+                (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
                 (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
                 "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
             notes: @"

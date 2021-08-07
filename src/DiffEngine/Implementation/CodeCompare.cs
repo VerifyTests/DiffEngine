@@ -15,6 +15,7 @@ static partial class Implementation
             cost: "Paid",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"),
             notes: @"

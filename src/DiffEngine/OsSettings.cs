@@ -5,14 +5,17 @@ namespace DiffEngine
     [DebuggerDisplay("ExePaths={ExePaths}")]
     public class OsSettings
     {
-        public BuildArguments Arguments { get; }
+        public BuildArguments TargetLeftArguments { get; }
+        public BuildArguments TargetRightArguments { get; }
         public string[] ExePaths { get; }
 
         public OsSettings(
-            BuildArguments arguments,
+            BuildArguments targetLeftArguments,
+            BuildArguments targetRightArguments,
             params string[] exePaths)
         {
-            Arguments = arguments;
+            TargetLeftArguments = targetLeftArguments;
+            TargetRightArguments = targetRightArguments;
             ExePaths = exePaths;
         }
     }

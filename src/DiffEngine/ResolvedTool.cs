@@ -9,7 +9,8 @@ namespace DiffEngine
         public string Name { get; }
         public DiffTool? Tool { get; }
         public string ExePath { get; }
-        public BuildArguments Arguments { get; }
+        public BuildArguments TargetRightArguments { get; }
+        public BuildArguments TargetLeftArguments { get; }
         public bool IsMdi { get; }
         public bool AutoRefresh { get; }
         public IReadOnlyList<string> BinaryExtensions { get; }
@@ -18,20 +19,31 @@ namespace DiffEngine
 
         internal void CommandAndArguments(string tempFile, string targetFile, out string arguments, out string command)
         {
-            arguments = Arguments(tempFile, targetFile);
+            arguments = GetArguments(tempFile, targetFile);
             command = $"\"{ExePath}\" {arguments}";
         }
 
         public string BuildCommand(string tempFile, string targetFile)
         {
-            return $"\"{ExePath}\" {Arguments(tempFile, targetFile)}";
+            return $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
         }
 
-        internal ResolvedTool(
-            string name,
+        string GetArguments(string tempFile, string targetFile)
+        {
+            if (TargetPositionHelper.TargetOnLeft)
+            {
+                return TargetLeftArguments(tempFile, targetFile);
+            }
+
+            return TargetRightArguments(tempFile, targetFile);
+        }
+
+
+        internal ResolvedTool(string name,
             DiffTool? tool,
             string exePath,
-            BuildArguments arguments,
+            BuildArguments targetRightArguments,
+            BuildArguments targetLeftArguments,
             bool isMdi,
             bool autoRefresh,
             IReadOnlyList<string> binaryExtensions,
@@ -41,7 +53,8 @@ namespace DiffEngine
             Name = name;
             Tool = tool;
             ExePath = exePath;
-            Arguments = arguments;
+            TargetRightArguments = targetRightArguments;
+            TargetLeftArguments = targetLeftArguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
@@ -52,7 +65,8 @@ namespace DiffEngine
         public ResolvedTool(
             string name,
             string exePath,
-            BuildArguments arguments,
+            BuildArguments targetRightArguments,
+            BuildArguments targetLeftArguments,
             bool isMdi,
             bool autoRefresh,
             string[] binaryExtensions,
@@ -63,7 +77,8 @@ namespace DiffEngine
             Guard.AgainstEmpty(name, nameof(name));
             Name = name;
             ExePath = exePath;
-            Arguments = arguments;
+            TargetRightArguments = targetRightArguments;
+            TargetLeftArguments = targetLeftArguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
