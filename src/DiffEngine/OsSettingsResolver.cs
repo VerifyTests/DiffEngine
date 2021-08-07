@@ -19,7 +19,7 @@ static class OsSettingsResolver
 
             if (WildcardFileFinder.TryFindExe(paths, out path))
             {
-                arguments = windows.Arguments;
+                arguments = windows.TargetRightArguments;
                 return true;
             }
         }
@@ -29,7 +29,7 @@ static class OsSettingsResolver
         {
             if (WildcardFileFinder.TryFindExe(linux.ExePaths, out path))
             {
-                arguments = linux.Arguments;
+                arguments = linux.TargetRightArguments;
                 return true;
             }
         }
@@ -39,7 +39,7 @@ static class OsSettingsResolver
         {
             if (WildcardFileFinder.TryFindExe(osx.ExePaths, out path))
             {
-                arguments = osx.Arguments;
+                arguments = osx.TargetRightArguments;
                 return true;
             }
         }

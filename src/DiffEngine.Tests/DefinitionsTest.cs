@@ -126,7 +126,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### Windows settings:");
-            WriteArguments(writer, tool.Windows.Arguments!);
+            WriteArguments(writer, tool.Windows.TargetRightArguments!);
             WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
         }
 
@@ -134,7 +134,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### OSX settings:");
-            WriteArguments(writer, tool.Osx.Arguments);
+            WriteArguments(writer, tool.Osx.TargetRightArguments);
             WritePaths(writer, tool.Osx.ExePaths);
         }
 
@@ -142,7 +142,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### Linux settings:");
-            WriteArguments(writer, tool.Linux.Arguments);
+            WriteArguments(writer, tool.Linux.TargetRightArguments);
             WritePaths(writer, tool.Linux.ExePaths);
         }
     }
