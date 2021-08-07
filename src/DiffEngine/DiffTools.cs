@@ -109,7 +109,7 @@ namespace DiffEngine
                 throw new ArgumentException("Must define settings for at least one OS.");
             }
 
-            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetRightArguments, out var targetLeftArguments))
+            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetLeftArguments, out var targetRightArguments))
             {
                 return null;
             }
