@@ -10,7 +10,8 @@ static class OsSettingsResolver
         OsSettings? linux,
         OsSettings? osx,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out BuildArguments? targetRightArguments)
+        [NotNullWhen(true)] out BuildArguments? targetRightArguments,
+        [NotNullWhen(true)] out BuildArguments? targetLeftArguments)
     {
         if (windows != null &&
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -20,6 +21,7 @@ static class OsSettingsResolver
             if (WildcardFileFinder.TryFindExe(paths, out path))
             {
                 targetRightArguments = windows.TargetRightArguments;
+                targetLeftArguments = windows.TargetLeftArguments;
                 return true;
             }
         }
@@ -30,6 +32,7 @@ static class OsSettingsResolver
             if (WildcardFileFinder.TryFindExe(linux.ExePaths, out path))
             {
                 targetRightArguments = linux.TargetRightArguments;
+                targetLeftArguments = linux.TargetLeftArguments;
                 return true;
             }
         }
@@ -40,12 +43,14 @@ static class OsSettingsResolver
             if (WildcardFileFinder.TryFindExe(osx.ExePaths, out path))
             {
                 targetRightArguments = osx.TargetRightArguments;
+                targetLeftArguments = osx.TargetLeftArguments;
                 return true;
             }
         }
 
         path = null;
         targetRightArguments = null;
+        targetLeftArguments = null;
         return false;
     }
 

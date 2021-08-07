@@ -10,6 +10,7 @@ namespace DiffEngine
         public DiffTool? Tool { get; }
         public string ExePath { get; }
         public BuildArguments TargetRightArguments { get; }
+        public BuildArguments TargetLeftArguments { get; }
         public bool IsMdi { get; }
         public bool AutoRefresh { get; }
         public IReadOnlyList<string> BinaryExtensions { get; }
@@ -27,11 +28,11 @@ namespace DiffEngine
             return $"\"{ExePath}\" {TargetRightArguments(tempFile, targetFile)}";
         }
 
-        internal ResolvedTool(
-            string name,
+        internal ResolvedTool(string name,
             DiffTool? tool,
             string exePath,
             BuildArguments targetRightArguments,
+            BuildArguments targetLeftArguments,
             bool isMdi,
             bool autoRefresh,
             IReadOnlyList<string> binaryExtensions,
@@ -42,6 +43,7 @@ namespace DiffEngine
             Tool = tool;
             ExePath = exePath;
             TargetRightArguments = targetRightArguments;
+            TargetLeftArguments = targetLeftArguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;
@@ -53,6 +55,7 @@ namespace DiffEngine
             string name,
             string exePath,
             BuildArguments targetRightArguments,
+            BuildArguments targetLeftArguments,
             bool isMdi,
             bool autoRefresh,
             string[] binaryExtensions,
@@ -64,6 +67,7 @@ namespace DiffEngine
             Name = name;
             ExePath = exePath;
             TargetRightArguments = targetRightArguments;
+            TargetLeftArguments = targetLeftArguments;
             IsMdi = isMdi;
             AutoRefresh = autoRefresh;
             BinaryExtensions = binaryExtensions;

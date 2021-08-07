@@ -13,15 +13,15 @@ namespace DiffEngine
 
         public static IEnumerable<ResolvedTool> Resolved { get => resolved; }
 
-        public static ResolvedTool? AddTool(
-            string name,
+        public static ResolvedTool? AddTool(string name,
             bool autoRefresh,
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
             BuildArguments targetRightArguments,
             string exePath,
-            IEnumerable<string> binaryExtensions)
+            IEnumerable<string> binaryExtensions, 
+            BuildArguments targetLeftArguments)
         {
             return AddInner(
                 name,
@@ -32,7 +32,8 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                targetRightArguments);
+                targetRightArguments, 
+                targetLeftArguments);
         }
 
         public static ResolvedTool? AddToolBasedOn(
@@ -43,6 +44,7 @@ namespace DiffEngine
             bool? supportsText = null,
             bool? requiresTarget = null,
             BuildArguments? targetRightArguments = null,
+            BuildArguments? targetLeftArguments = null,
             string? exePath = null,
             IEnumerable<string>? binaryExtensions = null)
         {
@@ -60,7 +62,8 @@ namespace DiffEngine
                 requiresTarget ?? existing.RequiresTarget,
                 targetRightArguments ?? existing.TargetRightArguments,
                 exePath ?? existing.ExePath,
-                binaryExtensions ?? existing.BinaryExtensions);
+                binaryExtensions ?? existing.BinaryExtensions,
+                targetLeftArguments ?? existing.TargetLeftArguments);
         }
 
         public static ResolvedTool? AddTool(
@@ -106,7 +109,7 @@ namespace DiffEngine
                 throw new ArgumentException("Must define settings for at least one OS.");
             }
 
-            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetRightArguments))
+            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetRightArguments, out var targetLeftArguments))
             {
                 return null;
             }
@@ -120,11 +123,11 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                targetRightArguments);
+                targetRightArguments, 
+                targetLeftArguments);
         }
 
-        static ResolvedTool? AddInner(
-            string name,
+        static ResolvedTool? AddInner(string name,
             DiffTool? diffTool,
             bool autoRefresh,
             bool isMdi,
@@ -132,7 +135,8 @@ namespace DiffEngine
             bool requiresTarget,
             IEnumerable<string> binaries,
             string exePath,
-            BuildArguments targetRightArguments)
+            BuildArguments targetRightArguments,
+            BuildArguments targetLeftArguments)
         {
             Guard.AgainstEmpty(name, nameof(name));
             if (resolved.Any(x => x.Name == name))
@@ -149,7 +153,8 @@ namespace DiffEngine
                 name,
                 diffTool,
                 resolvedExePath,
-                targetRightArguments,
+                targetRightArguments, 
+                targetLeftArguments,
                 isMdi,
                 autoRefresh,
                 binaries.ToList(),

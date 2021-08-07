@@ -18,11 +18,12 @@ var resolvedTool = DiffTools.AddTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+    targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+    targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L34' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L35' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -33,9 +34,9 @@ Add a tool based on existing resolved tool:
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
-    arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+    targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L68' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L65-L70' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -59,11 +60,11 @@ Alternatively the instance  returned from `AddTool*` can be used to explicitly l
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
-    arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+    targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L77-L84' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L79-L86' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

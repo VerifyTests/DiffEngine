@@ -28,6 +28,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"})!;
@@ -47,6 +48,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
+            targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;
