@@ -5,10 +5,11 @@ static partial class Implementation
 {
     public static Definition Neovim()
     {
-        static string Arguments(string temp, string target)
-        {
-            return $"-d \"{temp}\" \"{target}\"";
-        }
+        static string TargetLeftArguments(string temp, string target) => 
+            $"-d \"{target}\" \"{temp}\"";
+
+        static string TargetRightArguments(string temp, string target) => 
+            $"-d \"{temp}\" \"{target}\"";
 
         return new(
             name: DiffTool.Neovim,
@@ -19,7 +20,10 @@ static partial class Implementation
             requiresTarget: true,
             cost: "Free with option to sponsor",
             binaryExtensions: Array.Empty<string>(),
-            windows: new(Arguments, @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
+            windows: new(
+                TargetLeftArguments,
+                TargetRightArguments,
+                @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
             notes: @"
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }

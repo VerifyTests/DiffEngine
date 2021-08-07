@@ -4,7 +4,10 @@ static partial class Implementation
 {
     public static Definition DeltaWalker()
     {
-        static string Arguments(string temp, string target) =>
+        static string TargetLeftArguments(string temp, string target) =>
+            $"-mi \"{target}\" \"{temp}\"";
+
+        static string TargetRightArguments(string temp, string target) =>
             $"-mi \"{temp}\" \"{target}\"";
 
         return new(
@@ -52,10 +55,12 @@ static partial class Implementation
                 "htm"
             },
             osx: new(
-                Arguments,
+                TargetLeftArguments, 
+                TargetRightArguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
             windows: new(
-                Arguments,
+                TargetLeftArguments, 
+                TargetRightArguments,
                 @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
             notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");

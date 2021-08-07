@@ -148,7 +148,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
- * `-ge1`: Forbid 1st file view Editing
+ * `-ge1`: Forbid first file view Editing
+ * `-ge2`: Forbid second file view Editing
 
 #### Windows settings:
 
@@ -232,7 +233,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
- * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
  * Scanned paths:
 
    * `%ProgramFiles%\Perforce\p4merge.exe`
@@ -241,12 +242,12 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
- * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
  * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 #### Linux settings:
 
- * Example arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Example arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 
@@ -561,7 +562,7 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### Windows settings:
 
- * Example arguments: `--diff "targetFile" "tempFile"`
+ * Example arguments: `--diff "tempFile" "targetFile"`
  * Scanned paths:
 
    * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
@@ -574,12 +575,12 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### OSX settings:
 
- * Example arguments: `--diff "targetFile" "tempFile"`
+ * Example arguments: `--diff "tempFile" "targetFile"`
  * Scanned path: `/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code`
 
 #### Linux settings:
 
- * Example arguments: `--diff "targetFile" "tempFile"`
+ * Example arguments: `--diff "tempFile" "targetFile"`
  * Scanned paths:
 
    * `/usr/local/bin/code`

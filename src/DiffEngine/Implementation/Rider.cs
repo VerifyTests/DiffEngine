@@ -5,7 +5,10 @@ static partial class Implementation
 {
     public static Definition Rider()
     {
-        static string Arguments(string temp, string target) =>
+        static string TargetLeftArguments(string temp, string target) =>
+            $"diff \"{target}\" \"{temp}\"";
+
+        static string TargetRightArguments(string temp, string target) =>
             $"diff \"{temp}\" \"{target}\"";
 
         return new(
@@ -18,19 +21,22 @@ static partial class Implementation
             cost: "Paid with free option for OSS",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                Arguments,
+                TargetLeftArguments, 
+                TargetRightArguments,
                 @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
                 @"%JetBrains Rider%\rider64.exe",
                 @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe"),
             osx: new(
-                Arguments,
+                TargetLeftArguments,
+                TargetRightArguments,
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider",
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",
                 "/Applications/Rider EAP.app/Contents/MacOS/rider",
                 "/Applications/Rider.app/Contents/MacOS/rider"),
             linux: new(
-                Arguments,
+                TargetLeftArguments,
+                TargetRightArguments,
                 "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh",
                 "/opt/jetbrains/rider/bin/rider.sh",
                 "/usr/share/rider/bin/rider.sh"),

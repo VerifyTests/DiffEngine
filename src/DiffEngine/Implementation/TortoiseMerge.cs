@@ -15,6 +15,7 @@ static partial class Implementation
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"));
     }

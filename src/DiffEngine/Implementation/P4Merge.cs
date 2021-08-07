@@ -4,8 +4,11 @@ static partial class Implementation
 {
     public static Definition P4Merge()
     {
-        static string Arguments(string temp, string target) =>
+        static string TargetLeftArguments(string temp, string target) =>
             $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+
+        static string TargetRightArguments(string temp, string target) =>
+            $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
 
         return new(
             name: DiffTool.P4Merge,
@@ -30,8 +33,17 @@ static partial class Implementation
                 "xbm",
                 "xpm"
             },
-            windows: new(Arguments, @"%ProgramFiles%\Perforce\p4merge.exe"),
-            linux: new(Arguments, "/usr/bin/p4merge"),
-            osx: new(Arguments, "/Applications/p4merge.app/Contents/MacOS/p4merge"));
+            windows: new(
+                TargetLeftArguments,
+                TargetRightArguments,
+                @"%ProgramFiles%\Perforce\p4merge.exe"),
+            linux: new(
+                TargetLeftArguments,
+                TargetRightArguments,
+                "/usr/bin/p4merge"),
+            osx: new(
+                TargetLeftArguments,
+                TargetRightArguments,
+                "/Applications/p4merge.app/Contents/MacOS/p4merge"));
     }
 }

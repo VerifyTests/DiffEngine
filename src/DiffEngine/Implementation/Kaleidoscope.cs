@@ -24,6 +24,7 @@ static partial class Implementation
                 "tif",
             },
             osx: new(
+                (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 "/usr/local/bin/ksdiff"));
     }

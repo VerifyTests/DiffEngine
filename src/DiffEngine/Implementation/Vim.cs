@@ -5,10 +5,10 @@ static partial class Implementation
 {
     public static Definition Vim()
     {
-        static string Arguments(string temp, string target)
-        {
-            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        }
+        static string TargetLeftArguments(string temp, string target) =>
+            $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
+        static string TargetRightArguments(string temp, string target) =>
+            $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
 
         return new(
             name: DiffTool.Vim,
@@ -19,8 +19,14 @@ static partial class Implementation
             requiresTarget: true,
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
-            windows: new(Arguments, @"%ProgramFiles%\Vim\*\vim.exe"),
-            osx: new(Arguments, "/Applications/MacVim.app/Contents/bin/mvim"),
+            windows: new(
+                TargetLeftArguments, 
+                TargetRightArguments, 
+                @"%ProgramFiles%\Vim\*\vim.exe"),
+            osx: new(
+                TargetLeftArguments, 
+                TargetRightArguments, 
+                "/Applications/MacVim.app/Contents/bin/mvim"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

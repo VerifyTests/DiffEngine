@@ -5,7 +5,10 @@ static partial class Implementation
 {
     public static Definition KDiff3()
     {
-        static string Arguments(string temp, string target) =>
+        static string TargetLeftArguments(string temp, string target) =>
+            $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0";
+
+        static string TargetRightArguments(string temp, string target) =>
             $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
 
         return new(
@@ -17,8 +20,13 @@ static partial class Implementation
             requiresTarget: true,
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
-            windows: new(Arguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
-            osx: new(Arguments, "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
+            windows: new(
+                TargetLeftArguments,
+                TargetRightArguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+            osx: new(
+                TargetLeftArguments, 
+                TargetRightArguments,
+                "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }
