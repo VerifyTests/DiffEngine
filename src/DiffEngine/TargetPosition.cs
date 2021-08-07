@@ -1,5 +1,0 @@
-﻿enum TargetPosition
-{
-    Left, 
-    Right
-}
