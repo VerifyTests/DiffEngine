@@ -126,7 +126,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### Windows settings:");
-            WriteArguments(writer, tool.Windows.TargetRightArguments!);
+            WriteArguments(writer, tool.Windows);
             WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
         }
 
@@ -134,7 +134,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### OSX settings:");
-            WriteArguments(writer, tool.Osx.TargetRightArguments);
+            WriteArguments(writer, tool.Osx);
             WritePaths(writer, tool.Osx.ExePaths);
         }
 
@@ -142,16 +142,18 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
         {
             writer.WriteLine(@"
 #### Linux settings:");
-            WriteArguments(writer, tool.Linux.TargetRightArguments);
+            WriteArguments(writer, tool.Linux);
             WritePaths(writer, tool.Linux.ExePaths);
         }
     }
 
-    static void WriteArguments(StreamWriter writer, BuildArguments buildArguments)
+    static void WriteArguments(StreamWriter writer, OsSettings osSettings)
     {
-        var argumentsWithTarget = buildArguments("tempFile", "targetFile");
+        var leftArguments = osSettings.TargetLeftArguments("tempFile", "targetFile");
+        var rightArguments = osSettings.TargetRightArguments("tempFile", "targetFile");
         writer.WriteLine($@"
- * Example arguments: `{argumentsWithTarget}`");
+ * Example target on left arguments: `{leftArguments}`
+ * Example target on right arguments: `{rightArguments}`");
     }
 
     static void WritePaths(TextWriter writer, IReadOnlyCollection<string> paths)
