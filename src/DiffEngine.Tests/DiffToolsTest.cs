@@ -85,8 +85,8 @@ public class DiffToolsTest :
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
-            targetLeftArguments: (temp, target) => $"\"custom args {target}\" \"{temp}\"",
-            targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+            targetLeftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
+            targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
 
         await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
         #endregion
