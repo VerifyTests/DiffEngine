@@ -106,7 +106,7 @@ namespace DiffEngine
                 throw new ArgumentException("Must define settings for at least one OS.");
             }
 
-            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var arguments))
+            if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var targetRightArguments))
             {
                 return null;
             }
@@ -120,7 +120,7 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                arguments);
+                targetRightArguments);
         }
 
         static ResolvedTool? AddInner(
