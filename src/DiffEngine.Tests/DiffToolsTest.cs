@@ -28,7 +28,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: new[] {"jpg"})!;
         #endregion
@@ -47,7 +47,7 @@ public class DiffToolsTest :
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            arguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+            targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
@@ -64,7 +64,7 @@ public class DiffToolsTest :
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
-            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+            targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
         #endregion
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFind("txt", out var forExtension));
@@ -78,7 +78,7 @@ public class DiffToolsTest :
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
-            arguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
+            targetRightArguments: (temp, target) => $"\"custom args {temp}\" \"{target}\"");
 
         await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
         #endregion

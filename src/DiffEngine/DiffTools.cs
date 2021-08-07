@@ -19,7 +19,7 @@ namespace DiffEngine
             bool isMdi,
             bool supportsText,
             bool requiresTarget,
-            BuildArguments arguments,
+            BuildArguments targetRightArguments,
             string exePath,
             IEnumerable<string> binaryExtensions)
         {
@@ -32,7 +32,7 @@ namespace DiffEngine
                 requiresTarget,
                 binaryExtensions,
                 exePath,
-                arguments);
+                targetRightArguments);
         }
 
         public static ResolvedTool? AddToolBasedOn(
@@ -42,7 +42,7 @@ namespace DiffEngine
             bool? isMdi = null,
             bool? supportsText = null,
             bool? requiresTarget = null,
-            BuildArguments? arguments = null,
+            BuildArguments? targetRightArguments = null,
             string? exePath = null,
             IEnumerable<string>? binaryExtensions = null)
         {
@@ -58,7 +58,7 @@ namespace DiffEngine
                 isMdi ?? existing.IsMdi,
                 supportsText ?? existing.SupportsText,
                 requiresTarget ?? existing.RequiresTarget,
-                arguments ?? existing.TargetRightArguments,
+                targetRightArguments ?? existing.TargetRightArguments,
                 exePath ?? existing.ExePath,
                 binaryExtensions ?? existing.BinaryExtensions);
         }
