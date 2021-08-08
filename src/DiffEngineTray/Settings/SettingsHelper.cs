@@ -36,6 +36,7 @@ static class SettingsHelper
     public static async Task Write(Settings settings)
     {
         TargetPositionHelper.SetTargetOnLeft(settings.TargetOnLeft);
+        MaxInstance.SetForUser(settings.MaxInstancesToLaunch);
         File.Delete(FilePath);
         await using var stream = File.OpenWrite(FilePath);
         await JsonSerializer.SerializeAsync(stream, settings);

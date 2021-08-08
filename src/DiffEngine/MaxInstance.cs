@@ -5,13 +5,14 @@ static class MaxInstance
 {
     static int maxInstancesToLaunch = GetMaxInstances();
     static int launchedInstances;
+    const int defaultMax = 5;
 
     static int GetMaxInstances()
     {
         var variable = Environment.GetEnvironmentVariable("DiffEngine_MaxInstances");
         if (string.IsNullOrEmpty(variable))
         {
-            return 5;
+            return defaultMax;
         }
 
         if (ushort.TryParse(variable, out var result))
@@ -22,10 +23,25 @@ static class MaxInstance
         throw new($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
     }
 
-    public static void Set(int value)
+    public static void SetForAppDomain(int value)
     {
         Guard.AgainstNegativeAndZero(value, nameof(value));
         maxInstancesToLaunch = value;
+    }
+
+    public static void SetForUser(int value)
+    {
+        string? envVariable;
+        if (value == defaultMax)
+        {
+            envVariable = null;
+        }
+        else
+        {
+            envVariable = value.ToString();
+        }
+
+        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", envVariable, EnvironmentVariableTarget.User);
     }
 
     public static bool Reached()
