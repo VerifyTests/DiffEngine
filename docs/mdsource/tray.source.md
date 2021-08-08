@@ -69,6 +69,11 @@ Runs DiffEngineTray at system startup.
 By default, when a diff is opened, the temp file will be on the left and the target file will be on the right. To invert this, select "Open on left".
 
 
+#### Max instances to launch
+
+Control the [max instances to launch setting](docs/diff-tool.md#maxinstancestolaunch).
+
+
 #### Accept all HotKey
 
 Registers a system wide HotKey to accept pending:
