@@ -29,14 +29,14 @@ static class SettingsHelper
             settings = new();
         }
 
-        settings.TargetOnLeft = TargetPositionHelper.TargetOnLeft;
+        settings.TargetOnLeft = TargetPosition.TargetOnLeft;
         settings.MaxInstancesToLaunch = MaxInstance.MaxInstancesToLaunch;
         return settings;
     }
 
     public static async Task Write(Settings settings)
     {
-        TargetPositionHelper.SetTargetOnLeft(settings.TargetOnLeft);
+        TargetPosition.SetTargetOnLeft(settings.TargetOnLeft);
         MaxInstance.SetForUser(settings.MaxInstancesToLaunch);
         File.Delete(FilePath);
         await using var stream = File.OpenWrite(FilePath);

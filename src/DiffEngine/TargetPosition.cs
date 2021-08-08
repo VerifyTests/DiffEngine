@@ -1,10 +1,10 @@
 ﻿using System;
 
-static class TargetPositionHelper
+static class TargetPosition
 {
     public static bool TargetOnLeft { get; private set; }
 
-    static TargetPositionHelper()
+    static TargetPosition()
     {
         TargetOnLeft = ReadTargetOnLeft().GetValueOrDefault(false);
     }
