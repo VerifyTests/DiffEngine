@@ -5,11 +5,28 @@ using System.Threading.Tasks;
 
 static class OptionsFormLauncher
 {
+    static OptionsForm? instance;
+    static EventHandler formOnClosed = Form_Closed;
+
     public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
     {
+        if (instance != null)
+        {
+            instance.BringToFront();
+            return;
+        }
+
         var settings = await SettingsHelper.Read();
-        using var form = new OptionsForm(settings, async newSettings => await Save(keyRegister, tracker, newSettings));
+        using var form = new OptionsForm(settings, newSettings => Save(keyRegister, tracker, newSettings));
+        instance = form;
+        form.Closed += formOnClosed;
         form.ShowDialog();
+    }
+
+    static void Form_Closed(object? sender, EventArgs e)
+    {
+        instance!.Closed -= formOnClosed;
+        instance = null;
     }
 
     static async Task<IReadOnlyList<string>> Save(KeyRegister keyRegister, Tracker tracker, Settings settings)
