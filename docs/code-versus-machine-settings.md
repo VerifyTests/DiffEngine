@@ -23,6 +23,7 @@ Examples:
  * [Custom order](diff-tool.order.md#custom-order) which depend on the tools a specific person has installed.
  * [Disable launching](/readme.md#disable-for-a-machineprocess).
  * [Max instances to launch](diff-tool.md#maxinstancestolaunch).
+ * [Left/Right diff behavior](https://github.com/VerifyTests/DiffEngine/blob/main/docs/diff-tool.md#leftright-diff-behavior).
 
 
 ## Shared preferences
