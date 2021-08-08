@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 static class OptionsFormLauncher
 {
     static OptionsForm? instance;
-    static EventHandler formOnClosed = Form_Closed;
+    static EventHandler formOnClosed = (_, _) =>
+    {
+        instance!.Closed -= formOnClosed;
+        instance = null;
+    };
 
     public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
     {
@@ -21,12 +25,6 @@ static class OptionsFormLauncher
         instance = form;
         form.Closed += formOnClosed;
         form.ShowDialog();
-    }
-
-    static void Form_Closed(object? sender, EventArgs e)
-    {
-        instance!.Closed -= formOnClosed;
-        instance = null;
     }
 
     static async Task<IReadOnlyList<string>> Save(KeyRegister keyRegister, Tracker tracker, Settings settings)
