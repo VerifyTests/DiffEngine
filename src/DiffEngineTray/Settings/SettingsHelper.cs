@@ -30,6 +30,7 @@ static class SettingsHelper
         }
 
         settings.TargetOnLeft = TargetPositionHelper.TargetOnLeft;
+        settings.MaxInstancesToLaunch = MaxInstance.MaxInstancesToLaunch;
         return settings;
     }
 

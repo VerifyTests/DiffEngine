@@ -33,6 +33,11 @@ static class TargetPositionHelper
 
     public static void SetTargetOnLeft(bool value)
     {
+        if (TargetOnLeft == value)
+        {
+            return;
+        }
+
         TargetOnLeft = value;
         string? envVariable;
         if (value)

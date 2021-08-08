@@ -3,7 +3,7 @@ using System.Threading;
 
 static class MaxInstance
 {
-    static int maxInstancesToLaunch = GetMaxInstances();
+    public static int MaxInstancesToLaunch { get; private set; } = GetMaxInstances();
     static int launchedInstances;
     const int defaultMax = 5;
 
@@ -26,11 +26,16 @@ static class MaxInstance
     public static void SetForAppDomain(int value)
     {
         Guard.AgainstNegativeAndZero(value, nameof(value));
-        maxInstancesToLaunch = value;
+        MaxInstancesToLaunch = value;
     }
 
     public static void SetForUser(int value)
     {
+        if (MaxInstancesToLaunch == value)
+        {
+            return;
+        }
+        MaxInstancesToLaunch = value;
         string? envVariable;
         if (value == defaultMax)
         {
@@ -47,6 +52,6 @@ static class MaxInstance
     public static bool Reached()
     {
         var instanceCount = Interlocked.Increment(ref launchedInstances);
-        return instanceCount > maxInstancesToLaunch;
+        return instanceCount > MaxInstancesToLaunch;
     }
 }

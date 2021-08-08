@@ -25,6 +25,7 @@ public partial class OptionsForm :
         acceptOpenHotKey.HotKey = settings.AcceptOpenHotKey;
         startupCheckBox.Checked = settings.RunAtStartup;
         targetOnLeftCheckBox.Checked = settings.TargetOnLeft;
+        maxInstancesNumericUpDown.Value = settings.MaxInstancesToLaunch;
     }
 
     async void save_Click(object sender, EventArgs e)
@@ -34,7 +35,8 @@ public partial class OptionsForm :
             TargetOnLeft = targetOnLeftCheckBox.Checked,
             RunAtStartup = startupCheckBox.Checked,
             AcceptAllHotKey = acceptAllHotKey.HotKey,
-            AcceptOpenHotKey = acceptOpenHotKey.HotKey
+            AcceptOpenHotKey = acceptOpenHotKey.HotKey,
+            MaxInstancesToLaunch = (int)maxInstancesNumericUpDown.Value
         };
 
         var errors = (await trySave(newSettings)).ToList();
