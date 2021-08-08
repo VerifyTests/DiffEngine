@@ -3,15 +3,16 @@ using System.Threading;
 
 static class MaxInstance
 {
-    static int maxInstancesToLaunch = GetMaxInstances();
+    public static int MaxInstancesToLaunch { get; private set; } = GetMaxInstances();
     static int launchedInstances;
+    const int defaultMax = 5;
 
     static int GetMaxInstances()
     {
         var variable = Environment.GetEnvironmentVariable("DiffEngine_MaxInstances");
         if (string.IsNullOrEmpty(variable))
         {
-            return 5;
+            return defaultMax;
         }
 
         if (ushort.TryParse(variable, out var result))
@@ -22,15 +23,35 @@ static class MaxInstance
         throw new($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
     }
 
-    public static void Set(int value)
+    public static void SetForAppDomain(int value)
     {
         Guard.AgainstNegativeAndZero(value, nameof(value));
-        maxInstancesToLaunch = value;
+        MaxInstancesToLaunch = value;
+    }
+
+    public static void SetForUser(int value)
+    {
+        if (MaxInstancesToLaunch == value)
+        {
+            return;
+        }
+        MaxInstancesToLaunch = value;
+        string? envVariable;
+        if (value == defaultMax)
+        {
+            envVariable = null;
+        }
+        else
+        {
+            envVariable = value.ToString();
+        }
+
+        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", envVariable, EnvironmentVariableTarget.User);
     }
 
     public static bool Reached()
     {
         var instanceCount = Interlocked.Increment(ref launchedInstances);
-        return instanceCount > maxInstancesToLaunch;
+        return instanceCount > MaxInstancesToLaunch;
     }
 }

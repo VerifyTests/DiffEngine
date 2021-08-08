@@ -29,7 +29,7 @@ static class Guard
         }
     }
 
-    public static void AgainstEmpty(object[] value, string argumentName)
+    public static void AgainstEmpty(object?[] value, string argumentName)
     {
         if (value == null)
         {

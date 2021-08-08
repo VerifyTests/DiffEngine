@@ -16,8 +16,7 @@ namespace DiffEngine
 
         public static void MaxInstancesToLaunch(int value)
         {
-            Guard.AgainstNegativeAndZero(value, nameof(value));
-            MaxInstance.Set(value);
+            MaxInstance.SetForAppDomain(value);
         }
 
         public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)

@@ -30,7 +30,7 @@ namespace DiffEngine
 
         string GetArguments(string tempFile, string targetFile)
         {
-            if (TargetPositionHelper.TargetOnLeft)
+            if (TargetPosition.TargetOnLeft)
             {
                 return TargetLeftArguments(tempFile, targetFile);
             }

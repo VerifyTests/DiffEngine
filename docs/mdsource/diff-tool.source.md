@@ -46,6 +46,8 @@ This value can be changed:
 
 Setting the `DiffEngine_MaxInstances` environment variable to the number of instances to launch.
 
+This value can also be set using [the DiffEngineTray options dialog](/docs/tray.md#max-instances-to-launch).
+
 
 ### Using code
 
@@ -58,7 +60,7 @@ By default, when a diff is opened, the temp file is on the left and the target f
 
 This value can be changed by setting the `DiffEngine_TargetOnLeft` environment variable to `true`.
 
-This value can also be set using [the DiffEngineTray options dialog](https://github.com/VerifyTests/DiffEngine/blob/main/docs/tray.md#open-on-left).
+This value can also be set using [the DiffEngineTray options dialog](/docs/tray.md#open-on-left).
 
 
 ## Successful verification behavior
