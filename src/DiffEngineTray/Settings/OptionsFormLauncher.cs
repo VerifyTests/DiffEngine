@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 static class OptionsFormLauncher
 {
     static OptionsForm? instance;
+
     static EventHandler formOnClosed = (_, _) =>
     {
         instance!.Closed -= formOnClosed;
