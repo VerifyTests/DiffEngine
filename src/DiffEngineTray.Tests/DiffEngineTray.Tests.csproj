@@ -11,7 +11,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="Verify.WinForms" Version="2.7.0" />
     <PackageReference Include="Verify.Xunit" Version="11.24.0" />
-    <PackageReference Include="Verify.ImageMagick" Version="2.8.0" />
+    <PackageReference Include="Verify.ImageMagick" Version="2.9.0" />
     <PackageReference Include="Xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" Version="1.0.56" PrivateAssets="all" />
