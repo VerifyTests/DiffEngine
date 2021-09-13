@@ -32,7 +32,7 @@
     <Compile Include="..\DiffEngine\TargetPosition.cs" Link="TargetPosition.cs" />
     <Compile Include="..\DiffEngine\Guard.cs" Link="Guard.cs" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.5.2" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.5.3" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.10.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="5.0.2" />
