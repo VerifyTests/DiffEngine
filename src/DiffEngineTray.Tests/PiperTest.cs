@@ -14,7 +14,7 @@ public class PiperTest :
     [Fact]
     public Task MoveJson()
     {
-        return Verifier.VerifyJson(
+        return Verifier.Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",
@@ -27,7 +27,7 @@ public class PiperTest :
     [Fact]
     public Task DeleteJson()
     {
-        return Verifier.VerifyJson(
+        return Verifier.Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",

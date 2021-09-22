@@ -1,9 +1,9 @@
 ﻿{
-  Arguments: TheArguments,
-  CanKill: true,
-  Exe: theExePath,
-  ProcessId: 1000,
-  Target: theTargetFilePath,
-  Temp: theTempFilePath,
-  Type: Move
+"Type":"Move",
+"Temp":"theTempFilePath",
+"Target":"theTargetFilePath",
+"CanKill":true,
+"Exe":"theExePath",
+"Arguments":"TheArguments",
+"ProcessId":1000
 }
