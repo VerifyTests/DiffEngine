@@ -119,7 +119,7 @@ class Tracker :
                 Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
                 var solution = SolutionDirectoryFinder.Find(target);
-                return new(temp, target, exe, arguments, canKill, process, solution);
+                return BuildTrackedMove(temp, exe, arguments, canKill, target, process, solution);
             },
             updateValueFactory: (target, existing) =>
             {
@@ -137,8 +137,13 @@ class Tracker :
                 Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
                 var solution = SolutionDirectoryFinder.Find(target);
-                return new(temp, target, exe, arguments, canKill, process, solution);
+                return BuildTrackedMove(temp, exe, arguments, canKill, target, process, solution);
             });
+    }
+
+    static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool canKill, string target, Process? process, string? solution)
+    {
+        return new(temp, target, exe, arguments, canKill, process, solution);
     }
 
     public TrackedDelete AddDelete(string file)
