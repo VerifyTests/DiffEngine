@@ -108,7 +108,7 @@ class Tracker :
         var targetFile = Path.GetFileName(target);
         return moves.AddOrUpdate(
             target,
-            addValueFactory: key =>
+            addValueFactory: target =>
             {
                 Process? process = null;
                 if (processId != null)
@@ -118,10 +118,10 @@ class Tracker :
 
                 Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
-                var solution = SolutionDirectoryFinder.Find(key);
-                return new(temp, key, exe, arguments, canKill, process, solution);
+                var solution = SolutionDirectoryFinder.Find(target);
+                return new(temp, target, exe, arguments, canKill, process, solution);
             },
-            updateValueFactory: (key, existing) =>
+            updateValueFactory: (target, existing) =>
             {
                 Process? process;
                 if (processId == null)
@@ -136,8 +136,8 @@ class Tracker :
 
                 Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
 
-                var solution = SolutionDirectoryFinder.Find(key);
-                return new(temp, key, exe, arguments, canKill, process, solution);
+                var solution = SolutionDirectoryFinder.Find(target);
+                return new(temp, target, exe, arguments, canKill, process, solution);
             });
     }
 
