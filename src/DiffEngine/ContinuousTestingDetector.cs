@@ -8,7 +8,9 @@ namespace DiffEngine
         static ContinuousTestingDetector()
         {
             if (AppDomain.CurrentDomain.GetAssemblies()
-                .Any(a => a.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                .Any(a => a.FullName != null &&
+                          a.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
             {
                 Detected = true;
                 return;
