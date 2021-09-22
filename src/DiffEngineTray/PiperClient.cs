@@ -57,7 +57,7 @@ static class PiperClient
         return SendAsync(payload);
     }
 
-    static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
+    public static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
     {
         var builder = new StringBuilder($@"{{
 ""Type"":""Move"",

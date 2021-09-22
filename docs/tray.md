@@ -106,3 +106,44 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
  * [Shouldly](https://github.com/shouldly/shouldly) v4.0.0 and above
  * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
+
+
+## Payloads
+
+
+### Add pending move
+
+<!-- snippet: PiperTest.MoveJson.verified.txt -->
+<a id='snippet-PiperTest.MoveJson.verified.txt'></a>
+```txt
+{
+"Type":"Move",
+"Temp":"theTempFilePath",
+"Target":"theTargetFilePath",
+"CanKill":true,
+"Exe":"theExePath",
+"Arguments":"TheArguments",
+"ProcessId":1000
+}
+```
+<sup><a href='/src/DiffEngineTray.Tests/PiperTest.MoveJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+
+### Add pending delete
+
+<!-- snippet: PiperTest.DeleteJson.verified.txt -->
+<a id='snippet-PiperTest.DeleteJson.verified.txt'></a>
+```txt
+{
+"Type":"Move",
+"Temp":"theTempFilePath",
+"Target":"theTargetFilePath",
+"CanKill":true,
+"Exe":"theExePath",
+"Arguments":"TheArguments",
+"ProcessId":1000
+}
+```
+<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->

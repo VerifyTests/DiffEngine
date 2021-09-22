@@ -99,3 +99,16 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
  * [Shouldly](https://github.com/shouldly/shouldly) v4.0.0 and above
  * [Verify](https://github.com/VerifyTests/Verify) v6.10.4 and above
+
+
+## Payloads
+
+
+### Add pending move
+
+snippet: PiperTest.MoveJson.verified.txt
+
+
+### Add pending delete
+
+snippet: PiperTest.DeleteJson.verified.txt
