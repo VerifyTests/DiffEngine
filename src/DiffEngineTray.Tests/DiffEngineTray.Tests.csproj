@@ -2,7 +2,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net5-windows</TargetFrameworks>
-    <SignAssembly>false</SignAssembly>
     <NoWarn>CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>

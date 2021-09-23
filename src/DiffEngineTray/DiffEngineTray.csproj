@@ -7,7 +7,6 @@
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <SignAssembly>false</SignAssembly>
     <NoWarn>NETSDK1137</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
@@ -28,9 +27,6 @@
     <None Remove="**\*.png" />
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
-    <Compile Include="..\DiffEngine\MaxInstance.cs" Link="MaxInstance.cs" />
-    <Compile Include="..\DiffEngine\TargetPosition.cs" Link="TargetPosition.cs" />
-    <Compile Include="..\DiffEngine\Guard.cs" Link="Guard.cs" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
     <PackageReference Include="Fody" Version="6.5.3" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.10.0" />
@@ -43,5 +39,6 @@
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
 </Project>
