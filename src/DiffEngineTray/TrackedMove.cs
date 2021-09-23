@@ -3,21 +3,21 @@ using System.IO;
 
 class TrackedMove
 {
-    public TrackedMove(
-        string temp,
+    public TrackedMove(string temp,
         string target,
         string? exe,
         string? arguments,
         bool canKill,
         Process? process,
-        string? group)
+        string? group,
+        string extension)
     {
         Temp = temp;
         Target = target;
         Exe = exe;
         Arguments = arguments;
         Name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(target));
-        Extension = Path.GetExtension(target).TrimStart('.');
+        Extension = extension;
         CanKill = canKill;
         Process = process;
         Group = group;

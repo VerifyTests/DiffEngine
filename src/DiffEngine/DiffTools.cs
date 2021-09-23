@@ -9,6 +9,7 @@ namespace DiffEngine
     public static class DiffTools
     {
         static Dictionary<string, ResolvedTool> ExtensionLookup = new();
+        static Dictionary<string, ResolvedTool> PathLookup = new();
         static List<ResolvedTool> resolved = new();
 
         public static IEnumerable<ResolvedTool> Resolved
@@ -178,6 +179,7 @@ namespace DiffEngine
                 var cleanedExtension = Extensions.GetExtension(extension);
                 ExtensionLookup[cleanedExtension] = resolvedTool;
             }
+            PathLookup[resolvedTool.ExePath] = resolvedTool;
         }
 
         static DiffTools()
@@ -198,6 +200,7 @@ namespace DiffEngine
         {
             var custom = resolved.Where(x => x.Tool == null).ToList();
             ExtensionLookup.Clear();
+            PathLookup.Clear();
             resolved.Clear();
 
             foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, tools).Reverse())
@@ -232,6 +235,13 @@ namespace DiffEngine
             Guard.AgainstEmpty(order, nameof(order));
 
             InitTools(throwForNoTool, order);
+        }
+
+        public static bool TryFindByPath(
+            string path,
+            [NotNullWhen(true)] out ResolvedTool? tool)
+        {
+            return PathLookup.TryGetValue(path, out tool);
         }
 
         public static bool TryFind(

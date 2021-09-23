@@ -28,7 +28,7 @@ namespace DiffEngine
             return $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
         }
 
-        string GetArguments(string tempFile, string targetFile)
+        public string GetArguments(string tempFile, string targetFile)
         {
             if (TargetPosition.TargetOnLeft)
             {
@@ -37,7 +37,6 @@ namespace DiffEngine
 
             return TargetRightArguments(tempFile, targetFile);
         }
-
 
         internal ResolvedTool(string name,
             DiffTool? tool,
