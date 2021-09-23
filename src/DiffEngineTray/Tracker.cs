@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DiffEngine;
 using Serilog;
 
 class Tracker :
@@ -116,10 +117,18 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
 
-                var solution = SolutionDirectoryFinder.Find(target);
-                return BuildTrackedMove(temp, exe, arguments, canKill, target, process, solution);
+                if (exeFile == null)
+                {
+                    Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}", targetFile, move.CanKill, processId);
+                }
+                else
+                {
+                    Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId, $"{exeFile} {arguments}");
+                }
+
+                return move;
             },
             updateValueFactory: (target, existing) =>
             {
@@ -134,16 +143,47 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, canKill, processId, $"{exeFile} {arguments}");
+                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
 
-                var solution = SolutionDirectoryFinder.Find(target);
-                return BuildTrackedMove(temp, exe, arguments, canKill, target, process, solution);
+                if (exeFile == null)
+                {
+                    Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}", targetFile, move.CanKill, processId);
+                }
+                else
+                {
+                    Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId, $"{exeFile} {arguments}");
+                }
+
+                return move;
             });
     }
 
-    static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool canKill, string target, Process? process, string? solution)
+    static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool? canKill, string target, Process? process)
     {
-        return new(temp, target, exe, arguments, canKill, process, solution);
+        var solution = SolutionDirectoryFinder.Find(target);
+        var extension = Path.GetExtension(target).TrimStart('.');
+        if (exe == null)
+        {
+            if(DiffTools.TryFind(extension, out var tool))
+            {
+                arguments = tool.GetArguments(temp, target);
+                exe = tool.ExePath;
+                canKill = !tool.IsMdi;
+            }
+        }
+        else if (canKill == null)
+        {
+            if (DiffTools.TryFindByPath(exe, out var tool))
+            {
+                canKill = !tool.IsMdi;
+            }
+            else
+            {
+                canKill = false;
+            }
+        }
+
+        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension);
     }
 
     public TrackedDelete AddDelete(string file)
