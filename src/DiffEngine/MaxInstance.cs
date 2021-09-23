@@ -10,6 +10,7 @@ static class MaxInstance
     static int GetMaxInstances()
     {
         var variable = Environment.GetEnvironmentVariable("DiffEngine_MaxInstances");
+
         if (string.IsNullOrEmpty(variable))
         {
             return defaultMax;
