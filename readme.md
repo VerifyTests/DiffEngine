@@ -50,7 +50,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
- * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
+ * **[P4MergeText](/docs/diff-tool.md#p4mergetext)** Win/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX/Linux (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Win/Linux (Cost: Free with option to donate)
@@ -63,7 +63,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX/Linux (Cost: Paid)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win/Linux (Cost: Paid)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Win/Linux (Cost: Free with option to donate)
- * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
+ * **[P4MergeImage](/docs/diff-tool.md#p4mergeimage)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX/Linux (Cost: Free with option to donate)
  * **[Neovim](/docs/diff-tool.md#neovim)** Win/Linux (Cost: Free with option to sponsor)

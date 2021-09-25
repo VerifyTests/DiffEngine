@@ -11,7 +11,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 ## Default
 
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid) <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
- * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
+ * **[P4MergeText](/docs/diff-tool.md#p4mergetext)** Win/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX/Linux (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Win/Linux (Cost: Free with option to donate)
@@ -24,7 +24,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX/Linux (Cost: Paid)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win/Linux (Cost: Paid)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Win/Linux (Cost: Free with option to donate)
- * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
+ * **[P4MergeImage](/docs/diff-tool.md#p4mergeimage)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX/Linux (Cost: Free with option to donate)
  * **[Neovim](/docs/diff-tool.md#neovim)** Win/Linux (Cost: Free with option to sponsor)

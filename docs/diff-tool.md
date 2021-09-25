@@ -350,37 +350,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
  * Scanned path: `%ChocolateyToolsLocation%\neovim\*\nvim.exe`
 
 
-### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
-
-  * Cost: Free
-  * Is MDI: False
-  * Supports auto-refresh: False
-  * Supports text files: True
-
-#### Windows settings:
-
- * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
- * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
- * Scanned paths:
-
-   * `%ProgramFiles%\Perforce\p4merge.exe`
-   * `%ProgramW6432%\Perforce\p4merge.exe`
-   * `%ProgramFiles(x86)%\Perforce\p4merge.exe`
-
-#### OSX settings:
-
- * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
- * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
- * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
-
-#### Linux settings:
-
- * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
- * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
- * Scanned path: `/usr/bin/p4merge`
-
-
-### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
+### [P4MergeImage](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
   * Cost: Free
   * Is MDI: False
@@ -408,6 +378,36 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
  * Example target on left arguments: `"targetFile" "tempFile"`
  * Example target on right arguments: `"tempFile" "targetFile"`
+ * Scanned path: `/usr/bin/p4merge`
+
+
+### [P4MergeText](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: True
+
+#### Windows settings:
+
+ * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Scanned paths:
+
+   * `%ProgramFiles%\Perforce\p4merge.exe`
+   * `%ProgramW6432%\Perforce\p4merge.exe`
+   * `%ProgramFiles(x86)%\Perforce\p4merge.exe`
+
+#### OSX settings:
+
+ * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
+
+#### Linux settings:
+
+ * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
+ * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 
