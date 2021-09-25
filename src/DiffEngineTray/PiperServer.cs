@@ -63,15 +63,15 @@ static class PiperServer
             using var reader = new StreamReader(client.GetStream());
             var payload = await reader.ReadToEndAsync();
 
-            if (payload.Contains("\"Type\":\"Move\"") || payload.Contains("\"Type\": \"Move\""))
+            if (payload.Contains("\"Type\":\"Move\"") ||
+                payload.Contains("\"Type\": \"Move\""))
             {
-                var movePayload = Serializer.Deserialize<MovePayload>(payload);
-                move(movePayload);
+                move(Serializer.Deserialize<MovePayload>(payload));
             }
-            else if (payload.Contains("\"Type\":\"Delete\"") || payload.Contains("\"Type\": \"Delete\""))
+            else if (payload.Contains("\"Type\":\"Delete\"") ||
+                     payload.Contains("\"Type\": \"Delete\""))
             {
-                var deletePayload = Serializer.Deserialize<DeletePayload>(payload);
-                delete(deletePayload);
+                delete(Serializer.Deserialize<DeletePayload>(payload));
             }
             else
             {
