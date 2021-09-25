@@ -23,7 +23,7 @@ var resolvedTool = DiffTools.AddTool(
     exePath: diffToolPath,
     binaryExtensions: new[] {"jpg"})!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L24-L35' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L23-L34' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -37,7 +37,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     targetLeftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
     targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L65-L73' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L64-L72' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -50,7 +50,7 @@ New tools are added to the top of the order, the last tool added will resolve be
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L70-L74' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L67-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.
@@ -66,7 +66,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L84-L92' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L83-L91' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
