@@ -20,7 +20,6 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [Shouldly](https://github.com/shouldly/shouldly/)
  * [Verify](https://github.com/VerifyTests/Verify)
 
-
 <a href='https://dotnetfoundation.org' alt='Part of the .NET Foundation'><img src='https://raw.githubusercontent.com/VerifyTests/Verify/master/docs/dotNetFoundation.svg' height='30px'></a><br>
 Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
 
@@ -130,7 +129,6 @@ Supports:
 ## Disable for a machine/process
 
 Set an environment variable `DiffEngine_Disabled` with the value `true`.
-
 
 
 ## Icons
