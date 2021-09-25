@@ -2,20 +2,20 @@
 
 static partial class Implementation
 {
-    public static Definition P4Merge()
+    public static Definition P4MergeImage()
     {
         static string TargetLeftArguments(string temp, string target) =>
-            $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+            $"\"{target}\" \"{temp}\"";
 
         static string TargetRightArguments(string temp, string target) =>
-            $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+            $"\"{temp}\" \"{target}\"";
 
         return new(
-            name: DiffTool.P4Merge,
+            name: DiffTool.P4MergeImage,
             url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
             autoRefresh: false,
             isMdi: false,
-            supportsText: true,
+            supportsText: false,
             requiresTarget: true,
             cost: "Free",
             binaryExtensions: new[]

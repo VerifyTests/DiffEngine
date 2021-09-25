@@ -3,7 +3,8 @@ namespace DiffEngine
     public enum DiffTool
     {
         BeyondCompare,
-        P4Merge,
+        P4MergeText,
+        P4MergeImage,
         AraxisMerge,
         Meld,
         SublimeMerge,

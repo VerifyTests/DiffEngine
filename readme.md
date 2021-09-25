@@ -63,6 +63,7 @@ Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX/Linux (Cost: Paid)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win/Linux (Cost: Paid)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Win/Linux (Cost: Free with option to donate)
+ * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX/Linux (Cost: Free with option to donate)
  * **[Neovim](/docs/diff-tool.md#neovim)** Win/Linux (Cost: Free with option to sponsor)
@@ -83,7 +84,7 @@ A tool can be launched using the following:
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L70-L74' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L67-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -98,7 +99,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L83-L87' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L80-L84' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.

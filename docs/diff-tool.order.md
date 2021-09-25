@@ -24,6 +24,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX/Linux (Cost: Paid)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win/Linux (Cost: Paid)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Win/Linux (Cost: Free with option to donate)
+ * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX/Linux (Cost: Free with option to donate)
  * **[Neovim](/docs/diff-tool.md#neovim)** Win/Linux (Cost: Free with option to sponsor)
@@ -52,5 +53,5 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 ```cs
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L122-L124' title='Snippet source file'>snippet source</a> | <a href='#snippet-useorder' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L121-L123' title='Snippet source file'>snippet source</a> | <a href='#snippet-useorder' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

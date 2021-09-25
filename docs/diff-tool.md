@@ -63,7 +63,7 @@ This value can also be set using [the DiffEngineTray options dialog](/docs/tray.
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L13-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L12-L16' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -356,7 +356,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
 
 #### Windows settings:
 
@@ -378,6 +377,37 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
  * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
  * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+ * Scanned path: `/usr/bin/p4merge`
+
+
+### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: False
+  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
+
+#### Windows settings:
+
+ * Example target on left arguments: `"targetFile" "tempFile"`
+ * Example target on right arguments: `"tempFile" "targetFile"`
+ * Scanned paths:
+
+   * `%ProgramFiles%\Perforce\p4merge.exe`
+   * `%ProgramW6432%\Perforce\p4merge.exe`
+   * `%ProgramFiles(x86)%\Perforce\p4merge.exe`
+
+#### OSX settings:
+
+ * Example target on left arguments: `"targetFile" "tempFile"`
+ * Example target on right arguments: `"tempFile" "targetFile"`
+ * Scanned path: `/Applications/p4merge.app/Contents/MacOS/p4merge`
+
+#### Linux settings:
+
+ * Example target on left arguments: `"targetFile" "tempFile"`
+ * Example target on right arguments: `"tempFile" "targetFile"`
  * Scanned path: `/usr/bin/p4merge`
 
 

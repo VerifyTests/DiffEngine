@@ -7,7 +7,7 @@
         Tools = new List<Definition>
         {
             Implementation.BeyondCompare(),
-            Implementation.P4Merge(),
+            Implementation.P4MergeText(),
             Implementation.Kaleidoscope(),
             Implementation.DeltaWalker(),
             Implementation.WinMerge(),
@@ -20,6 +20,7 @@
             Implementation.Guiffy(),
             Implementation.ExamDiff(),
             Implementation.Diffinity(),
+            Implementation.P4MergeImage(),
             Implementation.Rider(),
             Implementation.Vim(),
             Implementation.Neovim(),
