@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace DiffEngine
+﻿namespace DiffEngine
 {
     [DebuggerDisplay("ExePaths={ExePaths}")]
     public class OsSettings

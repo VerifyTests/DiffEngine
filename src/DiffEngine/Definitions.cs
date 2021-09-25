@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-static class Definitions
+﻿static class Definitions
 {
     public static IReadOnlyList<Definition> Tools { get; }
 

@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace DiffEngine
+﻿namespace DiffEngine
 {
     public static class Logging
     {

@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-static class AssemblyLocation
+﻿static class AssemblyLocation
 {
     static AssemblyLocation()
     {

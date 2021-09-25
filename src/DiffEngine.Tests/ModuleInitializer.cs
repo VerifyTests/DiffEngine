@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using DiffEngine;
+﻿using DiffEngine;
 using Xunit;
 
 [assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true)]

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 static class LinkLauncher
 {
     public static void LaunchUrl(string url)

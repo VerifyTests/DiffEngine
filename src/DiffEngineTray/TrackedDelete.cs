@@ -1,5 +1,3 @@
-using System.IO;
-
 class TrackedDelete
 {
     public TrackedDelete(string file, string? group)

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Management;
+﻿using System.Management;
 using System.Runtime.InteropServices;
 using DiffEngine;
 using Microsoft.Win32.SafeHandles;

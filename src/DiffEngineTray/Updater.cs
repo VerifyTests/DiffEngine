@@ -1,6 +1,3 @@
-using System;
-using System.Diagnostics;
-using System.Text;
 using System.Windows.Forms;
 
 static class Updater

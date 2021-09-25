@@ -1,6 +1,3 @@
-using System;
-using System.Diagnostics;
-
 static class ExplorerLauncher
 {
     public static void OpenDirectory(string directory)

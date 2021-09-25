@@ -1,7 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-
-namespace DiffEngine
+﻿namespace DiffEngine
 {
     public static class DiffEngineTray
     {

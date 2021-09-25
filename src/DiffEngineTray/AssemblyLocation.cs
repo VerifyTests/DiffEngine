@@ -1,5 +1,3 @@
-using System.IO;
-
 static class AssemblyLocation
 {
     static AssemblyLocation()

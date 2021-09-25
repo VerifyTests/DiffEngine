@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
-
 static class FileComparer
 {
     static bool FilesAreSameSize(string file1, string file2)

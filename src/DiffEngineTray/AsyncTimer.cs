@@ -1,8 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-class AsyncTimer :
+﻿class AsyncTimer :
     IAsyncDisposable
 {
     Func<DateTime, CancellationToken, Task> callback;

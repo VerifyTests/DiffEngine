@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.IO;
-
 class TrackedMove
 {
     public TrackedMove(string temp,

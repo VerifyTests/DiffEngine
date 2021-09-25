@@ -1,5 +1,4 @@
 ﻿#if DEBUG
-using System.Threading.Tasks;
 using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;

@@ -1,5 +1,4 @@
-﻿using System;
-using DiffEngine;
+﻿using DiffEngine;
 
 static partial class Implementation
 {

@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace DiffEngine
+﻿namespace DiffEngine
 {
     [DebuggerDisplay("{Command} | Process = {Process}")]
     public readonly struct ProcessCommand

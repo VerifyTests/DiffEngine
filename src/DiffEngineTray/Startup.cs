@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 
 public class Startup
 {

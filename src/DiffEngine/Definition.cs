@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using DiffEngine;
+﻿using DiffEngine;
 
 [DebuggerDisplay("{Tool}, Refresh={AutoRefresh}, Mdi={IsMdi}, RequiresTarget={RequiresTarget}, SupportsText={SupportsText}")]
 class Definition

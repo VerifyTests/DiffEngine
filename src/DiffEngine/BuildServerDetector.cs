@@ -1,5 +1,4 @@
-﻿using System;
-// ReSharper disable CommentTypo
+﻿// ReSharper disable CommentTypo
 
 namespace DiffEngine
 {

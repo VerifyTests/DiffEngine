@@ -1,4 +1,3 @@
-using System.IO;
 using Serilog;
 
 static class FileEx

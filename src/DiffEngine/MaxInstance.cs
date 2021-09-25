@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-
-static class MaxInstance
+﻿static class MaxInstance
 {
     public static int MaxInstancesToLaunch { get; private set; } = GetMaxInstances();
     static int launchedInstances;

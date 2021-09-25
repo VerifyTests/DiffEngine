@@ -1,5 +1,3 @@
-using System.Text;
-
 static class JsonEscaping
 {
     static bool NeedEscape(string src, int i)

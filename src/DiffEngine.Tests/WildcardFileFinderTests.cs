@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Xunit;
+﻿using Xunit;
 using Xunit.Abstractions;
 
 public class WildcardFileFinderTests :

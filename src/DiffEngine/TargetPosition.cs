@@ -1,6 +1,4 @@
-﻿using System;
-
-static class TargetPosition
+﻿static class TargetPosition
 {
     public static bool TargetOnLeft { get; private set; }
 
