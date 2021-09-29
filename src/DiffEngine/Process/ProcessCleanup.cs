@@ -1,109 +1,107 @@
-﻿using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace DiffEngine
+namespace DiffEngine;
+
+public static class ProcessCleanup
 {
-    public static class ProcessCleanup
-    {
-        static List<ProcessCommand> commands;
-        static Func<IEnumerable<ProcessCommand>> findAll;
-        static Func<int, bool> tryTerminateProcess;
+    static List<ProcessCommand> commands;
+    static Func<IEnumerable<ProcessCommand>> findAll;
+    static Func<int, bool> tryTerminateProcess;
 
 #pragma warning disable CS8618
-        static ProcessCleanup()
+    static ProcessCleanup()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                findAll = WindowsProcess.FindAll;
-                tryTerminateProcess = WindowsProcess.TryTerminateProcess;
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                findAll = LinuxOsxProcess.FindAll;
-                tryTerminateProcess = LinuxOsxProcess.TryTerminateProcess;
-            }
-            else
-            {
-                throw new("Unknown OS");
-            }
-
-            Refresh();
+            findAll = WindowsProcess.FindAll;
+            tryTerminateProcess = WindowsProcess.TryTerminateProcess;
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            findAll = LinuxOsxProcess.FindAll;
+            tryTerminateProcess = LinuxOsxProcess.TryTerminateProcess;
+        }
+        else
+        {
+            throw new("Unknown OS");
         }
 
-        public static IReadOnlyList<ProcessCommand> Commands => commands;
+        Refresh();
+    }
 
-        public static void Refresh()
+    public static IReadOnlyList<ProcessCommand> Commands => commands;
+
+    public static void Refresh()
+    {
+        commands = findAll().ToList();
+    }
+
+    /// <summary>
+    /// Find a process with the matching command line and kill it.
+    /// </summary>
+    public static void Kill(string command)
+    {
+        Guard.AgainstEmpty(command, nameof(command));
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            commands = findAll().ToList();
+            command = TrimCommand(command);
+        }
+        var matchingCommands = Commands
+            .Where(x => x.Command == command).ToList();
+        Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
+        if (matchingCommands.Count == 0)
+        {
+            var separator = Environment.NewLine + "\t";
+            var joined = string.Join(separator, Commands.Select(x => x.Command));
+            Logging.Write($"No matching commands. All commands: {separator}{joined}.");
         }
 
-        /// <summary>
-        /// Find a process with the matching command line and kill it.
-        /// </summary>
-        public static void Kill(string command)
+        foreach (var processCommand in matchingCommands)
         {
-            Guard.AgainstEmpty(command, nameof(command));
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                command = TrimCommand(command);
-            }
-            var matchingCommands = Commands
-                .Where(x => x.Command == command).ToList();
-            Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
-            if (matchingCommands.Count == 0)
-            {
-                var separator = Environment.NewLine + "\t";
-                var joined = string.Join(separator, Commands.Select(x => x.Command));
-                Logging.Write($"No matching commands. All commands: {separator}{joined}.");
-            }
+            TerminateProcessIfExists(processCommand.Process);
+        }
+    }
 
-            foreach (var processCommand in matchingCommands)
-            {
-                TerminateProcessIfExists(processCommand.Process);
-            }
+    static string TrimCommand(string command)
+    {
+        return command.Replace("\"", "");
+    }
+
+    public static bool IsRunning(string command)
+    {
+        return TryGetProcessInfo(command, out _);
+    }
+
+    public static bool TryGetProcessInfo(string command, out ProcessCommand process)
+    {
+        Guard.AgainstEmpty(command, nameof(command));
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            command = TrimCommand(command);
         }
 
-        static string TrimCommand(string command)
-        {
-            return command.Replace("\"", "");
-        }
+        process = commands.SingleOrDefault(x => x.Command == command);
+        return !process.Equals(default(ProcessCommand));
+    }
 
-        public static bool IsRunning(string command)
+    static void TerminateProcessIfExists(in int processId)
+    {
+        if (tryTerminateProcess(processId))
         {
-            return TryGetProcessInfo(command, out _);
+            Logging.Write($"TerminateProcess. Id: {processId}.");
         }
-
-        public static bool TryGetProcessInfo(string command, out ProcessCommand process)
+        else
         {
-            Guard.AgainstEmpty(command, nameof(command));
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                command = TrimCommand(command);
-            }
-
-            process = commands.SingleOrDefault(x => x.Command == command);
-            return !process.Equals(default(ProcessCommand));
+            Logging.Write($"Process not valid. Id: {processId}.");
         }
+    }
 
-        static void TerminateProcessIfExists(in int processId)
-        {
-            if (tryTerminateProcess(processId))
-            {
-                Logging.Write($"TerminateProcess. Id: {processId}.");
-            }
-            else
-            {
-                Logging.Write($"Process not valid. Id: {processId}.");
-            }
-        }
-
-        /// <summary>
-        /// Find all processes with `% %.%.%` in the command line.
-        /// </summary>
-        public static IEnumerable<ProcessCommand> FindAll()
-        {
-            return findAll();
-        }
+    /// <summary>
+    /// Find all processes with `% %.%.%` in the command line.
+    /// </summary>
+    public static IEnumerable<ProcessCommand> FindAll()
+    {
+        return findAll();
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using DiffEngine;
 
 static class WildcardFileFinder

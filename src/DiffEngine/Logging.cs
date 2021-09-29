@@ -1,20 +1,19 @@
-﻿namespace DiffEngine
+﻿namespace DiffEngine;
+
+public static class Logging
 {
-    public static class Logging
+    internal static bool enabled;
+
+    public static void Enable()
     {
-        internal static bool enabled;
+        enabled = true;
+    }
 
-        public static void Enable()
+    internal static void Write(string message)
+    {
+        if (enabled)
         {
-            enabled = true;
-        }
-
-        internal static void Write(string message)
-        {
-            if (enabled)
-            {
-                Trace.WriteLine(message);
-            }
+            Trace.WriteLine(message);
         }
     }
 }

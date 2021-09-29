@@ -1,12 +1,11 @@
-﻿namespace DiffEngine
+﻿namespace DiffEngine;
+
+public enum LaunchResult
 {
-    public enum LaunchResult
-    {
-        NoEmptyFileForExtension,
-        AlreadyRunningAndSupportsRefresh,
-        StartedNewInstance,
-        TooManyRunningDiffTools,
-        NoDiffToolFound,
-        Disabled
-    }
+    NoEmptyFileForExtension,
+    AlreadyRunningAndSupportsRefresh,
+    StartedNewInstance,
+    TooManyRunningDiffTools,
+    NoDiffToolFound,
+    Disabled
 }

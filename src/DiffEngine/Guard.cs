@@ -1,6 +1,4 @@
-﻿using System.Linq;
-
-static class Guard
+﻿static class Guard
 {
     public static void AgainstNegativeAndZero(int value, string argumentName)
     {

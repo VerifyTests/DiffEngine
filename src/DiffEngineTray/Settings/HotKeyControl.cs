@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 
 public partial class HotKeyControl :
     UserControl

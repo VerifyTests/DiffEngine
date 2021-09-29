@@ -1,6 +1,4 @@
-﻿using System.Linq;
-
-static class SolutionDirectoryFinder
+﻿static class SolutionDirectoryFinder
 {
     class Result
     {

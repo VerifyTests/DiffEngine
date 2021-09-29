@@ -1,5 +1,3 @@
-using System.Linq;
-
 static class OptionsFormLauncher
 {
     static OptionsForm? instance;
