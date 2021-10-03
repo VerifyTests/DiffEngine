@@ -111,7 +111,7 @@ public static partial class DiffRunner
         {
             if (tool.AutoRefresh)
             {
-                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, processCommand.Process);
+                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi, processCommand.Process);
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
@@ -120,7 +120,7 @@ public static partial class DiffRunner
 
         if (MaxInstance.Reached())
         {
-            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi!, null);
+            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi, null);
             return LaunchResult.TooManyRunningDiffTools;
         }
 

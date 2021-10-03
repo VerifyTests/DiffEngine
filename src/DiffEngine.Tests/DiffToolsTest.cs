@@ -66,15 +66,15 @@ public class DiffToolsTest :
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
             targetLeftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
-            targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
+            targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"")!;
 
         #endregion
 
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFind("txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool!.TargetLeftArguments("foo", "bar"));
-        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool!.TargetRightArguments("foo", "bar"));
+        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.TargetLeftArguments("foo", "bar"));
+        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.TargetRightArguments("foo", "bar"));
     }
 #endif
     async Task AddToolAndLaunch()
