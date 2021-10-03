@@ -3,6 +3,7 @@
 *.xml     -text 
 *.targets -text
 *.txt -text
+*.json -text
 
 # Custom for Visual Studio
 *.cs     diff=csharp
