@@ -35,7 +35,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
     targetLeftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
-    targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
+    targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"")!;
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
