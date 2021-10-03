@@ -32,38 +32,38 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
-		MacOS|Any CPU = MacOS|Any CPU
 		Release|Any CPU = Release|Any CPU
+		Release-NotWindows|Any CPU = Release-NotWindows|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
-		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.MacOS|Any CPU.Build.0 = MacOS|Any CPU
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
+		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}.Release-NotWindows|Any CPU.Build.0 = Release|Any CPU
 		{F494B6C2-29B4-4D73-8533-AF197D882970}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F494B6C2-29B4-4D73-8533-AF197D882970}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F494B6C2-29B4-4D73-8533-AF197D882970}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
-		{F494B6C2-29B4-4D73-8533-AF197D882970}.MacOS|Any CPU.Build.0 = MacOS|Any CPU
 		{F494B6C2-29B4-4D73-8533-AF197D882970}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F494B6C2-29B4-4D73-8533-AF197D882970}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F494B6C2-29B4-4D73-8533-AF197D882970}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
+		{F494B6C2-29B4-4D73-8533-AF197D882970}.Release-NotWindows|Any CPU.Build.0 = Release|Any CPU
 		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
 		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3C93E88-603E-4AA3-8AAF-0B5F7497012C}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
 		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A7B838DE-86BF-4C57-8563-7295D583C93A}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
-		{A7B838DE-86BF-4C57-8563-7295D583C93A}.MacOS|Any CPU.Build.0 = MacOS|Any CPU
 		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
+		{A7B838DE-86BF-4C57-8563-7295D583C93A}.Release-NotWindows|Any CPU.Build.0 = Release|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.MacOS|Any CPU.ActiveCfg = MacOS|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
