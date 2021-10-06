@@ -63,12 +63,20 @@ class Tracker :
         {
             return;
         }
-
-        if (await FileComparer.FilesAreEqual(move.Temp, move.Target))
+        
+        try
         {
-            RemoveAndKill(pair);
+            if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
+            {
+                return;
+            }
+        }
+        catch (FileNotFoundException)
+        {
             return;
         }
+
+        RemoveAndKill(pair);
     }
 
     void ToggleActive()
