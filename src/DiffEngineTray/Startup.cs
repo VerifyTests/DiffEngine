@@ -13,7 +13,7 @@ public class Startup
     public static void Remove()
     {
         using var key = GetRunKey();
-        key.DeleteValue("DiffEngineTray");
+        key.DeleteValue("DiffEngineTray", false);
     }
 
     public static bool Exists()
