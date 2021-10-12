@@ -133,6 +133,6 @@ Set an environment variable `DiffEngine_Disabled` with the value `true`.
 
 ## Icons
 
-From [The Noun Project](https://thenounproject.com).
+[Game](https://thenounproject.com/term/game/2956486/) designed by [Andrejs Kirma](https://thenounproject.com/andrejs/) from [The Noun Project](https://thenounproject.com).
 
 Tray icons from [LineIcons](https://lineicons.com/icons/).
