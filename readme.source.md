@@ -77,6 +77,6 @@ Set an environment variable `DiffEngine_Disabled` with the value `true`.
 
 ## Icons
 
-[Gears](https://thenounproject.com/term/gear/172042/) designed by [Gregor Cresnar](https://thenounproject.com/grega.cresnar/) from [The Noun Project](https://thenounproject.com).
+[Pattern](https://thenounproject.com/term/pattern/42427/) designed by [Gira Park](https://thenounproject.com/gila.bag/) from [The Noun Project](https://thenounproject.com).
 
 Tray icons from [LineIcons](https://lineicons.com/icons/).
