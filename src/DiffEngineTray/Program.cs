@@ -67,6 +67,18 @@ static class Program
 
     static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
     {
+        var discardAllHotKey = settings.DiscardAllHotKey;
+        if (discardAllHotKey != null)
+        {
+            keyRegister.TryAddBinding(
+                KeyBindingIds.DiscardAll,
+                discardAllHotKey.Shift,
+                discardAllHotKey.Control,
+                discardAllHotKey.Alt,
+                discardAllHotKey.Key,
+                tracker.Clear);
+        }
+
         var acceptAllHotKey = settings.AcceptAllHotKey;
         if (acceptAllHotKey != null)
         {

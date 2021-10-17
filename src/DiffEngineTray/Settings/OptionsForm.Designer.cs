@@ -8,6 +8,7 @@
         {
             components.Dispose();
         }
+
         base.Dispose(disposing);
     }
 
@@ -17,6 +18,7 @@
             this.cancel = new System.Windows.Forms.Button();
             this.save = new System.Windows.Forms.Button();
             this.acceptAllHotKey = new HotKeyControl();
+            this.discardAllHotKey = new HotKeyControl();
             this.startupCheckBox = new System.Windows.Forms.CheckBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.versionLabel = new System.Windows.Forms.Label();
@@ -43,17 +45,17 @@
             this.bottomPanel.Controls.Add(this.save);
             this.bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.bottomPanel.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.bottomPanel.Location = new System.Drawing.Point(5, 508);
+            this.bottomPanel.Location = new System.Drawing.Point(5, 639);
             this.bottomPanel.Margin = new System.Windows.Forms.Padding(2);
             this.bottomPanel.Name = "bottomPanel";
-            this.bottomPanel.Size = new System.Drawing.Size(507, 29);
+            this.bottomPanel.Size = new System.Drawing.Size(520, 29);
             this.bottomPanel.TabIndex = 1;
             // 
             // cancel
             // 
             this.cancel.AutoSize = true;
             this.cancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancel.Location = new System.Drawing.Point(425, 2);
+            this.cancel.Location = new System.Drawing.Point(438, 2);
             this.cancel.Margin = new System.Windows.Forms.Padding(2);
             this.cancel.Name = "cancel";
             this.cancel.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
@@ -65,7 +67,7 @@
             // save
             // 
             this.save.AutoSize = true;
-            this.save.Location = new System.Drawing.Point(341, 2);
+            this.save.Location = new System.Drawing.Point(354, 2);
             this.save.Margin = new System.Windows.Forms.Padding(2);
             this.save.Name = "save";
             this.save.Size = new System.Drawing.Size(80, 25);
@@ -81,13 +83,28 @@
             this.acceptAllHotKey.Help = "Accept pending deletes and pending moves";
             this.acceptAllHotKey.HotKey = null;
             this.acceptAllHotKey.Label = "Accept all HotKey";
-            this.acceptAllHotKey.Location = new System.Drawing.Point(5, 140);
+            this.acceptAllHotKey.Location = new System.Drawing.Point(5, 254);
             this.acceptAllHotKey.Margin = new System.Windows.Forms.Padding(2);
             this.acceptAllHotKey.Name = "acceptAllHotKey";
             this.acceptAllHotKey.Padding = new System.Windows.Forms.Padding(3);
-            this.acceptAllHotKey.Size = new System.Drawing.Size(507, 114);
+            this.acceptAllHotKey.Size = new System.Drawing.Size(520, 114);
             this.acceptAllHotKey.TabIndex = 2;
             this.acceptAllHotKey.TabStop = false;
+            // 
+            // discardAllHotKey
+            // 
+            this.discardAllHotKey.AutoSize = true;
+            this.discardAllHotKey.Dock = System.Windows.Forms.DockStyle.Top;
+            this.discardAllHotKey.Help = "Discard all deletes and pending moves";
+            this.discardAllHotKey.HotKey = null;
+            this.discardAllHotKey.Label = "Discard all HotKey";
+            this.discardAllHotKey.Location = new System.Drawing.Point(5, 140);
+            this.discardAllHotKey.Margin = new System.Windows.Forms.Padding(2);
+            this.discardAllHotKey.Name = "discardAllHotKey";
+            this.discardAllHotKey.Padding = new System.Windows.Forms.Padding(3);
+            this.discardAllHotKey.Size = new System.Drawing.Size(520, 114);
+            this.discardAllHotKey.TabIndex = 2;
+            this.discardAllHotKey.TabStop = false;
             // 
             // startupCheckBox
             // 
@@ -97,7 +114,7 @@
             this.startupCheckBox.Margin = new System.Windows.Forms.Padding(2);
             this.startupCheckBox.Name = "startupCheckBox";
             this.startupCheckBox.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            this.startupCheckBox.Size = new System.Drawing.Size(507, 27);
+            this.startupCheckBox.Size = new System.Drawing.Size(520, 27);
             this.startupCheckBox.TabIndex = 3;
             this.startupCheckBox.Text = "Run at startup";
             this.startupCheckBox.UseVisualStyleBackColor = true;
@@ -109,10 +126,10 @@
             this.groupBox1.Controls.Add(this.trayDocsLink);
             this.groupBox1.Controls.Add(this.diffEngineLink);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox1.Location = new System.Drawing.Point(5, 398);
+            this.groupBox1.Location = new System.Drawing.Point(5, 497);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(6, 5, 6, 5);
-            this.groupBox1.Size = new System.Drawing.Size(507, 89);
+            this.groupBox1.Size = new System.Drawing.Size(520, 89);
             this.groupBox1.TabIndex = 5;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "More information:";
@@ -162,11 +179,11 @@
     "s that are not MDI, eg it does not work for Visual Studio or Rider.";
             this.acceptOpenHotKey.HotKey = null;
             this.acceptOpenHotKey.Label = "Accept all open HotKey";
-            this.acceptOpenHotKey.Location = new System.Drawing.Point(5, 254);
+            this.acceptOpenHotKey.Location = new System.Drawing.Point(5, 368);
             this.acceptOpenHotKey.Margin = new System.Windows.Forms.Padding(2);
             this.acceptOpenHotKey.Name = "acceptOpenHotKey";
             this.acceptOpenHotKey.Padding = new System.Windows.Forms.Padding(3);
-            this.acceptOpenHotKey.Size = new System.Drawing.Size(507, 144);
+            this.acceptOpenHotKey.Size = new System.Drawing.Size(520, 129);
             this.acceptOpenHotKey.TabIndex = 6;
             this.acceptOpenHotKey.TabStop = false;
             // 
@@ -175,11 +192,11 @@
             this.flowLayoutPanel1.AutoSize = true;
             this.flowLayoutPanel1.Controls.Add(this.updateButton);
             this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.flowLayoutPanel1.Location = new System.Drawing.Point(5, 487);
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(5, 586);
             this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(2);
             this.flowLayoutPanel1.Name = "flowLayoutPanel1";
             this.flowLayoutPanel1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.flowLayoutPanel1.Size = new System.Drawing.Size(507, 33);
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(520, 33);
             this.flowLayoutPanel1.TabIndex = 7;
             // 
             // updateButton
@@ -202,7 +219,7 @@
             this.targetOnLeftCheckBox.Margin = new System.Windows.Forms.Padding(2);
             this.targetOnLeftCheckBox.Name = "targetOnLeftCheckBox";
             this.targetOnLeftCheckBox.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
-            this.targetOnLeftCheckBox.Size = new System.Drawing.Size(507, 27);
+            this.targetOnLeftCheckBox.Size = new System.Drawing.Size(520, 27);
             this.targetOnLeftCheckBox.TabIndex = 8;
             this.targetOnLeftCheckBox.Text = "Open target on left. The default is temp on left and target on right";
             this.targetOnLeftCheckBox.UseVisualStyleBackColor = true;
@@ -215,7 +232,7 @@
             this.maxInstancesGroupBox.Location = new System.Drawing.Point(5, 58);
             this.maxInstancesGroupBox.Name = "maxInstancesGroupBox";
             this.maxInstancesGroupBox.Padding = new System.Windows.Forms.Padding(5);
-            this.maxInstancesGroupBox.Size = new System.Drawing.Size(507, 82);
+            this.maxInstancesGroupBox.Size = new System.Drawing.Size(520, 82);
             this.maxInstancesGroupBox.TabIndex = 9;
             this.maxInstancesGroupBox.TabStop = false;
             this.maxInstancesGroupBox.Text = "Max instances to launch";
@@ -258,12 +275,13 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.cancel;
-            this.ClientSize = new System.Drawing.Size(530, 541);
+            this.ClientSize = new System.Drawing.Size(530, 672);
             this.Controls.Add(this.flowLayoutPanel1);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.bottomPanel);
             this.Controls.Add(this.acceptOpenHotKey);
             this.Controls.Add(this.acceptAllHotKey);
+            this.Controls.Add(this.discardAllHotKey);
             this.Controls.Add(this.maxInstancesGroupBox);
             this.Controls.Add(this.targetOnLeftCheckBox);
             this.Controls.Add(this.startupCheckBox);
@@ -289,10 +307,12 @@
             this.PerformLayout();
 
     }
+
     private System.Windows.Forms.FlowLayoutPanel bottomPanel;
     private System.Windows.Forms.Button cancel;
     private System.Windows.Forms.Button save;
-    private HotKeyControl acceptAllHotKey;
+    private HotKeyControl acceptAllHotKey; 
+    private HotKeyControl discardAllHotKey;
     private System.Windows.Forms.CheckBox startupCheckBox;
     private System.Windows.Forms.GroupBox groupBox1;
     private System.Windows.Forms.LinkLabel diffEngineLink;
