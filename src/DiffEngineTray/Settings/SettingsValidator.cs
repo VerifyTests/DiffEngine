@@ -5,6 +5,7 @@ public static class SettingsValidator
         errors = new();
 
         ValidateHotKey(errors, settings.AcceptAllHotKey);
+        ValidateHotKey(errors, settings.DiscardAllHotKey);
         ValidateHotKey(errors, settings.AcceptOpenHotKey);
 
         return !errors.Any();

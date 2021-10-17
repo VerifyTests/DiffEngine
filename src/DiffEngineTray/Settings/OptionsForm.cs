@@ -18,6 +18,7 @@ public partial class OptionsForm :
         this.trySave = trySave;
         acceptAllHotKey.HotKey = settings.AcceptAllHotKey;
         acceptOpenHotKey.HotKey = settings.AcceptOpenHotKey;
+        discardAllHotKey.HotKey = settings.DiscardAllHotKey;
         startupCheckBox.Checked = settings.RunAtStartup;
         targetOnLeftCheckBox.Checked = settings.TargetOnLeft;
         maxInstancesNumericUpDown.Value = settings.MaxInstancesToLaunch;
@@ -30,6 +31,7 @@ public partial class OptionsForm :
             TargetOnLeft = targetOnLeftCheckBox.Checked,
             RunAtStartup = startupCheckBox.Checked,
             AcceptAllHotKey = acceptAllHotKey.HotKey,
+            DiscardAllHotKey = discardAllHotKey.HotKey,
             AcceptOpenHotKey = acceptOpenHotKey.HotKey,
             MaxInstancesToLaunch = (int)maxInstancesNumericUpDown.Value
         };

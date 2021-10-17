@@ -74,6 +74,14 @@ By default, when a diff is opened, the temp file will be on the left and the tar
 Control the [max instances to launch setting](docs/diff-tool.md#maxinstancestolaunch).
 
 
+#### Discard all HotKey
+
+Registers a system wide HotKey to dicard pending:
+
+ * Deletes
+ * Moves
+
+
 #### Accept all HotKey
 
 Registers a system wide HotKey to accept pending:

@@ -33,6 +33,7 @@ static class OptionsFormLauncher
         var saveErrors = new List<string>();
 
         AddHotKey(keyRegister, settings.AcceptAllHotKey, KeyBindingIds.AcceptAll, tracker.AcceptAll, saveErrors);
+        AddHotKey(keyRegister, settings.DiscardAllHotKey, KeyBindingIds.DiscardAll, tracker.Clear, saveErrors);
         AddHotKey(keyRegister, settings.AcceptOpenHotKey, KeyBindingIds.AcceptOpen, tracker.AcceptOpen, saveErrors);
 
         if (saveErrors.Any())
