@@ -21,7 +21,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [Verify](https://github.com/VerifyTests/Verify)
 
 <a href='https://dotnetfoundation.org' alt='Part of the .NET Foundation'><img src='https://raw.githubusercontent.com/VerifyTests/Verify/master/docs/dotNetFoundation.svg' height='30px'></a><br>
-Part of the <a href='https://dotnetfoundation.org' alt=''>.NET Foundation</a>
+Part of the [.NET Foundation](https://dotnetfoundation.org)
 
 <!-- toc -->
 ## Contents
