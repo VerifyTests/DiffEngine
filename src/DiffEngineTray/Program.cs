@@ -28,10 +28,9 @@ static class Program
         {
             Icon = Images.Default,
             Visible = true,
-            Text = "DiffEngine"
+            Text = "DiffEngineTray"
         };
-
-
+        
         await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default);
