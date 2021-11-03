@@ -323,6 +323,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
    * `%JetBrains Rider%\rider64.exe`
    * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
+   * `%UserProfile%\scoop\apps\rider\current\IDE\bin\rider64.exe`
 
 #### OSX settings:
 
@@ -645,6 +646,8 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
    * `%ProgramFiles%\Microsoft VS Code\code.exe`
    * `%ProgramW6432%\Microsoft VS Code\code.exe`
    * `%ProgramFiles(x86)%\Microsoft VS Code\code.exe`
+   * `%UserProfile%\scoop\apps\vscode\current\bin\code.cmd`
+   * `%UserProfile%\scoop\apps\vscode\current\code.exe`
 
 #### OSX settings:
 
