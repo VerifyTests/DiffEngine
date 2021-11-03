@@ -25,7 +25,8 @@ static partial class Implementation
                 @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
                 @"%JetBrains Rider%\rider64.exe",
-                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe"),
+                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe",
+                @"%UserProfile%\scoop\apps\rider\current\IDE\bin\rider64.exe"),
             osx: new(
                 TargetLeftArguments,
                 TargetRightArguments,
