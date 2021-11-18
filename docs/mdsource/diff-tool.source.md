@@ -37,7 +37,7 @@ include: diffToolCleanup
 
 ## MaxInstancesToLaunch
 
-By default a maximum of 5 tool instances will be launched. This prevents a change that break many test from causing too much load on a machine.
+By default a maximum of 5 tool instances will be launched. This prevents a change that breaks many test from causing too much load on a machine.
 
 This value can be changed:
 
