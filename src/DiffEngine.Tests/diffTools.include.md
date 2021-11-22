@@ -616,7 +616,15 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
    * `%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
    * `%ProgramW6432%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
-   * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Preview\Common7\IDE\devenv.exe`
+   * `%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
+   * `%ProgramW6432%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
+   * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
+   * `%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
+   * `%ProgramW6432%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
+   * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
+   * `%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
+   * `%ProgramW6432%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
+   * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe`
    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe`

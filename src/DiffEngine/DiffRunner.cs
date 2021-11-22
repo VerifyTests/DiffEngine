@@ -20,7 +20,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            (out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
             tempFile,
             targetFile);
     }
@@ -30,7 +30,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            (out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
             tempFile,
             targetFile);
     }
@@ -43,7 +43,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            (out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
                 var extension = Extensions.GetExtension(tempFile);
                 return DiffTools.TryFind(extension, out tool);
@@ -60,7 +60,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            (out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
                 var extension = Extensions.GetExtension(tempFile);
                 return DiffTools.TryFind(extension, out tool);
@@ -74,7 +74,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            (out ResolvedTool? resolvedTool) =>
+            ([NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
             {
                 resolvedTool = tool;
                 return true;
@@ -88,7 +88,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            (out ResolvedTool? resolvedTool) =>
+            ([NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
             {
                 resolvedTool = tool;
                 return true;
