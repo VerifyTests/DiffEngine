@@ -1,5 +1,4 @@
-﻿#if NET6_0
-using DiffEngine;
+﻿using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -147,4 +146,3 @@ public class DiffToolsTest :
         DiffTools.Reset();
     }
 }
-#endif
