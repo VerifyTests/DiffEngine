@@ -583,6 +583,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    * `%ProgramFiles%\WinMerge\WinMergeU.exe`
    * `%ProgramW6432%\WinMerge\WinMergeU.exe`
    * `%ProgramFiles(x86)%\WinMerge\WinMergeU.exe`
+   * `%LocalAppData%\Programs\WinMerge\WinMergeU.exe`
 
 
 ## MDI tools
