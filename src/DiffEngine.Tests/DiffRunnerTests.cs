@@ -1,4 +1,5 @@
-﻿using DiffEngine;
+﻿#if NET6_0
+using DiffEngine;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -200,3 +201,4 @@ public class DiffRunnerTests :
             binaryExtensions: new[] {"knownBin"})!;
     }
 }
+#endif

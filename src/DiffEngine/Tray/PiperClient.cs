@@ -136,13 +136,8 @@ Exception:
         try
         {
             await client.ConnectAsync(endpoint.Address, endpoint.Port);
-#if NETCOREAPP || netstandard21
-            await using var stream = client.GetStream();
-            await using var writer = new StreamWriter(stream);
-#else
             using var stream = client.GetStream();
             using var writer = new StreamWriter(stream);
-#endif
             await writer.WriteAsync(payload);
         }
         finally

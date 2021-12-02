@@ -30,7 +30,8 @@ static partial class Implementation
             windows: new(
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\WinMerge\WinMergeU.exe"),
+                @"%ProgramFiles%\WinMerge\WinMergeU.exe",
+                @"%LocalAppData%\Programs\WinMerge\WinMergeU.exe"),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
