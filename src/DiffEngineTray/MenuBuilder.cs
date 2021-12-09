@@ -1,5 +1,3 @@
-using System.Windows.Forms;
-
 static class MenuBuilder
 {
     public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)

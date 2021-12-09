@@ -1,4 +1,3 @@
-using System.Windows.Forms;
 using Serilog;
 
 static class Program

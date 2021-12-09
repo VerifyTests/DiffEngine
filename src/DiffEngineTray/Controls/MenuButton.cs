@@ -1,6 +1,3 @@
-using System.Drawing;
-using System.Windows.Forms;
-
 class MenuButton :
     ToolStripMenuItem
 {

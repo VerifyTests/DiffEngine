@@ -1,6 +1,4 @@
-﻿using Xunit;
-
-public class ProcessExTest
+﻿public class ProcessExTest
 {
     [Fact]
     public void AddSingle()

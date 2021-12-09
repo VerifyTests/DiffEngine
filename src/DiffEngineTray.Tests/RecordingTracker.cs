@@ -1,6 +1,4 @@
-﻿using Xunit;
-
-class RecordingTracker :
+﻿class RecordingTracker :
     Tracker
 {
     public RecordingTracker() :

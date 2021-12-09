@@ -1,4 +1,3 @@
-using System.Drawing;
 using Resourcer;
 
 public static class Images

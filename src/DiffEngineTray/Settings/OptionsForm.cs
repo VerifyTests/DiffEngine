@@ -1,6 +1,4 @@
-﻿using System.Windows.Forms;
-
-public partial class OptionsForm :
+﻿public partial class OptionsForm :
     Form
 {
     Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;

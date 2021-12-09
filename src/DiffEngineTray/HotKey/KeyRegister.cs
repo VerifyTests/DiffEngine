@@ -1,5 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
 //https://stackoverflow.com/a/35591706/53158
 public class KeyRegister :

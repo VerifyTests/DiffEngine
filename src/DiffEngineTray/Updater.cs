@@ -1,5 +1,3 @@
-using System.Windows.Forms;
-
 static class Updater
 {
     public static void Run()

@@ -1,6 +1,4 @@
-﻿using Xunit;
-
-public class VersionReaderTest
+﻿public class VersionReaderTest
 {
     [Fact]
     public void AddSingle()

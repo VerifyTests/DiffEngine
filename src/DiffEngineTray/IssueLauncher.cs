@@ -1,5 +1,4 @@
 using System.Net;
-using System.Windows.Forms;
 
 static class IssueLauncher
 {

@@ -1,6 +1,4 @@
-﻿using System.Windows.Forms;
-
-public partial class HotKeyControl :
+﻿public partial class HotKeyControl :
     UserControl
 {
     public HotKeyControl()

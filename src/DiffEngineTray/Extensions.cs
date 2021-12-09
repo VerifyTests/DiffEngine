@@ -1,5 +1,3 @@
-using System.Windows.Forms;
-
 static class Extensions
 {
     public static IntPtr Handle(this NotifyIcon target)

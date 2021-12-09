@@ -1,6 +1,4 @@
-﻿using Xunit;
-
-public class AsyncTimerTests
+﻿public class AsyncTimerTests
 {
     [Fact]
     public async Task It_calls_error_callback()

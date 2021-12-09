@@ -1,6 +1,4 @@
 ﻿#if DEBUG
-using VerifyXunit;
-using Xunit;
 using Xunit.Abstractions;
 
 [UsesVerify]
