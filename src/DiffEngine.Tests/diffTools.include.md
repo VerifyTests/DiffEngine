@@ -454,6 +454,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
+  * Supported binaries: bmp, cut, dds, exr, g3, gif, hdr, ico, iff, lbm, j2k, j2c, jng, jp2, jpg, jif, jpeg, jpe, jxr, wdp, hdp, koa, mng, pcd, pcx, pfm, pct, pict, pic, png, pbm, pgm, ppm, psd, ras, sgi, rgb, rgba, bw, tga, targa, tif, tiff, wap, wbmp, wbm, webp, xbm, xpm
 
 #### Notes:
 
@@ -540,7 +541,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
-  * Supported binaries: bmp, cut, dds, exr, g3, gif, hdr, ico, iff, lbm, j2k, j2c, jng, jp2, jpg, jif, jpeg, jpe, jxr, wdp, hdp, koa, mng, pcd, pcx, pfm, pct, pict, pic, png, pbm, pgm, ppm, psd, ras, sgi, rgb, rgba, bw, tga, targa, tif, tiff, wap, wbmp, wbm, webp, xbm, xpm
 
 #### Notes:
 While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)
