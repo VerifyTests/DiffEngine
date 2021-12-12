@@ -1,4 +1,5 @@
-﻿using DiffEngine;
+﻿using System.Diagnostics.CodeAnalysis;
+using DiffEngine;
 
 static class LinuxOsxProcess
 {
@@ -28,7 +29,11 @@ static class LinuxOsxProcess
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
-        var processList = RunPs();
+        if (!TryRunPs(out var processList))
+        {
+            yield break;
+        }
+
         using var reader = new StringReader(processList);
         string? line;
         reader.ReadLine();
@@ -81,7 +86,7 @@ static class LinuxOsxProcess
         }
     }
 
-    static string RunPs()
+    static bool TryRunPs([NotNullWhen(true)] out string? result)
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
@@ -105,21 +110,21 @@ static class LinuxOsxProcess
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
-            var timeoutError = $@"Process timed out. Command line: ps {arguments}.
-Output: {outputBuilder}
-Error: {errorBuilder}";
-            throw new(timeoutError);
+            Trace.WriteLine($@"DiffEngine: Process timed out. Command line: ps {arguments}");
+            result = null;
+            return false;
         }
 
-        if (process.ExitCode == 0)
+        if (process.ExitCode != 0)
         {
-            return outputBuilder.ToString();
-        }
-
-        var error = $@"Could not execute process. Command line: ps {arguments}.
+            var error = $@"Could not execute process. Command line: ps {arguments}.
 Output: {outputBuilder}
 Error: {errorBuilder}";
-        throw new(error);
+            throw new(error);
+        }
+
+        result = outputBuilder.ToString();
+        return true;
     }
 
     //To work around https://github.com/dotnet/runtime/issues/27128
