@@ -125,7 +125,7 @@ Error: {errorBuilder}";
     //To work around https://github.com/dotnet/runtime/issues/27128
     static bool DoubleWaitForExit(this Process process)
     {
-        var result = process.WaitForExit(500);
+        var result = process.WaitForExit(1000);
         if (result)
         {
             process.WaitForExit();
