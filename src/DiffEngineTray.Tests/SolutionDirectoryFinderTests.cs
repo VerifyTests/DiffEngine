@@ -13,7 +13,7 @@ public class SolutionDirectoryFinderTests :
     [Fact]
     public Task Find()
     {
-        return Verifier.Verify(SolutionDirectoryFinder.Find(SourceFile));
+        return Verify(SolutionDirectoryFinder.Find(SourceFile));
     }
 }
 #endif

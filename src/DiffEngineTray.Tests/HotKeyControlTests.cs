@@ -21,14 +21,14 @@ public class HotKeyControlTests :
                 Key = "A"
             }
         };
-        await Verifier.Verify(target);
+        await Verify(target);
     }
 
     [Fact]
     public async Task Default()
     {
         using var target = new HotKeyControl();
-        await Verifier.Verify(target);
+        await Verify(target);
     }
 }
 #endif

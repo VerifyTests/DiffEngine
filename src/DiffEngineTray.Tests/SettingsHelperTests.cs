@@ -21,7 +21,7 @@ public class SettingsHelperTests :
                     }
                 });
             var result = await SettingsHelper.Read();
-            await Verifier.Verify(result);
+            await Verify(result);
         }
         finally
         {

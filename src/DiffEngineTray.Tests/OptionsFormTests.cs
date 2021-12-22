@@ -41,7 +41,7 @@ public class OptionsFormTests :
                 }
             },
             _ => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
-        await Verifier.Verify(form);
+        await Verify(form);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class OptionsFormTests :
         using var form = new OptionsForm(
             new(),
             _ => Task.FromResult<IReadOnlyList<string>>(new List<string>()));
-        await Verifier.Verify(form);
+        await Verify(form);
     }
 }
 #endif

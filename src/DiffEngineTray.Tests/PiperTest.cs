@@ -7,7 +7,7 @@ public class PiperTest :
     [Fact]
     public Task MoveJson()
     {
-        return Verifier.Verify(
+        return Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",
@@ -20,7 +20,7 @@ public class PiperTest :
     [Fact]
     public Task DeleteJson()
     {
-        return Verifier.Verify(
+        return Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",
@@ -40,7 +40,7 @@ public class PiperTest :
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        await Verifier.Verify(received);
+        await Verify(received);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class PiperTest :
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        await Verifier.Verify(received)
+        await Verify(received)
             .ModifySerialization(x => x.DontScrubNumericIds());
     }
 
@@ -76,7 +76,7 @@ public class PiperTest :
         settings.ScrubLinesContaining("temp.txt");
         //TODO: add "scrub source dir" to verify and remove the below
         settings.ScrubLinesContaining("PiperClient");
-        await Verifier.Verify(Logs, settings);
+        await Verify(Logs, settings);
     }
 
     public PiperTest(ITestOutputHelper output) :
