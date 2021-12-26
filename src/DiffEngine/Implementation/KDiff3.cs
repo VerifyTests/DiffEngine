@@ -21,9 +21,9 @@ static partial class Implementation
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 TargetLeftArguments,
-                TargetRightArguments, @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+                TargetRightArguments, @"%ProgramFiles%\KDiff3\kdiff3.exe", @"%ProgramFiles%\KDiff3\bin\kdiff3.exe"),
             osx: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
             notes: @"
