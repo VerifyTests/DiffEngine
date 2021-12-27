@@ -20,7 +20,7 @@ static partial class Implementation
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
             linux: new(
@@ -28,7 +28,7 @@ static partial class Implementation
                 TargetRightArguments,
                 "/usr/bin/diffmerge"),
             osx: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"));
     }

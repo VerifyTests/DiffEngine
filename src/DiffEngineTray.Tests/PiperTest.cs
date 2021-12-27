@@ -1,6 +1,4 @@
-﻿using Xunit.Abstractions;
-
-[UsesVerify]
+﻿[UsesVerify]
 public class PiperTest :
     XunitContextBase
 {

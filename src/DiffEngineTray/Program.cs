@@ -29,7 +29,7 @@ static class Program
             Visible = true,
             Text = "DiffEngineTray"
         };
-        
+
         await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default);

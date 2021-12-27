@@ -3,8 +3,7 @@ static class JsonEscaping
     static bool NeedEscape(string src, int i)
     {
         var c = src[i];
-        return c < 32 || c == '"' || c == '\\'
-
+        return c < 32 || c is '"' or '\\'
                ||
                // Broken lead surrogate
                c >= '\uD800' &&
@@ -12,13 +11,10 @@ static class JsonEscaping
                (i == src.Length - 1 || src[i + 1] < '\uDC00' || src[i + 1] > '\uDFFF')
                ||
                // Broken tail surrogate
-               c >= '\uDC00' &&
-               c <= '\uDFFF' &&
-               (i == 0 || src[i - 1] < '\uD800' || src[i - 1] > '\uDBFF')
+               c is >= '\uDC00' and <= '\uDFFF' && (i == 0 || src[i - 1] < '\uD800' || src[i - 1] > '\uDBFF')
                ||
                // To produce valid JavaScript
-               c == '\u2028' ||
-               c == '\u2029'
+               c is '\u2028' or '\u2029'
                ||
                // Escape "</" for <script> tags
                c == '/' && i > 0 &&

@@ -20,7 +20,7 @@ static partial class Implementation
             cost: "Paid with free option for OSS",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",

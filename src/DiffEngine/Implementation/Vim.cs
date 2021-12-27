@@ -19,12 +19,12 @@ static partial class Implementation
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments, 
-                TargetRightArguments, 
+                TargetLeftArguments,
+                TargetRightArguments,
                 @"%ProgramFiles%\Vim\*\vim.exe"),
             osx: new(
-                TargetLeftArguments, 
-                TargetRightArguments, 
+                TargetLeftArguments,
+                TargetRightArguments,
                 "/Applications/MacVim.app/Contents/bin/mvim"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)

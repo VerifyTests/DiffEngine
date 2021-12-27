@@ -4,10 +4,10 @@ static partial class Implementation
 {
     public static Definition Diffinity()
     {
-        static string TargetLeftArguments(string temp, string target) 
+        static string TargetLeftArguments(string temp, string target)
             => $"\"{target}\" \"{temp}\"";
 
-        static string TargetRightArguments(string temp, string target) 
+        static string TargetRightArguments(string temp, string target)
         => $"\"{temp}\" \"{target}\"";
 
         return new(
@@ -20,7 +20,7 @@ static partial class Implementation
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 @"%ProgramFiles%\Diffinity\Diffinity.exe",
                 @"%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe"),

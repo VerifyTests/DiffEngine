@@ -55,11 +55,11 @@ static partial class Implementation
                 "htm"
             },
             osx: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
             windows: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
             notes: @"

@@ -50,8 +50,8 @@ static partial class Implementation
                 "rtf"
             },
             windows: new(
-                TargetLeftWindowsArguments, 
-                TargetRightWindowsArguments, 
+                TargetLeftWindowsArguments,
+                TargetRightWindowsArguments,
                 @"%ProgramFiles%\Beyond Compare *\BCompare.exe", @"%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe"),
             linux: new(
                 TargetLeftOsxLinuxArguments,

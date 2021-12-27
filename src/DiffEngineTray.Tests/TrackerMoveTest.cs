@@ -1,6 +1,4 @@
-﻿using Xunit.Abstractions;
-
-public class TrackerMoveTest :
+﻿public class TrackerMoveTest :
     XunitContextBase
 {
     [Fact]

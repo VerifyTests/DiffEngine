@@ -1,6 +1,4 @@
 ﻿#if DEBUG
-using Xunit.Abstractions;
-
 [UsesVerify]
 public class HotKeyControlTests :
     XunitContextBase

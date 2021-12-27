@@ -4,10 +4,10 @@ static partial class Implementation
 {
     public static Definition Neovim()
     {
-        static string TargetLeftArguments(string temp, string target) => 
+        static string TargetLeftArguments(string temp, string target) =>
             $"-d \"{target}\" \"{temp}\"";
 
-        static string TargetRightArguments(string temp, string target) => 
+        static string TargetRightArguments(string temp, string target) =>
             $"-d \"{temp}\" \"{target}\"";
 
         return new(

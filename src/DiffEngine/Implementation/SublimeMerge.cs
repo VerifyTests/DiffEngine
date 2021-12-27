@@ -25,10 +25,10 @@ static partial class Implementation
                 @"%ProgramFiles%\Sublime Merge\smerge.exe"),
             linux: new(
                 TargetLeftArguments,
-                TargetRightArguments, 
+                TargetRightArguments,
                 "/usr/bin/smerge"),
             osx: new(
-                TargetLeftArguments, 
+                TargetLeftArguments,
                 TargetRightArguments,
                 "/Applications/smerge.app/Contents/MacOS/smerge"),
             notes: "While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)");

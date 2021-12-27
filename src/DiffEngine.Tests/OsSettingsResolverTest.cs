@@ -1,7 +1,4 @@
-﻿using Xunit;
-using Xunit.Abstractions;
-
-public class OsSettingsResolverTest :
+﻿public class OsSettingsResolverTest :
     XunitContextBase
 {
     [Fact]

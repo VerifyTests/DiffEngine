@@ -1,6 +1,4 @@
-﻿using Xunit.Abstractions;
-
-public class TrackerDeleteTest :
+﻿public class TrackerDeleteTest :
     XunitContextBase
 {
     [Fact]

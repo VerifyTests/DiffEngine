@@ -1,7 +1,4 @@
-﻿using Xunit;
-using Xunit.Abstractions;
-
-public class WildcardFileFinderTests :
+﻿public class WildcardFileFinderTests :
     XunitContextBase
 {
     [Fact]

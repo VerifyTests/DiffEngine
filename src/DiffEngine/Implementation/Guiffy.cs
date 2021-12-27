@@ -23,12 +23,12 @@ static partial class Implementation
                 "bmp", "gif", "jpeg", "jpg", "png", "wbmp"
             },
             windows: new(
-                TargetLeftArguments, 
-                TargetRightArguments, 
+                TargetLeftArguments,
+                TargetRightArguments,
                 @"%ProgramFiles%\Guiffy\guiffy.exe"),
             osx: new(
-                TargetLeftArguments, 
-                TargetRightArguments, 
+                TargetLeftArguments,
+                TargetRightArguments,
                 "/Applications/Guiffy/guiffyCL.command"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)

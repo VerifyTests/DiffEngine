@@ -63,7 +63,7 @@ class Tracker :
         {
             return;
         }
-        
+
         try
         {
             if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
