@@ -324,6 +324,9 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    * `%ProgramFiles%\KDiff3\kdiff3.exe`
    * `%ProgramW6432%\KDiff3\kdiff3.exe`
    * `%ProgramFiles(x86)%\KDiff3\kdiff3.exe`
+   * `%ProgramFiles%\KDiff3\bin\kdiff3.exe`
+   * `%ProgramW6432%\KDiff3\bin\kdiff3.exe`
+   * `%ProgramFiles(x86)%\KDiff3\bin\kdiff3.exe`
 
 #### OSX settings:
 
