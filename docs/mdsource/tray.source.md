@@ -1,6 +1,6 @@
 # DiffEngineTray
 
-DiffEngineTray sits in the Windows tray. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as a alternative to using the clipboard as an approval mechanism.
+DiffEngineTray sits in the Windows tray. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
 
 
 ## NuGet package
@@ -25,7 +25,7 @@ Run `diffenginetray` in a console to start the app.
 
 ### Grouping
 
-Moves and deletes will be grouped by the containing solution. In the above, the files exist in DiffEngine, so the they are grouped under it.
+Moves and deletes will be grouped by the containing solution. In the above, the files exist in DiffEngine, so they are grouped under it.
 
 
 ### Moves
@@ -76,7 +76,7 @@ Control the [max instances to launch setting](docs/diff-tool.md#maxinstancestola
 
 #### Discard all HotKey
 
-Registers a system wide HotKey to dicard pending:
+Registers a system wide HotKey to discard pending:
 
  * Deletes
  * Moves
