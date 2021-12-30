@@ -7,13 +7,13 @@ Behavior when an input is verified for the first time.
 
 Behavior depends on if an [EmptyFiles](https://github.com/SimonCropp/EmptyFiles) can be found matching the current extension.
 
- * If an EmptyFiles can be found matching the current extension, then the tool will be launch to compare the input to that empty file.
+ * If an EmptyFiles can be found matching the current extension, then the tool will be launched to compare the input to that empty file.
  * If no EmptyFiles can be found no tool will be launched.
 
 
 ## Detected difference behavior
 
-Behavior when a difference is detected between the input an existing current verified file.
+Behavior when a difference is detected between the input and an existing current verified file.
 
 
 ### Not Running
@@ -37,7 +37,7 @@ include: diffToolCleanup
 
 ## MaxInstancesToLaunch
 
-By default a maximum of 5 tool instances will be launched. This prevents a change that breaks many test from causing too much load on a machine.
+By default a maximum of 5 tool instances will be launched. This prevents a change that breaks many tests from causing too much load on a machine.
 
 This value can be changed:
 
@@ -81,7 +81,7 @@ Resharper has a feature [Check for orphaned processes spawned by test runner](ht
 
 > By default, ReSharper maintains a list of all processes that are launched by the executed tests. If some of theses processes do not exit after the test execution is over, ReSharper will suggest you to terminate the process. If your setup requires some processes started by the tests to continue running, you can clear this checkbox to avoid unnecessary notifications.
 
-Since this project launches diff tools, it will trigger this feature an a dialog will show:
+Since this project launches diff tools, it will trigger this feature and a dialog will show:
 
 > All unit tests are finished, but child processes spawned by the test runner process are still running. Terminate child process?
 
