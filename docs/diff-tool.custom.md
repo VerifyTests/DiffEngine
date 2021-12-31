@@ -43,7 +43,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 ## Resolution order
 
-New tools are added to the top of the order, the last tool added will resolve before any existing tools. So when the following is executeed the last tool that supports the file types will launch:
+New tools are added to the top of the order, the last tool added will resolve before any existing tools. So when the following is executed the last tool that supports the file types will launch:
 
 <!-- snippet: DiffRunnerLaunch -->
 <a id='snippet-diffrunnerlaunch'></a>
