@@ -241,7 +241,15 @@ public static class DiffTools
         return PathLookup.TryGetValue(path, out tool);
     }
 
+    [Obsolete("Replaced with TryFindByExtension. Made obsolete in version 8.5")]
     public static bool TryFind(
+        string extension,
+        [NotNullWhen(true)] out ResolvedTool? tool)
+    {
+        return TryFindByExtension(extension, out tool);
+    }
+
+    public static bool TryFindByExtension(
         string extension,
         [NotNullWhen(true)] out ResolvedTool? tool)
     {
@@ -255,11 +263,27 @@ public static class DiffTools
         return ExtensionLookup.TryGetValue(extension, out tool);
     }
 
+    [Obsolete("Replaced with TryFindByName. Made obsolete in version 8.5")]
     public static bool TryFind(
         DiffTool tool,
         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
     {
+        return TryFindByName(tool, out resolvedTool);
+    }
+
+    public static bool TryFindByName(
+         DiffTool tool,
+         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
+    {
         resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
+        return resolvedTool != null;
+    }
+
+    public static bool TryFindByName(
+        string name,
+        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
+    {
+        resolvedTool = resolved.SingleOrDefault(x => x.Name.Equals(name, StringComparison.Ordinal));
         return resolvedTool != null;
     }
 
