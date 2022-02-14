@@ -1,4 +1,5 @@
-﻿[UsesVerify]
+﻿#if NET6_0
+[UsesVerify]
 public class PiperTest :
     XunitContextBase
 {
@@ -82,3 +83,4 @@ public class PiperTest :
     {
     }
 }
+#endif
