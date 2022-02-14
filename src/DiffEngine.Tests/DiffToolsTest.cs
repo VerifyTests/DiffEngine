@@ -27,10 +27,10 @@ public class DiffToolsTest :
             targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
-            binaryExtensions: new[] {"jpg"})!;
+            binaryExtensions: new[] { "jpg" })!;
         #endregion
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
-        Assert.True(DiffTools.TryFind("jpg", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension("jpg", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension!.Name);
     }
 
@@ -50,7 +50,7 @@ public class DiffToolsTest :
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
-        Assert.True(DiffTools.TryFind("txt", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension!.Name);
     }
 
@@ -69,7 +69,7 @@ public class DiffToolsTest :
         #endregion
 
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
-        Assert.True(DiffTools.TryFind("txt", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
         Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.TargetLeftArguments("foo", "bar"));
         Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.TargetRightArguments("foo", "bar"));
@@ -124,17 +124,21 @@ public class DiffToolsTest :
     [Fact]
     public void TryFind()
     {
-        Assert.True(DiffTools.TryFind("txt", out var resolved));
+        Assert.True(DiffTools.TryFindByExtension("txt", out var resolved));
         Assert.NotNull(resolved);
 
-        Assert.True(DiffTools.TryFind(DiffTool.VisualStudio, out resolved));
+        Assert.False(DiffTools.TryFindByExtension("notFound", out resolved));
+        Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void TryFindByName()
+    {
+        Assert.True(DiffTools.TryFindByName(DiffTool.VisualStudio, out var resolved));
         Assert.NotNull(resolved);
 
-        Assert.False(DiffTools.TryFind("notFound", out resolved));
-        Assert.Null(resolved);
-
-        Assert.False(DiffTools.TryFind(DiffTool.Kaleidoscope, out resolved));
-        Assert.Null(resolved);
+        Assert.True(DiffTools.TryFindByName(resolved!.Name, out resolved));
+        Assert.NotNull(resolved);
     }
 #endif
 

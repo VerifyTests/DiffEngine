@@ -21,7 +21,7 @@ var resolvedTool = DiffTools.AddTool(
     targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
     targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
     exePath: diffToolPath,
-    binaryExtensions: new[] {"jpg"})!;
+    binaryExtensions: new[] { "jpg" })!;
 ```
 <sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L20-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

@@ -20,7 +20,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
             targetFile);
     }
@@ -30,7 +30,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFind(tool, out resolved),
+            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
             targetFile);
     }
@@ -46,7 +46,7 @@ public static partial class DiffRunner
             ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
                 var extension = Extensions.GetExtension(tempFile);
-                return DiffTools.TryFind(extension, out tool);
+                return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,
             targetFile);
@@ -63,7 +63,7 @@ public static partial class DiffRunner
             ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
                 var extension = Extensions.GetExtension(tempFile);
-                return DiffTools.TryFind(extension, out tool);
+                return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,
             targetFile);

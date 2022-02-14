@@ -15,7 +15,7 @@ public static partial class DiffRunner
         }
 
         var extension = Extensions.GetExtension(tempFile);
-        if (!DiffTools.TryFind(extension, out var diffTool))
+        if (!DiffTools.TryFindByExtension(extension, out var diffTool))
         {
             Logging.Write($"Extension not found. {extension}");
             return;

@@ -164,7 +164,7 @@ class Tracker :
         var extension = Path.GetExtension(target).TrimStart('.');
         if (exe == null)
         {
-            if(DiffTools.TryFind(extension, out var tool))
+            if(DiffTools.TryFindByExtension(extension, out var tool))
             {
                 arguments = tool.GetArguments(temp, target);
                 exe = tool.ExePath;
