@@ -5,20 +5,44 @@ static class JsonEscaping
         var c = src[i];
         return c < 32 || c is '"' or '\\'
                ||
-               // Broken lead surrogate
-               c >= '\uD800' &&
-               c <= '\uDBFF' &&
-               (i == src.Length - 1 || src[i + 1] < '\uDC00' || src[i + 1] > '\uDFFF')
+               IsBrokenLeadSurrogate(src, i, c)
                ||
-               // Broken tail surrogate
-               c is >= '\uDC00' and <= '\uDFFF' && (i == 0 || src[i - 1] < '\uD800' || src[i - 1] > '\uDBFF')
+               IsBrokenTailSurrogate(src, i, c)
                ||
-               // To produce valid JavaScript
-               c is '\u2028' or '\u2029'
+               IsValidJson(c)
                ||
-               // Escape "</" for <script> tags
-               c == '/' && i > 0 &&
+               IsStartOfScriptTag(src, i, c);
+    }
+
+    static bool IsValidJson(char c)
+    {
+        return c is
+            '\u2028' or
+            '\u2029';
+    }
+
+    static bool IsStartOfScriptTag(string src, int i, char c)
+    {
+        // Escape "</" for <script> tags
+        return c == '/' &&
+               i > 0 &&
                src[i - 1] == '<';
+    }
+
+    static bool IsBrokenTailSurrogate(string src, int i, char c)
+    {
+        return c is
+                   >= '\uDC00' and
+                   <= '\uDFFF' &&
+               (i == 0 || src[i - 1] < '\uD800' || src[i - 1] > '\uDBFF');
+    }
+
+    static bool IsBrokenLeadSurrogate(string src, int i, char c)
+    {
+        return c is
+                   >= '\uD800' and
+                   <= '\uDBFF' &&
+               (i == src.Length - 1 || src[i + 1] < '\uDC00' || src[i + 1] > '\uDFFF');
     }
 
     public static string JsonEscape(this string contents)

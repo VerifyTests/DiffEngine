@@ -9,14 +9,11 @@ static class DiffToolLauncher
     public static void Launch(TrackedMove move)
     {
         var process = move.Process;
-        if (process != null)
+        if (process is { HasExited: false })
         {
-            if (!process.HasExited)
+            if (SetForegroundWindow(process.MainWindowHandle))
             {
-                if (SetForegroundWindow(process.MainWindowHandle))
-                {
-                    return;
-                }
+                return;
             }
         }
 
