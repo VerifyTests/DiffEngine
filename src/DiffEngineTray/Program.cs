@@ -6,6 +6,19 @@ static class Program
     {
         Logging.Init();
 
+        try
+        {
+            await Inner();
+        }
+        catch (Exception exception)
+        {
+            Log.Logger.Fatal(exception, "Failed at startup");
+            throw;
+        }
+    }
+
+    static async Task Inner()
+    {
         var settings = await GetSettings();
         if (settings == null)
         {
