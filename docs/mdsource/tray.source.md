@@ -120,3 +120,14 @@ snippet: PiperTest.MoveJson.verified.txt
 ### Add pending delete
 
 snippet: PiperTest.DeleteJson.verified.txt
+
+
+## Logging Directory
+
+```
+%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net6.0\any\logs
+```
+
+```
+C:\Users\simon\.dotnet\tools\.store\diffenginetray\9.0.0\diffenginetray\9.0.0\tools\net6.0\any\logs
+```
