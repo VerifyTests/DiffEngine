@@ -27,7 +27,7 @@ static class IssueLauncher
         var result = MessageBox.Show(
             $@"An error occurred: {message}
 
-Logged to: {Logging.Directory}
+Logged to: {Logging.LogsDirectory}
 
 {exception.GetType().Name}: {exception.Message}
 

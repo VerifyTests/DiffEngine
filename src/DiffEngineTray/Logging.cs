@@ -2,15 +2,16 @@ using Serilog;
 
 static class Logging
 {
-    public static string Directory { get; } = Path.Combine(AssemblyLocation.CurrentDirectory, "logs");
+    public static string LogsDirectory { get; } = Path.Combine(AssemblyLocation.CurrentDirectory, "logs");
 
     public static void Init()
     {
-        System.IO.Directory.CreateDirectory(Directory);
+        Console.Write($"Logs Directory: {LogsDirectory}");
+        Directory.CreateDirectory(LogsDirectory);
         var configuration = new LoggerConfiguration();
         configuration.MinimumLevel.Debug();
         configuration.WriteTo.File(
-            Path.Combine(Directory, "log.txt"),
+            Path.Combine(LogsDirectory, "log.txt"),
             rollOnFileSizeLimit: true,
             fileSizeLimitBytes: 1000000, //1mb
             retainedFileCountLimit: 10);
@@ -19,6 +20,6 @@ static class Logging
 
     public static void OpenDirectory()
     {
-        ExplorerLauncher.OpenDirectory(Directory);
+        ExplorerLauncher.OpenDirectory(LogsDirectory);
     }
 }
