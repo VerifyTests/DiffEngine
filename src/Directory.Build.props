@@ -10,5 +10,6 @@
     <SignAssembly>true</SignAssembly>
     <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
     <AssemblyOriginatorKeyFile>..\key.snk</AssemblyOriginatorKeyFile>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
   </PropertyGroup>
 </Project>
