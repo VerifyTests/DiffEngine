@@ -155,3 +155,14 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
 ```
 <sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+
+## Logging Directory
+
+```
+%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net6.0\any\logs
+```
+
+```
+C:\Users\simon\.dotnet\tools\.store\diffenginetray\9.0.0\diffenginetray\9.0.0\tools\net6.0\any\logs
+```
