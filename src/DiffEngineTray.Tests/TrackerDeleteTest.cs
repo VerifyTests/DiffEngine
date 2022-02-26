@@ -16,7 +16,7 @@
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         File.Delete(file1);
-        Thread.Sleep(3000);
+        Thread.Sleep(5000);
         tracker.AssertEmpty();
     }
 

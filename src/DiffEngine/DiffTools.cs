@@ -186,6 +186,11 @@ public static class DiffTools
 
     internal static void Reset()
     {
+        if (ContinuousTestingDetector.Detected)
+        {
+            return;
+        }
+
         ExtensionLookup.Clear();
         resolved.Clear();
         var result = OrderReader.ReadToolOrder();
