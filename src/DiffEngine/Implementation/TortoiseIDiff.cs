@@ -21,7 +21,7 @@ static partial class Implementation
                 "jpeg",
                 "png",
                 "tif",
-                "tiff",
+                "tiff"
             },
             windows: new(
                 (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",

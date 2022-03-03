@@ -81,7 +81,6 @@ public static class BuildServerDetector
         if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
         {
             Detected = true;
-            return;
         }
     }
 

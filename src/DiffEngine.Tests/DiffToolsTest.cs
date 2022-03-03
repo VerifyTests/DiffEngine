@@ -17,7 +17,9 @@ public class DiffToolsTest :
     public void AddTool()
     {
         var diffToolPath = FakeDiffTool.Exe;
+
         #region AddTool
+
         var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
@@ -27,8 +29,10 @@ public class DiffToolsTest :
             targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             targetRightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
             exePath: diffToolPath,
-            binaryExtensions: new[] { "jpg" })!;
+            binaryExtensions: new[] {"jpg"})!;
+
         #endregion
+
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
         Assert.True(DiffTools.TryFindByExtension("jpg", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension!.Name);
@@ -78,6 +82,7 @@ public class DiffToolsTest :
     async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
+
         var resolvedTool = DiffTools.AddToolBasedOn(
             DiffTool.VisualStudio,
             name: "MyCustomDiffTool",
@@ -85,6 +90,7 @@ public class DiffToolsTest :
             targetRightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
 
         await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
+
         #endregion
     }
 
@@ -111,7 +117,6 @@ public class DiffToolsTest :
     //}
 
 #if DEBUG
-
     [Fact]
     public void ChangeOrder()
     {

@@ -64,7 +64,7 @@ public class DefinitionsTest :
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        writer.WriteLine($@"
+        writer.WriteLine(@"
 
 ## Non-MDI tools
 
@@ -73,20 +73,20 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 ");
 
         foreach (var tool in Definitions.Tools
-            .Where(x => !x.IsMdi)
-            .OrderBy(x => x.Tool.ToString()))
+                     .Where(x => !x.IsMdi)
+                     .OrderBy(x => x.Tool.ToString()))
         {
             AddTool(writer, tool);
         }
 
-        writer.WriteLine($@"
+        writer.WriteLine(@"
 
 ## MDI tools
 
 ");
         foreach (var tool in Definitions.Tools
-            .Where(x => x.IsMdi)
-            .OrderBy(x => x.Tool.ToString()))
+                     .Where(x => x.IsMdi)
+                     .OrderBy(x => x.Tool.ToString()))
         {
             AddTool(writer, tool);
         }

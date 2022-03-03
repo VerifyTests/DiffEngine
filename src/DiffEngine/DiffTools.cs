@@ -9,10 +9,7 @@ public static class DiffTools
     static Dictionary<string, ResolvedTool> PathLookup = new();
     static List<ResolvedTool> resolved = new();
 
-    public static IEnumerable<ResolvedTool> Resolved
-    {
-        get => resolved;
-    }
+    public static IEnumerable<ResolvedTool> Resolved => resolved;
 
     public static ResolvedTool? AddTool(
         string name,
@@ -176,6 +173,7 @@ public static class DiffTools
             var cleanedExtension = Extensions.GetExtension(extension);
             ExtensionLookup[cleanedExtension] = resolvedTool;
         }
+
         PathLookup[resolvedTool.ExePath] = resolvedTool;
     }
 
@@ -277,8 +275,8 @@ public static class DiffTools
     }
 
     public static bool TryFindByName(
-         DiffTool tool,
-         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
+        DiffTool tool,
+        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
     {
         resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
         return resolvedTool != null;

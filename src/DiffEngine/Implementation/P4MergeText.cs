@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition P4MergeText()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+        }
 
         return new(
             name: DiffTool.P4MergeText,

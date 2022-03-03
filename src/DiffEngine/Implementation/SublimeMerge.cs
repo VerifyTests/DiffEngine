@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition SublimeMerge()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"mergetool \"{target}\" \"{temp}\"";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"mergetool \"{target}\" \"{temp}\"";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"mergetool \"{temp}\" \"{target}\"";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"mergetool \"{temp}\" \"{target}\"";
+        }
 
         return new(
             name: DiffTool.SublimeMerge,

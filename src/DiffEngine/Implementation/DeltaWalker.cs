@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition DeltaWalker()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"-mi \"{target}\" \"{temp}\"";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"-mi \"{target}\" \"{temp}\"";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"-mi \"{temp}\" \"{target}\"";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"-mi \"{temp}\" \"{target}\"";
+        }
 
         return new(
             name: DiffTool.DeltaWalker,

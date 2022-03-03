@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition DiffMerge()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"--nosplash \"{target}\" \"{temp}\"";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"--nosplash \"{target}\" \"{temp}\"";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"--nosplash \"{temp}\" \"{target}\"";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"--nosplash \"{temp}\" \"{target}\"";
+        }
 
         return new(
             name: DiffTool.DiffMerge,

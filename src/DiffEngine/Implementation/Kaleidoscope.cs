@@ -21,7 +21,7 @@ static partial class Implementation
                 "jpeg",
                 "png",
                 "tiff",
-                "tif",
+                "tif"
             },
             osx: new(
                 (temp, target) => $"\"{target}\" \"{temp}\"",

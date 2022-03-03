@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition KDiff3()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
+        }
 
         return new(
             name: DiffTool.KDiff3,

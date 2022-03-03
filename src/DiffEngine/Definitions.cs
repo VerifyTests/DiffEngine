@@ -29,7 +29,7 @@
             Implementation.SublimeMerge(),
             Implementation.CodeCompare(),
             Implementation.VsCode(),
-            Implementation.VisualStudio(),
+            Implementation.VisualStudio()
         };
     }
 }

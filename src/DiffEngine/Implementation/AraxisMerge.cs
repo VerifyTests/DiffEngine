@@ -2,8 +2,9 @@
 
 static partial class Implementation
 {
-    public static Definition AraxisMerge() =>
-        new(
+    public static Definition AraxisMerge()
+    {
+        return new(
             name: DiffTool.AraxisMerge,
             url: "https://www.araxis.com/merge",
             autoRefresh: true,
@@ -34,7 +35,7 @@ static partial class Implementation
                 "tif",
                 "tiff",
                 "tga",
-                "wmf", //?
+                "wmf" //?
             },
             windows: new(
                 (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
@@ -49,5 +50,6 @@ static partial class Implementation
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
  * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)
  * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)");
+    }
     //TODO: add doco about auto refresh
 }

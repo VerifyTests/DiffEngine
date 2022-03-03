@@ -4,11 +4,15 @@ static partial class Implementation
 {
     public static Definition Guiffy()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"\"{target}\" \"{temp}\" -ge2";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"\"{target}\" \"{temp}\" -ge2";
+        }
 
-        static string TargetRightArguments(string temp, string target) =>
-            $"\"{temp}\" \"{target}\" -ge1";
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"\"{temp}\" \"{target}\" -ge1";
+        }
 
         return new(
             name: DiffTool.Guiffy,
