@@ -96,10 +96,10 @@ static class MenuBuilder
         foreach (var group in groups)
         {
             foreach (var toolStripItem in BuildMovesAndDeletes(
-                group,
-                tracker,
-                deletes.Where(x => x.Group == group).ToList(),
-                moves.Where(x => x.Group == group).ToList()))
+                         group,
+                         tracker,
+                         deletes.Where(x => x.Group == group).ToList(),
+                         moves.Where(x => x.Group == group).ToList()))
             {
                 yield return toolStripItem;
                 addedCount++;
@@ -162,6 +162,7 @@ static class MenuBuilder
         {
             menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
         }
+
         menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
         return menu;
     }

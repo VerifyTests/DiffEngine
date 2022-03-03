@@ -1,6 +1,11 @@
 ﻿{
   "$schema": "https://raw.githubusercontent.com/SimonCropp/MarkdownSnippets/master/schema.json",
-  "TocExcludes": [ "NuGet packages", "Release Notes", "Icon", "Supported Diff Tools" ],
+  "TocExcludes": [
+    "NuGet packages",
+    "Release Notes",
+    "Icon",
+    "Supported Diff Tools"
+  ],
   "MaxWidth": 90,
   "ValidateContent": true
 }

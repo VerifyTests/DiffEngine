@@ -22,6 +22,7 @@ static class IssueLauncher
         {
             return;
         }
+
         recorded.Add(message);
 
         var result = MessageBox.Show(

@@ -35,7 +35,7 @@ static class OrderReader
     internal static IEnumerable<DiffTool> ParseEnvironment(string diffOrder)
     {
         foreach (var toolString in diffOrder
-            .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
+                     .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
         {
             if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
             {

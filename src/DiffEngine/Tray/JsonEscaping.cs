@@ -4,14 +4,14 @@ static class JsonEscaping
     {
         var c = src[i];
         return c < 32 || c is '"' or '\\'
-               ||
-               IsBrokenLeadSurrogate(src, i, c)
-               ||
-               IsBrokenTailSurrogate(src, i, c)
-               ||
-               IsValidJson(c)
-               ||
-               IsStartOfScriptTag(src, i, c);
+                      ||
+                      IsBrokenLeadSurrogate(src, i, c)
+                      ||
+                      IsBrokenTailSurrogate(src, i, c)
+                      ||
+                      IsValidJson(c)
+                      ||
+                      IsStartOfScriptTag(src, i, c);
     }
 
     static bool IsValidJson(char c)
@@ -56,6 +56,7 @@ static class JsonEscaping
             {
                 continue;
             }
+
             builder.Append(contents, start, i - start);
             switch (contents[i])
             {

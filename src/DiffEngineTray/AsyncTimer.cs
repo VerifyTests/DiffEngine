@@ -16,11 +16,18 @@
     {
         this.callback = callback;
         this.interval = interval;
-        this.errorCallback = errorCallback ?? (_ => { });
+        this.errorCallback = errorCallback ?? (_ =>
+        {
+        });
         this.delayStrategy = delayStrategy ?? Task.Delay;
         var cancellation = tokenSource.Token;
 
-        task = Task.Run(async () => { await RunLoop(cancellation); }, cancellation);
+        task = Task.Run(
+            async () =>
+            {
+                await RunLoop(cancellation);
+            },
+            cancellation);
     }
 
     async Task RunLoop(CancellationToken cancellation)

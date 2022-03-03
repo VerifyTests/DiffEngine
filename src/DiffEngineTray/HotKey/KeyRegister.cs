@@ -73,7 +73,7 @@ public class KeyRegister :
 
         // The property WParam of Message is typically used to store small pieces
         // of information. In this scenario, it stores the ID.
-        var id = (int)message.WParam;
+        var id = (int) message.WParam;
         if (!bindings.TryGetValue(id, out var action))
         {
             return false;

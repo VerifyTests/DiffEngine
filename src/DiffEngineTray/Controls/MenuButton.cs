@@ -6,7 +6,10 @@ class MenuButton :
     {
         if (action != null)
         {
-            Click += delegate { action(); };
+            Click += delegate
+            {
+                action();
+            };
             CanSelect = true;
         }
     }

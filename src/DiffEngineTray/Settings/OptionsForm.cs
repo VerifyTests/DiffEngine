@@ -31,7 +31,7 @@
             AcceptAllHotKey = acceptAllHotKey.HotKey,
             DiscardAllHotKey = discardAllHotKey.HotKey,
             AcceptOpenHotKey = acceptOpenHotKey.HotKey,
-            MaxInstancesToLaunch = (int)maxInstancesNumericUpDown.Value
+            MaxInstancesToLaunch = (int) maxInstancesNumericUpDown.Value
         };
 
         var errors = (await trySave(newSettings)).ToList();

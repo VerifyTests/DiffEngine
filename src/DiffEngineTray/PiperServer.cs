@@ -41,6 +41,7 @@ static class PiperServer
                     {
                         break;
                     }
+
                     ExceptionHandler.Handle("Failed to receive payload", exception);
                 }
             }

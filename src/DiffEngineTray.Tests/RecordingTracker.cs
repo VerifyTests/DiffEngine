@@ -2,7 +2,11 @@
     Tracker
 {
     public RecordingTracker() :
-        base(() => {}, () => {})
+        base(() =>
+        {
+        }, () =>
+        {
+        })
     {
     }
 

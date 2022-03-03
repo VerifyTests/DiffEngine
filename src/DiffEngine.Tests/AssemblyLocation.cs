@@ -1,4 +1,5 @@
 ﻿// ReSharper disable RedundantSuppressNullableWarningExpression
+
 static class AssemblyLocation
 {
     static AssemblyLocation()

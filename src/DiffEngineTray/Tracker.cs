@@ -27,7 +27,7 @@ class Tracker :
     Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
     {
         foreach (var delete in deletes.ToList()
-            .Where(delete => !File.Exists(delete.Value.File)))
+                     .Where(delete => !File.Exists(delete.Value.File)))
         {
             deletes.TryRemove(delete.Key, out _);
         }
@@ -91,11 +91,9 @@ class Tracker :
         }
     }
 
-    public bool TrackingAny
-    {
-        get => moves.Any() ||
-               deletes.Any();
-    }
+    public bool TrackingAny =>
+        moves.Any() ||
+        deletes.Any();
 
     public TrackedMove AddMove(
         string temp,
@@ -164,7 +162,7 @@ class Tracker :
         var extension = Path.GetExtension(target).TrimStart('.');
         if (exe == null)
         {
-            if(DiffTools.TryFindByExtension(extension, out var tool))
+            if (DiffTools.TryFindByExtension(extension, out var tool))
             {
                 arguments = tool.GetArguments(temp, target);
                 exe = tool.ExePath;
@@ -340,9 +338,9 @@ class Tracker :
         moves.Clear();
     }
 
-    public ICollection<TrackedDelete> Deletes { get => deletes.Values; }
+    public ICollection<TrackedDelete> Deletes => deletes.Values;
 
-    public ICollection<TrackedMove> Moves { get => moves.Values; }
+    public ICollection<TrackedMove> Moves => moves.Values;
 
     public ValueTask DisposeAsync()
     {

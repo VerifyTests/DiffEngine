@@ -4,10 +4,15 @@ static partial class Implementation
 {
     public static Definition Vim()
     {
-        static string TargetLeftArguments(string temp, string target) =>
-            $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        static string TargetRightArguments(string temp, string target) =>
-            $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
+        static string TargetLeftArguments(string temp, string target)
+        {
+            return $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
+        }
+
+        static string TargetRightArguments(string temp, string target)
+        {
+            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
+        }
 
         return new(
             name: DiffTool.Vim,

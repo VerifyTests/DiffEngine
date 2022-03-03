@@ -84,6 +84,7 @@ static class WildcardFileFinder
                 result = expanded;
                 return true;
             }
+
             Logging.Write($"Could not find file: {path}");
             result = null;
             return false;

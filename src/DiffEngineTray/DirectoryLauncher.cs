@@ -25,7 +25,7 @@ static class ExplorerLauncher
         var info = new ProcessStartInfo
         {
             FileName = "explorer.exe",
-            Arguments = $"/select, \"{file}\"",
+            Arguments = $"/select, \"{file}\""
         };
         try
         {

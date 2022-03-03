@@ -33,6 +33,7 @@
         {
             return;
         }
+
         MaxInstancesToLaunch = value;
         string? envVariable;
         if (value == defaultMax)

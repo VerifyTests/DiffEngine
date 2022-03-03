@@ -47,6 +47,7 @@ public static class ProcessCleanup
         {
             command = TrimCommand(command);
         }
+
         var matchingCommands = Commands
             .Where(x => x.Command == command).ToList();
         Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");

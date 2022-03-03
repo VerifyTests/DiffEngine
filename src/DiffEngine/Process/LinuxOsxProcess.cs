@@ -13,7 +13,7 @@ static class LinuxOsxProcess
                 FileName = "kill",
                 Arguments = processId.ToString(),
                 UseShellExecute = false,
-                CreateNoWindow = false,
+                CreateNoWindow = false
             }
         };
         process.Start();
@@ -100,13 +100,19 @@ static class LinuxOsxProcess
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = false,
+                CreateNoWindow = false
             }
         };
         process.Start();
-        process.OutputDataReceived += (_, args) => { outputBuilder.AppendLine(args.Data); };
+        process.OutputDataReceived += (_, args) =>
+        {
+            outputBuilder.AppendLine(args.Data);
+        };
         process.BeginOutputReadLine();
-        process.ErrorDataReceived += (_, args) => { errorBuilder.AppendLine(args.Data); };
+        process.ErrorDataReceived += (_, args) =>
+        {
+            errorBuilder.AppendLine(args.Data);
+        };
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
