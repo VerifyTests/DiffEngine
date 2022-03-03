@@ -53,5 +53,5 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 ```cs
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L118-L120' title='Snippet source file'>snippet source</a> | <a href='#snippet-useorder' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L123-L125' title='Snippet source file'>snippet source</a> | <a href='#snippet-useorder' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
