@@ -4,10 +4,8 @@ public class OptionsFormTests :
     XunitContextBase
 {
     public OptionsFormTests(ITestOutputHelper output) :
-        base(output)
-    {
+        base(output) =>
         VersionReader.VersionString = "TheVersion";
-    }
 
     //[Fact]
     //[Trait("Category", "Integration")]

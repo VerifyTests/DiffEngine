@@ -9,9 +9,7 @@ public class SolutionDirectoryFinderTests :
     }
 
     [Fact]
-    public Task Find()
-    {
-        return Verify(SolutionDirectoryFinder.Find(SourceFile));
-    }
+    public Task Find() =>
+        Verify(SolutionDirectoryFinder.Find(SourceFile));
 }
 #endif
