@@ -18,8 +18,6 @@ static class Logging
         Log.Logger = configuration.CreateLogger();
     }
 
-    public static void OpenDirectory()
-    {
+    public static void OpenDirectory() =>
         ExplorerLauncher.OpenDirectory(LogsDirectory);
-    }
 }

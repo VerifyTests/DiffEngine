@@ -1,6 +1,4 @@
 ﻿#if NET6_0
-using DiffEngine;
-
 public class DiffRunnerTests :
     XunitContextBase
 {
@@ -170,12 +168,10 @@ public class DiffRunnerTests :
         Assert.False(ProcessCleanup.IsRunning(command));
     }
 
-    static bool IsRunning()
-    {
-        return ProcessCleanup
+    static bool IsRunning() =>
+        ProcessCleanup
             .FindAll()
             .Any(x => x.Command.Contains("FakeDiffTool"));
-    }
 
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)
@@ -185,8 +181,7 @@ public class DiffRunnerTests :
         command = tool.BuildCommand(file1, file2);
     }
 
-    static DiffRunnerTests()
-    {
+    static DiffRunnerTests() =>
         tool = DiffTools.AddTool(
             name: "FakeDiffTool",
             autoRefresh: true,
@@ -197,6 +192,5 @@ public class DiffRunnerTests :
             targetLeftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
             exePath: FakeDiffTool.Exe,
             binaryExtensions: new[] {"knownBin"})!;
-    }
 }
 #endif

@@ -2,8 +2,7 @@
 {
     public static IReadOnlyList<Definition> Tools { get; }
 
-    static Definitions()
-    {
+    static Definitions() =>
         Tools = new List<Definition>
         {
             Implementation.BeyondCompare(),
@@ -31,5 +30,4 @@
             Implementation.VsCode(),
             Implementation.VisualStudio()
         };
-    }
 }

@@ -5,16 +5,12 @@ static class IssueLauncher
     static ConcurrentBag<string> recorded = new();
     static string defaultBody;
 
-    static IssueLauncher()
-    {
+    static IssueLauncher() =>
         defaultBody = WebUtility.UrlEncode($@" * DiffEngineTray Version: {VersionReader.VersionString}
  * OS: {Environment.OSVersion.VersionString}");
-    }
 
-    public static void Launch()
-    {
+    public static void Launch() =>
         LinkLauncher.LaunchUrl($"https://github.com/VerifyTests/DiffEngine/issues/new?title=TODO&body={defaultBody}");
-    }
 
     public static void LaunchForException(string message, Exception exception)
     {

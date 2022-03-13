@@ -22,9 +22,7 @@ public class Startup
         return key.GetValue("DiffEngineTray") != null;
     }
 
-    static RegistryKey GetRunKey()
-    {
-        return Registry.CurrentUser
+    static RegistryKey GetRunKey() =>
+        Registry.CurrentUser
             .OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true)!;
-    }
 }

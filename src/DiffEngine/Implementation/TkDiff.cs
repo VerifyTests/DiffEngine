@@ -2,9 +2,8 @@
 
 static partial class Implementation
 {
-    public static Definition TkDiff()
-    {
-        return new(
+    public static Definition TkDiff() =>
+        new(
             name: DiffTool.TkDiff,
             url: "https://sourceforge.net/projects/tkdiff/",
             autoRefresh: false,
@@ -17,5 +16,4 @@ static partial class Implementation
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 "/Applications/TkDiff.app/Contents/MacOS/tkdiff"));
-    }
 }

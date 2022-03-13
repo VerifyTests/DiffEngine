@@ -14,10 +14,8 @@
 
     static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public static string? Find(string file)
-    {
-        return cache.GetOrAdd(file, Inner)?.Name;
-    }
+    public static string? Find(string file) =>
+        cache.GetOrAdd(file, Inner)?.Name;
 
     static Result? Inner(string file)
     {

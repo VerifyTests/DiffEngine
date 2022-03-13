@@ -1,10 +1,7 @@
-﻿using DiffEngine;
-
-static partial class Implementation
+﻿static partial class Implementation
 {
-    public static Definition CodeCompare()
-    {
-        return new(
+    public static Definition CodeCompare() =>
+        new(
             name: DiffTool.CodeCompare,
             url: "https://www.devart.com/codecompare/",
             autoRefresh: false,
@@ -19,5 +16,4 @@ static partial class Implementation
                 @"%ProgramFiles%\Devart\Code Compare\CodeCompare.exe"),
             notes: @"
  * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)");
-    }
 }

@@ -1,10 +1,7 @@
-﻿using DiffEngine;
-
-static partial class Implementation
+﻿static partial class Implementation
 {
-    public static Definition TortoiseGitMerge()
-    {
-        return new(
+    public static Definition TortoiseGitMerge() =>
+        new(
             name: DiffTool.TortoiseGitMerge,
             url: "https://tortoisegit.org/docs/tortoisegitmerge/",
             autoRefresh: false,
@@ -17,5 +14,4 @@ static partial class Implementation
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"));
-    }
 }

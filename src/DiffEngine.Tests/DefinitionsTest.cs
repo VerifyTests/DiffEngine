@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-public class DefinitionsTest :
+﻿public class DefinitionsTest :
     XunitContextBase
 {
     [Fact]

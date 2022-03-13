@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-public class DiffToolsTest :
+﻿public class DiffToolsTest :
     XunitContextBase
 {
     [Fact]
@@ -148,8 +146,6 @@ public class DiffToolsTest :
 #endif
 
     public DiffToolsTest(ITestOutputHelper output) :
-        base(output)
-    {
+        base(output) =>
         DiffTools.Reset();
-    }
 }

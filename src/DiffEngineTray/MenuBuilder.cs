@@ -167,8 +167,6 @@ static class MenuBuilder
         return menu;
     }
 
-    static MenuButton BuildShowInExplorer(string file)
-    {
-        return new("Open directory", () => ExplorerLauncher.ShowFileInExplorer(file));
-    }
+    static MenuButton BuildShowInExplorer(string file) =>
+        new("Open directory", () => ExplorerLauncher.ShowFileInExplorer(file));
 }

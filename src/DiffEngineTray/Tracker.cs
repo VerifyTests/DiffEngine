@@ -184,9 +184,8 @@ class Tracker :
         return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension);
     }
 
-    public TrackedDelete AddDelete(string file)
-    {
-        return deletes.AddOrUpdate(
+    public TrackedDelete AddDelete(string file) =>
+        deletes.AddOrUpdate(
             file,
             addValueFactory: key =>
             {
@@ -199,7 +198,6 @@ class Tracker :
                 Log.Information("DeleteUpdated. File:{file}", file);
                 return existing;
             });
-    }
 
     public void Accept(TrackedDelete delete)
     {

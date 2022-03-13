@@ -4,10 +4,8 @@ public static class Logging
 {
     internal static bool enabled;
 
-    public static void Enable()
-    {
+    public static void Enable() =>
         enabled = true;
-    }
 
     internal static void Write(string message)
     {

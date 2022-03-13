@@ -4,9 +4,8 @@ public class PiperTest :
     XunitContextBase
 {
     [Fact]
-    public Task MoveJson()
-    {
-        return Verify(
+    public Task MoveJson() =>
+        Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",
@@ -14,12 +13,10 @@ public class PiperTest :
                 "TheArguments",
                 true,
                 1000));
-    }
 
     [Fact]
-    public Task DeleteJson()
-    {
-        return Verify(
+    public Task DeleteJson() =>
+        Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
                 "theTargetFilePath",
@@ -27,7 +24,6 @@ public class PiperTest :
                 "TheArguments",
                 true,
                 1000));
-    }
 
     [Fact]
     public async Task Delete()

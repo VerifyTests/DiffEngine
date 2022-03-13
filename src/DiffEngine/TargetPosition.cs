@@ -2,10 +2,8 @@
 {
     public static bool TargetOnLeft { get; private set; }
 
-    static TargetPosition()
-    {
+    static TargetPosition() =>
         TargetOnLeft = ReadTargetOnLeft().GetValueOrDefault(false);
-    }
 
     static bool? ReadTargetOnLeft()
     {

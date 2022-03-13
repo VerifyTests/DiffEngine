@@ -7,15 +7,13 @@ static class FileComparer
         return first.Length == second.Length;
     }
 
-    static FileStream OpenRead(string path)
-    {
-        return new(path,
+    static FileStream OpenRead(string path) =>
+        new(path,
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
             bufferSize: 4096,
             useAsync: true);
-    }
 
     public static async Task<bool> FilesAreEqual(string file1, string file2)
     {

@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-public class OrderReaderTest :
+﻿public class OrderReaderTest :
     XunitContextBase
 {
     [Fact]

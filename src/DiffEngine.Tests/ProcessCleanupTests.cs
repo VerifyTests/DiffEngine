@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-public class ProcessCleanupTests :
+﻿public class ProcessCleanupTests :
     XunitContextBase
 {
     [Fact]

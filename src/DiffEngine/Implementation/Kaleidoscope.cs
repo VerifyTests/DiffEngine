@@ -2,9 +2,8 @@
 
 static partial class Implementation
 {
-    public static Definition Kaleidoscope()
-    {
-        return new(
+    public static Definition Kaleidoscope() =>
+        new(
             name: DiffTool.Kaleidoscope,
             url: "https://www.kaleidoscopeapp.com/",
             autoRefresh: false,
@@ -27,5 +26,4 @@ static partial class Implementation
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 "/usr/local/bin/ksdiff"));
-    }
 }

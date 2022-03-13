@@ -66,8 +66,6 @@
         }
     }
 
-    void hotKeyEnabled_CheckedChanged(object sender, EventArgs e)
-    {
+    void hotKeyEnabled_CheckedChanged(object sender, EventArgs e) =>
         keysSelectionPanel.Enabled = hotKeyEnabled.Checked;
-    }
 }

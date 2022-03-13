@@ -25,6 +25,7 @@
   <ItemGroup>
     <None Remove="**\*.ico"/>
     <None Remove="**\*.png"/>
+    <Using Include="DiffEngine"/>
     <EmbeddedResource Include="Images\*.ico"/>
     <EmbeddedResource Include="Images\*.png"/>
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all"/>

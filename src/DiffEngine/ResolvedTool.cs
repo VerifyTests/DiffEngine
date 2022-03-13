@@ -20,10 +20,8 @@ public class ResolvedTool
         command = $"\"{ExePath}\" {arguments}";
     }
 
-    public string BuildCommand(string tempFile, string targetFile)
-    {
-        return $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
-    }
+    public string BuildCommand(string tempFile, string targetFile) =>
+        $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
 
     public string GetArguments(string tempFile, string targetFile)
     {

@@ -2,9 +2,8 @@
 
 static partial class Implementation
 {
-    public static Definition TortoiseIDiff()
-    {
-        return new(
+    public static Definition TortoiseIDiff() =>
+        new(
             name: DiffTool.TortoiseIDiff,
             url: "https://tortoisesvn.net/TortoiseIDiff.html",
             autoRefresh: false,
@@ -27,5 +26,4 @@ static partial class Implementation
                 (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
                 (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"));
-    }
 }

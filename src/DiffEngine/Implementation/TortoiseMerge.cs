@@ -2,9 +2,8 @@
 
 static partial class Implementation
 {
-    public static Definition TortoiseMerge()
-    {
-        return new(
+    public static Definition TortoiseMerge() =>
+        new(
             name: DiffTool.TortoiseMerge,
             url: "https://tortoisesvn.net/TortoiseMerge.html",
             autoRefresh: false,
@@ -17,5 +16,4 @@ static partial class Implementation
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
                 @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"));
-    }
 }

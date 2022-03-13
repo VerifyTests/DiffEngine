@@ -5,10 +5,8 @@ static class PiperClient
 {
     public static int Port = 3492;
 
-    public static void SendDelete(string file)
-    {
+    public static void SendDelete(string file) =>
         Send(BuildDeletePayload(file));
-    }
 
     public static Task SendDeleteAsync(
         string file,
@@ -18,14 +16,12 @@ static class PiperClient
         return SendAsync(payload);
     }
 
-    static string BuildDeletePayload(string file)
-    {
-        return $@"{{
+    static string BuildDeletePayload(string file) =>
+        $@"{{
 ""Type"":""Delete"",
 ""File"":""{file.JsonEscape()}""
 }}
 ";
-    }
 
     public static void SendMove(
         string tempFile,
@@ -33,10 +29,8 @@ static class PiperClient
         string? exe,
         string? arguments,
         bool canKill,
-        int? processId)
-    {
+        int? processId) =>
         Send(BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId));
-    }
 
     public static Task SendMoveAsync(
         string tempFile,
@@ -101,8 +95,7 @@ static class PiperClient
         }
     }
 
-    static void HandleSendException(string payload, Exception exception)
-    {
+    static void HandleSendException(string payload, Exception exception) =>
         Trace.WriteLine($@"Failed to send payload to DiffEngineTray.
 
 Payload:
@@ -110,7 +103,6 @@ Payload:
 
 Exception:
 {exception}");
-    }
 
     static void InnerSend(string payload)
     {
@@ -146,8 +138,6 @@ Exception:
         }
     }
 
-    static IPEndPoint GetEndpoint()
-    {
-        return new(IPAddress.Loopback, Port);
-    }
+    static IPEndPoint GetEndpoint() =>
+        new(IPAddress.Loopback, Port);
 }

@@ -50,18 +50,12 @@
         MessageBox.Show(builder.ToString(), "Errors", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
-    void diffEngineLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-    {
+    void diffEngineLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) =>
         LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine");
-    }
 
-    void trayDocsLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-    {
+    void trayDocsLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) =>
         LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine/blob/master/docs/tray.md");
-    }
 
-    void updateButton_Click(object sender, EventArgs e)
-    {
+    void updateButton_Click(object sender, EventArgs e) =>
         Updater.Run();
-    }
 }

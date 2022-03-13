@@ -10,10 +10,8 @@ public static partial class DiffRunner
 {
     public static bool Disabled { get; set; } = DisabledChecker.IsDisable();
 
-    public static void MaxInstancesToLaunch(int value)
-    {
+    public static void MaxInstancesToLaunch(int value) =>
         MaxInstance.SetForAppDomain(value);
-    }
 
     public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
     {

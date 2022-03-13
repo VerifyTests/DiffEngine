@@ -32,10 +32,8 @@ public static class ProcessCleanup
 
     public static IReadOnlyList<ProcessCommand> Commands => commands;
 
-    public static void Refresh()
-    {
+    public static void Refresh() =>
         commands = findAll().ToList();
-    }
 
     /// <summary>
     /// Find a process with the matching command line and kill it.
@@ -64,15 +62,11 @@ public static class ProcessCleanup
         }
     }
 
-    static string TrimCommand(string command)
-    {
-        return command.Replace("\"", "");
-    }
+    static string TrimCommand(string command) =>
+        command.Replace("\"", "");
 
-    public static bool IsRunning(string command)
-    {
-        return TryGetProcessInfo(command, out _);
-    }
+    public static bool IsRunning(string command) =>
+        TryGetProcessInfo(command, out _);
 
     public static bool TryGetProcessInfo(string command, out ProcessCommand process)
     {
@@ -101,8 +95,6 @@ public static class ProcessCleanup
     /// <summary>
     /// Find all processes with `% %.%.%` in the command line.
     /// </summary>
-    public static IEnumerable<ProcessCommand> FindAll()
-    {
-        return findAll();
-    }
+    public static IEnumerable<ProcessCommand> FindAll() =>
+        findAll();
 }

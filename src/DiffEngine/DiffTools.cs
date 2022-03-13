@@ -20,9 +20,8 @@ public static class DiffTools
         BuildArguments targetLeftArguments,
         BuildArguments targetRightArguments,
         string exePath,
-        IEnumerable<string> binaryExtensions)
-    {
-        return AddInner(
+        IEnumerable<string> binaryExtensions) =>
+        AddInner(
             name,
             null,
             autoRefresh,
@@ -32,7 +31,6 @@ public static class DiffTools
             binaryExtensions,
             exePath,
             targetLeftArguments, targetRightArguments);
-    }
 
     public static ResolvedTool? AddToolBasedOn(
         DiffTool basedOn,
@@ -73,9 +71,8 @@ public static class DiffTools
         IEnumerable<string> binaryExtensions,
         OsSettings? windows = null,
         OsSettings? linux = null,
-        OsSettings? osx = null)
-    {
-        return AddTool(
+        OsSettings? osx = null) =>
+        AddTool(
             name,
             null,
             autoRefresh,
@@ -86,7 +83,6 @@ public static class DiffTools
             windows,
             linux,
             osx);
-    }
 
     static ResolvedTool? AddTool(
         string name,
@@ -177,10 +173,8 @@ public static class DiffTools
         PathLookup[resolvedTool.ExePath] = resolvedTool;
     }
 
-    static DiffTools()
-    {
+    static DiffTools() =>
         Reset();
-    }
 
     internal static void Reset()
     {
@@ -225,10 +219,8 @@ public static class DiffTools
         }
     }
 
-    public static void UseOrder(params DiffTool[] order)
-    {
+    public static void UseOrder(params DiffTool[] order) =>
         UseOrder(false, order);
-    }
 
     public static void UseOrder(in bool throwForNoTool, params DiffTool[] order)
     {
@@ -239,18 +231,14 @@ public static class DiffTools
 
     public static bool TryFindByPath(
         string path,
-        [NotNullWhen(true)] out ResolvedTool? tool)
-    {
-        return PathLookup.TryGetValue(path, out tool);
-    }
+        [NotNullWhen(true)] out ResolvedTool? tool) =>
+        PathLookup.TryGetValue(path, out tool);
 
     [Obsolete("Replaced with TryFindByExtension. Made obsolete in version 8.5")]
     public static bool TryFind(
         string extension,
-        [NotNullWhen(true)] out ResolvedTool? tool)
-    {
-        return TryFindByExtension(extension, out tool);
-    }
+        [NotNullWhen(true)] out ResolvedTool? tool) =>
+        TryFindByExtension(extension, out tool);
 
     public static bool TryFindByExtension(
         string extension,
@@ -269,10 +257,8 @@ public static class DiffTools
     [Obsolete("Replaced with TryFindByName. Made obsolete in version 8.5")]
     public static bool TryFind(
         DiffTool tool,
-        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
-    {
-        return TryFindByName(tool, out resolvedTool);
-    }
+        [NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
+        TryFindByName(tool, out resolvedTool);
 
     public static bool TryFindByName(
         DiffTool tool,

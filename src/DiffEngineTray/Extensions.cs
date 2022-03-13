@@ -8,8 +8,6 @@ static class Extensions
         return window.Handle;
     }
 
-    public static void Add(this ToolStripSplitButton target, params ToolStripItem[] items)
-    {
+    public static void Add(this ToolStripSplitButton target, params ToolStripItem[] items) =>
         target.DropDownItems.AddRange(items);
-    }
 }

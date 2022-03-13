@@ -130,9 +130,8 @@ static class Program
         }
     }
 
-    static Task StartServer(Tracker tracker, CancellationToken cancellation)
-    {
-        return PiperServer.Start(
+    static Task StartServer(Tracker tracker, CancellationToken cancellation) =>
+        PiperServer.Start(
             payload =>
             {
                 tracker.AddMove(
@@ -145,5 +144,4 @@ static class Program
             },
             payload => tracker.AddDelete(payload.File),
             cancellation);
-    }
 }

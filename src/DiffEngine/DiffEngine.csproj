@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Remove="System.Net.Http"/>
+    <Using Include="DiffEngine"/>
     <PackageReference Include="Caseless.Fody" Version="1.9.1" PrivateAssets="All"/>
     <PackageReference Include="EmptyFiles" Version="2.8.0" PrivateAssets="None"/>
     <PackageReference Include="Fody" Version="6.6.0" PrivateAssets="all"/>
