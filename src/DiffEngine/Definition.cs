@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-[DebuggerDisplay("{Tool}, Refresh={AutoRefresh}, Mdi={IsMdi}, RequiresTarget={RequiresTarget}, SupportsText={SupportsText}")]
+﻿[DebuggerDisplay("{Tool}, Refresh={AutoRefresh}, Mdi={IsMdi}, RequiresTarget={RequiresTarget}, SupportsText={SupportsText}")]
 class Definition
 {
     public DiffTool Tool { get; }

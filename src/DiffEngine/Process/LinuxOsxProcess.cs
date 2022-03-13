@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using DiffEngine;
 
 static class LinuxOsxProcess
 {

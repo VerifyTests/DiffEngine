@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-static class DisabledChecker
+﻿static class DisabledChecker
 {
     public static bool IsDisable()
     {

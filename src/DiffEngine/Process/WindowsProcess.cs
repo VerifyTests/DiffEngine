@@ -1,6 +1,5 @@
 ﻿using System.Management;
 using System.Runtime.InteropServices;
-using DiffEngine;
 using Microsoft.Win32.SafeHandles;
 
 static class WindowsProcess

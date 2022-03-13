@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-static class OrderReader
+﻿static class OrderReader
 {
     public readonly struct Result
     {

@@ -1,6 +1,4 @@
-﻿using DiffEngine;
-
-static class ToolsOrder
+﻿static class ToolsOrder
 {
     public static IEnumerable<Definition> Sort(bool throwForNoTool, IEnumerable<DiffTool> order)
     {
