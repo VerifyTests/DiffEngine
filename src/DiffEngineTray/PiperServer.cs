@@ -72,7 +72,10 @@ static class PiperServer
             }
             else
             {
-                throw new($"Unknown payload: {payload}");
+                if (payload.Length > 0)
+                {
+                    throw new($"Unknown payload: {payload}");
+                }
             }
 
             if (client.Connected)
