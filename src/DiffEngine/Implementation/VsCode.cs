@@ -1,6 +1,6 @@
 ﻿static partial class Implementation
 {
-    public static Definition VsCode()
+    public static Definition VisualStudioCode()
     {
         static string TargetLeftArguments(string temp, string target)
         {

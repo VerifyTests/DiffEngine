@@ -27,7 +27,7 @@
             Implementation.Meld(),
             Implementation.SublimeMerge(),
             Implementation.CodeCompare(),
-            Implementation.VsCode(),
+            Implementation.VisualStudioCode(),
             Implementation.VisualStudio()
         };
 }
