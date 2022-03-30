@@ -4,12 +4,7 @@ public enum DiffTool
 {
     BeyondCompare,
     P4MergeText,
-    P4MergeImage,
-    AraxisMerge,
-    Meld,
-    SublimeMerge,
     Kaleidoscope,
-    CodeCompare,
     DeltaWalker,
     WinMerge,
     DiffMerge,
@@ -21,9 +16,14 @@ public enum DiffTool
     Guiffy,
     ExamDiff,
     Diffinity,
-    VisualStudio,
-    VisualStudioCode,
+    P4MergeImage,
     Rider,
     Vim,
-    Neovim
+    Neovim,
+    AraxisMerge,
+    Meld,
+    SublimeMerge,
+    CodeCompare,
+    VisualStudioCode,
+    VisualStudio
 }
