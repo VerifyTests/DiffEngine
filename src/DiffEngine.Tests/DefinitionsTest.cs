@@ -33,7 +33,7 @@
             builder.Append("OSX/");
         }
 
-        if (tool.Windows != null)
+        if (tool.Linux != null)
         {
             builder.Append("Linux/");
         }
