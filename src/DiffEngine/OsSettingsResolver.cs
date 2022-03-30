@@ -3,7 +3,8 @@ using System.Runtime.InteropServices;
 
 static class OsSettingsResolver
 {
-    public static bool Resolve(OsSettings? windows,
+    public static bool Resolve(
+        OsSettings? windows,
         OsSettings? linux,
         OsSettings? osx,
         [NotNullWhen(true)] out string? path,
