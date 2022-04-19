@@ -34,9 +34,8 @@ static class LinuxOsxProcess
         }
 
         using var reader = new StringReader(processList);
-        string? line;
         reader.ReadLine();
-        while ((line = reader.ReadLine()) != null)
+        while (reader.ReadLine() is { } line)
         {
             if (!TryParse(line, out var processCommand))
             {
