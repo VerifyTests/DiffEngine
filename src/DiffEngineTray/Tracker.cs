@@ -122,7 +122,7 @@ class Tracker :
                 }
                 else
                 {
-                    Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId, $"{exeFile} {arguments}");
+                    Log.Information("MoveAdded. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId!, $"{exeFile} {arguments}");
                 }
 
                 return move;
@@ -148,7 +148,7 @@ class Tracker :
                 }
                 else
                 {
-                    Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId, $"{exeFile} {arguments}");
+                    Log.Information("MoveUpdated. Target:{target}, CanKill:{canKill}, Process:{process}, Command:{command}", targetFile, move.CanKill, processId!, $"{exeFile} {arguments}");
                 }
 
                 return move;
