@@ -29,7 +29,7 @@
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.6.0" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.6.1" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.11.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="6.0.3" />
