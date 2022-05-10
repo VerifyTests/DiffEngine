@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net6</TargetFrameworks>
+    <TargetFramework>net6.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>bin</OutputPath>
     <RuntimeIdentifier Condition=" '$(OS)' == 'Windows_NT' ">win-x64</RuntimeIdentifier>

@@ -32,7 +32,7 @@
     <PackageReference Include="Fody" Version="6.6.1" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.11.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="6.0.3" />
+    <PackageReference Include="System.Text.Json" Version="6.0.4" />
     <PackageReference Include="ProjectDefaults" Version="1.0.78" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
@@ -42,6 +42,6 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!--TODO: remove when fixed https://github.com/dotnet/core/issues/7176-->
-    <FrameworkReference Condition="$(TargetFramework) == 'net6'" Update="Microsoft.WindowsDesktop.App;Microsoft.WindowsDesktop.App.WPF;Microsoft.WindowsDesktop.App.WindowsForms" TargetingPackVersion="6.0.0" />
+    <FrameworkReference Condition="$(TargetFramework) == 'net6.0'" Update="Microsoft.WindowsDesktop.App;Microsoft.WindowsDesktop.App.WPF;Microsoft.WindowsDesktop.App.WindowsForms" TargetingPackVersion="6.0.0" />
   </ItemGroup>
 </Project>
