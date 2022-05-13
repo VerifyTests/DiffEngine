@@ -19,6 +19,10 @@ static class FileEx
             //Swallow this since it is likely that a running test it reading or
             //writing to the files, and the result will re-add the tracked item
         }
+        catch (Exception exception)
+        {
+            ExceptionHandler.Handle($"Filed to delete '{path}'.", exception);
+        }
     }
 
     public static void SafeMove(string temp, string target)
@@ -37,6 +41,10 @@ static class FileEx
             Log.Error(exception, $"Filed to move '{temp}' to '{target}'.");
             //Swallow this since it is likely that a running test it reading or
             //writing to the files, and the result will re-add the tracked item
+        }
+        catch (Exception exception)
+        {
+            ExceptionHandler.Handle($"Filed to move '{temp}' to '{target}'.", exception);
         }
     }
 }
