@@ -124,7 +124,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Supported binaries: mp3, xls, xlsm, xlsx, doc, docm, docx, dot, dotm, dotx, pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
+  * Supported binaries: pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
 
 #### Notes:
 
@@ -636,7 +636,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
- * [Command line reference](https://www.devart.com/codecompare/docs/index.html?comparing_via_command_line.htm)
+ * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)
 
 #### Windows settings:
 

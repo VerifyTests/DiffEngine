@@ -34,16 +34,6 @@
             requiresTarget: true,
             binaryExtensions: new[]
             {
-                "mp3", //?
-                "xls",
-                "xlsm",
-                "xlsx",
-                "doc",
-                "docm",
-                "docx",
-                "dot",
-                "dotm",
-                "dotx",
                 "pdf",
                 "bmp",
                 "gif",
