@@ -49,7 +49,7 @@ public class PiperTest :
         source.Cancel();
         await task;
         await Verify(received)
-            .ModifySerialization(x => x.DontScrubNumericIds());
+            .DontScrubNumericIds();
     }
 
     [Fact]
