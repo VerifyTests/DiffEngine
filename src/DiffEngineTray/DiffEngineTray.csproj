@@ -29,10 +29,10 @@
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.6.2" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.6.3" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.11.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="6.0.4" />
+    <PackageReference Include="System.Text.Json" Version="6.0.5" />
     <PackageReference Include="ProjectDefaults" Version="1.0.78" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
