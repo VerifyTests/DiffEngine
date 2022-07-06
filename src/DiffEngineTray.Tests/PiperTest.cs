@@ -48,8 +48,7 @@ public class PiperTest :
         await Task.Delay(1000);
         source.Cancel();
         await task;
-        await Verify(received)
-            .DontScrubNumericIds();
+        await Verify(received);
     }
 
     [Fact]
