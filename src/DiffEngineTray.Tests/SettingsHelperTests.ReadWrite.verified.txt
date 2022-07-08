@@ -1,6 +1,11 @@
 ﻿{
   AcceptAllHotKey: {
+    Alt: false,
+    Shift: false,
+    Control: false,
     Key: T
   },
-  MaxInstancesToLaunch: 5
+  RunAtStartup: false,
+  TargetOnLeft: false,
+  MaxInstancesToLaunch: 20
 }
