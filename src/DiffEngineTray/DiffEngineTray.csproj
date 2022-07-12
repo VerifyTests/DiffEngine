@@ -41,7 +41,5 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-    <!--TODO: remove when fixed https://github.com/dotnet/core/issues/7176-->
-    <FrameworkReference Condition="$(TargetFramework) == 'net6.0'" Update="Microsoft.WindowsDesktop.App;Microsoft.WindowsDesktop.App.WPF;Microsoft.WindowsDesktop.App.WindowsForms" TargetingPackVersion="6.0.0" />
   </ItemGroup>
 </Project>
