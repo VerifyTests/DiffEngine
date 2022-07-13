@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net6;net5</TargetFrameworks>
+    <TargetFramework>net6</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
@@ -35,11 +35,11 @@
     <PackageReference Include="System.Text.Json" Version="6.0.5" />
     <PackageReference Include="ProjectDefaults" Version="1.0.78" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
     <PackageReference Include="System.Globalization.Extensions" Version="4.3.0" PrivateAssets="none" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
-    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
 </Project>
