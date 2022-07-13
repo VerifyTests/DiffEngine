@@ -7,5 +7,5 @@
   },
   RunAtStartup: false,
   TargetOnLeft: false,
-  MaxInstancesToLaunch: 20
+  MaxInstancesToLaunch: 5
 }
