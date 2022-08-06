@@ -140,7 +140,7 @@
         Assert.True(DiffTools.TryFindByName(DiffTool.VisualStudio, out var resolved));
         Assert.NotNull(resolved);
 
-        Assert.True(DiffTools.TryFindByName(resolved!.Name, out resolved));
+        Assert.True(DiffTools.TryFindByName(resolved.Name, out resolved));
         Assert.NotNull(resolved);
     }
 #endif
