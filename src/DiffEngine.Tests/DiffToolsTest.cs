@@ -33,7 +33,7 @@
 
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
         Assert.True(DiffTools.TryFindByExtension("jpg", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension!.Name);
+        Assert.Equal(resolvedTool.Name, forExtension.Name);
     }
 
     [Fact]
@@ -53,7 +53,7 @@
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
         Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension!.Name);
+        Assert.Equal(resolvedTool.Name, forExtension.Name);
     }
 
 #if DEBUG
