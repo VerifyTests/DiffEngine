@@ -154,7 +154,10 @@ static class MenuBuilder
 
     static ToolStripItem BuildMove(TrackedMove move, Action accept, Action discard)
     {
-        var menu = new ToolStripDropDownButton($"{move.Name} ({move.Extension})");
+        var tempName = Path.GetFileNameWithoutExtension(move.Temp);
+        var targetName = Path.GetFileNameWithoutExtension(move.Target);
+        var text = $"{tempName} > {targetName} ({move.Extension})";
+        var menu = new ToolStripDropDownButton(text);
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
         menu.DropDownItems.Add(new MenuButton("Accept move", accept));
         menu.DropDownItems.Add(new MenuButton("Discard", discard));

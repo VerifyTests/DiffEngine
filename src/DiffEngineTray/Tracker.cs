@@ -43,23 +43,18 @@ class Tracker :
 
     async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
     {
-        void RemoveAndKill(KeyValuePair<string, TrackedMove> keyValuePair)
+        void RemoveAndKill(TrackedMove tacked)
         {
-            if (moves.TryRemove(keyValuePair.Key, out var removed))
+            if (moves.TryRemove(tacked.Temp, out var removed))
             {
                 KillProcesses(removed);
             }
         }
 
         var move = pair.Value;
-        if (!File.Exists(move.Temp))
+        if (!File.Exists(move.Temp) || !File.Exists(move.Target))
         {
-            RemoveAndKill(pair);
-            return;
-        }
-
-        if (!File.Exists(move.Target))
-        {
+            RemoveAndKill(pair.Value);
             return;
         }
 
@@ -75,7 +70,7 @@ class Tracker :
             return;
         }
 
-        RemoveAndKill(pair);
+        RemoveAndKill(pair.Value);
     }
 
     void ToggleActive()
@@ -105,8 +100,8 @@ class Tracker :
         var exeFile = Path.GetFileName(exe);
         var targetFile = Path.GetFileName(target);
         return moves.AddOrUpdate(
-            target,
-            addValueFactory: target =>
+            temp,
+            addValueFactory: temp =>
             {
                 Process? process = null;
                 if (processId != null)
@@ -127,7 +122,7 @@ class Tracker :
 
                 return move;
             },
-            updateValueFactory: (target, existing) =>
+            updateValueFactory: (temp, existing) =>
             {
                 Process? process;
                 if (processId == null)
@@ -221,7 +216,7 @@ class Tracker :
     {
         foreach (var move in toAccept)
         {
-            if (moves.Remove(move.Target, out var removed))
+            if (moves.Remove(move.Temp, out var removed))
             {
                 InnerMove(removed);
             }
@@ -230,7 +225,7 @@ class Tracker :
 
     public void Accept(TrackedMove move)
     {
-        if (moves.Remove(move.Target, out var removed))
+        if (moves.Remove(move.Temp, out var removed))
         {
             InnerMove(removed);
         }
@@ -238,7 +233,7 @@ class Tracker :
 
     public void Discard(TrackedMove move)
     {
-        if (moves.Remove(move.Target, out var removed))
+        if (moves.Remove(move.Temp, out var removed))
         {
             InnerDiscard(removed);
         }
@@ -304,7 +299,7 @@ class Tracker :
             }
 
             InnerMove(move);
-            moves.Remove(key, out _);
+            moves.Remove(move.Temp, out _);
         }
     }
 
