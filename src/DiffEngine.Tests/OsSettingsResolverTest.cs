@@ -41,7 +41,7 @@ public class OsSettingsResolverTest :
         {
             var found = OsSettingsResolver.TryFindInEnvPath("cmd.exe", out var filePath);
             Assert.Equal(true, found);
-            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath);
+            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
