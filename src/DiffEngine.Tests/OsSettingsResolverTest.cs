@@ -29,7 +29,7 @@ public class OsSettingsResolverTest :
     [Fact]
     public void NotCliDefinition()
     {
-        var path = Path.Join("SomeDirectory", "Path");
+        var path = Path.Combine("SomeDirectory", "Path");
         var cli = OsSettingsResolver.IsCliDefinition(path);
         Assert.Equal(false, cli);
     }
