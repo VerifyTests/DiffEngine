@@ -15,7 +15,7 @@
     <PackageReference Include="System.Drawing.Common" Version="5.0.0" />
     <PackageReference Include="Xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" PrivateAssets="all" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.79" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.80" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.2.3" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
