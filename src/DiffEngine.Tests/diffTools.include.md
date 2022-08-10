@@ -640,13 +640,9 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
   * Example target on right arguments: `--diff "tempFile" "targetFile"`
   * Scanned paths:  
     * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
-    * `%ProgramFiles%\Microsoft VS Code\bin\code.exe`
-    * `%ProgramW6432%\Microsoft VS Code\bin\code.exe`
-    * `%ProgramFiles(x86)%\Microsoft VS Code\bin\code.exe`
     * `%ProgramFiles%\Microsoft VS Code\code.exe`
     * `%ProgramW6432%\Microsoft VS Code\code.exe`
     * `%ProgramFiles(x86)%\Microsoft VS Code\code.exe`
-    * `%UserProfile%\scoop\apps\vscode\current\bin\code.cmd`
     * `%UserProfile%\scoop\apps\vscode\current\code.exe`
 
 #### OSX settings:
