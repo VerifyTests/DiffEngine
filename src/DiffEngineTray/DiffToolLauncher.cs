@@ -1,5 +1,3 @@
-using Serilog;
-
 static class DiffToolLauncher
 {
     [DllImport("user32.dll")]
