@@ -64,7 +64,6 @@
 
         writer.WriteLine("""
 
-
                          ## Non-MDI tools
  
                          Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
@@ -95,17 +94,13 @@
     {
         writer.WriteLine($"""
     
-                         ### [{tool.Tool}]({tool.Url})
-    
-                         """);
-
-        writer.WriteLine($"""
-    
-                           * Cost: {tool.Cost}
-                           * Is MDI: {tool.IsMdi}
-                           * Supports auto-refresh: {tool.AutoRefresh}
-                           * Supports text files: {tool.SupportsText}
-                         """);
+                          ### [{tool.Tool}]({tool.Url})
+     
+                            * Cost: {tool.Cost}
+                            * Is MDI: {tool.IsMdi}
+                            * Supports auto-refresh: {tool.AutoRefresh}
+                            * Supports text files: {tool.SupportsText}
+                          """);
 
         if (tool.BinaryExtensions.Any())
         {
@@ -114,12 +109,12 @@
 
         if (tool.Notes != null)
         {
-            writer.WriteLine("""
+            writer.WriteLine($"""
 
-                             #### Notes:
-
-                             """);
-            writer.WriteLine(tool.Notes);
+                              #### Notes:
+                              
+                              {tool.Notes}
+                              """);
         }
 
         var windows = tool.Windows;

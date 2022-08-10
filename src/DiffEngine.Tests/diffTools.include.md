@@ -1,12 +1,10 @@
 
-
 ## Non-MDI tools
 
 Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
 
 
 ### [BeyondCompare](https://www.scootersoftware.com)
-
 
   * Cost: Paid
   * Is MDI: False
@@ -48,7 +46,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [DeltaWalker](https://www.deltawalker.com/)
 
-
   * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: False
@@ -78,7 +75,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)
 
-
   * Cost: Free with option to donate
   * Is MDI: False
   * Supports auto-refresh: True
@@ -102,7 +98,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe`
 
 ### [DiffMerge](https://www.sourcegear.com/diffmerge/)
-
 
   * Cost: Free
   * Is MDI: False
@@ -136,7 +131,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
 
-
   * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: True
@@ -160,7 +154,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles(x86)%\ExamDiff Pro\ExamDiff.exe`
 
 ### [Guiffy](https://www.guiffy.com/)
-
 
   * Cost: Paid
   * Is MDI: False
@@ -196,7 +189,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [Kaleidoscope](https://www.kaleidoscopeapp.com/)
 
-
   * Cost: Paid
   * Is MDI: False
   * Supports auto-refresh: False
@@ -211,7 +203,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%PATH%ksdiff`
 
 ### [KDiff3](https://github.com/KDE/kdiff3)
-
 
   * Cost: Free
   * Is MDI: False
@@ -243,7 +234,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [Neovim](https://neovim.io/)
 
-
   * Cost: Free with option to sponsor
   * Is MDI: False
   * Supports auto-refresh: False
@@ -263,7 +253,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ChocolateyToolsLocation%\neovim\*\nvim.exe`
 
 ### [P4MergeImage](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
-
 
   * Cost: Free
   * Is MDI: False
@@ -298,7 +287,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [P4MergeText](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
-
   * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
@@ -330,7 +318,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%PATH%p4merge`
 
 ### [Rider](https://www.jetbrains.com/rider/)
-
 
   * Cost: Paid with free option for OSS
   * Is MDI: False
@@ -379,7 +366,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [TkDiff](https://sourceforge.net/projects/tkdiff/)
 
-
   * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
@@ -394,7 +380,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `/Applications/TkDiff.app/Contents/MacOS/tkdiff`
 
 ### [TortoiseGitMerge](https://tortoisegit.org/docs/tortoisegitmerge/)
-
 
   * Cost: Free
   * Is MDI: False
@@ -412,7 +397,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles(x86)%\TortoiseGit\bin\TortoiseGitMerge.exe`
 
 ### [TortoiseIDiff](https://tortoisesvn.net/TortoiseIDiff.html)
-
 
   * Cost: Free
   * Is MDI: False
@@ -432,7 +416,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [TortoiseMerge](https://tortoisesvn.net/TortoiseMerge.html)
 
-
   * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
@@ -449,7 +432,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles(x86)%\TortoiseSVN\bin\TortoiseMerge.exe`
 
 ### [Vim](https://www.vim.org/)
-
 
   * Cost: Free with option to donate
   * Is MDI: False
@@ -485,7 +467,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [WinMerge](https://winmerge.org/)
 
-
   * Cost: Free with option to donate
   * Is MDI: False
   * Supports auto-refresh: True
@@ -516,7 +497,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 
 ### [AraxisMerge](https://www.araxis.com/merge)
-
 
   * Cost: Paid
   * Is MDI: True
@@ -552,7 +532,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 ### [CodeCompare](https://www.devart.com/codecompare/)
 
-
   * Cost: Paid
   * Is MDI: True
   * Supports auto-refresh: False
@@ -574,7 +553,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles(x86)%\Devart\Code Compare\CodeCompare.exe`
 
 ### [Meld](https://meldmerge.org/)
-
 
   * Cost: Free
   * Is MDI: True
@@ -613,7 +591,6 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 ### [SublimeMerge](https://www.sublimemerge.com/)
 
-
   * Cost: Paid
   * Is MDI: True
   * Supports auto-refresh: False
@@ -650,7 +627,6 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 ### [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
-
   * Cost: Paid and free options
   * Is MDI: True
   * Supports auto-refresh: True
@@ -679,7 +655,6 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
     * `%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe`
 
 ### [VisualStudioCode](https://code.visualstudio.com)
-
 
   * Cost: Free
   * Is MDI: True
