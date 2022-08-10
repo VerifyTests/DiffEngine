@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using Serilog;
 
 static class DiffToolLauncher
 {
