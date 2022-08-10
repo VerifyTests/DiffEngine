@@ -36,8 +36,8 @@ public class ResolvedTool
     internal ResolvedTool(string name,
         DiffTool? tool,
         string exePath,
-        BuildArguments targetRightArguments,
-        BuildArguments targetLeftArguments,
+        BuildArguments rightArguments,
+        BuildArguments leftArguments,
         bool isMdi,
         bool autoRefresh,
         IReadOnlyList<string> binaryExtensions,
@@ -47,8 +47,8 @@ public class ResolvedTool
         Name = name;
         Tool = tool;
         ExePath = exePath;
-        RightArguments = targetRightArguments;
-        LeftArguments = targetLeftArguments;
+        RightArguments = rightArguments;
+        LeftArguments = leftArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;
@@ -59,8 +59,8 @@ public class ResolvedTool
     public ResolvedTool(
         string name,
         string exePath,
-        BuildArguments targetRightArguments,
-        BuildArguments targetLeftArguments,
+        BuildArguments rightArguments,
+        BuildArguments leftArguments,
         bool isMdi,
         bool autoRefresh,
         string[] binaryExtensions,
@@ -71,8 +71,8 @@ public class ResolvedTool
         Guard.AgainstEmpty(name, nameof(name));
         Name = name;
         ExePath = exePath;
-        RightArguments = targetRightArguments;
-        LeftArguments = targetLeftArguments;
+        RightArguments = rightArguments;
+        LeftArguments = leftArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;

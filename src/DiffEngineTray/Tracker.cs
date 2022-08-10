@@ -1,5 +1,3 @@
-using Serilog;
-
 class Tracker :
     IAsyncDisposable
 {
