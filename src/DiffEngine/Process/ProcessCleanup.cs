@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace DiffEngine;
+﻿namespace DiffEngine;
 
 public static class ProcessCleanup
 {

@@ -1,8 +1,28 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 
 static class OsSettingsResolver
 {
+    static string[] envPaths;
+
+    static OsSettingsResolver()
+    {
+        var pathVariable = Environment.GetEnvironmentVariable("PATH")!;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            envPaths = pathVariable.Split(';');
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            envPaths = pathVariable.Split(':');
+        }
+        else
+        {
+            envPaths = Array.Empty<string>();
+        }
+    }
+
     public static bool Resolve(
         OsSettings? windows,
         OsSettings? linux,
@@ -74,7 +94,7 @@ static class OsSettingsResolver
         }
     }
 
-    public static bool TryFindExe(string exeName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
+    static bool TryFindExe(string exeName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -96,29 +116,10 @@ static class OsSettingsResolver
     {
         // For each path in PATH, append cliApp and check if it exists.
         // Return the first one that exists.
+        exePath = envPaths
+            .Select(_ => Path.Combine(_, exeName))
+            .FirstOrDefault(_ => File.Exists(_));
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            exePath = Environment.GetEnvironmentVariable("PATH")!
-                .Split(';')
-                .Select(s => Path.Combine(s, exeName))
-                .FirstOrDefault(x => File.Exists(x));
-
-            return exePath != null;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            exePath = Environment.GetEnvironmentVariable("PATH")!
-                .Split(':')
-                .Select(s => Path.Combine(s, exeName))
-                .FirstOrDefault(x => File.Exists(x));
-
-            return exePath != null;
-        }
-
-        exePath = null;
-        return false;
+        return exePath != null;
     }
 }

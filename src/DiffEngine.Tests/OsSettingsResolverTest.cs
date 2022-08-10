@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-public class OsSettingsResolverTest :
+﻿public class OsSettingsResolverTest :
     XunitContextBase
 {
     [Fact]
