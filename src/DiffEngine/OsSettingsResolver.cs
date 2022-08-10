@@ -82,15 +82,17 @@ static class OsSettingsResolver
         // when running inside a 32-bit process. To
         // overcome this issue, we need to manually add any option so the correct paths will be resolved
 
-        foreach (var windowsPath in paths)
+        foreach (var path in paths)
         {
-            yield return windowsPath;
+            yield return path;
 
-            if (windowsPath.Contains("%ProgramFiles%"))
+            if (!path.Contains("%ProgramFiles%"))
             {
-                yield return windowsPath.Replace("%ProgramFiles%", "%ProgramW6432%");
-                yield return windowsPath.Replace("%ProgramFiles%", "%ProgramFiles(x86)%");
+                continue;
             }
+
+            yield return path.Replace("%ProgramFiles%", "%ProgramW6432%");
+            yield return path.Replace("%ProgramFiles%", "%ProgramFiles(x86)%");
         }
     }
 
