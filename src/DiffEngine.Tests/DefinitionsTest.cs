@@ -62,13 +62,14 @@
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        writer.WriteLine(@"
+        writer.WriteLine("""
 
-## Non-MDI tools
 
-Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
-
-");
+                         ## Non-MDI tools
+ 
+                         Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
+ 
+                         """);
 
         foreach (var tool in Definitions.Tools
                      .Where(x => !x.IsMdi)
@@ -77,11 +78,11 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
             AddTool(writer, tool);
         }
 
-        writer.WriteLine(@"
+        writer.WriteLine("""
 
-## MDI tools
+                         ## MDI tools
 
-");
+                         """);
         foreach (var tool in Definitions.Tools
                      .Where(x => x.IsMdi)
                      .OrderBy(x => x.Tool.ToString()))
@@ -92,15 +93,19 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
     static void AddTool(StreamWriter writer, Definition tool)
     {
-        writer.WriteLine($@"
+        writer.WriteLine($"""
+    
+                         ### [{tool.Tool}]({tool.Url})
+    
+                         """);
 
-### [{tool.Tool}]({tool.Url})");
-
-        writer.WriteLine($@"
-  * Cost: {tool.Cost}
-  * Is MDI: {tool.IsMdi}
-  * Supports auto-refresh: {tool.AutoRefresh}
-  * Supports text files: {tool.SupportsText}");
+        writer.WriteLine($"""
+    
+                           * Cost: {tool.Cost}
+                           * Is MDI: {tool.IsMdi}
+                           * Supports auto-refresh: {tool.AutoRefresh}
+                           * Supports text files: {tool.SupportsText}
+                         """);
 
         if (tool.BinaryExtensions.Any())
         {
@@ -109,31 +114,43 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
         if (tool.Notes != null)
         {
-            writer.WriteLine(@"
-#### Notes:");
+            writer.WriteLine("""
+
+                             #### Notes:
+
+                             """);
             writer.WriteLine(tool.Notes);
         }
 
         if (tool.Windows != null)
         {
-            writer.WriteLine(@"
-#### Windows settings:");
+            writer.WriteLine("""
+
+                             #### Windows settings:
+
+                             """);
             WriteArguments(writer, tool.Windows);
             WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
         }
 
         if (tool.Osx != null)
         {
-            writer.WriteLine(@"
-#### OSX settings:");
+            writer.WriteLine("""
+            
+                             #### OSX settings:
+                             
+                             """);
             WriteArguments(writer, tool.Osx);
             WritePaths(writer, tool.Osx.ExePaths);
         }
 
         if (tool.Linux != null)
         {
-            writer.WriteLine(@"
-#### Linux settings:");
+            writer.WriteLine("""
+            
+                             #### Linux settings:
+                             
+                             """);
             WriteArguments(writer, tool.Linux);
             WritePaths(writer, tool.Linux.ExePaths);
         }
@@ -143,28 +160,29 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     {
         var leftArguments = osSettings.TargetLeftArguments("tempFile", "targetFile");
         var rightArguments = osSettings.TargetRightArguments("tempFile", "targetFile");
-        writer.WriteLine($@"
- * Example target on left arguments: `{leftArguments}`
- * Example target on right arguments: `{rightArguments}`");
+        writer.WriteLine($"""
+                           * Example target on left arguments: `{leftArguments}`
+                           * Example target on right arguments: `{rightArguments}`
+                         """);
     }
 
     static void WritePaths(TextWriter writer, IReadOnlyCollection<string> paths)
     {
         if (paths.Count > 1)
         {
-            writer.WriteLine(@" * Scanned paths:
-");
+            writer.WriteLine("""
+                               * Scanned paths:  
+                             """);
             foreach (var path in paths)
             {
-                writer.WriteLine($"   * `{path}`");
+                writer.WriteLine($"    * `{path}`");
             }
         }
         else
         {
-            writer.WriteLine($" * Scanned path: `{paths.Single()}`");
+            writer.WriteLine($"  * Scanned path: `{paths.Single()}`");
         }
     }
-
 
     public DefinitionsTest(ITestOutputHelper output) :
         base(output)

@@ -7,6 +7,7 @@
     <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
     <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
     <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
     <SignAssembly>true</SignAssembly>
     <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
     <AssemblyOriginatorKeyFile>..\key.snk</AssemblyOriginatorKeyFile>
