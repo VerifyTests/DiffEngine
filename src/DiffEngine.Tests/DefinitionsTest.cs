@@ -131,7 +131,7 @@
 
                              """);
             WriteArguments(writer, windows);
-            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.ExePaths).ToList());
+            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
         var osx = tool.Osx;
@@ -143,7 +143,7 @@
                              
                              """);
             WriteArguments(writer, osx);
-            WritePaths(osx.ExeName, writer, osx.ExePaths);
+            WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
         var linux = tool.Linux;
@@ -155,14 +155,14 @@
                              
                              """);
             WriteArguments(writer, linux);
-            WritePaths(linux.ExeName, writer, linux.ExePaths);
+            WritePaths(linux.ExeName, writer, linux.SearchDirectories);
         }
     }
 
     static void WriteArguments(StreamWriter writer, OsSettings osSettings)
     {
-        var leftArguments = osSettings.TargetLeftArguments("tempFile", "targetFile");
-        var rightArguments = osSettings.TargetRightArguments("tempFile", "targetFile");
+        var leftArguments = osSettings.LeftArguments("tempFile", "targetFile");
+        var rightArguments = osSettings.RightArguments("tempFile", "targetFile");
         writer.WriteLine($"""
                            * Example target on left arguments: `{leftArguments}`
                            * Example target on right arguments: `{rightArguments}`

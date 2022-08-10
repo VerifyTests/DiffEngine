@@ -2,12 +2,12 @@
 {
     public static Definition Rider()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"diff \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"diff \"{temp}\" \"{target}\"";
         }
@@ -23,8 +23,8 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "rider64.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\",
                 @"%JetBrains Rider%\",
@@ -32,16 +32,16 @@
                 @"%UserProfile%\scoop\apps\rider\current\IDE\bin\"),
             osx: new(
                 "rider",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/",
                 "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/",
                 "/Applications/Rider EAP.app/Contents/MacOS/",
                 "/Applications/Rider.app/Contents/MacOS/"),
             linux: new(
                 "rider.sh",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/",
                 "/opt/jetbrains/rider/bin/",
                 "/usr/share/rider/bin/"),

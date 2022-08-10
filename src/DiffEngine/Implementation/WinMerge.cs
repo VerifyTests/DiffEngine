@@ -2,14 +2,14 @@
 {
     public static Definition WinMerge()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
             return $"/u /wl /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
@@ -78,8 +78,8 @@
             },
             windows: new(
                 "WinMergeU.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\WinMerge\",
                 @"%LocalAppData%\Programs\WinMerge\"),
             notes: @"

@@ -2,12 +2,12 @@
 {
     public static Definition P4MergeText()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
         }
@@ -23,18 +23,18 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "p4merge.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\Perforce\"),
             linux: new(
                 "p4merge",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/usr/bin/"),
             osx: new(
                 "p4merge",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }

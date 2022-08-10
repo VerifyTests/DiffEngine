@@ -2,12 +2,12 @@
 {
     public static Definition Guiffy()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\" -ge2";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\" -ge1";
         }
@@ -26,13 +26,13 @@
             },
             windows: new(
                 "guiffy.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\Guiffy\"),
             osx: new(
                 "guiffyCL.command",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/Applications/Guiffy/"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)

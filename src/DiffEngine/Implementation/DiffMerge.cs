@@ -2,12 +2,12 @@
 {
     public static Definition DiffMerge()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"--nosplash \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"--nosplash \"{temp}\" \"{target}\"";
         }
@@ -23,18 +23,18 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "sgdm.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
             linux: new(
                 "diffmerge",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/usr/bin/"),
             osx: new(
                 "DiffMerge",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/Applications/DiffMerge.app/Contents/MacOS/"));
     }
 }

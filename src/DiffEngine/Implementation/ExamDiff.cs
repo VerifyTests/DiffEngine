@@ -2,14 +2,14 @@
 {
     public static Definition ExamDiff()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
             return $"\"{target}\" \"{temp}\" /nh /diffonly /dn1:{targetTitle} /dn2:{tempTitle}";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
@@ -27,8 +27,8 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "ExamDiff.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\ExamDiff Pro\"),
             notes: @"
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)

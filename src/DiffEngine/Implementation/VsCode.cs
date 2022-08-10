@@ -2,12 +2,12 @@
 {
     public static Definition VisualStudioCode()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"--diff \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"--diff \"{temp}\" \"{target}\"";
         }
@@ -23,21 +23,21 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "code.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\",
                 @"%ProgramFiles%\Microsoft VS Code\",
                 @"%UserProfile%\scoop\apps\vscode\current\"),
             linux: new(
                 "code",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/usr/local/bin/",
                 "/usr/bin/"),
             osx: new(
                 "code",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/"),
             notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");

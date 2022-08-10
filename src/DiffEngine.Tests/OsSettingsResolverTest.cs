@@ -20,21 +20,6 @@ public class OsSettingsResolverTest :
     }
 
     [Fact]
-    public void CliDefinition()
-    {
-        var cli = OsSettingsResolver.IsCliDefinition("Path");
-        Assert.Equal(true, cli);
-    }
-
-    [Fact]
-    public void NotCliDefinition()
-    {
-        var path = Path.Combine("SomeDirectory", "Path");
-        var cli = OsSettingsResolver.IsCliDefinition(path);
-        Assert.Equal(false, cli);
-    }
-
-    [Fact]
     public void EnvPath()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

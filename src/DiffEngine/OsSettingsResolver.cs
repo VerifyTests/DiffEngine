@@ -8,47 +8,51 @@ static class OsSettingsResolver
         OsSettings? linux,
         OsSettings? osx,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out BuildArguments? targetLeftArguments,
-        [NotNullWhen(true)] out BuildArguments? targetRightArguments)
+        [NotNullWhen(true)] out BuildArguments? leftArguments,
+        [NotNullWhen(true)] out BuildArguments? rightArguments)
     {
-        if (windows != null &&
-            RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (TryResolveForOs(windows, out path, out leftArguments, out rightArguments, OSPlatform.Windows))
         {
-            var paths = ExpandProgramFiles(windows.ExePaths);
-
-            if (TryFindExe(paths, out path))
-            {
-                targetLeftArguments = windows.TargetLeftArguments;
-                targetRightArguments = windows.TargetRightArguments;
-                return true;
-            }
+            return true;
         }
 
-        if (linux != null &&
-            RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (TryResolveForOs(linux, out path, out leftArguments, out rightArguments, OSPlatform.Linux))
         {
-            if (TryFindExe(linux.ExePaths, out path))
-            {
-                targetLeftArguments = linux.TargetLeftArguments;
-                targetRightArguments = linux.TargetRightArguments;
-                return true;
-            }
+            return true;
         }
 
-        if (osx != null &&
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (TryResolveForOs(osx, out path, out leftArguments, out rightArguments, OSPlatform.OSX))
         {
-            if (TryFindExe(osx.ExePaths, out path))
-            {
-                targetLeftArguments = osx.TargetLeftArguments;
-                targetRightArguments = osx.TargetRightArguments;
-                return true;
-            }
+            return true;
         }
 
         path = null;
-        targetLeftArguments = null;
-        targetRightArguments = null;
+        leftArguments = null;
+        rightArguments = null;
+        return false;
+    }
+
+    static bool TryResolveForOs(
+        OsSettings? os,
+        [NotNullWhen(true)] out string? path,
+        [NotNullWhen(true)] out BuildArguments? leftArguments,
+        [NotNullWhen(true)] out BuildArguments? rightArguments,
+        OSPlatform platform)
+    {
+        if (os != null &&
+            RuntimeInformation.IsOSPlatform(platform))
+        {
+            if (TryFindExe(os.ExeName, os.SearchDirectories, out path))
+            {
+                leftArguments = os.LeftArguments;
+                rightArguments = os.RightArguments;
+                return true;
+            }
+        }
+
+        leftArguments = null;
+        rightArguments = null;
+        path = null;
         return false;
     }
 
@@ -70,68 +74,51 @@ static class OsSettingsResolver
         }
     }
 
-    public static bool TryFindExe(IEnumerable<string> paths, [NotNullWhen(true)] out string? exePath)
+    public static bool TryFindExe(string exeName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
     {
-        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (IsCliDefinition(path) && TryFindInEnvPath(path, out exePath))
-            {
-                return true;
-            }
+            searchDirectories = ExpandProgramFiles(searchDirectories);
+        }
 
+        foreach (var path in searchDirectories.Distinct())
+        {
             if (WildcardFileFinder.TryFind(path, out exePath))
             {
                 return true;
             }
         }
 
-        exePath = null;
-        return false;
+        return TryFindInEnvPath(exeName, out exePath);
     }
 
-    public static bool IsCliDefinition(string path)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return path.Count(c => c == '\\') == 0;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            return path.Count(c => c == '/') == 0;
-        }
-
-        return false;
-    }
-
-    public static bool TryFindInEnvPath(string cliApp, [NotNullWhen(true)] out string? filePath)
+    public static bool TryFindInEnvPath(string exeName, [NotNullWhen(true)] out string? exePath)
     {
         // For each path in PATH, append cliApp and check if it exists.
         // Return the first one that exists.
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            filePath = Environment.GetEnvironmentVariable("PATH")!
+            exePath = Environment.GetEnvironmentVariable("PATH")!
                 .Split(';')
-                .Select(s => Path.Combine(s, cliApp))
+                .Select(s => Path.Combine(s, exeName))
                 .FirstOrDefault(x => File.Exists(x));
 
-            return filePath != null;
+            return exePath != null;
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
             || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            filePath = Environment.GetEnvironmentVariable("PATH")!
+            exePath = Environment.GetEnvironmentVariable("PATH")!
                 .Split(':')
-                .Select(s => Path.Combine(s, cliApp))
+                .Select(s => Path.Combine(s, exeName))
                 .FirstOrDefault(x => File.Exists(x));
 
-            return filePath != null;
+            return exePath != null;
         }
 
-        filePath = null;
+        exePath = null;
         return false;
     }
 }

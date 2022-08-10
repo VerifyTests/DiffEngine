@@ -2,12 +2,12 @@
 {
     public static Definition Diffinity()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\"";
         }
@@ -23,8 +23,8 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "Diffinity.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\Diffinity\",
                 @"%UserProfile%\scoop\apps\diffinity\current\"),
             notes: @"

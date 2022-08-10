@@ -2,12 +2,12 @@
 {
     public static Definition Vim()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
         }
@@ -23,13 +23,13 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "vim.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\Vim\*\"),
             osx: new(
                 "mvim",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 "/Applications/MacVim.app/Contents/bin/"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)

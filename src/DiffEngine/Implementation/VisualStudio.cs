@@ -2,14 +2,14 @@
 {
     public static Definition VisualStudio()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
             return $"/diff \"{target}\" \"{temp}\" \"{targetTitle}\" \"{tempTitle}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
@@ -27,8 +27,8 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "devenv.exe",
-                TargetLeftArguments,
-                TargetRightArguments,
+                LeftArguments,
+                RightArguments,
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
