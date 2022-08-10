@@ -1,6 +1,6 @@
 ﻿namespace DiffEngine;
 
-[DebuggerDisplay("{ExeName} |ExePaths={ExePaths}")]
+[DebuggerDisplay("{ExeName} | SearchDirectories={SearchDirectories}")]
 public class OsSettings
 {
     public string ExeName { get; }
