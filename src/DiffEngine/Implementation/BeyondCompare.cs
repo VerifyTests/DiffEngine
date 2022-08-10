@@ -49,17 +49,18 @@
                 "BCompare.exe",
                 TargetLeftWindowsArguments,
                 TargetRightWindowsArguments,
-                @"%ProgramFiles%\Beyond Compare *\BCompare.exe", @"%UserProfile%\scoop\apps\beyondcompare\current"),
+                @"%ProgramFiles%\Beyond Compare *\",
+                @"%UserProfile%\scoop\apps\beyondcompare\current\"),
             linux: new(
                 "bcomp",
                 TargetLeftOsxLinuxArguments,
                 TargetRightOsxLinuxArguments,
-                "/usr/lib/beyondcompare"),
+                "/usr/lib/beyondcompare/"),
             osx: new(
                 "bcomp",
                 TargetLeftOsxLinuxArguments,
                 TargetRightOsxLinuxArguments,
-                "/Applications/Beyond Compare.app/Contents/MacOS"),
+                "/Applications/Beyond Compare.app/Contents/MacOS/"),
             notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }

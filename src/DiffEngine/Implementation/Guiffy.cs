@@ -28,12 +28,12 @@
                 "guiffy.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Guiffy"),
+                @"%ProgramFiles%\Guiffy\"),
             osx: new(
                 "guiffyCL.command",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/Guiffy"),
+                "/Applications/Guiffy/"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)

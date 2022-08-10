@@ -39,16 +39,16 @@
                 "p4merge.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Perforce"),
+                @"%ProgramFiles%\Perforce\"),
             linux: new(
                 "p4merge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/usr/bin"),
+                "/usr/bin/"),
             osx: new(
                 "p4merge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/p4merge.app/Contents/MacOS"));
+                "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }

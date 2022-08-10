@@ -29,12 +29,12 @@
                 "devenv.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE"));
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\"));
     }
 }

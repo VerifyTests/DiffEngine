@@ -14,7 +14,7 @@
                 "CodeCompare.exe",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\Devart\Code Compare"),
+                @"%ProgramFiles%\Devart\Code Compare\"),
             notes: @"
  * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)");
 }

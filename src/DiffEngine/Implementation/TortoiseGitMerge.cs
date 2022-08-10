@@ -14,5 +14,5 @@
                 "TortoiseGitMerge.exe",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\TortoiseGit\bin"));
+                @"%ProgramFiles%\TortoiseGit\bin\"));
 }

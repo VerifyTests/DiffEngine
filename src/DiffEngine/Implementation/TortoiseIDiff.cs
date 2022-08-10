@@ -24,5 +24,5 @@
                 "TortoiseIDiff.exe",
                 (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
                 (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin"));
+                @"%ProgramFiles%\TortoiseSVN\bin\"));
 }

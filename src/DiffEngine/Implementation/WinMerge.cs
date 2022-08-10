@@ -80,8 +80,8 @@
                 "WinMergeU.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\WinMerge",
-                @"%LocalAppData%\Programs\WinMerge"),
+                @"%ProgramFiles%\WinMerge\",
+                @"%LocalAppData%\Programs\WinMerge\"),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.

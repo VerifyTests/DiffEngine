@@ -25,12 +25,12 @@
                 "vim.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Vim\*"),
+                @"%ProgramFiles%\Vim\*\"),
             osx: new(
                 "mvim",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/MacVim.app/Contents/bin"),
+                "/Applications/MacVim.app/Contents/bin/"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

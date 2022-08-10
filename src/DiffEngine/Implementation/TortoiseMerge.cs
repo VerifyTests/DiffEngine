@@ -14,5 +14,5 @@
                 "TortoiseMerge.exe",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin"));
+                @"%ProgramFiles%\TortoiseSVN\bin\"));
 }

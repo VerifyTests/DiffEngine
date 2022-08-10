@@ -29,7 +29,7 @@
                 "ExamDiff.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\ExamDiff Pro"),
+                @"%ProgramFiles%\ExamDiff Pro\"),
             notes: @"
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
  * `/nh`: do not add files or directories to comparison history

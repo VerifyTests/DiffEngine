@@ -25,7 +25,7 @@
                 "nvim.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ChocolateyToolsLocation%\neovim\*"),
+                @"%ChocolateyToolsLocation%\neovim\*\"),
             notes: @"
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }

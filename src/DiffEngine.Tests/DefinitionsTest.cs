@@ -131,7 +131,7 @@
 
                              """);
             WriteArguments(writer, windows);
-            WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(windows.ExePaths).ToList());
+            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.ExePaths).ToList());
         }
 
         var osx = tool.Osx;
@@ -143,7 +143,7 @@
                              
                              """);
             WriteArguments(writer, osx);
-            WritePaths(writer, osx.ExePaths);
+            WritePaths(osx.ExeName, writer, osx.ExePaths);
         }
 
         var linux = tool.Linux;
@@ -155,7 +155,7 @@
                              
                              """);
             WriteArguments(writer, linux);
-            WritePaths(writer, linux.ExePaths);
+            WritePaths(linux.ExeName, writer, linux.ExePaths);
         }
     }
 
@@ -169,7 +169,7 @@
                          """);
     }
 
-    static void WritePaths(TextWriter writer, IReadOnlyCollection<string> paths)
+    static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
         if (paths.Count > 1)
         {
@@ -178,12 +178,12 @@
                              """);
             foreach (var path in paths)
             {
-                writer.WriteLine($"    * `{path}`");
+                writer.WriteLine($"    * `{path}{exeName}`");
             }
         }
         else
         {
-            writer.WriteLine($"  * Scanned path: `{paths.Single()}`");
+            writer.WriteLine($"  * Scanned path: `{paths.Single()}{exeName}`");
         }
     }
 

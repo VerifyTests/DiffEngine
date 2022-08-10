@@ -25,8 +25,8 @@
                 "Diffinity.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Diffinity",
-                @"%UserProfile%\scoop\apps\diffinity\current"),
+                @"%ProgramFiles%\Diffinity\",
+                @"%UserProfile%\scoop\apps\diffinity\current\"),
             notes: @"
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.");

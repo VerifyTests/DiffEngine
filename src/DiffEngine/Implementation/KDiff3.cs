@@ -25,12 +25,12 @@
                 "kdiff3.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\KDiff3"),
+                @"%ProgramFiles%\KDiff3\"),
             osx: new(
                 "kdiff3",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/kdiff3.app/Contents/MacOS"),
+                "/Applications/kdiff3.app/Contents/MacOS/"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

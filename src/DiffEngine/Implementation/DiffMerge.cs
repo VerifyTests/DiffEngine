@@ -25,16 +25,16 @@
                 "sgdm.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\SourceGear\Common\DiffMerge"),
+                @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
             linux: new(
                 "diffmerge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/usr/bin"),
+                "/usr/bin/"),
             osx: new(
                 "DiffMerge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/DiffMerge.app/Contents/MacOS"));
+                "/Applications/DiffMerge.app/Contents/MacOS/"));
     }
 }

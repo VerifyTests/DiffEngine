@@ -24,5 +24,5 @@
                 "ksdiff",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                "/usr/local/bin"));
+                "/usr/local/bin/"));
 }
