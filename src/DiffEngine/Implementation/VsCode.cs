@@ -25,9 +25,7 @@
                 TargetLeftArguments,
                 TargetRightArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\code.exe",
-                @"%ProgramFiles%\Microsoft VS Code\bin\code.exe",
                 @"%ProgramFiles%\Microsoft VS Code\code.exe",
-                @"%UserProfile%\scoop\apps\vscode\current\bin\code.cmd",
                 @"%UserProfile%\scoop\apps\vscode\current\code.exe"),
             linux: new(
                 TargetLeftArguments,
