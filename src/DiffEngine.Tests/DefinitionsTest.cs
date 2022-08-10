@@ -122,37 +122,40 @@
             writer.WriteLine(tool.Notes);
         }
 
-        if (tool.Windows != null)
+        var windows = tool.Windows;
+        if (windows != null)
         {
             writer.WriteLine("""
 
                              #### Windows settings:
 
                              """);
-            WriteArguments(writer, tool.Windows);
-            WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(tool.Windows.ExePaths).ToList());
+            WriteArguments(writer, windows);
+            WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(windows.ExePaths).ToList());
         }
 
-        if (tool.Osx != null)
+        var osx = tool.Osx;
+        if (osx != null)
         {
             writer.WriteLine("""
             
                              #### OSX settings:
                              
                              """);
-            WriteArguments(writer, tool.Osx);
-            WritePaths(writer, tool.Osx.ExePaths);
+            WriteArguments(writer, osx);
+            WritePaths(writer, osx.ExePaths);
         }
 
-        if (tool.Linux != null)
+        var linux = tool.Linux;
+        if (linux != null)
         {
             writer.WriteLine("""
             
                              #### Linux settings:
                              
                              """);
-            WriteArguments(writer, tool.Linux);
-            WritePaths(writer, tool.Linux.ExePaths);
+            WriteArguments(writer, linux);
+            WritePaths(writer, linux.ExePaths);
         }
     }
 
