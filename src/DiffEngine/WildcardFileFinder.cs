@@ -55,22 +55,6 @@ static class WildcardFileFinder
         return currentRoots;
     }
 
-    public static bool TryFindExe(
-        IEnumerable<string> paths,
-        [NotNullWhen(true)] out string? exePath)
-    {
-        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            if (TryFind(path, out exePath))
-            {
-                return true;
-            }
-        }
-
-        exePath = null;
-        return false;
-    }
-
     public static bool TryFind(
         string path,
         [NotNullWhen(true)] out string? result)
