@@ -36,16 +36,19 @@
                 "xpm"
             },
             windows: new(
+                "p4merge.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Perforce\p4merge.exe"),
+                @"%ProgramFiles%\Perforce"),
             linux: new(
+                "p4merge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/usr/bin/p4merge"),
+                "/usr/bin"),
             osx: new(
+                "p4merge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/p4merge.app/Contents/MacOS/p4merge"));
+                "/Applications/p4merge.app/Contents/MacOS"));
     }
 }

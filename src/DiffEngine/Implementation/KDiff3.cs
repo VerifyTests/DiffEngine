@@ -22,13 +22,15 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "kdiff3.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+                @"%ProgramFiles%\KDiff3"),
             osx: new(
+                "kdiff3",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
+                "/Applications/kdiff3.app/Contents/MacOS"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

@@ -11,7 +11,8 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "TortoiseMerge.exe",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe"));
+                @"%ProgramFiles%\TortoiseSVN\bin"));
 }

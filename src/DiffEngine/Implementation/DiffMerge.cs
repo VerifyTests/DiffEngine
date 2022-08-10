@@ -22,16 +22,19 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "sgdm.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe"),
+                @"%ProgramFiles%\SourceGear\Common\DiffMerge"),
             linux: new(
+                "diffmerge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/usr/bin/diffmerge"),
+                "/usr/bin"),
             osx: new(
+                "DiffMerge",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/DiffMerge.app/Contents/MacOS/DiffMerge"));
+                "/Applications/DiffMerge.app/Contents/MacOS"));
     }
 }

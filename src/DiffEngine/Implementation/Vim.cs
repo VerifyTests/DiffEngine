@@ -22,13 +22,15 @@
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "vim.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Vim\*\vim.exe"),
+                @"%ProgramFiles%\Vim\*"),
             osx: new(
+                "mvim",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/MacVim.app/Contents/bin/mvim"),
+                "/Applications/MacVim.app/Contents/bin"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

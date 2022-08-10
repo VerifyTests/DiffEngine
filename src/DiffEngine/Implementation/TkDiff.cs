@@ -11,7 +11,8 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             osx: new(
+                "tkdiff",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                "/Applications/TkDiff.app/Contents/MacOS/tkdiff"));
+                "/Applications/TkDiff.app/Contents/MacOS"));
 }

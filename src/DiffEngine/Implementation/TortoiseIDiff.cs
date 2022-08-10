@@ -21,7 +21,8 @@
                 "tiff"
             },
             windows: new(
+                "TortoiseIDiff.exe",
                 (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
                 (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
-                @"%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe"));
+                @"%ProgramFiles%\TortoiseSVN\bin"));
 }

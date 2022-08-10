@@ -22,9 +22,10 @@
             cost: "Free with option to sponsor",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "nvim.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
+                @"%ChocolateyToolsLocation%\neovim\*"),
             notes: @"
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }

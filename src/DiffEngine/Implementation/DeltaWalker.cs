@@ -57,13 +57,15 @@
                 "htm"
             },
             osx: new(
+                "DeltaWalker",
                 TargetLeftArguments,
                 TargetRightArguments,
-                "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
+                "/Applications/DeltaWalker.app/Contents/MacOS"),
             windows: new(
+                "DeltaWalker.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
+                @"C:\Program Files\Deltopia\DeltaWalker"),
             notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
     }

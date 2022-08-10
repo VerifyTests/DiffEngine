@@ -22,10 +22,11 @@
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "Diffinity.exe",
                 TargetLeftArguments,
                 TargetRightArguments,
-                @"%ProgramFiles%\Diffinity\Diffinity.exe",
-                @"%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe"),
+                @"%ProgramFiles%\Diffinity",
+                @"%UserProfile%\scoop\apps\diffinity\current"),
             notes: @"
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.");
