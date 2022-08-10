@@ -23,7 +23,9 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 TargetLeftArguments,
-                TargetRightArguments, @"%ProgramFiles%\KDiff3\kdiff3.exe", @"%ProgramFiles%\KDiff3\bin\kdiff3.exe"),
+                TargetRightArguments,
+                @"%ProgramFiles%\KDiff3\kdiff3.exe",
+                @"%ProgramFiles%\KDiff3\bin\kdiff3.exe"),
             osx: new(
                 TargetLeftArguments,
                 TargetRightArguments,
