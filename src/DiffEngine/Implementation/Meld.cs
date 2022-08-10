@@ -30,8 +30,7 @@
             linux: new(
                 "meld",
                 LeftArguments,
-                RightArguments,
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "meld",
                 LeftArguments,

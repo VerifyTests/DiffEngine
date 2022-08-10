@@ -171,19 +171,13 @@
 
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
-        if (paths.Count > 1)
+        writer.WriteLine("""
+                           * Scanned paths:  
+                         """);
+        writer.WriteLine($"    * `%PATH%{exeName}`");
+        foreach (var path in paths)
         {
-            writer.WriteLine("""
-                               * Scanned paths:  
-                             """);
-            foreach (var path in paths)
-            {
-                writer.WriteLine($"    * `{path}{exeName}`");
-            }
-        }
-        else
-        {
-            writer.WriteLine($"  * Scanned path: `{paths.Single()}{exeName}`");
+            writer.WriteLine($"    * `{path}{exeName}`");
         }
     }
 

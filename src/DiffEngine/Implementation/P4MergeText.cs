@@ -29,8 +29,7 @@
             linux: new(
                 "p4merge",
                 LeftArguments,
-                RightArguments,
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "p4merge",
                 LeftArguments,

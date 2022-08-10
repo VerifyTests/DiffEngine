@@ -31,9 +31,7 @@
             linux: new(
                 "code",
                 LeftArguments,
-                RightArguments,
-                "/usr/local/bin/",
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "code",
                 LeftArguments,
