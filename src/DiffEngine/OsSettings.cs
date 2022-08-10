@@ -14,7 +14,7 @@ public class OsSettings
         BuildArguments targetRightArguments,
         params string[] exePaths)
     {
-        this.ExeName = exeName;
+        ExeName = exeName;
         TargetLeftArguments = targetLeftArguments;
         TargetRightArguments = targetRightArguments;
         ExePaths = exePaths;
