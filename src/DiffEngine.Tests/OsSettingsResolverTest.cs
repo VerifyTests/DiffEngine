@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-public class OsSettingsResolverTest :
+﻿public class OsSettingsResolverTest :
     XunitContextBase
 {
     [Fact]
@@ -17,21 +15,6 @@ public class OsSettingsResolverTest :
         Assert.Equal(@"%ProgramFiles%\Path", paths[0]);
         Assert.Equal(@"%ProgramW6432%\Path", paths[1]);
         Assert.Equal(@"%ProgramFiles(x86)%\Path", paths[2]);
-    }
-
-    [Fact]
-    public void CliDefinition()
-    {
-        var cli = OsSettingsResolver.IsCliDefinition("Path");
-        Assert.Equal(true, cli);
-    }
-
-    [Fact]
-    public void NotCliDefinition()
-    {
-        var path = Path.Combine("SomeDirectory", "Path");
-        var cli = OsSettingsResolver.IsCliDefinition(path);
-        Assert.Equal(false, cli);
     }
 
     [Fact]

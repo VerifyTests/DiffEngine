@@ -56,8 +56,8 @@ public static class DiffTools
             isMdi ?? existing.IsMdi,
             supportsText ?? existing.SupportsText,
             requiresTarget ?? existing.RequiresTarget,
-            targetLeftArguments ?? existing.TargetLeftArguments,
-            targetRightArguments ?? existing.TargetRightArguments,
+            targetLeftArguments ?? existing.LeftArguments,
+            targetRightArguments ?? existing.RightArguments,
             exePath ?? existing.ExePath,
             binaryExtensions ?? existing.BinaryExtensions);
     }

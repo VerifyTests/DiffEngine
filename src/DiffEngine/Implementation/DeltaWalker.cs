@@ -2,12 +2,12 @@
 {
     public static Definition DeltaWalker()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"-mi \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"-mi \"{temp}\" \"{target}\"";
         }
@@ -57,13 +57,15 @@
                 "htm"
             },
             osx: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker"),
+                "DeltaWalker",
+                LeftArguments,
+                RightArguments,
+                "/Applications/DeltaWalker.app/Contents/MacOS/"),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe"),
+                "DeltaWalker.exe",
+                LeftArguments,
+                RightArguments,
+                @"C:\Program Files\Deltopia\DeltaWalker\"),
             notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
     }

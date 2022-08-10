@@ -2,12 +2,12 @@
 {
     public static Definition KDiff3()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0";
         }
@@ -22,13 +22,15 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\KDiff3\kdiff3.exe"),
+                "kdiff3.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\KDiff3\"),
             osx: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "/Applications/kdiff3.app/Contents/MacOS/kdiff3"),
+                "kdiff3",
+                LeftArguments,
+                RightArguments,
+                "/Applications/kdiff3.app/Contents/MacOS/"),
             notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

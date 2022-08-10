@@ -2,12 +2,12 @@
 {
     public static Definition Diffinity()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\"";
         }
@@ -22,10 +22,11 @@
             cost: "Free with option to donate",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\Diffinity\Diffinity.exe",
-                @"%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe"),
+                "Diffinity.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\Diffinity\",
+                @"%UserProfile%\scoop\apps\diffinity\current\"),
             notes: @"
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.");

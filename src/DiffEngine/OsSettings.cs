@@ -1,19 +1,22 @@
 ﻿namespace DiffEngine;
 
-[DebuggerDisplay("ExePaths={ExePaths}")]
+[DebuggerDisplay("{ExeName} | SearchDirectories={SearchDirectories}")]
 public class OsSettings
 {
-    public BuildArguments TargetLeftArguments { get; }
-    public BuildArguments TargetRightArguments { get; }
-    public string[] ExePaths { get; }
+    public string ExeName { get; }
+    public BuildArguments LeftArguments { get; }
+    public BuildArguments RightArguments { get; }
+    public string[] SearchDirectories { get; }
 
     public OsSettings(
-        BuildArguments targetLeftArguments,
-        BuildArguments targetRightArguments,
-        params string[] exePaths)
+        string exeName,
+        BuildArguments leftArguments,
+        BuildArguments rightArguments,
+        params string[] searchDirectories)
     {
-        TargetLeftArguments = targetLeftArguments;
-        TargetRightArguments = targetRightArguments;
-        ExePaths = exePaths;
+        ExeName = exeName;
+        LeftArguments = leftArguments;
+        RightArguments = rightArguments;
+        SearchDirectories = searchDirectories;
     }
 }

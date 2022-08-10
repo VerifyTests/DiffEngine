@@ -2,14 +2,14 @@
 {
     public static Definition WinMerge()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
             return $"/u /wl /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
@@ -77,10 +77,11 @@
                 "xpm"
             },
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\WinMerge\WinMergeU.exe",
-                @"%LocalAppData%\Programs\WinMerge\WinMergeU.exe"),
+                "WinMergeU.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\WinMerge\",
+                @"%LocalAppData%\Programs\WinMerge\"),
             notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.

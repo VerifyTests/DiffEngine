@@ -2,12 +2,12 @@
 {
     public static Definition Guiffy()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\" -ge2";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\" -ge1";
         }
@@ -25,13 +25,15 @@
                 "bmp", "gif", "jpeg", "jpg", "png", "wbmp"
             },
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\Guiffy\guiffy.exe"),
+                "guiffy.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\Guiffy\"),
             osx: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "/Applications/Guiffy/guiffyCL.command"),
+                "guiffyCL.command",
+                LeftArguments,
+                RightArguments,
+                "/Applications/Guiffy/"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)

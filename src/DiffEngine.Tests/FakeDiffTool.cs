@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-public class FakeDiffTool
+﻿public class FakeDiffTool
 {
     public static string Exe;
 

@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-//https://stackoverflow.com/a/35591706/53158
+﻿//https://stackoverflow.com/a/35591706/53158
 public class KeyRegister :
     IMessageFilter,
     IDisposable

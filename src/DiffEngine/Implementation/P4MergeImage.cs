@@ -2,12 +2,12 @@
 {
     public static Definition P4MergeImage()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"\"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"\"{temp}\" \"{target}\"";
         }
@@ -36,16 +36,19 @@
                 "xpm"
             },
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\Perforce\p4merge.exe"),
+                "p4merge.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\Perforce\"),
             linux: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "/usr/bin/p4merge"),
+                "p4merge",
+                LeftArguments,
+                RightArguments,
+                "/usr/bin/"),
             osx: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "/Applications/p4merge.app/Contents/MacOS/p4merge"));
+                "p4merge",
+                LeftArguments,
+                RightArguments,
+                "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }

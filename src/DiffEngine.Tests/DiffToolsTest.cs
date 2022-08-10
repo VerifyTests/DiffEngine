@@ -73,8 +73,8 @@
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
         Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.TargetLeftArguments("foo", "bar"));
-        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.TargetRightArguments("foo", "bar"));
+        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LeftArguments("foo", "bar"));
+        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.RightArguments("foo", "bar"));
     }
 #endif
     async Task AddToolAndLaunch()

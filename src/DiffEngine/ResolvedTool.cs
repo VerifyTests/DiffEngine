@@ -6,8 +6,8 @@ public class ResolvedTool
     public string Name { get; }
     public DiffTool? Tool { get; }
     public string ExePath { get; }
-    public BuildArguments TargetRightArguments { get; }
-    public BuildArguments TargetLeftArguments { get; }
+    public BuildArguments RightArguments { get; }
+    public BuildArguments LeftArguments { get; }
     public bool IsMdi { get; }
     public bool AutoRefresh { get; }
     public IReadOnlyList<string> BinaryExtensions { get; }
@@ -27,10 +27,10 @@ public class ResolvedTool
     {
         if (TargetPosition.TargetOnLeft)
         {
-            return TargetLeftArguments(tempFile, targetFile);
+            return LeftArguments(tempFile, targetFile);
         }
 
-        return TargetRightArguments(tempFile, targetFile);
+        return RightArguments(tempFile, targetFile);
     }
 
     internal ResolvedTool(string name,
@@ -47,8 +47,8 @@ public class ResolvedTool
         Name = name;
         Tool = tool;
         ExePath = exePath;
-        TargetRightArguments = targetRightArguments;
-        TargetLeftArguments = targetLeftArguments;
+        RightArguments = targetRightArguments;
+        LeftArguments = targetLeftArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;
@@ -71,8 +71,8 @@ public class ResolvedTool
         Guard.AgainstEmpty(name, nameof(name));
         Name = name;
         ExePath = exePath;
-        TargetRightArguments = targetRightArguments;
-        TargetLeftArguments = targetLeftArguments;
+        RightArguments = targetRightArguments;
+        LeftArguments = targetLeftArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;

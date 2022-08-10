@@ -35,13 +35,15 @@
                 "wmf" //?
             },
             windows: new(
+                "Compare.exe",
                 (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
                 (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\Araxis\Araxis Merge\Compare.exe"),
+                @"%ProgramFiles%\Araxis\Araxis Merge\"),
             osx: new(
+                "compare",
                 (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
                 (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
-                "/Applications/Araxis Merge.app/Contents/Utilities/compare"),
+                "/Applications/Araxis Merge.app/Contents/Utilities/"),
             notes: @"
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)

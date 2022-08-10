@@ -2,12 +2,12 @@
 {
     public static Definition Neovim()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"-d \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"-d \"{temp}\" \"{target}\"";
         }
@@ -22,9 +22,10 @@
             cost: "Free with option to sponsor",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ChocolateyToolsLocation%\neovim\*\nvim.exe"),
+                "nvim.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ChocolateyToolsLocation%\neovim\*\"),
             notes: @"
  * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
     }

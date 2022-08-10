@@ -11,7 +11,8 @@
             cost: "Free",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
+                "TortoiseGitMerge.exe",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                @"%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe"));
+                @"%ProgramFiles%\TortoiseGit\bin\"));
 }

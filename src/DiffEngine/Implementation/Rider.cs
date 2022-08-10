@@ -2,12 +2,12 @@
 {
     public static Definition Rider()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             return $"diff \"{target}\" \"{temp}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             return $"diff \"{temp}\" \"{target}\"";
         }
@@ -22,26 +22,29 @@
             cost: "Paid with free option for OSS",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe",
-                @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe",
-                @"%JetBrains Rider%\rider64.exe",
-                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe",
-                @"%UserProfile%\scoop\apps\rider\current\IDE\bin\rider64.exe"),
+                "rider64.exe",
+                LeftArguments,
+                RightArguments,
+                @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\",
+                @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\",
+                @"%JetBrains Rider%\",
+                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\",
+                @"%UserProfile%\scoop\apps\rider\current\IDE\bin\"),
             osx: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider",
-                "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider",
-                "/Applications/Rider EAP.app/Contents/MacOS/rider",
-                "/Applications/Rider.app/Contents/MacOS/rider"),
+                "rider",
+                LeftArguments,
+                RightArguments,
+                "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/",
+                "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/",
+                "/Applications/Rider EAP.app/Contents/MacOS/",
+                "/Applications/Rider.app/Contents/MacOS/"),
             linux: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh",
-                "/opt/jetbrains/rider/bin/rider.sh",
-                "/usr/share/rider/bin/rider.sh"),
+                "rider.sh",
+                LeftArguments,
+                RightArguments,
+                "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/",
+                "/opt/jetbrains/rider/bin/",
+                "/usr/share/rider/bin/"),
             notes: @"
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
     }

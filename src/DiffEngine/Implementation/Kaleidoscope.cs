@@ -21,7 +21,8 @@
                 "tif"
             },
             osx: new(
+                "ksdiff",
                 (temp, target) => $"\"{target}\" \"{temp}\"",
                 (temp, target) => $"\"{temp}\" \"{target}\"",
-                "/usr/local/bin/ksdiff"));
+                "/usr/local/bin/"));
 }

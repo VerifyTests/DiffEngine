@@ -2,14 +2,14 @@
 {
     public static Definition VisualStudio()
     {
-        static string TargetLeftArguments(string temp, string target)
+        static string LeftArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
             return $"/diff \"{target}\" \"{temp}\" \"{targetTitle}\" \"{tempTitle}\"";
         }
 
-        static string TargetRightArguments(string temp, string target)
+        static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
@@ -26,14 +26,15 @@
             cost: "Paid and free options",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                TargetLeftArguments,
-                TargetRightArguments,
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\devenv.exe",
-                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\devenv.exe"));
+                "devenv.exe",
+                LeftArguments,
+                RightArguments,
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
+                @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\Common7\IDE\",
+                @"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\"));
     }
 }

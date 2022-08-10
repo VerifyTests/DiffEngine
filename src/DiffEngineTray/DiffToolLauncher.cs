@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 static class DiffToolLauncher
 {
     [DllImport("user32.dll")]

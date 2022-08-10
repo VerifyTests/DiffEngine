@@ -131,7 +131,7 @@
 
                              """);
             WriteArguments(writer, windows);
-            WritePaths(writer, OsSettingsResolver.ExpandProgramFiles(windows.ExePaths).ToList());
+            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
         var osx = tool.Osx;
@@ -143,7 +143,7 @@
                              
                              """);
             WriteArguments(writer, osx);
-            WritePaths(writer, osx.ExePaths);
+            WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
         var linux = tool.Linux;
@@ -155,21 +155,21 @@
                              
                              """);
             WriteArguments(writer, linux);
-            WritePaths(writer, linux.ExePaths);
+            WritePaths(linux.ExeName, writer, linux.SearchDirectories);
         }
     }
 
     static void WriteArguments(StreamWriter writer, OsSettings osSettings)
     {
-        var leftArguments = osSettings.TargetLeftArguments("tempFile", "targetFile");
-        var rightArguments = osSettings.TargetRightArguments("tempFile", "targetFile");
+        var leftArguments = osSettings.LeftArguments("tempFile", "targetFile");
+        var rightArguments = osSettings.RightArguments("tempFile", "targetFile");
         writer.WriteLine($"""
                            * Example target on left arguments: `{leftArguments}`
                            * Example target on right arguments: `{rightArguments}`
                          """);
     }
 
-    static void WritePaths(TextWriter writer, IReadOnlyCollection<string> paths)
+    static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
         if (paths.Count > 1)
         {
@@ -178,12 +178,12 @@
                              """);
             foreach (var path in paths)
             {
-                writer.WriteLine($"    * `{path}`");
+                writer.WriteLine($"    * `{path}{exeName}`");
             }
         }
         else
         {
-            writer.WriteLine($"  * Scanned path: `{paths.Single()}`");
+            writer.WriteLine($"  * Scanned path: `{paths.Single()}{exeName}`");
         }
     }
 
