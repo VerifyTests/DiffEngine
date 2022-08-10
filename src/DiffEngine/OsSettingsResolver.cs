@@ -103,9 +103,10 @@ static class OsSettingsResolver
             searchDirectories = ExpandProgramFiles(searchDirectories);
         }
 
-        foreach (var path in searchDirectories.Distinct())
+        foreach (var directory in searchDirectories.Distinct())
         {
-            if (WildcardFileFinder.TryFind(path, out exePath))
+            var exeSearchPath = Path.Combine(directory, exeName);
+            if (WildcardFileFinder.TryFind(exeSearchPath, out exePath))
             {
                 return true;
             }
