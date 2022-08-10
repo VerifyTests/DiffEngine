@@ -26,8 +26,7 @@
                 LeftArguments,
                 RightArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\",
-                @"%ProgramFiles%\Microsoft VS Code\",
-                @"%UserProfile%\scoop\apps\vscode\current\"),
+                @"%ProgramFiles%\Microsoft VS Code\"),
             linux: new(
                 "code",
                 LeftArguments,

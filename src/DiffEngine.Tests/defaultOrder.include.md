@@ -15,7 +15,7 @@
  * **[P4MergeImage](/docs/diff-tool.md#p4mergeimage)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX (Cost: Free with option to donate)
- * **[Neovim](/docs/diff-tool.md#neovim)** Win (Cost: Free with option to sponsor)
+ * **[Neovim](/docs/diff-tool.md#neovim)** Win/OSX/Linux (Cost: Free with option to sponsor)
  * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Win/OSX (Cost: Paid)
  * **[Meld](/docs/diff-tool.md#meld)** Win/OSX/Linux (Cost: Free)
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)

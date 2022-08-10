@@ -24,9 +24,14 @@
             windows: new(
                 "nvim.exe",
                 LeftArguments,
-                RightArguments,
-                @"%ChocolateyToolsLocation%\neovim\*\"),
-            notes: @"
- * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/");
+                RightArguments),
+            linux: new(
+                "nvim",
+                LeftArguments,
+                RightArguments),
+            osx: new(
+                "nvim",
+                LeftArguments,
+                RightArguments));
     }
 }

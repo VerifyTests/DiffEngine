@@ -137,7 +137,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
     * `%ProgramW6432%\Beyond Compare *\BCompare.exe`
     * `%ProgramFiles(x86)%\Beyond Compare *\BCompare.exe`
-    * `%UserProfile%\scoop\apps\beyondcompare\current\BCompare.exe`
 
 #### OSX settings:
 
@@ -206,7 +205,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles%\Diffinity\Diffinity.exe`
     * `%ProgramW6432%\Diffinity\Diffinity.exe`
     * `%ProgramFiles(x86)%\Diffinity\Diffinity.exe`
-    * `%UserProfile%\scoop\apps\diffinity\current\Diffinity.exe`
 
 ### [DiffMerge](https://www.sourcegear.com/diffmerge/)
 
@@ -350,18 +348,26 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: False
   * Supports text files: True
 
-#### Notes:
-
-
- * Assumes installed through Chocolatey https://chocolatey.org/packages/neovim/
-
 #### Windows settings:
 
   * Example target on left arguments: `-d "targetFile" "tempFile"`
   * Example target on right arguments: `-d "tempFile" "targetFile"`
   * Scanned paths:  
     * `%PATH%nvim.exe`
-    * `%ChocolateyToolsLocation%\neovim\*\nvim.exe`
+
+#### OSX settings:
+
+  * Example target on left arguments: `-d "targetFile" "tempFile"`
+  * Example target on right arguments: `-d "tempFile" "targetFile"`
+  * Scanned paths:  
+    * `%PATH%nvim`
+
+#### Linux settings:
+
+  * Example target on left arguments: `-d "targetFile" "tempFile"`
+  * Example target on right arguments: `-d "tempFile" "targetFile"`
+  * Scanned paths:  
+    * `%PATH%nvim`
 
 ### [P4MergeImage](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
@@ -452,7 +458,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
     * `%JetBrains Rider%\rider64.exe`
     * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
-    * `%UserProfile%\scoop\apps\rider\current\IDE\bin\rider64.exe`
 
 #### OSX settings:
 
@@ -787,7 +792,6 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
     * `%ProgramFiles%\Microsoft VS Code\code.exe`
     * `%ProgramW6432%\Microsoft VS Code\code.exe`
     * `%ProgramFiles(x86)%\Microsoft VS Code\code.exe`
-    * `%UserProfile%\scoop\apps\vscode\current\code.exe`
 
 #### OSX settings:
 
