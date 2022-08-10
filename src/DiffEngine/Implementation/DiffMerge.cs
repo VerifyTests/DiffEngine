@@ -29,8 +29,7 @@
             linux: new(
                 "diffmerge",
                 LeftArguments,
-                RightArguments,
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "DiffMerge",
                 LeftArguments,

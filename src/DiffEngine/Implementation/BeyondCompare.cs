@@ -49,8 +49,7 @@
                 "BCompare.exe",
                 LeftWindowsArguments,
                 RightWindowsArguments,
-                @"%ProgramFiles%\Beyond Compare *\",
-                @"%UserProfile%\scoop\apps\beyondcompare\current\"),
+                @"%ProgramFiles%\Beyond Compare *\"),
             linux: new(
                 "bcomp",
                 LeftOsxLinuxArguments,

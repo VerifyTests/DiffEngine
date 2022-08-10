@@ -26,14 +26,11 @@
                 LeftArguments,
                 RightArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\",
-                @"%ProgramFiles%\Microsoft VS Code\",
-                @"%UserProfile%\scoop\apps\vscode\current\"),
+                @"%ProgramFiles%\Microsoft VS Code\"),
             linux: new(
                 "code",
                 LeftArguments,
-                RightArguments,
-                "/usr/local/bin/",
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "code",
                 LeftArguments,

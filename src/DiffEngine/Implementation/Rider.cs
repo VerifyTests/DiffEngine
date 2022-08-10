@@ -28,8 +28,7 @@
                 @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\",
                 @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\",
                 @"%JetBrains Rider%\",
-                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\",
-                @"%UserProfile%\scoop\apps\rider\current\IDE\bin\"),
+                @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\"),
             osx: new(
                 "rider",
                 LeftArguments,

@@ -29,8 +29,7 @@
             linux: new(
                 "smerge",
                 LeftArguments,
-                RightArguments,
-                "/usr/bin/"),
+                RightArguments),
             osx: new(
                 "smerge",
                 LeftArguments,
