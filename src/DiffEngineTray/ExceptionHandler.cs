@@ -1,5 +1,3 @@
-using Serilog;
-
 static class ExceptionHandler
 {
     public static void Handle(string message, Exception exception)

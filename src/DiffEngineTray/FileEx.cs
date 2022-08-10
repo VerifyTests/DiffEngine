@@ -1,5 +1,3 @@
-using Serilog;
-
 static class FileEx
 {
     public static void SafeDelete(string path)

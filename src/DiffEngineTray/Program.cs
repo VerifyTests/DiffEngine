@@ -1,5 +1,3 @@
-using Serilog;
-
 static class Program
 {
     static async Task Main()
