@@ -7,26 +7,26 @@
             Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.Meld,
-            url: "https://meldmerge.org/",
-            autoRefresh: false,
-            isMdi: true,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.Meld,
+            Url: "https://meldmerge.org/",
+            AutoRefresh: false,
+            IsMdi: true,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "meld.exe",
                 launchArguments,
                 @"%LOCALAPPDATA%\Programs\Meld\",
                 @"%ProgramFiles%\Meld\"),
-            linux: new(
+            Linux: new(
                 "meld",
                 launchArguments),
-            osx: new(
+            Osx: new(
                 "meld",
                 launchArguments,
                 "/Applications/meld.app/Contents/MacOS/"),
-            notes: "While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)");
+            Notes: "While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)");
     }
 }

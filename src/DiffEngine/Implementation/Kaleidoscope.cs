@@ -2,14 +2,14 @@
 {
     public static Definition Kaleidoscope() =>
         new(
-            name: DiffTool.Kaleidoscope,
-            url: "https://www.kaleidoscopeapp.com/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid",
-            binaryExtensions: new[]
+            Tool: DiffTool.Kaleidoscope,
+            Url: "https://www.kaleidoscopeapp.com/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid",
+            BinaryExtensions: new[]
             {
                 "bmp",
                 "gif",
@@ -20,7 +20,7 @@
                 "tiff",
                 "tif"
             },
-            osx: new(
+            Osx: new(
                 "ksdiff",
                 new(
                     Left: (temp, target) => $"\"{target}\" \"{temp}\"",

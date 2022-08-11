@@ -7,23 +7,23 @@
             Right: (temp, target) => $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"");
 
         return new(
-            name: DiffTool.Vim,
-            url: "https://www.vim.org/",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free with option to donate",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.Vim,
+            Url: "https://www.vim.org/",
+            AutoRefresh: true,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free with option to donate",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "vim.exe",
                 launchArguments,
                 @"%ProgramFiles%\Vim\*\"),
-            osx: new(
+            Osx: new(
                 "mvim",
                 launchArguments,
                 "/Applications/MacVim.app/Contents/bin/"),
-            notes: @"
+            Notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)
  * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')

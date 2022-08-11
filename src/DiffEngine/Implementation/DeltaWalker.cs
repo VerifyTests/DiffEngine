@@ -7,14 +7,14 @@
             Right: (temp, target) => $"-mi \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.DeltaWalker,
-            url: "https://www.deltawalker.com/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: false,
-            cost: "Paid",
-            binaryExtensions: new[]
+            Tool: DiffTool.DeltaWalker,
+            Url: "https://www.deltawalker.com/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: false,
+            Cost: "Paid",
+            BinaryExtensions: new[]
             {
                 "jpg",
                 "jp2",
@@ -50,15 +50,15 @@
                 "html",
                 "htm"
             },
-            osx: new(
+            Osx: new(
                 "DeltaWalker",
                 launchArguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/"),
-            windows: new(
+            Windows: new(
                 "DeltaWalker.exe",
                 launchArguments,
                 @"C:\Program Files\Deltopia\DeltaWalker\"),
-            notes: @"
+            Notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
     }
 }

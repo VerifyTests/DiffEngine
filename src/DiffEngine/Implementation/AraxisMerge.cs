@@ -2,14 +2,14 @@
 {
     public static Definition AraxisMerge() =>
         new(
-            name: DiffTool.AraxisMerge,
-            url: "https://www.araxis.com/merge",
-            autoRefresh: true,
-            isMdi: true,
-            cost: "Paid",
-            supportsText: true,
-            requiresTarget: true,
-            binaryExtensions: new[]
+            Tool: DiffTool.AraxisMerge,
+            Url: "https://www.araxis.com/merge",
+            AutoRefresh: true,
+            IsMdi: true,
+            Cost: "Paid",
+            SupportsText: true,
+            RequiresTarget: true,
+            BinaryExtensions: new[]
             {
                 "bmp",
                 "dib",
@@ -34,19 +34,19 @@
                 "tga",
                 "wmf" //?
             },
-            windows: new(
+            Windows: new(
                 "Compare.exe",
                 new(
                     Left: (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
                     Right: (temp, target) => $"/nowait \"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\Araxis\Araxis Merge\"),
-            osx: new(
+            Osx: new(
                 "compare",
                 new(
                     Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
                     Right: (temp, target) => $"-nowait \"{temp}\" \"{target}\""),
                 "/Applications/Araxis Merge.app/Contents/Utilities/"),
-            notes: @"
+            Notes: @"
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
  * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)

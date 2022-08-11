@@ -7,16 +7,16 @@
             Right: (temp, target) => $"-d \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.Neovim,
-            url: "https://neovim.io/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free with option to sponsor",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new("nvim.exe", launchArguments),
-            linux: new("nvim", launchArguments),
-            osx: new("nvim", launchArguments));
+            Tool: DiffTool.Neovim,
+            Url: "https://neovim.io/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free with option to sponsor",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new("nvim.exe", launchArguments),
+            Linux: new("nvim", launchArguments),
+            Osx: new("nvim", launchArguments));
     }
 }

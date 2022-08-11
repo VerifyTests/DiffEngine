@@ -7,22 +7,22 @@
             Right: (temp, target) => $"--nosplash \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.DiffMerge,
-            url: "https://www.sourcegear.com/diffmerge/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.DiffMerge,
+            Url: "https://www.sourcegear.com/diffmerge/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "sgdm.exe",
                 launchArguments,
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
-            linux: new(
+            Linux: new(
                 "diffmerge",
                 launchArguments),
-            osx: new(
+            Osx: new(
                 "DiffMerge",
                 launchArguments,
                 "/Applications/DiffMerge.app/Contents/MacOS/"));

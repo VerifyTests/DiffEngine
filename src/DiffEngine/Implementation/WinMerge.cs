@@ -17,14 +17,14 @@
         }
 
         return new(
-            name: DiffTool.WinMerge,
-            url: "https://winmerge.org/",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free with option to donate",
-            binaryExtensions: new[]
+            Tool: DiffTool.WinMerge,
+            Url: "https://winmerge.org/",
+            AutoRefresh: true,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free with option to donate",
+            BinaryExtensions: new[]
             {
                 "bmp",
                 "cut",
@@ -76,14 +76,14 @@
                 "xbm",
                 "xpm"
             },
-            windows: new(
+            Windows: new(
                 "WinMergeU.exe",
                 new(
                     LeftArguments,
                     RightArguments),
                 @"%ProgramFiles%\WinMerge\",
                 @"%LocalAppData%\Programs\WinMerge\"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.

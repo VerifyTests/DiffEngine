@@ -2,14 +2,14 @@
 {
     public static Definition TortoiseIDiff() =>
         new(
-            name: DiffTool.TortoiseIDiff,
-            url: "https://tortoisesvn.net/TortoiseIDiff.html",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: false,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: new[]
+            Tool: DiffTool.TortoiseIDiff,
+            Url: "https://tortoisesvn.net/TortoiseIDiff.html",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: false,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: new[]
             {
                 "bmp",
                 "gif",
@@ -20,7 +20,7 @@
                 "tif",
                 "tiff"
             },
-            windows: new(
+            Windows: new(
                 "TortoiseIDiff.exe",
                 new(
                     Left: (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",

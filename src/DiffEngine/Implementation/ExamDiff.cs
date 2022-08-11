@@ -17,19 +17,19 @@
         }
 
         return new(
-            name: DiffTool.ExamDiff,
-            url: "https://www.prestosoft.com/edp_examdiffpro.asp",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.ExamDiff,
+            Url: "https://www.prestosoft.com/edp_examdiffpro.asp",
+            AutoRefresh: true,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "ExamDiff.exe",
                 new(LeftArguments, RightArguments),
                 @"%ProgramFiles%\ExamDiff Pro\"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
  * `/nh`: do not add files or directories to comparison history
  * `/diffonly`: diff-only merge mode: hide the merge pane");

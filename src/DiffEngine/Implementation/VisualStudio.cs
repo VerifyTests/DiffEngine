@@ -17,15 +17,15 @@
         }
 
         return new(
-            name: DiffTool.VisualStudio,
-            url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
-            autoRefresh: true,
-            isMdi: true,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid and free options",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.VisualStudio,
+            Url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
+            AutoRefresh: true,
+            IsMdi: true,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid and free options",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "devenv.exe",new(
                     LeftArguments,
                     RightArguments),

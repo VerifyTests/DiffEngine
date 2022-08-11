@@ -2,15 +2,15 @@
 {
     public static Definition TortoiseMerge() =>
         new(
-            name: DiffTool.TortoiseMerge,
-            url: "https://tortoisesvn.net/TortoiseMerge.html",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.TortoiseMerge,
+            Url: "https://tortoisesvn.net/TortoiseMerge.html",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "TortoiseMerge.exe",
                 new(
                     Left: (temp, target) => $"\"{target}\" \"{temp}\"",

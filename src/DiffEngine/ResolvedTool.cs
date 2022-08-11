@@ -32,7 +32,8 @@ public class ResolvedTool
         return LaunchArguments.Right(tempFile, targetFile);
     }
 
-    internal ResolvedTool(string name,
+    internal ResolvedTool(
+        string name,
         DiffTool? tool,
         string exePath,
         LaunchArguments launchArguments,
