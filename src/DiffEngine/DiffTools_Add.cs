@@ -2,36 +2,7 @@
 
 public static partial class DiffTools
 {
-    public static ResolvedTool? AddTool(
-        string name,
-        bool autoRefresh,
-        bool isMdi,
-        bool supportsText,
-        bool requiresTarget,
-        LaunchArguments launchArguments,
-        string exePath,
-        IEnumerable<string> binaryExtensions) =>
-        AddInner(
-            name,
-            null,
-            autoRefresh,
-            isMdi,
-            supportsText,
-            requiresTarget,
-            binaryExtensions,
-            exePath,
-            launchArguments);
-
-    public static ResolvedTool? AddToolBasedOn(
-        DiffTool basedOn,
-        string name,
-        bool? autoRefresh = null,
-        bool? isMdi = null,
-        bool? supportsText = null,
-        bool? requiresTarget = null,
-        LaunchArguments? launchArguments = null,
-        string? exePath = null,
-        IEnumerable<string>? binaryExtensions = null)
+    public static ResolvedTool? AddToolBasedOn(DiffTool basedOn, string name, bool? autoRefresh = null, bool? isMdi = null, bool? supportsText = null, bool? requiresTarget = null, LaunchArguments? launchArguments = null, string? exePath = null, IEnumerable<string>? binaryExtensions = null)
     {
         var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
         if (existing == null)
@@ -39,56 +10,17 @@ public static partial class DiffTools
             return null;
         }
 
-        return AddTool(
-            name,
-            autoRefresh ?? existing.AutoRefresh,
-            isMdi ?? existing.IsMdi,
-            supportsText ?? existing.SupportsText,
-            requiresTarget ?? existing.RequiresTarget,
-            launchArguments ?? existing.LaunchArguments,
-            exePath ?? existing.ExePath,
-            binaryExtensions ?? existing.BinaryExtensions);
+        return AddTool(name, autoRefresh ?? existing.AutoRefresh, isMdi ?? existing.IsMdi, supportsText ?? existing.SupportsText, requiresTarget ?? existing.RequiresTarget, launchArguments ?? existing.LaunchArguments, exePath ?? existing.ExePath, binaryExtensions ?? existing.BinaryExtensions);
     }
 
-    public static ResolvedTool? AddTool(
-        string name,
-        bool autoRefresh,
-        bool isMdi,
-        bool supportsText,
-        bool requiresTarget,
-        IEnumerable<string> binaryExtensions,
-        OsSettings? windows = null,
-        OsSettings? linux = null,
-        OsSettings? osx = null) =>
-        AddTool(
-            name,
-            null,
-            autoRefresh,
-            isMdi,
-            supportsText,
-            requiresTarget,
-            binaryExtensions,
-            windows,
-            linux,
-            osx);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSettings? windows = null, OsSettings? linux = null, OsSettings? osx = null) =>
+        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx);
 
-    static ResolvedTool? AddTool(
-        string name,
-        DiffTool? diffTool,
-        bool autoRefresh,
-        bool isMdi,
-        bool supportsText,
-        bool requiresTarget,
-        IEnumerable<string> binaryExtensions,
-        OsSettings? windows,
-        OsSettings? linux,
-        OsSettings? osx)
+    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSettings? windows, OsSettings? linux, OsSettings? osx)
     {
-        if (windows == null &&
-            linux == null &&
-            osx == null)
+        if (windows == null && linux == null && osx == null)
         {
-            throw new ArgumentException("Must define settings for at least one OS.");
+            throw new("Must define settings for at least one OS.");
         }
 
         if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var launchArguments))
@@ -96,28 +28,13 @@ public static partial class DiffTools
             return null;
         }
 
-        return AddInner(
-            name,
-            diffTool,
-            autoRefresh,
-            isMdi,
-            supportsText,
-            requiresTarget,
-            binaryExtensions,
-            exePath,
-            launchArguments);
+        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments);
     }
 
-    static ResolvedTool? AddInner(
-        string name,
-        DiffTool? diffTool,
-        bool autoRefresh,
-        bool isMdi,
-        bool supportsText,
-        bool requiresTarget,
-        IEnumerable<string> binaries,
-        string exePath,
-        LaunchArguments launchArguments)
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
+        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments);
+
+    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments)
     {
         Guard.AgainstEmpty(name, nameof(name));
         if (resolved.Any(x => x.Name == name))
@@ -130,16 +47,7 @@ public static partial class DiffTools
             return null;
         }
 
-        var resolvedTool = new ResolvedTool(
-            name,
-            diffTool,
-            resolvedExePath,
-            launchArguments,
-            isMdi,
-            autoRefresh,
-            binaries.ToList(),
-            requiresTarget,
-            supportsText);
+        var resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, launchArguments, isMdi, autoRefresh, binaries.ToList(), requiresTarget, supportsText);
 
         AddResolvedToolAtStart(resolvedTool);
 
@@ -167,17 +75,7 @@ public static partial class DiffTools
 
         foreach (var tool in ToolsOrder.Sort(throwForNoTool, order).Reverse())
         {
-            AddTool(
-                tool.Tool.ToString(),
-                tool.Tool,
-                tool.AutoRefresh,
-                tool.IsMdi,
-                tool.SupportsText,
-                tool.RequiresTarget,
-                tool.BinaryExtensions,
-                tool.Windows,
-                tool.Linux,
-                tool.Osx);
+            AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
         }
 
         custom.Reverse();
