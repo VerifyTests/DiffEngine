@@ -1,7 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using EmptyFiles;
-
-namespace DiffEngine;
+﻿namespace DiffEngine;
 
 /// <summary>
 /// Manages diff tools processes.

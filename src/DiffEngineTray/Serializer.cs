@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-static class Serializer
+﻿static class Serializer
 {
     public static T Deserialize<T>(string payload)
     {

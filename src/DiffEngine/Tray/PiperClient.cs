@@ -1,7 +1,4 @@
-﻿using System.Net;
-using System.Net.Sockets;
-
-static class PiperClient
+﻿static class PiperClient
 {
     public static int Port = 3492;
 

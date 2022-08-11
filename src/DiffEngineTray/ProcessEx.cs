@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 static class ProcessEx
 {
     public static bool TryGet(int id, [NotNullWhen(true)] out Process? process)

@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-static class OsSettingsResolver
+﻿static class OsSettingsResolver
 {
     static string[] envPaths;
 

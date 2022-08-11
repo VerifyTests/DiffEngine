@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 static class SettingsHelper
 {
     public static string FilePath;

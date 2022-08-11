@@ -1,7 +1,4 @@
-﻿using System.Management;
-using Microsoft.Win32.SafeHandles;
-
-static class WindowsProcess
+﻿static class WindowsProcess
 {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern SafeProcessHandle OpenProcess(

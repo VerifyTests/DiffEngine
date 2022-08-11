@@ -1,6 +1,4 @@
-﻿using EmptyFiles;
-
-namespace DiffEngine;
+﻿namespace DiffEngine;
 
 public static partial class DiffRunner
 {

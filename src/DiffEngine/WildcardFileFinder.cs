@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-static class WildcardFileFinder
+﻿static class WildcardFileFinder
 {
     static char[] separators =
     {

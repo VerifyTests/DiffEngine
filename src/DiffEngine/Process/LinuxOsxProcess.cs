@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-static class LinuxOsxProcess
+﻿static class LinuxOsxProcess
 {
     //https://www.man7.org/linux/man-pages/man1/ps.1.html
     public static bool TryTerminateProcess(int processId)
