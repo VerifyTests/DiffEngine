@@ -1,29 +1,19 @@
 ﻿static class OrderReader
 {
-    public readonly struct Result
-    {
-        public bool UsedToolOrderEnvVar { get; }
-        public IEnumerable<DiffTool> Order { get; }
+    public record Result(bool UsedToolOrderEnvVar, IEnumerable<DiffTool> Order);
 
-        public Result(in bool usedToolOrderEnvVar, IEnumerable<DiffTool> order)
-        {
-            UsedToolOrderEnvVar = usedToolOrderEnvVar;
-            Order = order;
-        }
-    }
+    static Result defaultResult = new(false, Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>());
 
     public static Result ReadToolOrder()
     {
         var diffOrder = Environment.GetEnvironmentVariable("DiffEngine_ToolOrder");
 
-        IEnumerable<DiffTool> order;
         if (string.IsNullOrWhiteSpace(diffOrder))
         {
-            order = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>();
-            return new(false, order);
+            return defaultResult;
         }
 
-        order = ParseEnvironment(diffOrder);
+        var order = ParseEnvironment(diffOrder);
         return new(true, order);
     }
 
