@@ -14,7 +14,7 @@ public static partial class DiffTools
         extension = Extensions.GetExtension(extension);
         if (Extensions.IsText(extension))
         {
-            tool = resolved.FirstOrDefault(x => x.SupportsText);
+            tool = resolved.FirstOrDefault(_ => _.SupportsText);
             return tool != null;
         }
 
@@ -25,7 +25,7 @@ public static partial class DiffTools
         DiffTool tool,
         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
     {
-        resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
+        resolvedTool = resolved.SingleOrDefault(_ => _.Tool == tool);
         return resolvedTool != null;
     }
 
@@ -33,7 +33,7 @@ public static partial class DiffTools
         string name,
         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
     {
-        resolvedTool = resolved.SingleOrDefault(x => x.Name.Equals(name, StringComparison.Ordinal));
+        resolvedTool = resolved.SingleOrDefault(_ => _.Name.Equals(name, StringComparison.Ordinal));
         return resolvedTool != null;
     }
 }

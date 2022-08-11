@@ -71,8 +71,8 @@
                          """);
 
         foreach (var tool in Definitions.Tools
-                     .Where(x => !x.IsMdi)
-                     .OrderBy(x => x.Tool.ToString()))
+                     .Where(_ => !_.IsMdi)
+                     .OrderBy(_ => _.Tool.ToString()))
         {
             AddTool(writer, tool);
         }
@@ -83,8 +83,8 @@
 
                          """);
         foreach (var tool in Definitions.Tools
-                     .Where(x => x.IsMdi)
-                     .OrderBy(x => x.Tool.ToString()))
+                     .Where(_ => _.IsMdi)
+                     .OrderBy(_ => _.Tool.ToString()))
         {
             AddTool(writer, tool);
         }

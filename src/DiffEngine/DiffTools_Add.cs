@@ -4,7 +4,7 @@ public static partial class DiffTools
 {
     public static ResolvedTool? AddToolBasedOn(DiffTool basedOn, string name, bool? autoRefresh = null, bool? isMdi = null, bool? supportsText = null, bool? requiresTarget = null, LaunchArguments? launchArguments = null, string? exePath = null, IEnumerable<string>? binaryExtensions = null)
     {
-        var existing = resolved.SingleOrDefault(x => x.Tool == basedOn);
+        var existing = resolved.SingleOrDefault(_ => _.Tool == basedOn);
         if (existing == null)
         {
             return null;
@@ -32,7 +32,7 @@ public static partial class DiffTools
     static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments)
     {
         Guard.AgainstEmpty(name, nameof(name));
-        if (resolved.Any(x => x.Name == name))
+        if (resolved.Any(_ => _.Name == name))
         {
             throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
         }
@@ -63,7 +63,7 @@ public static partial class DiffTools
 
     static void InitTools(bool throwForNoTool, IEnumerable<DiffTool> order)
     {
-        var custom = resolved.Where(x => x.Tool == null).ToList();
+        var custom = resolved.Where(_ => _.Tool == null).ToList();
         ExtensionLookup.Clear();
         PathLookup.Clear();
         resolved.Clear();
