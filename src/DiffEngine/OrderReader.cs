@@ -2,12 +2,12 @@
 {
     public readonly struct Result
     {
-        public bool FoundInEnvVar { get; }
+        public bool UsedToolOrderEnvVar { get; }
         public IEnumerable<DiffTool> Order { get; }
 
-        public Result(in bool foundInEnvVar, IEnumerable<DiffTool> order)
+        public Result(in bool usedToolOrderEnvVar, IEnumerable<DiffTool> order)
         {
-            FoundInEnvVar = foundInEnvVar;
+            UsedToolOrderEnvVar = usedToolOrderEnvVar;
             Order = order;
         }
     }
@@ -16,18 +16,15 @@
     {
         var diffOrder = Environment.GetEnvironmentVariable("DiffEngine_ToolOrder");
 
-        var found = !string.IsNullOrWhiteSpace(diffOrder);
         IEnumerable<DiffTool> order;
-        if (found)
-        {
-            order = ParseEnvironment(diffOrder!);
-        }
-        else
+        if (string.IsNullOrWhiteSpace(diffOrder))
         {
             order = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>();
+            return new(false, order);
         }
 
-        return new(found, order);
+        order = ParseEnvironment(diffOrder);
+        return new(true, order);
     }
 
     internal static IEnumerable<DiffTool> ParseEnvironment(string diffOrder)

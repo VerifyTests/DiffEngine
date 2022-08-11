@@ -178,17 +178,17 @@ public static class DiffTools
         resolved.Clear();
         var result = OrderReader.ReadToolOrder();
 
-        InitTools(result.FoundInEnvVar, result.Order);
+        InitTools(result.UsedToolOrderEnvVar, result.Order);
     }
 
-    static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> order)
+    static void InitTools(bool usedToolOrderEnvVar, IEnumerable<DiffTool> order)
     {
         var custom = resolved.Where(x => x.Tool == null).ToList();
         ExtensionLookup.Clear();
         PathLookup.Clear();
         resolved.Clear();
 
-        foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, order).Reverse())
+        foreach (var tool in ToolsOrder.Sort(usedToolOrderEnvVar, order).Reverse())
         {
             AddTool(
                 tool.Tool.ToString(),
