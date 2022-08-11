@@ -181,14 +181,14 @@ public static class DiffTools
         InitTools(result.FoundInEnvVar, result.Order);
     }
 
-    static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> tools)
+    static void InitTools(bool resultFoundInEnvVar, IEnumerable<DiffTool> order)
     {
         var custom = resolved.Where(x => x.Tool == null).ToList();
         ExtensionLookup.Clear();
         PathLookup.Clear();
         resolved.Clear();
 
-        foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, tools).Reverse())
+        foreach (var tool in ToolsOrder.Sort(resultFoundInEnvVar, order).Reverse())
         {
             AddTool(
                 tool.Tool.ToString(),
