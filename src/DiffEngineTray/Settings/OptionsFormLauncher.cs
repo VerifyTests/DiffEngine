@@ -23,7 +23,7 @@ static class OptionsFormLauncher
         form.ShowDialog();
     }
 
-    static async Task<IReadOnlyList<string>> Save(KeyRegister keyRegister, Tracker tracker, Settings settings)
+    static async Task<IReadOnlyCollection<string>> Save(KeyRegister keyRegister, Tracker tracker, Settings settings)
     {
         if (!settings.IsValidate(out var errors))
         {

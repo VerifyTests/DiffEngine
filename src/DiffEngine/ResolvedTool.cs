@@ -9,7 +9,7 @@ public class ResolvedTool
     public LaunchArguments LaunchArguments { get; }
     public bool IsMdi { get; }
     public bool AutoRefresh { get; }
-    public IReadOnlyList<string> BinaryExtensions { get; }
+    public IReadOnlyCollection<string> BinaryExtensions { get; }
     public bool RequiresTarget { get; }
     public bool SupportsText { get; }
 
@@ -39,7 +39,7 @@ public class ResolvedTool
         LaunchArguments launchArguments,
         bool isMdi,
         bool autoRefresh,
-        IReadOnlyList<string> binaryExtensions,
+        IReadOnlyCollection<string> binaryExtensions,
         bool requiresTarget,
         bool supportsText)
     {
@@ -60,7 +60,7 @@ public class ResolvedTool
         LaunchArguments launchArguments,
         bool isMdi,
         bool autoRefresh,
-        string[] binaryExtensions,
+        IReadOnlyCollection<string> binaryExtensions,
         bool requiresTarget,
         bool supportsText)
     {

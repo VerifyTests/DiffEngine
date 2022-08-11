@@ -1,6 +1,6 @@
 ﻿static class Definitions
 {
-    public static IReadOnlyList<Definition> Tools { get; }
+    public static IReadOnlyCollection<Definition> Tools { get; }
 
     static Definitions() =>
         Tools = new List<Definition>

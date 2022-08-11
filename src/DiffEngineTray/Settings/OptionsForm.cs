@@ -1,7 +1,7 @@
 ﻿public partial class OptionsForm :
     Form
 {
-    Func<Settings, Task<IReadOnlyList<string>>> trySave = null!;
+    Func<Settings, Task<IReadOnlyCollection<string>>> trySave = null!;
 
     public OptionsForm()
     {
@@ -10,7 +10,7 @@
         versionLabel.Text = $"Version: {VersionReader.VersionString}";
     }
 
-    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyList<string>>> trySave) :
+    public OptionsForm(Settings settings, Func<Settings, Task<IReadOnlyCollection<string>>> trySave) :
         this()
     {
         this.trySave = trySave;

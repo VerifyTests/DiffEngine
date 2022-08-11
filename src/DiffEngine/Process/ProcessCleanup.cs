@@ -28,7 +28,7 @@ public static class ProcessCleanup
         Refresh();
     }
 
-    public static IReadOnlyList<ProcessCommand> Commands => commands;
+    public static IReadOnlyCollection<ProcessCommand> Commands => commands;
 
     public static void Refresh() =>
         commands = FindAll().ToList();
