@@ -14,26 +14,26 @@
         }
     }
 
-    static void AddToolLink(StreamWriter writer, Definition tool)
+    static void AddToolLink(TextWriter writer, Definition tool)
     {
-        var osSupport = GetOsSupport(tool);
+        var osSupport = GetOsSupport(tool.OsSupport);
         writer.WriteLine($" * **[{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})** {osSupport} (Cost: {tool.Cost})");
     }
 
-    static string GetOsSupport(Definition tool)
+    static string GetOsSupport(OsSupport osSupport)
     {
         var builder = new StringBuilder();
-        if (tool.Windows != null)
+        if (osSupport.Windows != null)
         {
             builder.Append("Win/");
         }
 
-        if (tool.Osx != null)
+        if (osSupport.Osx != null)
         {
             builder.Append("OSX/");
         }
 
-        if (tool.Linux != null)
+        if (osSupport.Linux != null)
         {
             builder.Append("Linux/");
         }
@@ -65,14 +65,14 @@
         writer.WriteLine("""
 
                          ## Non-MDI tools
- 
+
                          Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
- 
+
                          """);
 
         foreach (var tool in Definitions.Tools
-                     .Where(x => !x.IsMdi)
-                     .OrderBy(x => x.Tool.ToString()))
+                     .Where(_ => !_.IsMdi)
+                     .OrderBy(_ => _.Tool.ToString()))
         {
             AddTool(writer, tool);
         }
@@ -83,8 +83,8 @@
 
                          """);
         foreach (var tool in Definitions.Tools
-                     .Where(x => x.IsMdi)
-                     .OrderBy(x => x.Tool.ToString()))
+                     .Where(_ => _.IsMdi)
+                     .OrderBy(_ => _.Tool.ToString()))
         {
             AddTool(writer, tool);
         }
@@ -93,9 +93,9 @@
     static void AddTool(StreamWriter writer, Definition tool)
     {
         writer.WriteLine($"""
-    
+
                           ### [{tool.Tool}]({tool.Url})
-     
+
                             * Cost: {tool.Cost}
                             * Is MDI: {tool.IsMdi}
                             * Supports auto-refresh: {tool.AutoRefresh}
@@ -112,12 +112,13 @@
             writer.WriteLine($"""
 
                               #### Notes:
-                              
+
                               {tool.Notes}
                               """);
         }
 
-        var windows = tool.Windows;
+        var osSupport = tool.OsSupport;
+        var windows = osSupport.Windows;
         if (windows != null)
         {
             writer.WriteLine("""
@@ -129,19 +130,19 @@
             WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
-        var osx = tool.Osx;
+        var osx = osSupport.Osx;
         if (osx != null)
         {
             writer.WriteLine("""
-            
+
                              #### OSX settings:
-                             
+
                              """);
             WriteArguments(writer, osx.LaunchArguments);
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
-        var linux = tool.Linux;
+        var linux = osSupport.Linux;
         if (linux != null)
         {
             writer.WriteLine("""
@@ -156,6 +157,7 @@
 
     static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
+
         var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
         var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
         var leftBinary = arguments.Left("tempFile.png", "targetFile.png");

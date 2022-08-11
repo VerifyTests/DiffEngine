@@ -22,23 +22,21 @@
     }
 
     public static bool Resolve(
-        OsSettings? windows,
-        OsSettings? linux,
-        OsSettings? osx,
+        OsSupport osSupport,
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out LaunchArguments? launchArguments)
     {
-        if (TryResolveForOs(windows, out path, out launchArguments, OSPlatform.Windows))
+        if (TryResolveForOs(osSupport.Windows, out path, out launchArguments, OSPlatform.Windows))
         {
             return true;
         }
 
-        if (TryResolveForOs(linux, out path, out launchArguments, OSPlatform.Linux))
+        if (TryResolveForOs(osSupport.Linux, out path, out launchArguments, OSPlatform.Linux))
         {
             return true;
         }
 
-        if (TryResolveForOs(osx, out path, out launchArguments, OSPlatform.OSX))
+        if (TryResolveForOs(osSupport.Osx, out path, out launchArguments, OSPlatform.OSX))
         {
             return true;
         }

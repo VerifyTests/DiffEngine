@@ -28,7 +28,7 @@ public static class ProcessCleanup
         Refresh();
     }
 
-    public static IReadOnlyList<ProcessCommand> Commands => commands;
+    public static IReadOnlyCollection<ProcessCommand> Commands => commands;
 
     public static void Refresh() =>
         commands = FindAll().ToList();
@@ -45,12 +45,12 @@ public static class ProcessCleanup
         }
 
         var matchingCommands = Commands
-            .Where(x => x.Command == command).ToList();
+            .Where(_ => _.Command == command).ToList();
         Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
         if (matchingCommands.Count == 0)
         {
             var separator = Environment.NewLine + "\t";
-            var joined = string.Join(separator, Commands.Select(x => x.Command));
+            var joined = string.Join(separator, Commands.Select(_ => _.Command));
             Logging.Write($"No matching commands. All commands: {separator}{joined}.");
         }
 
@@ -74,7 +74,7 @@ public static class ProcessCleanup
             command = TrimCommand(command);
         }
 
-        process = commands.FirstOrDefault(x => x.Command == command);
+        process = commands.FirstOrDefault(_ => _.Command == command);
         return !process.Equals(default(ProcessCommand));
     }
 
@@ -94,5 +94,5 @@ public static class ProcessCleanup
     /// Find all processes with `% %.%.%` in the command line.
     /// </summary>
     public static IEnumerable<ProcessCommand> FindAll() =>
-        findAll().OrderByDescending(x => x.Process);
+        findAll().OrderByDescending(_ => _.Process);
 }

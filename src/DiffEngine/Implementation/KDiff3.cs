@@ -15,14 +15,15 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "kdiff3.exe",
-                launchArguments,
-                @"%ProgramFiles%\KDiff3\"),
-            Osx: new(
-                "kdiff3",
-                launchArguments,
-                "/Applications/kdiff3.app/Contents/MacOS/"),
+            OsSupport: new(
+                Windows: new(
+                    "kdiff3.exe",
+                    launchArguments,
+                    @"%ProgramFiles%\KDiff3\"),
+                Osx: new(
+                    "kdiff3",
+                    launchArguments,
+                    "/Applications/kdiff3.app/Contents/MacOS/")),
             Notes: @"
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }

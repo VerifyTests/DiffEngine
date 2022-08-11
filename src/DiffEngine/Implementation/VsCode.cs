@@ -15,19 +15,20 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "code.exe",
-                launchArguments,
-                @"%LocalAppData%\Programs\Microsoft VS Code\",
-                @"%ProgramFiles%\Microsoft VS Code\"),
-            Linux: new(
-                "code",
-                launchArguments),
-            Osx: new(
-                "code",
-                launchArguments,
-                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/"),
-            Notes: @"
+            OsSupport: new(
+                Windows: new(
+                    "code.exe",
+                    launchArguments,
+                    @"%LocalAppData%\Programs\Microsoft VS Code\",
+                    @"%ProgramFiles%\Microsoft VS Code\"),
+                Linux: new(
+                    "code",
+                    launchArguments),
+                Osx: new(
+                    "code",
+                    launchArguments,
+                    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/")),
+                Notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }
 }

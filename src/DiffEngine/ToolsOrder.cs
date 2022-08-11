@@ -5,7 +5,7 @@
         var allTools = Definitions.Tools.ToList();
         foreach (var diffTool in order)
         {
-            var definition = allTools.SingleOrDefault(x => x.Tool == diffTool);
+            var definition = allTools.SingleOrDefault(_ => _.Tool == diffTool);
             if (definition == null)
             {
                 if (!throwForNoTool)

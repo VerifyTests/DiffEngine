@@ -45,24 +45,25 @@
                 "tiff",
                 "rtf"
             },
-            Windows: new(
-                "BCompare.exe",
-                new(
-                    LeftWindowsArguments,
-                    RightWindowsArguments),
-                @"%ProgramFiles%\Beyond Compare *\"),
-            Linux: new(
-                "bcomp",
-                new(
-                    LeftOsxLinuxArguments,
-                    RightOsxLinuxArguments),
-                "/usr/lib/beyondcompare/"),
-            Osx: new(
-                "bcomp",
-                new(
-                    LeftOsxLinuxArguments,
-                    RightOsxLinuxArguments),
-                "/Applications/Beyond Compare.app/Contents/MacOS/"),
+            OsSupport: new(
+                Windows: new(
+                    "BCompare.exe",
+                    new(
+                        LeftWindowsArguments,
+                        RightWindowsArguments),
+                    @"%ProgramFiles%\Beyond Compare *\"),
+                Linux: new(
+                    "bcomp",
+                    new(
+                        LeftOsxLinuxArguments,
+                        RightOsxLinuxArguments),
+                    "/usr/lib/beyondcompare/"),
+                Osx: new(
+                    "bcomp",
+                    new(
+                        LeftOsxLinuxArguments,
+                        RightOsxLinuxArguments),
+                    "/Applications/Beyond Compare.app/Contents/MacOS/")),
             Notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }

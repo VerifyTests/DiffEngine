@@ -171,7 +171,7 @@ public class DiffRunnerTests :
     static bool IsRunning() =>
         ProcessCleanup
             .FindAll()
-            .Any(x => x.Command.Contains("FakeDiffTool"));
+            .Any(_ => _.Command.Contains("FakeDiffTool"));
 
     public DiffRunnerTests(ITestOutputHelper output) :
         base(output)

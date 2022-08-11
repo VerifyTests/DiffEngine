@@ -65,11 +65,11 @@ static class MenuBuilder
         }
 
         var deletes = tracker.Deletes
-            .OrderBy(x => x.File)
+            .OrderBy(_ => _.File)
             .ToList();
 
         var moves = tracker.Moves
-            .OrderBy(x => x.Temp)
+            .OrderBy(_ => _.Temp)
             .ToList();
 
         var count = moves.Count + deletes.Count;
@@ -87,8 +87,8 @@ static class MenuBuilder
 
     static IEnumerable<ToolStripItem> BuildGroupedMenuItems(Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)
     {
-        var groups = deletes.Select(x => x.Group)
-            .Concat(moves.Select(x => x.Group))
+        var groups = deletes.Select(_ => _.Group)
+            .Concat(moves.Select(_ => _.Group))
             .Distinct()
             .ToList();
 
@@ -98,8 +98,8 @@ static class MenuBuilder
             foreach (var toolStripItem in BuildMovesAndDeletes(
                          group,
                          tracker,
-                         deletes.Where(x => x.Group == group).ToList(),
-                         moves.Where(x => x.Group == group).ToList()))
+                         deletes.Where(_ => _.Group == group).ToList(),
+                         moves.Where(_ => _.Group == group).ToList()))
             {
                 yield return toolStripItem;
                 addedCount++;

@@ -15,16 +15,17 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "sgdm.exe",
-                launchArguments,
-                @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
-            Linux: new(
-                "diffmerge",
-                launchArguments),
-            Osx: new(
-                "DiffMerge",
-                launchArguments,
-                "/Applications/DiffMerge.app/Contents/MacOS/"));
+            OsSupport: new(
+                Windows: new(
+                    "sgdm.exe",
+                    launchArguments,
+                    @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
+                Linux: new(
+                    "diffmerge",
+                    launchArguments),
+                Osx: new(
+                    "DiffMerge",
+                    launchArguments,
+                    "/Applications/DiffMerge.app/Contents/MacOS/")));
     }
 }

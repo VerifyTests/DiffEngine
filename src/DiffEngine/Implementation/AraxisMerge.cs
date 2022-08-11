@@ -34,18 +34,19 @@
                 "tga",
                 "wmf" //?
             },
-            Windows: new(
-                "Compare.exe",
-                new(
-                    Left: (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"/nowait \"{temp}\" \"{target}\""),
-                @"%ProgramFiles%\Araxis\Araxis Merge\"),
-            Osx: new(
-                "compare",
-                new(
-                    Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"-nowait \"{temp}\" \"{target}\""),
-                "/Applications/Araxis Merge.app/Contents/Utilities/"),
+            OsSupport: new(
+                Windows: new(
+                    "Compare.exe",
+                    new(
+                        Left: (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"/nowait \"{temp}\" \"{target}\""),
+                    @"%ProgramFiles%\Araxis\Araxis Merge\"),
+                Osx: new(
+                    "compare",
+                    new(
+                        Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"-nowait \"{temp}\" \"{target}\""),
+                    "/Applications/Araxis Merge.app/Contents/Utilities/")),
             Notes: @"
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)

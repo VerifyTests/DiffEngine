@@ -19,7 +19,7 @@
 
     static Result? Inner(string file)
     {
-        foreach (var result in cache.Values.Where(x => x != null))
+        foreach (var result in cache.Values.Where(_ => _ != null))
         {
             if (file.StartsWith(result!.Directory))
             {

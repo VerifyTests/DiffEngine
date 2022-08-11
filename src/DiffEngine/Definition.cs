@@ -7,7 +7,5 @@
     bool RequiresTarget,
     string[] BinaryExtensions,
     string Cost,
-    OsSettings? Windows = null,
-    OsSettings? Linux = null,
-    OsSettings? Osx = null,
+    OsSupport OsSupport,
     string? Notes = null);

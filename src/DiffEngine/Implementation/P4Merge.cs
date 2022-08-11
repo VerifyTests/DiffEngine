@@ -48,16 +48,17 @@
                 "xbm",
                 "xpm"
             },
-            Windows: new(
-                "p4merge.exe",
-                launchArguments,
-                @"%ProgramFiles%\Perforce\"),
-            Linux: new(
-                "p4merge",
-                launchArguments),
-            Osx: new(
-                "p4merge",
-                launchArguments,
-                "/Applications/p4merge.app/Contents/MacOS/"));
+            OsSupport: new(
+                Windows: new(
+                    "p4merge.exe",
+                    launchArguments,
+                    @"%ProgramFiles%\Perforce\"),
+                Linux: new(
+                    "p4merge",
+                    launchArguments),
+                Osx: new(
+                    "p4merge",
+                    launchArguments,
+                    "/Applications/p4merge.app/Contents/MacOS/")));
     }
 }

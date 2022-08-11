@@ -25,10 +25,11 @@
             RequiresTarget: true,
             Cost: "Paid",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "ExamDiff.exe",
-                new(LeftArguments, RightArguments),
-                @"%ProgramFiles%\ExamDiff Pro\"),
+            OsSupport: new(
+                Windows: new(
+                    "ExamDiff.exe",
+                    new(LeftArguments, RightArguments),
+                    @"%ProgramFiles%\ExamDiff Pro\")),
             Notes: @"
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
  * `/nh`: do not add files or directories to comparison history

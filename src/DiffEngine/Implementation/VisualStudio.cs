@@ -25,13 +25,14 @@
             RequiresTarget: true,
             Cost: "Paid and free options",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "devenv.exe",new(
-                    LeftArguments,
-                    RightArguments),
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
-                @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\"));
+            OsSupport: new(
+                Windows: new(
+                    "devenv.exe", new(
+                        LeftArguments,
+                        RightArguments),
+                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\")));
     }
 }

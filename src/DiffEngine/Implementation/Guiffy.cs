@@ -16,16 +16,22 @@
             Cost: "Paid",
             BinaryExtensions: new[]
             {
-                "bmp", "gif", "jpeg", "jpg", "png", "wbmp"
+                "bmp",
+                "gif",
+                "jpeg",
+                "jpg",
+                "png",
+                "wbmp"
             },
-            Windows: new(
-                "guiffy.exe",
-                launchArguments,
-                @"%ProgramFiles%\Guiffy\"),
-            Osx: new(
-                "guiffyCL.command",
-                launchArguments,
-                "/Applications/Guiffy/"),
+            OsSupport: new(
+                Windows: new(
+                    "guiffy.exe",
+                    launchArguments,
+                    @"%ProgramFiles%\Guiffy\"),
+                Osx: new(
+                    "guiffyCL.command",
+                    launchArguments,
+                    "/Applications/Guiffy/")),
             Notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)

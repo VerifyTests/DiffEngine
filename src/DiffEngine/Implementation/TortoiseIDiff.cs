@@ -20,10 +20,11 @@
                 "tif",
                 "tiff"
             },
-            Windows: new(
-                "TortoiseIDiff.exe",
-                new(
-                    Left: (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
-                    Right: (temp, target) => $"/left:\"{temp}\" /right:\"{target}\""),
-                @"%ProgramFiles%\TortoiseSVN\bin\"));
+            OsSupport: new(
+                Windows: new(
+                    "TortoiseIDiff.exe",
+                    new(
+                        Left: (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
+                        Right: (temp, target) => $"/left:\"{temp}\" /right:\"{target}\""),
+                    @"%ProgramFiles%\TortoiseSVN\bin\")));
 }

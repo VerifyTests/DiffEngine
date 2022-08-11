@@ -20,9 +20,10 @@
                 "tiff",
                 "tif"
             },
-            Osx: new(
-                "ksdiff",
-                new(
-                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"\"{temp}\" \"{target}\"")));
+            OsSupport: new(
+                Osx: new(
+                    "ksdiff",
+                    new(
+                        Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"\"{temp}\" \"{target}\""))));
 }
