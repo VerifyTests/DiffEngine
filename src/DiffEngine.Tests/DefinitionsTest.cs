@@ -16,24 +16,24 @@
 
     static void AddToolLink(StreamWriter writer, Definition tool)
     {
-        var osSupport = GetOsSupport(tool);
+        var osSupport = GetOsSupport(tool.OsSupport);
         writer.WriteLine($" * **[{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})** {osSupport} (Cost: {tool.Cost})");
     }
 
-    static string GetOsSupport(Definition tool)
+    static string GetOsSupport(OsSupport osSupport)
     {
         var builder = new StringBuilder();
-        if (tool.Windows != null)
+        if (osSupport.Windows != null)
         {
             builder.Append("Win/");
         }
 
-        if (tool.Osx != null)
+        if (osSupport.Osx != null)
         {
             builder.Append("OSX/");
         }
 
-        if (tool.Linux != null)
+        if (osSupport.Linux != null)
         {
             builder.Append("Linux/");
         }
@@ -117,7 +117,8 @@
                               """);
         }
 
-        var windows = tool.Windows;
+        var osSupport = tool.OsSupport;
+        var windows = osSupport.Windows;
         if (windows != null)
         {
             writer.WriteLine("""
@@ -129,7 +130,7 @@
             WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
-        var osx = tool.Osx;
+        var osx = osSupport.Osx;
         if (osx != null)
         {
             writer.WriteLine("""
@@ -141,7 +142,7 @@
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
-        var linux = tool.Linux;
+        var linux = osSupport.Linux;
         if (linux != null)
         {
             writer.WriteLine("""
