@@ -14,7 +14,7 @@
         }
     }
 
-    static void AddToolLink(StreamWriter writer, Definition tool)
+    static void AddToolLink(TextWriter writer, Definition tool)
     {
         var osSupport = GetOsSupport(tool.OsSupport);
         writer.WriteLine($" * **[{tool.Tool}](/docs/diff-tool.md#{tool.Tool.ToString().ToLower()})** {osSupport} (Cost: {tool.Cost})");
