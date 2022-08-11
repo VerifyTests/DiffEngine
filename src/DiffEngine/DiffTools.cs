@@ -1,6 +1,6 @@
 ﻿namespace DiffEngine;
 
-public static class DiffTools
+public static partial class DiffTools
 {
     static Dictionary<string, ResolvedTool> ExtensionLookup = new();
     static Dictionary<string, ResolvedTool> PathLookup = new();
@@ -218,41 +218,6 @@ public static class DiffTools
         Guard.AgainstEmpty(order, nameof(order));
 
         InitTools(throwForNoTool, order);
-    }
-
-    public static bool TryFindByPath(
-        string path,
-        [NotNullWhen(true)] out ResolvedTool? tool) =>
-        PathLookup.TryGetValue(path, out tool);
-
-    public static bool TryFindByExtension(
-        string extension,
-        [NotNullWhen(true)] out ResolvedTool? tool)
-    {
-        extension = Extensions.GetExtension(extension);
-        if (Extensions.IsText(extension))
-        {
-            tool = resolved.FirstOrDefault(x => x.SupportsText);
-            return tool != null;
-        }
-
-        return ExtensionLookup.TryGetValue(extension, out tool);
-    }
-
-    public static bool TryFindByName(
-        DiffTool tool,
-        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
-    {
-        resolvedTool = resolved.SingleOrDefault(x => x.Tool == tool);
-        return resolvedTool != null;
-    }
-
-    public static bool TryFindByName(
-        string name,
-        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
-    {
-        resolvedTool = resolved.SingleOrDefault(x => x.Name.Equals(name, StringComparison.Ordinal));
-        return resolvedTool != null;
     }
 
     public static bool IsDetectedFor(DiffTool diffTool, string extensionOrPath)
