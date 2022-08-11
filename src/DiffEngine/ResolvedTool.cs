@@ -33,7 +33,8 @@ public class ResolvedTool
         return RightArguments(tempFile, targetFile);
     }
 
-    internal ResolvedTool(string name,
+    internal ResolvedTool(
+        string name,
         DiffTool? tool,
         string exePath,
         BuildArguments rightArguments,
