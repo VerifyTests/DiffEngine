@@ -1,18 +1,7 @@
 ﻿static partial class Implementation
 {
-    public static Definition Diffinity()
-    {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\"";
-        }
-
-        return new(
+    public static Definition Diffinity() =>
+        new(
             name: DiffTool.Diffinity,
             url: "https://truehumandesign.se/s_diffinity.php",
             autoRefresh: true,
@@ -23,11 +12,11 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "Diffinity.exe",
-                LeftArguments,
-                RightArguments,
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\Diffinity\"),
             notes: @"
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.");
-    }
 }

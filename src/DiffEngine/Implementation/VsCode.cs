@@ -2,15 +2,9 @@
 {
     public static Definition VisualStudioCode()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"--diff \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"--diff \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"--diff \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"--diff \"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.VisualStudioCode,
@@ -23,18 +17,15 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "code.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\",
                 @"%ProgramFiles%\Microsoft VS Code\"),
             linux: new(
                 "code",
-                LeftArguments,
-                RightArguments),
+                launchArguments),
             osx: new(
                 "code",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/"),
             notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");

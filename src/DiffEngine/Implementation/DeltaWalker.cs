@@ -2,15 +2,9 @@
 {
     public static Definition DeltaWalker()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"-mi \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"-mi \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"-mi \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"-mi \"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.DeltaWalker,
@@ -58,13 +52,11 @@
             },
             osx: new(
                 "DeltaWalker",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/DeltaWalker.app/Contents/MacOS/"),
             windows: new(
                 "DeltaWalker.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"C:\Program Files\Deltopia\DeltaWalker\"),
             notes: @"
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)");

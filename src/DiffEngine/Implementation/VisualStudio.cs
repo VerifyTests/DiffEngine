@@ -26,9 +26,9 @@
             cost: "Paid and free options",
             binaryExtensions: Array.Empty<string>(),
             windows: new(
-                "devenv.exe",
-                LeftArguments,
-                RightArguments,
+                "devenv.exe",new(
+                    LeftArguments,
+                    RightArguments),
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
                 @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",

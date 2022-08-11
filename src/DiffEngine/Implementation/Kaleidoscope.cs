@@ -22,6 +22,7 @@
             },
             osx: new(
                 "ksdiff",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\""));
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\"")));
 }

@@ -2,15 +2,9 @@
 {
     public static Definition DiffMerge()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"--nosplash \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"--nosplash \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"--nosplash \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"--nosplash \"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.DiffMerge,
@@ -23,17 +17,14 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "sgdm.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
             linux: new(
                 "diffmerge",
-                LeftArguments,
-                RightArguments),
+                launchArguments),
             osx: new(
                 "DiffMerge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/DiffMerge.app/Contents/MacOS/"));
     }
 }

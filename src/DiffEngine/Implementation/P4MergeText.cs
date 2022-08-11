@@ -2,15 +2,9 @@
 {
     public static Definition P4MergeText()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"",
+            Right: (temp, target) => $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"");
 
         return new(
             name: DiffTool.P4MergeText,
@@ -23,17 +17,14 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "p4merge.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Perforce\"),
             linux: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments),
+                launchArguments),
             osx: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }

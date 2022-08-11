@@ -2,15 +2,9 @@
 {
     public static Definition Vim()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"",
+            Right: (temp, target) => $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"");
 
         return new(
             name: DiffTool.Vim,
@@ -23,13 +17,11 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "vim.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Vim\*\"),
             osx: new(
                 "mvim",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/MacVim.app/Contents/bin/"),
             notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)

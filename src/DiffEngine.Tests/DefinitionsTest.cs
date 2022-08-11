@@ -125,7 +125,7 @@
                              #### Windows settings:
 
                              """);
-            WriteArguments(writer, windows);
+            WriteArguments(writer, windows.LaunchArguments);
             WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
@@ -137,7 +137,7 @@
                              #### OSX settings:
                              
                              """);
-            WriteArguments(writer, osx);
+            WriteArguments(writer, osx.LaunchArguments);
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
@@ -149,18 +149,18 @@
                              #### Linux settings:
                              
                              """);
-            WriteArguments(writer, linux);
+            WriteArguments(writer, linux.LaunchArguments);
             WritePaths(linux.ExeName, writer, linux.SearchDirectories);
         }
     }
 
-    static void WriteArguments(StreamWriter writer, OsSettings osSettings)
+    static void WriteArguments(StreamWriter writer, LaunchArguments launchArguments)
     {
-        var leftArguments = osSettings.LeftArguments("tempFile", "targetFile");
-        var rightArguments = osSettings.RightArguments("tempFile", "targetFile");
+        var left = launchArguments.Left("tempFile", "targetFile");
+        var right = launchArguments.Right("tempFile", "targetFile");
         writer.WriteLine($"""
-                           * Example target on left arguments: `{leftArguments}`
-                           * Example target on right arguments: `{rightArguments}`
+                           * Example target on left arguments: `{left}`
+                           * Example target on right arguments: `{right}`
                          """);
     }
 

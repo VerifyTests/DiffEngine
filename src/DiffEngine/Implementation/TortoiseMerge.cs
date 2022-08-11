@@ -12,7 +12,8 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "TortoiseMerge.exe",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\TortoiseSVN\bin\"));
 }

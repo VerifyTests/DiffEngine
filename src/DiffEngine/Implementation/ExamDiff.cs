@@ -27,8 +27,7 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "ExamDiff.exe",
-                LeftArguments,
-                RightArguments,
+                new(LeftArguments, RightArguments),
                 @"%ProgramFiles%\ExamDiff Pro\"),
             notes: @"
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)

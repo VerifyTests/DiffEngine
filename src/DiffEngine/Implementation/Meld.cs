@@ -2,15 +2,9 @@
 {
     public static Definition Meld()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.Meld,
@@ -23,18 +17,15 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "meld.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%LOCALAPPDATA%\Programs\Meld\",
                 @"%ProgramFiles%\Meld\"),
             linux: new(
                 "meld",
-                LeftArguments,
-                RightArguments),
+                launchArguments),
             osx: new(
                 "meld",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/meld.app/Contents/MacOS/"),
             notes: "While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)");
     }

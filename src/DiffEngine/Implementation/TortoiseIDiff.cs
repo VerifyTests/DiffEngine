@@ -22,7 +22,8 @@
             },
             windows: new(
                 "TortoiseIDiff.exe",
-                (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
-                (temp, target) => $"/left:\"{temp}\" /right:\"{target}\"",
+                new(
+                    Left: (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
+                    Right: (temp, target) => $"/left:\"{temp}\" /right:\"{target}\""),
                 @"%ProgramFiles%\TortoiseSVN\bin\"));
 }

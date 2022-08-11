@@ -2,15 +2,9 @@
 {
     public static Definition Neovim()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"-d \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"-d \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"-d \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"-d \"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.Neovim,
@@ -21,17 +15,8 @@
             requiresTarget: true,
             cost: "Free with option to sponsor",
             binaryExtensions: Array.Empty<string>(),
-            windows: new(
-                "nvim.exe",
-                LeftArguments,
-                RightArguments),
-            linux: new(
-                "nvim",
-                LeftArguments,
-                RightArguments),
-            osx: new(
-                "nvim",
-                LeftArguments,
-                RightArguments));
+            windows: new("nvim.exe", launchArguments),
+            linux: new("nvim", launchArguments),
+            osx: new("nvim", launchArguments));
     }
 }

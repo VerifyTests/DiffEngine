@@ -12,8 +12,9 @@
             binaryExtensions: Array.Empty<string>(),
             windows: new(
                 "CodeCompare.exe",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\Devart\Code Compare\"),
             notes: @"
  * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)");

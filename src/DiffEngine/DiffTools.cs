@@ -14,8 +14,7 @@ public static class DiffTools
         bool isMdi,
         bool supportsText,
         bool requiresTarget,
-        BuildArguments leftArguments,
-        BuildArguments rightArguments,
+        LaunchArguments launchArguments,
         string exePath,
         IEnumerable<string> binaryExtensions) =>
         AddInner(
@@ -27,7 +26,7 @@ public static class DiffTools
             requiresTarget,
             binaryExtensions,
             exePath,
-            leftArguments, rightArguments);
+            launchArguments);
 
     public static ResolvedTool? AddToolBasedOn(
         DiffTool basedOn,
@@ -36,8 +35,7 @@ public static class DiffTools
         bool? isMdi = null,
         bool? supportsText = null,
         bool? requiresTarget = null,
-        BuildArguments? leftArguments = null,
-        BuildArguments? rightArguments = null,
+        LaunchArguments? launchArguments = null,
         string? exePath = null,
         IEnumerable<string>? binaryExtensions = null)
     {
@@ -53,8 +51,7 @@ public static class DiffTools
             isMdi ?? existing.IsMdi,
             supportsText ?? existing.SupportsText,
             requiresTarget ?? existing.RequiresTarget,
-            leftArguments ?? existing.LeftArguments,
-            rightArguments ?? existing.RightArguments,
+            launchArguments ?? existing.LaunchArguments,
             exePath ?? existing.ExePath,
             binaryExtensions ?? existing.BinaryExtensions);
     }
@@ -100,7 +97,7 @@ public static class DiffTools
             throw new ArgumentException("Must define settings for at least one OS.");
         }
 
-        if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var leftArguments, out var rightArguments))
+        if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var launchArguments))
         {
             return null;
         }
@@ -114,8 +111,7 @@ public static class DiffTools
             requiresTarget,
             binaryExtensions,
             exePath,
-            leftArguments,
-            rightArguments);
+            launchArguments);
     }
 
     static ResolvedTool? AddInner(
@@ -127,8 +123,7 @@ public static class DiffTools
         bool requiresTarget,
         IEnumerable<string> binaries,
         string exePath,
-        BuildArguments leftArguments,
-        BuildArguments rightArguments)
+        LaunchArguments launchArguments)
     {
         Guard.AgainstEmpty(name, nameof(name));
         if (resolved.Any(x => x.Name == name))
@@ -145,8 +140,7 @@ public static class DiffTools
             name,
             diffTool,
             resolvedExePath,
-            rightArguments,
-            leftArguments,
+            launchArguments,
             isMdi,
             autoRefresh,
             binaries.ToList(),

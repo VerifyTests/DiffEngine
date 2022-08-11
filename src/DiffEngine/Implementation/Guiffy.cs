@@ -2,15 +2,9 @@
 {
     public static Definition Guiffy()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\" -ge2";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\" -ge1";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\" -ge2",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\" -ge1");
 
         return new(
             name: DiffTool.Guiffy,
@@ -26,13 +20,11 @@
             },
             windows: new(
                 "guiffy.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Guiffy\"),
             osx: new(
                 "guiffyCL.command",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/Guiffy/"),
             notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)

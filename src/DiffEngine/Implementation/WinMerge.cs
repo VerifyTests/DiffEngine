@@ -78,8 +78,9 @@
             },
             windows: new(
                 "WinMergeU.exe",
-                LeftArguments,
-                RightArguments,
+                new(
+                    LeftArguments,
+                    RightArguments),
                 @"%ProgramFiles%\WinMerge\",
                 @"%LocalAppData%\Programs\WinMerge\"),
             notes: @"

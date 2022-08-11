@@ -6,8 +6,7 @@ public class ResolvedTool
     public string Name { get; }
     public DiffTool? Tool { get; }
     public string ExePath { get; }
-    public BuildArguments RightArguments { get; }
-    public BuildArguments LeftArguments { get; }
+    public LaunchArguments LaunchArguments { get; }
     public bool IsMdi { get; }
     public bool AutoRefresh { get; }
     public IReadOnlyList<string> BinaryExtensions { get; }
@@ -27,17 +26,16 @@ public class ResolvedTool
     {
         if (TargetPosition.TargetOnLeft)
         {
-            return LeftArguments(tempFile, targetFile);
+            return LaunchArguments.Left(tempFile, targetFile);
         }
 
-        return RightArguments(tempFile, targetFile);
+        return LaunchArguments.Right(tempFile, targetFile);
     }
 
     internal ResolvedTool(string name,
         DiffTool? tool,
         string exePath,
-        BuildArguments rightArguments,
-        BuildArguments leftArguments,
+        LaunchArguments launchArguments,
         bool isMdi,
         bool autoRefresh,
         IReadOnlyList<string> binaryExtensions,
@@ -47,8 +45,7 @@ public class ResolvedTool
         Name = name;
         Tool = tool;
         ExePath = exePath;
-        RightArguments = rightArguments;
-        LeftArguments = leftArguments;
+        LaunchArguments = launchArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;
@@ -59,8 +56,7 @@ public class ResolvedTool
     public ResolvedTool(
         string name,
         string exePath,
-        BuildArguments rightArguments,
-        BuildArguments leftArguments,
+        LaunchArguments launchArguments,
         bool isMdi,
         bool autoRefresh,
         string[] binaryExtensions,
@@ -71,8 +67,7 @@ public class ResolvedTool
         Guard.AgainstEmpty(name, nameof(name));
         Name = name;
         ExePath = exePath;
-        RightArguments = rightArguments;
-        LeftArguments = leftArguments;
+        LaunchArguments = launchArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
         BinaryExtensions = binaryExtensions;

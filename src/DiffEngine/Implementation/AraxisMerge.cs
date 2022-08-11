@@ -36,13 +36,15 @@
             },
             windows: new(
                 "Compare.exe",
-                (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
-                (temp, target) => $"/nowait \"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"/nowait \"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\Araxis\Araxis Merge\"),
             osx: new(
                 "compare",
-                (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
-                (temp, target) => $"-nowait \"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"-nowait \"{temp}\" \"{target}\""),
                 "/Applications/Araxis Merge.app/Contents/Utilities/"),
             notes: @"
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)

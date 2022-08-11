@@ -12,7 +12,8 @@
             binaryExtensions: Array.Empty<string>(),
             osx: new(
                 "tkdiff",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 "/Applications/TkDiff.app/Contents/MacOS/"));
 }

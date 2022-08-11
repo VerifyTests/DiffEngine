@@ -26,35 +26,32 @@
         OsSettings? linux,
         OsSettings? osx,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out BuildArguments? leftArguments,
-        [NotNullWhen(true)] out BuildArguments? rightArguments)
+        [NotNullWhen(true)] out LaunchArguments? launchArguments)
     {
-        if (TryResolveForOs(windows, out path, out leftArguments, out rightArguments, OSPlatform.Windows))
+        if (TryResolveForOs(windows, out path, out launchArguments, OSPlatform.Windows))
         {
             return true;
         }
 
-        if (TryResolveForOs(linux, out path, out leftArguments, out rightArguments, OSPlatform.Linux))
+        if (TryResolveForOs(linux, out path, out launchArguments, OSPlatform.Linux))
         {
             return true;
         }
 
-        if (TryResolveForOs(osx, out path, out leftArguments, out rightArguments, OSPlatform.OSX))
+        if (TryResolveForOs(osx, out path, out launchArguments, OSPlatform.OSX))
         {
             return true;
         }
 
         path = null;
-        leftArguments = null;
-        rightArguments = null;
+        launchArguments = null;
         return false;
     }
 
     static bool TryResolveForOs(
         OsSettings? os,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out BuildArguments? leftArguments,
-        [NotNullWhen(true)] out BuildArguments? rightArguments,
+        [NotNullWhen(true)] out LaunchArguments? launchArguments,
         OSPlatform platform)
     {
         if (os != null &&
@@ -62,14 +59,12 @@
         {
             if (TryFindExe(os.ExeName, os.SearchDirectories, out path))
             {
-                leftArguments = os.LeftArguments;
-                rightArguments = os.RightArguments;
+                launchArguments = os.LaunchArguments;
                 return true;
             }
         }
 
-        leftArguments = null;
-        rightArguments = null;
+        launchArguments = null;
         path = null;
         return false;
     }

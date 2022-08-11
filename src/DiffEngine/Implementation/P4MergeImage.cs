@@ -2,15 +2,9 @@
 {
     public static Definition P4MergeImage()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
         return new(
             name: DiffTool.P4MergeImage,
@@ -37,17 +31,14 @@
             },
             windows: new(
                 "p4merge.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Perforce\"),
             linux: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments),
+                launchArguments),
             osx: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }
