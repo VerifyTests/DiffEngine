@@ -160,9 +160,9 @@
         var left = launchArguments.Left("tempFile", "targetFile");
         var right = launchArguments.Right("tempFile", "targetFile");
         writer.WriteLine($"""
-                           * Example target on left arguments: `{left}`
-                           * Example target on right arguments: `{right}`
-                         """);
+                            * Example target on left arguments: `{left}`
+                            * Example target on right arguments: `{right}`
+                          """);
     }
 
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
