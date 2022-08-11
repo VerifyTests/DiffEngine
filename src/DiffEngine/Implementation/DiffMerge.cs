@@ -2,38 +2,29 @@
 {
     public static Definition DiffMerge()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"--nosplash \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"--nosplash \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"--nosplash \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"--nosplash \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.DiffMerge,
-            url: "https://www.sourcegear.com/diffmerge/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.DiffMerge,
+            Url: "https://www.sourcegear.com/diffmerge/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "sgdm.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\SourceGear\Common\DiffMerge\"),
-            linux: new(
+            Linux: new(
                 "diffmerge",
-                LeftArguments,
-                RightArguments),
-            osx: new(
+                launchArguments),
+            Osx: new(
                 "DiffMerge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/DiffMerge.app/Contents/MacOS/"));
     }
 }

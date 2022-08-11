@@ -2,39 +2,30 @@
 {
     public static Definition SublimeMerge()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"mergetool \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"mergetool \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"mergetool \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"mergetool \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.SublimeMerge,
-            url: "https://www.sublimemerge.com/",
-            autoRefresh: false,
-            isMdi: true,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.SublimeMerge,
+            Url: "https://www.sublimemerge.com/",
+            AutoRefresh: false,
+            IsMdi: true,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "smerge.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Sublime Merge\"),
-            linux: new(
+            Linux: new(
                 "smerge",
-                LeftArguments,
-                RightArguments),
-            osx: new(
+                launchArguments),
+            Osx: new(
                 "smerge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/smerge.app/Contents/MacOS/"),
-            notes: "While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)");
+            Notes: "While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)");
     }
 }

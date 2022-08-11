@@ -2,36 +2,28 @@
 {
     public static Definition Vim()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"",
+            Right: (temp, target) => $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"");
 
         return new(
-            name: DiffTool.Vim,
-            url: "https://www.vim.org/",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free with option to donate",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.Vim,
+            Url: "https://www.vim.org/",
+            AutoRefresh: true,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free with option to donate",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "vim.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Vim\*\"),
-            osx: new(
+            Osx: new(
                 "mvim",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/MacVim.app/Contents/bin/"),
-            notes: @"
+            Notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)
  * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')

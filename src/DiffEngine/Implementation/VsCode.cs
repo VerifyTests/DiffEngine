@@ -2,41 +2,32 @@
 {
     public static Definition VisualStudioCode()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"--diff \"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"--diff \"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"--diff \"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"--diff \"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.VisualStudioCode,
-            url: "https://code.visualstudio.com",
-            autoRefresh: true,
-            isMdi: true,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.VisualStudioCode,
+            Url: "https://code.visualstudio.com",
+            AutoRefresh: true,
+            IsMdi: true,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "code.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%LocalAppData%\Programs\Microsoft VS Code\",
                 @"%ProgramFiles%\Microsoft VS Code\"),
-            linux: new(
+            Linux: new(
                 "code",
-                LeftArguments,
-                RightArguments),
-            osx: new(
+                launchArguments),
+            Osx: new(
                 "code",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }
 }

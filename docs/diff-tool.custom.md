@@ -18,12 +18,16 @@ var resolvedTool = DiffTools.AddTool(
     isMdi: false,
     supportsText: true,
     requiresTarget: true,
-    leftArguments: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
-    rightArguments: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
+    launchArguments: new(
+        Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+        Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
     exePath: diffToolPath,
-    binaryExtensions: new[] {"jpg"})!;
+    binaryExtensions: new[]
+    {
+        "jpg"
+    })!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L19-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L19-L36' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -34,10 +38,11 @@ Add a tool based on existing resolved tool:
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
-    leftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
-    rightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"")!;
+    launchArguments: new(
+        Left: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
+        Right: (temp, target) => $"\"custom args \"{temp}\" \"{target}\""))!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L63-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L68-L77' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -61,12 +66,13 @@ Alternatively the instance  returned from `AddTool*` can be used to explicitly l
 var resolvedTool = DiffTools.AddToolBasedOn(
     DiffTool.VisualStudio,
     name: "MyCustomDiffTool",
-    leftArguments: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
-    rightArguments: (temp, target) => $"\"custom args \"{temp}\" \"{target}\"");
+    launchArguments: new(
+        Left: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
+        Right: (temp, target) => $"\"custom args \"{temp}\" \"{target}\""));
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L82-L92' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L88-L99' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

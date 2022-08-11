@@ -23,16 +23,16 @@
         }
 
         return new(
-            name: DiffTool.BeyondCompare,
-            url: "https://www.scootersoftware.com",
-            autoRefresh: true,
-            isMdi: false,
-            supportsText: true,
-            cost: "Paid",
+            Tool: DiffTool.BeyondCompare,
+            Url: "https://www.scootersoftware.com",
+            AutoRefresh: true,
+            IsMdi: false,
+            SupportsText: true,
+            Cost: "Paid",
             // technically BC doesnt require a target.
             // but if no target exists, the target cannot be edited
-            requiresTarget: true,
-            binaryExtensions: new[]
+            RequiresTarget: true,
+            BinaryExtensions: new[]
             {
                 "pdf",
                 "bmp",
@@ -45,22 +45,25 @@
                 "tiff",
                 "rtf"
             },
-            windows: new(
+            Windows: new(
                 "BCompare.exe",
-                LeftWindowsArguments,
-                RightWindowsArguments,
+                new(
+                    LeftWindowsArguments,
+                    RightWindowsArguments),
                 @"%ProgramFiles%\Beyond Compare *\"),
-            linux: new(
+            Linux: new(
                 "bcomp",
-                LeftOsxLinuxArguments,
-                RightOsxLinuxArguments,
+                new(
+                    LeftOsxLinuxArguments,
+                    RightOsxLinuxArguments),
                 "/usr/lib/beyondcompare/"),
-            osx: new(
+            Osx: new(
                 "bcomp",
-                LeftOsxLinuxArguments,
-                RightOsxLinuxArguments,
+                new(
+                    LeftOsxLinuxArguments,
+                    RightOsxLinuxArguments),
                 "/Applications/Beyond Compare.app/Contents/MacOS/"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }
 }

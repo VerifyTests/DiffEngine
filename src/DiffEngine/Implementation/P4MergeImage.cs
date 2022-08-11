@@ -2,25 +2,19 @@
 {
     public static Definition P4MergeImage()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\"";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\"";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
         return new(
-            name: DiffTool.P4MergeImage,
-            url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: false,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: new[]
+            Tool: DiffTool.P4MergeImage,
+            Url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: false,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: new[]
             {
                 "bmp",
                 "gif",
@@ -35,19 +29,16 @@
                 "xbm",
                 "xpm"
             },
-            windows: new(
+            Windows: new(
                 "p4merge.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Perforce\"),
-            linux: new(
+            Linux: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments),
-            osx: new(
+                launchArguments),
+            Osx: new(
                 "p4merge",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/p4merge.app/Contents/MacOS/"));
     }
 }

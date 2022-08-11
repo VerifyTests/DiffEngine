@@ -2,17 +2,18 @@
 {
     public static Definition TkDiff() =>
         new(
-            name: DiffTool.TkDiff,
-            url: "https://sourceforge.net/projects/tkdiff/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Free",
-            binaryExtensions: Array.Empty<string>(),
-            osx: new(
+            Tool: DiffTool.TkDiff,
+            Url: "https://sourceforge.net/projects/tkdiff/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Free",
+            BinaryExtensions: Array.Empty<string>(),
+            Osx: new(
                 "tkdiff",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 "/Applications/TkDiff.app/Contents/MacOS/"));
 }

@@ -2,19 +2,20 @@
 {
     public static Definition CodeCompare() =>
         new(
-            name: DiffTool.CodeCompare,
-            url: "https://www.devart.com/codecompare/",
-            autoRefresh: false,
-            isMdi: true,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid",
-            binaryExtensions: Array.Empty<string>(),
-            windows: new(
+            Tool: DiffTool.CodeCompare,
+            Url: "https://www.devart.com/codecompare/",
+            AutoRefresh: false,
+            IsMdi: true,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid",
+            BinaryExtensions: Array.Empty<string>(),
+            Windows: new(
                 "CodeCompare.exe",
-                (temp, target) => $"\"{target}\" \"{temp}\"",
-                (temp, target) => $"\"{temp}\" \"{target}\"",
+                new(
+                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                 @"%ProgramFiles%\Devart\Code Compare\"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)");
 }

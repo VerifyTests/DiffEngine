@@ -2,39 +2,31 @@
 {
     public static Definition Guiffy()
     {
-        static string LeftArguments(string temp, string target)
-        {
-            return $"\"{target}\" \"{temp}\" -ge2";
-        }
-
-        static string RightArguments(string temp, string target)
-        {
-            return $"\"{temp}\" \"{target}\" -ge1";
-        }
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\" -ge2",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\" -ge1");
 
         return new(
-            name: DiffTool.Guiffy,
-            url: "https://www.guiffy.com/",
-            autoRefresh: false,
-            isMdi: false,
-            supportsText: true,
-            requiresTarget: true,
-            cost: "Paid",
-            binaryExtensions: new[]
+            Tool: DiffTool.Guiffy,
+            Url: "https://www.guiffy.com/",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            Cost: "Paid",
+            BinaryExtensions: new[]
             {
                 "bmp", "gif", "jpeg", "jpg", "png", "wbmp"
             },
-            windows: new(
+            Windows: new(
                 "guiffy.exe",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 @"%ProgramFiles%\Guiffy\"),
-            osx: new(
+            Osx: new(
                 "guiffyCL.command",
-                LeftArguments,
-                RightArguments,
+                launchArguments,
                 "/Applications/Guiffy/"),
-            notes: @"
+            Notes: @"
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
  * `-ge1`: Forbid first file view Editing
