@@ -10,10 +10,11 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "TortoiseGitMerge.exe",
-                new(
-                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
-                @"%ProgramFiles%\TortoiseGit\bin\"));
+            OsSupport: new(
+                Windows: new(
+                    "TortoiseGitMerge.exe",
+                    new(
+                        Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+                    @"%ProgramFiles%\TortoiseGit\bin\")));
 }

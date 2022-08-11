@@ -76,13 +76,14 @@
                 "xbm",
                 "xpm"
             },
-            Windows: new(
-                "WinMergeU.exe",
-                new(
-                    LeftArguments,
-                    RightArguments),
-                @"%ProgramFiles%\WinMerge\",
-                @"%LocalAppData%\Programs\WinMerge\"),
+            OsSupport: new(
+                Windows: new(
+                    "WinMergeU.exe",
+                    new(
+                        LeftArguments,
+                        RightArguments),
+                    @"%ProgramFiles%\WinMerge\",
+                    @"%LocalAppData%\Programs\WinMerge\")),
             Notes: @"
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.

@@ -15,14 +15,15 @@
             RequiresTarget: true,
             Cost: "Free with option to donate",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "vim.exe",
-                launchArguments,
-                @"%ProgramFiles%\Vim\*\"),
-            Osx: new(
-                "mvim",
-                launchArguments,
-                "/Applications/MacVim.app/Contents/bin/"),
+            OsSupport: new(
+                Windows: new(
+                    "vim.exe",
+                    launchArguments,
+                    @"%ProgramFiles%\Vim\*\"),
+                Osx: new(
+                    "mvim",
+                    launchArguments,
+                    "/Applications/MacVim.app/Contents/bin/")),
             Notes: @"
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)

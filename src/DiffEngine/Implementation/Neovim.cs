@@ -15,8 +15,9 @@
             RequiresTarget: true,
             Cost: "Free with option to sponsor",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new("nvim.exe", launchArguments),
-            Linux: new("nvim", launchArguments),
-            Osx: new("nvim", launchArguments));
+            OsSupport: new(
+                Windows: new("nvim.exe", launchArguments),
+                Linux: new("nvim", launchArguments),
+                Osx: new("nvim", launchArguments)));
     }
 }

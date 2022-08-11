@@ -10,10 +10,11 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Osx: new(
-                "tkdiff",
-                new(
-                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
-                "/Applications/TkDiff.app/Contents/MacOS/"));
+            OsSupport: new(
+                Osx: new(
+                    "tkdiff",
+                    new(
+                        Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+                    "/Applications/TkDiff.app/Contents/MacOS/")));
 }

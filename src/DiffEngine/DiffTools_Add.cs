@@ -13,17 +13,12 @@ public static partial class DiffTools
         return AddTool(name, autoRefresh ?? existing.AutoRefresh, isMdi ?? existing.IsMdi, supportsText ?? existing.SupportsText, requiresTarget ?? existing.RequiresTarget, launchArguments ?? existing.LaunchArguments, exePath ?? existing.ExePath, binaryExtensions ?? existing.BinaryExtensions);
     }
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSettings? windows = null, OsSettings? linux = null, OsSettings? osx = null) =>
-        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, windows, linux, osx);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
+        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport);
 
-    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSettings? windows, OsSettings? linux, OsSettings? osx)
+    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport)
     {
-        if (windows == null && linux == null && osx == null)
-        {
-            throw new("Must define settings for at least one OS.");
-        }
-
-        if (!OsSettingsResolver.Resolve(windows, linux, osx, out var exePath, out var launchArguments))
+        if (!OsSettingsResolver.Resolve(osSupport, out var exePath, out var launchArguments))
         {
             return null;
         }
@@ -75,7 +70,7 @@ public static partial class DiffTools
 
         foreach (var tool in ToolsOrder.Sort(throwForNoTool, order).Reverse())
         {
-            AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.Windows, tool.Linux, tool.Osx);
+            AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.OsSupport);
         }
 
         custom.Reverse();

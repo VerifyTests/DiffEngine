@@ -15,6 +15,7 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
+            OsSupport: new(
             Windows: new(
                 "p4merge.exe",
                 launchArguments,
@@ -25,6 +26,6 @@
             Osx: new(
                 "p4merge",
                 launchArguments,
-                "/Applications/p4merge.app/Contents/MacOS/"));
+                "/Applications/p4merge.app/Contents/MacOS/")));
     }
 }

@@ -10,10 +10,11 @@
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: Array.Empty<string>(),
-            Windows: new(
-                "TortoiseMerge.exe",
-                new(
-                    Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-                    Right: (temp, target) => $"\"{temp}\" \"{target}\""),
-                @"%ProgramFiles%\TortoiseSVN\bin\"));
+            OsSupport: new(
+                Windows: new(
+                    "TortoiseMerge.exe",
+                    new(
+                        Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                        Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+                    @"%ProgramFiles%\TortoiseSVN\bin\")));
 }
