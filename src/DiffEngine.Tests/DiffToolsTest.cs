@@ -51,9 +51,9 @@
             exePath: diffToolPath,
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
+        Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
         Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension.Name);
+        Assert.Equal("MyCustomDiffTool", forExtension.Name);
     }
 
 #if DEBUG
