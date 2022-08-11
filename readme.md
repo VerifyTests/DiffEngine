@@ -47,7 +47,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
- * **[P4MergeText](/docs/diff-tool.md#p4mergetext)** Win/OSX/Linux (Cost: Free)
+ * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Win (Cost: Free with option to donate)
@@ -60,7 +60,6 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX (Cost: Paid)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win (Cost: Paid)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Win (Cost: Free with option to donate)
- * **[P4MergeImage](/docs/diff-tool.md#p4mergeimage)** Win/OSX/Linux (Cost: Free)
  * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
  * **[Vim](/docs/diff-tool.md#vim)** Win/OSX (Cost: Free with option to donate)
  * **[Neovim](/docs/diff-tool.md#neovim)** Win/OSX/Linux (Cost: Free with option to sponsor)

@@ -154,14 +154,28 @@
         }
     }
 
-    static void WriteArguments(StreamWriter writer, LaunchArguments launchArguments)
+    static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
-        var left = launchArguments.Left("tempFile", "targetFile");
-        var right = launchArguments.Right("tempFile", "targetFile");
-        writer.WriteLine($"""
-                           * Example target on left arguments: `{left}`
-                           * Example target on right arguments: `{right}`
-                         """);
+        var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
+        var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
+        var leftBinary = arguments.Left("tempFile.png", "targetFile.png");
+        var rightBinary = arguments.Right("tempFile.png", "targetFile.png");
+        if (leftText.Replace(".txt", "") == leftBinary.Replace(".png", ""))
+        {
+            writer.WriteLine($"""
+                               * Example target on left arguments: `{leftText} `
+                               * Example target on right arguments: `{rightText} `
+                             """ );
+        }
+        else
+        {
+            writer.WriteLine($"""
+                               * Example target on left arguments for text: `{leftText} `
+                               * Example target on right arguments for text: `{rightText} `
+                               * Example target on left arguments for binary: `{leftBinary} `
+                               * Example target on right arguments for binary: `{rightBinary} `
+                             """ );
+        }
     }
 
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)

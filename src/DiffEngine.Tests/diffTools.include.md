@@ -19,8 +19,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/solo /rightreadonly "targetFile" "tempFile"`
-  * Example target on right arguments: `/solo /leftreadonly "tempFile" "targetFile"`
+  * Example target on left arguments: `/solo /rightreadonly "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `/solo /leftreadonly "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%BCompare.exe`
     * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
@@ -29,16 +29,16 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `-solo -rightreadonly "targetFile" "tempFile"`
-  * Example target on right arguments: `-solo -leftreadonly "tempFile" "targetFile"`
+  * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%bcomp`
     * `/Applications/Beyond Compare.app/Contents/MacOS/bcomp`
 
 #### Linux settings:
 
-  * Example target on left arguments: `-solo -rightreadonly "targetFile" "tempFile"`
-  * Example target on right arguments: `-solo -leftreadonly "tempFile" "targetFile"`
+  * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%bcomp`
     * `/usr/lib/beyondcompare/bcomp`
@@ -58,16 +58,16 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `-mi "targetFile" "tempFile"`
-  * Example target on right arguments: `-mi "tempFile" "targetFile"`
+  * Example target on left arguments: `-mi "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-mi "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%DeltaWalker.exe`
     * `C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe`
 
 #### OSX settings:
 
-  * Example target on left arguments: `-mi "targetFile" "tempFile"`
-  * Example target on right arguments: `-mi "tempFile" "targetFile"`
+  * Example target on left arguments: `-mi "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-mi "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%DeltaWalker`
     * `/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker`
@@ -87,8 +87,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%Diffinity.exe`
     * `%ProgramFiles%\Diffinity\Diffinity.exe`
@@ -104,8 +104,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `--nosplash "targetFile" "tempFile"`
-  * Example target on right arguments: `--nosplash "tempFile" "targetFile"`
+  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%sgdm.exe`
     * `%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe`
@@ -114,16 +114,16 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `--nosplash "targetFile" "tempFile"`
-  * Example target on right arguments: `--nosplash "tempFile" "targetFile"`
+  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%DiffMerge`
     * `/Applications/DiffMerge.app/Contents/MacOS/DiffMerge`
 
 #### Linux settings:
 
-  * Example target on left arguments: `--nosplash "targetFile" "tempFile"`
-  * Example target on right arguments: `--nosplash "tempFile" "targetFile"`
+  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%diffmerge`
 
@@ -143,8 +143,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile" /nh /diffonly /dn1:targetFile /dn2:tempFile`
-  * Example target on right arguments: `"tempFile" "targetFile" /nh /diffonly /dn1:tempFile /dn2:targetFile`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" /nh /diffonly /dn1:targetFile.txt /dn2:tempFile.txt `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" /nh /diffonly /dn1:tempFile.txt /dn2:targetFile.txt `
   * Scanned paths:  
     * `%PATH%ExamDiff.exe`
     * `%ProgramFiles%\ExamDiff Pro\ExamDiff.exe`
@@ -169,8 +169,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile" -ge2`
-  * Example target on right arguments: `"tempFile" "targetFile" -ge1`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" -ge2 `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" -ge1 `
   * Scanned paths:  
     * `%PATH%guiffy.exe`
     * `%ProgramFiles%\Guiffy\guiffy.exe`
@@ -179,8 +179,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile" -ge2`
-  * Example target on right arguments: `"tempFile" "targetFile" -ge1`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" -ge2 `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" -ge1 `
   * Scanned paths:  
     * `%PATH%guiffyCL.command`
     * `/Applications/Guiffy/guiffyCL.command`
@@ -195,8 +195,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%ksdiff`
 
@@ -214,8 +214,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile" --cs CreateBakFiles=0`
-  * Example target on right arguments: `"tempFile" "targetFile" --cs CreateBakFiles=0`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" --cs CreateBakFiles=0 `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" --cs CreateBakFiles=0 `
   * Scanned paths:  
     * `%PATH%kdiff3.exe`
     * `%ProgramFiles%\KDiff3\kdiff3.exe`
@@ -224,8 +224,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile" --cs CreateBakFiles=0`
-  * Example target on right arguments: `"tempFile" "targetFile" --cs CreateBakFiles=0`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" --cs CreateBakFiles=0 `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" --cs CreateBakFiles=0 `
   * Scanned paths:  
     * `%PATH%kdiff3`
     * `/Applications/kdiff3.app/Contents/MacOS/kdiff3`
@@ -239,69 +239,39 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `-d "targetFile" "tempFile"`
-  * Example target on right arguments: `-d "tempFile" "targetFile"`
+  * Example target on left arguments: `-d "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-d "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%nvim.exe`
 
 #### OSX settings:
 
-  * Example target on left arguments: `-d "targetFile" "tempFile"`
-  * Example target on right arguments: `-d "tempFile" "targetFile"`
+  * Example target on left arguments: `-d "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-d "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%nvim`
 
 #### Linux settings:
 
-  * Example target on left arguments: `-d "targetFile" "tempFile"`
-  * Example target on right arguments: `-d "tempFile" "targetFile"`
+  * Example target on left arguments: `-d "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-d "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%nvim`
 
-### [P4MergeImage](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
-
-  * Cost: Free
-  * Is MDI: False
-  * Supports auto-refresh: False
-  * Supports text files: False
-  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
-
-#### Windows settings:
-
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
-  * Scanned paths:  
-    * `%PATH%p4merge.exe`
-    * `%ProgramFiles%\Perforce\p4merge.exe`
-    * `%ProgramW6432%\Perforce\p4merge.exe`
-    * `%ProgramFiles(x86)%\Perforce\p4merge.exe`
-
-#### OSX settings:
-
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
-  * Scanned paths:  
-    * `%PATH%p4merge`
-    * `/Applications/p4merge.app/Contents/MacOS/p4merge`
-
-#### Linux settings:
-
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
-  * Scanned paths:  
-    * `%PATH%p4merge`
-
-### [P4MergeText](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
+### [P4Merge](https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge)
 
   * Cost: Free
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
+  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
 
 #### Windows settings:
 
-  * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
-  * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
   * Scanned paths:  
     * `%PATH%p4merge.exe`
     * `%ProgramFiles%\Perforce\p4merge.exe`
@@ -310,16 +280,20 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
-  * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
   * Scanned paths:  
     * `%PATH%p4merge`
     * `/Applications/p4merge.app/Contents/MacOS/p4merge`
 
 #### Linux settings:
 
-  * Example target on left arguments: `-C utf8-bom "tempFile" "targetFile" "targetFile" "targetFile"`
-  * Example target on right arguments: `-C utf8-bom "targetFile" "tempFile" "targetFile" "targetFile"`
+  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
   * Scanned paths:  
     * `%PATH%p4merge`
 
@@ -337,8 +311,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `diff "targetFile" "tempFile"`
-  * Example target on right arguments: `diff "tempFile" "targetFile"`
+  * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%rider64.exe`
     * `%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe`
@@ -350,8 +324,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `diff "targetFile" "tempFile"`
-  * Example target on right arguments: `diff "tempFile" "targetFile"`
+  * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%rider`
     * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider`
@@ -361,8 +335,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Linux settings:
 
-  * Example target on left arguments: `diff "targetFile" "tempFile"`
-  * Example target on right arguments: `diff "tempFile" "targetFile"`
+  * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%rider.sh`
     * `%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh`
@@ -378,8 +352,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%tkdiff`
     * `/Applications/TkDiff.app/Contents/MacOS/tkdiff`
@@ -393,8 +367,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%TortoiseGitMerge.exe`
     * `%ProgramFiles%\TortoiseGit\bin\TortoiseGitMerge.exe`
@@ -411,8 +385,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/left:"targetFile" /right:"tempFile"`
-  * Example target on right arguments: `/left:"tempFile" /right:"targetFile"`
+  * Example target on left arguments: `/left:"targetFile.txt" /right:"tempFile.txt" `
+  * Example target on right arguments: `/left:"tempFile.txt" /right:"targetFile.txt" `
   * Scanned paths:  
     * `%PATH%TortoiseIDiff.exe`
     * `%ProgramFiles%\TortoiseSVN\bin\TortoiseIDiff.exe`
@@ -428,8 +402,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%TortoiseMerge.exe`
     * `%ProgramFiles%\TortoiseSVN\bin\TortoiseMerge.exe`
@@ -454,8 +428,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `-d "targetFile" "tempFile" -c "setl autoread | setl nobackup | set noswapfile"`
-  * Example target on right arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
+  * Example target on left arguments: `-d "targetFile.txt" "tempFile.txt" -c "setl autoread | setl nobackup | set noswapfile" `
+  * Example target on right arguments: `-d "tempFile.txt" "targetFile.txt" -c "setl autoread | setl nobackup | set noswapfile" `
   * Scanned paths:  
     * `%PATH%vim.exe`
     * `%ProgramFiles%\Vim\*\vim.exe`
@@ -464,8 +438,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `-d "targetFile" "tempFile" -c "setl autoread | setl nobackup | set noswapfile"`
-  * Example target on right arguments: `-d "tempFile" "targetFile" -c "setl autoread | setl nobackup | set noswapfile"`
+  * Example target on left arguments: `-d "targetFile.txt" "tempFile.txt" -c "setl autoread | setl nobackup | set noswapfile" `
+  * Example target on right arguments: `-d "tempFile.txt" "targetFile.txt" -c "setl autoread | setl nobackup | set noswapfile" `
   * Scanned paths:  
     * `%PATH%mvim`
     * `/Applications/MacVim.app/Contents/bin/mvim`
@@ -489,8 +463,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/u /wl /e "targetFile" "tempFile" /dl "targetFile" /dr "tempFile"`
-  * Example target on right arguments: `/u /wl /e "tempFile" "targetFile" /dl "tempFile" /dr "targetFile"`
+  * Example target on left arguments: `/u /wl /e "targetFile.txt" "tempFile.txt" /dl "targetFile.txt" /dr "tempFile.txt" `
+  * Example target on right arguments: `/u /wl /e "tempFile.txt" "targetFile.txt" /dl "tempFile.txt" /dr "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%WinMergeU.exe`
     * `%ProgramFiles%\WinMerge\WinMergeU.exe`
@@ -519,8 +493,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/nowait "targetFile" "tempFile"`
-  * Example target on right arguments: `/nowait "tempFile" "targetFile"`
+  * Example target on left arguments: `/nowait "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `/nowait "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%Compare.exe`
     * `%ProgramFiles%\Araxis\Araxis Merge\Compare.exe`
@@ -529,8 +503,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `-nowait "targetFile" "tempFile"`
-  * Example target on right arguments: `-nowait "tempFile" "targetFile"`
+  * Example target on left arguments: `-nowait "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-nowait "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%compare`
     * `/Applications/Araxis Merge.app/Contents/Utilities/compare`
@@ -549,8 +523,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%CodeCompare.exe`
     * `%ProgramFiles%\Devart\Code Compare\CodeCompare.exe`
@@ -570,8 +544,8 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%meld.exe`
     * `%LOCALAPPDATA%\Programs\Meld\meld.exe`
@@ -581,16 +555,16 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 #### OSX settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%meld`
     * `/Applications/meld.app/Contents/MacOS/meld`
 
 #### Linux settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%meld`
 
@@ -607,8 +581,8 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### Windows settings:
 
-  * Example target on left arguments: `mergetool "targetFile" "tempFile"`
-  * Example target on right arguments: `mergetool "tempFile" "targetFile"`
+  * Example target on left arguments: `mergetool "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `mergetool "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%smerge.exe`
     * `%ProgramFiles%\Sublime Merge\smerge.exe`
@@ -617,16 +591,16 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### OSX settings:
 
-  * Example target on left arguments: `mergetool "targetFile" "tempFile"`
-  * Example target on right arguments: `mergetool "tempFile" "targetFile"`
+  * Example target on left arguments: `mergetool "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `mergetool "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%smerge`
     * `/Applications/smerge.app/Contents/MacOS/smerge`
 
 #### Linux settings:
 
-  * Example target on left arguments: `mergetool "targetFile" "tempFile"`
-  * Example target on right arguments: `mergetool "tempFile" "targetFile"`
+  * Example target on left arguments: `mergetool "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `mergetool "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%smerge`
 
@@ -639,8 +613,8 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### Windows settings:
 
-  * Example target on left arguments: `/diff "targetFile" "tempFile" "targetFile" "tempFile"`
-  * Example target on right arguments: `/diff "tempFile" "targetFile" "tempFile" "targetFile"`
+  * Example target on left arguments: `/diff "targetFile.txt" "tempFile.txt" "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `/diff "tempFile.txt" "targetFile.txt" "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%devenv.exe`
     * `%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
@@ -670,8 +644,8 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### Windows settings:
 
-  * Example target on left arguments: `--diff "targetFile" "tempFile"`
-  * Example target on right arguments: `--diff "tempFile" "targetFile"`
+  * Example target on left arguments: `--diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%code.exe`
     * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
@@ -681,15 +655,15 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
 
 #### OSX settings:
 
-  * Example target on left arguments: `--diff "targetFile" "tempFile"`
-  * Example target on right arguments: `--diff "tempFile" "targetFile"`
+  * Example target on left arguments: `--diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%code`
     * `/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code`
 
 #### Linux settings:
 
-  * Example target on left arguments: `--diff "targetFile" "tempFile"`
-  * Example target on right arguments: `--diff "tempFile" "targetFile"`
+  * Example target on left arguments: `--diff "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%code`

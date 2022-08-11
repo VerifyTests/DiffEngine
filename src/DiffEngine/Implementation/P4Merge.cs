@@ -1,17 +1,36 @@
 ﻿static partial class Implementation
 {
-    public static Definition P4MergeImage()
+    public static Definition P4Merge()
     {
-        var launchArguments = new LaunchArguments(
+        var launchArguments2 = new LaunchArguments(
             Left: (temp, target) => $"\"{target}\" \"{temp}\"",
             Right: (temp, target) => $"\"{temp}\" \"{target}\"");
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) =>
+            {
+                if (Extensions.IsText(temp))
+                {
+                    return $"\"{target}\" \"{temp}\"";
+                }
+
+                return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+            },
+            Right: (temp, target) =>
+            {
+                if (Extensions.IsText(temp))
+                {
+                    return $"\"{temp}\" \"{target}\"";
+                }
+
+                return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+            });
 
         return new(
-            Tool: DiffTool.P4MergeImage,
+            Tool: DiffTool.P4Merge,
             Url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
             AutoRefresh: false,
             IsMdi: false,
-            SupportsText: false,
+            SupportsText: true,
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: new[]
