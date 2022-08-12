@@ -358,6 +358,24 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%PATH%tkdiff`
     * `/Applications/TkDiff.app/Contents/MacOS/tkdiff`
 
+### [TortoiseGitIDiff](https://tortoisegit.org/docs/tortoisegitmerge/)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: False
+  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
+
+#### Windows settings:
+
+  * Example target on left arguments: `"targetFile" "tempFile"`
+  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Scanned paths:  
+    * `%PATH%TortoiseGitIDiff.exe`
+    * `%ProgramFiles%\TortoiseGit\bin\TortoiseGitIDiff.exe`
+    * `%ProgramW6432%\TortoiseGit\bin\TortoiseGitIDiff.exe`
+    * `%ProgramFiles(x86)%\TortoiseGit\bin\TortoiseGitIDiff.exe`
+
 ### [TortoiseGitMerge](https://tortoisegit.org/docs/tortoisegitmerge/)
 
   * Cost: Free

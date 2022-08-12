@@ -10,6 +10,7 @@ public enum DiffTool
     DiffMerge,
     TortoiseMerge,
     TortoiseGitMerge,
+    TortoiseGitIDiff,
     TortoiseIDiff,
     KDiff3,
     TkDiff,
