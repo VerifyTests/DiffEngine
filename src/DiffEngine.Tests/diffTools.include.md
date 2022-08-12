@@ -368,8 +368,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile" "tempFile"`
-  * Example target on right arguments: `"tempFile" "targetFile"`
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%TortoiseGitIDiff.exe`
     * `%ProgramFiles%\TortoiseGit\bin\TortoiseGitIDiff.exe`
