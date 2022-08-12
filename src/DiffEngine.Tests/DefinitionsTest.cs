@@ -65,9 +65,9 @@
         writer.WriteLine("""
 
                          ## Non-MDI tools
- 
+
                          Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
- 
+
                          """);
 
         foreach (var tool in Definitions.Tools
@@ -93,9 +93,9 @@
     static void AddTool(StreamWriter writer, Definition tool)
     {
         writer.WriteLine($"""
-    
+
                           ### [{tool.Tool}]({tool.Url})
-     
+
                             * Cost: {tool.Cost}
                             * Is MDI: {tool.IsMdi}
                             * Supports auto-refresh: {tool.AutoRefresh}
@@ -112,7 +112,7 @@
             writer.WriteLine($"""
 
                               #### Notes:
-                              
+
                               {tool.Notes}
                               """);
         }
@@ -134,9 +134,9 @@
         if (osx != null)
         {
             writer.WriteLine("""
-            
+
                              #### OSX settings:
-                             
+
                              """);
             WriteArguments(writer, osx.LaunchArguments);
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
@@ -155,14 +155,29 @@
         }
     }
 
-    static void WriteArguments(StreamWriter writer, LaunchArguments launchArguments)
+    static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
-        var left = launchArguments.Left("tempFile", "targetFile");
-        var right = launchArguments.Right("tempFile", "targetFile");
-        writer.WriteLine($"""
-                            * Example target on left arguments: `{left}`
-                            * Example target on right arguments: `{right}`
-                          """);
+
+        var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
+        var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
+        var leftBinary = arguments.Left("tempFile.png", "targetFile.png");
+        var rightBinary = arguments.Right("tempFile.png", "targetFile.png");
+        if (leftText.Replace(".txt", "") == leftBinary.Replace(".png", ""))
+        {
+            writer.WriteLine($"""
+                               * Example target on left arguments: `{leftText} `
+                               * Example target on right arguments: `{rightText} `
+                             """ );
+        }
+        else
+        {
+            writer.WriteLine($"""
+                               * Example target on left arguments for text: `{leftText} `
+                               * Example target on right arguments for text: `{rightText} `
+                               * Example target on left arguments for binary: `{leftBinary} `
+                               * Example target on right arguments for binary: `{rightBinary} `
+                             """ );
+        }
     }
 
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)

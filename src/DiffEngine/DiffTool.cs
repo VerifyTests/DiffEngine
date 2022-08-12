@@ -3,7 +3,7 @@ namespace DiffEngine;
 public enum DiffTool
 {
     BeyondCompare,
-    P4MergeText,
+    P4Merge,
     Kaleidoscope,
     DeltaWalker,
     WinMerge,
@@ -16,7 +16,6 @@ public enum DiffTool
     Guiffy,
     ExamDiff,
     Diffinity,
-    P4MergeImage,
     Rider,
     Vim,
     Neovim,
