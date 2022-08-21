@@ -8,10 +8,10 @@
     <Using Include="DiffEngine" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.3.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Verify.WinForms" Version="2.9.1" />
-    <PackageReference Include="Verify.Xunit" Version="17.8.1" />
-    <PackageReference Include="Verify.ImageMagick" Version="2.15.1" />
+    <PackageReference Include="Argon" Version="0.1.0-beta.16" />
+    <PackageReference Include="Verify.WinForms" Version="3.0.0-beta.1" />
+    <PackageReference Include="Verify.Xunit" Version="18.0.0-beta.3" />
+    <PackageReference Include="Verify.ImageMagick" Version="3.0.0-beta.2" />
     <PackageReference Include="Xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" Version="1.0.80" PrivateAssets="all" />
