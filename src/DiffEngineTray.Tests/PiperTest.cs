@@ -66,11 +66,10 @@ public class PiperTest :
         {
         }
 
-        var settings = new VerifySettings();
-        settings.ScrubLinesContaining("temp.txt");
-        //TODO: add "scrub source dir" to verify and remove the below
-        settings.ScrubLinesContaining("PiperClient");
-        await Verify(Logs, settings);
+        await Verify(Logs)
+            .ScrubLinesContaining("temp.txt")
+            //TODO: add "scrub source dir" to verify and remove the below
+            .ScrubLinesContaining("PiperClient");
     }
 
     public PiperTest(ITestOutputHelper output) :
