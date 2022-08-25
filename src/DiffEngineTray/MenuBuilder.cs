@@ -156,7 +156,7 @@ static class MenuBuilder
     {
         var tempName = Path.GetFileNameWithoutExtension(move.Temp);
         var targetName = Path.GetFileNameWithoutExtension(move.Target);
-        var text = $"{tempName} > {targetName} ({move.Extension})";
+        var text = GetMoveText(move, tempName, targetName);
         var menu = new ToolStripDropDownButton(text);
         menu.DropDownDirection = ToolStripDropDownDirection.Left;
         menu.DropDownItems.Add(new MenuButton("Accept move", accept));
@@ -168,6 +168,16 @@ static class MenuBuilder
 
         menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
         return menu;
+    }
+
+    static string GetMoveText(TrackedMove move, string tempName, string targetName)
+    {
+        if (Path.GetFileNameWithoutExtension(tempName) == Path.GetFileNameWithoutExtension(targetName))
+        {
+            return $"{move.Name} ({move.Extension})";
+        }
+
+        return $"{tempName} > {targetName} ({move.Extension})";
     }
 
     static MenuButton BuildShowInExplorer(string file) =>
