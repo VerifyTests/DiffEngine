@@ -62,13 +62,26 @@
     }
 
     [Fact]
-    public async Task AddSingle_BackgroundDelete()
+    public async Task AddSingle_BackgroundDeleteTemp()
     {
         await using var tracker = new RecordingTracker();
-        tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
+        tracker.AddMove(file1, file2, "theExe", "theArguments", true, null);
         File.Delete(file1);
         Thread.Sleep(3000);
         tracker.AssertEmpty();
+    }
+
+    [Fact]
+    public async Task AddSingle_BackgroundDeleteTarget()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(file1, file2, "theExe", "theArguments", true, null);
+        File.Delete(file2);
+        Thread.Sleep(3000);
+        // many diff tools do not require a target.
+        // so the non exist of a target file should not flush that item
+        Assert.Equal(1, tracker.Moves.Count);
+        Assert.True(tracker.TrackingAny);
     }
 
     [Fact]

@@ -50,12 +50,16 @@ class Tracker :
         }
 
         var move = pair.Value;
-        if (!File.Exists(move.Temp) || !File.Exists(move.Target))
+        if (!File.Exists(move.Temp))
         {
             RemoveAndKill(pair.Value);
             return;
         }
 
+        if (!File.Exists(move.Target))
+        {
+            return;
+        }
         try
         {
             if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
