@@ -56,7 +56,7 @@ static class PiperServer
     {
         await using (cancellation.Register(listener.Stop))
         {
-            using var client = await listener.AcceptTcpClientAsync();
+            using var client = await listener.AcceptTcpClientAsync(cancellation);
             using var reader = new StreamReader(client.GetStream());
             var payload = await reader.ReadToEndAsync();
 
