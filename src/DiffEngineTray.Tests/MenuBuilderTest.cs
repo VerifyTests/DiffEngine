@@ -71,6 +71,24 @@ public class MenuBuilderTest :
     }
 
     [Fact]
+    public async Task DiffTempTarget()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        tracker.AddDelete(file2);
+        tracker.AddMove(file3, file4, "theExe", "theArguments", true, null);
+        var menu = MenuBuilder.Build(
+            () =>
+            {
+            },
+            () =>
+            {
+            },
+            tracker);
+        await Verify(menu, settings);
+    }
+
+    [Fact]
     public async Task Many()
     {
         await using var tracker = new RecordingTracker();
