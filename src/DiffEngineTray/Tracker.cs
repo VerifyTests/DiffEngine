@@ -245,14 +245,26 @@ class Tracker :
     {
         KillProcesses(move);
 
-        FileEx.SafeMove(move.Temp, move.Target);
+        if (!FileEx.SafeMove(move.Temp, move.Target))
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(move.Temp)!;
+        FileEx.SafeDeleteDirectory(directory);
     }
 
     static void InnerDiscard(TrackedMove move)
     {
         KillProcesses(move);
 
-        FileEx.SafeDelete(move.Temp);
+        if (!FileEx.SafeDeleteFile(move.Temp))
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(move.Temp)!;
+        FileEx.SafeDeleteDirectory(directory);
     }
 
     static void KillProcesses(TrackedMove move)
