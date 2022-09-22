@@ -158,7 +158,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
   * Cost: Paid
   * Is MDI: False
-  * Supports auto-refresh: False
+  * Supports auto-refresh: True
   * Supports text files: True
   * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
 
@@ -210,8 +210,12 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
   * Cost: Free
   * Is MDI: False
-  * Supports auto-refresh: False
+  * Supports auto-refresh: True
   * Supports text files: True
+
+#### Notes:
+
+ * Ensure [Check for Modified Files](https://www.sourcegear.com/diffmerge/webhelp/sec__opt__filewindows.html) is enabled
 
 #### Windows settings:
 
@@ -347,6 +351,10 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
+
+#### Notes:
+
+ * https://neovim.io/doc/user/diff.html
 
 #### Windows settings:
 

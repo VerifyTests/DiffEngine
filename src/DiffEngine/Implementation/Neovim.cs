@@ -18,6 +18,7 @@
             OsSupport: new(
                 Windows: new("nvim.exe", launchArguments),
                 Linux: new("nvim", launchArguments),
-                Osx: new("nvim", launchArguments)));
+                Osx: new("nvim", launchArguments)),
+            Notes:" * https://neovim.io/doc/user/diff.html");
     }
 }

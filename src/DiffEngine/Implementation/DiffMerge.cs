@@ -9,7 +9,7 @@
         return new(
             Tool: DiffTool.DiffMerge,
             Url: "https://www.sourcegear.com/diffmerge/",
-            AutoRefresh: false,
+            AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
             RequiresTarget: true,
@@ -26,6 +26,7 @@
                 Osx: new(
                     "DiffMerge",
                     launchArguments,
-                    "/Applications/DiffMerge.app/Contents/MacOS/")));
+                    "/Applications/DiffMerge.app/Contents/MacOS/")),
+            Notes: " * Ensure [Check for Modified Files](https://www.sourcegear.com/diffmerge/webhelp/sec__opt__filewindows.html) is enabled");
     }
 }
