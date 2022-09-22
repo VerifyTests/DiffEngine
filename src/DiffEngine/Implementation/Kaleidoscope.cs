@@ -4,7 +4,7 @@
         new(
             Tool: DiffTool.Kaleidoscope,
             Url: "https://www.kaleidoscopeapp.com/",
-            AutoRefresh: false,
+            AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
             RequiresTarget: true,
