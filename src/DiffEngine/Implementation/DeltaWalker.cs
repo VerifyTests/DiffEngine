@@ -9,7 +9,7 @@
         return new(
             Tool: DiffTool.DeltaWalker,
             Url: "https://www.deltawalker.com/",
-            AutoRefresh: false,
+            AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
             RequiresTarget: false,
