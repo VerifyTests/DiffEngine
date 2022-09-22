@@ -193,7 +193,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
   * Cost: Paid
   * Is MDI: False
-  * Supports auto-refresh: False
+  * Supports auto-refresh: True
   * Supports text files: True
   * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tiff, tif
 
