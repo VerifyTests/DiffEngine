@@ -9,7 +9,7 @@
         return new(
             Tool: DiffTool.Rider,
             Url: "https://www.jetbrains.com/rider/",
-            AutoRefresh: false,
+            AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
             RequiresTarget: true,

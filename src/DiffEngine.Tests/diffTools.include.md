@@ -309,7 +309,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
   * Cost: Paid with free option for OSS
   * Is MDI: False
-  * Supports auto-refresh: False
+  * Supports auto-refresh: True
   * Supports text files: True
 
 #### Notes:
