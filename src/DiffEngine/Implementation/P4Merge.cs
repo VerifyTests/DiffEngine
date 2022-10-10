@@ -2,9 +2,6 @@
 {
     public static Definition P4Merge()
     {
-        var launchArguments2 = new LaunchArguments(
-            Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-            Right: (temp, target) => $"\"{temp}\" \"{target}\"");
         var launchArguments = new LaunchArguments(
             Left: (temp, target) =>
             {

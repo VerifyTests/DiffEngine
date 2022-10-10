@@ -42,7 +42,7 @@ public class KeyRegister :
 
     public bool TryAddBinding(int id, KeyModifiers modifiers, Keys keys, Action action)
     {
-        var unregisterHotKey = UnregisterHotKey(handle, id);
+        UnregisterHotKey(handle, id);
 
         if (!RegisterHotKey(handle, id, modifiers, keys))
         {

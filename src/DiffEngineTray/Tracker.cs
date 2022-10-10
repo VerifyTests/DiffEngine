@@ -300,7 +300,7 @@ class Tracker :
     {
         AcceptAllDeletes();
 
-        foreach (var (key, move) in moves)
+        foreach (var move in moves.Values)
         {
             if (move.Process == null)
             {
