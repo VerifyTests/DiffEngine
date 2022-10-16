@@ -15,7 +15,7 @@
     <Using Include="System.Net.Sockets" />
     <Using Include="EmptyFiles" />
     <PackageReference Include="Caseless.Fody" Version="1.9.1" PrivateAssets="All" />
-    <PackageReference Include="EmptyFiles" Version="2.8.0" PrivateAssets="None" />
+    <PackageReference Include="EmptyFiles" Version="3.0.0" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.80" PrivateAssets="all" />

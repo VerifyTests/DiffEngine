@@ -5,7 +5,7 @@
         var launchArguments = new LaunchArguments(
             Left: (temp, target) =>
             {
-                if (Extensions.IsText(temp))
+                if (FileExtensions.IsText(temp))
                 {
                     return $"\"{target}\" \"{temp}\"";
                 }
@@ -14,7 +14,7 @@
             },
             Right: (temp, target) =>
             {
-                if (Extensions.IsText(temp))
+                if (FileExtensions.IsText(temp))
                 {
                     return $"\"{temp}\" \"{target}\"";
                 }

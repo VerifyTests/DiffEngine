@@ -40,7 +40,7 @@ public static partial class DiffRunner
         return InnerLaunch(
             ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
-                var extension = Extensions.GetExtension(tempFile);
+                var extension = FileExtensions.GetExtension(tempFile);
                 return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,
@@ -57,7 +57,7 @@ public static partial class DiffRunner
         return InnerLaunchAsync(
             ([NotNullWhen(true)] out ResolvedTool? tool) =>
             {
-                var extension = Extensions.GetExtension(tempFile);
+                var extension = FileExtensions.GetExtension(tempFile);
                 return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,

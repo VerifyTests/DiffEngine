@@ -54,7 +54,7 @@ public static partial class DiffTools
         resolved.Insert(0, resolvedTool);
         foreach (var extension in resolvedTool.BinaryExtensions)
         {
-            var cleanedExtension = Extensions.GetExtension(extension);
+            var cleanedExtension = FileExtensions.GetExtension(extension);
             ExtensionLookup[cleanedExtension] = resolvedTool;
         }
 
