@@ -19,12 +19,7 @@
         });
         var cancellation = tokenSource.Token;
 
-        task = Task.Run(
-            async () =>
-            {
-                await RunLoop(cancellation);
-            },
-            cancellation);
+        task = Task.Run(() => RunLoop(cancellation), cancellation);
     }
 
     async Task RunLoop(CancellationToken cancellation)
