@@ -5,14 +5,13 @@
     {
         var errorCallbackInvoked = new TaskCompletionSource<bool>();
 
-        var timer = new AsyncTimer(
+        await using var timer = new AsyncTimer(
             callback: _ => throw new("Simulated!"),
             interval: TimeSpan.Zero,
             errorCallback: _ =>
             {
                 errorCallbackInvoked.SetResult(true);
             });
-
         Assert.True(await errorCallbackInvoked.Task);
     }
 
@@ -23,7 +22,7 @@
 
         var fail = true;
         var exceptionThrown = false;
-        var timer = new AsyncTimer(
+        await using var timer = new AsyncTimer(
             callback: _ =>
             {
                 if (fail)
@@ -51,7 +50,7 @@
         var callbackCanceled = false;
         var callbackStarted = new TaskCompletionSource<bool>();
         var stopInitiated = new TaskCompletionSource<bool>();
-        var timer = new AsyncTimer(
+        await using var timer = new AsyncTimer(
             callback: async token =>
             {
                 callbackStarted.SetResult(true);
@@ -75,7 +74,7 @@
     {
         var callbackCompleted = new TaskCompletionSource<bool>();
         var callbackTaskStarted = new TaskCompletionSource<bool>();
-        var timer = new AsyncTimer(
+        await using var timer = new AsyncTimer(
             callback: _ =>
             {
                 callbackTaskStarted.SetResult(true);
