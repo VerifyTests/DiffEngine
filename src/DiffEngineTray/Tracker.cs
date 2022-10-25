@@ -21,7 +21,7 @@ class Tracker :
             });
     }
 
-    Task ScanFiles(DateTime dateTime, CancellationToken cancellationToken)
+    Task ScanFiles(CancellationToken cancellationToken)
     {
         foreach (var delete in deletes.ToList()
                      .Where(delete => !File.Exists(delete.Value.File)))

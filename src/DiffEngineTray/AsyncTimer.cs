@@ -1,7 +1,7 @@
 ﻿class AsyncTimer :
     IAsyncDisposable
 {
-    Func<DateTime, CancellationToken, Task> callback;
+    Func<CancellationToken, Task> callback;
     TimeSpan interval;
     Action<Exception> errorCallback;
     Func<TimeSpan, CancellationToken, Task> delayStrategy;
@@ -9,7 +9,7 @@
     CancellationTokenSource tokenSource = new();
 
     public AsyncTimer(
-        Func<DateTime, CancellationToken, Task> callback,
+        Func<CancellationToken, Task> callback,
         TimeSpan interval,
         Action<Exception>? errorCallback = null,
         Func<TimeSpan, CancellationToken, Task>? delayStrategy = null)
@@ -36,9 +36,8 @@
         {
             try
             {
-                var utcNow = DateTime.UtcNow;
                 await delayStrategy(interval, cancellation);
-                await callback(utcNow, cancellation);
+                await callback(cancellation);
             }
             catch (OperationCanceledException)
             {
