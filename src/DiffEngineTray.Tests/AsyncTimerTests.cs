@@ -46,33 +46,6 @@
     }
 
     [Fact]
-    public async Task Stop_cancels_token_while_waiting()
-    {
-        var waitCanceled = false;
-        var delayStarted = new TaskCompletionSource<bool>();
-        var timer = new AsyncTimer(
-            callback: _ => throw new("Simulated!"),
-            interval: TimeSpan.FromDays(7),
-            delayStrategy: async (delayTime, token) =>
-            {
-                delayStarted.SetResult(true);
-                try
-                {
-                    await Task.Delay(delayTime, token);
-                }
-                catch (OperationCanceledException)
-                {
-                    waitCanceled = true;
-                }
-            });
-
-        await delayStarted.Task;
-        await timer.DisposeAsync();
-
-        Assert.True(waitCanceled);
-    }
-
-    [Fact]
     public async Task Stop_cancels_token_while_in_callback()
     {
         var callbackCanceled = false;

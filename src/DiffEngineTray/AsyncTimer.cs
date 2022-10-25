@@ -4,22 +4,19 @@
     Func<CancellationToken, Task> callback;
     TimeSpan interval;
     Action<Exception> errorCallback;
-    Func<TimeSpan, CancellationToken, Task> delayStrategy;
     Task task;
     CancellationTokenSource tokenSource = new();
 
     public AsyncTimer(
         Func<CancellationToken, Task> callback,
         TimeSpan interval,
-        Action<Exception>? errorCallback = null,
-        Func<TimeSpan, CancellationToken, Task>? delayStrategy = null)
+        Action<Exception>? errorCallback = null)
     {
         this.callback = callback;
         this.interval = interval;
         this.errorCallback = errorCallback ?? (_ =>
         {
         });
-        this.delayStrategy = delayStrategy ?? Task.Delay;
         var cancellation = tokenSource.Token;
 
         task = Task.Run(
@@ -36,7 +33,7 @@
         {
             try
             {
-                await delayStrategy(interval, cancellation);
+                await Task.Delay(interval, cancellation);
                 await callback(cancellation);
             }
             catch (OperationCanceledException)
