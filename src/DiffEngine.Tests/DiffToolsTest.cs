@@ -121,13 +121,12 @@
     //    }
     //}
     /**
-    **/
     [Fact]
     public Task LaunchSpecificTextDiff() =>
         DiffRunner.LaunchAsync(DiffTool.WinMerge,
             Path.Combine(SourceDirectory, "input.temp.txt"),
             Path.Combine(SourceDirectory, "input.target.txt"));
-
+    **/
 #if DEBUG
     [Fact]
     public void ChangeOrder()

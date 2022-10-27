@@ -489,7 +489,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/u /wl /e "targetFile.txt" "tempFile.txt" /dl "targetFile.txt" /dr "tempFile.txt" `
+  * Example target on left arguments: `/u /wr /e "targetFile.txt" "tempFile.txt" /dl "targetFile.txt" /dr "tempFile.txt" `
   * Example target on right arguments: `/u /wl /e "tempFile.txt" "targetFile.txt" /dl "tempFile.txt" /dr "targetFile.txt" `
   * Scanned paths:  
     * `%PATH%WinMergeU.exe`
