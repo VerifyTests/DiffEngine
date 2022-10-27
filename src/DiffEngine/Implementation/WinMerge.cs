@@ -13,7 +13,7 @@
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
-            return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
+            return $"/u /wr /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
         }
 
         return new(
