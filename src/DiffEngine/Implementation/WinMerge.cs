@@ -6,14 +6,14 @@
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
-            return $"/u /wl /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\"";
+            return $"/u /wr /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\"";
         }
 
         static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
-            return $"/u /wr /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
+            return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
         }
 
         return new(
