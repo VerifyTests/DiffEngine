@@ -13,12 +13,14 @@ public static class ContinuousTestingDetector
             return;
         }
 
-        if (Environment.GetEnvironmentVariable("NCRUNCH") != null &&
-            Environment.GetEnvironmentVariable("NCrunch.IsHighPriority") != "1")
+        if (IsNCrunch && !IsNCrunchExplicitRun)
         {
             Detected = true;
         }
     }
 
+    public static bool IsNCrunchExplicitRun { get; } = Environment.GetEnvironmentVariable("NCrunch.IsHighPriority") == "1";
     public static bool Detected { get; set; }
+    public static bool IsNCrunch { get; } = Environment.GetEnvironmentVariable("NCRUNCH") != null;
+    public static string? NCrunchOriginalProject { get; } = Environment.GetEnvironmentVariable("NCrunch.OriginalProjectPath");
 }
