@@ -1,3 +1,5 @@
+using IOException = System.IO.IOException;
+
 static class FileEx
 {
     public static bool IsEmptyDirectory(string directory) =>
@@ -58,6 +60,11 @@ static class FileEx
 
     public static bool SafeMove(string temp, string target)
     {
+        //Swallow this since it is likely that a running test it reading or
+        //writing to the files, and the result will re-add the tracked item
+        void HandleAccessException(Exception exception) =>
+            Log.Error(exception, $"Failed to move '{temp}' to '{target}'.");
+
         if (!File.Exists(temp))
         {
             return false;
@@ -68,11 +75,13 @@ static class FileEx
             File.Move(temp, target, true);
             return true;
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            HandleAccessException(exception);
+        }
         catch (IOException exception)
         {
-            Log.Error(exception, $"Failed to move '{temp}' to '{target}'.");
-            //Swallow this since it is likely that a running test it reading or
-            //writing to the files, and the result will re-add the tracked item
+            HandleAccessException(exception);
         }
         catch (Exception exception)
         {

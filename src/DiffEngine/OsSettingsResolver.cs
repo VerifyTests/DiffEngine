@@ -112,7 +112,7 @@
         // Return the first one that exists.
         exePath = envPaths
             .Select(_ => Path.Combine(_, exeName))
-            .FirstOrDefault(_ => File.Exists(_));
+            .FirstOrDefault(File.Exists);
 
         return exePath != null;
     }
