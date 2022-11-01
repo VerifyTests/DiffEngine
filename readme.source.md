@@ -73,6 +73,13 @@ Supports:
 Set an environment variable `DiffEngine_Disabled` with the value `true`.
 
 
+## Disable in code
+
+```
+DiffRunner.Disabled = true;
+```
+
+
 ## Icons
 
 [Game](https://thenounproject.com/term/game/2956486/) designed by [Andrejs Kirma](https://thenounproject.com/andrejs/) from [The Noun Project](https://thenounproject.com).
