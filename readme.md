@@ -31,6 +31,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
+  * [Disable in code](#disable-in-code)
   * [Icons](#icons)<!-- endToc -->
   * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
@@ -127,6 +128,13 @@ Supports:
 ## Disable for a machine/process
 
 Set an environment variable `DiffEngine_Disabled` with the value `true`.
+
+
+## Disable in code
+
+```
+DiffRunner.Disabled = true;
+```
 
 
 ## Icons
