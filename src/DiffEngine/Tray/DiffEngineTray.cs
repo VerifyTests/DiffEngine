@@ -4,10 +4,17 @@ public static class DiffEngineTray
 {
     static DiffEngineTray()
     {
-        if (Mutex.TryOpenExisting("DiffEngine", out var mutex))
+        try
         {
-            IsRunning = true;
-            mutex.Dispose();
+            if (Mutex.TryOpenExisting("DiffEngine", out var mutex))
+            {
+                IsRunning = true;
+                mutex.Dispose();
+            }
+        }
+        //net7 on mac throws an exception if the mutex does not exist
+        catch (IOException)
+        {
         }
     }
 
