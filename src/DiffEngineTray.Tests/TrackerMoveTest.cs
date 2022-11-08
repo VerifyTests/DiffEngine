@@ -61,15 +61,15 @@
         tracker.AssertEmpty();
     }
 
-    [Fact]
-    public async Task AddSingle_BackgroundDeleteTemp()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddMove(file1, file2, "theExe", "theArguments", true, null);
-        File.Delete(file1);
-        Thread.Sleep(3000);
-        tracker.AssertEmpty();
-    }
+    // [Fact]
+    // public async Task AddSingle_BackgroundDeleteTemp()
+    // {
+    //     await using var tracker = new RecordingTracker();
+    //     tracker.AddMove(file1, file2, "theExe", "theArguments", true, null);
+    //     File.Delete(file1);
+    //     Thread.Sleep(3000);
+    //     tracker.AssertEmpty();
+    // }
 
     [Fact]
     public async Task AddSingle_BackgroundDeleteTarget()
