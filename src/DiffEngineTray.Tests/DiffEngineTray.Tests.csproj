@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
     <PackageReference Include="Argon" Version="0.1.0" />
     <PackageReference Include="Verify.DiffPlex" Version="2.0.0" />
