@@ -18,7 +18,7 @@ public static class SettingsValidator
             return;
         }
 
-        if (!hotKey.Alt && !hotKey.Shift && !hotKey.Control)
+        if (hotKey is {Alt: false, Shift: false, Control: false})
         {
             errors.Add("HotKey: At least one modifier is required");
         }
