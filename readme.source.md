@@ -66,6 +66,7 @@ Supports:
  * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
  * [Bamboo](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html)
+ * [GoCD](https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html)
 
 
 ## Disable for a machine/process
