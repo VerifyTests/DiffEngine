@@ -91,6 +91,14 @@ public static class BuildServerDetector
             Detected = true;
             return;
         }
+
+        // MyGet
+        // https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables
+        if (Environment.GetEnvironmentVariable("BuildRunner") == "MyGet")
+        {
+            Detected = true;
+            return;
+        }
     }
 
     public static bool Detected { get; set; }
