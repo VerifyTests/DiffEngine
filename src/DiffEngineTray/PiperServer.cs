@@ -58,7 +58,7 @@ static class PiperServer
         {
             using var client = await listener.AcceptTcpClientAsync(cancellation);
             using var reader = new StreamReader(client.GetStream());
-            var payload = await reader.ReadToEndAsync();
+            var payload = await reader.ReadToEndAsync(cancellation);
 
             if (payload.Contains("\"Type\":\"Move\"") ||
                 payload.Contains("\"Type\": \"Move\""))
