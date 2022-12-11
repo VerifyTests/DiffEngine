@@ -81,6 +81,15 @@ public static class BuildServerDetector
         if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
         {
             Detected = true;
+            return;
+        }
+
+        // GoDC
+        // https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html
+        if (Environment.GetEnvironmentVariable("GO_SERVER_URL") != null)
+        {
+            Detected = true;
+            return;
         }
     }
 
