@@ -62,6 +62,7 @@
     }
 
 #if DEBUG
+
     [Fact]
     public void AddToolBasedOn()
     {
@@ -82,7 +83,9 @@
         Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
         Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
     }
+
 #endif
+
     async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
@@ -127,7 +130,9 @@
             Path.Combine(SourceDirectory, "input.temp.txt"),
             Path.Combine(SourceDirectory, "input.target.txt"));
     **/
+
 #if DEBUG
+
     [Fact]
     public void ChangeOrder()
     {
@@ -159,6 +164,7 @@
         Assert.True(DiffTools.TryFindByName(resolved.Name, out resolved));
         Assert.NotNull(resolved);
     }
+
 #endif
 
     public DiffToolsTest(ITestOutputHelper output) :
