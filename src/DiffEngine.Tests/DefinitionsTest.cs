@@ -157,7 +157,6 @@
 
     static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
-
         var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
         var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
         var leftBinary = arguments.Left("tempFile.png", "targetFile.png");
@@ -180,7 +179,7 @@
         }
     }
 
-    static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
+    static void WritePaths(string exeName, TextWriter writer, IEnumerable<string> paths)
     {
         writer.WriteLine("""
                            * Scanned paths:  
