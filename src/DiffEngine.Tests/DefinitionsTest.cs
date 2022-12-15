@@ -117,8 +117,7 @@
                               """);
         }
 
-        var osSupport = tool.OsSupport;
-        var windows = osSupport.Windows;
+        var (windows, linux, osx) = tool.OsSupport;
         if (windows != null)
         {
             writer.WriteLine("""
@@ -127,10 +126,9 @@
 
                              """);
             WriteArguments(writer, windows.LaunchArguments);
-            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
+            WritePaths(windows.ExeName, writer, ExeFinder.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
-        var osx = osSupport.Osx;
         if (osx != null)
         {
             writer.WriteLine("""
@@ -142,7 +140,6 @@
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
-        var linux = osSupport.Linux;
         if (linux != null)
         {
             writer.WriteLine("""

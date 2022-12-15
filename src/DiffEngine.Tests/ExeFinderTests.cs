@@ -14,6 +14,22 @@
     }
 
     [Fact]
+    public void ExpandProgramFilesNoEnv()
+    {
+        var paths = ExeFinder.ExpandProgramFiles(new[] {"Path"}).ToList();
+        Assert.Equal("Path", paths.Single());
+    }
+
+    [Fact]
+    public void ExpandProgramFiles()
+    {
+        var paths = ExeFinder.ExpandProgramFiles(new[] {@"%ProgramFiles%\Path"}).ToList();
+        Assert.Equal(@"%ProgramFiles%\Path", paths[0]);
+        Assert.Equal(@"%ProgramW6432%\Path", paths[1]);
+        Assert.Equal(@"%ProgramFiles(x86)%\Path", paths[2]);
+    }
+
+    [Fact]
     public void EnvPath()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
