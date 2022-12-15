@@ -117,7 +117,8 @@
                               """);
         }
 
-        var (windows, linux, osx) = tool.OsSupport;
+        var osSupport = tool.OsSupport;
+        var windows = osSupport.Windows;
         if (windows != null)
         {
             writer.WriteLine("""
@@ -126,9 +127,10 @@
 
                              """);
             WriteArguments(writer, windows.LaunchArguments);
-            WritePaths(windows.ExeName, writer, ExeFinder.ExpandProgramFiles(windows.SearchDirectories).ToList());
+            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
+        var osx = osSupport.Osx;
         if (osx != null)
         {
             writer.WriteLine("""
@@ -140,6 +142,7 @@
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
+        var linux = osSupport.Linux;
         if (linux != null)
         {
             writer.WriteLine("""
@@ -154,6 +157,7 @@
 
     static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
+
         var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
         var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
         var leftBinary = arguments.Left("tempFile.png", "targetFile.png");
@@ -176,7 +180,7 @@
         }
     }
 
-    static void WritePaths(string exeName, TextWriter writer, IEnumerable<string> paths)
+    static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
         writer.WriteLine("""
                            * Scanned paths:  

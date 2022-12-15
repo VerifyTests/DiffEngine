@@ -37,7 +37,7 @@ public static partial class DiffTools
             throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
         }
 
-        if (!ExeFinder.TryFind(exePath, out var resolvedExePath))
+        if (!WildcardFileFinder.TryFind(exePath, out var resolvedExePath))
         {
             return null;
         }

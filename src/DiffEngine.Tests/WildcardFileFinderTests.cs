@@ -1,4 +1,4 @@
-﻿public class ExeFinderTests :
+﻿public class WildcardFileFinderTests :
     XunitContextBase
 {
     [Fact]
@@ -9,43 +9,8 @@
         Directory.SetLastWriteTime(dir2, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir1, DateTime.Now);
         var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
-        Assert.True(ExeFinder.TryFind(path, out var result));
+        Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
-    }
-
-    [Fact]
-    public void ExpandProgramFilesNoEnv()
-    {
-        var paths = ExeFinder.ExpandProgramFiles(new[] {"Path"}).ToList();
-        Assert.Equal("Path", paths.Single());
-    }
-
-    [Fact]
-    public void ExpandProgramFiles()
-    {
-        var paths = ExeFinder.ExpandProgramFiles(new[] {@"%ProgramFiles%\Path"}).ToList();
-        Assert.Equal(@"%ProgramFiles%\Path", paths[0]);
-        Assert.Equal(@"%ProgramW6432%\Path", paths[1]);
-        Assert.Equal(@"%ProgramFiles(x86)%\Path", paths[2]);
-    }
-
-    [Fact]
-    public void EnvPath()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var found = ExeFinder.TryFindInEnvPath("cmd.exe", out var filePath);
-            Assert.Equal(true, found);
-            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            var found = ExeFinder.TryFindInEnvPath("sh", out var filePath);
-            Assert.Equal(true, found);
-            Assert.NotNull(filePath);
-        }
     }
 
     [Fact]
@@ -56,21 +21,21 @@
         Directory.SetLastWriteTime(dir1, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir2, DateTime.Now);
         var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
-        Assert.True(ExeFinder.TryFind(path, out var result));
+        Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
 
     [Fact]
     public void FullFilePath()
     {
-        Assert.True(ExeFinder.TryFind(SourceFile, out var result));
+        Assert.True(WildcardFileFinder.TryFind(SourceFile, out var result));
         Assert.True(File.Exists(result), result);
     }
 
     [Fact]
     public void FullFilePath_missing()
     {
-        Assert.False(ExeFinder.TryFind(SourceFile.Replace(".cs", ".foo"), out var result));
+        Assert.False(WildcardFileFinder.TryFind(SourceFile.Replace(".cs", ".foo"), out var result));
         Assert.Null(result);
     }
 
@@ -94,8 +59,8 @@
     public void WildCardInDir()
     {
         var directory = SourceDirectory.Replace("Tests", "Test*");
-        var path = Path.Combine(directory, "ExeFinderTests.cs");
-        Assert.True(ExeFinder.TryFind(path, out var result));
+        var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
+        Assert.True(WildcardFileFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
 
@@ -103,12 +68,12 @@
     public void WildCardInDir_missing()
     {
         var directory = SourceDirectory.Replace("Tests", "Test*.Foo");
-        var path = Path.Combine(directory, "ExeFinderTests.cs");
-        Assert.False(ExeFinder.TryFind(path, out var result));
+        var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
+        Assert.False(WildcardFileFinder.TryFind(path, out var result));
         Assert.Null(result);
     }
 
-    public ExeFinderTests(ITestOutputHelper output) :
+    public WildcardFileFinderTests(ITestOutputHelper output) :
         base(output)
     {
     }

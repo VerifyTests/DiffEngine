@@ -32,7 +32,7 @@ public class PiperTest :
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
         await PiperClient.SendDeleteAsync("Foo", source.Token);
-        await Task.Delay(1000, source.Token);
+        await Task.Delay(1000);
         source.Cancel();
         await task;
         await Verify(received);
@@ -45,7 +45,7 @@ public class PiperTest :
         var source = new CancellationTokenSource();
         var task = PiperServer.Start(s => received = s, _ => { }, source.Token);
         await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
-        await Task.Delay(1000, source.Token);
+        await Task.Delay(1000);
         source.Cancel();
         await task;
         await Verify(received);

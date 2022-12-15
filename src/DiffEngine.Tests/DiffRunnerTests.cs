@@ -191,7 +191,7 @@ public class DiffRunnerTests :
             launchArguments: new(
                 Left: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
                 Right: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\""),
-            exePath: FakeDiffTool.ExePath,
+            exePath: FakeDiffTool.Exe,
             binaryExtensions: new[]
             {
                 "knownBin"

@@ -1,21 +1,18 @@
 ﻿public class FakeDiffTool
 {
-    public static string ExePath;
-    public static string ExeName;
+    public static string Exe;
 
     static FakeDiffTool()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            ExeName = "FakeDiffTool.exe";
-            ExePath = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/win-x64/FakeDiffTool.exe"));
+            Exe = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/win-x64/FakeDiffTool.exe"));
             return;
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            ExeName = "FakeDiffTool";
-            ExePath = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/osx-x64/FakeDiffTool"));
+            Exe = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/osx-x64/FakeDiffTool"));
             return;
         }
 
