@@ -14,7 +14,7 @@
     [Fact]
     public void AddTool()
     {
-        var diffToolPath = FakeDiffTool.Exe;
+        var diffToolPath = FakeDiffTool.ExePath;
 
         #region AddTool
 
@@ -43,7 +43,7 @@
     [Fact]
     public void OrderShouldNotMessWithAddTool()
     {
-        var diffToolPath = FakeDiffTool.Exe;
+        var diffToolPath = FakeDiffTool.ExePath;
         var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
