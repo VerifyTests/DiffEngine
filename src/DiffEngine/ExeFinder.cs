@@ -1,5 +1,26 @@
 ﻿static class ExeFinder
 {
+    static string[] envPaths;
+
+    static ExeFinder()
+    {
+        var pathVariable = Environment.GetEnvironmentVariable("PATH")!;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            envPaths = pathVariable.Split(';');
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            envPaths = pathVariable.Split(':');
+        }
+        else
+        {
+            envPaths = Array.Empty<string>();
+        }
+    }
+
     static char[] separators =
     {
         Path.DirectorySeparatorChar,
@@ -91,5 +112,16 @@
         Logging.Write($"Could not find file: {path}");
         result = null;
         return false;
+    }
+
+    public static bool TryFindInEnvPath(string exeName, [NotNullWhen(true)] out string? exePath)
+    {
+        // For each path in PATH, append cliApp and check if it exists.
+        // Return the first one that exists.
+        exePath = envPaths
+            .Select(_ => Path.Combine(_, exeName))
+            .FirstOrDefault(File.Exists);
+
+        return exePath != null;
     }
 }

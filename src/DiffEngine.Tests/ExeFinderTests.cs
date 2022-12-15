@@ -14,6 +14,25 @@
     }
 
     [Fact]
+    public void EnvPath()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var found = ExeFinder.TryFindInEnvPath("cmd.exe", out var filePath);
+            Assert.Equal(true, found);
+            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
+            || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            var found = ExeFinder.TryFindInEnvPath("sh", out var filePath);
+            Assert.Equal(true, found);
+            Assert.NotNull(filePath);
+        }
+    }
+
+    [Fact]
     public void MultiMatchDir_order2()
     {
         var dir1 = Path.Combine(SourceDirectory, "DirForSearch", "dir1");

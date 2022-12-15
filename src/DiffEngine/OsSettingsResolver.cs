@@ -103,17 +103,6 @@
             }
         }
 
-        return TryFindInEnvPath(exeName, out exePath);
-    }
-
-    public static bool TryFindInEnvPath(string exeName, [NotNullWhen(true)] out string? exePath)
-    {
-        // For each path in PATH, append cliApp and check if it exists.
-        // Return the first one that exists.
-        exePath = envPaths
-            .Select(_ => Path.Combine(_, exeName))
-            .FirstOrDefault(File.Exists);
-
-        return exePath != null;
+        return ExeFinder.TryFindInEnvPath(exeName, out exePath);
     }
 }
