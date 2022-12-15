@@ -97,7 +97,7 @@
         foreach (var directory in searchDirectories.Distinct())
         {
             var exeSearchPath = Path.Combine(directory, exeName);
-            if (WildcardFileFinder.TryFind(exeSearchPath, out exePath))
+            if (ExeFinder.TryFind(exeSearchPath, out exePath))
             {
                 return true;
             }

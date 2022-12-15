@@ -1,4 +1,4 @@
-﻿static class WildcardFileFinder
+﻿static class ExeFinder
 {
     static char[] separators =
     {

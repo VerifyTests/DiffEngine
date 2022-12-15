@@ -1,4 +1,4 @@
-﻿public class WildcardFileFinderTests :
+﻿public class ExeFinderTests :
     XunitContextBase
 {
     [Fact]
@@ -9,7 +9,7 @@
         Directory.SetLastWriteTime(dir2, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir1, DateTime.Now);
         var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
-        Assert.True(WildcardFileFinder.TryFind(path, out var result));
+        Assert.True(ExeFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
 
@@ -21,21 +21,21 @@
         Directory.SetLastWriteTime(dir1, DateTime.Now.AddDays(-1));
         Directory.SetLastWriteTime(dir2, DateTime.Now);
         var path = Path.Combine(SourceDirectory, "DirForSearch", "*", "TextFile1.txt");
-        Assert.True(WildcardFileFinder.TryFind(path, out var result));
+        Assert.True(ExeFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
 
     [Fact]
     public void FullFilePath()
     {
-        Assert.True(WildcardFileFinder.TryFind(SourceFile, out var result));
+        Assert.True(ExeFinder.TryFind(SourceFile, out var result));
         Assert.True(File.Exists(result), result);
     }
 
     [Fact]
     public void FullFilePath_missing()
     {
-        Assert.False(WildcardFileFinder.TryFind(SourceFile.Replace(".cs", ".foo"), out var result));
+        Assert.False(ExeFinder.TryFind(SourceFile.Replace(".cs", ".foo"), out var result));
         Assert.Null(result);
     }
 
@@ -59,8 +59,8 @@
     public void WildCardInDir()
     {
         var directory = SourceDirectory.Replace("Tests", "Test*");
-        var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
-        Assert.True(WildcardFileFinder.TryFind(path, out var result));
+        var path = Path.Combine(directory, "ExeFinderTests.cs");
+        Assert.True(ExeFinder.TryFind(path, out var result));
         Assert.True(File.Exists(result), result);
     }
 
@@ -68,12 +68,12 @@
     public void WildCardInDir_missing()
     {
         var directory = SourceDirectory.Replace("Tests", "Test*.Foo");
-        var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
-        Assert.False(WildcardFileFinder.TryFind(path, out var result));
+        var path = Path.Combine(directory, "ExeFinderTests.cs");
+        Assert.False(ExeFinder.TryFind(path, out var result));
         Assert.Null(result);
     }
 
-    public WildcardFileFinderTests(ITestOutputHelper output) :
+    public ExeFinderTests(ITestOutputHelper output) :
         base(output)
     {
     }
