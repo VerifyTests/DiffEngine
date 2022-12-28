@@ -28,7 +28,6 @@
                     "code",
                     launchArguments,
                     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/")),
-                Notes: @"
- * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
+                Notes: @" * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }
 }

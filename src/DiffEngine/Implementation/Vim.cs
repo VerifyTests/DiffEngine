@@ -24,11 +24,12 @@
                     "mvim",
                     launchArguments,
                     "/Applications/MacVim.app/Contents/bin/")),
-            Notes: @"
- * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
- * [Vim help files](https://vimhelp.org/)
- * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
- * [nobackup](http://vimdoc.sourceforge.net/htmldoc/options.html#'backup')
- * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')");
+            Notes: """
+                 * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
+                 * [Vim help files](https://vimhelp.org/)
+                 * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
+                 * [nobackup](http://vimdoc.sourceforge.net/htmldoc/options.html#'backup')
+                 * [noswapfile](http://vimdoc.sourceforge.net/htmldoc/options.html#'swapfile')
+                """);
     }
 }

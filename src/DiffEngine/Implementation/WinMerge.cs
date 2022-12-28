@@ -84,11 +84,12 @@
                         RightArguments),
                     @"%ProgramFiles%\WinMerge\",
                     @"%LocalAppData%\Programs\WinMerge\")),
-            Notes: @"
- * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
- * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
- * `/wl` Opens the left side as read-only.
- * `/dl` and `/dr` Specifies file descriptions in the title bar.
- * `/e` Enables close with a single Esc key press.");
+            Notes: """
+                 * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
+                 * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
+                 * `/wl` Opens the left side as read-only.
+                 * `/dl` and `/dr` Specifies file descriptions in the title bar.
+                 * `/e` Enables close with a single Esc key press.
+                """);
     }
 }

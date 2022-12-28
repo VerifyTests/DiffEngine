@@ -47,10 +47,11 @@
                         Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
                         Right: (temp, target) => $"-nowait \"{temp}\" \"{target}\""),
                     "/Applications/Araxis Merge.app/Contents/Utilities/")),
-            Notes: @"
- * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
- * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
- * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)
- * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)");
+            Notes: """
+                 * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
+                 * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
+                 * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)
+                 * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)
+                """);
     //TODO: add doco about auto refresh
 }

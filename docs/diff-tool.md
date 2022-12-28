@@ -125,7 +125,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
 
 #### Windows settings:
@@ -164,7 +163,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)
 
 #### Windows settings:
@@ -191,7 +189,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
 
 #### Notes:
-
 
  * Disable single instance:
    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.
@@ -251,7 +248,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
  * `/nh`: do not add files or directories to comparison history
  * `/diffonly`: diff-only merge mode: hide the merge pane
@@ -275,7 +271,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
 
 #### Notes:
-
 
  * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
  * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
@@ -323,7 +318,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
 
 #### Notes:
-
 
  * `--cs CreateBakFiles=0` to not save a `.orig` file when merging
 
@@ -424,7 +418,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
 
 #### Notes:
-
 
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html
 
@@ -556,7 +549,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Options](http://vimdoc.sourceforge.net/htmldoc/options.html)
  * [Vim help files](https://vimhelp.org/)
  * [autoread](http://vimdoc.sourceforge.net/htmldoc/options.html#'autoread')
@@ -591,7 +583,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.
@@ -621,7 +612,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supported binaries: bmp, dib, emf, gif, jif, j2c, j2k, jp2, jpc, jpeg, jpg, jpx, pbm, pcx, pgm, png, ppm, ras, tif, tiff, tga, wmf
 
 #### Notes:
-
 
  * [Supported image files](https://www.araxis.com/merge/documentation-windows/comparing-image-files.en)
  * [Windows command line usage](https://www.araxis.com/merge/documentation-windows/command-line.en)
@@ -655,7 +645,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-
  * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)
 
 #### Windows settings:
@@ -677,7 +666,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
-While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)
+ * While Meld is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Meld merge process for a specific diff. [Vote for this feature](https://gitlab.gnome.org/GNOME/meld/-/issues/584)
 
 #### Windows settings:
 
@@ -714,7 +703,7 @@ While Meld is not MDI, it is treated as MDI since it uses a single shared proces
 
 #### Notes:
 
-While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)
+ * While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)
 
 #### Windows settings:
 
@@ -775,7 +764,6 @@ While SublimeMerge is not MDI, it is treated as MDI since it uses a single share
   * Supports text files: True
 
 #### Notes:
-
 
  * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)
 

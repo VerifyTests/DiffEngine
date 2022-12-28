@@ -32,10 +32,11 @@
                     "guiffyCL.command",
                     launchArguments,
                     "/Applications/Guiffy/")),
-            Notes: @"
- * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
- * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
- * `-ge1`: Forbid first file view Editing
- * `-ge2`: Forbid second file view Editing");
+            Notes: """
+                 * [Command line reference](https://www.guiffy.com/help/GuiffyHelp/GuiffyCmd.html)
+                 * [Image Diff Tool](https://www.guiffy.com/Image-Diff-Tool.html)
+                 * `-ge1`: Forbid first file view Editing
+                 * `-ge2`: Forbid second file view Editing
+                """);
     }
 }

@@ -24,7 +24,6 @@
                     "kdiff3",
                     launchArguments,
                     "/Applications/kdiff3.app/Contents/MacOS/")),
-            Notes: @"
- * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
+            Notes: @" * `--cs CreateBakFiles=0` to not save a `.orig` file when merging");
     }
 }

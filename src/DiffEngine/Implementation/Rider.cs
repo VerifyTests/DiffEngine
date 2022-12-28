@@ -36,7 +36,6 @@
                     "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/",
                     "/opt/jetbrains/rider/bin/",
                     "/usr/share/rider/bin/")),
-            Notes: @"
- * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
+            Notes: @" * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
     }
 }
