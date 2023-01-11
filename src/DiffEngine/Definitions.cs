@@ -1,4 +1,6 @@
-﻿static class Definitions
+﻿namespace DiffEngine;
+
+public static class Definitions
 {
     public static IReadOnlyCollection<Definition> Tools { get; }
 

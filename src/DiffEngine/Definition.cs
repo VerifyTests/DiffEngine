@@ -1,4 +1,6 @@
-﻿record Definition(
+﻿namespace DiffEngine;
+
+public record Definition(
     DiffTool Tool,
     string Url,
     bool AutoRefresh,
