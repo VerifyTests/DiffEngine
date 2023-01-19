@@ -52,6 +52,7 @@ public static class ProcessCleanup
             var separator = Environment.NewLine + "\t";
             var joined = string.Join(separator, Commands.Select(_ => _.Command));
             Logging.Write($"No matching commands. All commands: {separator}{joined}.");
+            return;
         }
 
         foreach (var processCommand in matchingCommands)
