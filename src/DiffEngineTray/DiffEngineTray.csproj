@@ -28,7 +28,7 @@
     <Using Include="DiffEngine" />
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
-    <PackageReference Include="Resourcer.Fody" Version="1.8.0" PrivateAssets="all" />
+    <PackageReference Include="Resourcer.Fody" Version="1.8.1" PrivateAssets="all" />
     <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.12.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
