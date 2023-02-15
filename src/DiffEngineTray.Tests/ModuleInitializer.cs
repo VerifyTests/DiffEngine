@@ -4,7 +4,7 @@
     public static void Initialize()
     {
         VerifyDiffPlex.Initialize();
-        VerifyWinForms.Enable();
+        VerifyWinForms.Initialize();
         VerifyImageMagick.Initialize();
         VerifyImageMagick.RegisterComparers(.03);
     }
