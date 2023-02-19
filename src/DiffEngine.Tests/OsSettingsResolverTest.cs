@@ -45,7 +45,7 @@ public class OsSettingsResolverTest :
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var found = OsSettingsResolver.Resolve(new OsSupport(Windows: new OsSettings("cmd.exe", launchArguments, "ComSpec", "")), out var filePath, out var launchArgs);
+            var found = OsSettingsResolver.Resolve(new OsSupport(Windows: new OsSettings("ComSpec", "cmd.exe", launchArguments, "")), out var filePath, out var launchArgs);
             Assert.Equal(true, found);
             Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
         }
