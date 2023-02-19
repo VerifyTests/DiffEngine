@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition VisualStudioCode()
     {
@@ -17,6 +17,7 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    $"DiffEngine_{DiffTool.VisualStudioCode.ToString()}",
                     "code.exe",
                     launchArguments,
                     @"%LocalAppData%\Programs\Microsoft VS Code\",

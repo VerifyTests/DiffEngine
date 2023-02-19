@@ -1,4 +1,4 @@
-﻿static class OsSettingsResolver
+static class OsSettingsResolver
 {
     static string[] envPaths;
 
@@ -55,6 +55,31 @@
         if (os != null &&
             RuntimeInformation.IsOSPlatform(platform))
         {
+            if (os.EnvironmentVariable is not null)
+            {
+                var basePath = Environment.GetEnvironmentVariable(os.EnvironmentVariable);
+                if (basePath is not null)
+                {
+                    if (basePath.EndsWith(os.ExeName) && File.Exists(basePath))
+                    {
+                    }
+                    else if (Directory.Exists(basePath))
+                    {
+                        basePath = Path.Combine(basePath, os.ExeName);
+                    }
+                    else
+                    {
+                        launchArguments = null;
+                        path = null;
+                        return false;
+                    }
+                    if (WildcardFileFinder.TryFind(basePath, out path))
+                    {
+                        launchArguments = os.LaunchArguments;
+                        return true;
+                    }
+                }
+            }
             if (TryFindExe(os.ExeName, os.SearchDirectories, out path))
             {
                 launchArguments = os.LaunchArguments;
