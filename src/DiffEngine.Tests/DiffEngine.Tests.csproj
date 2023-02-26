@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net5.0;net6.0;net7.0;netcoreapp3.1</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net5.0;net6.0;net7.0;netcoreapp3.1;net48</TargetFrameworks>
+    <TargetFrameworks>net5.0;net6.0;net7.0;netcoreapp3.1;netcoreapp3.0;netcoreapp2.1;netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">net5.0;net6.0;net7.0;netcoreapp3.1;netcoreapp3.0;netcoreapp2.1;netcoreapp2.0;net48</TargetFrameworks>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <NoWarn>SYSLIB0012</NoWarn>
   </PropertyGroup>

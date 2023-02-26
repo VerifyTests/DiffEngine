@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <NoWarn>CS1591;CS0649</NoWarn>
-    <Version>11.1.0</Version>
+    <Version>11.2.0</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
     <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
@@ -12,6 +12,7 @@
     <ContinuousIntegrationBuild>false</ContinuousIntegrationBuild>
     <AssemblyOriginatorKeyFile>..\key.snk</AssemblyOriginatorKeyFile>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.InteropServices" />
