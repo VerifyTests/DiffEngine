@@ -60,7 +60,7 @@
     {
         AgainstEmpty(value, argumentName);
 
-        if (value.StartsWith("."))
+        if (value[0] == '.')
         {
             throw new ArgumentException("Must not start with a period ('.').", argumentName);
         }
