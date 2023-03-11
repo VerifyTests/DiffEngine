@@ -22,7 +22,7 @@
         task = Task.Run(() => RunLoop(cancellation), cancellation);
     }
 
-    async Task RunLoop(CancellationToken cancellation)
+    async Task RunLoop(Cancellation cancellation)
     {
         while (!cancellation.IsCancellationRequested)
         {

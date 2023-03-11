@@ -128,7 +128,7 @@ static class Program
         }
     }
 
-    static Task StartServer(Tracker tracker, CancellationToken cancellation) =>
+    static Task StartServer(Tracker tracker, Cancellation cancellation) =>
         PiperServer.Start(
             payload =>
             {

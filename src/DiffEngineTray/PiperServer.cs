@@ -6,7 +6,7 @@ static class PiperServer
     public static async Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
-        CancellationToken cancellation = default)
+        Cancellation cancellation = default)
     {
         TcpListener? listener = default;
 
@@ -52,7 +52,7 @@ static class PiperServer
         }
     }
 
-    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, CancellationToken cancellation)
+    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Cancellation cancellation)
     {
         await using (cancellation.Register(listener.Stop))
         {
