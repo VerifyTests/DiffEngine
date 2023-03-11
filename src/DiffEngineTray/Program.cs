@@ -25,7 +25,7 @@ static class Program
 
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        var tokenSource = new CancellationTokenSource();
+        var tokenSource = new CancellationSource();
         var cancellation = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)

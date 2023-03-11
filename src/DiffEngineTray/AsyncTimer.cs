@@ -1,14 +1,14 @@
 ﻿class AsyncTimer :
     IAsyncDisposable
 {
-    Func<CancellationToken, Task> callback;
+    Func<Cancellation, Task> callback;
     TimeSpan interval;
     Action<Exception> errorCallback;
     Task task;
-    CancellationTokenSource tokenSource = new();
+    CancellationSource tokenSource = new();
 
     public AsyncTimer(
-        Func<CancellationToken, Task> callback,
+        Func<Cancellation, Task> callback,
         TimeSpan interval,
         Action<Exception>? errorCallback = null)
     {
