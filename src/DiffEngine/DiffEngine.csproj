@@ -19,7 +19,7 @@
     <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.90" PrivateAssets="all" />
-    <PackageReference Include="Polyfill" Version="0.10.0" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" Version="0.14.0" PrivateAssets="All" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" Condition="$(TargetFramework) == 'net461'" />
     <PackageReference Include="System.Management" Version="6.0.0" />
   </ItemGroup>
