@@ -6,7 +6,6 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1;net5.0;net6.0;net7.0;netcoreapp3.1;netcoreapp3.0;netcoreapp2.1;netcoreapp2.0;net461;net48</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
-    <Using Remove="System.Net.Http" />
     <Using Include="DiffEngine" />
     <Using Include="System.Management" />
     <Using Include="Microsoft.Win32.SafeHandles" />
@@ -19,7 +18,7 @@
     <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.90" PrivateAssets="all" />
-    <PackageReference Include="Polyfill" Version="1.0.0" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" Version="1.8.0" PrivateAssets="all" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" Condition="$(TargetFramework) == 'net461'" />
     <PackageReference Include="System.Management" Version="6.0.0" />
   </ItemGroup>
