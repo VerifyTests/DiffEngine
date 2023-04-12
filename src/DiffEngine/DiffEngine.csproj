@@ -13,6 +13,7 @@
     <Using Include="System.Net" />
     <Using Include="System.Net.Sockets" />
     <Using Include="EmptyFiles" />
+    <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
     <PackageReference Include="Caseless.Fody" Version="1.9.1" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" Version="4.4.0" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />

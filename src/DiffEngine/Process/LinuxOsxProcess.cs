@@ -48,7 +48,7 @@
     {
         try
         {
-            var trim = line.Trim();
+            var trim = line.AsSpan().Trim();
             var firstSpace = trim.IndexOf(' ');
             if (firstSpace < 1)
             {
@@ -57,15 +57,16 @@
             }
 
             var pidString = trim[..firstSpace];
-            var pid = int.Parse(pidString);
+            var pid = int.Parse(pidString.ToString());
 
             var timeAndCommandString = trim[(firstSpace + 1)..];
             var multiSpaceIndex = 0;
-            string command;
+            ReadOnlySpan<char> command;
 
-            if (timeAndCommandString.IndexOf("   ", StringComparison.InvariantCulture) > 0)
+            var spaces = new CharSpan(new []{' ',' ',' '});
+            if (timeAndCommandString.IndexOf(spaces, StringComparison.InvariantCulture) > 0)
             {
-                multiSpaceIndex = timeAndCommandString.IndexOf("   ", firstSpace, StringComparison.InvariantCulture);
+                multiSpaceIndex = timeAndCommandString[firstSpace..].IndexOf(spaces, StringComparison.InvariantCulture);
                 command = timeAndCommandString[(multiSpaceIndex + 1)..].Trim();
             }
             else
@@ -73,7 +74,7 @@
                 command = timeAndCommandString[multiSpaceIndex..].Trim();
             }
 
-            processCommand = new(command, in pid);
+            processCommand = new(command.ToString(), in pid);
             return true;
         }
         catch (Exception exception)
