@@ -46,7 +46,7 @@ public static class DiffEngineTray
         PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId);
     }
 
-    public static Task AddDeleteAsync(string file, CancellationToken cancellation = default)
+    public static Task AddDeleteAsync(string file, Cancellation cancellation = default)
     {
         if (!IsRunning)
         {
@@ -63,7 +63,7 @@ public static class DiffEngineTray
         string? arguments,
         bool canKill,
         int? processId,
-        CancellationToken cancellation = default)
+        Cancellation cancellation = default)
     {
         if (!IsRunning)
         {

@@ -25,17 +25,41 @@ static class JsonEscaping
         i > 0 &&
         src[i - 1] == '<';
 
-    static bool IsBrokenTailSurrogate(string src, int i, char c) =>
-        c is
-            >= '\uDC00' and
-            <= '\uDFFF' &&
-        (i == 0 || src[i - 1] < '\uD800' || src[i - 1] > '\uDBFF');
+    static bool IsBrokenTailSurrogate(string src, int i, char c)
+    {
+        if (c is
+            < '\uDC00' or
+            > '\uDFFF')
+        {
+            return false;
+        }
 
-    static bool IsBrokenLeadSurrogate(string src, int i, char c) =>
-        c is
-            >= '\uD800' and
-            <= '\uDBFF' &&
-        (i == src.Length - 1 || src[i + 1] < '\uDC00' || src[i + 1] > '\uDFFF');
+        if (i == 0)
+        {
+            return true;
+        }
+
+        var l = src[i - 1];
+        return l is < '\uD800' or > '\uDBFF';
+    }
+
+    static bool IsBrokenLeadSurrogate(string src, int i, char c)
+    {
+        if (c is
+            < '\uD800' or
+            > '\uDBFF')
+        {
+            return false;
+        }
+
+        if (i == src.Length - 1)
+        {
+            return true;
+        }
+
+        var l = src[i + 1];
+        return l is < '\uDC00' or > '\uDFFF';
+    }
 
     public static string JsonEscape(this string contents)
     {
@@ -50,7 +74,8 @@ static class JsonEscaping
             }
 
             builder.Append(contents, start, i - start);
-            switch (contents[i])
+            var content = contents[i];
+            switch (content)
             {
                 case '\b':
                     builder.Append("\\b");
@@ -78,7 +103,7 @@ static class JsonEscaping
                     break;
                 default:
                     builder.Append("\\u");
-                    builder.Append(((int) contents[i]).ToString("x04"));
+                    builder.Append(((int) content).ToString("x04"));
                     break;
             }
 

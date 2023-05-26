@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net5.0;net6.0;net7.0;netcoreapp3.1</TargetFrameworks>
@@ -8,16 +8,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
-    <PackageReference Include="MarkdownSnippets.MsBuild" Version="24.5.1" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
-    <PackageReference Include="Argon" Version="0.4.0" />
+    <PackageReference Include="MarkdownSnippets.MsBuild" Version="24.5.1" Condition="$(TargetFramework) == 'net7.0'" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="Argon" Version="0.7.1" />
     <PackageReference Include="Xunit" Version="2.4.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" PrivateAssets="all" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.84" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.90" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.2.5" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'net7.0'">
-    <Compile Remove="DefinitionsTest.cs" />
+    <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' != 'net7.0'" />
   </ItemGroup>
 </Project>

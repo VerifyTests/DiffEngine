@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -29,11 +29,11 @@
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
     <PackageReference Include="Resourcer.Fody" Version="1.8.1" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.6.4" PrivateAssets="all" />
+    <PackageReference Include="Fody" Version="6.7.0" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="2.12.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="System.Text.Json" Version="7.0.2" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.84" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.90" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
