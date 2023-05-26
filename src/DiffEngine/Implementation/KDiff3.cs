@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition KDiff3()
     {
@@ -6,6 +6,7 @@
             Left: (temp, target) => $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0",
             Right: (temp, target) => $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0");
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.KDiff3)}";
         return new(
             Tool: DiffTool.KDiff3,
             Url: "https://github.com/KDE/kdiff3",
@@ -17,10 +18,12 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "kdiff3.exe",
                     launchArguments,
                     @"%ProgramFiles%\KDiff3\"),
                 Osx: new(
+                    environmentVariable,
                     "kdiff3",
                     launchArguments,
                     "/Applications/kdiff3.app/Contents/MacOS/")),

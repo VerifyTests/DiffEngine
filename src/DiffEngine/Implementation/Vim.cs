@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition Vim()
     {
@@ -6,6 +6,7 @@
             Left: (temp, target) => $"-d \"{target}\" \"{temp}\" -c \"setl autoread | setl nobackup | set noswapfile\"",
             Right: (temp, target) => $"-d \"{temp}\" \"{target}\" -c \"setl autoread | setl nobackup | set noswapfile\"");
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Vim)}";
         return new(
             Tool: DiffTool.Vim,
             Url: "https://www.vim.org/",
@@ -17,10 +18,12 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "vim.exe",
                     launchArguments,
                     @"%ProgramFiles%\Vim\*\"),
                 Osx: new(
+                    environmentVariable,
                     "mvim",
                     launchArguments,
                     "/Applications/MacVim.app/Contents/bin/")),

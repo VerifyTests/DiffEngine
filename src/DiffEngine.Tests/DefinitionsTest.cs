@@ -1,4 +1,4 @@
-﻿public class DefinitionsTest :
+public class DefinitionsTest :
     XunitContextBase
 {
     [Fact]
@@ -12,6 +12,26 @@
         {
             AddToolLink(writer, tool);
         }
+    }
+
+    [Fact]
+    public void EnvironmentVariablesShouldBeUnique()
+    {
+        static void FindDuplicates(Func<OsSupport, OsSettings?> SelectOs)
+        {
+            var findDuplicates = Definitions.Tools
+                .Select(d => d.OsSupport)
+                .Select(SelectOs)
+                .Where(s => s is not null)
+                .GroupBy(x => x);
+            foreach (var group in findDuplicates)
+            {
+                Assert.Equal(1, group.Count());
+            }
+        }
+        FindDuplicates(os => os.Windows);
+        FindDuplicates(os => os.Osx);
+        FindDuplicates(os => os.Linux);
     }
 
     static void AddToolLink(TextWriter writer, Definition tool)
@@ -167,7 +187,7 @@
             writer.WriteLine($"""
                                * Example target on left arguments: `{leftText} `
                                * Example target on right arguments: `{rightText} `
-                             """ );
+                             """);
         }
         else
         {
@@ -176,7 +196,7 @@
                                * Example target on right arguments for text: `{rightText} `
                                * Example target on left arguments for binary: `{leftBinary} `
                                * Example target on right arguments for binary: `{rightBinary} `
-                             """ );
+                             """);
         }
     }
 

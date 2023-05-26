@@ -1,7 +1,9 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
-    public static Definition Diffinity() =>
-        new(
+    public static Definition Diffinity()
+    {
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Diffinity)}";
+        return new(
             Tool: DiffTool.Diffinity,
             Url: "https://truehumandesign.se/s_diffinity.php",
             AutoRefresh: true,
@@ -12,6 +14,7 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "Diffinity.exe",
                     new(
                         Left: (temp, target) => $"\"{target}\" \"{temp}\"",
@@ -21,4 +24,5 @@
                  * Disable single instance:
                    \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.
                 """);
+    }
 }

@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
@@ -22,6 +22,7 @@
             return $"-solo -leftreadonly \"{temp}\" \"{target}\"";
         }
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.BeyondCompare)}";
         return new(
             Tool: DiffTool.BeyondCompare,
             Url: "https://www.scootersoftware.com",
@@ -47,18 +48,21 @@
             },
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "BCompare.exe",
                     new(
                         LeftWindowsArguments,
                         RightWindowsArguments),
                     @"%ProgramFiles%\Beyond Compare *\"),
                 Linux: new(
+                    environmentVariable,
                     "bcomp",
                     new(
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
                     "/usr/lib/beyondcompare/"),
                 Osx: new(
+                    environmentVariable,
                     "bcomp",
                     new(
                         LeftOsxLinuxArguments,

@@ -5,7 +5,7 @@ static partial class Implementation
         var launchArguments = new LaunchArguments(
             Left: (temp, target) => $"--diff \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"--diff \"{temp}\" \"{target}\"");
-
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.VisualStudioCode)}";
         return new(
             Tool: DiffTool.VisualStudioCode,
             Url: "https://code.visualstudio.com",
@@ -17,15 +17,17 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    $"DiffEngine_{DiffTool.VisualStudioCode.ToString()}",
+                    environmentVariable,
                     "code.exe",
                     launchArguments,
                     @"%LocalAppData%\Programs\Microsoft VS Code\",
                     @"%ProgramFiles%\Microsoft VS Code\"),
                 Linux: new(
+                    environmentVariable,
                     "code",
                     launchArguments),
                 Osx: new(
+                    environmentVariable,
                     "code",
                     launchArguments,
                     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/")),

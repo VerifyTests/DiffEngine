@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition VisualStudio()
     {
@@ -16,6 +16,7 @@
             return $"/diff \"{temp}\" \"{target}\" \"{tempTitle}\" \"{targetTitle}\"";
         }
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.VisualStudio)}";
         return new(
             Tool: DiffTool.VisualStudio,
             Url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
@@ -27,6 +28,7 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "devenv.exe", new(
                         LeftArguments,
                         RightArguments),

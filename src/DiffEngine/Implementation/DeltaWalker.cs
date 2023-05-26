@@ -1,10 +1,12 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition DeltaWalker()
     {
         var launchArguments = new LaunchArguments(
             Left: (temp, target) => $"-mi \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"-mi \"{temp}\" \"{target}\"");
+
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.DeltaWalker)}";
 
         return new(
             Tool: DiffTool.DeltaWalker,
@@ -52,10 +54,12 @@
             },
             OsSupport: new(
                 Osx: new(
+                    environmentVariable,
                     "DeltaWalker",
                     launchArguments,
                     "/Applications/DeltaWalker.app/Contents/MacOS/"),
                 Windows: new(
+                    environmentVariable,
                     "DeltaWalker.exe",
                     launchArguments,
                     @"C:\Program Files\Deltopia\DeltaWalker\")),
