@@ -167,7 +167,7 @@
             writer.WriteLine($"""
                                * Example target on left arguments: `{leftText} `
                                * Example target on right arguments: `{rightText} `
-                             """ );
+                             """);
         }
         else
         {
@@ -176,7 +176,7 @@
                                * Example target on right arguments for text: `{rightText} `
                                * Example target on left arguments for binary: `{leftBinary} `
                                * Example target on right arguments for binary: `{rightBinary} `
-                             """ );
+                             """);
         }
     }
 
