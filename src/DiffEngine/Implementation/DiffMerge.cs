@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition DiffMerge()
     {
@@ -6,6 +6,7 @@
             Left: (temp, target) => $"--nosplash \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"--nosplash \"{temp}\" \"{target}\"");
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.DiffMerge)}";
         return new(
             Tool: DiffTool.DiffMerge,
             Url: "https://www.sourcegear.com/diffmerge/",

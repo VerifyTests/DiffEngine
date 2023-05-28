@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition Meld()
     {
@@ -6,6 +6,7 @@
             Left: (temp, target) => $"\"{target}\" \"{temp}\"",
             Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Meld)}";
         return new(
             Tool: DiffTool.Meld,
             Url: "https://meldmerge.org/",
@@ -17,14 +18,17 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "meld.exe",
                     launchArguments,
                     @"%LOCALAPPDATA%\Programs\Meld\",
                     @"%ProgramFiles%\Meld\"),
                 Linux: new(
+                    environmentVariable,
                     "meld",
                     launchArguments),
                 Osx: new(
+                    environmentVariable,
                     "meld",
                     launchArguments,
                     "/Applications/meld.app/Contents/MacOS/")),

@@ -1,4 +1,4 @@
-﻿static partial class Implementation
+static partial class Implementation
 {
     public static Definition ExamDiff()
     {
@@ -16,6 +16,7 @@
             return $"\"{temp}\" \"{target}\" /nh /diffonly /dn1:{tempTitle} /dn2:{targetTitle}";
         }
 
+        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.ExamDiff)}";
         return new(
             Tool: DiffTool.ExamDiff,
             Url: "https://www.prestosoft.com/edp_examdiffpro.asp",
@@ -27,6 +28,7 @@
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
+                    environmentVariable,
                     "ExamDiff.exe",
                     new(LeftArguments, RightArguments),
                     @"%ProgramFiles%\ExamDiff Pro\")),
