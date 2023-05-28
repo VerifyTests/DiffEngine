@@ -26,18 +26,21 @@ static class OsSettingsResolver
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out LaunchArguments? launchArguments)
     {
-        if (TryResolveForOs(osSupport.Windows, out path, out launchArguments, OSPlatform.Windows))
+        if (TryResolveForOs(osSupport.Windows, out path, OSPlatform.Windows))
         {
+            launchArguments = osSupport.Windows.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(osSupport.Linux, out path, out launchArguments, OSPlatform.Linux))
+        if (TryResolveForOs(osSupport.Linux, out path, OSPlatform.Linux))
         {
+            launchArguments = osSupport.Linux.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(osSupport.Osx, out path, out launchArguments, OSPlatform.OSX))
+        if (TryResolveForOs(osSupport.Osx, out path, OSPlatform.OSX))
         {
+            launchArguments = osSupport.Osx.LaunchArguments;
             return true;
         }
 
@@ -47,12 +50,10 @@ static class OsSettingsResolver
     }
 
     static bool TryResolveForOs(
-        OsSettings? os,
+        [NotNullWhen(true)] OsSettings? os,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out LaunchArguments? launchArguments,
         OSPlatform platform)
     {
-        launchArguments = null;
         path = null;
 
         if (os == null || !RuntimeInformation.IsOSPlatform(platform))
@@ -74,13 +75,11 @@ static class OsSettingsResolver
                 }
                 else
                 {
-                    launchArguments = null;
                     path = null;
                     return false;
                 }
                 if (WildcardFileFinder.TryFind(basePath, out path))
                 {
-                    launchArguments = os.LaunchArguments;
                     return true;
                 }
             }
@@ -88,7 +87,6 @@ static class OsSettingsResolver
 
         if (TryFindExe(os.ExeName, os.SearchDirectories, out path))
         {
-            launchArguments = os.LaunchArguments;
             return true;
         }
 
