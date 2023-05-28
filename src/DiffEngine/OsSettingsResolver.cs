@@ -66,22 +66,23 @@ static class OsSettingsResolver
             var basePath = Environment.GetEnvironmentVariable(os.EnvironmentVariable);
             if (basePath is not null)
             {
-                if (basePath.EndsWith(os.ExeName) && File.Exists(basePath))
+                if (basePath.EndsWith(os.ExeName) &&
+                    File.Exists(basePath))
                 {
-                }
-                else if (Directory.Exists(basePath))
-                {
-                    basePath = Path.Combine(basePath, os.ExeName);
-                }
-                else
-                {
-                    path = null;
-                    return false;
-                }
-                if (WildcardFileFinder.TryFind(basePath, out path))
-                {
+                    path = basePath;
                     return true;
                 }
+
+                if (Directory.Exists(basePath))
+                {
+                    path = Path.Combine(basePath, os.ExeName);
+                    if (File.Exists(path))
+                    {
+                        return true;
+                    }
+                }
+
+                throw new($"Could not find exe defined by {os.EnvironmentVariable}. Path: {basePath}");
             }
         }
 
