@@ -86,12 +86,7 @@ static class OsSettingsResolver
             }
         }
 
-        if (TryFindExe(os.ExeName, os.SearchDirectories, out path))
-        {
-            return true;
-        }
-
-        return false;
+        return TryFindExe(os.ExeName, os.SearchDirectories, out path);
     }
 
     public static IEnumerable<string> ExpandProgramFiles(IEnumerable<string> paths)
