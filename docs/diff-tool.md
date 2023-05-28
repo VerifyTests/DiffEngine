@@ -109,10 +109,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ## Supported Tools:
 
-Tools location is automatically detected. If a tool is not found, it can be manually configured using an environment variable, that points to the executable.
-
-<!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
-
+ <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
 ## Non-MDI tools
 
 Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
@@ -839,4 +836,4 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Environment variable: `DiffEngine_VisualStudioCode`
   * Default scanned paths:  
-    * `%PATH%code`
+    * `%PATH%code` <!-- endInclude -->
