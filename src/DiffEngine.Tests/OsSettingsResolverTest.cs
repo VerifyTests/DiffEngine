@@ -43,12 +43,17 @@ public class OsSettingsResolverTest :
             Left: (temp, target) => string.Empty,
             Right: (temp, target) => string.Empty);
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            var found = OsSettingsResolver.Resolve(new OsSupport(Windows: new OsSettings("ComSpec", "cmd.exe", launchArguments, "")), out var filePath, out var launchArgs);
-            Assert.Equal(true, found);
-            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
+            return;
         }
+
+        var found = OsSettingsResolver.Resolve(
+            new(Windows: new("ComSpec", "cmd.exe", launchArguments, "")),
+            out var filePath,
+            out var launchArgs);
+        Assert.Equal(true, found);
+        Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
     }
 
     public OsSettingsResolverTest(ITestOutputHelper output) :
