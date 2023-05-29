@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"\"{target}\" \"{temp}\" --cs CreateBakFiles=0",
             Right: (temp, target) => $"\"{temp}\" \"{target}\" --cs CreateBakFiles=0");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.KDiff3)}";
         return new(
             Tool: DiffTool.KDiff3,
             Url: "https://github.com/KDE/kdiff3",
@@ -18,12 +17,10 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "kdiff3.exe",
                     launchArguments,
                     @"%ProgramFiles%\KDiff3\"),
                 Osx: new(
-                    environmentVariable,
                     "kdiff3",
                     launchArguments,
                     "/Applications/kdiff3.app/Contents/MacOS/")),

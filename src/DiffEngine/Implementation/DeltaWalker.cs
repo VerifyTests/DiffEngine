@@ -6,8 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"-mi \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"-mi \"{temp}\" \"{target}\"");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.DeltaWalker)}";
-
         return new(
             Tool: DiffTool.DeltaWalker,
             Url: "https://www.deltawalker.com/",
@@ -54,12 +52,10 @@ static partial class Implementation
             },
             OsSupport: new(
                 Osx: new(
-                    environmentVariable,
                     "DeltaWalker",
                     launchArguments,
                     "/Applications/DeltaWalker.app/Contents/MacOS/"),
                 Windows: new(
-                    environmentVariable,
                     "DeltaWalker.exe",
                     launchArguments,
                     @"C:\Program Files\Deltopia\DeltaWalker\")),

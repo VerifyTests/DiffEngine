@@ -1,9 +1,7 @@
 static partial class Implementation
 {
-    public static Definition TkDiff()
-    {
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.TkDiff)}";
-        return new(
+    public static Definition TkDiff() =>
+        new(
             Tool: DiffTool.TkDiff,
             Url: "https://sourceforge.net/projects/tkdiff/",
             AutoRefresh: false,
@@ -14,11 +12,9 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Osx: new(
-                    environmentVariable,
                     "tkdiff",
                     new(
                         Left: (temp, target) => $"\"{target}\" \"{temp}\"",
                         Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                     "/Applications/TkDiff.app/Contents/MacOS/")));
-    }
 }

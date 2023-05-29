@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"\"{target}\" \"{temp}\"",
             Right: (temp, target) => $"\"{temp}\" \"{target}\"");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Meld)}";
         return new(
             Tool: DiffTool.Meld,
             Url: "https://meldmerge.org/",
@@ -18,17 +17,14 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "meld.exe",
                     launchArguments,
                     @"%LOCALAPPDATA%\Programs\Meld\",
                     @"%ProgramFiles%\Meld\"),
                 Linux: new(
-                    environmentVariable,
                     "meld",
                     launchArguments),
                 Osx: new(
-                    environmentVariable,
                     "meld",
                     launchArguments,
                     "/Applications/meld.app/Contents/MacOS/")),

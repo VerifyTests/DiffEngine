@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"mergetool \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"mergetool \"{temp}\" \"{target}\"");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.SublimeMerge)}";
         return new(
             Tool: DiffTool.SublimeMerge,
             Url: "https://www.sublimemerge.com/",
@@ -18,16 +17,13 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "smerge.exe",
                     launchArguments,
                     @"%ProgramFiles%\Sublime Merge\"),
                 Linux: new(
-                    environmentVariable,
                     "smerge",
                     launchArguments),
                 Osx: new(
-                    environmentVariable,
                     "smerge",
                     launchArguments,
                     "/Applications/smerge.app/Contents/MacOS/")),

@@ -21,7 +21,7 @@ public static partial class DiffTools
 
     static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport)
     {
-        if (!OsSettingsResolver.Resolve(osSupport, out var exePath, out var launchArguments))
+        if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments))
         {
             return null;
         }

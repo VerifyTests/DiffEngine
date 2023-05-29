@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"-d \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"-d \"{temp}\" \"{target}\"");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Neovim)}";
         return new(
             Tool: DiffTool.Neovim,
             Url: "https://neovim.io/",
@@ -18,15 +17,12 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "nvim.exe",
                     launchArguments),
                 Linux: new(
-                    environmentVariable,
                     "nvim",
                     launchArguments),
                 Osx: new(
-                    environmentVariable,
                     "nvim",
                     launchArguments)),
             Notes: " * https://neovim.io/doc/user/diff.html");

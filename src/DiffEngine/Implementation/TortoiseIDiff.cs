@@ -1,9 +1,7 @@
 static partial class Implementation
 {
-    public static Definition TortoiseIDiff()
-    {
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.TortoiseIDiff)}";
-        return new(
+    public static Definition TortoiseIDiff() =>
+        new(
             Tool: DiffTool.TortoiseIDiff,
             Url: "https://tortoisesvn.net/TortoiseIDiff.html",
             AutoRefresh: false,
@@ -24,11 +22,9 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "TortoiseIDiff.exe",
                     new(
                         Left: (temp, target) => $"/left:\"{target}\" /right:\"{temp}\"",
                         Right: (temp, target) => $"/left:\"{temp}\" /right:\"{target}\""),
                     @"%ProgramFiles%\TortoiseSVN\bin\")));
-    }
 }

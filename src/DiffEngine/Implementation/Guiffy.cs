@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"\"{target}\" \"{temp}\" -ge2",
             Right: (temp, target) => $"\"{temp}\" \"{target}\" -ge1");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Guiffy)}";
         return new(
             Tool: DiffTool.Guiffy,
             Url: "https://www.guiffy.com/",

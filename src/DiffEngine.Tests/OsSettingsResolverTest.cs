@@ -49,7 +49,8 @@ public class OsSettingsResolverTest :
         }
 
         var found = OsSettingsResolver.Resolve(
-            new(Windows: new("ComSpec", "cmd.exe", launchArguments, "")),
+            "ComSpec",
+            new(Windows: new("cmd.exe", launchArguments, "")),
             out var filePath,
             out var launchArgs);
         Assert.Equal(true, found);

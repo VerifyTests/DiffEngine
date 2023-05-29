@@ -22,7 +22,6 @@ static partial class Implementation
                 return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
             });
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.P4Merge)}";
         return new(
             Tool: DiffTool.P4Merge,
             Url: "https://www.perforce.com/products/helix-core-apps/merge-diff-tool-p4merge",
@@ -48,16 +47,13 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "p4merge.exe",
                     launchArguments,
                     @"%ProgramFiles%\Perforce\"),
                 Linux: new(
-                    environmentVariable,
                     "p4merge",
                     launchArguments),
                 Osx: new(
-                    environmentVariable,
                     "p4merge",
                     launchArguments,
                     "/Applications/p4merge.app/Contents/MacOS/")));

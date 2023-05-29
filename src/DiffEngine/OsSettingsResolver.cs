@@ -22,23 +22,24 @@ static class OsSettingsResolver
     }
 
     public static bool Resolve(
+        string tool,
         OsSupport osSupport,
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out LaunchArguments? launchArguments)
     {
-        if (TryResolveForOs(osSupport.Windows, out path, OSPlatform.Windows))
+        if (TryResolveForOs(tool, osSupport.Windows, out path, OSPlatform.Windows))
         {
             launchArguments = osSupport.Windows.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(osSupport.Linux, out path, OSPlatform.Linux))
+        if (TryResolveForOs(tool, osSupport.Linux, out path, OSPlatform.Linux))
         {
             launchArguments = osSupport.Linux.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(osSupport.Osx, out path, OSPlatform.OSX))
+        if (TryResolveForOs(tool, osSupport.Osx, out path, OSPlatform.OSX))
         {
             launchArguments = osSupport.Osx.LaunchArguments;
             return true;
@@ -50,6 +51,7 @@ static class OsSettingsResolver
     }
 
     static bool TryResolveForOs(
+        string tool,
         [NotNullWhen(true)] OsSettings? os,
         [NotNullWhen(true)] out string? path,
         OSPlatform platform)
@@ -61,29 +63,27 @@ static class OsSettingsResolver
             return false;
         }
 
-        if (os.EnvironmentVariable is not null)
+        var environmentVariable = $"$DiffEngine_{tool}";
+        var basePath = Environment.GetEnvironmentVariable(environmentVariable);
+        if (basePath is not null)
         {
-            var basePath = Environment.GetEnvironmentVariable(os.EnvironmentVariable);
-            if (basePath is not null)
+            if (basePath.EndsWith(os.ExeName) &&
+                File.Exists(basePath))
             {
-                if (basePath.EndsWith(os.ExeName) &&
-                    File.Exists(basePath))
+                path = basePath;
+                return true;
+            }
+
+            if (Directory.Exists(basePath))
+            {
+                path = Path.Combine(basePath, os.ExeName);
+                if (File.Exists(path))
                 {
-                    path = basePath;
                     return true;
                 }
-
-                if (Directory.Exists(basePath))
-                {
-                    path = Path.Combine(basePath, os.ExeName);
-                    if (File.Exists(path))
-                    {
-                        return true;
-                    }
-                }
-
-                throw new($"Could not find exe defined by {os.EnvironmentVariable}. Path: {basePath}");
             }
+
+            throw new($"Could not find exe defined by {environmentVariable}. Path: {basePath}");
         }
 
         return TryFindExe(os.ExeName, os.SearchDirectories, out path);

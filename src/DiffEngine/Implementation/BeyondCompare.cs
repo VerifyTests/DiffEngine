@@ -22,7 +22,6 @@ static partial class Implementation
             return $"-solo -leftreadonly \"{temp}\" \"{target}\"";
         }
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.BeyondCompare)}";
         return new(
             Tool: DiffTool.BeyondCompare,
             Url: "https://www.scootersoftware.com",
@@ -48,21 +47,18 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "BCompare.exe",
                     new(
                         LeftWindowsArguments,
                         RightWindowsArguments),
                     @"%ProgramFiles%\Beyond Compare *\"),
                 Linux: new(
-                    environmentVariable,
                     "bcomp",
                     new(
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
                     "/usr/lib/beyondcompare/"),
                 Osx: new(
-                    environmentVariable,
                     "bcomp",
                     new(
                         LeftOsxLinuxArguments,

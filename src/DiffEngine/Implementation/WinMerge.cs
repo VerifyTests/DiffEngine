@@ -16,7 +16,6 @@ static partial class Implementation
             return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
         }
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.WinMerge)}";
         return new(
             Tool: DiffTool.WinMerge,
             Url: "https://winmerge.org/",
@@ -79,7 +78,6 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "WinMergeU.exe",
                     new(
                         LeftArguments,

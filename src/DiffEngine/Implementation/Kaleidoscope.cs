@@ -1,9 +1,7 @@
 static partial class Implementation
 {
-    public static Definition Kaleidoscope()
-    {
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Kaleidoscope)}";
-        return new(
+    public static Definition Kaleidoscope() =>
+        new(
             Tool: DiffTool.Kaleidoscope,
             Url: "https://www.kaleidoscopeapp.com/",
             AutoRefresh: true,
@@ -24,10 +22,8 @@ static partial class Implementation
             },
             OsSupport: new(
                 Osx: new(
-                    environmentVariable,
                     "ksdiff",
                     new(
                         Left: (temp, target) => $"\"{target}\" \"{temp}\"",
                         Right: (temp, target) => $"\"{temp}\" \"{target}\""))));
-    }
 }

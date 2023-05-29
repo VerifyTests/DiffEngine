@@ -6,7 +6,6 @@ static partial class Implementation
             Left: (temp, target) => $"diff \"{target}\" \"{temp}\"",
             Right: (temp, target) => $"diff \"{temp}\" \"{target}\"");
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.Rider)}";
         return new(
             Tool: DiffTool.Rider,
             Url: "https://www.jetbrains.com/rider/",
@@ -18,7 +17,6 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "rider64.exe",
                     launchArguments,
                     @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\",
@@ -26,7 +24,6 @@ static partial class Implementation
                     @"%JetBrains Rider%\",
                     @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\"),
                 Osx: new(
-                    environmentVariable,
                     "rider",
                     launchArguments,
                     "%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/",
@@ -34,7 +31,6 @@ static partial class Implementation
                     "/Applications/Rider EAP.app/Contents/MacOS/",
                     "/Applications/Rider.app/Contents/MacOS/"),
                 Linux: new(
-                    environmentVariable,
                     "rider.sh",
                     launchArguments,
                     "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/",

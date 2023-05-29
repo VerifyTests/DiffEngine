@@ -16,7 +16,6 @@ static partial class Implementation
             return $"/diff \"{temp}\" \"{target}\" \"{tempTitle}\" \"{targetTitle}\"";
         }
 
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.VisualStudio)}";
         return new(
             Tool: DiffTool.VisualStudio,
             Url: "https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff",
@@ -28,7 +27,6 @@ static partial class Implementation
             BinaryExtensions: Array.Empty<string>(),
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "devenv.exe", new(
                         LeftArguments,
                         RightArguments),

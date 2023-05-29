@@ -1,9 +1,7 @@
 static partial class Implementation
 {
-    public static Definition TortoiseGitIDiff()
-    {
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.TortoiseGitIDiff)}";
-        return new(
+    public static Definition TortoiseGitIDiff() =>
+        new(
             Tool: DiffTool.TortoiseGitIDiff,
             Url: "https://tortoisegit.org/docs/tortoisegitmerge/",
             AutoRefresh: false,
@@ -24,11 +22,9 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "TortoiseGitIDiff.exe",
                     new(
                         Left: (temp, target) => $"\"{target}\" \"{temp}\"",
                         Right: (temp, target) => $"\"{temp}\" \"{target}\""),
                     @"%ProgramFiles%\TortoiseGit\bin\")));
-    }
 }

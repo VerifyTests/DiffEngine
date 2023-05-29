@@ -1,9 +1,7 @@
 static partial class Implementation
 {
-    public static Definition AraxisMerge()
-    {
-        var environmentVariable = $"${DefaultEnvironmentVariablePrefix}_{nameof(DiffTool.AraxisMerge)}";
-        return new(
+    public static Definition AraxisMerge() =>
+        new(
             Tool: DiffTool.AraxisMerge,
             Url: "https://www.araxis.com/merge",
             AutoRefresh: true,
@@ -38,14 +36,12 @@ static partial class Implementation
             },
             OsSupport: new(
                 Windows: new(
-                    environmentVariable,
                     "Compare.exe",
                     new(
                         Left: (temp, target) => $"/nowait \"{target}\" \"{temp}\"",
                         Right: (temp, target) => $"/nowait \"{temp}\" \"{target}\""),
                     @"%ProgramFiles%\Araxis\Araxis Merge\"),
                 Osx: new(
-                    environmentVariable,
                     "compare",
                     new(
                         Left: (temp, target) => $"-nowait \"{target}\" \"{temp}\"",
@@ -57,6 +53,5 @@ static partial class Implementation
                  * [MacOS command line usage](https://www.araxis.com/merge/documentation-os-x/command-line.en)
                  * [Installing MacOS command line](https://www.araxis.com/merge/documentation-os-x/installing.en)
                 """);
-    }
     //TODO: add doco about auto refresh
 }
