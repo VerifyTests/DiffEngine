@@ -96,4 +96,6 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 ## Supported Tools:
 
+Tools location is automatically detected. If a tool installed in a custom location, it can be manually configured using an environment variable, that points to the executable. The environment variable format is `DiffEngine_{ToolName}`.
+
 include: diffTools

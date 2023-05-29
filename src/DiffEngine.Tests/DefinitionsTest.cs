@@ -120,6 +120,7 @@ public class DefinitionsTest :
                             * Is MDI: {tool.IsMdi}
                             * Supports auto-refresh: {tool.AutoRefresh}
                             * Supports text files: {tool.SupportsText}
+                            * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
                           """);
 
         if (tool.BinaryExtensions.Any())
