@@ -63,7 +63,7 @@ static class OsSettingsResolver
             return false;
         }
 
-        var environmentVariable = $"$DiffEngine_{tool}";
+        var environmentVariable = $"DiffEngine_{tool}";
         var basePath = Environment.GetEnvironmentVariable(environmentVariable);
         if (basePath is not null)
         {
