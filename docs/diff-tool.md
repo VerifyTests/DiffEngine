@@ -603,7 +603,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
- * Ensure that file backups are either [disabled](winmerge-no-backup.png) or changed to use a [Global backup folder](winmerge-backup-directory.png).      
+ * Ensure that file backups are either [disabled](winmerge-no-backup.png) or changed to use a [Global backup folder](winmerge-backup-directory.png).
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.
