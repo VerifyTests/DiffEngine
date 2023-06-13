@@ -40,8 +40,8 @@ public class OsSettingsResolverTest :
     public void EnvVar()
     {
         var launchArguments = new LaunchArguments(
-            Left: (temp, target) => string.Empty,
-            Right: (temp, target) => string.Empty);
+            Left: (_, _) => string.Empty,
+            Right: (_, _) => string.Empty);
 
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

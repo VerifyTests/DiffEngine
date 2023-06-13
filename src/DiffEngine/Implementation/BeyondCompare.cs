@@ -64,6 +64,6 @@ static partial class Implementation
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
                     "/Applications/Beyond Compare.app/Contents/MacOS/")),
-            Notes: @" * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
+            Notes: " * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
     }
 }

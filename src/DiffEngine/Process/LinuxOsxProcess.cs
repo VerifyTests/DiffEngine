@@ -113,7 +113,7 @@
         process.BeginErrorReadLine();
         if (!process.DoubleWaitForExit())
         {
-            Trace.WriteLine($@"DiffEngine: Process timed out. Command line: ps {arguments}");
+            Trace.WriteLine($"DiffEngine: Process timed out. Command line: ps {arguments}");
             result = null;
             return false;
         }

@@ -59,6 +59,6 @@ static partial class Implementation
                     "DeltaWalker.exe",
                     launchArguments,
                     @"C:\Program Files\Deltopia\DeltaWalker\")),
-            Notes: @" * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
+            Notes: " * [Command line usage](https://www.deltawalker.com/integrate/command-line)");
     }
 }

@@ -13,8 +13,8 @@ public static class ContinuousTestingDetector
 
         if (AppDomain.CurrentDomain.GetAssemblies()
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            .Any(a => a.FullName != null &&
-                      a.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
+            .Any(_ => _.FullName != null &&
+                      _.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
         {
             Detected = true;
             return;
