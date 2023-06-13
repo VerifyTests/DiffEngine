@@ -138,8 +138,7 @@ public class DefinitionsTest :
                               """);
         }
 
-        var osSupport = tool.OsSupport;
-        var windows = osSupport.Windows;
+        var (windows, linux, osx) = tool.OsSupport;
         if (windows != null)
         {
             writer.WriteLine("""
@@ -151,7 +150,6 @@ public class DefinitionsTest :
             WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
-        var osx = osSupport.Osx;
         if (osx != null)
         {
             writer.WriteLine("""
@@ -163,7 +161,6 @@ public class DefinitionsTest :
             WritePaths(osx.ExeName, writer, osx.SearchDirectories);
         }
 
-        var linux = osSupport.Linux;
         if (linux != null)
         {
             writer.WriteLine("""
