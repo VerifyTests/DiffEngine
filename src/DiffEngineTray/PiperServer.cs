@@ -6,7 +6,7 @@ static class PiperServer
     public static async Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
-        Cancellation cancellation = default)
+        Cancel cancel = default)
     {
         TcpListener? listener = default;
 
@@ -17,14 +17,14 @@ static class PiperServer
 
             while (true)
             {
-                if (cancellation.IsCancellationRequested)
+                if (cancel.IsCancellationRequested)
                 {
                     break;
                 }
 
                 try
                 {
-                    await Handle(listener, move, delete, cancellation);
+                    await Handle(listener, move, delete, cancel);
                 }
                 catch (TaskCanceledException)
                 {
@@ -37,7 +37,7 @@ static class PiperServer
                 }
                 catch (Exception exception)
                 {
-                    if (cancellation.IsCancellationRequested)
+                    if (cancel.IsCancellationRequested)
                     {
                         break;
                     }
@@ -52,13 +52,13 @@ static class PiperServer
         }
     }
 
-    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Cancellation cancellation)
+    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Cancel cancel)
     {
-        await using (cancellation.Register(listener.Stop))
+        await using (cancel.Register(listener.Stop))
         {
-            using var client = await listener.AcceptTcpClientAsync(cancellation);
+            using var client = await listener.AcceptTcpClientAsync(cancel);
             using var reader = new StreamReader(client.GetStream());
-            var payload = await reader.ReadToEndAsync(cancellation);
+            var payload = await reader.ReadToEndAsync(cancel);
 
             if (payload.Contains("\"Type\":\"Move\"") ||
                 payload.Contains("\"Type\": \"Move\""))

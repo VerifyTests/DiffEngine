@@ -7,7 +7,7 @@
 
     public static Task SendDeleteAsync(
         string file,
-        Cancellation cancellation = default)
+        Cancel cancel = default)
     {
         var payload = BuildDeletePayload(file);
         return SendAsync(payload);
@@ -36,7 +36,7 @@
         string? arguments,
         bool canKill,
         int? processId,
-        Cancellation cancellation = default)
+        Cancel cancel = default)
     {
         var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId);
         return SendAsync(payload);

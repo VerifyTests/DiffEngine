@@ -25,8 +25,8 @@ static class Program
 
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        var tokenSource = new CancellationSource();
-        var cancellation = tokenSource.Token;
+        var tokenSource = new CancelSource();
+        var cancel = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
         if (!createdNew)
         {
@@ -45,7 +45,7 @@ static class Program
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default);
 
-        using var task = StartServer(tracker, cancellation);
+        using var task = StartServer(tracker, cancel);
 
         using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);
@@ -128,7 +128,7 @@ static class Program
         }
     }
 
-    static Task StartServer(Tracker tracker, Cancellation cancellation) =>
+    static Task StartServer(Tracker tracker, Cancel cancel) =>
         PiperServer.Start(
             payload =>
             {
@@ -141,5 +141,5 @@ static class Program
                     payload.ProcessId);
             },
             payload => tracker.AddDelete(payload.File),
-            cancellation);
+            cancel);
 }

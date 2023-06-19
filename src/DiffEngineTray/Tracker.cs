@@ -21,7 +21,7 @@ class Tracker :
             });
     }
 
-    Task ScanFiles(Cancellation cancellation)
+    Task ScanFiles(Cancel cancel)
     {
         foreach (var delete in deletes.ToList()
                      .Where(delete => !File.Exists(delete.Value.File)))

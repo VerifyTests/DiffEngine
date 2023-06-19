@@ -1,14 +1,14 @@
 ﻿class AsyncTimer :
     IAsyncDisposable
 {
-    Func<Cancellation, Task> callback;
+    Func<Cancel, Task> callback;
     TimeSpan interval;
     Action<Exception> errorCallback;
     Task task;
-    CancellationSource tokenSource = new();
+    CancelSource tokenSource = new();
 
     public AsyncTimer(
-        Func<Cancellation, Task> callback,
+        Func<Cancel, Task> callback,
         TimeSpan interval,
         Action<Exception>? errorCallback = null)
     {
@@ -17,19 +17,19 @@
         this.errorCallback = errorCallback ?? (_ =>
         {
         });
-        var cancellation = tokenSource.Token;
+        var cancel = tokenSource.Token;
 
-        task = Task.Run(() => RunLoop(cancellation), cancellation);
+        task = Task.Run(() => RunLoop(cancel), cancel);
     }
 
-    async Task RunLoop(Cancellation cancellation)
+    async Task RunLoop(Cancel cancel)
     {
-        while (!cancellation.IsCancellationRequested)
+        while (!cancel.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(interval, cancellation);
-                await callback(cancellation);
+                await Task.Delay(interval, cancel);
+                await callback(cancel);
             }
             catch (OperationCanceledException)
             {

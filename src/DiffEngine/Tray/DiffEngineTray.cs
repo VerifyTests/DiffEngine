@@ -46,14 +46,14 @@ public static class DiffEngineTray
         PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId);
     }
 
-    public static Task AddDeleteAsync(string file, Cancellation cancellation = default)
+    public static Task AddDeleteAsync(string file, Cancel cancel = default)
     {
         if (!IsRunning)
         {
             return Task.CompletedTask;
         }
 
-        return PiperClient.SendDeleteAsync(file, cancellation);
+        return PiperClient.SendDeleteAsync(file, cancel);
     }
 
     public static Task AddMoveAsync(
@@ -63,13 +63,13 @@ public static class DiffEngineTray
         string? arguments,
         bool canKill,
         int? processId,
-        Cancellation cancellation = default)
+        Cancel cancel = default)
     {
         if (!IsRunning)
         {
             return Task.CompletedTask;
         }
 
-        return PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancellation);
+        return PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel);
     }
 }
