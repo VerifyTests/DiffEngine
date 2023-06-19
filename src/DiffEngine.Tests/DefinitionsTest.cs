@@ -23,7 +23,7 @@ public class DefinitionsTest :
                 .Select(d => d.OsSupport)
                 .Select(SelectOs)
                 .Where(s => s is not null)
-                .GroupBy(x => x);
+                .GroupBy(_ => _);
             foreach (var group in findDuplicates)
             {
                 Assert.Equal(1, group.Count());
