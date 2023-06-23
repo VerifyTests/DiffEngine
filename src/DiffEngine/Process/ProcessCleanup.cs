@@ -6,7 +6,6 @@ public static class ProcessCleanup
     static Func<IEnumerable<ProcessCommand>> findAll;
     static Func<int, bool> tryTerminateProcess;
 
-#pragma warning disable CS8618
     static ProcessCleanup()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -30,6 +29,7 @@ public static class ProcessCleanup
 
     public static IReadOnlyCollection<ProcessCommand> Commands => commands;
 
+    [MemberNotNull(nameof(commands))]
     public static void Refresh() =>
         commands = FindAll().ToList();
 
