@@ -120,9 +120,11 @@
 
         if (process.ExitCode != 0)
         {
-            var error = $@"Could not execute process. Command line: ps {arguments}.
-Output: {outputBuilder}
-Error: {errorBuilder}";
+            var error = $"""
+                         Could not execute process. Command line: ps {arguments}.
+                         Output: {outputBuilder}
+                         Error: {errorBuilder}
+                         """;
             throw new(error);
         }
 
