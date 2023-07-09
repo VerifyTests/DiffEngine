@@ -190,7 +190,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%PATH%guiffyCL.command`
     * `/Applications/Guiffy/guiffyCL.command`
 
-### [Kaleidoscope](https://www.kaleidoscopeapp.com/)
+### [Kaleidoscope](https://kaleidoscope.app)
 
   * Cost: Paid
   * Is MDI: False

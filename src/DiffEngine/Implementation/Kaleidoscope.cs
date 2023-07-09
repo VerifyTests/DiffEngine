@@ -3,7 +3,7 @@ static partial class Implementation
     public static Definition Kaleidoscope() =>
         new(
             Tool: DiffTool.Kaleidoscope,
-            Url: "https://www.kaleidoscopeapp.com/",
+            Url: "https://kaleidoscope.app",
             AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
