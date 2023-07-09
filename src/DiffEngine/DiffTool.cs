@@ -22,7 +22,6 @@ public enum DiffTool
     AraxisMerge,
     Meld,
     SublimeMerge,
-    CodeCompare,
     VisualStudioCode,
     VisualStudio
 }

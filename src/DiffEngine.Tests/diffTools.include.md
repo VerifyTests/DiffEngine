@@ -507,28 +507,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%PATH%compare`
     * `/Applications/Araxis Merge.app/Contents/Utilities/compare`
 
-### [CodeCompare](https://www.devart.com/codecompare/)
-
-  * Cost: Paid
-  * Is MDI: True
-  * Supports auto-refresh: False
-  * Supports text files: True
-  * Environment variable for custom install location: `DiffEngine_CodeCompare`
-
-#### Notes:
-
- * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)
-
-#### Windows settings:
-
-  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
-  * Scanned paths:  
-    * `%PATH%CodeCompare.exe`
-    * `%ProgramFiles%\Devart\Code Compare\CodeCompare.exe`
-    * `%ProgramW6432%\Devart\Code Compare\CodeCompare.exe`
-    * `%ProgramFiles(x86)%\Devart\Code Compare\CodeCompare.exe`
-
 ### [Meld](https://meldmerge.org/)
 
   * Cost: Free
