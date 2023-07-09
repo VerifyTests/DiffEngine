@@ -490,17 +490,17 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Notes:
 
- * Ensure that file backups are either [disabled](winmerge-no-backup.png) or changed to use a [Global backup folder](winmerge-backup-directory.png).
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
  * `/wl` Opens the left side as read-only.
  * `/dl` and `/dr` Specifies file descriptions in the title bar.
  * `/e` Enables close with a single Esc key press.
+ * `/cfg Backup/EnableFile=0` disable backup files.
 
 #### Windows settings:
 
-  * Example target on left arguments: `/u /wr /e "targetFile.txt" "tempFile.txt" /dl "targetFile.txt" /dr "tempFile.txt" `
-  * Example target on right arguments: `/u /wl /e "tempFile.txt" "targetFile.txt" /dl "tempFile.txt" /dr "targetFile.txt" `
+  * Example target on left arguments: `/u /wr /e "targetFile.txt" "tempFile.txt" /dl "targetFile.txt" /dr "tempFile.txt" /cfg Backup/EnableFile=0 `
+  * Example target on right arguments: `/u /wl /e "tempFile.txt" "targetFile.txt" /dl "tempFile.txt" /dr "targetFile.txt" /cfg Backup/EnableFile=0 `
   * Scanned paths:  
     * `%PATH%WinMergeU.exe`
     * `%ProgramFiles%\WinMerge\WinMergeU.exe`

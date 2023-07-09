@@ -6,14 +6,14 @@ static partial class Implementation
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
-            return $"/u /wr /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\"";
+            return $"/u /wr /e \"{target}\" \"{temp}\" /dl \"{targetTitle}\" /dr \"{tempTitle}\" /cfg Backup/EnableFile=0";
         }
 
         static string RightArguments(string temp, string target)
         {
             var tempTitle = Path.GetFileName(temp);
             var targetTitle = Path.GetFileName(target);
-            return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\"";
+            return $"/u /wl /e \"{temp}\" \"{target}\" /dl \"{tempTitle}\" /dr \"{targetTitle}\" /cfg Backup/EnableFile=0";
         }
 
         return new(
@@ -85,12 +85,12 @@ static partial class Implementation
                     @"%ProgramFiles%\WinMerge\",
                     @"%LocalAppData%\Programs\WinMerge\")),
             Notes: """
-                 * Ensure that file backups are either [disabled](winmerge-no-backup.png) or changed to use a [Global backup folder](winmerge-backup-directory.png).
                  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
                  * `/u` Prevents WinMerge from adding paths to the Most Recently Used (MRU) list.
                  * `/wl` Opens the left side as read-only.
                  * `/dl` and `/dr` Specifies file descriptions in the title bar.
                  * `/e` Enables close with a single Esc key press.
+                 * `/cfg Backup/EnableFile=0` disable backup files.
                 """);
     }
 }
