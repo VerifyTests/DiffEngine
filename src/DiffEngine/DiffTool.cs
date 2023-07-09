@@ -7,7 +7,6 @@ public enum DiffTool
     Kaleidoscope,
     DeltaWalker,
     WinMerge,
-    DiffMerge,
     TortoiseMerge,
     TortoiseGitMerge,
     TortoiseGitIDiff,

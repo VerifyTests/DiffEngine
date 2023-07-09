@@ -12,7 +12,6 @@ public static class Definitions
             Implementation.Kaleidoscope(),
             Implementation.DeltaWalker(),
             Implementation.WinMerge(),
-            Implementation.DiffMerge(),
             Implementation.TortoiseGitMerge(),
             Implementation.TortoiseGitIDiff(),
             Implementation.TortoiseMerge(),
