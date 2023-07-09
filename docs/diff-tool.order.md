@@ -15,7 +15,6 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Win (Cost: Free with option to donate)
- * **[DiffMerge](/docs/diff-tool.md#diffmerge)** Win/OSX/Linux (Cost: Free)
  * **[TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)** Win (Cost: Free)
  * **[TortoiseGitIDiff](/docs/diff-tool.md#tortoisegitidiff)** Win (Cost: Free)
  * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Win (Cost: Free)

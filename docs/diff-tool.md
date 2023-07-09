@@ -208,43 +208,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramW6432%\Diffinity\Diffinity.exe`
     * `%ProgramFiles(x86)%\Diffinity\Diffinity.exe`
 
-### [DiffMerge](https://www.sourcegear.com/diffmerge/)
-
-  * Cost: Free
-  * Is MDI: False
-  * Supports auto-refresh: True
-  * Supports text files: True
-  * Environment variable for custom install location: `DiffEngine_DiffMerge`
-
-#### Notes:
-
- * Ensure [Check for Modified Files](https://www.sourcegear.com/diffmerge/webhelp/sec__opt__filewindows.html) is enabled
-
-#### Windows settings:
-
-  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
-  * Scanned paths:  
-    * `%PATH%sgdm.exe`
-    * `%ProgramFiles%\SourceGear\Common\DiffMerge\sgdm.exe`
-    * `%ProgramW6432%\SourceGear\Common\DiffMerge\sgdm.exe`
-    * `%ProgramFiles(x86)%\SourceGear\Common\DiffMerge\sgdm.exe`
-
-#### OSX settings:
-
-  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
-  * Scanned paths:  
-    * `%PATH%DiffMerge`
-    * `/Applications/DiffMerge.app/Contents/MacOS/DiffMerge`
-
-#### Linux settings:
-
-  * Example target on left arguments: `--nosplash "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `--nosplash "tempFile.txt" "targetFile.txt" `
-  * Scanned paths:  
-    * `%PATH%diffmerge`
-
 ### [ExamDiff](https://www.prestosoft.com/edp_examdiffpro.asp)
 
   * Cost: Paid
