@@ -31,7 +31,6 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Win/OSX (Cost: Paid)
  * **[Meld](/docs/diff-tool.md#meld)** Win/OSX/Linux (Cost: Free)
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)
- * **[CodeCompare](/docs/diff-tool.md#codecompare)** Win (Cost: Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options) <!-- endInclude -->
 
