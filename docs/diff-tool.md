@@ -407,7 +407,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
     * `%ProgramW6432%\JetBrains\JetBrains Rider *\bin\rider64.exe`
     * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
-    * `%JetBrains Rider%\rider64.exe`
     * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
 
 #### OSX settings:

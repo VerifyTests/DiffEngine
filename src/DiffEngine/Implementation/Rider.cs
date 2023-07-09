@@ -21,7 +21,6 @@ static partial class Implementation
                     launchArguments,
                     @"%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\",
                     @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\",
-                    @"%JetBrains Rider%\",
                     @"%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\"),
                 Osx: new(
                     "rider",
