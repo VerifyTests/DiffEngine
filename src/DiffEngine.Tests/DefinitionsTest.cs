@@ -201,11 +201,11 @@ public class DefinitionsTest :
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
         writer.WriteLine("  * Scanned paths:");
-        writer.WriteLine($"    * `%PATH%{exeName}`");
         foreach (var path in paths)
         {
             writer.WriteLine($"    * `{path}{exeName}`");
         }
+        writer.WriteLine($"    * `%PATH%{exeName}`");
     }
 
     public DefinitionsTest(ITestOutputHelper output) :
