@@ -200,9 +200,7 @@ public class DefinitionsTest :
 
     static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
-        writer.WriteLine("""
-                           * Scanned paths:  
-                         """);
+        writer.WriteLine("  * Scanned paths:");
         writer.WriteLine($"    * `%PATH%{exeName}`");
         foreach (var path in paths)
         {
