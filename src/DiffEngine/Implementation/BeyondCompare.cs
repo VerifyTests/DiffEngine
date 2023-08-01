@@ -2,25 +2,17 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        static string LeftWindowsArguments(string temp, string target)
-        {
-            return $"/solo /rightreadonly \"{target}\" \"{temp}\"";
-        }
+        static string LeftWindowsArguments(string temp, string target) =>
+            $"/solo /rightreadonly \"{target}\" \"{temp}\"";
 
-        static string RightWindowsArguments(string temp, string target)
-        {
-            return $"/solo /leftreadonly \"{temp}\" \"{target}\"";
-        }
+        static string RightWindowsArguments(string temp, string target) =>
+            $"/solo /leftreadonly \"{temp}\" \"{target}\"";
 
-        static string LeftOsxLinuxArguments(string temp, string target)
-        {
-            return $"-solo -rightreadonly \"{target}\" \"{temp}\"";
-        }
+        static string LeftOsxLinuxArguments(string temp, string target) =>
+            $"-solo -rightreadonly \"{target}\" \"{temp}\"";
 
-        static string RightOsxLinuxArguments(string temp, string target)
-        {
-            return $"-solo -leftreadonly \"{temp}\" \"{target}\"";
-        }
+        static string RightOsxLinuxArguments(string temp, string target) =>
+            $"-solo -leftreadonly \"{temp}\" \"{target}\"";
 
         return new(
             Tool: DiffTool.BeyondCompare,
