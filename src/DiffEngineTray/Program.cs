@@ -69,6 +69,7 @@ static class Program
 
         icon.ContextMenuStrip = menuStrip;
 
+        TrayIcon.Promoted();
         Application.Run();
         tokenSource.Cancel();
         await task;

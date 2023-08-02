@@ -1,6 +1,4 @@
-﻿using Microsoft.Win32;
-
-public class Startup
+﻿public class Startup
 {
     public static void Add()
     {
