@@ -2,25 +2,17 @@ static partial class Implementation
 {
     public static Definition BeyondCompare()
     {
-        static string LeftWindowsArguments(string temp, string target)
-        {
-            return $"/solo /rightreadonly \"{target}\" \"{temp}\"";
-        }
+        static string LeftWindowsArguments(string temp, string target) =>
+            $"/solo /rightreadonly \"{target}\" \"{temp}\"";
 
-        static string RightWindowsArguments(string temp, string target)
-        {
-            return $"/solo /leftreadonly \"{temp}\" \"{target}\"";
-        }
+        static string RightWindowsArguments(string temp, string target) =>
+            $"/solo /leftreadonly \"{temp}\" \"{target}\"";
 
-        static string LeftOsxLinuxArguments(string temp, string target)
-        {
-            return $"-solo -rightreadonly \"{target}\" \"{temp}\"";
-        }
+        static string LeftOsxLinuxArguments(string temp, string target) =>
+            $"-solo -rightreadonly \"{target}\" \"{temp}\"";
 
-        static string RightOsxLinuxArguments(string temp, string target)
-        {
-            return $"-solo -leftreadonly \"{temp}\" \"{target}\"";
-        }
+        static string RightOsxLinuxArguments(string temp, string target) =>
+            $"-solo -leftreadonly \"{temp}\" \"{target}\"";
 
         return new(
             Tool: DiffTool.BeyondCompare,
@@ -64,6 +56,9 @@ static partial class Implementation
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
                     "/Applications/Beyond Compare.app/Contents/MacOS/")),
-            Notes: " * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)");
+            Notes: """
+                    * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
+                    * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`. 
+                   """);
     }
 }
