@@ -39,7 +39,7 @@ If a tool is running for the comparison of the current verification (per test), 
 | false        | true  | Open new instance. Previous instance must be manually closed |
 | false        | false | Kill current and open new instance |
 
-This allows, in most cases, for no manual closing of the tool to be required. <!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required.<!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## MaxInstancesToLaunch
@@ -85,7 +85,7 @@ If a tool is running for the comparison of the current verification (per test), 
 | true  | No action taken. Previous instance must be manually closed |
 | false | Kill current instance |
 
-This allows, in most cases, for no manual closing of the tool to be required. <!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
+This allows, in most cases, for no manual closing of the tool to be required.<!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
 ## Disable orphaned process detection
@@ -111,7 +111,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 Tools location is automatically detected. If a tool installed in a custom location, it can be manually configured using an environment variable, that points to the executable. The environment variable format is `DiffEngine_{ToolName}`.
 
- <!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
+<!-- include: diffTools. path: /src/DiffEngine.Tests/diffTools.include.md -->
 ## Non-MDI tools
 
 Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
@@ -759,4 +759,4 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `--diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%PATH%code` <!-- endInclude -->
+    * `%PATH%code`<!-- endInclude -->

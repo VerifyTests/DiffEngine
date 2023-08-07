@@ -34,11 +34,11 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Disable in code](#disable-in-code)
   * [Icons](#icons)<!-- endToc -->
-  * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Tools](/docs/diff-tool.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
   * [DiffEngineTray](/docs/tray.md)
-  * [Code versus machine level settings](/docs/code-versus-machine-settings.md) <!-- endInclude -->
+  * [Code versus machine level settings](/docs/code-versus-machine-settings.md)<!-- endInclude -->
 
 
 ## NuGet package
@@ -48,7 +48,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
- * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid) <!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
+ * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid)<!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX (Cost: Paid)
@@ -69,7 +69,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * **[Meld](/docs/diff-tool.md#meld)** Win/OSX/Linux (Cost: Free)
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
- * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options) <!-- endInclude -->
+ * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)<!-- endInclude -->
 
 
 ## Launching a tool

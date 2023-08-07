@@ -10,7 +10,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 ## Default
 
- * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid) <!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
+ * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid)<!-- include: defaultOrder. path: /src/DiffEngine.Tests/defaultOrder.include.md -->
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX (Cost: Paid)
@@ -31,7 +31,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[Meld](/docs/diff-tool.md#meld)** Win/OSX/Linux (Cost: Free)
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
- * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options) <!-- endInclude -->
+ * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)<!-- endInclude -->
 
 
 ## Custom order

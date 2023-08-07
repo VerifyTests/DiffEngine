@@ -7,8 +7,8 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 # Documentation
 
-  * [Tools](/docs/diff-tool.md) <!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
+  * [Tools](/docs/diff-tool.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
   * [DiffEngineTray](/docs/tray.md)
-  * [Code versus machine level settings](/docs/code-versus-machine-settings.md) <!-- endInclude -->
+  * [Code versus machine level settings](/docs/code-versus-machine-settings.md)<!-- endInclude -->
