@@ -290,11 +290,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%LOCALAPPDATA%\JetBrains\Installations\Rider*\bin\rider64.exe`
-    * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
-    * `%ProgramW6432%\JetBrains\JetBrains Rider *\bin\rider64.exe`
-    * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
-    * `%LOCALAPPDATA%\JetBrains\Toolbox\apps\Rider\*\*\bin\rider64.exe`
+    * `%LOCALAPPDATA%\Programs\Rider\bin\rider64.exe`
     * `%PATH%rider64.exe`
 
 #### OSX settings:
@@ -302,9 +298,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider EAP.app/Contents/MacOS/rider`
-    * `%HOME%/Library/Application Support/JetBrains/Toolbox/apps/Rider/*/*/Rider.app/Contents/MacOS/rider`
-    * `/Applications/Rider EAP.app/Contents/MacOS/rider`
     * `/Applications/Rider.app/Contents/MacOS/rider`
     * `%PATH%rider`
 
@@ -314,8 +307,6 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh`
-    * `/opt/jetbrains/rider/bin/rider.sh`
-    * `/usr/share/rider/bin/rider.sh`
     * `%PATH%rider.sh`
 
 ### [TkDiff](https://sourceforge.net/projects/tkdiff/)
