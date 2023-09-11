@@ -13,6 +13,7 @@ public static class ContinuousTestingDetector
 
         if (AppDomain.CurrentDomain.GetAssemblies()
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             .Any(_ => _.FullName != null &&
                       _.FullName.StartsWith("Microsoft.CodeAnalysis.LiveUnitTesting.Runtime")))
         {

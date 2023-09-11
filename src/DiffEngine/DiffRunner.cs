@@ -218,14 +218,18 @@ public static partial class DiffRunner
                 return process.Id;
             }
 
-            var message = $@"Failed to launch diff tool.
-{tool.ExePath} {arguments}";
+            var message = $"""
+                           Failed to launch diff tool.
+                           {tool.ExePath} {arguments}
+                           """;
             throw new(message);
         }
         catch (Exception exception)
         {
-            var message = $@"Failed to launch diff tool.
-{tool.ExePath} {arguments}";
+            var message = $"""
+                           Failed to launch diff tool.
+                           {tool.ExePath} {arguments}
+                           """;
             throw new(message, exception);
         }
     }

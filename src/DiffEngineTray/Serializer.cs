@@ -8,8 +8,12 @@
         }
         catch (Exception exception)
         {
-            throw new($@"Failed to Deserialize payload:
-{payload}", exception);
+            throw new(
+                $"""
+                 Failed to Deserialize payload:
+                 {payload}
+                 """,
+                exception);
         }
     }
 }

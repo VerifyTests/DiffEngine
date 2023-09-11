@@ -6,8 +6,11 @@ static class IssueLauncher
     static string defaultBody;
 
     static IssueLauncher() =>
-        defaultBody = WebUtility.UrlEncode($@" * DiffEngineTray Version: {VersionReader.VersionString}
- * OS: {Environment.OSVersion.VersionString}");
+        defaultBody = WebUtility.UrlEncode(
+            $"""
+              * DiffEngineTray Version: {VersionReader.VersionString}
+              * OS: {Environment.OSVersion.VersionString}
+             """);
 
     public static void Launch() =>
         LinkLauncher.LaunchUrl($"https://github.com/VerifyTests/DiffEngine/issues/new?title=TODO&body={defaultBody}");
@@ -22,13 +25,15 @@ static class IssueLauncher
         recorded.Add(message);
 
         var result = MessageBox.Show(
-            $@"An error occurred: {message}
+            $"""
+             An error occurred: {message}
 
-Logged to: {Logging.LogsDirectory}
+             Logged to: {Logging.LogsDirectory}
 
-{exception.GetType().Name}: {exception.Message}
+             {exception.GetType().Name}: {exception.Message}
 
-Open an issue on GitHub?",
+             Open an issue on GitHub?
+             """,
             "DiffEngineTray Error",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Error);
@@ -37,12 +42,15 @@ Open an issue on GitHub?",
             return;
         }
 
-        var extraBody = WebUtility.UrlEncode($@"
- * Action: {message}
- * Exception:
-```
-{exception}
-```");
+        var extraBody = WebUtility.UrlEncode(
+            $"""
+
+              * Action: {message}
+              * Exception:
+             ```
+             {exception}
+             ```
+             """);
         var url = $"https://github.com/VerifyTests/DiffEngine/issues/new?title={message}&body={defaultBody}{extraBody}";
         LinkLauncher.LaunchUrl(url);
     }
