@@ -8,6 +8,8 @@
 
 DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
+**See [Milestones](../../milestones?state=closed) for release notes.**
+
 **Currently used by:**
 
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net)
