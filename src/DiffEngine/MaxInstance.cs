@@ -1,16 +1,20 @@
-﻿static class MaxInstance
+static class MaxInstance
 {
-    public static int MaxInstancesToLaunch { get; private set; } = GetMaxInstances();
+    public static int MaxInstancesToLaunch => capturedMaxInstancesToLaunch ??= GetMaxInstances();
+    static int? capturedMaxInstancesToLaunch;
+    static int? appDomainMaxInstancesToLaunch;
     static int launchedInstances;
     const int defaultMax = 5;
 
-    static int GetMaxInstances()
+    static int GetMaxInstances() => GetEnvironmentValue() ?? appDomainMaxInstancesToLaunch ?? defaultMax;
+
+    static int? GetEnvironmentValue()
     {
         var variable = Environment.GetEnvironmentVariable("DiffEngine_MaxInstances");
 
         if (string.IsNullOrEmpty(variable))
         {
-            return defaultMax;
+            return null;
         }
 
         if (ushort.TryParse(variable, out var result))
@@ -21,31 +25,20 @@
         throw new($"Could not parse the DiffEngine_MaxInstances environment variable: {variable}");
     }
 
+    static void ResetCapturedValue() => capturedMaxInstancesToLaunch = null;
+
     public static void SetForAppDomain(int value)
     {
         Guard.AgainstNegativeAndZero(value, nameof(value));
-        MaxInstancesToLaunch = value;
+        appDomainMaxInstancesToLaunch = value;
+        ResetCapturedValue();
     }
 
     public static void SetForUser(int value)
     {
-        if (MaxInstancesToLaunch == value)
-        {
-            return;
-        }
-
-        MaxInstancesToLaunch = value;
-        string? envVariable;
-        if (value == defaultMax)
-        {
-            envVariable = null;
-        }
-        else
-        {
-            envVariable = value.ToString();
-        }
-
-        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", envVariable, EnvironmentVariableTarget.User);
+        Guard.AgainstNegativeAndZero(value, nameof(value));
+        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", value.ToString(), EnvironmentVariableTarget.User);
+        ResetCapturedValue();
     }
 
     public static bool Reached()
