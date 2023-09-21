@@ -39,7 +39,7 @@ include: diffToolCleanup
 
 By default a maximum of 5 tool instances will be launched. This prevents a change that breaks many tests from causing too much load on a machine.
 
-This value can be changed:
+This value can be changed using an environment variable or by explicitly specifying the value by code. When both are used, the environment variable value will be used.
 
 
 ### Using an environment variable
