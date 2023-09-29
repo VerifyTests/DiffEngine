@@ -1,5 +1,5 @@
-public class OsSettingsResolverTest :
-    XunitContextBase
+public class OsSettingsResolverTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void Simple()
@@ -55,10 +55,5 @@ public class OsSettingsResolverTest :
             out var launchArgs);
         Assert.Equal(true, found);
         Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
-    }
-
-    public OsSettingsResolverTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }
