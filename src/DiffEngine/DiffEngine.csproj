@@ -15,7 +15,7 @@
     <Using Include="EmptyFiles" />
     <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
     <PackageReference Include="Caseless.Fody" Version="1.9.1" PrivateAssets="All" />
-    <PackageReference Include="EmptyFiles" Version="4.5.1" PrivateAssets="None" />
+    <PackageReference Include="EmptyFiles" Version="4.5.2" PrivateAssets="None" />
     <PackageReference Include="Fody" Version="6.8.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
     <PackageReference Include="ProjectDefaults" Version="1.0.100" PrivateAssets="all" />
