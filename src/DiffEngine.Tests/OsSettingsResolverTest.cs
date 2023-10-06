@@ -52,7 +52,7 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
             "ComSpec",
             new(Windows: new("cmd.exe", launchArguments, "")),
             out var filePath,
-            out var launchArgs);
+            out _);
         Assert.Equal(true, found);
         Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
     }
