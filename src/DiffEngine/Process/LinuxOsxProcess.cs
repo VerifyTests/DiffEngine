@@ -61,7 +61,7 @@
 
             var timeAndCommandString = trim[(firstSpace + 1)..];
             var multiSpaceIndex = 0;
-            ReadOnlySpan<char> command;
+            CharSpan command;
 
             var spaces = new CharSpan(new []{' ',' ',' '});
             if (timeAndCommandString.IndexOf(spaces, StringComparison.InvariantCulture) > 0)
