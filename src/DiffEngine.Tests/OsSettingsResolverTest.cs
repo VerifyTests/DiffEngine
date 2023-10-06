@@ -27,8 +27,8 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
             Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             var found = OsSettingsResolver.TryFindInEnvPath("sh", out var filePath);
             Assert.Equal(true, found);
