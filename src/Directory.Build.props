@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <NoWarn>CS1591;CS0649</NoWarn>
-    <Version>12.3.0</Version>
+    <Version>12.3.1</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
     <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
