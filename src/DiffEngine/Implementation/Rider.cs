@@ -18,6 +18,7 @@ static partial class Implementation
             OsSupport: new(
                 Windows: new(
                     "rider64.exe",
+                    "rider.cmd",
                     launchArguments,
                     @"%LOCALAPPDATA%\Programs\Rider\bin\"),
                 Osx: new(

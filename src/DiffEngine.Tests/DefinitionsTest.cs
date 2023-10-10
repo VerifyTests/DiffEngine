@@ -29,6 +29,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
                 Assert.Equal(1, group.Count());
             }
         }
+
         FindDuplicates(os => os.Windows);
         FindDuplicates(os => os.Osx);
         FindDuplicates(os => os.Linux);
@@ -147,7 +148,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
                              """);
             WriteArguments(writer, windows.LaunchArguments);
-            WritePaths(windows.ExeName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
+            WritePaths(windows.ExeName, windows.PathCommandName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
         if (osx != null)
@@ -158,7 +159,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
                              """);
             WriteArguments(writer, osx.LaunchArguments);
-            WritePaths(osx.ExeName, writer, osx.SearchDirectories);
+            WritePaths(osx.ExeName, osx.PathCommandName, writer, osx.SearchDirectories);
         }
 
         if (linux != null)
@@ -169,42 +170,45 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
                              """);
             WriteArguments(writer, linux.LaunchArguments);
-            WritePaths(linux.ExeName, writer, linux.SearchDirectories);
+            WritePaths(linux.ExeName, linux.PathCommandName, writer, linux.SearchDirectories);
         }
     }
 
     static void WriteArguments(StreamWriter writer, LaunchArguments arguments)
     {
-
         var leftText = arguments.Left("tempFile.txt", "targetFile.txt");
         var rightText = arguments.Right("tempFile.txt", "targetFile.txt");
         var leftBinary = arguments.Left("tempFile.png", "targetFile.png");
         var rightBinary = arguments.Right("tempFile.png", "targetFile.png");
         if (leftText.Replace(".txt", "") == leftBinary.Replace(".png", ""))
         {
-            writer.WriteLine($"""
-                               * Example target on left arguments: `{leftText} `
-                               * Example target on right arguments: `{rightText} `
-                             """);
+            writer.WriteLine(
+                $"""
+                   * Example target on left arguments: `{leftText} `
+                   * Example target on right arguments: `{rightText} `
+                 """);
         }
         else
         {
-            writer.WriteLine($"""
-                               * Example target on left arguments for text: `{leftText} `
-                               * Example target on right arguments for text: `{rightText} `
-                               * Example target on left arguments for binary: `{leftBinary} `
-                               * Example target on right arguments for binary: `{rightBinary} `
-                             """);
+            writer.WriteLine(
+                $"""
+                   * Example target on left arguments for text: `{leftText} `
+                   * Example target on right arguments for text: `{rightText} `
+                   * Example target on left arguments for binary: `{leftBinary} `
+                   * Example target on right arguments for binary: `{rightBinary} `
+                 """);
         }
     }
 
-    static void WritePaths(string exeName, TextWriter writer, IReadOnlyCollection<string> paths)
+    static void WritePaths(string exeName, string pathCommandName, TextWriter writer, IReadOnlyCollection<string> paths)
     {
         writer.WriteLine("  * Scanned paths:");
+
         foreach (var path in paths)
         {
             writer.WriteLine($"    * `{path}{exeName}`");
         }
-        writer.WriteLine($"    * `%PATH%{exeName}`");
+
+        writer.WriteLine($"    * `%PATH%{pathCommandName}`");
     }
 }

@@ -86,15 +86,14 @@ static class OsSettingsResolver
             throw new($"Could not find exe defined by {environmentVariable}. Path: {basePath}");
         }
 
-        return TryFindExe(os.ExeName, os.SearchDirectories, out path);
+        return TryFindExe(os.ExeName, os.PathCommandName, os.SearchDirectories, out path);
     }
 
+    // Note: Windows can have multiple paths, and will resolve %ProgramFiles% as 'C:\Program Files (x86)'
+    // when running inside a 32-bit process. To
+    // overcome this issue, we need to manually add any option so the correct paths will be resolved
     public static IEnumerable<string> ExpandProgramFiles(IEnumerable<string> paths)
     {
-        // Note: Windows can have multiple paths, and will resolve %ProgramFiles% as 'C:\Program Files (x86)'
-        // when running inside a 32-bit process. To
-        // overcome this issue, we need to manually add any option so the correct paths will be resolved
-
         foreach (var path in paths)
         {
             yield return path;
@@ -109,7 +108,7 @@ static class OsSettingsResolver
         }
     }
 
-    static bool TryFindExe(string exeName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
+    static bool TryFindExe(string exeName, string pathCommandName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -125,17 +124,17 @@ static class OsSettingsResolver
             }
         }
 
-        return TryFindInEnvPath(exeName, out exePath);
+        return TryFindInEnvPath(pathCommandName, out exePath);
     }
 
-    public static bool TryFindInEnvPath(string exeName, [NotNullWhen(true)] out string? exePath)
+    // For each path in PATH, append cliApp and check if it exists.
+    // Return the first one that exists.
+    public static bool TryFindInEnvPath(string pathCommandName, [NotNullWhen(true)] out string? commandPath)
     {
-        // For each path in PATH, append cliApp and check if it exists.
-        // Return the first one that exists.
-        exePath = envPaths
-            .Select(_ => Path.Combine(_, exeName))
+        commandPath = envPaths
+            .Select(_ => Path.Combine(_, pathCommandName))
             .FirstOrDefault(File.Exists);
 
-        return exePath != null;
+        return commandPath != null;
     }
 }
