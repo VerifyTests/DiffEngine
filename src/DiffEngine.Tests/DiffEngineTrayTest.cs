@@ -1,12 +1,7 @@
-﻿public class DiffEngineTrayTest :
-    XunitContextBase
+﻿public class DiffEngineTrayTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void IsRunning() =>
         Assert.False(DiffEngineTray.IsRunning);
-
-    public DiffEngineTrayTest(ITestOutputHelper output) :
-        base(output)
-    {
-    }
 }

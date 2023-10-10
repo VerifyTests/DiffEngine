@@ -1,5 +1,5 @@
-public class DefinitionsTest :
-    XunitContextBase
+public class DefinitionsTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void WriteList()
@@ -164,9 +164,9 @@ public class DefinitionsTest :
         if (linux != null)
         {
             writer.WriteLine("""
-            
+
                              #### Linux settings:
-                             
+
                              """);
             WriteArguments(writer, linux.LaunchArguments);
             WritePaths(linux.ExeName, writer, linux.SearchDirectories);
@@ -206,10 +206,5 @@ public class DefinitionsTest :
             writer.WriteLine($"    * `{path}{exeName}`");
         }
         writer.WriteLine($"    * `%PATH%{exeName}`");
-    }
-
-    public DefinitionsTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

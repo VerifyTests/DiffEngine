@@ -1,5 +1,5 @@
-﻿public class OrderReaderTest :
-    XunitContextBase
+﻿public class OrderReaderTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void ParseEnvironmentVariable()
@@ -14,10 +14,5 @@
     {
         var exception = Assert.Throws<Exception>(() => OrderReader.ParseEnvironment("Foo").ToList());
         Assert.Equal("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo", exception.Message);
-    }
-
-    public OrderReaderTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

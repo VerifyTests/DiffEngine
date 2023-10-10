@@ -1,5 +1,5 @@
-﻿public class ProcessCleanupTests :
-    XunitContextBase
+﻿public class ProcessCleanupTests(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void Find()
@@ -11,10 +11,5 @@
         {
             Debug.WriteLine($"{x.Process} {x.Command}");
         }
-    }
-
-    public ProcessCleanupTests(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

@@ -1,5 +1,5 @@
-﻿public class LinuxOsxProcessTests :
-    XunitContextBase
+﻿public class LinuxOsxProcessTests(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void TryParseWithZshInstalled()
@@ -39,10 +39,5 @@
         var processCommand = command!.Value;
         Assert.Equal(309, processCommand.Process);
         Assert.Equal("System/Library/coreauthd -foo", processCommand.Command);
-    }
-
-    public LinuxOsxProcessTests(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

@@ -1,6 +1,6 @@
 ﻿[UsesVerify]
-public class SettingsHelperTests :
-    XunitContextBase
+public class SettingsHelperTests(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public async Task ReadWrite()
@@ -25,10 +25,5 @@ public class SettingsHelperTests :
         {
             File.Delete(tempFile);
         }
-    }
-
-    public SettingsHelperTests(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

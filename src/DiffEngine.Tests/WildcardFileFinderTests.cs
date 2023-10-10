@@ -1,5 +1,5 @@
-﻿public class WildcardFileFinderTests :
-    XunitContextBase
+﻿public class WildcardFileFinderTests(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public void MultiMatchDir_order1()
@@ -71,10 +71,5 @@
         var path = Path.Combine(directory, "WildcardFileFinderTests.cs");
         Assert.False(WildcardFileFinder.TryFind(path, out var result));
         Assert.Null(result);
-    }
-
-    public WildcardFileFinderTests(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

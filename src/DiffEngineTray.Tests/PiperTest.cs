@@ -1,7 +1,7 @@
 ﻿#if NET7_0
 [UsesVerify]
-public class PiperTest :
-    XunitContextBase
+public class PiperTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public Task MoveJson() =>
@@ -70,11 +70,6 @@ public class PiperTest :
             .ScrubLinesContaining("temp.txt")
             //TODO: add "scrub source dir" to verify and remove the below
             .ScrubLinesContaining("PiperClient");
-    }
-
-    public PiperTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }
 #endif

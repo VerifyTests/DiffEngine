@@ -1,15 +1,12 @@
-﻿class RecordingTracker :
-    Tracker
-{
-    public RecordingTracker() :
-        base(() =>
+﻿class RecordingTracker() :
+    Tracker(
+        () =>
         {
-        }, () =>
+        },
+        () =>
         {
         })
-    {
-    }
-
+{
     public void AssertEmpty()
     {
         Assert.Empty(Deletes);
