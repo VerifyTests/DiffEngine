@@ -404,7 +404,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `%LOCALAPPDATA%\Programs\Rider\bin\rider64.exe`
-    * `%PATH%rider64.exe`
+    * `%PATH%rider.cmd`
 
 #### OSX settings:
 
