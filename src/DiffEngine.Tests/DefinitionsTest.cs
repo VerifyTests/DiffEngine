@@ -182,19 +182,21 @@ public class DefinitionsTest(ITestOutputHelper output) :
         var rightBinary = arguments.Right("tempFile.png", "targetFile.png");
         if (leftText.Replace(".txt", "") == leftBinary.Replace(".png", ""))
         {
-            writer.WriteLine($"""
-                               * Example target on left arguments: `{leftText} `
-                               * Example target on right arguments: `{rightText} `
-                             """);
+            writer.WriteLine(
+                $"""
+                   * Example target on left arguments: `{leftText} `
+                   * Example target on right arguments: `{rightText} `
+                 """);
         }
         else
         {
-            writer.WriteLine($"""
-                               * Example target on left arguments for text: `{leftText} `
-                               * Example target on right arguments for text: `{rightText} `
-                               * Example target on left arguments for binary: `{leftBinary} `
-                               * Example target on right arguments for binary: `{rightBinary} `
-                             """);
+            writer.WriteLine(
+                $"""
+                   * Example target on left arguments for text: `{leftText} `
+                   * Example target on right arguments for text: `{rightText} `
+                   * Example target on left arguments for binary: `{leftBinary} `
+                   * Example target on right arguments for binary: `{rightBinary} `
+                 """);
         }
     }
 
