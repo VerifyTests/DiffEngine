@@ -36,19 +36,20 @@ static class DiffToolLauncher
                 return;
             }
 
-            var message = $"""
-                           Failed to launch diff tool.
-                           {move.Exe} {move.Arguments}
-                           """;
-            Log.Error(message);
+            Log.Error(
+                $"""
+                 Failed to launch diff tool.
+                 {move.Exe} {move.Arguments}
+                 """);
         }
         catch (Exception exception)
         {
-            var message = $"""
-                           Failed to launch diff tool.
-                           {move.Exe} {move.Arguments}
-                           """;
-            Log.Error(exception, message);
+            Log.Error(
+                exception,
+                $"""
+                 Failed to launch diff tool.
+                 {move.Exe} {move.Arguments}
+                 """);
         }
     }
 }

@@ -46,29 +46,32 @@
 
     public static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
     {
-        var builder = new StringBuilder($$"""
-                                          {
-                                          "Type":"Move",
-                                          "Temp":"{{tempFile.JsonEscape()}}",
-                                          "Target":"{{targetFile.JsonEscape()}}",
-                                          "CanKill":{{canKill.ToString().ToLower()}}
-                                          """);
+        var builder = new StringBuilder(
+            $$"""
+              {
+              "Type":"Move",
+              "Temp":"{{tempFile.JsonEscape()}}",
+              "Target":"{{targetFile.JsonEscape()}}",
+              "CanKill":{{canKill.ToString().ToLower()}}
+              """);
 
         if (exe != null)
         {
-            builder.Append($"""
-                            ,
-                            "Exe":"{exe.JsonEscape()}",
-                            "Arguments":"{arguments!.JsonEscape()}"
-                            """);
+            builder.Append(
+                $"""
+                 ,
+                 "Exe":"{exe.JsonEscape()}",
+                 "Arguments":"{arguments!.JsonEscape()}"
+                 """);
         }
 
         if (processId != null)
         {
-            builder.Append($"""
-                            ,
-                            "ProcessId":{processId}
-                            """);
+            builder.Append(
+                $"""
+                 ,
+                 "ProcessId":{processId}
+                 """);
         }
 
         builder.AppendLine();
@@ -101,15 +104,16 @@
     }
 
     static void HandleSendException(string payload, Exception exception) =>
-        Trace.WriteLine($"""
-                         Failed to send payload to DiffEngineTray.
+        Trace.WriteLine(
+            $"""
+             Failed to send payload to DiffEngineTray.
 
-                         Payload:
-                         {payload}
+             Payload:
+             {payload}
 
-                         Exception:
-                         {exception}
-                         """);
+             Exception:
+             {exception}
+             """);
 
     static void InnerSend(string payload)
     {
