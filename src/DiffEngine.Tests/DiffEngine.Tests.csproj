@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2" />
     <PackageReference Include="Argon" Version="0.13.0" />
     <PackageReference Include="Xunit" Version="2.5.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" Version="1.0.100" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.3.1" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
