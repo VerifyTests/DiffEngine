@@ -25,11 +25,12 @@
 
     public static IEnumerable<ProcessCommand> FindAll()
     {
-        var wmiQuery = """
-                       select CommandLine, ProcessId
-                       from Win32_Process
-                       where CommandLine like '% %.%.%'
-                       """;
+        var wmiQuery =
+            """
+            select CommandLine, ProcessId
+            from Win32_Process
+            where CommandLine like '% %.%.%'
+            """;
         using var searcher = new ManagementObjectSearcher(wmiQuery);
         using var collection = searcher.Get();
         foreach (var process in collection)
