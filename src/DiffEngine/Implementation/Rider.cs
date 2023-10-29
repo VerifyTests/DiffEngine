@@ -28,7 +28,7 @@ static partial class Implementation
                 Linux: new(
                     "rider.sh",
                     launchArguments,
-                    "%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/")),
+                    "%HOME%/.local/share/JetBrains/Toolbox/apps/rider/bin/")),
             Notes: " * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html");
     }
 }

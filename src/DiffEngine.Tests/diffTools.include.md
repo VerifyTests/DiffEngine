@@ -306,7 +306,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%HOME%/.local/share/JetBrains/Toolbox/apps/Rider/*/*/bin/rider.sh`
+    * `%HOME%/.local/share/JetBrains/Toolbox/apps/rider/bin/rider.sh`
     * `%PATH%rider.sh`
 
 ### [TkDiff](https://sourceforge.net/projects/tkdiff/)
