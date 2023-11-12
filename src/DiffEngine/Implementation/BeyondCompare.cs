@@ -45,11 +45,11 @@ static partial class Implementation
                         RightWindowsArguments),
                     @"%ProgramFiles%\Beyond Compare *\"),
                 Linux: new(
-                    "bcomp",
+                    "bcompare",
                     new(
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
-                    "/usr/lib/beyondcompare/"),
+                    "/usr/bin"),
                 Osx: new(
                     "bcomp",
                     new(
@@ -58,7 +58,7 @@ static partial class Implementation
                     "/Applications/Beyond Compare.app/Contents/MacOS/")),
             Notes: """
                     * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
-                    * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`. 
+                    * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`.
                    """);
     }
 }
