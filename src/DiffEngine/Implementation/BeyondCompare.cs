@@ -49,7 +49,7 @@ static partial class Implementation
                     new(
                         LeftOsxLinuxArguments,
                         RightOsxLinuxArguments),
-                    "/usr/bin"),
+                    "/usr/bin/"),
                 Osx: new(
                     "bcomp",
                     new(

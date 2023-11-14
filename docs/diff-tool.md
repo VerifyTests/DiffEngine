@@ -154,7 +154,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `/usr/binbcompare`
+    * `/usr/bin/bcompare`
     * `%PATH%bcompare`
 
 ### [DeltaWalker](https://www.deltawalker.com/)
