@@ -16,7 +16,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 #### Notes:
 
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
- * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`. 
+ * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`.
 
 #### Windows settings:
 
@@ -41,8 +41,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `/usr/lib/beyondcompare/bcomp`
-    * `%PATH%bcomp`
+    * `/usr/bin/bcompare`
+    * `%PATH%bcompare`
 
 ### [DeltaWalker](https://www.deltawalker.com/)
 
