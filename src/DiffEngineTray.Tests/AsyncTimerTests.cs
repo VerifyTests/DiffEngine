@@ -10,7 +10,7 @@
             interval: TimeSpan.Zero,
             errorCallback: _ =>
             {
-                errorCallbackInvoked.SetResult(true);
+                errorCallbackInvoked.TrySetResult(true);
             });
 
         Assert.True(await errorCallbackInvoked.Task);
@@ -33,7 +33,7 @@
                 }
 
                 Assert.True(exceptionThrown);
-                callbackInvokedAfterError.SetResult(true);
+                callbackInvokedAfterError.TrySetResult(true);
                 return Task.FromResult(0);
             },
             interval: TimeSpan.Zero,
