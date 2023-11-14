@@ -75,7 +75,7 @@
     {
         var callbackCompleted = new TaskCompletionSource<bool>();
         var callbackTaskStarted = new TaskCompletionSource<bool>();
-        await using var timer = new AsyncTimer(
+        var timer = new AsyncTimer(
             callback: _ =>
             {
                 callbackTaskStarted.SetResult(true);
