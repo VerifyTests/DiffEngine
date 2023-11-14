@@ -206,7 +206,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
         foreach (var path in paths)
         {
-            writer.WriteLine($"    * `{path}{exeName}`");
+            writer.WriteLine($"    * `{Path.Combine(path, exeName)}`");
         }
 
         writer.WriteLine($"    * `%PATH%{pathCommandName}`");
