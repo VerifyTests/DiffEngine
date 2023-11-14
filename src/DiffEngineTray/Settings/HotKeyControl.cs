@@ -21,7 +21,7 @@
                 Shift = shift.Checked,
                 Control = control.Checked,
                 Alt = alt.Checked,
-                Key = (string) keyCombo.SelectedItem
+                Key = (string) keyCombo.SelectedItem!
             };
         }
         set
