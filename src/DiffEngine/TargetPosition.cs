@@ -45,6 +45,6 @@
             envVariable = null;
         }
 
-        Environment.SetEnvironmentVariable("DiffEngine_TargetOnLeft", envVariable, EnvironmentVariableTarget.User);
+        EnvironmentHelper.Set("DiffEngine_TargetOnLeft", envVariable);
     }
 }
