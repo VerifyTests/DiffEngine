@@ -1,12 +1,15 @@
 static class MaxInstance
 {
     public static int MaxInstancesToLaunch => capturedMaxInstancesToLaunch ??= GetMaxInstances();
+
     static int? capturedMaxInstancesToLaunch;
     static int? appDomainMaxInstancesToLaunch;
     static int launchedInstances;
     const int defaultMax = 5;
 
-    static int GetMaxInstances() => GetEnvironmentValue() ?? appDomainMaxInstancesToLaunch ?? defaultMax;
+    static int GetMaxInstances() => GetEnvironmentValue() ??
+                                    appDomainMaxInstancesToLaunch ??
+                                    defaultMax;
 
     static int? GetEnvironmentValue()
     {
@@ -37,7 +40,7 @@ static class MaxInstance
     public static void SetForUser(int value)
     {
         Guard.AgainstNegativeAndZero(value, nameof(value));
-        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", value.ToString(), EnvironmentVariableTarget.User);
+        EnvironmentHelper.Set("DiffEngine_MaxInstances", value.ToString());
         ResetCapturedValue();
     }
 

@@ -17,7 +17,9 @@ static class OptionsFormLauncher
         }
 
         var settings = await SettingsHelper.Read();
-        using var form = new OptionsForm(settings, newSettings => Save(keyRegister, tracker, newSettings));
+        using var form = new OptionsForm(
+            settings,
+            newSettings => Save(keyRegister, tracker, newSettings));
         instance = form;
         form.Closed += formOnClosed;
         form.ShowDialog();
