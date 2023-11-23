@@ -14,7 +14,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Paid",
-            BinaryExtensions: Array.Empty<string>(),
+            BinaryExtensions: [],
             OsSupport: new(
                 Windows: new(
                     "smerge.exe",

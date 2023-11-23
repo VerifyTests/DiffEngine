@@ -14,7 +14,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: Array.Empty<string>(),
+            BinaryExtensions: [],
             OsSupport: new(
                 Windows: new(
                     "kdiff3.exe",

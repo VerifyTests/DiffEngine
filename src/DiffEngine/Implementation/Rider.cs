@@ -14,7 +14,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Paid with free option for OSS",
-            BinaryExtensions: Array.Empty<string>(),
+            BinaryExtensions: [],
             OsSupport: new(
                 Windows: new(
                     "rider64.exe",

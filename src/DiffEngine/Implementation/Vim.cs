@@ -14,7 +14,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free with option to donate",
-            BinaryExtensions: Array.Empty<string>(),
+            BinaryExtensions: [],
             OsSupport: new(
                 Windows: new(
                     "vim.exe",
