@@ -3,7 +3,7 @@
 public static class ProcessCleanup
 {
     static List<ProcessCommand> commands;
-    static Func<IEnumerable<ProcessCommand>> findAll;
+    static Func<List<ProcessCommand>> findAll;
     static Func<int, bool> tryTerminateProcess;
 
     static ProcessCleanup()

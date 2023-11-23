@@ -23,8 +23,9 @@
         return true;
     }
 
-    public static IEnumerable<ProcessCommand> FindAll()
+    public static List<ProcessCommand> FindAll()
     {
+        var commands = new List<ProcessCommand>();
         var wmiQuery =
             """
             select CommandLine, ProcessId
@@ -38,7 +39,9 @@
             var command = (string) process["CommandLine"];
             var id = (int) Convert.ChangeType(process["ProcessId"], typeof(int));
             process.Dispose();
-            yield return new(command, id);
+            commands.Add(new(command, id));
         }
+
+        return commands;
     }
 }

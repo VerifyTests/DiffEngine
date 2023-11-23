@@ -24,13 +24,14 @@
         throw new(message);
     }
 
-    public static IEnumerable<ProcessCommand> FindAll()
+    public static List<ProcessCommand> FindAll()
     {
         if (!TryRunPs(out var processList))
         {
-            yield break;
+            return [];
         }
 
+        var commands = new List<ProcessCommand>();
         using var reader = new StringReader(processList);
         reader.ReadLine();
         while (reader.ReadLine() is { } line)
@@ -40,8 +41,10 @@
                 continue;
             }
 
-            yield return processCommand!.Value;
+            commands.Add(processCommand!.Value);
         }
+
+        return commands;
     }
 
     public static bool TryParse(string line, out ProcessCommand? processCommand)
