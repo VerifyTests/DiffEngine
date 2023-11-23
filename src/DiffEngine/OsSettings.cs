@@ -30,12 +30,12 @@ public record OsSettings(string ExeName, string PathCommandName, LaunchArguments
     }
 
     public OsSettings(string exeName, string pathCommandName, LaunchArguments launchArguments) :
-        this(exeName, pathCommandName, launchArguments, [])
+        this(exeName, pathCommandName, launchArguments, Array.Empty<string>())
     {
     }
 
     public OsSettings(string exeName, LaunchArguments launchArguments) :
-        this(exeName, exeName, launchArguments, [])
+        this(exeName, exeName, launchArguments, Array.Empty<string>())
     {
     }
 }
