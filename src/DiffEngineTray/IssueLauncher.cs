@@ -2,7 +2,7 @@ using System.Net;
 
 static class IssueLauncher
 {
-    static ConcurrentBag<string> recorded = new();
+    static ConcurrentBag<string> recorded = [];
     static string defaultBody;
 
     static IssueLauncher() =>

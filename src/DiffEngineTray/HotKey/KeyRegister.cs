@@ -10,7 +10,7 @@ public class KeyRegister :
     static extern bool UnregisterHotKey(IntPtr handle, int id);
 
     IntPtr handle;
-    Dictionary<int, Action> bindings = new();
+    Dictionary<int, Action> bindings = [];
 
     public KeyRegister(IntPtr handle)
     {

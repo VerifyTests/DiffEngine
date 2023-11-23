@@ -2,9 +2,9 @@
 
 public static partial class DiffTools
 {
-    static Dictionary<string, ResolvedTool> ExtensionLookup = new();
-    static Dictionary<string, ResolvedTool> PathLookup = new();
-    static List<ResolvedTool> resolved = new();
+    static Dictionary<string, ResolvedTool> ExtensionLookup = [];
+    static Dictionary<string, ResolvedTool> PathLookup = [];
+    static List<ResolvedTool> resolved = [];
 
     public static IEnumerable<ResolvedTool> Resolved => resolved;
 
