@@ -83,13 +83,14 @@ public class DefinitionsTest(ITestOutputHelper output) :
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        writer.WriteLine("""
+        writer.WriteLine(
+            """
 
-                         ## Non-MDI tools
+            ## Non-MDI tools
 
-                         Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
+            Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track and close diffs.
 
-                         """);
+            """);
 
         foreach (var tool in Definitions.Tools
                      .Where(_ => !_.IsMdi)
@@ -98,11 +99,12 @@ public class DefinitionsTest(ITestOutputHelper output) :
             AddTool(writer, tool);
         }
 
-        writer.WriteLine("""
+        writer.WriteLine(
+            """
 
-                         ## MDI tools
+            ## MDI tools
 
-                         """);
+            """);
         foreach (var tool in Definitions.Tools
                      .Where(_ => _.IsMdi)
                      .OrderBy(_ => _.Tool.ToString()))
@@ -113,16 +115,17 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
     static void AddTool(StreamWriter writer, Definition tool)
     {
-        writer.WriteLine($"""
+        writer.WriteLine(
+            $"""
 
-                          ### [{tool.Tool}]({tool.Url})
+             ### [{tool.Tool}]({tool.Url})
 
-                            * Cost: {tool.Cost}
-                            * Is MDI: {tool.IsMdi}
-                            * Supports auto-refresh: {tool.AutoRefresh}
-                            * Supports text files: {tool.SupportsText}
-                            * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
-                          """);
+               * Cost: {tool.Cost}
+               * Is MDI: {tool.IsMdi}
+               * Supports auto-refresh: {tool.AutoRefresh}
+               * Supports text files: {tool.SupportsText}
+               * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
+             """);
 
         if (tool.BinaryExtensions.Any())
         {
@@ -131,44 +134,48 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
         if (tool.Notes != null)
         {
-            writer.WriteLine($"""
+            writer.WriteLine(
+                $"""
 
-                              #### Notes:
+                 #### Notes:
 
-                              {tool.Notes}
-                              """);
+                 {tool.Notes}
+                 """);
         }
 
         var (windows, linux, osx) = tool.OsSupport;
         if (windows != null)
         {
-            writer.WriteLine("""
+            writer.WriteLine(
+                """
 
-                             #### Windows settings:
+                #### Windows settings:
 
-                             """);
+                """);
             WriteArguments(writer, windows.LaunchArguments);
             WritePaths(windows.ExeName, windows.PathCommandName, writer, OsSettingsResolver.ExpandProgramFiles(windows.SearchDirectories).ToList());
         }
 
         if (osx != null)
         {
-            writer.WriteLine("""
+            writer.WriteLine(
+                """
 
-                             #### OSX settings:
+                #### OSX settings:
 
-                             """);
+                """);
             WriteArguments(writer, osx.LaunchArguments);
             WritePaths(osx.ExeName, osx.PathCommandName, writer, osx.SearchDirectories);
         }
 
         if (linux != null)
         {
-            writer.WriteLine("""
+            writer.WriteLine(
+                """
 
-                             #### Linux settings:
+                #### Linux settings:
 
-                             """);
+                """);
             WriteArguments(writer, linux.LaunchArguments);
             WritePaths(linux.ExeName, linux.PathCommandName, writer, linux.SearchDirectories);
         }
