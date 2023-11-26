@@ -110,7 +110,7 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            KillIfMdi(tool, command);
+            KillIfNotMdi(tool, command);
         }
 
         if (MaxInstance.Reached())
@@ -145,7 +145,7 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            KillIfMdi(tool, command);
+            KillIfNotMdi(tool, command);
         }
 
         if (MaxInstance.Reached())
@@ -235,7 +235,7 @@ public static partial class DiffRunner
         }
     }
 
-    static void KillIfMdi(ResolvedTool tool, string command)
+    static void KillIfNotMdi(ResolvedTool tool, string command)
     {
         if (!tool.IsMdi)
         {
