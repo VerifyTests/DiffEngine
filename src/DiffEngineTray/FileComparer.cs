@@ -41,7 +41,6 @@ static class FileComparer
             var count = await t1;
 
             //no need to compare size since only enter on files being same size
-
             if (count == 0)
             {
                 return true;
