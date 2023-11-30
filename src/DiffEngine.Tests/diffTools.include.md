@@ -62,7 +62,9 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `-mi "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `-mi "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `C:\Program Files\Deltopia\DeltaWalker\DeltaWalker.exe`
+    * `%ProgramFiles%\Deltopia\DeltaWalker\DeltaWalker.exe`
+    * `%ProgramW6432%\Deltopia\DeltaWalker\DeltaWalker.exe`
+    * `%ProgramFiles(x86)%\Deltopia\DeltaWalker\DeltaWalker.exe`
     * `%PATH%DeltaWalker.exe`
 
 #### OSX settings:
