@@ -290,7 +290,10 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%LOCALAPPDATA%\Programs\Rider\bin\rider64.exe`
+    * `%LOCALAPPDATA%\Programs\Rider*\bin\rider64.exe`
+    * `%ProgramFiles%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+    * `%ProgramW6432%\JetBrains\JetBrains Rider *\bin\rider64.exe`
+    * `%ProgramFiles(x86)%\JetBrains\JetBrains Rider *\bin\rider64.exe`
     * `%PATH%rider.cmd`
 
 #### OSX settings:
