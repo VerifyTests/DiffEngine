@@ -20,7 +20,8 @@ static partial class Implementation
                     "rider64.exe",
                     "rider.cmd",
                     launchArguments,
-                    @"%LOCALAPPDATA%\Programs\Rider\bin\"),
+                    @"%LOCALAPPDATA%\Programs\Rider*\bin\",
+                    @"%ProgramFiles%\JetBrains\JetBrains Rider *\bin\"),
                 Osx: new(
                     "rider",
                     launchArguments,
