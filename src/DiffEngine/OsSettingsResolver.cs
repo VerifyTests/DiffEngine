@@ -17,7 +17,7 @@ static class OsSettingsResolver
         }
         else
         {
-            envPaths = Array.Empty<string>();
+            envPaths = [];
         }
     }
 
