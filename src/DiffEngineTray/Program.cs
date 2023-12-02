@@ -1,3 +1,5 @@
+using NotifyIcon = System.Windows.Forms.NotifyIcon;
+
 static class Program
 {
     static async Task Main()
@@ -55,7 +57,6 @@ static class Program
             async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
             tracker);
 
-        var showMenu = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!;
         icon.MouseClick += (_, args) =>
         {
             if (args.Button == MouseButtons.Left)
@@ -63,7 +64,7 @@ static class Program
                 var position = Cursor.Position;
                 position.Offset(-menuStrip.Width, -menuStrip.Height);
                 menuStrip.Location = position;
-                showMenu.Invoke(icon, null);
+                ShowContextMenu(icon);
             }
         };
 
@@ -73,6 +74,9 @@ static class Program
         tokenSource.Cancel();
         await task;
     }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ShowContextMenu")]
+    static extern void ShowContextMenu(NotifyIcon icon);
 
     static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
     {
