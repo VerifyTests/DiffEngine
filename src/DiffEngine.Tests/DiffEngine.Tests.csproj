@@ -11,7 +11,7 @@
     <PackageReference Include="MarkdownSnippets.MsBuild" Version="26.0.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Argon" Version="0.14.0" />
-    <PackageReference Include="Xunit" Version="2.6.2" />
+    <PackageReference Include="Xunit" Version="2.6.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.5" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" Version="1.0.106" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.3.1" />
