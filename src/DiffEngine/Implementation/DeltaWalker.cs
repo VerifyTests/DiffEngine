@@ -14,8 +14,8 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: false,
             Cost: "Paid",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "jpg",
                 "jp2",
                 "j2k",
@@ -49,7 +49,7 @@ static partial class Implementation
                 "rtf",
                 "html",
                 "htm"
-            },
+            ],
             OsSupport: new(
                 Osx: new(
                     "DeltaWalker",

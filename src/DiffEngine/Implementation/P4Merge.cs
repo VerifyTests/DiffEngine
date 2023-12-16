@@ -30,8 +30,8 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "gif",
                 "jpg",
@@ -44,7 +44,7 @@ static partial class Implementation
                 "tiff",
                 "xbm",
                 "xpm"
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "p4merge.exe",

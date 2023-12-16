@@ -9,8 +9,8 @@ static partial class Implementation
             SupportsText: false,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "gif",
                 "ico",
@@ -19,7 +19,7 @@ static partial class Implementation
                 "png",
                 "tif",
                 "tiff"
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "TortoiseIDiff.exe",

@@ -66,7 +66,7 @@
             var multiSpaceIndex = 0;
             CharSpan command;
 
-            var spaces = new CharSpan(new []{' ',' ',' '});
+            var spaces = new CharSpan([' ',' ',' ']);
             if (timeAndCommandString.IndexOf(spaces, StringComparison.InvariantCulture) > 0)
             {
                 multiSpaceIndex = timeAndCommandString[firstSpace..].IndexOf(spaces, StringComparison.InvariantCulture);

@@ -5,10 +5,7 @@ public record OsSettings(string ExeName, string PathCommandName, LaunchArguments
             exeName,
             pathCommandName,
             launchArguments,
-            new[]
-            {
-                searchDirectory
-            })
+            [searchDirectory])
     {
     }
 
@@ -22,10 +19,7 @@ public record OsSettings(string ExeName, string PathCommandName, LaunchArguments
             exeName,
             exeName,
             launchArguments,
-            new[]
-            {
-                searchDirectory
-            })
+            [searchDirectory])
     {
     }
 

@@ -24,8 +24,8 @@ static partial class Implementation
             // technically BC doesnt require a target.
             // but if no target exists, the target cannot be edited
             RequiresTarget: true,
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "pdf",
                 "bmp",
                 "gif",
@@ -36,7 +36,7 @@ static partial class Implementation
                 "tif",
                 "tiff",
                 "rtf"
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "BCompare.exe",

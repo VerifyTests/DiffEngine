@@ -9,8 +9,8 @@ static partial class Implementation
             Cost: "Paid",
             SupportsText: true,
             RequiresTarget: true,
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "dib",
                 "emf",
@@ -33,7 +33,7 @@ static partial class Implementation
                 "tiff",
                 "tga",
                 "wmf" //?
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "Compare.exe",

@@ -1,10 +1,10 @@
 ﻿static class WildcardFileFinder
 {
     static char[] separators =
-    {
+    [
         Path.DirectorySeparatorChar,
         Path.AltDirectorySeparatorChar
-    };
+    ];
 
     static IEnumerable<string> EnumerateDirectories(string directory)
     {

@@ -9,8 +9,8 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Paid",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "gif",
                 "ico",
@@ -19,7 +19,7 @@ static partial class Implementation
                 "png",
                 "tiff",
                 "tif"
-            },
+            ],
             OsSupport: new(
                 Osx: new(
                     "ksdiff",

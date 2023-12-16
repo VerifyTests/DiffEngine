@@ -14,15 +14,15 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Paid",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "gif",
                 "jpeg",
                 "jpg",
                 "png",
                 "wbmp"
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "guiffy.exe",

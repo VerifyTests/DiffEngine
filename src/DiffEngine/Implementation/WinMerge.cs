@@ -24,8 +24,8 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free with option to donate",
-            BinaryExtensions: new[]
-            {
+            BinaryExtensions:
+            [
                 "bmp",
                 "cut",
                 "dds",
@@ -75,7 +75,7 @@ static partial class Implementation
                 "webp",
                 "xbm",
                 "xpm"
-            },
+            ],
             OsSupport: new(
                 Windows: new(
                     "WinMergeU.exe",
