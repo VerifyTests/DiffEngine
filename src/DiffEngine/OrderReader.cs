@@ -2,7 +2,9 @@
 {
     public record Result(bool UsedToolOrderEnvVar, IEnumerable<DiffTool> Order);
 
-    static Result defaultResult = new(false, Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>());
+    static Result defaultResult = new(false, Enum
+        .GetValues(typeof(DiffTool))
+        .Cast<DiffTool>());
 
     public static Result ReadToolOrder()
     {
@@ -17,10 +19,12 @@
         return new(true, order);
     }
 
+    static char[] environmentSeparators = [',', '|', ' '];
+
     internal static IEnumerable<DiffTool> ParseEnvironment(string diffOrder)
     {
         foreach (var toolString in diffOrder
-                     .Split(new[] {',', '|', ' '}, StringSplitOptions.RemoveEmptyEntries))
+                     .Split(environmentSeparators, StringSplitOptions.RemoveEmptyEntries))
         {
             if (!Enum.TryParse<DiffTool>(toolString, out var diffTool))
             {
