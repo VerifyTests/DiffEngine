@@ -10,30 +10,32 @@ public static partial class DiffRunner
     public static void MaxInstancesToLaunch(int value) =>
         MaxInstance.SetForAppDomain(value);
 
-    public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile)
+    public static LaunchResult Launch(DiffTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
             ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
-    public static Task<LaunchResult> LaunchAsync(DiffTool tool, string tempFile, string targetFile)
+    public static Task<LaunchResult> LaunchAsync(DiffTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
             ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
     /// <summary>
     /// Launch a diff tool for the given paths.
     /// </summary>
-    public static LaunchResult Launch(string tempFile, string targetFile)
+    public static LaunchResult Launch(string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
@@ -44,13 +46,14 @@ public static partial class DiffRunner
                 return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
     /// <summary>
     /// Launch a diff tool for the given paths.
     /// </summary>
-    public static Task<LaunchResult> LaunchAsync(string tempFile, string targetFile)
+    public static Task<LaunchResult> LaunchAsync(string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
@@ -61,10 +64,11 @@ public static partial class DiffRunner
                 return DiffTools.TryFindByExtension(extension, out tool);
             },
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
-    public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile)
+    public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
@@ -75,10 +79,11 @@ public static partial class DiffRunner
                 return true;
             },
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
-    public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile)
+    public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
 
@@ -89,12 +94,13 @@ public static partial class DiffRunner
                 return true;
             },
             tempFile,
-            targetFile);
+            targetFile,
+            encoding);
     }
 
-    static LaunchResult InnerLaunch(TryResolveTool tryResolveTool, string tempFile, string targetFile)
+    static LaunchResult InnerLaunch(TryResolveTool tryResolveTool, string tempFile, string targetFile, Encoding? encoding)
     {
-        if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
+        if (ShouldExitLaunch(tryResolveTool, targetFile, encoding, out var tool, out var result))
         {
             DiffEngineTray.AddMove(tempFile, targetFile, null, null, false, null);
             return result.Value;
@@ -126,9 +132,9 @@ public static partial class DiffRunner
         return LaunchResult.StartedNewInstance;
     }
 
-    static async Task<LaunchResult> InnerLaunchAsync(TryResolveTool tryResolveTool, string tempFile, string targetFile)
+    static async Task<LaunchResult> InnerLaunchAsync(TryResolveTool tryResolveTool, string tempFile, string targetFile, Encoding? encoding)
     {
-        if (ShouldExitLaunch(tryResolveTool, targetFile, out var tool, out var result))
+        if (ShouldExitLaunch(tryResolveTool, targetFile, encoding, out var tool, out var result))
         {
             await DiffEngineTray.AddMoveAsync(tempFile, targetFile, null, null, false, null);
             return result.Value;
@@ -164,6 +170,7 @@ public static partial class DiffRunner
     static bool ShouldExitLaunch(
         TryResolveTool tryResolveTool,
         string targetFile,
+        Encoding? encoding,
         [NotNullWhen(false)] out ResolvedTool? tool,
         [NotNullWhen(true)] out LaunchResult? result)
     {
@@ -180,7 +187,7 @@ public static partial class DiffRunner
             return true;
         }
 
-        if (!TryCreate(tool, targetFile))
+        if (!TryCreate(tool, targetFile, encoding))
         {
             result = LaunchResult.NoEmptyFileForExtension;
             return true;
@@ -190,12 +197,12 @@ public static partial class DiffRunner
         return false;
     }
 
-    static bool TryCreate(ResolvedTool tool, string targetFile)
+    static bool TryCreate(ResolvedTool tool, string targetFile, Encoding? encoding)
     {
         var targetExists = File.Exists(targetFile);
         if (tool.RequiresTarget && !targetExists)
         {
-            if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true))
+            if (!AllFiles.TryCreateFile(targetFile, useEmptyStringForTextFiles: true, encoding))
             {
                 return false;
             }
