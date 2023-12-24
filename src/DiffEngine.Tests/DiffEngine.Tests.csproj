@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
-    <PackageReference Include="MarkdownSnippets.MsBuild" Version="26.0.0" PrivateAssets="all" />
+    <PackageReference Include="MarkdownSnippets.MsBuild" Version="26.0.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Argon" Version="0.14.0" />
     <PackageReference Include="Xunit" Version="2.6.4" />
