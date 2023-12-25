@@ -22,12 +22,9 @@ var resolvedTool = DiffTools.AddTool(
         Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
         Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
     exePath: diffToolPath,
-    binaryExtensions: new[]
-    {
-        "jpg"
-    })!;
+    binaryExtensions: ["jpg"])!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L19-L36' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L19-L33' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtool' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Add a tool based on existing resolved tool:
@@ -42,7 +39,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
         Left: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
         Right: (temp, target) => $"\"custom args \"{temp}\" \"{target}\""))!;
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L68-L77' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L65-L74' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolbasedon' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -72,7 +69,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L88-L99' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L85-L96' title='Snippet source file'>snippet source</a> | <a href='#snippet-addtoolandlaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
