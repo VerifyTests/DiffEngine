@@ -11,8 +11,7 @@ public static partial class DiffTools
         string extension,
         [NotNullWhen(true)] out ResolvedTool? tool)
     {
-        extension = FileExtensions.GetExtension(extension);
-        if (FileExtensions.IsText(extension))
+        if (FileExtensions.IsTextExtension(extension))
         {
             tool = resolved.FirstOrDefault(_ => _.SupportsText);
             return tool != null;
