@@ -28,10 +28,7 @@
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
             exePath: diffToolPath,
-            binaryExtensions: new[]
-            {
-                "jpg"
-            })!;
+            binaryExtensions: ["jpg"]);
 
         #endregion
 
