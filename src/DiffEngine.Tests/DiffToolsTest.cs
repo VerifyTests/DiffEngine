@@ -28,12 +28,12 @@
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
             exePath: diffToolPath,
-            binaryExtensions: ["jpg"])!;
+            binaryExtensions: [".jpg"])!;
 
         #endregion
 
         Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
-        Assert.True(DiffTools.TryFindByExtension("jpg", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension.Name);
     }
 
@@ -54,7 +54,7 @@
             binaryExtensions: Enumerable.Empty<string>())!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
         Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
-        Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
         Assert.Equal("MyCustomDiffTool", forExtension.Name);
     }
 
@@ -74,7 +74,7 @@
         #endregion
 
         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
-        Assert.True(DiffTools.TryFindByExtension("txt", out var forExtension));
+        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
         Assert.Equal(resolvedTool, forExtension);
         Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
         Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
@@ -137,10 +137,10 @@
     [Fact]
     public void TryFind()
     {
-        Assert.True(DiffTools.TryFindByExtension("txt", out var resolved));
+        Assert.True(DiffTools.TryFindByExtension(".txt", out var resolved));
         Assert.NotNull(resolved);
 
-        Assert.False(DiffTools.TryFindByExtension("notFound", out resolved));
+        Assert.False(DiffTools.TryFindByExtension(".notFound", out resolved));
         Assert.Null(resolved);
     }
 

@@ -11,28 +11,28 @@ static partial class Implementation
             RequiresTarget: true,
             BinaryExtensions:
             [
-                "bmp",
-                "dib",
-                "emf",
-                "gif",
-                "jif",
-                "j2c",
-                "j2k",
-                "jp2",
-                "jpc",
-                "jpeg",
-                "jpg",
-                "jpx",
-                "pbm", //?
-                "pcx",
-                "pgm",
-                "png",
-                "ppm", //?
-                "ras", //?
-                "tif",
-                "tiff",
-                "tga",
-                "wmf" //?
+                ".bmp",
+                ".dib",
+                ".emf",
+                ".gif",
+                ".jif",
+                ".j2c",
+                ".j2k",
+                ".jp2",
+                ".jpc",
+                ".jpeg",
+                ".jpg",
+                ".jpx",
+                ".pbm", //?
+                ".pcx",
+                ".pgm",
+                ".png",
+                ".ppm", //?
+                ".ras", //?
+                ".tif",
+                ".tiff",
+                ".tga",
+                ".wmf" //?
             ],
             OsSupport: new(
                 Windows: new(

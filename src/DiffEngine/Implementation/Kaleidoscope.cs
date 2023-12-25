@@ -11,14 +11,14 @@ static partial class Implementation
             Cost: "Paid",
             BinaryExtensions:
             [
-                "bmp",
-                "gif",
-                "ico",
-                "jpg",
-                "jpeg",
-                "png",
-                "tiff",
-                "tif"
+                ".bmp",
+                ".gif",
+                ".ico",
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".tiff",
+                ".tif"
             ],
             OsSupport: new(
                 Osx: new(

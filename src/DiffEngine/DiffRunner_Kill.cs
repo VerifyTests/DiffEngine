@@ -12,7 +12,7 @@ public static partial class DiffRunner
             return;
         }
 
-        var extension = FileExtensions.GetExtension(tempFile);
+        var extension = Path.GetExtension(tempFile);
         if (!DiffTools.TryFindByExtension(extension, out var diffTool))
         {
             Logging.Write($"Extension not found. {extension}");
