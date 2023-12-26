@@ -16,12 +16,12 @@ static partial class Implementation
             Cost: "Paid",
             BinaryExtensions:
             [
-                ".bmp",
-                ".gif",
-                ".jpeg",
-                ".jpg",
-                ".png",
-                ".wbmp"
+                "bmp",
+                "gif",
+                "jpeg",
+                "jpg",
+                "png",
+                "wbmp"
             ],
             OsSupport: new(
                 Windows: new(

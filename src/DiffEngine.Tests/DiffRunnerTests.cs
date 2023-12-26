@@ -192,6 +192,6 @@ public class DiffRunnerTests :
                 Left: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",
                 Right: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\""),
             exePath: FakeDiffTool.Exe,
-            binaryExtensions: [".knownBin"])!;
+            binaryExtensions: ["knownBin"])!;
 }
 #endif

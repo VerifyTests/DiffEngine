@@ -26,16 +26,16 @@ static partial class Implementation
             RequiresTarget: true,
             BinaryExtensions:
             [
-                ".pdf",
-                ".bmp",
-                ".gif",
-                ".ico",
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".tif",
-                ".tiff",
-                ".rtf"
+                "pdf",
+                "bmp",
+                "gif",
+                "ico",
+                "jpg",
+                "jpeg",
+                "png",
+                "tif",
+                "tiff",
+                "rtf"
             ],
             OsSupport: new(
                 Windows: new(
