@@ -35,17 +35,18 @@ public static partial class DiffTools
         InitTools(throwForNoTool, order);
     }
 
-    public static bool IsDetectedFor(DiffTool diffTool, string extensionOrPath)
-    {
-        var extension = FileExtensions.GetExtension(extensionOrPath);
+    public static bool IsDetectedForFile(DiffTool diffTool, string path) =>
+        IsDetectedForExtension(diffTool, Path.GetExtension(path));
 
+    public static bool IsDetectedForExtension(DiffTool diffTool, string extension)
+    {
         var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
         if (tool == null)
         {
             return false;
         }
 
-        if (FileExtensions.IsText(extension))
+        if (FileExtensions.IsTextExtension(extension))
         {
             return tool.SupportsText;
         }

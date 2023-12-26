@@ -5,7 +5,7 @@ static partial class Implementation
         var launchArguments = new LaunchArguments(
             Left: (temp, target) =>
             {
-                if (FileExtensions.IsText(temp))
+                if (FileExtensions.IsTextFile(temp))
                 {
                     return $"\"{target}\" \"{temp}\"";
                 }
@@ -14,7 +14,7 @@ static partial class Implementation
             },
             Right: (temp, target) =>
             {
-                if (FileExtensions.IsText(temp))
+                if (FileExtensions.IsTextFile(temp))
                 {
                     return $"\"{temp}\" \"{target}\"";
                 }
@@ -32,18 +32,18 @@ static partial class Implementation
             Cost: "Free",
             BinaryExtensions:
             [
-                "bmp",
-                "gif",
-                "jpg",
-                "jpeg",
-                "png",
-                "pbm",
-                "pgm",
-                "ppm",
-                "tif",
-                "tiff",
-                "xbm",
-                "xpm"
+                ".bmp",
+                ".gif",
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".pbm",
+                ".pgm",
+                ".ppm",
+                ".tif",
+                ".tiff",
+                ".xbm",
+                ".xpm"
             ],
             OsSupport: new(
                 Windows: new(

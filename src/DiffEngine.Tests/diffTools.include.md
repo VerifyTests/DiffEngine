@@ -11,7 +11,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
-  * Supported binaries: pdf, bmp, gif, ico, jpg, jpeg, png, tif, tiff, rtf
+  * Supported binaries: .pdf, .bmp, .gif, .ico, .jpg, .jpeg, .png, .tif, .tiff, .rtf
 
 #### Notes:
 
@@ -51,7 +51,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_DeltaWalker`
-  * Supported binaries: jpg, jp2, j2k, png, gif, psd, tif, bmp, pct, pict, pic, ico, ppm, pgm, pbm, pnm, zip, jar, ear, tar, tgz, tbz2, gz, bz2, doc, docx, xls, xlsx, ppt, pdf, rtf, html, htm
+  * Supported binaries: .jpg, .jp2, .j2k, .png, .gif, .psd, .tif, .bmp, .pct, .pict, .pic, .ico, .ppm, .pgm, .pbm, .pnm, .zip, .jar, .ear, .tar, .tgz, .tbz2, .gz, .bz2, .doc, .docx, .xls, .xlsx, .ppt, .pdf, .rtf, .html, .htm
 
 #### Notes:
 
@@ -129,7 +129,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: False
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_Guiffy`
-  * Supported binaries: bmp, gif, jpeg, jpg, png, wbmp
+  * Supported binaries: .bmp, .gif, .jpeg, .jpg, .png, .wbmp
 
 #### Notes:
 
@@ -163,7 +163,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_Kaleidoscope`
-  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tiff, tif
+  * Supported binaries: .bmp, .gif, .ico, .jpg, .jpeg, .png, .tiff, .tif
 
 #### OSX settings:
 
@@ -242,7 +242,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: False
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_P4Merge`
-  * Supported binaries: bmp, gif, jpg, jpeg, png, pbm, pgm, ppm, tif, tiff, xbm, xpm
+  * Supported binaries: .bmp, .gif, .jpg, .jpeg, .png, .pbm, .pgm, .ppm, .tif, .tiff, .xbm, .xpm
 
 #### Windows settings:
 
@@ -337,7 +337,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: False
   * Supports text files: False
   * Environment variable for custom install location: `DiffEngine_TortoiseGitIDiff`
-  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
+  * Supported binaries: .bmp, .gif, .ico, .jpg, .jpeg, .png, .tif, .tiff
 
 #### Windows settings:
 
@@ -374,7 +374,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: False
   * Supports text files: False
   * Environment variable for custom install location: `DiffEngine_TortoiseIDiff`
-  * Supported binaries: bmp, gif, ico, jpg, jpeg, png, tif, tiff
+  * Supported binaries: .bmp, .gif, .ico, .jpg, .jpeg, .png, .tif, .tiff
 
 #### Windows settings:
 
@@ -445,7 +445,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_WinMerge`
-  * Supported binaries: bmp, cut, dds, exr, g3, gif, hdr, ico, iff, lbm, j2k, j2c, jng, jp2, jpg, jif, jpeg, jpe, jxr, wdp, hdp, koa, mng, pcd, pcx, pfm, pct, pict, pic, png, pbm, pgm, ppm, psd, ras, sgi, rgb, rgba, bw, tga, targa, tif, tiff, wap, wbmp, wbm, webp, xbm, xpm
+  * Supported binaries: .bmp, .cut, .dds, .exr, .g3, .gif, .hdr, .ico, .iff, .lbm, .j2k, .j2c, .jng, .jp2, .jpg, .jif, .jpeg, .jpe, .jxr, .wdp, .hdp, .koa, .mng, .pcd, .pcx, .pfm, .pct, .pict, .pic, .png, .pbm, .pgm, .ppm, .psd, .ras, .sgi, .rgb, .rgba, .bw, .tga, .targa, .tif, .tiff, .wap, .wbmp, .wbm, .webp, .xbm, .xpm
 
 #### Notes:
 
@@ -477,7 +477,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Environment variable for custom install location: `DiffEngine_AraxisMerge`
-  * Supported binaries: bmp, dib, emf, gif, jif, j2c, j2k, jp2, jpc, jpeg, jpg, jpx, pbm, pcx, pgm, png, ppm, ras, tif, tiff, tga, wmf
+  * Supported binaries: .bmp, .dib, .emf, .gif, .jif, .j2c, .j2k, .jp2, .jpc, .jpeg, .jpg, .jpx, .pbm, .pcx, .pgm, .png, .ppm, .ras, .tif, .tiff, .tga, .wmf
 
 #### Notes:
 
