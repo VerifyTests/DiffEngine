@@ -17,7 +17,7 @@
     <PackageReference Include="Fody" Version="6.8.0" PrivateAssets="all" />
     <PackageReference Include="System.Collections.Immutable" Version="8.0.0" Condition="'$(TargetFramework)' != 'net8.0'" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" Condition="$(Configuration) == 'Release'" />
-    <PackageReference Include="Polyfill" Version="2.0.0" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" Version="2.0.1" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" Version="1.0.108" PrivateAssets="all" />
     <PackageReference Include="System.Management" Version="6.0.2" />
   </ItemGroup>
