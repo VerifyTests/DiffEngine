@@ -1,4 +1,6 @@
-﻿namespace DiffEngine;
+﻿using System.Collections.Frozen;
+
+namespace DiffEngine;
 
 public record ResolvedTool
 {
@@ -45,7 +47,7 @@ public record ResolvedTool
         LaunchArguments = launchArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
-        BinaryExtensions = binaryExtensions;
+        BinaryExtensions = binaryExtensions.ToFrozenSet();
         if (binaryExtensions.Any(_ => !_.StartsWith('.')))
         {
             throw new(
@@ -65,7 +67,7 @@ public record ResolvedTool
     public LaunchArguments LaunchArguments { get; init; }
     public bool IsMdi { get; init; }
     public bool AutoRefresh { get; init; }
-    public IReadOnlyCollection<string> BinaryExtensions { get; init; }
+    public FrozenSet<string> BinaryExtensions { get; init; }
     public bool RequiresTarget { get; init; }
     public bool SupportsText { get; init; }
 
