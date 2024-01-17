@@ -1,5 +1,4 @@
-﻿// [UsesVerify]
-// public class SettingsHelperTests(ITestOutputHelper output) :
+﻿// public class SettingsHelperTests(ITestOutputHelper output) :
 //     XunitContextBase(output)
 // {
 //     [Fact]

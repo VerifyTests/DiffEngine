@@ -11,9 +11,9 @@
     <PackageReference Include="MarkdownSnippets.MsBuild" Version="26.0.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="Argon" Version="0.15.0" />
-    <PackageReference Include="Xunit" Version="2.6.5" />
+    <PackageReference Include="Xunit" Version="2.6.6" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6" PrivateAssets="all" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.108" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.109" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.3.1" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' != 'net7.0'" />

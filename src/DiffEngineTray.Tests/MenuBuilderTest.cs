@@ -1,6 +1,5 @@
 ﻿using EmptyFiles;
 
-[UsesVerify]
 public class MenuBuilderTest :
     XunitContextBase
 {

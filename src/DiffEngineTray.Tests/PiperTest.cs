@@ -1,5 +1,4 @@
 ﻿#if NET7_0
-[UsesVerify]
 public class PiperTest(ITestOutputHelper output) :
     XunitContextBase(output)
 {

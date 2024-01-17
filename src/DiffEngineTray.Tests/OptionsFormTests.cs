@@ -1,5 +1,4 @@
 ﻿#if DEBUG
-[UsesVerify]
 public class OptionsFormTests :
     XunitContextBase
 {
