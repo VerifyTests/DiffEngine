@@ -25,7 +25,8 @@ static partial class Implementation
                 Osx: new(
                     "rider",
                     launchArguments,
-                    "/Applications/Rider.app/Contents/MacOS/"),
+                    "/Applications/Rider.app/Contents/MacOS/",
+                    "/usr/local/bin/"),
                 Linux: new(
                     "rider.sh",
                     launchArguments,
