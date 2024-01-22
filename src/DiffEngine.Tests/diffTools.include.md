@@ -304,6 +304,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on right arguments: `diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `/Applications/Rider.app/Contents/MacOS/rider`
+    * `/usr/local/bin/rider`
     * `%PATH%rider`
 
 #### Linux settings:
