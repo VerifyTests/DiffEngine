@@ -26,6 +26,7 @@ static partial class Implementation
             Cost: "Free with option to donate",
             BinaryExtensions:
             [
+                ".svg",
                 ".bmp",
                 ".cut",
                 ".dds",

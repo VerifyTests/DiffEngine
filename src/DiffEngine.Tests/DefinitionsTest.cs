@@ -129,7 +129,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
 
         if (tool.BinaryExtensions.Any())
         {
-            writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions)}");
+            writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions.OrderBy(_=>_))}");
         }
 
         if (tool.Notes != null)

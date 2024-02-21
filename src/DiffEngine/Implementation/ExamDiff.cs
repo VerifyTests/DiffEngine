@@ -24,7 +24,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Paid",
-            BinaryExtensions: [],
+            BinaryExtensions: [".svg"],
             OsSupport: new(
                 Windows: new(
                     "ExamDiff.exe",
