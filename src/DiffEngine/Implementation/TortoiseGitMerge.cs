@@ -9,7 +9,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: [],
+            BinaryExtensions: [".svg"],
             OsSupport: new(
                 Windows: new(
                     "TortoiseGitMerge.exe",

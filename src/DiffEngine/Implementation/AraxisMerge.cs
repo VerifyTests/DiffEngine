@@ -11,6 +11,7 @@ static partial class Implementation
             RequiresTarget: true,
             BinaryExtensions:
             [
+                ".svg",
                 ".bmp",
                 ".dib",
                 ".emf",

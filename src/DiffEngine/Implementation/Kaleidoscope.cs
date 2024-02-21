@@ -11,6 +11,7 @@ static partial class Implementation
             Cost: "Paid",
             BinaryExtensions:
             [
+                ".svg",
                 ".bmp",
                 ".gif",
                 ".ico",

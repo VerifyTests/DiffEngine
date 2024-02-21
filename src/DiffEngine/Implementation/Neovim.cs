@@ -14,7 +14,7 @@ static partial class Implementation
             SupportsText: true,
             RequiresTarget: true,
             Cost: "Free with option to sponsor",
-            BinaryExtensions: [],
+            BinaryExtensions: [".svg"],
             OsSupport: new(
                 Windows: new(
                     "nvim.exe",
