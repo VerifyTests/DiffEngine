@@ -14,7 +14,7 @@
     <PackageReference Include="Verify.ImageMagick" Version="3.3.0" />
     <PackageReference Include="Xunit" Version="2.7.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" PrivateAssets="all" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.111" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.112" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.3.1" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
