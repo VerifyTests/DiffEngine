@@ -14,7 +14,7 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ResolveAssemblyReferencesSilent>true</ResolveAssemblyReferencesSilent>
-    <NoWarn>CA1416</NoWarn>
+    <NoWarn>CA1416;CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.InteropServices" />
