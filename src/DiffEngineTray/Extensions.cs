@@ -1,5 +1,6 @@
 static class Extensions
 {
+    // cant use UnsafeAccessor since _window is a NotifyIconNativeWindow which is not public
     public static IntPtr Handle(this NotifyIcon target)
     {
         var windowField = typeof(NotifyIcon)
