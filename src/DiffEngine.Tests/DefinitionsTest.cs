@@ -26,7 +26,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
                 .GroupBy(_ => _);
             foreach (var group in findDuplicates)
             {
-                Assert.Equal(1, group.Count());
+                Assert.Single(group);
             }
         }
 

@@ -23,7 +23,7 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var found = OsSettingsResolver.TryFindInEnvPath("cmd.exe", out var filePath);
-            Assert.Equal(true, found);
+            Assert.True(found);
             Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
         }
 
@@ -31,7 +31,7 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
             RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             var found = OsSettingsResolver.TryFindInEnvPath("sh", out var filePath);
-            Assert.Equal(true, found);
+            Assert.True(found);
             Assert.NotNull(filePath);
         }
     }
@@ -53,7 +53,7 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
             new(Windows: new("cmd.exe", launchArguments, "")),
             out var filePath,
             out _);
-        Assert.Equal(true, found);
+        Assert.True(found);
         Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
     }
 }
