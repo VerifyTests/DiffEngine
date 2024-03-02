@@ -1,12 +1,12 @@
-﻿public class TrackerDeleteTest :
-    XunitContextBase
+﻿public class TrackerDeleteTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public async Task AddSingle()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        Assert.Equal(1, tracker.Deletes.Count);
+        Assert.Single(tracker.Deletes);
         Assert.True(tracker.TrackingAny);
     }
 
@@ -36,7 +36,7 @@
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file1);
-        Assert.Equal(1, tracker.Deletes.Count);
+        Assert.Single(tracker.Deletes);
         Assert.True(tracker.TrackingAny);
     }
 
@@ -75,16 +75,8 @@
         var tracked = tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.Accept(tracked);
-        Assert.Equal(1, tracker.Deletes.Count);
+        Assert.Single(tracker.Deletes);
         Assert.True(tracker.TrackingAny);
-    }
-
-    public TrackerDeleteTest(ITestOutputHelper output) :
-        base(output)
-    {
-        file1 = Path.GetTempFileName();
-        file2 = Path.GetTempFileName();
-        file3 = Path.GetTempFileName();
     }
 
     public override void Dispose()
@@ -95,7 +87,7 @@
         base.Dispose();
     }
 
-    string file1;
-    string file2;
-    string file3;
+    string file1 = Path.GetTempFileName();
+    string file2 = Path.GetTempFileName();
+    string file3 = Path.GetTempFileName();
 }

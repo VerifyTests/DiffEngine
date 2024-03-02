@@ -1,12 +1,12 @@
-﻿public class TrackerMoveTest :
-    XunitContextBase
+﻿public class TrackerMoveTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public async Task AddSingle()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
-        Assert.Equal(1, tracker.Moves.Count);
+        Assert.Single(tracker.Moves);
         Assert.True(tracker.TrackingAny);
     }
 
@@ -28,7 +28,7 @@
         using var process = Process.GetCurrentProcess();
         var processId = process.Id;
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", false, processId);
-        Assert.Equal(1, tracker.Moves.Count);
+        Assert.Single(tracker.Moves);
         Assert.Equal(process.Id, tracked.Process!.Id);
         Assert.True(tracker.TrackingAny);
     }
@@ -80,7 +80,7 @@
         Thread.Sleep(3000);
         // many diff tools do not require a target.
         // so the non exist of a target file should not flush that item
-        Assert.Equal(1, tracker.Moves.Count);
+        Assert.Single(tracker.Moves);
         Assert.True(tracker.TrackingAny);
     }
 
@@ -91,16 +91,8 @@
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         tracker.Accept(tracked);
-        Assert.Equal(1, tracker.Moves.Count);
+        Assert.Single(tracker.Moves);
         Assert.True(tracker.TrackingAny);
-    }
-
-    public TrackerMoveTest(ITestOutputHelper output) :
-        base(output)
-    {
-        file1 = Path.GetTempFileName();
-        file2 = Path.GetTempFileName();
-        file3 = Path.GetTempFileName();
     }
 
     public override void Dispose()
@@ -111,7 +103,7 @@
         base.Dispose();
     }
 
-    string file1;
-    string file2;
-    string file3;
+    string file1 = Path.GetTempFileName();
+    string file2 = Path.GetTempFileName();
+    string file3 = Path.GetTempFileName();
 }
