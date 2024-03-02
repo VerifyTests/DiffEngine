@@ -18,6 +18,6 @@
     <PackageReference Include="System.Collections.Immutable" Version="8.0.0" Condition="'$(TargetFramework)' != 'net8.0'" />
     <PackageReference Include="Polyfill" Version="3.0.0" PrivateAssets="all" />
     <PackageReference Include="System.Management" Version="6.0.2" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.116" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.118" PrivateAssets="all" />
   </ItemGroup>
 </Project>
