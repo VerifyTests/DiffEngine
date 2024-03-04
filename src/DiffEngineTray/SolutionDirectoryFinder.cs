@@ -36,7 +36,7 @@
         do
         {
             var solutions = Directory.GetFiles(currentDirectory, "*.sln");
-            if (solutions.Any())
+            if (solutions.Length != 0)
             {
                 return new(currentDirectory, Path.GetFileNameWithoutExtension(solutions.First()));
             }

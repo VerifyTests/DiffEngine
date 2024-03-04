@@ -127,7 +127,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
                * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
              """);
 
-        if (tool.BinaryExtensions.Any())
+        if (tool.BinaryExtensions.Length != 0)
         {
             writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions.OrderBy(_=>_))}");
         }

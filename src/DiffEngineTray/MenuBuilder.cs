@@ -119,7 +119,7 @@ static class MenuBuilder
             yield return new MenuButton(name, null, Images.VisualStudio);
         }
 
-        if (deletes.Any())
+        if (deletes.Count != 0)
         {
             yield return new MenuButton($"Pending Deletes ({deletes.Count}):", () => tracker.Accept(deletes), Images.Delete);
             foreach (var delete in deletes)
@@ -128,7 +128,7 @@ static class MenuBuilder
             }
         }
 
-        if (moves.Any())
+        if (moves.Count != 0)
         {
             yield return new MenuButton($"Pending Moves ({moves.Count}):", () => tracker.Accept(moves), Images.Accept);
             foreach (var move in moves)

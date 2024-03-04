@@ -55,7 +55,7 @@ public class DiffRunnerTests :
         }
     }
 
-    async Task Launch()
+    static async Task Launch()
     {
         var targetFile = "";
         var tempFile = "";

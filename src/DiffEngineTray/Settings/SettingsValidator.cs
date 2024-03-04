@@ -8,7 +8,7 @@ public static class SettingsValidator
         ValidateHotKey(errors, settings.DiscardAllHotKey);
         ValidateHotKey(errors, settings.AcceptOpenHotKey);
 
-        return !errors.Any();
+        return errors.Count == 0;
     }
 
     static void ValidateHotKey(List<string> errors, HotKey? hotKey)

@@ -88,8 +88,8 @@ class Tracker :
     }
 
     public bool TrackingAny =>
-        moves.Any() ||
-        deletes.Any();
+        !moves.IsEmpty ||
+        !deletes.IsEmpty;
 
     public TrackedMove AddMove(
         string temp,

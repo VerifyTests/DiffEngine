@@ -38,7 +38,7 @@ static class OptionsFormLauncher
         AddHotKey(keyRegister, settings.DiscardAllHotKey, KeyBindingIds.DiscardAll, tracker.Clear, saveErrors);
         AddHotKey(keyRegister, settings.AcceptOpenHotKey, KeyBindingIds.AcceptOpen, tracker.AcceptOpen, saveErrors);
 
-        if (saveErrors.Any())
+        if (saveErrors.Count != 0)
         {
             return saveErrors;
         }

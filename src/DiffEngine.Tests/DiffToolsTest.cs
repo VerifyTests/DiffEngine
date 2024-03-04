@@ -32,7 +32,8 @@
 
         #endregion
 
-        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First().Name);
+        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First()
+            .Name);
         Assert.True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension.Name);
     }
@@ -80,7 +81,7 @@
         Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
     }
 #endif
-    async Task AddToolAndLaunch()
+    static async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
 
@@ -129,9 +130,13 @@
     public void ChangeOrder()
     {
         #region UseOrder
+
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+
         #endregion
-        Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First().Tool);
+
+        Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First()
+            .Tool);
     }
 
     [Fact]
@@ -155,7 +160,8 @@
     }
 #endif
 
-    public DiffToolsTest(ITestOutputHelper output) :
+    public DiffToolsTest(ITestOutputHelper output)
+        :
         base(output) =>
         DiffTools.Reset();
 }

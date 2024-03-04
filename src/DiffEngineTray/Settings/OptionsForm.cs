@@ -35,7 +35,7 @@
         };
 
         var errors = (await trySave(newSettings)).ToList();
-        if (!errors.Any())
+        if (errors.Count == 0)
         {
             DialogResult = DialogResult.OK;
             return;
