@@ -119,7 +119,7 @@
             Path.Combine(SourceDirectory, "input.target.txt"));
     **/
 #if DEBUG
-    static void ChangeOrder()
+    void ChangeOrder()
     {
         #region UseOrder
 
