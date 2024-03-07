@@ -36,6 +36,11 @@ static class ProcessEx
         try
         {
             process.Kill();
+            var exited = process.WaitForExit(500);
+            if (!exited)
+            {
+                ExceptionHandler.Handle($"Failed to kill process. Id:{process.Id} Name: {process.MainModule?.FileName}");
+            }
         }
         catch (InvalidOperationException)
         {

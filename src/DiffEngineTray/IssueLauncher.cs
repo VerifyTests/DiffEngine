@@ -17,27 +17,21 @@ static class IssueLauncher
 
     public static void LaunchForException(string message, Exception exception)
     {
-        if (recorded.Contains(message))
+        if (CheckRecorded(message))
         {
             return;
         }
 
-        recorded.Add(message);
+        var text = $"""
+                    An error occurred: {message}
 
-        var result = MessageBox.Show(
-            $"""
-             An error occurred: {message}
+                    Logged to: {Logging.LogsDirectory}
 
-             Logged to: {Logging.LogsDirectory}
+                    {exception.GetType().Name}: {exception.Message}
 
-             {exception.GetType().Name}: {exception.Message}
-
-             Open an issue on GitHub?
-             """,
-            "DiffEngineTray Error",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Error);
-        if (result == DialogResult.No)
+                    Open an issue on GitHub?
+                    """;
+        if (AskIfOpenIssue(text))
         {
             return;
         }
@@ -53,5 +47,54 @@ static class IssueLauncher
              """);
         var url = $"https://github.com/VerifyTests/DiffEngine/issues/new?title={message}&body={defaultBody}{extraBody}";
         LinkLauncher.LaunchUrl(url);
+    }
+
+    public static void LaunchForException(string message)
+    {
+        if (CheckRecorded(message))
+        {
+            return;
+        }
+
+        var text = $"""
+                    An error occurred: {message}
+
+                    Logged to: {Logging.LogsDirectory}
+
+                    Open an issue on GitHub?
+                    """;
+        if (AskIfOpenIssue(text))
+        {
+            return;
+        }
+
+        var extraBody = WebUtility.UrlEncode(
+            $"""
+
+              * Action: {message}
+             """);
+        var url = $"https://github.com/VerifyTests/DiffEngine/issues/new?title={message}&body={defaultBody}{extraBody}";
+        LinkLauncher.LaunchUrl(url);
+    }
+
+    static bool AskIfOpenIssue(string text)
+    {
+        var result = MessageBox.Show(
+            text,
+            "DiffEngineTray Error",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Error);
+        return result == DialogResult.No;
+    }
+
+    static bool CheckRecorded(string message)
+    {
+        if (recorded.Contains(message))
+        {
+            return true;
+        }
+
+        recorded.Add(message);
+        return false;
     }
 }
