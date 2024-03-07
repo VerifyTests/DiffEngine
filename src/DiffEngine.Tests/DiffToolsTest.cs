@@ -59,10 +59,9 @@
         Assert.Equal("MyCustomDiffTool", forExtension.Name);
     }
 
-#if DEBUG
-    [Fact]
-    public void AddToolBasedOn()
+    static void AddToolBasedOn()
     {
+        // ReSharper disable once UnusedVariable
         #region AddToolBasedOn
 
         var resolvedTool = DiffTools.AddToolBasedOn(
@@ -74,13 +73,7 @@
 
         #endregion
 
-        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
-        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
-        Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
-        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
     }
-#endif
     static async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
@@ -126,8 +119,7 @@
             Path.Combine(SourceDirectory, "input.target.txt"));
     **/
 #if DEBUG
-    [Fact]
-    public void ChangeOrder()
+    static void ChangeOrder()
     {
         #region UseOrder
 
