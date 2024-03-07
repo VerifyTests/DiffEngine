@@ -127,41 +127,43 @@
     **/
 
     //todo: re enable tests with fake diff tool.
-// #if DEBUG
-//     [Fact]
-//     public void ChangeOrder()
-//     {
-//         #region UseOrder
-//
-//         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-//
-//         #endregion
-//
-//         Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First()
-//             .Tool);
-//     }
-//
-//     [Fact]
-//     public void TryFind()
-//     {
-//         Assert.True(DiffTools.TryFindByExtension(".txt", out var resolved));
-//         Assert.NotNull(resolved);
-//
-//         Assert.False(DiffTools.TryFindByExtension(".notFound", out resolved));
-//         Assert.Null(resolved);
-//     }
-//
-//     [Fact]
-//     public void TryFindByName()
-//     {
-//         Assert.True(DiffTools.TryFindByName(DiffTool.VisualStudio, out var resolved));
-//         Assert.NotNull(resolved);
-//
-//         Assert.True(DiffTools.TryFindByName(resolved.Name, out resolved));
-//         Assert.NotNull(resolved);
-//     }
-// #endif
 
+    /**
+#if DEBUG
+    [Fact]
+    public void ChangeOrder()
+    {
+        #region UseOrder
+
+        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+
+        #endregion
+
+        Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First()
+            .Tool);
+    }
+
+    [Fact]
+    public void TryFind()
+    {
+        Assert.True(DiffTools.TryFindByExtension(".txt", out var resolved));
+        Assert.NotNull(resolved);
+
+        Assert.False(DiffTools.TryFindByExtension(".notFound", out resolved));
+        Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void TryFindByName()
+    {
+        Assert.True(DiffTools.TryFindByName(DiffTool.VisualStudio, out var resolved));
+        Assert.NotNull(resolved);
+
+        Assert.True(DiffTools.TryFindByName(resolved.Name, out resolved));
+        Assert.NotNull(resolved);
+    }
+#endif
+**/
     public DiffToolsTest(ITestOutputHelper output)
         :
         base(output) =>
