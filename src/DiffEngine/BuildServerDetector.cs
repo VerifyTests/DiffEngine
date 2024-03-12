@@ -67,15 +67,6 @@ public static class BuildServerDetector
             return;
         }
 
-        // Bamboo
-        // https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html
-        // Variable name is 'bamboo.buildKey' but must be referenced with an underscore
-        if (Environment.GetEnvironmentVariable("bamboo_buildKey") != null)
-        {
-            Detected = true;
-            return;
-        }
-
         // Docker
         // https://www.hanselman.com/blog/detecting-that-a-net-core-app-is-running-in-a-docker-container-and-skippablefacts-in-xunit
         if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
