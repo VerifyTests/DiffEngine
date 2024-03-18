@@ -15,6 +15,8 @@
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ResolveAssemblyReferencesSilent>true</ResolveAssemblyReferencesSilent>
     <NoWarn>CA1416;CS1591</NoWarn>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.InteropServices" />
