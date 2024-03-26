@@ -79,11 +79,11 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 A tool can be launched using the following:
 
 <!-- snippet: DiffRunnerLaunch -->
-<a id='snippet-diffrunnerlaunch'></a>
+<a id='snippet-DiffRunnerLaunch'></a>
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L63-L67' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerlaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L63-L67' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -94,11 +94,11 @@ Note that this method will respect the above [difference behavior](/docs/diff-to
 A tool can be closed using the following:
 
 <!-- snippet: DiffRunnerKill -->
-<a id='snippet-diffrunnerkill'></a>
+<a id='snippet-DiffRunnerKill'></a>
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L76-L80' title='Snippet source file'>snippet source</a> | <a href='#snippet-diffrunnerkill' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L76-L80' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.

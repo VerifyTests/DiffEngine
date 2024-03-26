@@ -59,11 +59,11 @@ This value can also be set using [the DiffEngineTray options dialog](/docs/tray.
 ### Using code
 
 <!-- snippet: MaxInstancesToLaunch -->
-<a id='snippet-maxinstancestolaunch'></a>
+<a id='snippet-MaxInstancesToLaunch'></a>
 ```cs
 DiffRunner.MaxInstancesToLaunch(10);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L7-L11' title='Snippet source file'>snippet source</a> | <a href='#snippet-maxinstancestolaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L7-L11' title='Snippet source file'>snippet source</a> | <a href='#snippet-MaxInstancesToLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

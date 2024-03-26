@@ -47,9 +47,9 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 ### Via Code
 
 <!-- snippet: UseOrder -->
-<a id='snippet-useorder'></a>
+<a id='snippet-UseOrder'></a>
 ```cs
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L136-L140' title='Snippet source file'>snippet source</a> | <a href='#snippet-useorder' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L136-L140' title='Snippet source file'>snippet source</a> | <a href='#snippet-UseOrder' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
