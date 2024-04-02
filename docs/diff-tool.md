@@ -126,7 +126,7 @@ ReSharper | Options | Tools | Unit Testing | Test Runner
 
 File | Settings | Manage Layers | This computer | Edit Layer | Build, Execution, Deployment | Unit Testing | Test Runner
 
-<img src="rider-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="400">
+<img src="rider-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="500">
 
 
 ## Supported Tools:
