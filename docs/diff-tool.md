@@ -102,9 +102,31 @@ Since this project launches diff tools, it will trigger this feature and a dialo
 
 As such this feature needs to be disabled:
 
+
+### Disable for solution
+
+Add the following to `[Solution].sln.DotSettings`.
+
+```
+<s:String x:Key="/Default/Housekeeping/UnitTestingMru/UnitTestRunner/SpawnedProcessesResponse/@EntryValue">DoNothing</s:String>
+```
+
+
+### Disable for machine
+
+
+#### Resharper
+
 ReSharper | Options | Tools | Unit Testing | Test Runner
 
 <img src="resharper-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="400">
+
+
+#### Rider
+
+File | Settings | Build, Execution, Deployment | Unit Testing | Test Runner
+
+<img src="rider-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="400">
 
 
 ## Supported Tools:
