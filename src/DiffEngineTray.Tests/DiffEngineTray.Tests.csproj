@@ -8,7 +8,7 @@
     <Using Include="DiffEngine" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
     <PackageReference Include="Argon" Version="0.17.0" />
-    <PackageReference Include="Verify.DiffPlex" Version="2.3.0" />
+    <PackageReference Include="Verify.DiffPlex" Version="3.0.0" />
     <PackageReference Include="Verify.WinForms" Version="4.0.0" />
     <PackageReference Include="Verify.Xunit" Version="23.7.2" />
     <PackageReference Include="Verify.ImageMagick" Version="3.3.0" />
