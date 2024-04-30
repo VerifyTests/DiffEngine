@@ -13,7 +13,7 @@
     <PackageReference Include="Argon" Version="0.17.0" />
     <PackageReference Include="Xunit" Version="2.8.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.0" PrivateAssets="all" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.126" PrivateAssets="all" />
+    <PackageReference Include="ProjectDefaults" Version="1.0.127" PrivateAssets="all" />
     <PackageReference Include="XunitContext" Version="3.3.2" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' != 'net7.0'" />
