@@ -19,14 +19,13 @@ public static partial class DiffRunner
             return;
         }
 
-        var command = diffTool.BuildCommand(tempFile, targetFile);
-
         if (diffTool.IsMdi)
         {
             Logging.Write($"DiffTool is Mdi so not killing. diffTool: {diffTool.ExePath}");
             return;
         }
 
+        var command = diffTool.BuildCommand(tempFile, targetFile);
         ProcessCleanup.Kill(command);
     }
 }
