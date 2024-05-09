@@ -20,8 +20,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments: `/solo /rightreadonly "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `/solo /leftreadonly "tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments: `/solo /rightreadonly /nobackups "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `/solo /leftreadonly /nobackups "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
     * `%ProgramW6432%\Beyond Compare *\BCompare.exe`
@@ -30,16 +30,16 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments: `-solo -rightreadonly -nobackups "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-solo -leftreadonly -nobackups "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `/Applications/Beyond Compare.app/Contents/MacOS/bcomp`
     * `%PATH%bcomp`
 
 #### Linux settings:
 
-  * Example target on left arguments: `-solo -rightreadonly "targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `-solo -leftreadonly "tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments: `-solo -rightreadonly -nobackups "targetFile.txt" "tempFile.txt" `
+  * Example target on right arguments: `-solo -leftreadonly -nobackups "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
     * `/usr/bin/bcompare`
     * `%PATH%bcompare`
