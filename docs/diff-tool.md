@@ -219,15 +219,10 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_Diffinity`
   * Supported binaries: .svg
 
-#### Notes:
-
- * Disable single instance:
-   \ Preferences \ Tabs \ uncheck `Use single instance and open new diffs in tabs`.
-
 #### Windows settings:
 
-  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" `
+  * Example target on left arguments: `"targetFile.txt" "tempFile.txt" -forceNewInstance `
+  * Example target on right arguments: `"tempFile.txt" "targetFile.txt" -forceNewInstance `
   * Scanned paths:
     * `%ProgramFiles%\Diffinity\Diffinity.exe`
     * `%ProgramW6432%\Diffinity\Diffinity.exe`
