@@ -3,16 +3,16 @@ static partial class Implementation
     public static Definition BeyondCompare()
     {
         static string LeftWindowsArguments(string temp, string target) =>
-            $"/solo /rightreadonly \"{target}\" \"{temp}\"";
+            $"/solo /rightreadonly /nobackups \"{target}\" \"{temp}\"";
 
         static string RightWindowsArguments(string temp, string target) =>
-            $"/solo /leftreadonly \"{temp}\" \"{target}\"";
+            $"/solo /leftreadonly /nobackups \"{temp}\" \"{target}\"";
 
         static string LeftOsxLinuxArguments(string temp, string target) =>
-            $"-solo -rightreadonly \"{target}\" \"{temp}\"";
+            $"-solo -rightreadonly -nobackups \"{target}\" \"{temp}\"";
 
         static string RightOsxLinuxArguments(string temp, string target) =>
-            $"-solo -leftreadonly \"{temp}\" \"{target}\"";
+            $"-solo -leftreadonly -nobackups \"{temp}\" \"{target}\"";
 
         return new(
             Tool: DiffTool.BeyondCompare,
