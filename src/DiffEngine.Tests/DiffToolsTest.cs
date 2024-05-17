@@ -52,7 +52,7 @@
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
             exePath: diffToolPath,
-            binaryExtensions: Enumerable.Empty<string>())!;
+            binaryExtensions: [])!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
         Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
         Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));

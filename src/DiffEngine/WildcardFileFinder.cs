@@ -44,7 +44,7 @@
 
             if (newRoots.Count == 0)
             {
-                return Enumerable.Empty<string>();
+                return [];
             }
 
             currentRoots = newRoots;
