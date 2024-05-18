@@ -63,30 +63,43 @@ static class OsSettingsResolver
             return false;
         }
 
-        var environmentVariable = $"DiffEngine_{tool}";
-        var basePath = Environment.GetEnvironmentVariable(environmentVariable);
-        if (basePath is not null)
+        var exeName = os.ExeName;
+        if (TryFindForEnvironmentVariable(tool, exeName, out var envPath))
         {
-            if (basePath.EndsWith(os.ExeName) &&
-                File.Exists(basePath))
-            {
-                path = basePath;
-                return true;
-            }
-
-            if (Directory.Exists(basePath))
-            {
-                path = Path.Combine(basePath, os.ExeName);
-                if (File.Exists(path))
-                {
-                    return true;
-                }
-            }
-
-            throw new($"Could not find exe defined by {environmentVariable}. Path: {basePath}");
+            path = envPath;
+            return true;
         }
 
-        return TryFindExe(os.ExeName, os.PathCommandName, os.SearchDirectories, out path);
+        return TryFindExe(exeName, os.PathCommandName, os.SearchDirectories, out path);
+    }
+
+    public static bool TryFindForEnvironmentVariable(string tool, string exeName, [NotNullWhen(true)] out string? envPath)
+    {
+        var environmentVariable = $"DiffEngine_{tool}";
+        var basePath = Environment.GetEnvironmentVariable(environmentVariable);
+        if (basePath is null)
+        {
+            envPath = null;
+            return false;
+        }
+
+        if (basePath.EndsWith(exeName) &&
+            File.Exists(basePath))
+        {
+            envPath = basePath;
+            return true;
+        }
+
+        if (Directory.Exists(basePath))
+        {
+            envPath = Path.Combine(basePath, exeName);
+            if (File.Exists(envPath))
+            {
+                return true;
+            }
+        }
+
+        throw new($"Could not find exe defined by {environmentVariable}. Path: {basePath}");
     }
 
     // Note: Windows can have multiple paths, and will resolve %ProgramFiles% as 'C:\Program Files (x86)'
