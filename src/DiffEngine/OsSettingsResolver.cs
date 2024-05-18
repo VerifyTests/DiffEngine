@@ -144,10 +144,17 @@ static class OsSettingsResolver
     // Return the first one that exists.
     public static bool TryFindInEnvPath(string pathCommandName, [NotNullWhen(true)] out string? commandPath)
     {
-        commandPath = envPaths
-            .Select(_ => Path.Combine(_, pathCommandName))
-            .FirstOrDefault(File.Exists);
+        foreach (var path in envPaths)
+        {
+            var combine = Path.Combine(path, pathCommandName);
+            if (File.Exists(combine))
+            {
+                commandPath = combine;
+                return true;
+            }
+        }
 
-        return commandPath != null;
+        commandPath = null;
+        return false;
     }
 }
