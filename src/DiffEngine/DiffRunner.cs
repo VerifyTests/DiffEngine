@@ -215,7 +215,8 @@ public static partial class DiffRunner
     {
         var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
         {
-            UseShellExecute = true
+            // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
+            UseShellExecute = false
         };
         try
         {
