@@ -29,18 +29,18 @@
     <Using Include="DiffEngine" />
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
-    <PackageReference Include="Resourcer.Fody" Version="1.8.1" PrivateAssets="all" />
-    <PackageReference Include="Fody" Version="6.8.1" PrivateAssets="all" />
-    <PackageReference Include="Serilog" Version="3.1.1" />
-    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.3" />
-    <PackageReference Include="ProjectDefaults" Version="1.0.127" PrivateAssets="all" />
+    <PackageReference Include="Resourcer.Fody" PrivateAssets="all" />
+    <PackageReference Include="Fody" PrivateAssets="all" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
-    <PackageReference Include="System.Globalization.Extensions" Version="4.3.0" PrivateAssets="none" />
-    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
-    <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+    <PackageReference Include="System.Globalization.Extensions" PrivateAssets="none" />
+    <PackageReference Include="System.IO.Compression" />
+    <PackageReference Include="System.Net.Http" />
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
     <Using Include="Serilog" />
     <Using Include="System.Text.Json" />
     <Using Include="System.Text.Json.Serialization" />
