@@ -7,19 +7,19 @@ static partial class Implementation
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"\"{target}\" \"{temp}\"";
+                    return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
                 }
 
-                return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+                return $"\"{target}\" \"{temp}\"";
             },
             Right: (temp, target) =>
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"\"{temp}\" \"{target}\"";
+                    return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
                 }
 
-                return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+                return $"\"{temp}\" \"{target}\"";
             });
 
         return new(

@@ -97,6 +97,13 @@
         #endregion
     }
 
+    /**
+    [Fact]
+    public Task LaunchSpecificImageDiff() =>
+        DiffRunner.LaunchAsync(DiffTool.P4Merge,
+            Path.Combine(SourceDirectory, "input.temp.png"),
+            Path.Combine(SourceDirectory, "input.target.png"));
+    **/
     //[Fact]
     //public async Task LaunchImageDiff()
     //{
