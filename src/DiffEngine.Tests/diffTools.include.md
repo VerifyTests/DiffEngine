@@ -245,10 +245,10 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
-  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
-  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
+  * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:
     * `%ProgramFiles%\Perforce\p4merge.exe`
     * `%ProgramW6432%\Perforce\p4merge.exe`
@@ -257,20 +257,20 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
-  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
-  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
+  * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:
     * `/Applications/p4merge.app/Contents/MacOS/p4merge`
     * `%PATH%p4merge`
 
 #### Linux settings:
 
-  * Example target on left arguments for text: `"targetFile.txt" "tempFile.txt" `
-  * Example target on right arguments for text: `"tempFile.txt" "targetFile.txt" `
-  * Example target on left arguments for binary: `-C utf8-bom "tempFile.png" "targetFile.png" "targetFile.png" "targetFile.png" `
-  * Example target on right arguments for binary: `-C utf8-bom "targetFile.png" "tempFile.png" "targetFile.png" "targetFile.png" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
+  * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:
     * `%PATH%p4merge`
 
