@@ -380,8 +380,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Windows settings:
 
-  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
-  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" `
   * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
   * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:
@@ -392,8 +392,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### OSX settings:
 
-  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
-  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" `
   * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
   * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:
@@ -402,8 +402,8 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
 
 #### Linux settings:
 
-  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" "targetFile.txt" "targetFile.txt" `
-  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" "targetFile.txt" "targetFile.txt" `
+  * Example target on left arguments for text: `-C utf8-bom "tempFile.txt" "targetFile.txt" `
+  * Example target on right arguments for text: `-C utf8-bom "targetFile.txt" "tempFile.txt" `
   * Example target on left arguments for binary: `"targetFile.png" "tempFile.png" `
   * Example target on right arguments for binary: `"tempFile.png" "targetFile.png" `
   * Scanned paths:

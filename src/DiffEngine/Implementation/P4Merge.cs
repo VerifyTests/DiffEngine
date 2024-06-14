@@ -7,7 +7,7 @@ static partial class Implementation
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"-C utf8-bom \"{temp}\" \"{target}\" \"{target}\" \"{target}\"";
+                    return $"-C utf8-bom \"{temp}\" \"{target}\"";
                 }
 
                 return $"\"{target}\" \"{temp}\"";
@@ -16,7 +16,7 @@ static partial class Implementation
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"-C utf8-bom \"{target}\" \"{temp}\" \"{target}\" \"{target}\"";
+                    return $"-C utf8-bom \"{target}\" \"{temp}\"";
                 }
 
                 return $"\"{temp}\" \"{target}\"";
