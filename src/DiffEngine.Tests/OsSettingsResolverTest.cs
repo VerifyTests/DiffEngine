@@ -4,14 +4,14 @@ public class OsSettingsResolverTest(ITestOutputHelper output) :
     [Fact]
     public void Simple()
     {
-        var paths = OsSettingsResolver.ExpandProgramFiles(new[] { "Path" }).ToList();
+        var paths = OsSettingsResolver.ExpandProgramFiles(["Path"]).ToList();
         Assert.Equal("Path", paths.Single());
     }
 
     [Fact]
     public void Expand()
     {
-        var paths = OsSettingsResolver.ExpandProgramFiles(new[] { @"%ProgramFiles%\Path" }).ToList();
+        var paths = OsSettingsResolver.ExpandProgramFiles([@"%ProgramFiles%\Path"]).ToList();
         Assert.Equal(@"%ProgramFiles%\Path", paths[0]);
         Assert.Equal(@"%ProgramW6432%\Path", paths[1]);
         Assert.Equal(@"%ProgramFiles(x86)%\Path", paths[2]);
