@@ -25,7 +25,9 @@ static class DiffToolLauncher
         var startInfo = new ProcessStartInfo(move.Exe!, move.Arguments!)
         {
             // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
-            UseShellExecute = false
+            // however UseShellExecute allows the test running to not block when the difftool is launched
+            // https://github.com/VerifyTests/Verify/issues/1229
+            UseShellExecute = true
         };
 
         try
