@@ -23,7 +23,7 @@
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Text.Json" Version="8.0.3" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.0.0" />
-    <PackageVersion Include="Verify.ImageMagick" Version="3.4.4" />
+    <PackageVersion Include="Verify.ImageMagick" Version="3.5.0" />
     <PackageVersion Include="Verify.WinForms" Version="4.0.0" />
     <PackageVersion Include="Verify.Xunit" Version="25.0.4" />
     <PackageVersion Include="Xunit" Version="2.8.1" />
