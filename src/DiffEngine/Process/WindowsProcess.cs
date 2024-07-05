@@ -26,13 +26,13 @@
     public static List<ProcessCommand> FindAll()
     {
         var commands = new List<ProcessCommand>();
-        var wmiQuery =
+        const string query =
             """
             select CommandLine, ProcessId
             from Win32_Process
-            where CommandLine like '% %.%.%'
+            where CommandLine like '% %.%.% %.%.%'
             """;
-        using var searcher = new ManagementObjectSearcher(wmiQuery);
+        using var searcher = new ManagementObjectSearcher(query);
         using var collection = searcher.Get();
         foreach (var process in collection)
         {
