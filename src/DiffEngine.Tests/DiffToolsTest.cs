@@ -7,7 +7,6 @@
         DiffRunner.MaxInstancesToLaunch(10);
     #endregion
 
-
     [Fact]
     public void AddTool()
     {
