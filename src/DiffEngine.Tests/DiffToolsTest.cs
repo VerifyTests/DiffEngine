@@ -2,14 +2,11 @@
     XunitContextBase
 {
     [Fact]
-    public void MaxInstancesToLaunch()
-    {
-        #region MaxInstancesToLaunch
-
+    public void MaxInstancesToLaunch() =>
+    #region MaxInstancesToLaunch
         DiffRunner.MaxInstancesToLaunch(10);
+    #endregion
 
-        #endregion
-    }
 
     [Fact]
     public void AddTool()
