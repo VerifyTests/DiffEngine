@@ -1,15 +1,9 @@
 ﻿static class SolutionDirectoryFinder
 {
-    class Result
+    class Result(string directory, string name)
     {
-        public string Directory { get; }
-        public string Name { get; }
-
-        public Result(string directory, string name)
-        {
-            Directory = directory;
-            Name = name;
-        }
+        public string Directory { get; } = directory;
+        public string Name { get; } = name;
     }
 
     static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
