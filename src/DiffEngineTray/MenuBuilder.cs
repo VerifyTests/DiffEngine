@@ -2,8 +2,10 @@ static class MenuBuilder
 {
     public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
     {
-        var menu = new ContextMenuStrip();
-        menu.DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft;
+        var menu = new ContextMenuStrip
+        {
+            DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft
+        };
         var items = menu.Items;
         menu.Closed += delegate
         {
