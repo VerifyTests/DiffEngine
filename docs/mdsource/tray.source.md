@@ -128,6 +128,8 @@ snippet: PiperTest.DeleteJson.verified.txt
 %UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net6.0\any\logs
 ```
 
+For example:
+
 ```
 C:\Users\simon\.dotnet\tools\.store\diffenginetray\9.0.0\diffenginetray\9.0.0\tools\net6.0\any\logs
 ```
