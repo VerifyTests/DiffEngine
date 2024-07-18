@@ -61,6 +61,11 @@ Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop do
 Discard will clear all currently tracked items.
 
 
+### Purge verified files
+
+Prompts for a directory, and then recursively deletes all `*.verified.*` in that directory.
+
+
 ### Options
 
 <img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">
