@@ -5,8 +5,8 @@ public static class Definitions
     public static IReadOnlyCollection<Definition> Tools { get; }
 
     static Definitions() =>
-        Tools = new List<Definition>
-        {
+        Tools =
+        [
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),
             Implementation.Kaleidoscope(),
@@ -29,5 +29,5 @@ public static class Definitions
             Implementation.SublimeMerge(),
             Implementation.VisualStudioCode(),
             Implementation.VisualStudio()
-        };
+        ];
 }
