@@ -92,8 +92,7 @@ static class MenuBuilder
         List<TrackedDelete> deletes,
         List<TrackedMove> moves)
     {
-        var groups = deletes
-            .Select(_ => _.Group)
+        var groups = deletes.Select(_ => _.Group)
             .Concat(moves.Select(_ => _.Group))
             .Distinct()
             .ToList();

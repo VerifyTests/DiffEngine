@@ -70,4 +70,5 @@ public record ResolvedTool
     public FrozenSet<string> BinaryExtensions { get; init; }
     public bool RequiresTarget { get; init; }
     public bool SupportsText { get; init; }
+
 }
