@@ -86,7 +86,10 @@ static class MenuBuilder
         yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
     }
 
-    static IEnumerable<ToolStripItem> BuildGroupedMenuItems(Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)
+    static IEnumerable<ToolStripItem> BuildGroupedMenuItems(
+        Tracker tracker,
+        List<TrackedDelete> deletes,
+        List<TrackedMove> moves)
     {
         var groups = deletes
             .Select(_ => _.Group)
@@ -118,7 +121,11 @@ static class MenuBuilder
         }
     }
 
-    static IEnumerable<ToolStripItem> BuildMovesAndDeletes(string? name, Tracker tracker, List<TrackedDelete> deletes, List<TrackedMove> moves)
+    static IEnumerable<ToolStripItem> BuildMovesAndDeletes(
+        string? name,
+        Tracker tracker,
+        List<TrackedDelete> deletes,
+        List<TrackedMove> moves)
     {
         if (name != null)
         {
@@ -127,7 +134,10 @@ static class MenuBuilder
 
         if (deletes.Count != 0)
         {
-            yield return new MenuButton($"Pending Deletes ({deletes.Count}):", () => tracker.Accept(deletes), Images.Delete);
+            yield return new MenuButton(
+                $"Pending Deletes ({deletes.Count}):",
+                () => tracker.Accept(deletes),
+                Images.Delete);
             foreach (var delete in deletes)
             {
                 yield return BuildDelete(delete, () => tracker.Accept(delete));
@@ -136,7 +146,10 @@ static class MenuBuilder
 
         if (moves.Count != 0)
         {
-            yield return new MenuButton($"Pending Moves ({moves.Count}):", () => tracker.Accept(moves), Images.Accept);
+            yield return new MenuButton(
+                $"Pending Moves ({moves.Count}):",
+                () => tracker.Accept(moves),
+                Images.Accept);
             foreach (var move in moves)
             {
                 yield return BuildMove(
