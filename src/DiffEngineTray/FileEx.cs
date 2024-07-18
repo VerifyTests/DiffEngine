@@ -30,21 +30,22 @@ static class FileEx
         return false;
     }
 
-    public static void SafeDeleteDirectory(string path)
+    public static bool SafeDeleteDirectory(string path)
     {
         if (!Directory.Exists(path))
         {
-            return;
+            return false;
         }
 
         if (!IsEmptyDirectory(path))
         {
-            return;
+            return false;
         }
 
         try
         {
             Directory.Delete(path, false);
+            return true;
         }
         catch (IOException exception)
         {
@@ -54,6 +55,7 @@ static class FileEx
         {
             ExceptionHandler.Handle($"Failed to delete '{path}'.", exception);
         }
+        return false;
     }
 
     public static bool SafeMove(string temp, string target)
