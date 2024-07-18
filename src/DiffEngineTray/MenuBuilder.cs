@@ -23,28 +23,25 @@ static class MenuBuilder
         items.Add(new MenuButton("Exit", exit, Images.Exit));
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
+        items.Add(new MenuButton("Purge verified files", FilePurger.Launch, Images.Folder));
         items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
     }
 
-    static IEnumerable<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items)
-    {
-        foreach (ToolStripItem item in items)
-        {
-            if (item.Text != "Exit" &&
-                item.Text != "Options" &&
-                item.Text != "Open logs" &&
-                item.Text != "Raise issue")
-            {
-                yield return item;
-            }
-        }
-    }
+    static IEnumerable<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items) =>
+        items
+            .Cast<ToolStripItem>()
+            .Where(_ => _.Text != "Exit" &&
+                        _.Text != "Options" &&
+                        _.Text != "Open logs" &&
+                        _.Text != "Raise issue" &&
+                        _.Text != "Purge verified files")
+            .ToList();
 
     static void RemovePreviousItems(ToolStripItemCollection items)
     {
         // Use ToList to avoid deferred execution of NonDefaultMenus
-        foreach (var item in NonDefaultMenus(items).ToList())
+        foreach (var item in NonDefaultMenus(items))
         {
             items.Remove(item);
         }
@@ -53,7 +50,7 @@ static class MenuBuilder
     static void DisposePreviousItems(ToolStripItemCollection items)
     {
         // Use ToList to avoid deferred execution of NonDefaultMenus
-        foreach (var item in NonDefaultMenus(items).ToList())
+        foreach (var item in NonDefaultMenus(items))
         {
             item.Dispose();
         }
@@ -66,11 +63,13 @@ static class MenuBuilder
             yield break;
         }
 
-        var deletes = tracker.Deletes
+        var deletes = tracker
+            .Deletes
             .OrderBy(_ => _.File)
             .ToList();
 
-        var moves = tracker.Moves
+        var moves = tracker
+            .Moves
             .OrderBy(_ => _.Temp)
             .ToList();
 
@@ -104,8 +103,12 @@ static class MenuBuilder
             foreach (var toolStripItem in BuildMovesAndDeletes(
                          group,
                          tracker,
-                         deletes.Where(_ => _.Group == group).ToList(),
-                         moves.Where(_ => _.Group == group).ToList()))
+                         deletes
+                             .Where(_ => _.Group == group)
+                             .ToList(),
+                         moves
+                             .Where(_ => _.Group == group)
+                             .ToList()))
             {
                 yield return toolStripItem;
                 addedCount++;
