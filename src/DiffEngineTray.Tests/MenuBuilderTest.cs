@@ -3,17 +3,17 @@
 public class MenuBuilderTest :
     XunitContextBase
 {
+    static Action emptyAction = () =>
+    {
+    };
+
     [Fact]
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -24,12 +24,8 @@ public class MenuBuilderTest :
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -40,12 +36,8 @@ public class MenuBuilderTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -59,12 +51,8 @@ public class MenuBuilderTest :
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, file4, "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -77,12 +65,8 @@ public class MenuBuilderTest :
         tracker.AddDelete(file2);
         tracker.AddMove(file3, file4, "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -97,12 +81,8 @@ public class MenuBuilderTest :
         }
 
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -114,12 +94,8 @@ public class MenuBuilderTest :
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
@@ -133,12 +109,8 @@ public class MenuBuilderTest :
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
-            () =>
-            {
-            },
-            () =>
-            {
-            },
+            emptyAction,
+            emptyAction,
             tracker);
         await Verify(menu, settings);
     }
