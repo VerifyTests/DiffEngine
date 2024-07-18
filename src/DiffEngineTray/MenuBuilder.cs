@@ -159,8 +159,10 @@ static class MenuBuilder
         var tempName = Path.GetFileNameWithoutExtension(move.Temp);
         var targetName = Path.GetFileNameWithoutExtension(move.Target);
         var text = GetMoveText(move, tempName, targetName);
-        var menu = new ToolStripDropDownButton(text);
-        menu.DropDownDirection = ToolStripDropDownDirection.Left;
+        var menu = new ToolStripDropDownButton(text)
+        {
+            DropDownDirection = ToolStripDropDownDirection.Left
+        };
         menu.DropDownItems.Add(new MenuButton("Accept move", accept));
         menu.DropDownItems.Add(new MenuButton("Discard", discard));
         if (move.Exe != null)
