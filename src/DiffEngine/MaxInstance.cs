@@ -7,9 +7,10 @@ static class MaxInstance
     static int launchedInstances;
     const int defaultMax = 5;
 
-    static int GetMaxInstances() => GetEnvironmentValue() ??
-                                    appDomainMaxInstancesToLaunch ??
-                                    defaultMax;
+    static int GetMaxInstances() =>
+        GetEnvironmentValue() ??
+        appDomainMaxInstancesToLaunch ??
+        defaultMax;
 
     static int? GetEnvironmentValue()
     {
@@ -46,7 +47,7 @@ static class MaxInstance
 
     public static bool Reached()
     {
-        var instanceCount = Interlocked.Increment(ref launchedInstances);
-        return instanceCount > MaxInstancesToLaunch;
+        var count = Interlocked.Increment(ref launchedInstances);
+        return count > MaxInstancesToLaunch;
     }
 }
