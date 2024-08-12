@@ -12,6 +12,7 @@
     <PackageReference Include="Verify.WinForms" />
     <PackageReference Include="Verify.ImageMagick" />
     <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="Verify.NUnit" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />

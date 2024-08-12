@@ -27,5 +27,6 @@
     <PackageVersion Include="Verify.ImageMagick" Version="3.5.0" />
     <PackageVersion Include="Verify.NUnit" Version="26.2.0" />
     <PackageVersion Include="Verify.WinForms" Version="4.0.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
   </ItemGroup>
 </Project>
