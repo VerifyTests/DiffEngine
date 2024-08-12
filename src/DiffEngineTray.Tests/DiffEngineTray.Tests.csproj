@@ -10,9 +10,9 @@
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.WinForms" />
-    <PackageReference Include="Verify.XunitV3" />
+    <PackageReference Include="Verify.Xunit" />
     <PackageReference Include="Verify.ImageMagick" />
-    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Xunit" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="XunitContext" />
