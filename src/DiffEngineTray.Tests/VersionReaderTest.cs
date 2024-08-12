@@ -1,9 +1,10 @@
-﻿public class VersionReaderTest
+﻿[TestFixture]
+public class VersionReaderTest
 {
-    [Fact]
+    [Test]
     public void AddSingle()
     {
-        Assert.NotEmpty(VersionReader.VersionString);
-        Assert.NotNull(VersionReader.VersionString);
+        IsTrue(VersionReader.VersionString.Length > 0);
+        NotNull(VersionReader.VersionString);
     }
 }

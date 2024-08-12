@@ -1,9 +1,7 @@
 ﻿#if DEBUG
-public class OptionsFormTests :
-    XunitContextBase
+public class OptionsFormTests
 {
-    public OptionsFormTests(ITestOutputHelper output) :
-        base(output) =>
+    public OptionsFormTests() =>
         VersionReader.VersionString = "TheVersion";
 
     //[Fact]
@@ -23,7 +21,8 @@ public class OptionsFormTests :
     //    form.ShowDialog();
     //    form.BringToFront();
     //}
-    [Fact]
+
+    [Test]
     public async Task WithKeys()
     {
         using var form = new OptionsForm(
@@ -39,7 +38,7 @@ public class OptionsFormTests :
         await Verify(form);
     }
 
-    [Fact]
+    [Test]
     public async Task Default()
     {
         using var form = new OptionsForm(

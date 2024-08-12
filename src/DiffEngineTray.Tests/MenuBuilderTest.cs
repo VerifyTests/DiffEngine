@@ -1,13 +1,13 @@
 ﻿using EmptyFiles;
 
-public class MenuBuilderTest :
-    XunitContextBase
+[TestFixture]
+public class MenuBuilderTest: IDisposable
 {
     static Action emptyAction = () =>
     {
     };
 
-    [Fact]
+    [Test]
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
@@ -18,7 +18,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task OnlyMove()
     {
         await using var tracker = new RecordingTracker();
@@ -30,7 +30,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task OnlyDelete()
     {
         await using var tracker = new RecordingTracker();
@@ -42,7 +42,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task Full()
     {
         await using var tracker = new RecordingTracker();
@@ -57,7 +57,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task DiffTempTarget()
     {
         await using var tracker = new RecordingTracker();
@@ -69,9 +69,10 @@ public class MenuBuilderTest :
             emptyAction,
             tracker);
         await Verify(menu, settings);
+        Debug.WriteLine("s");
     }
 
-    [Fact]
+    [Test]
     public async Task Many()
     {
         await using var tracker = new RecordingTracker();
@@ -87,7 +88,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task Grouped()
     {
         await using var tracker = new RecordingTracker();
@@ -100,7 +101,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task FullGrouped()
     {
         await using var tracker = new RecordingTracker();
@@ -115,8 +116,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    public MenuBuilderTest(ITestOutputHelper output) :
-        base(output)
+    public MenuBuilderTest()
     {
         settings = new();
         file1 = Path.GetFullPath("file1.txt");
@@ -129,13 +129,12 @@ public class MenuBuilderTest :
         File.WriteAllText(file4, "");
     }
 
-    public override void Dispose()
+    public  void Dispose()
     {
         File.Delete(file1);
         File.Delete(file2);
         File.Delete(file3);
         File.Delete(file4);
-        base.Dispose();
     }
 
     string file1;

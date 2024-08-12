@@ -1,6 +1,5 @@
 ﻿#if NET8_0
-public class DiffRunnerTests :
-    XunitContextBase
+public class DiffRunnerTests
 {
     static ResolvedTool tool;
     string file2;
@@ -17,10 +16,10 @@ public class DiffRunnerTests :
             ProcessCleanup.Refresh();
             var result = DiffRunner.Launch(file1, "fake.txt");
             await Task.Delay(300);
-            Assert.Equal(LaunchResult.StartedNewInstance, result);
+            AreEqual(LaunchResult.StartedNewInstance, result);
             ProcessCleanup.Refresh();
             result = DiffRunner.Launch(file2, "fake.txt");
-            Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
+            AreEqual(LaunchResult.TooManyRunningDiffTools, result);
             ProcessCleanup.Refresh();
             DiffRunner.Kill(file1, "fake.txt");
             DiffRunner.Kill(file2, "fake.txt");
@@ -41,10 +40,10 @@ public class DiffRunnerTests :
             ProcessCleanup.Refresh();
             var result = await DiffRunner.LaunchAsync(file1, "fake.txt");
             await Task.Delay(300);
-            Assert.Equal(LaunchResult.StartedNewInstance, result);
+            AreEqual(LaunchResult.StartedNewInstance, result);
             ProcessCleanup.Refresh();
             result = await DiffRunner.LaunchAsync(file2, "fake.txt");
-            Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
+            AreEqual(LaunchResult.TooManyRunningDiffTools, result);
             ProcessCleanup.Refresh();
             DiffRunner.Kill(file1, "fake.txt");
             DiffRunner.Kill(file2, "fake.txt");
@@ -89,7 +88,7 @@ public class DiffRunnerTests :
             Assert.False(IsRunning());
             Assert.False(ProcessCleanup.IsRunning(command));
             var result = DiffRunner.Launch(file1, file2);
-            Assert.Equal(LaunchResult.Disabled, result);
+            AreEqual(LaunchResult.Disabled, result);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
             Assert.False(IsRunning());
@@ -115,7 +114,7 @@ public class DiffRunnerTests :
             Assert.False(IsRunning());
             Assert.False(ProcessCleanup.IsRunning(command));
             var result = await DiffRunner.LaunchAsync(file1, file2);
-            Assert.Equal(LaunchResult.Disabled, result);
+            AreEqual(LaunchResult.Disabled, result);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
             Assert.False(IsRunning());
@@ -138,7 +137,7 @@ public class DiffRunnerTests :
         Assert.False(IsRunning());
         Assert.False(ProcessCleanup.IsRunning(command));
         var result = DiffRunner.Launch(file1, file2);
-        Assert.Equal(LaunchResult.StartedNewInstance, result);
+        AreEqual(LaunchResult.StartedNewInstance, result);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
         Assert.True(IsRunning());
@@ -156,7 +155,7 @@ public class DiffRunnerTests :
         Assert.False(IsRunning());
         Assert.False(ProcessCleanup.IsRunning(command));
         var result = await DiffRunner.LaunchAsync(file1, file2);
-        Assert.Equal(LaunchResult.StartedNewInstance, result);
+        AreEqual(LaunchResult.StartedNewInstance, result);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
         Assert.True(IsRunning());

@@ -1,6 +1,7 @@
-﻿public class AsyncTimerTests
+﻿[TestFixture]
+public class AsyncTimerTests
 {
-    [Fact]
+    [Test]
     public async Task It_calls_error_callback()
     {
         var errorCallbackInvoked = new TaskCompletionSource<bool>();
@@ -13,10 +14,10 @@
                 errorCallbackInvoked.TrySetResult(true);
             });
 
-        Assert.True(await errorCallbackInvoked.Task);
+        True(await errorCallbackInvoked.Task);
     }
 
-    [Fact]
+    [Test]
     public async Task It_continues_to_run_after_an_error()
     {
         var callbackInvokedAfterError = new TaskCompletionSource<bool>();
@@ -32,7 +33,7 @@
                     throw new("Simulated!");
                 }
 
-                Assert.True(exceptionThrown);
+                True(exceptionThrown);
                 callbackInvokedAfterError.TrySetResult(true);
                 return Task.FromResult(0);
             },
@@ -42,10 +43,10 @@
                 exceptionThrown = true;
             });
 
-        Assert.True(await callbackInvokedAfterError.Task);
+        True(await callbackInvokedAfterError.Task);
     }
 
-    [Fact]
+    [Test]
     public async Task Stop_cancels_token_while_in_callback()
     {
         var callbackCanceled = false;
@@ -67,10 +68,10 @@
         var stopTask = timer.DisposeAsync();
         stopInitiated.SetResult(true);
         await stopTask;
-        Assert.True(callbackCanceled);
+        True(callbackCanceled);
     }
 
-    [Fact]
+    [Test]
     public async Task Stop_waits_for_callback_to_complete()
     {
         var callbackCompleted = new TaskCompletionSource<bool>();
@@ -89,7 +90,7 @@
         var delayTask = Task.Delay(1000);
 
         var firstToComplete = await Task.WhenAny(stopTask, delayTask);
-        Assert.Equal(delayTask, firstToComplete);
+        AreEqual(delayTask, firstToComplete);
         callbackCompleted.SetResult(true);
 
         await stopTask;
