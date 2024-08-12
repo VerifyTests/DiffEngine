@@ -1,11 +1,12 @@
-﻿public class ProcessCleanupTests
+﻿[TestFixture]
+public class ProcessCleanupTests
 {
-    [Fact]
+    [Test]
     public void Find()
     {
         var list = ProcessCleanup.FindAll().ToList();
         // new processes have large Ids
-        Assert.True(list[0].Process > list[1].Process);
+        True(list[0].Process > list[1].Process);
         foreach (var x in list)
         {
             Debug.WriteLine($"{x.Process} {x.Command}");

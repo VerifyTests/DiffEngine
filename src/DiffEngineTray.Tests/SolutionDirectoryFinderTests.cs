@@ -1,7 +1,8 @@
 ﻿#if DEBUG
+[TestFixture]
 public class SolutionDirectoryFinderTests
 {
-    [Fact]
+    [Test]
     public Task Find() =>
         Verify(SolutionDirectoryFinder.Find(Source.File()));
 }

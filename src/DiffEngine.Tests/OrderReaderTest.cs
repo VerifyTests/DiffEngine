@@ -1,17 +1,18 @@
-﻿public class OrderReaderTest
+﻿[TestFixture]
+public class OrderReaderTest
 {
-    [Fact]
+    [Test]
     public void ParseEnvironmentVariable()
     {
         var diffTools = OrderReader.ParseEnvironment("VisualStudio,Meld").ToList();
-        Assert.Equal(DiffTool.VisualStudio, diffTools[0]);
-        Assert.Equal(DiffTool.Meld, diffTools[1]);
+        AreEqual(DiffTool.VisualStudio, diffTools[0]);
+        AreEqual(DiffTool.Meld, diffTools[1]);
     }
 
-    [Fact]
+    [Test]
     public void BadEnvironmentVariable()
     {
-        var exception = Assert.Throws<Exception>(() => OrderReader.ParseEnvironment("Foo").ToList());
-        Assert.Equal("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo", exception.Message);
+        var exception = Throws<Exception>(() => OrderReader.ParseEnvironment("Foo").ToList());
+        AreEqual("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo", exception!.Message);
     }
 }

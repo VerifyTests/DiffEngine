@@ -1,14 +1,16 @@
-﻿public class DiffToolsTest
+﻿[TestFixture]
+public class DiffToolsTest
 {
-    [Fact]
+    [Test]
     public void MaxInstancesToLaunch() =>
     #region MaxInstancesToLaunch
         DiffRunner.MaxInstancesToLaunch(10);
     #endregion
 
-    [Fact]
+    [Test]
     public void AddTool()
     {
+        DiffTools.Reset();
         var diffToolPath = FakeDiffTool.Exe;
 
         #region AddTool
@@ -27,15 +29,16 @@
 
         #endregion
 
-        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First()
+        AreEqual(resolvedTool.Name, DiffTools.Resolved.First()
             .Name);
-        Assert.True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension.Name);
+        True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
+        AreEqual(resolvedTool.Name, forExtension!.Name);
     }
 
-    [Fact]
+    [Test]
     public void OrderShouldNotMessWithAddTool()
     {
+        DiffTools.Reset();
         var diffToolPath = FakeDiffTool.Exe;
         var resolvedTool = DiffTools.AddTool(
             name: "MyCustomDiffTool",
@@ -49,15 +52,16 @@
             exePath: diffToolPath,
             binaryExtensions: [])!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-        Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
-        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
-        Assert.Equal("MyCustomDiffTool", forExtension.Name);
+        AreEqual("MyCustomDiffTool", resolvedTool.Name);
+        True(DiffTools.TryFindByExtension(".txt", out var forExtension));
+        AreEqual("MyCustomDiffTool", forExtension!.Name);
     }
 
 #if DEBUG
-    [Fact]
+    [Test]
     public void AddToolBasedOn()
     {
+        DiffTools.Reset();
         #region AddToolBasedOn
 
         var resolvedTool = DiffTools.AddToolBasedOn(
@@ -69,15 +73,16 @@
 
         #endregion
 
-        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
-        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
-        Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
-        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
+        AreEqual(resolvedTool, DiffTools.Resolved.First());
+        True(DiffTools.TryFindByExtension(".txt", out var forExtension));
+        AreEqual(resolvedTool, forExtension);
+        AreEqual("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
+        AreEqual("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
     }
 #endif
     static async Task AddToolAndLaunch()
     {
+        DiffTools.Reset();
         #region AddToolAndLaunch
 
         var resolvedTool = DiffTools.AddToolBasedOn(
@@ -141,7 +146,7 @@
 
         #endregion
 
-        Assert.Equal(DiffTool.VisualStudio, DiffTools.Resolved.First()
+        AreEqual(DiffTool.VisualStudio, DiffTools.Resolved.First()
             .Tool);
     }
 
@@ -166,6 +171,4 @@
     }
 #endif
 **/
-    public DiffToolsTest() =>
-        DiffTools.Reset();
 }

@@ -1,16 +1,17 @@
-﻿public class TrackerDeleteTest :
+﻿[TestFixture]
+public class TrackerDeleteTest :
     IDisposable
 {
-    [Fact]
+    [Test]
     public async Task AddSingle()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        Assert.Single(tracker.Deletes);
-        Assert.True(tracker.TrackingAny);
+        AreEqual(tracker.Deletes,1);
+        True(tracker.TrackingAny);
     }
 
-    [Fact]
+    [Test]
     public async Task AddSingle_BackgroundDelete()
     {
         await using var tracker = new RecordingTracker();
@@ -20,27 +21,27 @@
         tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AddMultiple()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
-        Assert.Equal(2, tracker.Deletes.Count);
-        Assert.True(tracker.TrackingAny);
+        AreEqual(2, tracker.Deletes.Count);
+        True(tracker.TrackingAny);
     }
 
-    [Fact]
+    [Test]
     public async Task AddSame()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file1);
-        Assert.Single(tracker.Deletes);
-        Assert.True(tracker.TrackingAny);
+        AreEqual(1, tracker.Deletes);
+        True(tracker.TrackingAny);
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptAllSingle()
     {
         await using var tracker = new RecordingTracker();
@@ -49,7 +50,7 @@
         tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptAllMultiple()
     {
         await using var tracker = new RecordingTracker();
@@ -59,7 +60,7 @@
         tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptSingle()
     {
         await using var tracker = new RecordingTracker();
@@ -68,15 +69,15 @@
         tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptSingle_NotEmpty()
     {
         await using var tracker = new RecordingTracker();
         var tracked = tracker.AddDelete(file1);
         tracker.AddDelete(file2);
         tracker.Accept(tracked);
-        Assert.Single(tracker.Deletes);
-        Assert.True(tracker.TrackingAny);
+        AreEqual(1, tracker.Deletes);
+        True(tracker.TrackingAny);
     }
 
     public void Dispose()

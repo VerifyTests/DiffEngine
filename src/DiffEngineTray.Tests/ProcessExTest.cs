@@ -1,18 +1,19 @@
-﻿public class ProcessExTest
+﻿[TestFixture]
+public class ProcessExTest
 {
-    [Fact]
+    [Test]
     public void TryGet()
     {
         using var current = Process.GetCurrentProcess();
-        Assert.True(ProcessEx.TryGet(current.Id, out var found));
-        Assert.NotNull(found);
-        found.Dispose();
+        True(ProcessEx.TryGet(current.Id, out var found));
+        NotNull(found);
+        found!.Dispose();
     }
 
-    [Fact]
+    [Test]
     public void TryGetMissing()
     {
-        Assert.False(ProcessEx.TryGet(40000, out var found));
-        Assert.Null(found);
+        False(ProcessEx.TryGet(40000, out var found));
+        Null(found);
     }
 }

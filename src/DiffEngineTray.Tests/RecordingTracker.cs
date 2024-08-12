@@ -9,8 +9,8 @@
 {
     public void AssertEmpty()
     {
-        Assert.Empty(Deletes);
-        Assert.Empty(Moves);
-        Assert.False(TrackingAny);
+        IsEmpty(Deletes);
+        IsEmpty(Moves);
+        False(TrackingAny);
     }
 }

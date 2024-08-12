@@ -1,7 +1,8 @@
-﻿public class TrackerClearTest :
+﻿[TestFixture]
+public class TrackerClearTest :
     IDisposable
 {
-    [Fact]
+    [Test]
     public async Task Simple()
     {
         await using var tracker = new RecordingTracker();

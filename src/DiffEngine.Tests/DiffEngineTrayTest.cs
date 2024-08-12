@@ -1,6 +1,7 @@
-﻿public class DiffEngineTrayTest
+﻿[TestFixture]
+public class DiffEngineTrayTest
 {
-    [Fact]
+    [Test]
     public void IsRunning() =>
-        Assert.False(DiffEngineTray.IsRunning);
+        False(DiffEngineTray.IsRunning);
 }
