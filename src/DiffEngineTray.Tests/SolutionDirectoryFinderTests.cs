@@ -1,9 +1,8 @@
 ﻿#if DEBUG
-public class SolutionDirectoryFinderTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class SolutionDirectoryFinderTests
 {
     [Fact]
     public Task Find() =>
-        Verify(SolutionDirectoryFinder.Find(SourceFile));
+        Verify(SolutionDirectoryFinder.Find(Source.File()));
 }
 #endif

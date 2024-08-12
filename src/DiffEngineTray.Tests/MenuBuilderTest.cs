@@ -1,7 +1,6 @@
 ﻿using EmptyFiles;
 
-public class MenuBuilderTest :
-    XunitContextBase
+public class MenuBuilderTest: IDisposable
 {
     static Action emptyAction = () =>
     {
@@ -115,8 +114,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    public MenuBuilderTest(ITestOutputHelper output) :
-        base(output)
+    public MenuBuilderTest()
     {
         settings = new();
         file1 = Path.GetFullPath("file1.txt");
@@ -129,13 +127,12 @@ public class MenuBuilderTest :
         File.WriteAllText(file4, "");
     }
 
-    public override void Dispose()
+    public  void Dispose()
     {
         File.Delete(file1);
         File.Delete(file2);
         File.Delete(file3);
         File.Delete(file4);
-        base.Dispose();
     }
 
     string file1;

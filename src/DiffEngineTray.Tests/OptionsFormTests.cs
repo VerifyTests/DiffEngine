@@ -1,9 +1,7 @@
 ﻿#if DEBUG
-public class OptionsFormTests :
-    XunitContextBase
+public class OptionsFormTests
 {
-    public OptionsFormTests(ITestOutputHelper output) :
-        base(output) =>
+    public OptionsFormTests() =>
         VersionReader.VersionString = "TheVersion";
 
     //[Fact]

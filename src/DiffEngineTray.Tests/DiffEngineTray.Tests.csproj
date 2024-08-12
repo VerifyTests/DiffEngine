@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <NoWarn>CA1416</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;xUnit1051</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
@@ -15,7 +15,6 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
-    <PackageReference Include="XunitContext" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>

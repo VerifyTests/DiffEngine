@@ -1,5 +1,4 @@
-﻿public class LinuxOsxProcessTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+﻿public class LinuxOsxProcessTests
 {
     [Fact]
     public void TryParseWithZshInstalled()

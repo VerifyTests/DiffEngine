@@ -1,5 +1,4 @@
-﻿public class DiffEngineTrayTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+﻿public class DiffEngineTrayTest
 {
     [Fact]
     public void IsRunning() =>

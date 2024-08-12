@@ -1,5 +1,4 @@
-﻿public class DiffToolsTest :
-    XunitContextBase
+﻿public class DiffToolsTest
 {
     [Fact]
     public void MaxInstancesToLaunch() =>
@@ -167,8 +166,6 @@
     }
 #endif
 **/
-    public DiffToolsTest(ITestOutputHelper output)
-        :
-        base(output) =>
+    public DiffToolsTest() =>
         DiffTools.Reset();
 }
