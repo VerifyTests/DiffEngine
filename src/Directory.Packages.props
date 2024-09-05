@@ -9,7 +9,7 @@
     <PackageVersion Include="EmptyFiles" Version="8.4.0" />
     <PackageVersion Include="Fody" Version="6.8.1" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="27.0.2" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageVersion Include="Polyfill" Version="6.5.0" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.135" />
     <PackageVersion Include="Resourcer.Fody" Version="1.8.1" />
