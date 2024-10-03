@@ -10,7 +10,7 @@
     <PackageVersion Include="Fody" Version="6.8.2" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="27.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-    <PackageVersion Include="Polyfill" Version="6.10.0" />
+    <PackageVersion Include="Polyfill" Version="6.13.0" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.135" />
     <PackageVersion Include="Resourcer.Fody" Version="1.8.1" />
     <PackageVersion Include="Serilog" Version="4.0.2" />
