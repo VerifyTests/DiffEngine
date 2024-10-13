@@ -1,5 +1,3 @@
-using Microsoft.Win32.SafeHandles;
-
 static class ProcessEx
 {
     [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
@@ -45,6 +43,11 @@ static class ProcessEx
         catch (InvalidOperationException)
         {
             // Race condition can cause "No process is associated with this object"
+        }
+        catch (Win32Exception)
+        {
+            // no permission or already closed
+            // https://github.com/VerifyTests/DiffEngine/issues/542
         }
         catch (Exception exception)
         {
