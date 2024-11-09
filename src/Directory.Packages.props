@@ -27,7 +27,7 @@
     <PackageVersion Include="Verify.WinForms" Version="4.0.0" />
     <PackageVersion Include="Verify.Xunit" Version="28.1.3" />
     <PackageVersion Include="Xunit" Version="2.9.2" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.0-pre.42" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.0-pre.49" />
     <PackageVersion Include="XunitContext" Version="3.3.2" />
   </ItemGroup>
 </Project>
