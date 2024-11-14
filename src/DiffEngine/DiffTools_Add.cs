@@ -10,7 +10,15 @@ public static partial class DiffTools
             return null;
         }
 
-        return AddTool(name, autoRefresh ?? existing.AutoRefresh, isMdi ?? existing.IsMdi, supportsText ?? existing.SupportsText, requiresTarget ?? existing.RequiresTarget, launchArguments ?? existing.LaunchArguments, exePath ?? existing.ExePath, binaryExtensions ?? existing.BinaryExtensions);
+        return AddTool(
+            name,
+            autoRefresh ?? existing.AutoRefresh,
+            isMdi ?? existing.IsMdi,
+            supportsText ?? existing.SupportsText,
+            requiresTarget ?? existing.RequiresTarget,
+            launchArguments ?? existing.LaunchArguments,
+            exePath ?? existing.ExePath,
+            binaryExtensions ?? existing.BinaryExtensions);
     }
 
     public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>

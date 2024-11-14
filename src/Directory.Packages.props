@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="Argon" Version="0.24.2" />
     <PackageVersion Include="Caseless.Fody" Version="1.9.1" />
-    <PackageVersion Include="EmptyFiles" Version="8.5.0" />
+    <PackageVersion Include="EmptyFiles" Version="8.5.1" />
     <PackageVersion Include="Fody" Version="6.8.2" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="27.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
@@ -15,10 +15,6 @@
     <PackageVersion Include="Resourcer.Fody" Version="1.8.1" />
     <PackageVersion Include="Serilog" Version="4.1.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
-    <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.0" />
     <PackageVersion Include="System.Globalization.Extensions" Version="4.3.0" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
