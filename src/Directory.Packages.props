@@ -4,7 +4,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Argon" Version="0.24.2" />
+    <PackageVersion Include="Argon" Version="0.25.0" />
     <PackageVersion Include="Caseless.Fody" Version="1.9.1" />
     <PackageVersion Include="EmptyFiles" Version="8.5.1" />
     <PackageVersion Include="Fody" Version="6.8.2" />
