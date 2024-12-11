@@ -44,7 +44,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        tokenSource.Cancel();
+        await tokenSource.CancelAsync();
         tokenSource.Dispose();
         try
         {

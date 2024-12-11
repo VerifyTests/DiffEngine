@@ -71,7 +71,7 @@ static class Program
         icon.ContextMenuStrip = menuStrip;
 
         Application.Run();
-        tokenSource.Cancel();
+        await tokenSource.CancelAsync();
         await task;
     }
 
