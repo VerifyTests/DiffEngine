@@ -14,7 +14,7 @@ public class VersionTests
     public void Management()
     {
         var assemblyName = typeof(ManagementQuery).Assembly.GetName();
-        Assert.Equal(new Version(8, 0, 0, 0), assemblyName.Version);
+        Assert.Equal(new Version(4, 0, 0, 0), assemblyName.Version);
     }
 }
 
