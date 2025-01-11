@@ -7,14 +7,14 @@ public class VersionTests
     public void Immutable()
     {
         var assemblyName = typeof(ImmutableDictionary).Assembly.GetName();
-        Assert.Equal(new Version(8, 0, 0, 0), assemblyName.Version);
+        Assert.Equal(new(8, 0, 0, 0), assemblyName.Version);
     }
 
     [Fact]
     public void Management()
     {
         var assemblyName = typeof(ManagementQuery).Assembly.GetName();
-        Assert.Equal(new Version(4, 0, 0, 0), assemblyName.Version);
+        Assert.Equal(new(4, 0, 0, 0), assemblyName.Version);
     }
 }
 
