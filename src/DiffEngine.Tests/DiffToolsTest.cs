@@ -28,8 +28,8 @@
 
         #endregion
 
-        Assert.Equal(resolvedTool.Name, DiffTools.Resolved.First()
-            .Name);
+        var resolved = DiffTools.Resolved.Select(_ => _.Name).First();
+        Assert.Equal(resolvedTool.Name, resolved);
         Assert.True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
         Assert.Equal(resolvedTool.Name, forExtension.Name);
     }
