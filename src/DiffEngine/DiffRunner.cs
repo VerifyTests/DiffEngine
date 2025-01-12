@@ -59,10 +59,7 @@ public static partial class DiffRunner
 
         return InnerLaunchAsync(
             ([NotNullWhen(true)] out ResolvedTool? tool) =>
-            {
-                var extension = Path.GetExtension(tempFile);
-                return DiffTools.TryFindByExtension(extension, out tool);
-            },
+                DiffTools.TryFindForInputFilePath(tempFile, out tool),
             tempFile,
             targetFile,
             encoding);

@@ -119,42 +119,44 @@
         DiffRunner.LaunchAsync(DiffTool.P4Merge,
             Path.Combine(SourceDirectory, "input.temp.png"),
             Path.Combine(SourceDirectory, "input.target.png"));
-    **/
-    //[Fact]
-    //public async Task LaunchImageDiff()
-    //{
-    //    foreach (var tool in DiffTools.Resolved)
-    //    {
-    //        await DiffRunner.LaunchAsync(tool,
-    //            Path.Combine(SourceDirectory, "input.temp.png"),
-    //            Path.Combine(SourceDirectory, "input.target.png"));
-    //    }
-    //}
 
-    //[Fact]
-    //public async Task LaunchTextDiff()
-    //{
-    //    foreach (var tool in DiffTools.Resolved)
-    //    {
-    //        await DiffRunner.LaunchAsync(tool,
-    //            Path.Combine(SourceDirectory, "input.temp.txt"),
-    //            Path.Combine(SourceDirectory, "input.target.txt"));
-    //    }
-    //}
-    /**
+    [Fact]
+    public async Task LaunchImageDiff()
+    {
+        foreach (var tool in DiffTools.Resolved)
+        {
+            await DiffRunner.LaunchAsync(tool,
+                Path.Combine(SourceDirectory, "input.temp.png"),
+                Path.Combine(SourceDirectory, "input.target.png"));
+        }
+    }
+
+    [Fact]
+    public async Task LaunchTextDiff()
+    {
+        foreach (var tool in DiffTools.Resolved)
+        {
+            await DiffRunner.LaunchAsync(tool,
+                Path.Combine(SourceDirectory, "input.temp.txt"),
+                Path.Combine(SourceDirectory, "input.target.txt"));
+        }
+    }
+
     [Fact]
     public Task LaunchSpecificTextDiff() =>
         DiffRunner.LaunchAsync(DiffTool.WinMerge,
             Path.Combine(SourceDirectory, "input.temp.txt"),
             Path.Combine(SourceDirectory, "input.target.txt"));
-    **/
 
     [Fact]
     public Task TextFileConvention()
     {
-        FileExtensions.AddTextFileConvention(_ => _.EndsWith(".txtConvention".AsSpan()));
-        return DiffRunner.LaunchAsync(Path.Combine(SourceDirectory, "input.temp.txtConvention"), Path.Combine(SourceDirectory, "input.target.txtConvention"));
+        var tempFile = Path.Combine(SourceDirectory, "input.temp.txtConvention");
+        var targetFile = Path.Combine(SourceDirectory, "input.target.txtConvention");
+        return DiffRunner.LaunchAsync(tempFile, targetFile);
     }
+    **/
+
     //todo: re enable tests with fake diff tool.
 
     /**
