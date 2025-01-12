@@ -59,7 +59,7 @@
     public void TextConvention()
     {
         var diffToolPath = FakeDiffTool.Exe;
-        var resolvedTool = DiffTools.AddTool(
+        DiffTools.AddTool(
             name: "MyCustomDiffTool",
             autoRefresh: true,
             isMdi: false,
@@ -69,11 +69,10 @@
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
             exePath: diffToolPath,
-            binaryExtensions: [])!;
-        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-        Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
-        Assert.True(DiffTools.TryFindByExtension(".txtConvention", out var forExtension));
-        Assert.Equal("MyCustomDiffTool", forExtension.Name);
+            binaryExtensions: []);
+        var combine = Path.Combine(SourceDirectory, "input.temp.txtConvention");
+        Assert.True(DiffTools.TryFindForInputFilePath(combine, out var tool));
+        Assert.Equal("MyCustomDiffTool", tool.Name);
     }
 
 #if DEBUG

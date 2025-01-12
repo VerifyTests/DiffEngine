@@ -32,6 +32,7 @@ public static partial class DiffTools
 
         return ExtensionLookup.TryGetValue(Path.GetExtension(path), out tool);
     }
+
     public static bool TryFindForInputFilePath(
         CharSpan path,
         [NotNullWhen(true)] out ResolvedTool? tool)
@@ -42,7 +43,7 @@ public static partial class DiffTools
             return tool != null;
         }
 
-        var extension = Path.GetExtension(path).ToString();
+        var extension = PathPolyfill.GetExtension(path).ToString();
         return ExtensionLookup.TryGetValue(extension, out tool);
     }
 
