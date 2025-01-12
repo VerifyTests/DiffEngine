@@ -20,6 +20,32 @@ public static partial class DiffTools
         return ExtensionLookup.TryGetValue(extension, out tool);
     }
 
+    public static bool TryFindForInputFilePath(
+        string path,
+        [NotNullWhen(true)] out ResolvedTool? tool)
+    {
+        if (FileExtensions.IsTextFile(path))
+        {
+            tool = resolved.FirstOrDefault(_ => _.SupportsText);
+            return tool != null;
+        }
+
+        return ExtensionLookup.TryGetValue(Path.GetExtension(path), out tool);
+    }
+    public static bool TryFindForInputFilePath(
+        CharSpan path,
+        [NotNullWhen(true)] out ResolvedTool? tool)
+    {
+        if (FileExtensions.IsTextFile(path))
+        {
+            tool = resolved.FirstOrDefault(_ => _.SupportsText);
+            return tool != null;
+        }
+
+        var extension = Path.GetExtension(path).ToString();
+        return ExtensionLookup.TryGetValue(extension, out tool);
+    }
+
     public static bool TryFindByName(
         DiffTool tool,
         [NotNullWhen(true)] out ResolvedTool? resolvedTool)

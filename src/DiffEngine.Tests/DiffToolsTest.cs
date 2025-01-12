@@ -55,6 +55,27 @@
         Assert.Equal("MyCustomDiffTool", forExtension.Name);
     }
 
+    [Fact]
+    public void TextConvention()
+    {
+        var diffToolPath = FakeDiffTool.Exe;
+        var resolvedTool = DiffTools.AddTool(
+            name: "MyCustomDiffTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            launchArguments: new(
+                Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+                Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
+            exePath: diffToolPath,
+            binaryExtensions: [])!;
+        DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
+        Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
+        Assert.True(DiffTools.TryFindByExtension(".txtConvention", out var forExtension));
+        Assert.Equal("MyCustomDiffTool", forExtension.Name);
+    }
+
 #if DEBUG
     [Fact]
     public void AddToolBasedOn()
@@ -129,6 +150,12 @@
             Path.Combine(SourceDirectory, "input.target.txt"));
     **/
 
+    [Fact]
+    public Task TextFileConvention()
+    {
+        FileExtensions.AddTextFileConvention(_ => _.EndsWith(".txtConvention".AsSpan()));
+        return DiffRunner.LaunchAsync(Path.Combine(SourceDirectory, "input.temp.txtConvention"), Path.Combine(SourceDirectory, "input.target.txtConvention"));
+    }
     //todo: re enable tests with fake diff tool.
 
     /**
@@ -167,8 +194,7 @@
     }
 #endif
 **/
-    public DiffToolsTest(ITestOutputHelper output)
-        :
+    public DiffToolsTest(ITestOutputHelper output) :
         base(output) =>
         DiffTools.Reset();
 }
