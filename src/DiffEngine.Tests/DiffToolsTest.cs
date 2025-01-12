@@ -55,6 +55,26 @@
         Assert.Equal("MyCustomDiffTool", forExtension.Name);
     }
 
+    [Fact]
+    public void TextConvention()
+    {
+        var diffToolPath = FakeDiffTool.Exe;
+        DiffTools.AddTool(
+            name: "MyCustomDiffTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            launchArguments: new(
+                Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+                Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
+            exePath: diffToolPath,
+            binaryExtensions: []);
+        var combine = Path.Combine(SourceDirectory, "input.temp.txtConvention");
+        Assert.True(DiffTools.TryFindForInputFilePath(combine, out var tool));
+        Assert.Equal("MyCustomDiffTool", tool.Name);
+    }
+
 #if DEBUG
     [Fact]
     public void AddToolBasedOn()
@@ -99,34 +119,42 @@
         DiffRunner.LaunchAsync(DiffTool.P4Merge,
             Path.Combine(SourceDirectory, "input.temp.png"),
             Path.Combine(SourceDirectory, "input.target.png"));
-    **/
-    //[Fact]
-    //public async Task LaunchImageDiff()
-    //{
-    //    foreach (var tool in DiffTools.Resolved)
-    //    {
-    //        await DiffRunner.LaunchAsync(tool,
-    //            Path.Combine(SourceDirectory, "input.temp.png"),
-    //            Path.Combine(SourceDirectory, "input.target.png"));
-    //    }
-    //}
 
-    //[Fact]
-    //public async Task LaunchTextDiff()
-    //{
-    //    foreach (var tool in DiffTools.Resolved)
-    //    {
-    //        await DiffRunner.LaunchAsync(tool,
-    //            Path.Combine(SourceDirectory, "input.temp.txt"),
-    //            Path.Combine(SourceDirectory, "input.target.txt"));
-    //    }
-    //}
-    /**
+    [Fact]
+    public async Task LaunchImageDiff()
+    {
+        foreach (var tool in DiffTools.Resolved)
+        {
+            await DiffRunner.LaunchAsync(tool,
+                Path.Combine(SourceDirectory, "input.temp.png"),
+                Path.Combine(SourceDirectory, "input.target.png"));
+        }
+    }
+
+    [Fact]
+    public async Task LaunchTextDiff()
+    {
+        foreach (var tool in DiffTools.Resolved)
+        {
+            await DiffRunner.LaunchAsync(tool,
+                Path.Combine(SourceDirectory, "input.temp.txt"),
+                Path.Combine(SourceDirectory, "input.target.txt"));
+        }
+    }
+
     [Fact]
     public Task LaunchSpecificTextDiff() =>
         DiffRunner.LaunchAsync(DiffTool.WinMerge,
             Path.Combine(SourceDirectory, "input.temp.txt"),
             Path.Combine(SourceDirectory, "input.target.txt"));
+
+    [Fact]
+    public Task TextFileConvention()
+    {
+        var tempFile = Path.Combine(SourceDirectory, "input.temp.txtConvention");
+        var targetFile = Path.Combine(SourceDirectory, "input.target.txtConvention");
+        return DiffRunner.LaunchAsync(tempFile, targetFile);
+    }
     **/
 
     //todo: re enable tests with fake diff tool.
@@ -167,8 +195,7 @@
     }
 #endif
 **/
-    public DiffToolsTest(ITestOutputHelper output)
-        :
+    public DiffToolsTest(ITestOutputHelper output) :
         base(output) =>
         DiffTools.Reset();
 }

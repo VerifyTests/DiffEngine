@@ -16,6 +16,6 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="XunitContext" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-    <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' != 'net8.0'" />
+    <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' == 'net9.0'" />
   </ItemGroup>
 </Project>
