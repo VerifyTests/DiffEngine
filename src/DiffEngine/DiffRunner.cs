@@ -64,6 +64,35 @@ public static partial class DiffRunner
             targetFile,
             encoding);
     }
+    /// <summary>
+    /// Launch a diff tool for the given paths.
+    /// </summary>
+    public static Task<LaunchResult> LaunchForTextAsync(string tempFile, string targetFile, Encoding? encoding = null)
+    {
+        GuardFiles(tempFile, targetFile);
+
+        return InnerLaunchAsync(
+            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+                DiffTools.TryFindForText(out tool),
+            tempFile,
+            targetFile,
+            encoding);
+    }
+
+    /// <summary>
+    /// Launch a diff tool for the given paths.
+    /// </summary>
+    public static LaunchResult LaunchForText(string tempFile, string targetFile, Encoding? encoding = null)
+    {
+        GuardFiles(tempFile, targetFile);
+
+        return InnerLaunch(
+            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+                DiffTools.TryFindForText(out tool),
+            tempFile,
+            targetFile,
+            encoding);
+    }
 
     public static LaunchResult Launch(ResolvedTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
