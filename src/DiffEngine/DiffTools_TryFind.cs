@@ -20,6 +20,12 @@ public static partial class DiffTools
         return ExtensionLookup.TryGetValue(extension, out tool);
     }
 
+    public static bool TryFindForText([NotNullWhen(true)] out ResolvedTool? tool)
+    {
+        tool = resolved.FirstOrDefault(_ => _.SupportsText);
+        return tool != null;
+    }
+
     public static bool TryFindForInputFilePath(
         string path,
         [NotNullWhen(true)] out ResolvedTool? tool)
