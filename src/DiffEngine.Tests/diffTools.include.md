@@ -23,6 +23,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `/solo /rightreadonly /nobackups "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `/solo /leftreadonly /nobackups "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
+    * `%LOCALAPPDATA%\Programs\Beyond Compare *\BCompare.exe`
     * `%ProgramFiles%\Beyond Compare *\BCompare.exe`
     * `%ProgramW6432%\Beyond Compare *\BCompare.exe`
     * `%ProgramFiles(x86)%\Beyond Compare *\BCompare.exe`
