@@ -44,8 +44,8 @@ static partial class Implementation
                     new(
                         LeftWindowsArguments,
                         RightWindowsArguments),
-                    @"%LOCALAPPDATA%\Programs\Beyond Compare *\",
-                    @"%ProgramFiles%\Beyond Compare *\"),
+                    @"%ProgramFiles%\Beyond Compare *\",
+                    @"%LOCALAPPDATA%\Programs\Beyond Compare *\"),
                 Linux: new(
                     "bcompare",
                     new(
