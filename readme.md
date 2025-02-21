@@ -12,7 +12,6 @@ To change this file edit the source file and then run MarkdownSnippets.
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg?label=DiffEngine)](https://www.nuget.org/packages/DiffEngine/)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineTray.svg?label=DiffEngineTray)](https://www.nuget.org/packages/DiffEngineTray/)
 
-
 DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
 
 **See [Milestones](../../milestones?state=closed) for release notes.**
@@ -22,6 +21,11 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net)
  * [Shouldly](https://github.com/shouldly/shouldly/)
  * [Verify](https://github.com/VerifyTests/Verify)
+
+
+### Powered by
+
+[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport)
 
 
 <!-- toc -->
