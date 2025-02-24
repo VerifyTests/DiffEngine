@@ -35,7 +35,7 @@ public class OptionsFormTests :
                     Key = "A"
                 }
             },
-            _ => Task.FromResult<IReadOnlyCollection<string>>(new List<string>()));
+            _ => Task.FromResult<IReadOnlyCollection<string>>([]));
         await Verify(form);
     }
 
@@ -44,7 +44,7 @@ public class OptionsFormTests :
     {
         using var form = new OptionsForm(
             new(),
-            _ => Task.FromResult<IReadOnlyCollection<string>>(new List<string>()));
+            _ => Task.FromResult<IReadOnlyCollection<string>>([]));
         await Verify(form);
     }
 }
