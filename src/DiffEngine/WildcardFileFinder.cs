@@ -13,7 +13,7 @@
         {
             if (Directory.Exists(directory))
             {
-                return new List<string> {directory};
+                return [directory];
             }
         }
 
