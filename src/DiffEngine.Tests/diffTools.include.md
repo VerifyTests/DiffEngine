@@ -188,6 +188,9 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `"targetFile.txt" "tempFile.txt" --cs CreateBakFiles=0 `
   * Example target on right arguments: `"tempFile.txt" "targetFile.txt" --cs CreateBakFiles=0 `
   * Scanned paths:
+    * `%ProgramFiles%\KDiff3\bin\kdiff3.exe`
+    * `%ProgramW6432%\KDiff3\bin\kdiff3.exe`
+    * `%ProgramFiles(x86)%\KDiff3\bin\kdiff3.exe`
     * `%ProgramFiles%\KDiff3\kdiff3.exe`
     * `%ProgramW6432%\KDiff3\kdiff3.exe`
     * `%ProgramFiles(x86)%\KDiff3\kdiff3.exe`
