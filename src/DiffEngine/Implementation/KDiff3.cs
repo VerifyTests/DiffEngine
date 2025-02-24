@@ -19,7 +19,7 @@ static partial class Implementation
                 Windows: new(
                     "kdiff3.exe",
                     launchArguments,
-                    @"%ProgramFiles%\KDiff3\"),
+                    @"%ProgramFiles%\KDiff3\bin\", @"%ProgramFiles%\KDiff3\"),
                 Osx: new(
                     "kdiff3",
                     launchArguments,
