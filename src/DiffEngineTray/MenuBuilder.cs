@@ -28,7 +28,7 @@ static class MenuBuilder
         return menu;
     }
 
-    static IEnumerable<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items) =>
+    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items) =>
         items
             .Cast<ToolStripItem>()
             .Where(_ => _.Text != "Exit" &&
@@ -162,7 +162,7 @@ static class MenuBuilder
         yield return new ToolStripSeparator();
     }
 
-    static ToolStripItem BuildDelete(TrackedDelete delete, Action accept)
+    static ToolStripDropDownButton BuildDelete(TrackedDelete delete, Action accept)
     {
         var menu = new ToolStripDropDownButton($"{delete.Name}")
         {
@@ -173,7 +173,7 @@ static class MenuBuilder
         return menu;
     }
 
-    static ToolStripItem BuildMove(TrackedMove move, Action accept, Action discard)
+    static ToolStripDropDownButton BuildMove(TrackedMove move, Action accept, Action discard)
     {
         var tempName = Path.GetFileNameWithoutExtension(move.Temp);
         var targetName = Path.GetFileNameWithoutExtension(move.Target);
