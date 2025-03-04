@@ -6,7 +6,7 @@
         Path.AltDirectorySeparatorChar
     ];
 
-    static IEnumerable<string> EnumerateDirectories(string directory)
+    static List<string> EnumerateDirectories(string directory)
     {
         var expanded = Environment.ExpandEnvironmentVariables(directory);
         if (!directory.Contains('*'))
