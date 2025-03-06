@@ -53,7 +53,7 @@ static class OptionsFormLauncher
         }
 
         await SettingsHelper.Write(settings);
-        return Array.Empty<string>();
+        return [];
     }
 
     static void AddHotKey(KeyRegister keyRegister, HotKey? hotKey, int id, Action action, List<string> saveErrors)
