@@ -43,6 +43,8 @@ public static class BuildServerDetector
         // https://www.appveyor.com/docs/environment-variables/
         IsAppVeyor = variables.Contains("APPVEYOR");
 
+        IsWsl = variables.Contains("WSLENV");
+
         // AzureDevops
         // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables
         // Variable name is 'Agent.Id' to detect if this is a Azure Pipelines agent.
@@ -59,6 +61,7 @@ public static class BuildServerDetector
                    IsMyGet ||
                    IsGoDc ||
                    IsDocker ||
+                   IsWsl ||
                    IsAppVeyor;
     }
 
@@ -72,6 +75,8 @@ public static class BuildServerDetector
 
         return string.Equals((string)variable, value, StringComparison.OrdinalIgnoreCase);
     }
+
+    public static bool IsWsl { get; }
 
     public static bool IsAppVeyor { get; }
 
