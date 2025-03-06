@@ -48,16 +48,7 @@ public static class BuildServerDetector
         // Variable name is 'Agent.Id' to detect if this is a Azure Pipelines agent.
         // Note that variables are upper-cased and '.' is replaced with '_' on Azure Pipelines.
         // https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#access-variables-through-the-environment
-        IsAzureDevops = !IsTravis &&
-                        !IsJenkins &&
-                        !IsGithubAction &&
-                        !IsTeamCity &&
-                        !IsGitLab &&
-                        !IsMyGet &&
-                        !IsGoDc &&
-                        !IsDocker &&
-                        !IsAppVeyor &&
-                        variables.Contains("AGENT_ID");
+        IsAzureDevops = ValueEquals(variables, "TF_BUILD", "True");
 
         Detected = IsTravis ||
                    IsJenkins ||
