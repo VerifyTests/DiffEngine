@@ -20,10 +20,10 @@ static class FilePurger
         }
 
         var files = Directory.GetFiles(path, "*.verified.*", SearchOption.AllDirectories);
-
+        files = [.. files, .. Directory.GetFiles(path, "*.received.*", SearchOption.AllDirectories)];
         if (files.Length == 0)
         {
-            MessageBox.Show($"No *.verified.* files found in {path}");
+            MessageBox.Show($"No *.verified.*  or *.received.* files found in {path}");
             return;
         }
 
