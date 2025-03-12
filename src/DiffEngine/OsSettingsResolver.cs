@@ -27,19 +27,19 @@ static class OsSettingsResolver
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out LaunchArguments? launchArguments)
     {
-        if (TryResolveForOs(tool, osSupport.Windows, out path, OSPlatform.Windows))
+        if (TryResolveForOs(tool, osSupport.Windows, out path, "WINDOWS"))
         {
             launchArguments = osSupport.Windows.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(tool, osSupport.Linux, out path, OSPlatform.Linux))
+        if (TryResolveForOs(tool, osSupport.Linux, out path, "LINUX"))
         {
             launchArguments = osSupport.Linux.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(tool, osSupport.Osx, out path, OSPlatform.OSX))
+        if (TryResolveForOs(tool, osSupport.Osx, out path, "OSX"))
         {
             launchArguments = osSupport.Osx.LaunchArguments;
             return true;
@@ -54,11 +54,11 @@ static class OsSettingsResolver
         string tool,
         [NotNullWhen(true)] OsSettings? os,
         [NotNullWhen(true)] out string? path,
-        OSPlatform platform)
+        string platform)
     {
         path = null;
 
-        if (os == null || !RuntimeInformation.IsOSPlatform(platform))
+        if (os == null || !OperatingSystemPolyfill.IsOSPlatform(platform))
         {
             return false;
         }
