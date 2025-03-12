@@ -43,7 +43,7 @@ public static class BuildServerDetector
         // https://www.appveyor.com/docs/environment-variables/
         IsAppVeyor = variables.Contains("APPVEYOR");
 
-        IsWsl = variables.Contains("WSLENV");
+        IsWsl = variables.Contains("WSL_DISTRO_NAME");
 
         // AzureDevops
         // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#agent-variables
