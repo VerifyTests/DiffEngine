@@ -15,11 +15,11 @@ public class DiffRunnerTests :
         {
             await Task.Delay(500);
             ProcessCleanup.Refresh();
-            var result = DiffRunner.Launch(file1, "fake.txt");
+            var result = await DiffRunner.LaunchAsync(file1, "fake.txt");
             await Task.Delay(300);
             Assert.Equal(LaunchResult.StartedNewInstance, result);
             ProcessCleanup.Refresh();
-            result = DiffRunner.Launch(file2, "fake.txt");
+            result = await DiffRunner.LaunchAsync(file2, "fake.txt");
             Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
             ProcessCleanup.Refresh();
             DiffRunner.Kill(file1, "fake.txt");
