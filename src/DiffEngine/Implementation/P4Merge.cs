@@ -28,7 +28,7 @@ static partial class Implementation
             AutoRefresh: false,
             IsMdi: false,
             SupportsText: true,
-            CreateNoWindow: false,
+            UseShellExecute: true,
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions:

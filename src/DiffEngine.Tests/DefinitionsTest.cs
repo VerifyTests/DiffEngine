@@ -17,12 +17,12 @@ public class DefinitionsTest(ITestOutputHelper output) :
     [Fact]
     public void EnvironmentVariablesShouldBeUnique()
     {
-        static void FindDuplicates(Func<OsSupport, OsSettings?> SelectOs)
+        static void FindDuplicates(Func<OsSupport, OsSettings?> selectOs)
         {
             var findDuplicates = Definitions.Tools
-                .Select(d => d.OsSupport)
-                .Select(SelectOs)
-                .Where(s => s is not null)
+                .Select(_ => _.OsSupport)
+                .Select(selectOs)
+                .Where(_ => _ is not null)
                 .GroupBy(_ => _);
             foreach (var group in findDuplicates)
             {
@@ -30,9 +30,9 @@ public class DefinitionsTest(ITestOutputHelper output) :
             }
         }
 
-        FindDuplicates(os => os.Windows);
-        FindDuplicates(os => os.Osx);
-        FindDuplicates(os => os.Linux);
+        FindDuplicates(_ => _.Windows);
+        FindDuplicates(_ => _.Osx);
+        FindDuplicates(_ => _.Linux);
     }
 
     static void AddToolLink(TextWriter writer, Definition tool)
@@ -124,7 +124,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
                * Is MDI: {tool.IsMdi}
                * Supports auto-refresh: {tool.AutoRefresh}
                * Supports text files: {tool.SupportsText}
-               * Create no window: {tool.CreateNoWindow}
+               * Use shell execute: {tool.UseShellExecute}
                * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
              """);
 

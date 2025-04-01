@@ -187,7 +187,7 @@ public class DiffRunnerTests :
             autoRefresh: true,
             isMdi: false,
             supportsText: true,
-            createNoWindow: false,
+            useShellExecute: true,
             requiresTarget: true,
             launchArguments: new(
                 Left: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\"",

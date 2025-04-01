@@ -145,7 +145,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .pdf, .png, .rtf, .svg, .tif, .tiff
 
@@ -187,7 +187,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_DeltaWalker`
   * Supported binaries: .bmp, .bz2, .doc, .docx, .ear, .gif, .gz, .htm, .html, .ico, .j2k, .jar, .jp2, .jpg, .pbm, .pct, .pdf, .pgm, .pic, .pict, .png, .pnm, .ppm, .ppt, .psd, .rtf, .svg, .tar, .tbz2, .tgz, .tif, .xls, .xlsx, .zip
 
@@ -219,7 +219,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Diffinity`
   * Supported binaries: .svg
 
@@ -239,7 +239,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_ExamDiff`
   * Supported binaries: .svg
 
@@ -265,7 +265,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Guiffy`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .png, .svg, .wbmp
 
@@ -300,7 +300,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Kaleidoscope`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .svg, .tif, .tiff
 
@@ -317,7 +317,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_KDiff3`
   * Supported binaries: .svg
 
@@ -352,7 +352,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Neovim`
   * Supported binaries: .svg
 
@@ -387,7 +387,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_P4Merge`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .pbm, .pgm, .png, .ppm, .svg, .tif, .tiff, .xbm, .xpm
 
@@ -428,7 +428,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Rider`
   * Supported binaries: .svg
 
@@ -470,7 +470,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TkDiff`
   * Supported binaries: .svg
 
@@ -488,7 +488,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseGitIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
 
@@ -508,7 +508,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseGitMerge`
   * Supported binaries: .svg
 
@@ -528,7 +528,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
 
@@ -548,7 +548,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseMerge`
   * Supported binaries: .svg
 
@@ -568,7 +568,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Vim`
   * Supported binaries: .svg
 
@@ -604,7 +604,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: False
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_WinMerge`
   * Supported binaries: .bmp, .bw, .cut, .dds, .exr, .g3, .gif, .hdp, .hdr, .ico, .iff, .j2c, .j2k, .jif, .jng, .jp2, .jpe, .jpeg, .jpg, .jxr, .koa, .lbm, .mng, .pbm, .pcd, .pct, .pcx, .pfm, .pgm, .pic, .pict, .png, .ppm, .psd, .ras, .rgb, .rgba, .sgi, .svg, .targa, .tga, .tif, .tiff, .wap, .wbm, .wbmp, .wdp, .webp, .xbm, .xpm
 
@@ -637,7 +637,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_AraxisMerge`
   * Supported binaries: .bmp, .dib, .emf, .gif, .j2c, .j2k, .jif, .jp2, .jpc, .jpeg, .jpg, .jpx, .pbm, .pcx, .pgm, .png, .ppm, .ras, .svg, .tga, .tif, .tiff, .wmf
 
@@ -672,7 +672,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Meld`
   * Supported binaries: .svg
 
@@ -712,7 +712,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: False
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_SublimeMerge`
   * Supported binaries: .svg
 
@@ -751,7 +751,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_VisualStudio`
   * Supported binaries: .svg
 
@@ -780,7 +780,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
-  * Create no window: False
+  * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
   * Supported binaries: .svg
 

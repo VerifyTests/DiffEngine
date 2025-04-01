@@ -8,7 +8,7 @@ public static partial class DiffTools
         bool? isMdi = null,
         bool? supportsText = null,
         bool? requiresTarget = null,
-        bool? createNoWindow = false,
+        bool? useShellExecute = true,
         LaunchArguments? launchArguments = null,
         string? exePath = null,
         IEnumerable<string>? binaryExtensions = null)
@@ -25,29 +25,29 @@ public static partial class DiffTools
             isMdi ?? existing.IsMdi,
             supportsText ?? existing.SupportsText,
             requiresTarget ?? existing.RequiresTarget,
-            createNoWindow ?? existing.CreateNoWindow,
+            useShellExecute ?? existing.UseShellExecute,
             launchArguments ?? existing.LaunchArguments,
             exePath ?? existing.ExePath,
             binaryExtensions ?? existing.BinaryExtensions);
     }
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
-        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport, createNoWindow);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool useShellExecute, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
+        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport, useShellExecute);
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
-        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, createNoWindow);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool useShellExecute, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
+        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute);
 
-    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool createNoWindow)
+    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool useShellExecute)
     {
         if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments))
         {
             return null;
         }
 
-        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, createNoWindow);
+        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute);
     }
 
-    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool createNoWindow)
+    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool useShellExecute)
     {
         Guard.AgainstEmpty(name, nameof(name));
         if (resolved.Any(_ => _.Name == name))
@@ -70,7 +70,7 @@ public static partial class DiffTools
             binaries.ToList(),
             requiresTarget,
             supportsText,
-            createNoWindow);
+            useShellExecute);
 
         AddResolvedToolAtStart(tool);
 
@@ -107,7 +107,7 @@ public static partial class DiffTools
                 definition.RequiresTarget,
                 definition.BinaryExtensions,
                 definition.OsSupport,
-                definition.CreateNoWindow);
+                definition.UseShellExecute);
         }
 
         custom.Reverse();

@@ -23,8 +23,8 @@ public record ResolvedTool
         return LaunchArguments.Right(tempFile, targetFile);
     }
 
-    public ResolvedTool(string name, string exePath, LaunchArguments launchArguments, bool isMdi, bool autoRefresh, IReadOnlyCollection<string> binaryExtensions, bool requiresTarget, bool supportsText, bool createNoWindow) :
-        this(name, null, exePath, launchArguments, isMdi, autoRefresh, binaryExtensions, requiresTarget, supportsText, createNoWindow)
+    public ResolvedTool(string name, string exePath, LaunchArguments launchArguments, bool isMdi, bool autoRefresh, IReadOnlyCollection<string> binaryExtensions, bool requiresTarget, bool supportsText, bool useShellExecute) :
+        this(name, null, exePath, launchArguments, isMdi, autoRefresh, binaryExtensions, requiresTarget, supportsText, useShellExecute)
     {
     }
 
@@ -38,7 +38,7 @@ public record ResolvedTool
         IReadOnlyCollection<string> binaryExtensions,
         bool requiresTarget,
         bool supportsText,
-        bool createNoWindow)
+        bool useShellExecute)
     {
         Guard.FileExists(exePath, nameof(exePath));
         Guard.AgainstEmpty(name, nameof(name));
@@ -60,7 +60,7 @@ public record ResolvedTool
 
         RequiresTarget = requiresTarget;
         SupportsText = supportsText;
-        CreateNoWindow = createNoWindow;
+        UseShellExecute = useShellExecute;
     }
 
     public string Name { get; init; }
@@ -72,5 +72,5 @@ public record ResolvedTool
     public FrozenSet<string> BinaryExtensions { get; init; }
     public bool RequiresTarget { get; init; }
     public bool SupportsText { get; init; }
-    public bool CreateNoWindow { get; init; }
+    public bool UseShellExecute { get; init; }
 }
