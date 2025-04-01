@@ -2,7 +2,16 @@
 
 public static partial class DiffTools
 {
-    public static ResolvedTool? AddToolBasedOn(DiffTool basedOn, string name, bool? autoRefresh = null, bool? isMdi = null, bool? supportsText = null, bool? requiresTarget = null, LaunchArguments? launchArguments = null, string? exePath = null, IEnumerable<string>? binaryExtensions = null)
+    public static ResolvedTool? AddToolBasedOn(DiffTool basedOn,
+        string name,
+        bool? autoRefresh = null,
+        bool? isMdi = null,
+        bool? supportsText = null,
+        bool? requiresTarget = null,
+        bool? createNoWindow = false,
+        LaunchArguments? launchArguments = null,
+        string? exePath = null,
+        IEnumerable<string>? binaryExtensions = null)
     {
         var existing = resolved.SingleOrDefault(_ => _.Tool == basedOn);
         if (existing == null)
@@ -16,28 +25,29 @@ public static partial class DiffTools
             isMdi ?? existing.IsMdi,
             supportsText ?? existing.SupportsText,
             requiresTarget ?? existing.RequiresTarget,
+            createNoWindow ?? existing.CreateNoWindow,
             launchArguments ?? existing.LaunchArguments,
             exePath ?? existing.ExePath,
             binaryExtensions ?? existing.BinaryExtensions);
     }
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
-        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
+        AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport, createNoWindow);
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
-        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
+        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, createNoWindow);
 
-    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport)
+    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool createNoWindow)
     {
         if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments))
         {
             return null;
         }
 
-        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments);
+        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, createNoWindow);
     }
 
-    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments)
+    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool createNoWindow)
     {
         Guard.AgainstEmpty(name, nameof(name));
         if (resolved.Any(_ => _.Name == name))
@@ -59,7 +69,8 @@ public static partial class DiffTools
             autoRefresh,
             binaries.ToList(),
             requiresTarget,
-            supportsText);
+            supportsText,
+            createNoWindow);
 
         AddResolvedToolAtStart(tool);
 
@@ -95,7 +106,8 @@ public static partial class DiffTools
                 definition.SupportsText,
                 definition.RequiresTarget,
                 definition.BinaryExtensions,
-                definition.OsSupport);
+                definition.OsSupport,
+                definition.CreateNoWindow);
         }
 
         custom.Reverse();

@@ -124,12 +124,13 @@ public class DefinitionsTest(ITestOutputHelper output) :
                * Is MDI: {tool.IsMdi}
                * Supports auto-refresh: {tool.AutoRefresh}
                * Supports text files: {tool.SupportsText}
+               * Create no window: {tool.CreateNoWindow}
                * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
              """);
 
         if (tool.BinaryExtensions.Length != 0)
         {
-            writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions.OrderBy(_=>_))}");
+            writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions.OrderBy(_ => _))}");
         }
 
         if (tool.Notes != null)
