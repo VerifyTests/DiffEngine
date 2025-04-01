@@ -12,6 +12,7 @@ static partial class Implementation
             AutoRefresh: false,
             IsMdi: true,
             SupportsText: true,
+            CreateNoWindow: false,
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: [".svg"],
