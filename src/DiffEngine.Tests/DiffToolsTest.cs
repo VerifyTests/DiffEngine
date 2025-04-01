@@ -20,7 +20,7 @@
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            createNoWindow: false,
+            useShellExecute: true,
             launchArguments: new(
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
@@ -45,7 +45,7 @@
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            createNoWindow: false,
+            useShellExecute: true,
             launchArguments: new(
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
@@ -67,7 +67,7 @@
             isMdi: false,
             supportsText: true,
             requiresTarget: true,
-            createNoWindow: false,
+            useShellExecute: true,
             launchArguments: new(
                 Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
                 Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
