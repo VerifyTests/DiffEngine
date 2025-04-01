@@ -780,7 +780,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
-  * Use shell execute: True
+  * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
   * Supported binaries: .svg
 
@@ -793,11 +793,11 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Example target on left arguments: `--diff "targetFile.txt" "tempFile.txt" `
   * Example target on right arguments: `--diff "tempFile.txt" "targetFile.txt" `
   * Scanned paths:
-    * `%LocalAppData%\Programs\Microsoft VS Code\code.exe`
-    * `%ProgramFiles%\Microsoft VS Code\code.exe`
-    * `%ProgramW6432%\Microsoft VS Code\code.exe`
-    * `%ProgramFiles(x86)%\Microsoft VS Code\code.exe`
-    * `%PATH%code.exe`
+    * `%LocalAppData%\Programs\Microsoft VS Code\bin\code.cmd`
+    * `%ProgramFiles%\Microsoft VS Code\bin\code.cmd`
+    * `%ProgramW6432%\Microsoft VS Code\bin\code.cmd`
+    * `%ProgramFiles(x86)%\Microsoft VS Code\bin\code.cmd`
+    * `%PATH%code.cmd`
 
 #### OSX settings:
 

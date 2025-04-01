@@ -11,16 +11,16 @@ static partial class Implementation
             AutoRefresh: true,
             IsMdi: true,
             SupportsText: true,
-            UseShellExecute: true,
+            UseShellExecute: false,
             RequiresTarget: true,
             Cost: "Free",
             BinaryExtensions: [".svg"],
             OsSupport: new(
                 Windows: new(
-                    "code.exe",
+                    "code.cmd",
                     launchArguments,
-                    @"%LocalAppData%\Programs\Microsoft VS Code\",
-                    @"%ProgramFiles%\Microsoft VS Code\"),
+                    @"%LocalAppData%\Programs\Microsoft VS Code\bin\",
+                    @"%ProgramFiles%\Microsoft VS Code\bin\"),
                 Linux: new(
                     "code",
                     launchArguments),
