@@ -75,9 +75,18 @@ public static partial class DiffTools
         PathLookup.Clear();
         resolved.Clear();
 
-        foreach (var tool in ToolsOrder.Sort(throwForNoTool, order).Reverse())
+        foreach (var definition in ToolsOrder.Sort(throwForNoTool, order).Reverse())
         {
-            AddTool(tool.Tool.ToString(), tool.Tool, tool.AutoRefresh, tool.IsMdi, tool.SupportsText, tool.RequiresTarget, tool.BinaryExtensions, tool.OsSupport);
+            var tool = definition.Tool;
+            AddTool(
+                tool.ToString(),
+                tool,
+                definition.AutoRefresh,
+                definition.IsMdi,
+                definition.SupportsText,
+                definition.RequiresTarget,
+                definition.BinaryExtensions,
+                definition.OsSupport);
         }
 
         custom.Reverse();
