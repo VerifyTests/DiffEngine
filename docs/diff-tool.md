@@ -780,7 +780,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Is MDI: True
   * Supports auto-refresh: True
   * Supports text files: True
-  * Use shell execute: True
+  * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
   * Supported binaries: .svg
 

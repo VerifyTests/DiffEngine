@@ -115,13 +115,14 @@
 
         #endregion
     }
+    /**
 
     [Fact]
     public Task LaunchSpecificTextDiff() =>
         DiffRunner.LaunchAsync(DiffTool.VisualStudioCode,
             Path.Combine(SourceDirectory, "input.temp.txt"),
             Path.Combine(SourceDirectory, "input.target.txt"));
-    /**
+
     [Fact]
     public Task LaunchSpecificImageDiff() =>
         DiffRunner.LaunchAsync(DiffTool.P4Merge,
