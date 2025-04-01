@@ -50,11 +50,20 @@ public static partial class DiffTools
             return null;
         }
 
-        var resolvedTool = new ResolvedTool(name, diffTool, resolvedExePath, launchArguments, isMdi, autoRefresh, binaries.ToList(), requiresTarget, supportsText);
+        var tool = new ResolvedTool(
+            name,
+            diffTool,
+            resolvedExePath,
+            launchArguments,
+            isMdi,
+            autoRefresh,
+            binaries.ToList(),
+            requiresTarget,
+            supportsText);
 
-        AddResolvedToolAtStart(resolvedTool);
+        AddResolvedToolAtStart(tool);
 
-        return resolvedTool;
+        return tool;
     }
 
     static void AddResolvedToolAtStart(ResolvedTool resolvedTool)
