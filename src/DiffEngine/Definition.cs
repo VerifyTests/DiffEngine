@@ -10,4 +10,5 @@ public record Definition(
     string[] BinaryExtensions,
     string Cost,
     OsSupport OsSupport,
+    bool CreateNoWindow,
     string? Notes = null);

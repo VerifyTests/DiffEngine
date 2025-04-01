@@ -22,6 +22,7 @@ static partial class Implementation
             AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
+            CreateNoWindow: false,
             RequiresTarget: true,
             Cost: "Free with option to donate",
             BinaryExtensions:

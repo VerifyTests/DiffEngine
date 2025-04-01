@@ -9,6 +9,7 @@ static partial class Implementation
             Cost: "Paid",
             SupportsText: true,
             RequiresTarget: true,
+            CreateNoWindow: false,
             BinaryExtensions:
             [
                 ".svg",

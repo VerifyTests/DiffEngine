@@ -20,6 +20,7 @@ static partial class Implementation
             AutoRefresh: true,
             IsMdi: false,
             SupportsText: true,
+            CreateNoWindow: false,
             Cost: "Paid",
             // technically BC doesnt require a target.
             // but if no target exists, the target cannot be edited
