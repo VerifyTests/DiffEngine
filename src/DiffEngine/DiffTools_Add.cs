@@ -2,7 +2,16 @@
 
 public static partial class DiffTools
 {
-    public static ResolvedTool? AddToolBasedOn(DiffTool basedOn, string name, bool? autoRefresh = null, bool? isMdi = null, bool? supportsText = null, bool? requiresTarget = null, LaunchArguments? launchArguments = null, string? exePath = null, IEnumerable<string>? binaryExtensions = null, bool? createNoWindow = false)
+    public static ResolvedTool? AddToolBasedOn(DiffTool basedOn,
+        string name,
+        bool? autoRefresh = null,
+        bool? isMdi = null,
+        bool? supportsText = null,
+        bool? requiresTarget = null,
+        bool? createNoWindow = false,
+        LaunchArguments? launchArguments = null,
+        string? exePath = null,
+        IEnumerable<string>? binaryExtensions = null)
     {
         var existing = resolved.SingleOrDefault(_ => _.Tool == basedOn);
         if (existing == null)
@@ -16,16 +25,16 @@ public static partial class DiffTools
             isMdi ?? existing.IsMdi,
             supportsText ?? existing.SupportsText,
             requiresTarget ?? existing.RequiresTarget,
+            createNoWindow ?? existing.CreateNoWindow,
             launchArguments ?? existing.LaunchArguments,
             exePath ?? existing.ExePath,
-            binaryExtensions ?? existing.BinaryExtensions,
-            createNoWindow ?? existing.CreateNoWindow);
+            binaryExtensions ?? existing.BinaryExtensions);
     }
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool createNoWindow) =>
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
         AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport, createNoWindow);
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions, bool createNoWindow) =>
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool createNoWindow, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions) =>
         AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, createNoWindow);
 
     static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool createNoWindow)
