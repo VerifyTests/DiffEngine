@@ -15,7 +15,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
+            ([NotNullWhen(true)] out resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
             targetFile,
             encoding);
@@ -26,7 +26,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            ([NotNullWhen(true)] out ResolvedTool? resolved) => DiffTools.TryFindByName(tool, out resolved),
+            ([NotNullWhen(true)] out resolved) => DiffTools.TryFindByName(tool, out resolved),
             tempFile,
             targetFile,
             encoding);
@@ -40,7 +40,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out tool) =>
             {
                 var extension = Path.GetExtension(tempFile);
                 return DiffTools.TryFindByExtension(extension, out tool);
@@ -58,7 +58,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out tool) =>
                 DiffTools.TryFindForInputFilePath(tempFile, out tool),
             tempFile,
             targetFile,
@@ -72,7 +72,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out tool) =>
                 DiffTools.TryFindForText(out tool),
             tempFile,
             targetFile,
@@ -87,7 +87,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            ([NotNullWhen(true)] out ResolvedTool? tool) =>
+            ([NotNullWhen(true)] out tool) =>
                 DiffTools.TryFindForText(out tool),
             tempFile,
             targetFile,
@@ -99,7 +99,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunch(
-            ([NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
+            ([NotNullWhen(true)] out resolvedTool) =>
             {
                 resolvedTool = tool;
                 return true;
@@ -114,7 +114,7 @@ public static partial class DiffRunner
         GuardFiles(tempFile, targetFile);
 
         return InnerLaunchAsync(
-            ([NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
+            ([NotNullWhen(true)] out resolvedTool) =>
             {
                 resolvedTool = tool;
                 return true;
