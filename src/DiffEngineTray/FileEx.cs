@@ -19,7 +19,7 @@ static class FileEx
         }
         catch (IOException exception)
         {
-            Log.Error(exception, $"Failed to delete '{path}'.");
+            Log.Error(exception, "Failed to delete '{Path}'.", path);
             //Swallow this since it is likely that a running test it reading or
             //writing to the files, and the result will re-add the tracked item
         }
@@ -48,7 +48,7 @@ static class FileEx
         }
         catch (IOException exception)
         {
-            Log.Error(exception, $"Failed to delete '{path}'.");
+            Log.Error(exception, "Failed to delete '{Path}'.", path);
         }
         catch (Exception exception)
         {
@@ -61,7 +61,7 @@ static class FileEx
         //Swallow this since it is likely that a running test it reading or
         //writing to the files, and the result will re-add the tracked item
         void HandleAccessException(Exception exception) =>
-            Log.Error(exception, $"Failed to move '{temp}' to '{target}'.");
+            Log.Error(exception, "Failed to move '{Temp}' to '{Target}'.", temp, target);
 
         if (!File.Exists(temp))
         {

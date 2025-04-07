@@ -271,13 +271,13 @@ class Tracker :
     {
         if (!move.CanKill)
         {
-            Log.Information($"Did not kill for `{move.Name}` since CanKill=false");
+            Log.Information("Did not kill for `{Name}` since CanKill=false", move.Name);
             return;
         }
 
         if (move.Process == null)
         {
-            Log.Information($"No processes to kill for `{move.Name}`");
+            Log.Information("No processes to kill for `{Name}`", move.Name);
             return;
         }
 

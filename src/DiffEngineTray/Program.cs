@@ -125,9 +125,8 @@ static class Program
         }
         catch (Exception exception)
         {
-            var message = $"Cannot start. Failed to read settings: {SettingsHelper.FilePath}";
-            Log.Fatal(exception, message);
-            IssueLauncher.LaunchForException(message, exception);
+            Log.Fatal(exception, "Cannot start. Failed to read settings: {FilePath}", SettingsHelper.FilePath);
+            IssueLauncher.LaunchForException($"Cannot start. Failed to read settings: {SettingsHelper.FilePath}", exception);
             return null;
         }
     }

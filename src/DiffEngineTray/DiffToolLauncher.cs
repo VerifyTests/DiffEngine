@@ -6,7 +6,7 @@ static class DiffToolLauncher
     public static void Launch(TrackedMove move)
     {
         var process = move.Process;
-        if (process is {HasExited: false})
+        if (process is { HasExited: false })
         {
             if (SetForegroundWindow(process.MainWindowHandle))
             {
@@ -40,19 +40,22 @@ static class DiffToolLauncher
             }
 
             Log.Error(
-                $"""
-                 Failed to launch diff tool.
-                 {move.Exe} {move.Arguments}
-                 """);
+                """
+                Failed to launch diff tool.
+                {Exe} {Arguments}
+                """,
+                move.Exe, move.Arguments);
         }
         catch (Exception exception)
         {
             Log.Error(
                 exception,
-                $"""
-                 Failed to launch diff tool.
-                 {move.Exe} {move.Arguments}
-                 """);
+                """
+                Failed to launch diff tool.
+                {Exe} {Arguments}
+                """,
+                move.Exe,
+                move.Arguments);
         }
     }
 }
