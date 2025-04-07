@@ -30,6 +30,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DiffEngineTray.Tests", "Dif
 		{2B054DB2-42A0-4F3E-87CC-30D6E926D0D9} = {2B054DB2-42A0-4F3E-87CC-30D6E926D0D9}
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VersionTests", "VersionTests\VersionTests.csproj", "{B71AE158-C29F-49FB-B886-8343FD924788}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -65,6 +67,12 @@ Global
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E339AB28-21B2-47DB-B995-EB2C4CE8BA99}.Release-NotWindows|Any CPU.ActiveCfg = Release|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Release-NotWindows|Any CPU.ActiveCfg = Debug|Any CPU
+		{B71AE158-C29F-49FB-B886-8343FD924788}.Release-NotWindows|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
