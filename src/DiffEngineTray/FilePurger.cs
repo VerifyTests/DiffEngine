@@ -19,11 +19,14 @@ static class FilePurger
             return;
         }
 
-        var files = Directory.GetFiles(path, "*.verified.*", SearchOption.AllDirectories);
+        var verifiedFiles = Directory.GetFiles(path, "*.verified.*", SearchOption.AllDirectories);
+        var receivedFiles = Directory.GetFiles(path, "*.received.*", SearchOption.AllDirectories);
+
+        var files = verifiedFiles.Concat(receivedFiles).ToArray();
 
         if (files.Length == 0)
         {
-            MessageBox.Show($"No *.verified.* files found in {path}");
+            MessageBox.Show($"No *.verified.* or  *.received.* files found in {path}");
             return;
         }
 
