@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;net9.0</TargetFrameworks>
-    <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
@@ -18,7 +18,7 @@
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
     <PackageReference Include="Fody" PrivateAssets="all" />
     <PackageReference Include="System.Collections.Immutable"
-                      Condition="'$(TargetFramework)' != 'net8.0' AND '$(TargetFramework)' != 'net9.0'" />
+                      Condition="'$(TargetFramework)' != 'net8.0' AND '$(TargetFramework)' != 'net9.0' AND '$(TargetFramework)' != 'net10.0'" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
