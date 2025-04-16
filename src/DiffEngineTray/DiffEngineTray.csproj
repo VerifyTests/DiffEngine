@@ -7,7 +7,7 @@
     <PackAsTool>True</PackAsTool>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <NoWarn>NETSDK1137;WFAC010</NoWarn>
+    <NoWarn>$(NoWarn);NU1510;NETSDK1137;WFAC010</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
