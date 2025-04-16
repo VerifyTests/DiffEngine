@@ -1,6 +1,4 @@
-﻿using System.Collections.Frozen;
-
-public class VersionTests
+﻿public class VersionTests
 {
     // work around https://github.com/orgs/VerifyTests/discussions/1366
 #if !NET9_0_OR_GREATER
