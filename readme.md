@@ -25,7 +25,6 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 
 ## Sponsors
 
-
 ### Entity Framework Extensions<!-- include: zzz. path: /docs/mdsource/zzz.include.md -->
 
 [Entity Framework Extensions](https://entityframework-extensions.net/) is a major sponsor and is proud to contribute to the development this project.
