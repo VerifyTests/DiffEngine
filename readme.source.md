@@ -16,7 +16,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [Verify](https://github.com/VerifyTests/Verify)
 
 
-### Powered by
+## Sponsored by
 
 [![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport)
 
@@ -25,7 +25,7 @@ toc
 include: doc-index
 
 
-## NuGet package
+## NuGet
 
  * https://nuget.org/packages/DiffEngine/
 

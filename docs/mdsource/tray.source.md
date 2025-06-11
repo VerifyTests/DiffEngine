@@ -3,7 +3,7 @@
 DiffEngineTray sits in the Windows tray. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
 
 
-## NuGet package
+## NuGet
 
  * https://www.nuget.org/packages/DiffEngineTray
 
