@@ -31,7 +31,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 <!-- toc -->
 ## Contents
 
-  * [NuGet package](#nuget-package)
+  * [NuGet](#nuget)
   * [Supported Tools](#supported-tools)
   * [Launching a tool](#launching-a-tool)
   * [Closing a tool](#closing-a-tool)
