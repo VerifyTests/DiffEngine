@@ -16,7 +16,12 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * [Verify](https://github.com/VerifyTests/Verify)
 
 
-## Sponsored by
+## Sponsors
+
+include: zzz
+
+
+### JetBrains
 
 [![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport)
 
