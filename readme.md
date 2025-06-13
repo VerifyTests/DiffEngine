@@ -12,7 +12,7 @@ To change this file edit the source file and then run MarkdownSnippets.
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg?label=DiffEngine)](https://www.nuget.org/packages/DiffEngine/)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineTray.svg?label=DiffEngineTray)](https://www.nuget.org/packages/DiffEngineTray/)
 
-DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
+DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.<!-- singleLineInclude: intro. path: /docs/mdsource/intro.include.md -->
 
 **See [Milestones](../../milestones?state=closed) for release notes.**
 
@@ -27,9 +27,9 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 
 ### Entity Framework Extensions<!-- include: zzz. path: /docs/mdsource/zzz.include.md -->
 
-[Entity Framework Extensions](https://entityframework-extensions.net/) is a major sponsor and is proud to contribute to the development this project.
+[Entity Framework Extensions](https://entityframework-extensions.net/?utm_source=simoncropp&utm_medium=DiffEngine) is a major sponsor and is proud to contribute to the development this project.
 
-[![Entity Framework Extensions](docs/zzz.png)](https://entityframework-extensions.net)<!-- endInclude -->
+[![Entity Framework Extensions](https://raw.githubusercontent.com/VerifyTests/DiffEngine/refs/heads/main/docs/zzz.png)](https://entityframework-extensions.net/?utm_source=simoncropp&utm_medium=DiffEngine)<!-- endInclude -->
 
 
 ### JetBrains

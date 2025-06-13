@@ -1,0 +1,1 @@
+DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.
