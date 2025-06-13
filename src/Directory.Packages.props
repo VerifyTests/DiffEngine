@@ -4,7 +4,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Argon" Version="0.30.0" />
+    <PackageVersion Include="Argon" Version="0.30.1" />
     <PackageVersion Include="Caseless.Fody" Version="1.9.1" />
     <PackageVersion Include="EmptyFiles" Version="8.10.1" />
     <PackageVersion Include="Fody" Version="6.9.2" />
@@ -19,7 +19,7 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Globalization.Extensions" Version="4.3.0" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
-    <PackageVersion Include="System.Management" Version="8.0.0" />
+    <PackageVersion Include="System.Management" Version="9.0.6" />
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="System.Text.Json" Version="9.0.6" />
