@@ -79,6 +79,10 @@ Supports:
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
  * [GoCD](https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html)
 
+There are also individual properties to check for each specific build system
+
+snippet: BuildServerDetectorProps
+
 
 ## Disable for a machine/process
 

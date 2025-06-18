@@ -138,6 +138,26 @@ Supports:
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
  * [GoCD](https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html)
 
+There are also individual properties to check for each specific build system
+
+<!-- snippet: BuildServerDetectorProps -->
+<a id='snippet-BuildServerDetectorProps'></a>
+```cs
+var isWsl = BuildServerDetector.IsWsl;
+var isTravis = BuildServerDetector.IsTravis;
+var isJenkins = BuildServerDetector.IsJenkins;
+var isGithubAction = BuildServerDetector.IsGithubAction;
+var isAzureDevops = BuildServerDetector.IsAzureDevops;
+var isTeamCity = BuildServerDetector.IsTeamCity;
+var isGitLab = BuildServerDetector.IsGitLab;
+var isMyGet = BuildServerDetector.IsMyGet;
+var isGoDc = BuildServerDetector.IsGoDc;
+var isDocker = BuildServerDetector.IsDocker;
+var isAppVeyor = BuildServerDetector.IsAppVeyor;
+```
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L9-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
 
 ## Disable for a machine/process
 
