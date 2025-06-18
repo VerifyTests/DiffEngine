@@ -193,9 +193,13 @@ public class DefinitionsTest(ITestOutputHelper output) :
             writer.WriteLine(
                 $"""
                    * Example target on left arguments:
-                    `{leftText}`
+                    ```
+                    {leftText}
+                    ```
                    * Example target on right arguments:
-                    `{rightText}`
+                    ```
+                    {rightText}
+                    ```
                  """);
         }
         else
@@ -203,13 +207,21 @@ public class DefinitionsTest(ITestOutputHelper output) :
             writer.WriteLine(
                 $"""
                    * Example target on left arguments for text:
-                    `{leftText}`
+                    ```
+                    {leftText}
+                    ```
                    * Example target on right arguments for text:
-                    `{rightText}`
+                    ```
+                    {rightText}
+                    ```
                    * Example target on left arguments for binary:
-                    `{leftBinary}`
+                    ```
+                    {leftBinary}
+                    ```
                    * Example target on right arguments for binary:
-                    `{rightBinary}`
+                    ```
+                    {rightBinary}
+                    ```
                  """);
         }
     }
