@@ -58,7 +58,7 @@ static class OsSettingsResolver
     {
         path = null;
 
-        if (os == null || !OperatingSystemPolyfill.IsOSPlatform(platform))
+        if (os == null || !OperatingSystem.IsOSPlatform(platform))
         {
             return false;
         }

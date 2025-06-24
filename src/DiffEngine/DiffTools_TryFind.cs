@@ -49,7 +49,7 @@ public static partial class DiffTools
             return tool != null;
         }
 
-        var extension = PathPolyfill.GetExtension(path).ToString();
+        var extension = Path.GetExtension(path).ToString();
         return ExtensionLookup.TryGetValue(extension, out tool);
     }
 
