@@ -12,12 +12,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
-  * Supported binaries: .7z, .bcpkg, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .wim, .xz, .zip, .zipx
+  * Supported binaries: .7z, .bcpkg, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .wim, .xz, .zip, .zipx
 
 #### Notes:
 
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
  * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`.
+ * For `.kmz`, and `.nupkg` Beyond Compare needs to be configured to treat them as zip. 
+   `Tools > Options > Archive Types`. Scroll down to Zip, then add extra extension to the semicolon delimited list.
 
 #### Windows settings:
 

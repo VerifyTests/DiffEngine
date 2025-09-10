@@ -64,6 +64,8 @@ static partial class Implementation
                 ".ear",
                 ".war",
                 ".bcpkg",
+                ".nupkg",
+                ".kmz"
             ],
             OsSupport: new(
                 Windows: new(
@@ -88,6 +90,8 @@ static partial class Implementation
             Notes: """
                     * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
                     * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`.
+                    * For `.kmz`, and `.nupkg` Beyond Compare needs to be configured to treat them as zip. 
+                      `Tools > Options > Archive Types`. Scroll down to Zip, then add extra extension to the semicolon delimited list.
                    """);
     }
 }
