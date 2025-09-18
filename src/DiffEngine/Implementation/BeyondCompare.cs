@@ -65,7 +65,8 @@ static partial class Implementation
                 ".war",
                 ".bcpkg",
                 ".nupkg",
-                ".kmz"
+                ".kmz",
+                ".xlsx"
             ],
             OsSupport: new(
                 Windows: new(
