@@ -30,7 +30,7 @@ static partial class Implementation
                 Windows: new(
                     "ExamDiff.exe",
                     new(LeftArguments, RightArguments),
-                    @"%ProgramFiles%\ExamDiff Pro\")),
+                    @"%ProgramFiles%\ExamDiff Pro*\")),
             Notes: """
                  * [Command line reference](https://www.prestosoft.com/ps.asp?page=htmlhelp/edp/command_line_options)
                  * `/nh`: do not add files or directories to comparison history
