@@ -163,9 +163,9 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    "tempFile.txt" "targetFile.txt" /nh /diffonly /dn1:tempFile.txt /dn2:targetFile.txt
    ```
   * Scanned paths:
-    * `%ProgramFiles%\ExamDiff Pro\ExamDiff.exe`
-    * `%ProgramW6432%\ExamDiff Pro\ExamDiff.exe`
-    * `%ProgramFiles(x86)%\ExamDiff Pro\ExamDiff.exe`
+    * `%ProgramFiles%\ExamDiff Pro*\ExamDiff.exe`
+    * `%ProgramW6432%\ExamDiff Pro*\ExamDiff.exe`
+    * `%ProgramFiles(x86)%\ExamDiff Pro*\ExamDiff.exe`
     * `%PATH%ExamDiff.exe`
 
 ### [Guiffy](https://www.guiffy.com/)
