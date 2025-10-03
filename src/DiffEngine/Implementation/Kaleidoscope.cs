@@ -20,7 +20,8 @@ static partial class Implementation
                 ".jpeg",
                 ".png",
                 ".tiff",
-                ".tif"
+                ".tif",
+                ".bin"
             ],
             OsSupport: new(
                 Osx: new(
