@@ -25,7 +25,11 @@ static partial class Implementation
             UseShellExecute: true,
             RequiresTarget: true,
             Cost: "Paid",
-            BinaryExtensions: [".svg"],
+            BinaryExtensions:
+            [
+                ".bin",
+                ".svg"
+            ],
             OsSupport: new(
                 Windows: new(
                     "ExamDiff.exe",

@@ -19,7 +19,8 @@ static partial class Implementation
             OsSupport: new(
                 Windows: new(
                     "nvim.exe",
-                    launchArguments),
+                    launchArguments,
+                    searchDirectory: @"C:\Program Files\Neovim\bin"),
                 Linux: new(
                     "nvim",
                     launchArguments),

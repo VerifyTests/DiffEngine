@@ -12,13 +12,13 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
-  * Supported binaries: .7z, .bcpkg, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .wim, .xlsx, .xz, .zip, .zipx
+  * Supported binaries: .7z, .bcpkg, .bin, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .wim, .xlsx, .xz, .zip, .zipx
 
 #### Notes:
 
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
  * Enable [Automatically reload unless changes will be discarded](https://www.scootersoftware.com/v4help/optionstweak.html) in `Tools > Options > Tweaks > File Operations`.
- * For `.kmz`, and `.nupkg`, Beyond Compare needs to be configured to treat them as zip. 
+ * For `.kmz`, and `.nupkg`, Beyond Compare needs to be configured to treat them as zip.
    `Tools > Options > Archive Types`. Scroll down to Zip, then add extra extension to the semicolon delimited list.
 
 #### Windows settings:
@@ -144,7 +144,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_ExamDiff`
-  * Supported binaries: .svg
+  * Supported binaries: .bin, .svg
 
 #### Notes:
 
@@ -223,7 +223,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Kaleidoscope`
-  * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .svg, .tif, .tiff
+  * Supported binaries: .bin, .bmp, .gif, .ico, .jpeg, .jpg, .png, .svg, .tif, .tiff
 
 #### OSX settings:
 
@@ -310,6 +310,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
    -d "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
+    * `C:\Program Files\Neovim\binnvim.exe`
     * `%PATH%nvim.exe`
 
 #### OSX settings:
@@ -533,7 +534,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseGitMerge`
-  * Supported binaries: .svg
+  * Supported binaries: .bin, .svg
 
 #### Windows settings:
 
@@ -659,7 +660,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_WinMerge`
-  * Supported binaries: .bmp, .bw, .cut, .dds, .exr, .g3, .gif, .hdp, .hdr, .ico, .iff, .j2c, .j2k, .jif, .jng, .jp2, .jpe, .jpeg, .jpg, .jxr, .koa, .lbm, .mng, .pbm, .pcd, .pct, .pcx, .pfm, .pgm, .pic, .pict, .png, .ppm, .psd, .ras, .rgb, .rgba, .sgi, .svg, .targa, .tga, .tif, .tiff, .wap, .wbm, .wbmp, .wdp, .webp, .xbm, .xpm
+  * Supported binaries: .bin, .bmp, .bw, .cut, .dds, .exr, .g3, .gif, .hdp, .hdr, .ico, .iff, .j2c, .j2k, .jif, .jng, .jp2, .jpe, .jpeg, .jpg, .jxr, .koa, .lbm, .mng, .pbm, .pcd, .pct, .pcx, .pfm, .pgm, .pic, .pict, .png, .ppm, .psd, .ras, .rgb, .rgba, .sgi, .svg, .targa, .tga, .tif, .tiff, .wap, .wbm, .wbmp, .wdp, .webp, .xbm, .xpm
 
 #### Notes:
 
@@ -895,7 +896,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports text files: True
   * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
-  * Supported binaries: .svg
+  * Supported binaries: .bin, .svg
 
 #### Notes:
 

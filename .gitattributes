@@ -1,5 +1,6 @@
 * text
 *.snk binary
+*.bin binary
 *.png binary
 
 src/Verify/EmptyFiles/* binary
