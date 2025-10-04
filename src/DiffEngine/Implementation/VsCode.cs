@@ -14,7 +14,11 @@ static partial class Implementation
             UseShellExecute: false,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: [".svg"],
+            BinaryExtensions:
+            [
+                ".svg",
+                ".bin"
+            ],
             OsSupport: new(
                 Windows: new(
                     "code.cmd",
@@ -28,6 +32,6 @@ static partial class Implementation
                     "code",
                     launchArguments,
                     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/")),
-                Notes: " * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
+            Notes: " * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
     }
 }

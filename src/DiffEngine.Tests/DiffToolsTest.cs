@@ -115,13 +115,13 @@
 
         #endregion
     }
-    [Fact]
-    public Task LaunchSpecificBinaryDiff() =>
-        DiffRunner.LaunchAsync(DiffTool.ExamDiff,
-            Path.Combine(SourceDirectory, "input.temp.bin"),
-            Path.Combine(SourceDirectory, "input.target.bin"));
     /**
 
+    [Fact]
+    public Task LaunchSpecificBinaryDiff() =>
+        DiffRunner.LaunchAsync(DiffTool.VisualStudioCode,
+            Path.Combine(SourceDirectory, "input.temp.bin"),
+            Path.Combine(SourceDirectory, "input.target.bin"));
     [Fact]
     public Task LaunchSpecificTextDiff() =>
         DiffRunner.LaunchAsync(DiffTool.VisualStudioCode,
