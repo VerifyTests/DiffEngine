@@ -1,0 +1,38 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release-NotWindows" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="../appveyor.yml" />
+    <File Path="../readme.source.md" />
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="mdsnippets.json" />
+  </Folder>
+  <Project Path="DiffEngine.Tests/DiffEngine.Tests.csproj">
+    <BuildDependency Project="FakeDiffTool/FakeDiffTool.csproj" />
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngine/DiffEngine.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineTray.Tests/DiffEngineTray.Tests.csproj">
+    <BuildDependency Project="FakeDiffTool/FakeDiffTool.csproj" />
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
+  <Project Path="DiffEngineTray/DiffEngineTray.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
+  <Project Path="FakeDiffTool/FakeDiffTool.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="VersionTests/VersionTests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Debug" />
+  </Project>
+</Solution>
