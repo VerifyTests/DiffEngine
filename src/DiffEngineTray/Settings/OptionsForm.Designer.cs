@@ -244,7 +244,7 @@
         this.maxInstancesNumericUpDown.Margin = new System.Windows.Forms.Padding(5);
         this.maxInstancesNumericUpDown.Minimum = new decimal(new int[]
         {
-            1,
+            0,
             0,
             0,
             0
@@ -254,7 +254,7 @@
         this.maxInstancesNumericUpDown.TabIndex = 0;
         this.maxInstancesNumericUpDown.Value = new decimal(new int[]
         {
-            1,
+            0,
             0,
             0,
             0
