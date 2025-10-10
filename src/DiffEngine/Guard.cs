@@ -1,8 +1,8 @@
 ﻿static class Guard
 {
-    public static void AgainstNegativeAndZero(int value, string argumentName)
+    public static void AgainstNegative(int value, string argumentName)
     {
-        if (value <= 0)
+        if (value < 0)
         {
             throw new ArgumentOutOfRangeException(argumentName);
         }

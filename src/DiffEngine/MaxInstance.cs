@@ -33,14 +33,14 @@ static class MaxInstance
 
     public static void SetForAppDomain(int value)
     {
-        Guard.AgainstNegativeAndZero(value, nameof(value));
+        Guard.AgainstNegative(value, nameof(value));
         appDomainMaxInstancesToLaunch = value;
         ResetCapturedValue();
     }
 
     public static void SetForUser(int value)
     {
-        Guard.AgainstNegativeAndZero(value, nameof(value));
+        Guard.AgainstNegative(value, nameof(value));
         EnvironmentHelper.Set("DiffEngine_MaxInstances", value.ToString());
         ResetCapturedValue();
     }
