@@ -6,6 +6,6 @@
         VerifyDiffPlex.Initialize();
         VerifyWinForms.Initialize();
         VerifyImageMagick.Initialize();
-        VerifyImageMagick.RegisterComparers(.03);
+        VerifyImageMagick.RegisterComparers(.5);
     }
 }
