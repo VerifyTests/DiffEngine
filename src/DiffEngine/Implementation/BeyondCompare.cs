@@ -35,6 +35,7 @@ static partial class Implementation
                 ".ico",
                 ".jpg",
                 ".jpeg",
+                ".webp",
                 ".png",
                 ".tif",
                 ".tiff",
