@@ -29,10 +29,14 @@
 
         do
         {
-            var solutions = Directory.GetFiles(currentDirectory, "*.sln");
-            if (solutions.Length != 0)
+            if (TryFind(currentDirectory, "*.slnx", out var result))
             {
-                return new(currentDirectory, Path.GetFileNameWithoutExtension(solutions.First()));
+                return result;
+            }
+
+            if (TryFind(currentDirectory, "*.sln", out result))
+            {
+                return result;
             }
 
             var parent = Directory.GetParent(currentDirectory);
@@ -43,5 +47,18 @@
 
             currentDirectory = parent.FullName;
         } while (true);
+    }
+
+    static bool TryFind(string directory, string searchPattern, [NotNullWhen(true)] out Result? result)
+    {
+        var solutions = Directory.GetFiles(directory, searchPattern);
+        if (solutions.Length != 0)
+        {
+            result = new(directory, Path.GetFileNameWithoutExtension(solutions.First()));
+            return true;
+        }
+
+        result = null;
+        return false;
     }
 }
