@@ -738,6 +738,63 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
     * `/Applications/Araxis Merge.app/Contents/Utilities/compare`
     * `%PATH%compare`
 
+### [Cursor](https://cursor.com)
+
+  * Cost: Free and Paid
+  * Is MDI: True
+  * Supports auto-refresh: True
+  * Supports text files: True
+  * Use shell execute: False
+  * Environment variable for custom install location: `DiffEngine_Cursor`
+  * Supported binaries: .bin, .svg
+
+#### Notes:
+
+ * [Command line reference](https://cursor.com/docs/configuration/shell)
+
+#### Windows settings:
+
+  * Example target on left arguments:
+   ```
+   --diff "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   --diff "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%ProgramFiles%\Cursor\Cursor.exe`
+    * `%ProgramW6432%\Cursor\Cursor.exe`
+    * `%ProgramFiles(x86)%\Cursor\Cursor.exe`
+    * `%PATH%Cursor.exe`
+
+#### OSX settings:
+
+  * Example target on left arguments:
+   ```
+   --diff "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   --diff "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `/Applications/Cursor.app/Contents/MacOScursor`
+    * `%PATH%cursor`
+
+#### Linux settings:
+
+  * Example target on left arguments:
+   ```
+   --diff "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   --diff "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%PATH%cursor`
+
 ### [Meld](https://meldmerge.org/)
 
   * Cost: Free
