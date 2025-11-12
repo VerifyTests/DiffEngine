@@ -28,6 +28,7 @@ public static class Definitions
             Implementation.Meld(),
             Implementation.SublimeMerge(),
             Implementation.VisualStudioCode(),
+            Implementation.Cursor(),
             Implementation.VisualStudio()
         ];
 }

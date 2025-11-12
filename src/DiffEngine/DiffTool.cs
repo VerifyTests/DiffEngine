@@ -23,5 +23,6 @@ public enum DiffTool
     Meld,
     SublimeMerge,
     VisualStudioCode,
-    VisualStudio
+    VisualStudio,
+    Cursor
 }
