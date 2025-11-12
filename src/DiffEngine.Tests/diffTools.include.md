@@ -14,6 +14,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
   * Supported binaries: .7z, .bcpkg, .bin, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .webp, .wim, .xlsx, .xz, .zip, .zipx
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise BeyondCompare over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.BeyondCompare);
+```
+
 #### Notes:
 
  * [Command line reference](https://www.scootersoftware.com/v4help/index.html?command_line_reference.html)
@@ -76,6 +84,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_DeltaWalker`
   * Supported binaries: .bmp, .bz2, .doc, .docx, .ear, .gif, .gz, .htm, .html, .ico, .j2k, .jar, .jp2, .jpg, .pbm, .pct, .pdf, .pgm, .pic, .pict, .png, .pnm, .ppm, .ppt, .psd, .rtf, .svg, .tar, .tbz2, .tgz, .tif, .xls, .xlsx, .zip
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise DeltaWalker over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.DeltaWalker);
+```
+
 #### Notes:
 
  * [Command line usage](https://www.deltawalker.com/integrate/command-line)
@@ -120,6 +136,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_Diffinity`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Diffinity over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Diffinity);
+```
+
 #### Windows settings:
 
   * Example target on left arguments:
@@ -145,6 +169,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_ExamDiff`
   * Supported binaries: .bin, .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise ExamDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.ExamDiff);
+```
 
 #### Notes:
 
@@ -177,6 +209,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Guiffy`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .png, .svg, .wbmp
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Guiffy over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Guiffy);
+```
 
 #### Notes:
 
@@ -225,6 +265,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_Kaleidoscope`
   * Supported binaries: .bin, .bmp, .gif, .ico, .jpeg, .jpg, .png, .svg, .tif, .tiff
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Kaleidoscope over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Kaleidoscope);
+```
+
 #### OSX settings:
 
   * Example target on left arguments:
@@ -247,6 +295,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_KDiff3`
   * Supported binaries: .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise KDiff3 over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.KDiff3);
+```
 
 #### Notes:
 
@@ -294,6 +350,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Neovim`
   * Supported binaries: .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Neovim over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Neovim);
+```
 
 #### Notes:
 
@@ -348,6 +412,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_P4Merge`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .pbm, .pgm, .png, .ppm, .svg, .tif, .tiff, .xbm, .xpm
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise P4Merge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.P4Merge);
+```
 
 #### Windows settings:
 
@@ -426,6 +498,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_Rider`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Rider over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Rider);
+```
+
 #### Notes:
 
  * https://www.jetbrains.com/help/rider/Command_Line_Differences_Viewer.html
@@ -486,6 +566,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_TkDiff`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise TkDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.TkDiff);
+```
+
 #### OSX settings:
 
   * Example target on left arguments:
@@ -509,6 +597,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseGitIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise TortoiseGitIDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.TortoiseGitIDiff);
+```
 
 #### Windows settings:
 
@@ -536,6 +632,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_TortoiseGitMerge`
   * Supported binaries: .bin, .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise TortoiseGitMerge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.TortoiseGitMerge);
+```
+
 #### Windows settings:
 
   * Example target on left arguments:
@@ -561,6 +665,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_TortoiseIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise TortoiseIDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.TortoiseIDiff);
+```
 
 #### Windows settings:
 
@@ -588,6 +700,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_TortoiseMerge`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise TortoiseMerge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.TortoiseMerge);
+```
+
 #### Windows settings:
 
   * Example target on left arguments:
@@ -613,6 +733,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Vim`
   * Supported binaries: .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Vim over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Vim);
+```
 
 #### Notes:
 
@@ -662,6 +790,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_WinMerge`
   * Supported binaries: .bin, .bmp, .bw, .cut, .dds, .exr, .g3, .gif, .hdp, .hdr, .ico, .iff, .j2c, .j2k, .jif, .jng, .jp2, .jpe, .jpeg, .jpg, .jxr, .koa, .lbm, .mng, .pbm, .pcd, .pct, .pcx, .pfm, .pgm, .pic, .pict, .png, .ppm, .psd, .ras, .rgb, .rgba, .sgi, .svg, .targa, .tga, .tif, .tiff, .wap, .wbm, .wbmp, .wdp, .webp, .xbm, .xpm
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise WinMerge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.WinMerge);
+```
+
 #### Notes:
 
  * [Command line reference](https://manual.winmerge.org/en/Command_line.html).
@@ -700,6 +836,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_AraxisMerge`
   * Supported binaries: .bmp, .dib, .emf, .gif, .j2c, .j2k, .jif, .jp2, .jpc, .jpeg, .jpg, .jpx, .pbm, .pcx, .pgm, .png, .ppm, .ras, .svg, .tga, .tif, .tiff, .wmf
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise AraxisMerge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.AraxisMerge);
+```
 
 #### Notes:
 
@@ -747,6 +891,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_Cursor`
   * Supported binaries: .bin, .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Cursor over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Cursor);
+```
 
 #### Notes:
 
@@ -804,6 +956,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Environment variable for custom install location: `DiffEngine_Meld`
   * Supported binaries: .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise Meld over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.Meld);
+```
 
 #### Notes:
 
@@ -863,6 +1023,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_SublimeMerge`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise SublimeMerge over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.SublimeMerge);
+```
+
 #### Notes:
 
  * While SublimeMerge is not MDI, it is treated as MDI since it uses a single shared process to managing multiple windows. As such it is not possible to close a Sublime merge process for a specific diff. [Vote for this feature](https://github.com/sublimehq/sublime_merge/issues/1168)
@@ -920,6 +1088,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Environment variable for custom install location: `DiffEngine_VisualStudio`
   * Supported binaries: .svg
 
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise VisualStudio over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.VisualStudio);
+```
+
 #### Windows settings:
 
   * Example target on left arguments:
@@ -954,6 +1130,14 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
   * Supported binaries: .bin, .svg
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise VisualStudioCode over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.VisualStudioCode);
+```
 
 #### Notes:
 

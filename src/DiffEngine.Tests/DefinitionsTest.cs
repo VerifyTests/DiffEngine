@@ -133,6 +133,17 @@ public class DefinitionsTest(ITestOutputHelper output) :
             writer.WriteLine($"  * Supported binaries: {string.Join(", ", tool.BinaryExtensions.OrderBy(_ => _))}");
         }
 
+        writer.WriteLine(
+            $"""
+
+             #### Tool order:
+
+             Use [tool order](diff-tool.order.md) to prioritise {tool.Tool} over other tools.
+
+             ```
+             DiffTools.UseOrder(DiffTool.{tool.Tool});
+             ```
+             """);
         if (tool.Notes != null)
         {
             writer.WriteLine(
