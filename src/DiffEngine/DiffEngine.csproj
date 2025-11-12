@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;net9.0</TargetFrameworks>
-    <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
@@ -24,4 +24,8 @@
     <PackageReference Include="System.Management" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
   </ItemGroup>
+  <Target Name="CheckPackageVersion" BeforeTargets="Build">
+    <Error Condition="'%(PackageVersion.Identity)' == 'System.Collections.Immutable' AND '%(PackageVersion.Version)' != '8.0.0'" Text="Invalid package version for System.Collections.Immutable. Expected: 8.0.0." />
+    <Error Condition="'%(PackageVersion.Identity)' == 'System.Management' AND '%(PackageVersion.Version)' != '8.0.0'" Text="Invalid package version for System.Management. Expected: 8.0.0." />
+  </Target>
 </Project>

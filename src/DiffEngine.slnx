@@ -32,7 +32,4 @@
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
-  <Project Path="VersionTests/VersionTests.csproj">
-    <BuildType Solution="Release-NotWindows|*" Project="Debug" />
-  </Project>
 </Solution>
