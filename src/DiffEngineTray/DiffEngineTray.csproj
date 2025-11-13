@@ -35,10 +35,5 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-    <!-- not sure why, but the below are needing so dotnet tool can resolve the assemblies -->
-    <PackageReference Include="System.Globalization.Extensions" PrivateAssets="none" />
-    <PackageReference Include="System.IO.Compression" />
-    <PackageReference Include="System.Net.Http" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
   </ItemGroup>
 </Project>
