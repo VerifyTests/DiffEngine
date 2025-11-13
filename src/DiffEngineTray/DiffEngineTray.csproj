@@ -32,7 +32,6 @@
     <PackageReference Include="Fody" PrivateAssets="all" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.File" />
-    <PackageReference Include="System.Text.Json" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
