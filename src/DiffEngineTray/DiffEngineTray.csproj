@@ -40,9 +40,5 @@
     <PackageReference Include="System.IO.Compression" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
-    <Using Include="Serilog" />
-    <Using Include="System.Text.Json" />
-    <Using Include="System.Text.Json.Serialization" />
-    <Using Include="System.Diagnostics.CodeAnalysis" />
   </ItemGroup>
 </Project>
