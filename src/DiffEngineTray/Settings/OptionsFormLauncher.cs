@@ -2,12 +2,6 @@ static class OptionsFormLauncher
 {
     static OptionsForm? instance;
 
-    static EventHandler formOnClosed = (_, _) =>
-    {
-        instance!.Closed -= formOnClosed;
-        instance = null;
-    };
-
     public static async Task Launch(KeyRegister keyRegister, Tracker tracker)
     {
         if (instance != null)
@@ -21,8 +15,8 @@ static class OptionsFormLauncher
             settings,
             newSettings => Save(keyRegister, tracker, newSettings));
         instance = form;
-        form.Closed += formOnClosed;
-        form.ShowDialog();
+        await form.ShowDialogAsync();
+        instance = null;
     }
 
     static async Task<IReadOnlyCollection<string>> Save(KeyRegister keyRegister, Tracker tracker, Settings settings)
