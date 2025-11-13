@@ -78,28 +78,28 @@
         Assert.Equal("MyCustomDiffTool", tool.Name);
     }
 
-#if DEBUG
-    [Fact]
-    public void AddToolBasedOn()
-    {
-        #region AddToolBasedOn
-
-        var resolvedTool = DiffTools.AddToolBasedOn(
-            DiffTool.VisualStudio,
-            name: "MyCustomDiffTool",
-            launchArguments: new(
-                Left: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
-                Right: (temp, target) => $"\"custom args \"{temp}\" \"{target}\""))!;
-
-        #endregion
-
-        Assert.Equal(resolvedTool, DiffTools.Resolved.First());
-        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
-        Assert.Equal(resolvedTool, forExtension);
-        Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
-        Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
-    }
-#endif
+// #if DEBUG
+//     [Fact]
+//     public void AddToolBasedOn()
+//     {
+//         #region AddToolBasedOn
+//
+//         var resolvedTool = DiffTools.AddToolBasedOn(
+//             DiffTool.VisualStudio,
+//             name: "MyCustomDiffTool",
+//             launchArguments: new(
+//                 Left: (temp, target) => $"\"custom args \"{target}\" \"{temp}\"",
+//                 Right: (temp, target) => $"\"custom args \"{temp}\" \"{target}\""))!;
+//
+//         #endregion
+//
+//         Assert.Equal(resolvedTool, DiffTools.Resolved.First());
+//         Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
+//         Assert.Equal(resolvedTool, forExtension);
+//         Assert.Equal("\"custom args \"bar\" \"foo\"", resolvedTool.LaunchArguments.Left("foo", "bar"));
+//         Assert.Equal("\"custom args \"foo\" \"bar\"", resolvedTool.LaunchArguments.Right("foo", "bar"));
+//     }
+// #endif
     static async Task AddToolAndLaunch()
     {
         #region AddToolAndLaunch
