@@ -70,7 +70,7 @@ var resolvedTool = DiffTools.AddToolBasedOn(
 
 await DiffRunner.LaunchAsync(resolvedTool!, "PathToTempFile", "PathToTargetFile");
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L105-L116' title='Snippet source file'>snippet source</a> | <a href='#snippet-AddToolAndLaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L99-L110' title='Snippet source file'>snippet source</a> | <a href='#snippet-AddToolAndLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
