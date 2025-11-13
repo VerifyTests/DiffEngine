@@ -7,6 +7,7 @@
         keyCombo.Items.AddRange(GetAlphabet().ToArray());
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public HotKey? HotKey
     {
         get
@@ -39,12 +40,14 @@
         }
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string Label
     {
         get => hotKeyEnabled.Text;
         set => hotKeyEnabled.Text = value;
     }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string? Help
     {
         get => (string?) helpLabel.Text;

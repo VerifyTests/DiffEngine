@@ -5,6 +5,9 @@ static class Program
     static async Task Main()
     {
         Logging.Init();
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
         try
         {
