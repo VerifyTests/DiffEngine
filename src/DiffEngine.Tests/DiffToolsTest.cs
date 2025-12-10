@@ -82,6 +82,7 @@
      [Fact]
      public void AddToolBasedOn()
      {
+         // ReSharper disable once UnusedVariable
          #region AddToolBasedOn
 
          var resolvedTool = DiffTools.AddToolBasedOn(
