@@ -19,12 +19,7 @@
     <PackageReference Include="Caseless.Fody" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
     <PackageReference Include="Fody" PrivateAssets="all" />
-    <PackageReference Include="System.Collections.Immutable"
-                      Condition="'$(TargetFramework)' != 'net8.0' AND '$(TargetFramework)' != 'net9.0' AND '$(TargetFramework)' != 'net10.0'" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
   </ItemGroup>
-  <Target Name="CheckPackageVersion" BeforeTargets="Build">
-    <Error Condition="'%(PackageVersion.Identity)' == 'System.Collections.Immutable' AND '%(PackageVersion.Version)' != '8.0.0'" Text="Invalid package version for System.Collections.Immutable. Expected: 8.0.0." />
-  </Target>
 </Project>
