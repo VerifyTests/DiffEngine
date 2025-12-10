@@ -1,3 +1,6 @@
+#if NET5_0_OR_GREATER
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+#endif
 public class WindowsProcessTests(ITestOutputHelper output) :
     XunitContextBase(output)
 {
@@ -7,8 +10,15 @@ public class WindowsProcessTests(ITestOutputHelper output) :
     [InlineData("\"C:\\diff\\tool.exe\" D:\\path\\to\\source.1.cs D:\\path\\to\\target.2.cs", true)]
     [InlineData("code.exe --diff file.a.b file.c.d", true)]
     [InlineData("app.exe path.with.dots path.more.dots", true)]
-    public void MatchesPattern_WithTwoFilePaths_ReturnsTrue(string commandLine, bool expected) =>
+    public void MatchesPattern_WithTwoFilePaths_ReturnsTrue(string commandLine, bool expected)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
         Assert.Equal(expected, WindowsProcess.MatchesPattern(commandLine));
+    }
 
     [Theory]
     [InlineData("notepad.exe")]
@@ -18,8 +28,15 @@ public class WindowsProcessTests(ITestOutputHelper output) :
     [InlineData("")]
     [InlineData("singleword")]
     [InlineData("app.exe onepath.with.dots")]
-    public void MatchesPattern_WithoutTwoFilePaths_ReturnsFalse(string commandLine) =>
+    public void MatchesPattern_WithoutTwoFilePaths_ReturnsFalse(string commandLine)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
         Assert.False(WindowsProcess.MatchesPattern(commandLine));
+    }
 
     [Fact]
     public void FindAll_ReturnsProcessCommands()
