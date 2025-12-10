@@ -2,10 +2,11 @@
   <PropertyGroup>
     <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks>$(TargetFrameworks);net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
+    <AllowUnsafeBlocks Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
-    <Using Include="System.Management" />
+    <Using Include="System.Text" />
     <Using Include="Microsoft.Win32.SafeHandles" />
     <Using Include="System.Diagnostics.CodeAnalysis" />
     <Using Include="System.Net" />
@@ -19,10 +20,6 @@
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
     <PackageReference Include="Fody" PrivateAssets="all" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
-    <PackageReference Include="System.Management" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
   </ItemGroup>
-  <Target Name="CheckPackageVersion" BeforeTargets="Build">
-    <Error Condition="'%(PackageVersion.Identity)' == 'System.Management' AND '%(PackageVersion.Version)' != '8.0.0'" Text="Invalid package version for System.Management. Expected: 8.0.0." />
-  </Target>
 </Project>

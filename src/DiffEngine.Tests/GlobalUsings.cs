@@ -1,1 +1,1 @@
-﻿global using EmptyFiles;
+global using EmptyFiles;
