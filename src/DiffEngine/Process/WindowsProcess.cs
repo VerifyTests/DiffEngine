@@ -1,12 +1,63 @@
-static class WindowsProcess
+using System.Text;
+
+static partial class WindowsProcess
 {
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+#if NET7_0_OR_GREATER
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial SafeProcessHandle OpenProcess(
+        int access,
+        [MarshalAs(UnmanagedType.Bool)] bool inherit,
+        int processId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TerminateProcess(
+        SafeProcessHandle processHandle,
+        int exitCode);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial IntPtr CreateToolhelp32Snapshot(uint flags, uint processId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(IntPtr handle);
+
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtQueryInformationProcess(
+        SafeProcessHandle handle,
+        int processInformationClass,
+        ref PROCESS_BASIC_INFORMATION info,
+        int size,
+        out int returnLength);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWow64Process(
+        SafeProcessHandle handle,
+        [MarshalAs(UnmanagedType.Bool)] out bool isWow64);
+
+    // These methods use complex marshalling not supported by LibraryImport
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool Process32FirstW(IntPtr snapshot, ref PROCESSENTRY32W entry);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool Process32NextW(IntPtr snapshot, ref PROCESSENTRY32W entry);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool ReadProcessMemory(
+        SafeProcessHandle handle,
+        IntPtr baseAddress,
+        [Out] byte[] buffer,
+        IntPtr size,
+        out IntPtr bytesRead);
+#else
+    [DllImport("kernel32.dll", SetLastError = true)]
     static extern SafeProcessHandle OpenProcess(
         int access,
         bool inherit,
         int processId);
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool TerminateProcess(
         SafeProcessHandle processHandle,
         int exitCode);
@@ -41,6 +92,7 @@ static class WindowsProcess
 
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool IsWow64Process(SafeProcessHandle handle, out bool isWow64);
+#endif
 
     const uint TH32CS_SNAPPROCESS = 0x00000002;
     const int PROCESS_QUERY_INFORMATION = 0x0400;
@@ -73,14 +125,6 @@ static class WindowsProcess
         public IntPtr Reserved2_1;
         public IntPtr UniqueProcessId;
         public IntPtr Reserved3;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct UNICODE_STRING
-    {
-        public ushort Length;
-        public ushort MaximumLength;
-        public IntPtr Buffer;
     }
 
     public static bool TryTerminateProcess(int processId)
