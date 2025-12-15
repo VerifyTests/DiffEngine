@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 static partial class Program
 {
     static int Main(string[] args)
@@ -74,6 +76,10 @@ static partial class Program
         GetWindowThreadProcessId(hwnd, out var processId);
         using var process = Process.GetProcessById(processId);
         process.WaitForExit();
+
+        // Release COM objects
+        Marshal.ReleaseComObject(comparedDoc);
+        Marshal.ReleaseComObject(word);
 
         return 0;
     }
