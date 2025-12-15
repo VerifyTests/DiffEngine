@@ -10,7 +10,7 @@
     <Description>A tool that compares two Word documents side by side using Microsoft Word.</Description>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
 
 </Project>
