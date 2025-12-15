@@ -3,12 +3,12 @@ static partial class Implementation
     public static Definition MSWord()
     {
         // Word's Compare feature is invoked via PowerShell COM automation
-        // The comparison opens the target, then compares against temp, producing a tracked-changes result
+        // The comparison opens the target, compares against temp, then closes the original leaving only the diff
         static string LeftArguments(string temp, string target) =>
-            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{target.Replace("'", "''")}'); $d.Compare('{temp.Replace("'", "''")}')\"";
+            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{target.Replace("'", "''")}'); $d.Compare('{temp.Replace("'", "''")}'); $d.Close($false)\"";
 
         static string RightArguments(string temp, string target) =>
-            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{temp.Replace("'", "''")}'); $d.Compare('{target.Replace("'", "''")}')\"";
+            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{temp.Replace("'", "''")}'); $d.Compare('{target.Replace("'", "''")}'); $d.Close($false)\"";
 
         return new(
             Tool: DiffTool.MSWord,
