@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 static partial class Program
 {
     static dynamic? _word;
+    static readonly ConsoleCtrlDelegate _consoleCtrlHandler = ConsoleCtrlHandler;
 
     static int Main(string[] args)
     {
@@ -35,6 +36,8 @@ static partial class Program
         }
 
         Console.CancelKeyPress += OnCancelKeyPress;
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        SetConsoleCtrlHandler(_consoleCtrlHandler, true);
 
         _word = Activator.CreateInstance(wordType)!;
         dynamic word = _word;
@@ -90,7 +93,19 @@ static partial class Program
         return 0;
     }
 
-    static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+    static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e) =>
+        CloseWord();
+
+    static void OnProcessExit(object? sender, EventArgs e) =>
+        CloseWord();
+
+    static bool ConsoleCtrlHandler(int ctrlType)
+    {
+        CloseWord();
+        return false;
+    }
+
+    static void CloseWord()
     {
         if (_word == null)
         {
@@ -112,4 +127,10 @@ static partial class Program
 
     [LibraryImport("user32.dll")]
     internal static partial uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetConsoleCtrlHandler(ConsoleCtrlDelegate handler, [MarshalAs(UnmanagedType.Bool)] bool add);
+
+    delegate bool ConsoleCtrlDelegate(int ctrlType);
 }
