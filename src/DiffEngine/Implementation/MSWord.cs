@@ -2,13 +2,11 @@ static partial class Implementation
 {
     public static Definition MSWord()
     {
-        // Word's Compare feature is invoked via PowerShell COM automation
-        // The comparison opens the target, compares against temp, then closes the original leaving only the diff
         static string LeftArguments(string temp, string target) =>
-            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{target.Replace("'", "''")}'); $d.Compare('{temp.Replace("'", "''")}'); $d.Close($false)\"";
+            $"\"{target}\" \"{temp}\"";
 
         static string RightArguments(string temp, string target) =>
-            $"-NoProfile -Command \"$w = New-Object -ComObject Word.Application; $w.Visible = $true; $d = $w.Documents.Open('{temp.Replace("'", "''")}'); $d.Compare('{target.Replace("'", "''")}'); $d.Close($false)\"";
+            $"\"{temp}\" \"{target}\"";
 
         return new(
             Tool: DiffTool.MSWord,
@@ -27,16 +25,14 @@ static partial class Implementation
             ],
             OsSupport: new(
                 Windows: new(
-                    "powershell.exe",
+                    "C:\\Code\\DiffEngine\\src\\DiffEngineWord\\bin\\Debug\\net10.0-windows\\diffengine-word.exe",
                     new(
                         LeftArguments,
-                        RightArguments),
-                    @"%SystemRoot%\System32\WindowsPowerShell\v1.0\")),
+                        RightArguments))),
             Notes: """
-                   * Uses Microsoft Word's built-in Compare feature via COM automation
+                   * Uses Microsoft Word's CompareSideBySideWith feature
                    * Requires Microsoft Word to be installed
-                   * Opens a new document showing differences with tracked changes
-                   * [Compare documents](https://support.microsoft.com/en-us/office/compare-and-merge-two-versions-of-a-document-f5059749-a797-4db7-a8fb-b3b27eb8b87e)
+                   * Requires the diffengine-word tool: `dotnet tool install -g DiffEngineWord`
                    """);
     }
 }

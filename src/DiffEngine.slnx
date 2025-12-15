@@ -30,6 +30,9 @@
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
+  <Project Path="DiffEngineWord/DiffEngineWord.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Debug" />
+  </Project>
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
