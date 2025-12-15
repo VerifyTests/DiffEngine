@@ -81,6 +81,10 @@ static partial class Program
         comparedDoc.ShowSpellingErrors = false;
         comparedDoc.ShowGrammaticalErrors = false;
 
+        //TODO: make this an option
+        // Make document read-only (wdAllowOnlyReading = 3)
+        //comparedDoc.Protect(Type: 3);
+
         word.Visible = true;
 
         // Get process from Word's window handle and assign to job
