@@ -29,9 +29,13 @@ if (wordType == null)
 dynamic word = Activator.CreateInstance(wordType)!;
 word.Visible = true;
 
-word.Documents.Open(path1);
-word.Documents.Open(path2);
+var doc1 = word.Documents.Open(path1);
+var doc2 = word.Documents.Open(path2);
 
-word.Windows.CompareSideBySideWith(word.Windows[1]);
+var window1 = doc1.ActiveWindow;
+var window2 = doc2.ActiveWindow;
+
+window2.Activate();
+word.Windows.CompareSideBySideWith(window1);
 
 return 0;
