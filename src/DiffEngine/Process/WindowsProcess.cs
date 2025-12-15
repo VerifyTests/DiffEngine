@@ -1,5 +1,3 @@
-using System.Text;
-
 static partial class WindowsProcess
 {
 #if NET7_0_OR_GREATER
@@ -284,7 +282,7 @@ static partial class WindowsProcess
         var commandLineOffset = 0x70; // UNICODE_STRING CommandLine in RTL_USER_PROCESS_PARAMETERS
 
         var buffer = new byte[8];
-        if (!ReadProcessMemory(handle, pebAddress + processParametersOffset, buffer, new IntPtr(8), out _))
+        if (!ReadProcessMemory(handle, pebAddress + processParametersOffset, buffer, new(8), out _))
         {
             return null;
         }
@@ -297,7 +295,7 @@ static partial class WindowsProcess
 
         // Read UNICODE_STRING structure (Length: 2, MaxLength: 2, padding: 4, Buffer: 8)
         buffer = new byte[16];
-        if (!ReadProcessMemory(handle, processParameters + commandLineOffset, buffer, new IntPtr(16), out _))
+        if (!ReadProcessMemory(handle, processParameters + commandLineOffset, buffer, new(16), out _))
         {
             return null;
         }
@@ -311,7 +309,7 @@ static partial class WindowsProcess
         }
 
         var cmdLineBuffer = new byte[length];
-        if (!ReadProcessMemory(handle, cmdLinePtr, cmdLineBuffer, new IntPtr(length), out _))
+        if (!ReadProcessMemory(handle, cmdLinePtr, cmdLineBuffer, new(length), out _))
         {
             return null;
         }
@@ -326,7 +324,7 @@ static partial class WindowsProcess
         var commandLineOffset = 0x40; // UNICODE_STRING CommandLine in RTL_USER_PROCESS_PARAMETERS
 
         var buffer = new byte[4];
-        if (!ReadProcessMemory(handle, pebAddress + processParametersOffset, buffer, new IntPtr(4), out _))
+        if (!ReadProcessMemory(handle, pebAddress + processParametersOffset, buffer, new(4), out _))
         {
             return null;
         }
@@ -339,7 +337,7 @@ static partial class WindowsProcess
 
         // Read UNICODE_STRING structure (Length: 2, MaxLength: 2, Buffer: 4)
         buffer = new byte[8];
-        if (!ReadProcessMemory(handle, processParameters + commandLineOffset, buffer, new IntPtr(8), out _))
+        if (!ReadProcessMemory(handle, processParameters + commandLineOffset, buffer, new(8), out _))
         {
             return null;
         }
@@ -353,7 +351,7 @@ static partial class WindowsProcess
         }
 
         var cmdLineBuffer = new byte[length];
-        if (!ReadProcessMemory(handle, cmdLinePtr, cmdLineBuffer, new IntPtr(length), out _))
+        if (!ReadProcessMemory(handle, cmdLinePtr, cmdLineBuffer, new(length), out _))
         {
             return null;
         }
