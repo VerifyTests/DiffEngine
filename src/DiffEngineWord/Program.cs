@@ -59,6 +59,10 @@ doc2.Close(SaveChanges: false);
 // Mark as saved so Word won't prompt to save on close
 comparedDoc.Saved = true;
 
+// Disable spelling and grammar checks
+comparedDoc.ShowSpellingErrors = false;
+comparedDoc.ShowGrammaticalErrors = false;
+
 word.Visible = true;
 
 return 0;
