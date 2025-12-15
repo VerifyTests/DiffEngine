@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 static partial class Program
@@ -34,6 +35,17 @@ static partial class Program
             Console.Error.WriteLine("Microsoft Word is not installed");
             return 1;
         }
+
+        // Create a job object that kills child processes when this process exits
+        var job = CreateJobObject(IntPtr.Zero, null);
+        var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
+            {
+                LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            }
+        };
+        SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref info, (uint)Marshal.SizeOf(info));
 
         Console.CancelKeyPress += OnCancelKeyPress;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -79,16 +91,19 @@ static partial class Program
 
         word.Visible = true;
 
-        // Get process from Word's window handle
+        // Get process from Word's window handle and assign to job
         var hwnd = (IntPtr)word.ActiveWindow.Hwnd;
         GetWindowThreadProcessId(hwnd, out var processId);
         using var process = Process.GetProcessById(processId);
+        AssignProcessToJobObject(job, process.Handle);
+
         process.WaitForExit();
 
         // Release COM objects
         Marshal.ReleaseComObject(comparedDoc);
         Marshal.ReleaseComObject(word);
         _word = null;
+        CloseHandle(job);
 
         return 0;
     }
@@ -125,12 +140,66 @@ static partial class Program
         _word = null;
     }
 
+    const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+    const int JobObjectExtendedLimitInformation = 9;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+    {
+        public long PerProcessUserTimeLimit;
+        public long PerJobUserTimeLimit;
+        public uint LimitFlags;
+        public nuint MinimumWorkingSetSize;
+        public nuint MaximumWorkingSetSize;
+        public uint ActiveProcessLimit;
+        public nuint Affinity;
+        public uint PriorityClass;
+        public uint SchedulingClass;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct IO_COUNTERS
+    {
+        public ulong ReadOperationCount;
+        public ulong WriteOperationCount;
+        public ulong OtherOperationCount;
+        public ulong ReadTransferCount;
+        public ulong WriteTransferCount;
+        public ulong OtherTransferCount;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    {
+        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+        public IO_COUNTERS IoInfo;
+        public nuint ProcessMemoryLimit;
+        public nuint JobMemoryLimit;
+        public nuint PeakProcessMemoryUsed;
+        public nuint PeakJobMemoryUsed;
+    }
+
     [LibraryImport("user32.dll")]
     internal static partial uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
 
     [LibraryImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetConsoleCtrlHandler(ConsoleCtrlDelegate handler, [MarshalAs(UnmanagedType.Bool)] bool add);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateJobObjectW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetInformationJobObject(IntPtr hJob, int jobObjectInfoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInfo, uint cbJobObjectInfoLength);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(IntPtr hObject);
 
     delegate bool ConsoleCtrlDelegate(int ctrlType);
 }
