@@ -2,6 +2,7 @@
 *.snk binary
 *.bin binary
 *.png binary
+*.docx binary
 
 src/Verify/EmptyFiles/* binary
 

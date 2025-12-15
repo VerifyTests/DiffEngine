@@ -5,6 +5,7 @@
     <BuildType Name="Release-NotWindows" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path="../.gitattributes" />
     <File Path="../appveyor.yml" />
     <File Path="../readme.source.md" />
     <File Path=".editorconfig" />
