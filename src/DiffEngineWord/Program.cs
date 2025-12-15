@@ -3,9 +3,6 @@ using System.Runtime.InteropServices;
 
 static partial class Program
 {
-    static dynamic? _word;
-    static readonly ConsoleCtrlDelegate _consoleCtrlHandler = ConsoleCtrlHandler;
-
     static int Main(string[] args)
     {
         if (args.Length != 2)
@@ -47,12 +44,7 @@ static partial class Program
         };
         SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref info, (uint)Marshal.SizeOf(info));
 
-        Console.CancelKeyPress += OnCancelKeyPress;
-        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
-        SetConsoleCtrlHandler(_consoleCtrlHandler, true);
-
-        _word = Activator.CreateInstance(wordType)!;
-        dynamic word = _word;
+        dynamic word = Activator.CreateInstance(wordType)!;
 
         // WdAlertLevel.wdAlertsNone = 0
         word.DisplayAlerts = 0;
@@ -102,42 +94,9 @@ static partial class Program
         // Release COM objects
         Marshal.ReleaseComObject(comparedDoc);
         Marshal.ReleaseComObject(word);
-        _word = null;
         CloseHandle(job);
 
         return 0;
-    }
-
-    static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e) =>
-        CloseWord();
-
-    static void OnProcessExit(object? sender, EventArgs e) =>
-        CloseWord();
-
-    static bool ConsoleCtrlHandler(int ctrlType)
-    {
-        CloseWord();
-        return false;
-    }
-
-    static void CloseWord()
-    {
-        if (_word == null)
-        {
-            return;
-        }
-
-        try
-        {
-            _word.Quit(SaveChanges: false);
-            Marshal.ReleaseComObject(_word);
-        }
-        catch
-        {
-            // Word may already be closed
-        }
-
-        _word = null;
     }
 
     const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
@@ -182,10 +141,6 @@ static partial class Program
     [LibraryImport("user32.dll")]
     internal static partial uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
 
-    [LibraryImport("kernel32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetConsoleCtrlHandler(ConsoleCtrlDelegate handler, [MarshalAs(UnmanagedType.Bool)] bool add);
-
     [LibraryImport("kernel32.dll", EntryPoint = "CreateJobObjectW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
 
@@ -200,6 +155,4 @@ static partial class Program
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr hObject);
-
-    delegate bool ConsoleCtrlDelegate(int ctrlType);
 }
