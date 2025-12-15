@@ -27,15 +27,32 @@ if (wordType == null)
 }
 
 dynamic word = Activator.CreateInstance(wordType)!;
+
+var doc1 = word.Documents.Open(path1, ReadOnly: true, AddToRecentFiles: false);
+var doc2 = word.Documents.Open(path2, ReadOnly: true, AddToRecentFiles: false);
+
+// WdCompareDestination.wdCompareDestinationNew = 2
+// WdGranularity.wdGranularityWordLevel = 1
+word.CompareDocuments(
+    doc1, doc2,
+    Destination: 2,
+    Granularity: 1,
+    CompareFormatting: true,
+    CompareCaseChanges: true,
+    CompareWhitespace: true,
+    CompareTables: true,
+    CompareHeaders: true,
+    CompareFootnotes: true,
+    CompareTextboxes: true,
+    CompareFields: true,
+    CompareComments: true,
+    CompareMoves: true,
+    RevisedAuthor: "",
+    IgnoreAllComparisonWarnings: true);
+
+doc1.Close(SaveChanges: false);
+doc2.Close(SaveChanges: false);
+
 word.Visible = true;
-
-var doc1 = word.Documents.Open(path1);
-var doc2 = word.Documents.Open(path2);
-
-var window1 = doc1.ActiveWindow;
-var window2 = doc2.ActiveWindow;
-
-window2.Activate();
-word.Windows.CompareSideBySideWith(window1);
 
 return 0;
