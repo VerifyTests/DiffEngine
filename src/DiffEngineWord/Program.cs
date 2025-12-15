@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 
 static partial class Program
 {
+    static dynamic? _word;
+
     static int Main(string[] args)
     {
         if (args.Length != 2)
@@ -32,7 +34,10 @@ static partial class Program
             return 1;
         }
 
-        dynamic word = Activator.CreateInstance(wordType)!;
+        Console.CancelKeyPress += OnCancelKeyPress;
+
+        _word = Activator.CreateInstance(wordType)!;
+        dynamic word = _word;
 
         // WdAlertLevel.wdAlertsNone = 0
         word.DisplayAlerts = 0;
@@ -80,8 +85,29 @@ static partial class Program
         // Release COM objects
         Marshal.ReleaseComObject(comparedDoc);
         Marshal.ReleaseComObject(word);
+        _word = null;
 
         return 0;
+    }
+
+    static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+    {
+        if (_word == null)
+        {
+            return;
+        }
+
+        try
+        {
+            _word.Quit(SaveChanges: false);
+            Marshal.ReleaseComObject(_word);
+        }
+        catch
+        {
+            // Word may already be closed
+        }
+
+        _word = null;
     }
 
     [LibraryImport("user32.dll")]
