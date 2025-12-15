@@ -28,12 +28,15 @@ if (wordType == null)
 
 dynamic word = Activator.CreateInstance(wordType)!;
 
+// WdAlertLevel.wdAlertsNone = 0
+word.DisplayAlerts = 0;
+
 var doc1 = word.Documents.Open(path1, ReadOnly: true, AddToRecentFiles: false);
 var doc2 = word.Documents.Open(path2, ReadOnly: true, AddToRecentFiles: false);
 
 // WdCompareDestination.wdCompareDestinationNew = 2
 // WdGranularity.wdGranularityWordLevel = 1
-word.CompareDocuments(
+var comparedDoc = word.CompareDocuments(
     doc1, doc2,
     Destination: 2,
     Granularity: 1,
@@ -52,6 +55,9 @@ word.CompareDocuments(
 
 doc1.Close(SaveChanges: false);
 doc2.Close(SaveChanges: false);
+
+// Mark as saved so Word won't prompt to save on close
+comparedDoc.Saved = true;
 
 word.Visible = true;
 
