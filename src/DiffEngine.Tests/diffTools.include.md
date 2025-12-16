@@ -341,6 +341,44 @@ DiffTools.UseOrder(DiffTool.KDiff3);
     * `/Applications/kdiff3.app/Contents/MacOS/kdiff3`
     * `%PATH%kdiff3`
 
+### [MsWordDiff](https://github.com/SimonCropp/MsWordDiff)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: False
+  * Use shell execute: True
+  * Environment variable for custom install location: `DiffEngine_MsWordDiff`
+  * Supported binaries: .doc, .docx
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise MsWordDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.MsWordDiff);
+```
+
+#### Notes:
+
+ * Install via `dotnet tool install -g MsWordDiff`
+ * Requires Microsoft Word to be installed
+ * Uses Word's built-in document comparison feature
+
+#### Windows settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%USERPROFILE%\.dotnet\tools\diffword.exe`
+    * `%PATH%diffword.exe`
+
 ### [Neovim](https://neovim.io/)
 
   * Cost: Free with option to sponsor

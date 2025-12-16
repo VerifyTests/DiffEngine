@@ -21,3 +21,4 @@
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
  * **[Cursor](/docs/diff-tool.md#cursor)** Win/OSX/Linux (Cost: Free and Paid)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Win (Cost: Free)
