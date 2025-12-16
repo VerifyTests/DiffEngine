@@ -6,6 +6,7 @@
   </Configurations>
   <Folder Name="/Solution Items/">
     <File Path="../appveyor.yml" />
+    <File Path="../claude.md" />
     <File Path="../readme.source.md" />
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
