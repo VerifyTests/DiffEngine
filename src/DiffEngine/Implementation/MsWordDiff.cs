@@ -12,19 +12,20 @@ static partial class Implementation
             AutoRefresh: false,
             IsMdi: false,
             SupportsText: false,
-            UseShellExecute: true,
             RequiresTarget: true,
-            Cost: "Free",
             BinaryExtensions:
             [
                 ".docx",
                 ".doc"
             ],
+            Cost: "Free",
             OsSupport: new(
                 Windows: new(
                     "diffword.exe",
                     launchArguments,
                     @"%USERPROFILE%\.dotnet\tools\")),
+            UseShellExecute: false,
+            CreateNoWindow: true,
             Notes: """
                  * Install via `dotnet tool install -g MsWordDiff`
                  * Requires Microsoft Word to be installed

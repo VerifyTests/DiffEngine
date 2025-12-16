@@ -11,4 +11,5 @@ public record Definition(
     string Cost,
     OsSupport OsSupport,
     bool UseShellExecute = true,
+    bool CreateNoWindow = false,
     string? Notes = null);

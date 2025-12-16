@@ -482,7 +482,7 @@ DiffTools.UseOrder(DiffTool.KDiff3);
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
-  * Use shell execute: True
+  * Use shell execute: False
   * Environment variable for custom install location: `DiffEngine_MsWordDiff`
   * Supported binaries: .doc, .docx
 

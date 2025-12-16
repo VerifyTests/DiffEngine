@@ -46,7 +46,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
         var builder = new StringBuilder();
         if (osSupport.Windows != null)
         {
-            builder.Append("Win/");
+            builder.Append("Windows/");
         }
 
         if (osSupport.Osx != null)
