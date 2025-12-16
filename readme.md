@@ -85,7 +85,8 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
  * **[Cursor](/docs/diff-tool.md#cursor)** Win/OSX/Linux (Cost: Free and Paid)
- * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)<!-- endInclude -->
+ * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Win (Cost: Free)<!-- endInclude -->
 
 
 ## Launching a tool

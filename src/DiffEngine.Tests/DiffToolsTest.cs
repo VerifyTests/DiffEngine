@@ -110,6 +110,12 @@
 
         #endregion
     }
+
+    [Fact]
+    public Task LaunchSpecificDocxDiff() =>
+        DiffRunner.LaunchAsync(DiffTool.MsWordDiff,
+            Path.Combine(SourceDirectory, "input.temp.docx"),
+            Path.Combine(SourceDirectory, "input.target.docx"));
     /**
 
     [Fact]
