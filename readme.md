@@ -63,30 +63,30 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 
 ## [Supported Tools](/docs/diff-tool.md#supported-tools)
 
- * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Win/OSX/Linux (Cost: Paid)<!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
- * **[P4Merge](/docs/diff-tool.md#p4merge)** Win/OSX/Linux (Cost: Free)
+ * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)<!-- include: diffToolList. path: /src/DiffEngine.Tests/diffToolList.include.md -->
+ * **[P4Merge](/docs/diff-tool.md#p4merge)** Windows/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
- * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Win/OSX (Cost: Paid)
- * **[WinMerge](/docs/diff-tool.md#winmerge)** Win (Cost: Free with option to donate)
- * **[TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)** Win (Cost: Free)
- * **[TortoiseGitIDiff](/docs/diff-tool.md#tortoisegitidiff)** Win (Cost: Free)
- * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Win (Cost: Free)
- * **[TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)** Win (Cost: Free)
- * **[KDiff3](/docs/diff-tool.md#kdiff3)** Win/OSX (Cost: Free)
+ * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
+ * **[WinMerge](/docs/diff-tool.md#winmerge)** Windows (Cost: Free with option to donate)
+ * **[TortoiseGitMerge](/docs/diff-tool.md#tortoisegitmerge)** Windows (Cost: Free)
+ * **[TortoiseGitIDiff](/docs/diff-tool.md#tortoisegitidiff)** Windows (Cost: Free)
+ * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Windows (Cost: Free)
+ * **[TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)** Windows (Cost: Free)
+ * **[KDiff3](/docs/diff-tool.md#kdiff3)** Windows/OSX (Cost: Free)
  * **[TkDiff](/docs/diff-tool.md#tkdiff)** OSX (Cost: Free)
- * **[Guiffy](/docs/diff-tool.md#guiffy)** Win/OSX (Cost: Paid)
- * **[ExamDiff](/docs/diff-tool.md#examdiff)** Win (Cost: Paid)
- * **[Diffinity](/docs/diff-tool.md#diffinity)** Win (Cost: Free with option to donate)
- * **[Rider](/docs/diff-tool.md#rider)** Win/OSX/Linux (Cost: Paid with free option for OSS)
- * **[Vim](/docs/diff-tool.md#vim)** Win/OSX (Cost: Free with option to donate)
- * **[Neovim](/docs/diff-tool.md#neovim)** Win/OSX/Linux (Cost: Free with option to sponsor)
- * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Win/OSX (Cost: Paid)
- * **[Meld](/docs/diff-tool.md#meld)** Win/OSX/Linux (Cost: Free)
- * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Win/OSX/Linux (Cost: Paid)
- * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Win/OSX/Linux (Cost: Free)
- * **[Cursor](/docs/diff-tool.md#cursor)** Win/OSX/Linux (Cost: Free and Paid)
- * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Win (Cost: Paid and free options)
- * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Win (Cost: Free)<!-- endInclude -->
+ * **[Guiffy](/docs/diff-tool.md#guiffy)** Windows/OSX (Cost: Paid)
+ * **[ExamDiff](/docs/diff-tool.md#examdiff)** Windows (Cost: Paid)
+ * **[Diffinity](/docs/diff-tool.md#diffinity)** Windows (Cost: Free with option to donate)
+ * **[Rider](/docs/diff-tool.md#rider)** Windows/OSX/Linux (Cost: Paid with free option for OSS)
+ * **[Vim](/docs/diff-tool.md#vim)** Windows/OSX (Cost: Free with option to donate)
+ * **[Neovim](/docs/diff-tool.md#neovim)** Windows/OSX/Linux (Cost: Free with option to sponsor)
+ * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Windows/OSX (Cost: Paid)
+ * **[Meld](/docs/diff-tool.md#meld)** Windows/OSX/Linux (Cost: Free)
+ * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Windows/OSX/Linux (Cost: Paid)
+ * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
+ * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
+ * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)<!-- endInclude -->
 
 
 ## Launching a tool
