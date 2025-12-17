@@ -11,6 +11,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
   * Supported binaries: .7z, .bcpkg, .bin, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .webp, .wim, .xlsx, .xz, .zip, .zipx
 
@@ -81,6 +82,7 @@ DiffTools.UseOrder(DiffTool.BeyondCompare);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_DeltaWalker`
   * Supported binaries: .bmp, .bz2, .doc, .docx, .ear, .gif, .gz, .htm, .html, .ico, .j2k, .jar, .jp2, .jpg, .pbm, .pct, .pdf, .pgm, .pic, .pict, .png, .pnm, .ppm, .ppt, .psd, .rtf, .svg, .tar, .tbz2, .tgz, .tif, .xls, .xlsx, .zip
 
@@ -133,6 +135,7 @@ DiffTools.UseOrder(DiffTool.DeltaWalker);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Diffinity`
   * Supported binaries: .svg
 
@@ -167,6 +170,7 @@ DiffTools.UseOrder(DiffTool.Diffinity);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_ExamDiff`
   * Supported binaries: .bin, .svg
 
@@ -207,6 +211,7 @@ DiffTools.UseOrder(DiffTool.ExamDiff);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Guiffy`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .png, .svg, .wbmp
 
@@ -262,6 +267,7 @@ DiffTools.UseOrder(DiffTool.Guiffy);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Kaleidoscope`
   * Supported binaries: .bin, .bmp, .gif, .ico, .jpeg, .jpg, .png, .svg, .tif, .tiff
 
@@ -293,6 +299,7 @@ DiffTools.UseOrder(DiffTool.Kaleidoscope);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_KDiff3`
   * Supported binaries: .svg
 
@@ -348,6 +355,7 @@ DiffTools.UseOrder(DiffTool.KDiff3);
   * Supports auto-refresh: False
   * Supports text files: False
   * Use shell execute: False
+  * Create no window: True
   * Environment variable for custom install location: `DiffEngine_MsWordDiff`
   * Supported binaries: .doc, .docx
 
@@ -386,6 +394,7 @@ DiffTools.UseOrder(DiffTool.MsWordDiff);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Neovim`
   * Supported binaries: .svg
 
@@ -448,6 +457,7 @@ DiffTools.UseOrder(DiffTool.Neovim);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_P4Merge`
   * Supported binaries: .bmp, .gif, .jpeg, .jpg, .pbm, .pgm, .png, .ppm, .svg, .tif, .tiff, .xbm, .xpm
 
@@ -533,6 +543,7 @@ DiffTools.UseOrder(DiffTool.P4Merge);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Rider`
   * Supported binaries: .svg
 
@@ -601,6 +612,7 @@ DiffTools.UseOrder(DiffTool.Rider);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_TkDiff`
   * Supported binaries: .svg
 
@@ -633,6 +645,7 @@ DiffTools.UseOrder(DiffTool.TkDiff);
   * Supports auto-refresh: False
   * Supports text files: False
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_TortoiseGitIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
 
@@ -667,6 +680,7 @@ DiffTools.UseOrder(DiffTool.TortoiseGitIDiff);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_TortoiseGitMerge`
   * Supported binaries: .bin, .svg
 
@@ -701,6 +715,7 @@ DiffTools.UseOrder(DiffTool.TortoiseGitMerge);
   * Supports auto-refresh: False
   * Supports text files: False
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_TortoiseIDiff`
   * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .tif, .tiff
 
@@ -735,6 +750,7 @@ DiffTools.UseOrder(DiffTool.TortoiseIDiff);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_TortoiseMerge`
   * Supported binaries: .svg
 
@@ -769,6 +785,7 @@ DiffTools.UseOrder(DiffTool.TortoiseMerge);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Vim`
   * Supported binaries: .svg
 
@@ -825,6 +842,7 @@ DiffTools.UseOrder(DiffTool.Vim);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_WinMerge`
   * Supported binaries: .bin, .bmp, .bw, .cut, .dds, .exr, .g3, .gif, .hdp, .hdr, .ico, .iff, .j2c, .j2k, .jif, .jng, .jp2, .jpe, .jpeg, .jpg, .jxr, .koa, .lbm, .mng, .pbm, .pcd, .pct, .pcx, .pfm, .pgm, .pic, .pict, .png, .ppm, .psd, .ras, .rgb, .rgba, .sgi, .svg, .targa, .tga, .tif, .tiff, .wap, .wbm, .wbmp, .wdp, .webp, .xbm, .xpm
 
@@ -872,6 +890,7 @@ DiffTools.UseOrder(DiffTool.WinMerge);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_AraxisMerge`
   * Supported binaries: .bmp, .dib, .emf, .gif, .j2c, .j2k, .jif, .jp2, .jpc, .jpeg, .jpg, .jpx, .pbm, .pcx, .pgm, .png, .ppm, .ras, .svg, .tga, .tif, .tiff, .wmf
 
@@ -927,6 +946,7 @@ DiffTools.UseOrder(DiffTool.AraxisMerge);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: False
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Cursor`
   * Supported binaries: .bin, .svg
 
@@ -992,6 +1012,7 @@ DiffTools.UseOrder(DiffTool.Cursor);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_Meld`
   * Supported binaries: .svg
 
@@ -1058,6 +1079,7 @@ DiffTools.UseOrder(DiffTool.Meld);
   * Supports auto-refresh: False
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_SublimeMerge`
   * Supported binaries: .svg
 
@@ -1123,6 +1145,7 @@ DiffTools.UseOrder(DiffTool.SublimeMerge);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: True
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_VisualStudio`
   * Supported binaries: .svg
 
@@ -1166,6 +1189,7 @@ DiffTools.UseOrder(DiffTool.VisualStudio);
   * Supports auto-refresh: True
   * Supports text files: True
   * Use shell execute: False
+  * Create no window: False
   * Environment variable for custom install location: `DiffEngine_VisualStudioCode`
   * Supported binaries: .bin, .svg
 
