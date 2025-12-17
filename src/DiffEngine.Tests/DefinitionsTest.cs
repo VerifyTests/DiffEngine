@@ -46,7 +46,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
         var builder = new StringBuilder();
         if (osSupport.Windows != null)
         {
-            builder.Append("Win/");
+            builder.Append("Windows/");
         }
 
         if (osSupport.Osx != null)
@@ -125,6 +125,7 @@ public class DefinitionsTest(ITestOutputHelper output) :
                * Supports auto-refresh: {tool.AutoRefresh}
                * Supports text files: {tool.SupportsText}
                * Use shell execute: {tool.UseShellExecute}
+               * Create no window: {tool.CreateNoWindow}
                * Environment variable for custom install location: `DiffEngine_{tool.Tool}`
              """);
 

@@ -24,5 +24,6 @@ public enum DiffTool
     SublimeMerge,
     VisualStudioCode,
     VisualStudio,
-    Cursor
+    Cursor,
+    MsWordDiff
 }

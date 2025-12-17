@@ -29,6 +29,7 @@ public static class Definitions
             Implementation.SublimeMerge(),
             Implementation.VisualStudioCode(),
             Implementation.Cursor(),
-            Implementation.VisualStudio()
+            Implementation.VisualStudio(),
+            Implementation.MsWordDiff()
         ];
 }
