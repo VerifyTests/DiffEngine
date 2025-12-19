@@ -53,4 +53,115 @@ public class WindowsProcessTests(ITestOutputHelper output) :
             Debug.WriteLine($"{cmd.Process}: {cmd.Command}");
         }
     }
+
+    [Fact]
+    public void TryTerminateProcess_WithWindowedProcess_GracefullyCloses()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        // Start FakeDiffTool in windowed mode (has a main window)
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = FakeDiffTool.Exe,
+            Arguments = "--windowed",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
+
+        Assert.NotNull(process);
+
+        try
+        {
+            // Wait for the process to fully start and create its window
+            Thread.Sleep(1000);
+
+            // Attempt graceful termination via CloseMainWindow
+            var result = WindowsProcess.TryTerminateProcess(process.Id);
+
+            Assert.True(result);
+
+            // Verify process exited gracefully
+            Assert.True(process.WaitForExit(1000));
+        }
+        finally
+        {
+            // Cleanup: ensure process is killed if test fails
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
+    [Fact]
+    public void TryTerminateProcess_WithNonWindowedProcess_ForcefullyTerminates()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        // Start FakeDiffTool - a console process without a main window
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = FakeDiffTool.Exe,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
+
+        Assert.NotNull(process);
+
+        try
+        {
+            // Wait for the process to fully start
+            Thread.Sleep(500);
+
+            // Attempt termination (should fall back to forceful kill since no main window)
+            var result = WindowsProcess.TryTerminateProcess(process.Id);
+
+            Assert.True(result);
+
+            // Verify process was terminated (should be immediate with forceful kill)
+            Assert.True(process.WaitForExit(1000));
+        }
+        finally
+        {
+            // Cleanup: ensure process is killed if test fails
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
+    [Fact]
+    public void TryTerminateProcess_WithInvalidProcessId_ReturnsFalse()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        // Use a very unlikely process ID
+        var result = WindowsProcess.TryTerminateProcess(999999);
+
+        Assert.False(result);
+    }
 }
