@@ -5,9 +5,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <PackAsTool>True</PackAsTool>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishAot>true</PublishAot>
+    <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <IlcTreatWarningsAsErrors>false</IlcTreatWarningsAsErrors>
     <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <NoWarn>NETSDK1137;WFAC010;NU5119</NoWarn>
+    <NoWarn>NETSDK1137;NETSDK1175;WFAC010;NU5119;IL3000;IL3050;IL3051;IL3053</NoWarn>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
