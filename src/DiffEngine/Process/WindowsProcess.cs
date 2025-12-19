@@ -127,6 +127,28 @@ static partial class WindowsProcess
 
     public static bool TryTerminateProcess(int processId)
     {
+        // First, try graceful shutdown by closing the main window
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(processId);
+
+            // Try to close the main window gracefully
+            if (process.CloseMainWindow())
+            {
+                // Wait up to 5 seconds for graceful exit
+                if (process.WaitForExit(5000))
+                {
+                    return true;
+                }
+            }
+            // If no main window or still running, fall through to force kill
+        }
+        catch
+        {
+            // Process may have already exited or be inaccessible, fall through to force kill
+        }
+
+        // Fall back to forceful termination
         using var processHandle = OpenProcess(PROCESS_TERMINATE, false, processId);
         if (processHandle.IsInvalid)
         {
