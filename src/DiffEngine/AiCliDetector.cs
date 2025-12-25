@@ -5,7 +5,7 @@ public static class AiCliDetector
     static AiCliDetector()
     {
         var variables = Environment.GetEnvironmentVariables();
-        
+
         // GitHub Copilot CLI
         // https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line
         IsCopilotCli = variables.Contains("GITHUB_COPILOT_CLI");
@@ -16,7 +16,7 @@ public static class AiCliDetector
 
         // Claude Code
         // https://docs.anthropic.com/en/docs/build-with-claude/claude-cli
-        IsClaudeCode = variables.Contains("CLAUDE_CODE") || variables.Contains("ANTHROPIC_CLI");
+        IsClaudeCode = variables.Contains("CLAUDECODE") || variables.Contains("CLAUDE_CODE_ENTRYPOINT");
 
         Detected = IsCopilotCli ||
                    IsAider ||
