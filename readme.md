@@ -177,7 +177,7 @@ There are also individual properties to check for each specific AI CLI
 <!-- snippet: AiCliDetectorProps -->
 <a id='snippet-AiCliDetectorProps'></a>
 ```cs
-var isCopilotCli = AiCliDetector.IsCopilotCli;
+var isCopilot = AiCliDetector.IsCopilot;
 var isAider = AiCliDetector.IsAider;
 var isClaudeCode = AiCliDetector.IsClaudeCode;
 ```

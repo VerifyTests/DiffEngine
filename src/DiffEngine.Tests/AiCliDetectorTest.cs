@@ -8,12 +8,13 @@ public class AiCliDetectorTest(ITestOutputHelper output) :
 
         #region AiCliDetectorProps
 
-        var isCopilotCli = AiCliDetector.IsCopilotCli;
+        var isCopilot = AiCliDetector.IsCopilot;
         var isAider = AiCliDetector.IsAider;
         var isClaudeCode = AiCliDetector.IsClaudeCode;
 
         #endregion
 
+        Assert.True(isCopilot);
         // ReSharper restore UnusedVariable
     }
 }
