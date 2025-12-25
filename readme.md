@@ -178,10 +178,11 @@ There are also individual properties to check for each specific AI CLI
 <a id='snippet-AiCliDetectorProps'></a>
 ```cs
 var isCopilot = AiCliDetector.IsCopilot;
+var isCursor = AiCliDetector.IsCursor;
 var isAider = AiCliDetector.IsAider;
 var isClaudeCode = AiCliDetector.IsClaudeCode;
 ```
-<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L9-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L9-L16' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
