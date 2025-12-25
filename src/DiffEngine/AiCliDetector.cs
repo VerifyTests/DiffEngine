@@ -16,7 +16,7 @@ public static class AiCliDetector
 
         // Claude Code
         // https://docs.anthropic.com/en/docs/build-with-claude/claude-cli
-        IsClaudeCode = variables.Contains("CLAUDE_CODE") || variables.Contains("ANTHROPIC_CLI");
+        IsClaudeCode = variables.Contains("CLAUDECODE") || variables.Contains("CLAUDE_CODE_ENTRYPOINT");
 
         Detected = IsCopilot ||
                    IsAider ||
