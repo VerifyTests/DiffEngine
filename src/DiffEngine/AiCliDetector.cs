@@ -18,10 +18,17 @@ public static class AiCliDetector
         // https://docs.anthropic.com/en/docs/build-with-claude/claude-cli
         IsClaudeCode = variables.Contains("CLAUDECODE") || variables.Contains("CLAUDE_CODE_ENTRYPOINT");
 
+        // Cursor
+        // https://cursor.com/docs/agent/terminal
+        IsCursor = variables.Contains("CURSOR_AGENT");
+
         Detected = IsCopilot ||
                    IsAider ||
-                   IsClaudeCode;
+                   IsClaudeCode ||
+                   IsCursor;
     }
+
+    public static bool IsCursor { get; set; }
 
     public static bool IsCopilot { get; }
 
