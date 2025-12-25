@@ -84,6 +84,21 @@ There are also individual properties to check for each specific build system
 snippet: BuildServerDetectorProps
 
 
+## AiCliDetector
+
+`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
+
+Supports:
+
+ * [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
+ * [Aider](https://aider.chat/docs/config/dotenv.html)
+ * [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-cli)
+
+There are also individual properties to check for each specific AI CLI
+
+snippet: AiCliDetectorProps
+
+
 ## Disable for a machine/process
 
 Set an environment variable `DiffEngine_Disabled` with the value `true`.
