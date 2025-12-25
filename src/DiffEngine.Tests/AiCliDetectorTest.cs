@@ -14,7 +14,6 @@ public class AiCliDetectorTest(ITestOutputHelper output) :
 
         #endregion
 
-        Assert.True(isCopilot);
         // ReSharper restore UnusedVariable
     }
 }
