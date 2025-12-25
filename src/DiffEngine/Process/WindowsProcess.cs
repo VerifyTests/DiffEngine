@@ -130,7 +130,7 @@ static partial class WindowsProcess
         // First, try graceful shutdown by closing the main window
         try
         {
-            using var process = System.Diagnostics.Process.GetProcessById(processId);
+            using var process = Process.GetProcessById(processId);
 
             // Try to close the main window gracefully
             if (process.CloseMainWindow())
