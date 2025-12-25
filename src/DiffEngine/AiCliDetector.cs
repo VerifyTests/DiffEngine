@@ -5,10 +5,10 @@ public static class AiCliDetector
     static AiCliDetector()
     {
         var variables = Environment.GetEnvironmentVariables();
-        
-        // GitHub Copilot CLI
+
+        // GitHub Copilot
         // https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line
-        IsCopilotCli = variables.Contains("GITHUB_COPILOT_CLI");
+        IsCopilot = variables.Contains("GITHUB_COPILOT_RUNTIME");
 
         // Aider
         // https://aider.chat/docs/config/dotenv.html
@@ -18,12 +18,12 @@ public static class AiCliDetector
         // https://docs.anthropic.com/en/docs/build-with-claude/claude-cli
         IsClaudeCode = variables.Contains("CLAUDE_CODE") || variables.Contains("ANTHROPIC_CLI");
 
-        Detected = IsCopilotCli ||
+        Detected = IsCopilot ||
                    IsAider ||
                    IsClaudeCode;
     }
 
-    public static bool IsCopilotCli { get; }
+    public static bool IsCopilot { get; }
 
     public static bool IsAider { get; }
 
