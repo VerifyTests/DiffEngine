@@ -46,6 +46,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
+  * [AiCliDetector](#aiclidetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Disable in code](#disable-in-code)
   * [Icons](#icons)<!-- endToc -->
@@ -158,6 +159,29 @@ var isDocker = BuildServerDetector.IsDocker;
 var isAppVeyor = BuildServerDetector.IsAppVeyor;
 ```
 <sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L9-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+
+## AiCliDetector
+
+`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
+
+Supports:
+
+ * [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
+ * [Aider](https://aider.chat/docs/config/dotenv.html)
+ * [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-cli)
+
+There are also individual properties to check for each specific AI CLI
+
+<!-- snippet: AiCliDetectorProps -->
+<a id='snippet-AiCliDetectorProps'></a>
+```cs
+var isCopilotCli = AiCliDetector.IsCopilotCli;
+var isAider = AiCliDetector.IsAider;
+var isClaudeCode = AiCliDetector.IsClaudeCode;
+```
+<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L9-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

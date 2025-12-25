@@ -5,6 +5,7 @@
         var variable = Environment.GetEnvironmentVariable("DiffEngine_Disabled");
         return string.Equals(variable, "true", StringComparison.OrdinalIgnoreCase) ||
                BuildServerDetector.Detected ||
-               ContinuousTestingDetector.Detected;
+               ContinuousTestingDetector.Detected ||
+               AiCliDetector.Detected;
     }
 }
