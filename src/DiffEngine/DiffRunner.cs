@@ -1,4 +1,5 @@
-﻿namespace DiffEngine;
+﻿#pragma warning disable CS0618 // Type or member is obsolete
+namespace DiffEngine;
 
 /// <summary>
 /// Manages diff tools processes.
@@ -107,6 +108,26 @@ public static partial class DiffRunner
             tempFile,
             targetFile,
             encoding);
+    }
+
+    public static void AddDelete(string file)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        DiffEngineTray.AddDelete(file);
+    }
+
+    public static Task AddDeleteAsync(string file)
+    {
+        if (Disabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        return DiffEngineTray.AddDeleteAsync(file);
     }
 
     public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile, Encoding? encoding = null)
