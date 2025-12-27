@@ -65,6 +65,7 @@ public static partial class DiffRunner
             targetFile,
             encoding);
     }
+
     /// <summary>
     /// Launch a diff tool for the given paths.
     /// </summary>
