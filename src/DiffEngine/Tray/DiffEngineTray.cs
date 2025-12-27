@@ -1,5 +1,6 @@
 ﻿namespace DiffEngine;
 
+[Obsolete("Use DiffRunner")]
 public static class DiffEngineTray
 {
     static DiffEngineTray()
