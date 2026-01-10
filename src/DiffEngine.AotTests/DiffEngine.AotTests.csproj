@@ -9,8 +9,6 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Default RID for AOT publish; override with -r flag if needed -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(PublishAot)' == 'true'">win-x64</RuntimeIdentifier>
-    <!-- Disable Fody IL weaving for AOT compatibility -->
-    <DisableFody>true</DisableFody>
   </PropertyGroup>
 
   <ItemGroup>
