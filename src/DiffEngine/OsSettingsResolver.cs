@@ -83,7 +83,7 @@ static class OsSettingsResolver
             return false;
         }
 
-        if (basePath.EndsWith(exeName) &&
+        if (basePath.EndsWith(exeName, StringComparison.OrdinalIgnoreCase) &&
             File.Exists(basePath))
         {
             envPath = basePath;
