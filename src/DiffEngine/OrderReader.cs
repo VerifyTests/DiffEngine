@@ -2,9 +2,7 @@
 {
     public record Result(bool UsedToolOrderEnvVar, IEnumerable<DiffTool> Order);
 
-    static Result defaultResult = new(false, Enum
-        .GetValues(typeof(DiffTool))
-        .Cast<DiffTool>());
+    static Result defaultResult = new(false, Enum.GetValues<DiffTool>());
 
     public static Result ReadToolOrder()
     {
