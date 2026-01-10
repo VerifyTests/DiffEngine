@@ -1,30 +1,31 @@
-using Resourcer;
-
 public static class Images
 {
+    static Stream GetStream(string name) =>
+        Assembly.GetExecutingAssembly().GetManifestResourceStream($"DiffEngineTray.Images.{name}")!;
+
     static Images()
     {
-        using var activeStream = Resource.AsStream("active.ico");
+        using var activeStream = GetStream("active.ico");
         Active = new(activeStream);
-        using var defaultStream = Resource.AsStream("default.ico");
+        using var defaultStream = GetStream("default.ico");
         Default = new(defaultStream);
-        using var exitStream = Resource.AsStream("exit.png");
+        using var exitStream = GetStream("exit.png");
         Exit = Image.FromStream(exitStream);
-        using var deleteStream = Resource.AsStream("delete.png");
+        using var deleteStream = GetStream("delete.png");
         Delete = Image.FromStream(deleteStream);
-        using var acceptAllStream = Resource.AsStream("acceptAll.png");
+        using var acceptAllStream = GetStream("acceptAll.png");
         AcceptAll = Image.FromStream(acceptAllStream);
-        using var acceptStream = Resource.AsStream("accept.png");
+        using var acceptStream = GetStream("accept.png");
         Accept = Image.FromStream(acceptStream);
-        using var discardStream = Resource.AsStream("discard.png");
+        using var discardStream = GetStream("discard.png");
         Discard = Image.FromStream(discardStream);
-        using var vsStream = Resource.AsStream("vs.png");
+        using var vsStream = GetStream("vs.png");
         VisualStudio = Image.FromStream(vsStream);
-        using var folderStream = Resource.AsStream("folder.png");
+        using var folderStream = GetStream("folder.png");
         Folder = Image.FromStream(folderStream);
-        using var optionsStream = Resource.AsStream("cogs.png");
+        using var optionsStream = GetStream("cogs.png");
         Options = Image.FromStream(optionsStream);
-        using var linkStream = Resource.AsStream("link.png");
+        using var linkStream = GetStream("link.png");
         Link = Image.FromStream(linkStream);
     }
 

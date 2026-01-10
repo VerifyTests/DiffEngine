@@ -1,5 +1,5 @@
-﻿public class TrackerClearTest :
-    XunitContextBase
+﻿public class TrackerClearTest(ITestOutputHelper output) :
+    XunitContextBase(output)
 {
     [Fact]
     public async Task Simple()
@@ -11,13 +11,6 @@
         tracker.AssertEmpty();
     }
 
-    public TrackerClearTest(ITestOutputHelper output) :
-        base(output)
-    {
-        file1 = Path.GetTempFileName();
-        file2 = Path.GetTempFileName();
-    }
-
     public override void Dispose()
     {
         File.Delete(file1);
@@ -25,6 +18,6 @@
         base.Dispose();
     }
 
-    string file1;
-    string file2;
+    string file1 = Path.GetTempFileName();
+    string file2 = Path.GetTempFileName();
 }

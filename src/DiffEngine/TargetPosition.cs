@@ -5,21 +5,22 @@
     static TargetPosition() =>
         TargetOnLeft = ReadTargetOnLeft().GetValueOrDefault(false);
 
-    static bool? ReadTargetOnLeft()
-    {
-        var value = Environment.GetEnvironmentVariable("DiffEngine_TargetOnLeft");
+    static bool? ReadTargetOnLeft() =>
+        ParseTargetOnLeft(Environment.GetEnvironmentVariable("DiffEngine_TargetOnLeft"));
 
+    internal static bool? ParseTargetOnLeft(string? value)
+    {
         if (value == null)
         {
             return null;
         }
 
-        if (value == "true")
+        if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        if (value == "false")
+        if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
