@@ -217,6 +217,77 @@
     }
 #endif
 **/
+    [Fact]
+    public void TryFindByName_IsCaseInsensitive()
+    {
+        var diffToolPath = FakeDiffTool.Exe;
+
+        DiffTools.AddTool(
+            name: "MyCaseSensitiveTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            useShellExecute: true,
+            launchArguments: new(
+                Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+                Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
+            exePath: diffToolPath,
+            binaryExtensions: []);
+
+        // Exact case
+        Assert.True(DiffTools.TryFindByName("MyCaseSensitiveTool", out var tool1));
+        Assert.Equal("MyCaseSensitiveTool", tool1!.Name);
+
+        // All lowercase
+        Assert.True(DiffTools.TryFindByName("mycasesensitivetool", out var tool2));
+        Assert.Equal("MyCaseSensitiveTool", tool2!.Name);
+
+        // All uppercase
+        Assert.True(DiffTools.TryFindByName("MYCASESENSITIVETOOL", out var tool3));
+        Assert.Equal("MyCaseSensitiveTool", tool3!.Name);
+
+        // Mixed case
+        Assert.True(DiffTools.TryFindByName("myCASEsensitiveTOOL", out var tool4));
+        Assert.Equal("MyCaseSensitiveTool", tool4!.Name);
+    }
+
+    [Fact]
+    public void AddTool_RejectsDuplicateNameCaseInsensitive()
+    {
+        var diffToolPath = FakeDiffTool.Exe;
+
+        DiffTools.AddTool(
+            name: "UniqueTool",
+            autoRefresh: true,
+            isMdi: false,
+            supportsText: true,
+            requiresTarget: true,
+            useShellExecute: true,
+            launchArguments: new(
+                Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+                Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
+            exePath: diffToolPath,
+            binaryExtensions: []);
+
+        // Adding with different case should throw
+        var exception = Assert.Throws<ArgumentException>(() =>
+            DiffTools.AddTool(
+                name: "UNIQUETOOL",
+                autoRefresh: true,
+                isMdi: false,
+                supportsText: true,
+                requiresTarget: true,
+                useShellExecute: true,
+                launchArguments: new(
+                    Left: (tempFile, targetFile) => $"\"{targetFile}\" \"{tempFile}\"",
+                    Right: (tempFile, targetFile) => $"\"{tempFile}\" \"{targetFile}\""),
+                exePath: diffToolPath,
+                binaryExtensions: []));
+
+        Assert.Contains("Tool with name already exists", exception.Message);
+    }
+
     public DiffToolsTest(ITestOutputHelper output) :
         base(output) =>
         DiffTools.Reset();

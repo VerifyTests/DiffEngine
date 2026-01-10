@@ -65,7 +65,7 @@ public static partial class DiffTools
         string name,
         [NotNullWhen(true)] out ResolvedTool? resolvedTool)
     {
-        resolvedTool = resolved.SingleOrDefault(_ => _.Name.Equals(name, StringComparison.Ordinal));
+        resolvedTool = resolved.SingleOrDefault(_ => _.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         return resolvedTool != null;
     }
 }

@@ -16,9 +16,7 @@
     <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation"
                       Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472'" />
-    <PackageReference Include="Caseless.Fody" PrivateAssets="All" />
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
-    <PackageReference Include="Fody" PrivateAssets="all" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
   </ItemGroup>

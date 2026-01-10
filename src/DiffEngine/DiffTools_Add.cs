@@ -52,7 +52,7 @@ public static partial class DiffTools
     static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool useShellExecute, bool createNoWindow)
     {
         Guard.AgainstEmpty(name, nameof(name));
-        if (resolved.Any(_ => _.Name == name))
+        if (resolved.Any(_ => _.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException($"Tool with name already exists. Name: {name}", nameof(name));
         }
