@@ -24,6 +24,7 @@ build_script:
       }
       dotnet build src --configuration Release-NotWindows
       dotnet test src --configuration Release-NotWindows --no-build --no-restore
+      dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release-NotWindows
     }
 on_failure:
   - ps: Get-ChildItem *.received.* -recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
