@@ -33,4 +33,7 @@
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngine.AotTests/DiffEngine.AotTests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
 </Solution>
