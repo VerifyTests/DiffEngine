@@ -12,6 +12,7 @@ build_script:
       ./dotnet-install.ps1 -JSonFile src/global.json -Architecture x64 -InstallDir 'C:\Program Files\dotnet'
       dotnet build src --configuration Release
       dotnet test src --configuration Release --no-build --no-restore
+      dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release
     }
     else {
       Invoke-WebRequest "https://dot.net/v1/dotnet-install.sh" -OutFile "./dotnet-install.sh"
