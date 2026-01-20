@@ -14,7 +14,7 @@
     <Using Include="System.Net.Sockets" />
     <Using Include="EmptyFiles" />
     <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
-    <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Sbom.Targets" PrivateAssets="all" Condition="$(Configuration)=='Release'" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation"
                       Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472'" />
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
