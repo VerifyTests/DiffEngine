@@ -110,7 +110,7 @@
 
         #endregion
     }
-    /**
+    /*
 
     [Fact]
     public Task LaunchSpecificDocxDiff() =>
@@ -178,10 +178,10 @@
         var targetFile = Path.Combine(SourceDirectory, "input.target.txtConvention");
         return DiffRunner.LaunchForTextAsync(tempFile, targetFile);
     }
-    **/
+    */
     //todo: re enable tests with fake diff tool.
 
-    /**
+    /*
 #if DEBUG
     [Fact]
     public void ChangeOrder()
@@ -216,7 +216,7 @@
         Assert.NotNull(resolved);
     }
 #endif
-**/
+*/
     [Fact]
     public void TryFindByName_IsCaseInsensitive()
     {
