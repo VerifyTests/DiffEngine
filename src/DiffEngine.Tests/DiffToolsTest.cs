@@ -237,19 +237,19 @@
 
         // Exact case
         Assert.True(DiffTools.TryFindByName("MyCaseSensitiveTool", out var tool1));
-        Assert.Equal("MyCaseSensitiveTool", tool1!.Name);
+        Assert.Equal("MyCaseSensitiveTool", tool1.Name);
 
         // All lowercase
         Assert.True(DiffTools.TryFindByName("mycasesensitivetool", out var tool2));
-        Assert.Equal("MyCaseSensitiveTool", tool2!.Name);
+        Assert.Equal("MyCaseSensitiveTool", tool2.Name);
 
         // All uppercase
         Assert.True(DiffTools.TryFindByName("MYCASESENSITIVETOOL", out var tool3));
-        Assert.Equal("MyCaseSensitiveTool", tool3!.Name);
+        Assert.Equal("MyCaseSensitiveTool", tool3.Name);
 
         // Mixed case
         Assert.True(DiffTools.TryFindByName("myCASEsensitiveTOOL", out var tool4));
-        Assert.Equal("MyCaseSensitiveTool", tool4!.Name);
+        Assert.Equal("MyCaseSensitiveTool", tool4.Name);
     }
 
     [Fact]
