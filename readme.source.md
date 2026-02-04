@@ -84,6 +84,13 @@ There are also individual properties to check for each specific build system
 snippet: BuildServerDetectorProps
 
 
+### Override in tests
+
+`BuildServerDetector.Detected` can be set at test time. The value is stored in an `AsyncLocal`, so it is scoped to the current async context and does not leak to other threads or tests running in parallel.
+
+snippet: BuildServerDetectorDetectedOverride
+
+
 ## AiCliDetector
 
 `AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
