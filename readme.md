@@ -46,6 +46,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
+    * [Override in tests](#override-in-tests)
   * [AiCliDetector](#aiclidetector)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Disable in code](#disable-in-code)
@@ -159,6 +160,50 @@ var isDocker = BuildServerDetector.IsDocker;
 var isAppVeyor = BuildServerDetector.IsAppVeyor;
 ```
 <sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L9-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+
+### Override in tests
+
+`BuildServerDetector.Detected` can be set at test time. The value is stored in an `AsyncLocal`, so it is scoped to the current async context and does not leak to other threads or tests running in parallel.
+
+<!-- snippet: BuildServerDetectorDetectedOverride -->
+<a id='snippet-BuildServerDetectorDetectedOverride'></a>
+```cs
+[Fact]
+public async Task SetDetectedPersistsInAsyncContext()
+{
+    var original = BuildServerDetector.Detected;
+    try
+    {
+        BuildServerDetector.Detected = true;
+        Assert.True(BuildServerDetector.Detected);
+
+        await Task.Delay(1);
+
+        Assert.True(BuildServerDetector.Detected);
+    }
+    finally
+    {
+        BuildServerDetector.Detected = original;
+    }
+}
+
+[Fact]
+public async Task SetDetectedDoesNotLeakToOtherContexts()
+{
+    var parentValue = BuildServerDetector.Detected;
+
+    await Task.Run(() =>
+    {
+        BuildServerDetector.Detected = true;
+        Assert.True(BuildServerDetector.Detected);
+    });
+
+    Assert.Equal(parentValue, BuildServerDetector.Detected);
+}
+```
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L28-L63' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

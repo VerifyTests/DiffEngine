@@ -24,4 +24,41 @@ public class BuildServerDetectorTest(ITestOutputHelper output) :
 
         // ReSharper restore UnusedVariable
     }
+
+    #region BuildServerDetectorDetectedOverride
+
+    [Fact]
+    public async Task SetDetectedPersistsInAsyncContext()
+    {
+        var original = BuildServerDetector.Detected;
+        try
+        {
+            BuildServerDetector.Detected = true;
+            Assert.True(BuildServerDetector.Detected);
+
+            await Task.Delay(1);
+
+            Assert.True(BuildServerDetector.Detected);
+        }
+        finally
+        {
+            BuildServerDetector.Detected = original;
+        }
+    }
+
+    [Fact]
+    public async Task SetDetectedDoesNotLeakToOtherContexts()
+    {
+        var parentValue = BuildServerDetector.Detected;
+
+        await Task.Run(() =>
+        {
+            BuildServerDetector.Detected = true;
+            Assert.True(BuildServerDetector.Detected);
+        });
+
+        Assert.Equal(parentValue, BuildServerDetector.Detected);
+    }
+
+    #endregion
 }

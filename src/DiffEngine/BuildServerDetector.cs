@@ -52,7 +52,7 @@ public static class BuildServerDetector
         // https://docs.microsoft.com/en-us/azure/devops/pipelines/process/variables?view=azure-devops&tabs=yaml%2Cbatch#access-variables-through-the-environment
         IsAzureDevops = ValueEquals(variables, "TF_BUILD", "True");
 
-        Detected = IsTravis ||
+        detected = IsTravis ||
                    IsJenkins ||
                    IsGithubAction ||
                    IsAzureDevops ||
@@ -64,6 +64,9 @@ public static class BuildServerDetector
                    IsWsl ||
                    IsAppVeyor;
     }
+
+    static bool detected;
+    static AsyncLocal<bool?> overrideDetected = new();
 
     static bool ValueEquals(IDictionary variables, string key, string value)
     {
@@ -98,5 +101,9 @@ public static class BuildServerDetector
 
     public static bool IsJenkins { get; }
 
-    public static bool Detected { get; set; }
+    public static bool Detected
+    {
+        get => overrideDetected.Value ?? detected;
+        set => overrideDetected.Value = value;
+    }
 }
