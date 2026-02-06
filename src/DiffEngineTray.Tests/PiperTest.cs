@@ -1,5 +1,4 @@
-﻿#if NET7_0
-public class PiperTest(ITestOutputHelper output) :
+﻿public class PiperTest(ITestOutputHelper output) :
     XunitContextBase(output)
 {
     [Fact]
@@ -71,4 +70,3 @@ public class PiperTest(ITestOutputHelper output) :
             .ScrubLinesContaining("PiperClient");
     }
 }
-#endif

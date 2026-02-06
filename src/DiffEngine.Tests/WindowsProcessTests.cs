@@ -1,4 +1,4 @@
-#if NET5_0_OR_GREATER
+#if NET10_0
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 #endif
 public class WindowsProcessTests(ITestOutputHelper output) :
@@ -22,7 +22,7 @@ public class WindowsProcessTests(ITestOutputHelper output) :
 
     [Theory]
     [InlineData("notepad.exe")]
-    [InlineData("notepad.exe C:\\temp\\file.txt")]
+    [InlineData(@"notepad.exe C:\temp\file.txt")]
     [InlineData("cmd.exe /c dir")]
     [InlineData("explorer.exe")]
     [InlineData("")]
