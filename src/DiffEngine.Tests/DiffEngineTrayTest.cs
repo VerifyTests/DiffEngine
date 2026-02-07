@@ -1,6 +1,5 @@
-﻿#pragma warning disable CS0618 // Type or member is obsolete
-public class DiffEngineTrayTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+#pragma warning disable CS0618 // Type or member is obsolete
+public class DiffEngineTrayTest
 {
     [Fact]
     public void IsRunning() =>

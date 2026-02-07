@@ -1,5 +1,4 @@
-public class OsSettingsResolverTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class OsSettingsResolverTest
 {
     [Fact]
     public void Simple()

@@ -1,5 +1,5 @@
-﻿public class TrackerMoveTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class TrackerMoveTest :
+    IDisposable
 {
     [Fact]
     public async Task AddSingle()
@@ -95,12 +95,11 @@
         Assert.True(tracker.TrackingAny);
     }
 
-    public override void Dispose()
+    public void Dispose()
     {
         File.Delete(file1);
         File.Delete(file2);
         File.Delete(file3);
-        base.Dispose();
     }
 
     string file1 = Path.GetTempFileName();

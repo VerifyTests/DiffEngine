@@ -1,6 +1,9 @@
-﻿public class WildcardFileFinderTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class WildcardFileFinderTests
 {
+    static string SourceFile { get; } = GetSourceFile();
+    static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
+    static string GetSourceFile([CallerFilePath] string path = "") => path;
+
     [Fact]
     public void MultiMatchDir_order1()
     {

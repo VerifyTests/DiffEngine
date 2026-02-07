@@ -1,5 +1,4 @@
-﻿// public class SettingsHelperTests(ITestOutputHelper output) :
-//     XunitContextBase(output)
+// public class SettingsHelperTests
 // {
 //     [Fact]
 //     public async Task ReadWrite()

@@ -1,8 +1,7 @@
 #if NET10_0
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 #endif
-public class WindowsProcessTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class WindowsProcessTests
 {
     [Theory]
     [InlineData("\"C:\\Program Files\\Beyond Compare 4\\BComp.exe\" C:\\temp\\file.1.txt C:\\temp\\file.2.txt", true)]

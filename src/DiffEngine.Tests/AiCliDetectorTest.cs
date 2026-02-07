@@ -1,5 +1,4 @@
-public class AiCliDetectorTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class AiCliDetectorTest
 {
     [Fact]
     public void Props()

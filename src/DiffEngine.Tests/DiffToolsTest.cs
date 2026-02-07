@@ -1,6 +1,8 @@
-﻿public class DiffToolsTest :
-    XunitContextBase
+public class DiffToolsTest
 {
+    static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
+    static string GetSourceFile([CallerFilePath] string path = "") => path;
+
     [Fact]
     public void MaxInstancesToLaunch() =>
     #region MaxInstancesToLaunch
@@ -288,7 +290,6 @@
         Assert.Contains("Tool with name already exists", exception.Message);
     }
 
-    public DiffToolsTest(ITestOutputHelper output) :
-        base(output) =>
+    public DiffToolsTest() =>
         DiffTools.Reset();
 }

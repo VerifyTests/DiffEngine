@@ -66,4 +66,4 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 - Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations
 - Tool order can be customized via `DiffEngine_ToolOrder` environment variable
 - `DisabledChecker` respects `DiffEngine_Disabled` env var
-- Tests use xUnit with XunitContext and Verify for snapshot testing
+- Tests use xUnit and Verify for snapshot testing

@@ -1,6 +1,8 @@
-public class DefinitionsTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class DefinitionsTest
 {
+    static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
+    static string GetSourceFile([CallerFilePath] string path = "") => path;
+
     [Fact]
     public void WriteList()
     {

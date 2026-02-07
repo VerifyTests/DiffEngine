@@ -1,6 +1,5 @@
-﻿#if DEBUG
-public class HotKeyControlTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+#if DEBUG
+public class HotKeyControlTests
 {
     [Fact]
     public async Task WithKeys()

@@ -100,7 +100,7 @@ A tool can be launched using the following:
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L63-L67' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L65-L69' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -115,7 +115,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L76-L80' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L78-L82' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
@@ -159,7 +159,7 @@ var isGoDc = BuildServerDetector.IsGoDc;
 var isDocker = BuildServerDetector.IsDocker;
 var isAppVeyor = BuildServerDetector.IsAppVeyor;
 ```
-<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L9-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L8-L22' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -203,7 +203,7 @@ public async Task SetDetectedDoesNotLeakToOtherContexts()
     Assert.Equal(parentValue, BuildServerDetector.Detected);
 }
 ```
-<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L28-L63' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L27-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -227,7 +227,7 @@ var isCursor = AiCliDetector.IsCursor;
 var isAider = AiCliDetector.IsAider;
 var isClaudeCode = AiCliDetector.IsClaudeCode;
 ```
-<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L9-L16' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L8-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 

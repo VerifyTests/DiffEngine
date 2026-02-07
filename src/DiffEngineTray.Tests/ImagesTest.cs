@@ -1,5 +1,4 @@
-public class ImagesTest :
-    XunitContextBase
+public class ImagesTest
 {
     [Fact]
     public void AllImagesLoaded()
@@ -50,10 +49,5 @@ public class ImagesTest :
         Assert.True(Images.Options.Height > 0);
         Assert.True(Images.Link.Width > 0);
         Assert.True(Images.Link.Height > 0);
-    }
-
-    public ImagesTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

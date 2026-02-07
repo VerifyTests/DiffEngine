@@ -1,7 +1,9 @@
-﻿#if NET10_0
-public class DiffRunnerTests :
-    XunitContextBase
+#if NET10_0
+public class DiffRunnerTests
 {
+    static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
+    static string GetSourceFile([CallerFilePath] string path = "") => path;
+
     static ResolvedTool tool;
     string file2;
     string file1;
@@ -173,8 +175,7 @@ public class DiffRunnerTests :
             .FindAll()
             .Any(_ => _.Command.Contains("FakeDiffTool"));
 
-    public DiffRunnerTests(ITestOutputHelper output) :
-        base(output)
+    public DiffRunnerTests()
     {
         file1 = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
         file2 = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");

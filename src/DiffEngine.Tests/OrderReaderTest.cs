@@ -1,5 +1,4 @@
-﻿public class OrderReaderTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class OrderReaderTest
 {
     [Fact]
     public void ParseEnvironmentVariable()

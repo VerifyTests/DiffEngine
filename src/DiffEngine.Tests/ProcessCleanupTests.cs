@@ -1,5 +1,4 @@
-﻿public class ProcessCleanupTests(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class ProcessCleanupTests
 {
     [Fact]
     public void Find()

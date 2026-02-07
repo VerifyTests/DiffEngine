@@ -1,5 +1,4 @@
-public class TargetPositionTest :
-    XunitContextBase
+public class TargetPositionTest
 {
     [Theory]
     [InlineData("true", true)]
@@ -35,10 +34,5 @@ public class TargetPositionTest :
         var exception = Assert.Throws<Exception>(() => TargetPosition.ParseTargetOnLeft(input));
         Assert.Contains("Unable to parse Position", exception.Message);
         Assert.Contains(input, exception.Message);
-    }
-
-    public TargetPositionTest(ITestOutputHelper output) :
-        base(output)
-    {
     }
 }

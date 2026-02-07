@@ -1,5 +1,4 @@
-public class BuildServerDetectorTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class BuildServerDetectorTest
 {
     [Fact]
     public void Props()

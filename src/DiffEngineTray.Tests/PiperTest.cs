@@ -1,6 +1,21 @@
-﻿public class PiperTest(ITestOutputHelper output) :
-    XunitContextBase(output)
+public class PiperTest :
+    IDisposable
 {
+    readonly List<string> Logs = [];
+    readonly TraceListener listener;
+
+    public PiperTest()
+    {
+        listener = new LogCapture(Logs);
+        Trace.Listeners.Add(listener);
+    }
+
+    public void Dispose()
+    {
+        Trace.Listeners.Remove(listener);
+        listener.Dispose();
+    }
+
     [Fact]
     public Task MoveJson() =>
         Verify(
@@ -68,5 +83,11 @@
             .ScrubLinesContaining("temp.txt")
             //TODO: add "scrub source dir" to verify and remove the below
             .ScrubLinesContaining("PiperClient");
+    }
+
+    class LogCapture(List<string> logs) : TraceListener
+    {
+        public override void Write(string? message) { }
+        public override void WriteLine(string? message) => logs.Add(message ?? "");
     }
 }
