@@ -11,6 +11,10 @@
     <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.WinForms" />
     <PackageReference Include="Verify.Xunit" />
+    <PackageReference Include="DiffEngine" />
+    <PackageReference Include="EmptyFiles" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Verify" />
     <PackageReference Include="Verify.ImageMagick" />
     <PackageReference Include="Xunit" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
