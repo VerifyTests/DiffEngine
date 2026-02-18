@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Sockets;
+
 public class PiperTest :
     IDisposable
 {
@@ -62,6 +65,36 @@ public class PiperTest :
         source.Cancel();
         await task;
         await Verify(received);
+    }
+
+    [Fact]
+    public async Task ClientDisconnectsAbruptly()
+    {
+        DeletePayload? received = null;
+        var source = new CancelSource();
+        var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
+
+        // Connect and immediately close with RST (no data sent),
+        // simulating a client that was canceled mid-connection.
+        using (var client = new TcpClient())
+        {
+            await client.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+            // Linger with timeout 0 causes a RST (forcible close) on Close
+            client.LingerState = new(true, 0);
+        }
+
+        // Give the server time to process the abrupt disconnect
+        await Task.Delay(500);
+
+        // Server should still work after the abrupt disconnect
+        await PiperClient.SendDeleteAsync("Foo", source.Token);
+        await Task.Delay(1000, source.Token);
+        source.Cancel();
+        await task;
+
+        // Verify the server recovered and processed the subsequent valid message
+        Assert.NotNull(received);
+        Assert.Equal("Foo", received!.File);
     }
 
     [Fact]
