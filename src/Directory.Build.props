@@ -14,7 +14,7 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ResolveAssemblyReferencesSilent>true</ResolveAssemblyReferencesSilent>
-    <NoWarn>CA1416;CS1591;xUnit1051</NoWarn>
+    <NoWarn>CA1416;CS1591</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>

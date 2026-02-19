@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-class RecordingTracker() :
+﻿class RecordingTracker() :
     Tracker(
         () =>
         {

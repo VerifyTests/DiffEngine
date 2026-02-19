@@ -94,7 +94,6 @@ public class OsSettingsResolverTest
         {
             var found = OsSettingsResolver.TryFindInEnvPath("cmd.exe", out var filePath);
             await Assert.That(found).IsTrue();
-            // TODO: TUnit migration - xUnit Assert.Equal had additional argument(s) (ignoreCase: true) that could not be converted.
             await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
         }
 
@@ -125,7 +124,6 @@ public class OsSettingsResolverTest
             out var filePath,
             out _);
         await Assert.That(found).IsTrue();
-        // TODO: TUnit migration - xUnit Assert.Equal had additional argument(s) (ignoreCase: true) that could not be converted.
         await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
     }
 }
