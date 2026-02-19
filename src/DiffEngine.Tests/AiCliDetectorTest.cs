@@ -1,6 +1,6 @@
 public class AiCliDetectorTest
 {
-    [Fact]
+    [Test]
     public void Props()
     {
         // ReSharper disable UnusedVariable

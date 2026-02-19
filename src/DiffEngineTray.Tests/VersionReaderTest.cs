@@ -1,9 +1,9 @@
 ﻿public class VersionReaderTest
 {
-    [Fact]
-    public void AddSingle()
+    [Test]
+    public async Task AddSingle()
     {
-        Assert.NotEmpty(VersionReader.VersionString);
-        Assert.NotNull(VersionReader.VersionString);
+        await Assert.That(VersionReader.VersionString).IsNotEmpty();
+        await Assert.That(VersionReader.VersionString).IsNotNull();
     }
 }

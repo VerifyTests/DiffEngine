@@ -1,37 +1,37 @@
 public class OsSettingsResolverTest
 {
-    [Fact]
-    public void Simple()
+    [Test]
+    public async Task Simple()
     {
         var paths = OsSettingsResolver.ExpandProgramFiles(["Path"]).ToList();
-        Assert.Equal("Path", paths.Single());
+        await Assert.That(paths.Single()).IsEqualTo("Path");
     }
 
-    [Fact]
-    public void Expand()
+    [Test]
+    public async Task Expand()
     {
         var paths = OsSettingsResolver.ExpandProgramFiles([@"%ProgramFiles%\Path"]).ToList();
-        Assert.Equal(@"%ProgramFiles%\Path", paths[0]);
-        Assert.Equal(@"%ProgramW6432%\Path", paths[1]);
-        Assert.Equal(@"%ProgramFiles(x86)%\Path", paths[2]);
+        await Assert.That(paths[0]).IsEqualTo(@"%ProgramFiles%\Path");
+        await Assert.That(paths[1]).IsEqualTo(@"%ProgramW6432%\Path");
+        await Assert.That(paths[2]).IsEqualTo(@"%ProgramFiles(x86)%\Path");
     }
 
-    [Fact]
-    public void TryFindForEnvironmentVariable_NoEnv()
+    [Test]
+    public async Task TryFindForEnvironmentVariable_NoEnv()
     {
-        Assert.False(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "FakeTool.exe", out var envPath));
-        Assert.Null(envPath);
+        await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "FakeTool.exe", out var envPath)).IsFalse();
+        await Assert.That(envPath).IsNull();
     }
 
-    [Fact]
-    public void TryFindForEnvironmentVariable_WithEnvFile()
+    [Test]
+    public async Task TryFindForEnvironmentVariable_WithEnvFile()
     {
         var location = Assembly.GetExecutingAssembly().Location;
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", location);
         try
         {
-            Assert.True(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath));
-            Assert.Equal(location, envPath);
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath)).IsTrue();
+            await Assert.That(envPath).IsEqualTo(location);
         }
         finally
         {
@@ -39,15 +39,15 @@ public class OsSettingsResolverTest
         }
     }
 
-    [Fact]
-    public void TryFindForEnvironmentVariable_WithEnvFile_incorrectCase()
+    [Test]
+    public async Task TryFindForEnvironmentVariable_WithEnvFile_incorrectCase()
     {
         var location = Assembly.GetExecutingAssembly().Location;
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", location);
         try
         {
-            Assert.True(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "diffengine.tests.dll", out var envPath));
-            Assert.Equal(location, envPath);
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "diffengine.tests.dll", out var envPath)).IsTrue();
+            await Assert.That(envPath).IsEqualTo(location);
         }
         finally
         {
@@ -55,15 +55,15 @@ public class OsSettingsResolverTest
         }
     }
 
-    [Fact]
-    public void TryFindForEnvironmentVariable_WithEnvDir()
+    [Test]
+    public async Task TryFindForEnvironmentVariable_WithEnvDir()
     {
         var location = Assembly.GetExecutingAssembly().Location;
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", Path.GetDirectoryName(location));
         try
         {
-            Assert.True(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath));
-            Assert.Equal(location, envPath);
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath)).IsTrue();
+            await Assert.That(envPath).IsEqualTo(location);
         }
         finally
         {
@@ -71,15 +71,15 @@ public class OsSettingsResolverTest
         }
     }
 
-    [Fact]
-    public void TryFindForEnvironmentVariable_WithEnv_BadPath()
+    [Test]
+    public async Task TryFindForEnvironmentVariable_WithEnv_BadPath()
     {
         var location = Assembly.GetExecutingAssembly().Location;
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", location);
         try
         {
             var exception = Assert.Throws<Exception>(()=>OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "NoFile.dll", out _));
-            Assert.Equal(exception.Message, $"Could not find exe defined by DiffEngine_FakeTool. Path: {location}");
+            await Assert.That($"Could not find exe defined by DiffEngine_FakeTool. Path: {location}").IsEqualTo(exception.Message);
         }
         finally
         {
@@ -87,27 +87,28 @@ public class OsSettingsResolverTest
         }
     }
 
-    [Fact]
-    public void EnvPath()
+    [Test]
+    public async Task EnvPath()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var found = OsSettingsResolver.TryFindInEnvPath("cmd.exe", out var filePath);
-            Assert.True(found);
-            Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
+            await Assert.That(found).IsTrue();
+            // TODO: TUnit migration - xUnit Assert.Equal had additional argument(s) (ignoreCase: true) that could not be converted.
+            await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
             RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             var found = OsSettingsResolver.TryFindInEnvPath("sh", out var filePath);
-            Assert.True(found);
-            Assert.NotNull(filePath);
+            await Assert.That(found).IsTrue();
+            await Assert.That(filePath).IsNotNull();
         }
     }
 
-    [Fact]
-    public void EnvVar()
+    [Test]
+    public async Task EnvVar()
     {
         var launchArguments = new LaunchArguments(
             Left: (_, _) => string.Empty,
@@ -123,7 +124,8 @@ public class OsSettingsResolverTest
             new(Windows: new("cmd.exe", launchArguments, "")),
             out var filePath,
             out _);
-        Assert.True(found);
-        Assert.Equal(@"C:\Windows\System32\cmd.exe", filePath, ignoreCase: true);
+        await Assert.That(found).IsTrue();
+        // TODO: TUnit migration - xUnit Assert.Equal had additional argument(s) (ignoreCase: true) that could not be converted.
+        await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
     }
 }

@@ -1,17 +1,18 @@
 public class OrderReaderTest
 {
-    [Fact]
-    public void ParseEnvironmentVariable()
+    [Test]
+    public async Task ParseEnvironmentVariable()
     {
         var diffTools = OrderReader.ParseEnvironment("VisualStudio,Meld").ToList();
-        Assert.Equal(DiffTool.VisualStudio, diffTools[0]);
-        Assert.Equal(DiffTool.Meld, diffTools[1]);
+        await Assert.That(diffTools[0]).IsEqualTo(DiffTool.VisualStudio);
+        await Assert.That(diffTools[1]).IsEqualTo(DiffTool.Meld);
     }
 
-    [Fact]
-    public void BadEnvironmentVariable()
+    [Test]
+    public async Task BadEnvironmentVariable()
     {
+        // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
         var exception = Assert.Throws<Exception>(() => OrderReader.ParseEnvironment("Foo").ToList());
-        Assert.Equal("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo", exception.Message);
+        await Assert.That(exception.Message).IsEqualTo("Unable to parse tool from `DiffEngine_ToolOrder` environment variable: Foo");
     }
 }

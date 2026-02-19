@@ -100,7 +100,7 @@ A tool can be launched using the following:
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L65-L69' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L67-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
@@ -115,7 +115,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L78-L82' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L81-L85' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
@@ -170,18 +170,18 @@ var isAppVeyor = BuildServerDetector.IsAppVeyor;
 <!-- snippet: BuildServerDetectorDetectedOverride -->
 <a id='snippet-BuildServerDetectorDetectedOverride'></a>
 ```cs
-[Fact]
+[Test]
 public async Task SetDetectedPersistsInAsyncContext()
 {
     var original = BuildServerDetector.Detected;
     try
     {
         BuildServerDetector.Detected = true;
-        Assert.True(BuildServerDetector.Detected);
+        await Assert.That(BuildServerDetector.Detected).IsTrue();
 
         await Task.Delay(1);
 
-        Assert.True(BuildServerDetector.Detected);
+        await Assert.That(BuildServerDetector.Detected).IsTrue();
     }
     finally
     {
@@ -189,18 +189,18 @@ public async Task SetDetectedPersistsInAsyncContext()
     }
 }
 
-[Fact]
+[Test]
 public async Task SetDetectedDoesNotLeakToOtherContexts()
 {
     var parentValue = BuildServerDetector.Detected;
 
-    await Task.Run(() =>
+    await Task.Run(async () =>
     {
         BuildServerDetector.Detected = true;
-        Assert.True(BuildServerDetector.Detected);
+        await Assert.That(BuildServerDetector.Detected).IsTrue();
     });
 
-    Assert.Equal(parentValue, BuildServerDetector.Detected);
+    await Assert.That(BuildServerDetector.Detected).IsEqualTo(parentValue);
 }
 ```
 <sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L27-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
