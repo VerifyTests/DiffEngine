@@ -1,5 +1,6 @@
 using EmptyFiles;
 
+[TUnit.Core.Executors.STAThreadExecutor]
 public class MenuBuilderTest :
     IDisposable
 {
