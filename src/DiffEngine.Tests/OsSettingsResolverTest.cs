@@ -1,5 +1,6 @@
 using Assembly = System.Reflection.Assembly;
 
+[NotInParallel]
 public class OsSettingsResolverTest
 {
     [Test]
@@ -32,7 +33,7 @@ public class OsSettingsResolverTest
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", location);
         try
         {
-            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath)).IsTrue();
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", Path.GetFileName(location), out var envPath)).IsTrue();
             await Assert.That(envPath).IsEqualTo(location);
         }
         finally
@@ -48,7 +49,7 @@ public class OsSettingsResolverTest
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", location);
         try
         {
-            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "diffengine.tests.dll", out var envPath)).IsTrue();
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", Path.GetFileName(location).ToLowerInvariant(), out var envPath)).IsTrue();
             await Assert.That(envPath).IsEqualTo(location);
         }
         finally
@@ -64,7 +65,7 @@ public class OsSettingsResolverTest
         Environment.SetEnvironmentVariable("DiffEngine_FakeTool", Path.GetDirectoryName(location));
         try
         {
-            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", "DiffEngine.Tests.dll", out var envPath)).IsTrue();
+            await Assert.That(OsSettingsResolver.TryFindForEnvironmentVariable("FakeTool", Path.GetFileName(location), out var envPath)).IsTrue();
             await Assert.That(envPath).IsEqualTo(location);
         }
         finally
@@ -96,7 +97,7 @@ public class OsSettingsResolverTest
         {
             var found = OsSettingsResolver.TryFindInEnvPath("cmd.exe", out var filePath);
             await Assert.That(found).IsTrue();
-            await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
+            await Assert.That(filePath!.ToLowerInvariant()).IsEqualTo(@"c:\windows\system32\cmd.exe");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
@@ -126,6 +127,6 @@ public class OsSettingsResolverTest
             out var filePath,
             out _);
         await Assert.That(found).IsTrue();
-        await Assert.That(filePath).IsEqualTo(@"C:\Windows\System32\cmd.exe");
+        await Assert.That(filePath!.ToLowerInvariant()).IsEqualTo(@"c:\windows\system32\cmd.exe");
     }
 }
