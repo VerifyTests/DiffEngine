@@ -1,4 +1,5 @@
 #if NET10_0
+[NotInParallel]
 public class DiffRunnerTests
 {
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;

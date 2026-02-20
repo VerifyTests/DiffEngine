@@ -1,3 +1,4 @@
+[NotInParallel]
 public class DiffToolsTest
 {
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
