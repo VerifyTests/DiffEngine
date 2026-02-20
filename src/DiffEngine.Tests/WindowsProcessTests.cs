@@ -3,42 +3,42 @@
 #endif
 public class WindowsProcessTests
 {
-    [Theory]
-    [InlineData("\"C:\\Program Files\\Beyond Compare 4\\BComp.exe\" C:\\temp\\file.1.txt C:\\temp\\file.2.txt", true)]
-    [InlineData("notepad.exe C:\\Users\\test\\doc.1.txt C:\\Users\\test\\doc.2.txt", true)]
-    [InlineData("\"C:\\diff\\tool.exe\" D:\\path\\to\\source.1.cs D:\\path\\to\\target.2.cs", true)]
-    [InlineData("code.exe --diff file.a.b file.c.d", true)]
-    [InlineData("app.exe path.with.dots path.more.dots", true)]
-    public void MatchesPattern_WithTwoFilePaths_ReturnsTrue(string commandLine, bool expected)
+    [Test]
+    [Arguments("\"C:\\Program Files\\Beyond Compare 4\\BComp.exe\" C:\\temp\\file.1.txt C:\\temp\\file.2.txt", true)]
+    [Arguments("notepad.exe C:\\Users\\test\\doc.1.txt C:\\Users\\test\\doc.2.txt", true)]
+    [Arguments("\"C:\\diff\\tool.exe\" D:\\path\\to\\source.1.cs D:\\path\\to\\target.2.cs", true)]
+    [Arguments("code.exe --diff file.a.b file.c.d", true)]
+    [Arguments("app.exe path.with.dots path.more.dots", true)]
+    public async Task MatchesPattern_WithTwoFilePaths_ReturnsTrue(string commandLine, bool expected)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return;
         }
 
-        Assert.Equal(expected, WindowsProcess.MatchesPattern(commandLine));
+        await Assert.That(WindowsProcess.MatchesPattern(commandLine)).IsEqualTo(expected);
     }
 
-    [Theory]
-    [InlineData("notepad.exe")]
-    [InlineData(@"notepad.exe C:\temp\file.txt")]
-    [InlineData("cmd.exe /c dir")]
-    [InlineData("explorer.exe")]
-    [InlineData("")]
-    [InlineData("singleword")]
-    [InlineData("app.exe onepath.with.dots")]
-    public void MatchesPattern_WithoutTwoFilePaths_ReturnsFalse(string commandLine)
+    [Test]
+    [Arguments("notepad.exe")]
+    [Arguments(@"notepad.exe C:\temp\file.txt")]
+    [Arguments("cmd.exe /c dir")]
+    [Arguments("explorer.exe")]
+    [Arguments("")]
+    [Arguments("singleword")]
+    [Arguments("app.exe onepath.with.dots")]
+    public async Task MatchesPattern_WithoutTwoFilePaths_ReturnsFalse(string commandLine)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return;
         }
 
-        Assert.False(WindowsProcess.MatchesPattern(commandLine));
+        await Assert.That(WindowsProcess.MatchesPattern(commandLine)).IsFalse();
     }
 
-    [Fact]
-    public void FindAll_ReturnsProcessCommands()
+    [Test]
+    public async Task FindAll_ReturnsProcessCommands()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -46,15 +46,15 @@ public class WindowsProcessTests
         }
 
         var result = WindowsProcess.FindAll();
-        Assert.NotNull(result);
+        await Assert.That(result).IsNotNull();
         foreach (var cmd in result)
         {
             Debug.WriteLine($"{cmd.Process}: {cmd.Command}");
         }
     }
 
-    [Fact]
-    public void TryTerminateProcess_WithWindowedProcess_GracefullyCloses()
+    [Test]
+    public async Task TryTerminateProcess_WithWindowedProcess_GracefullyCloses()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -70,7 +70,7 @@ public class WindowsProcessTests
             CreateNoWindow = true
         });
 
-        Assert.NotNull(process);
+        await Assert.That(process).IsNotNull();
 
         try
         {
@@ -80,10 +80,10 @@ public class WindowsProcessTests
             // Attempt graceful termination via CloseMainWindow
             var result = WindowsProcess.TryTerminateProcess(process.Id);
 
-            Assert.True(result);
+            await Assert.That(result).IsTrue();
 
             // Verify process exited gracefully
-            Assert.True(process.WaitForExit(1000));
+            await Assert.That(process.WaitForExit(1000)).IsTrue();
         }
         finally
         {
@@ -102,8 +102,8 @@ public class WindowsProcessTests
         }
     }
 
-    [Fact]
-    public void TryTerminateProcess_WithNonWindowedProcess_ForcefullyTerminates()
+    [Test]
+    public async Task TryTerminateProcess_WithNonWindowedProcess_ForcefullyTerminates()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -118,7 +118,7 @@ public class WindowsProcessTests
             CreateNoWindow = true
         });
 
-        Assert.NotNull(process);
+        await Assert.That(process).IsNotNull();
 
         try
         {
@@ -128,10 +128,10 @@ public class WindowsProcessTests
             // Attempt termination (should fall back to forceful kill since no main window)
             var result = WindowsProcess.TryTerminateProcess(process.Id);
 
-            Assert.True(result);
+            await Assert.That(result).IsTrue();
 
             // Verify process was terminated (should be immediate with forceful kill)
-            Assert.True(process.WaitForExit(1000));
+            await Assert.That(process.WaitForExit(1000)).IsTrue();
         }
         finally
         {
@@ -150,8 +150,8 @@ public class WindowsProcessTests
         }
     }
 
-    [Fact]
-    public void TryTerminateProcess_WithInvalidProcessId_ReturnsFalse()
+    [Test]
+    public async Task TryTerminateProcess_WithInvalidProcessId_ReturnsFalse()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -161,6 +161,6 @@ public class WindowsProcessTests
         // Use a very unlikely process ID
         var result = WindowsProcess.TryTerminateProcess(999999);
 
-        Assert.False(result);
+        await Assert.That(result).IsFalse();
     }
 }

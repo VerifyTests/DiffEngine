@@ -3,14 +3,14 @@ public class DiffToolsTest
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
     static string GetSourceFile([CallerFilePath] string path = "") => path;
 
-    [Fact]
+    [Test]
     public void MaxInstancesToLaunch() =>
     #region MaxInstancesToLaunch
         DiffRunner.MaxInstancesToLaunch(10);
     #endregion
 
-    [Fact]
-    public void AddTool()
+    [Test]
+    public async Task AddTool()
     {
         var diffToolPath = FakeDiffTool.Exe;
 
@@ -32,13 +32,13 @@ public class DiffToolsTest
         #endregion
 
         var resolved = DiffTools.Resolved.Select(_ => _.Name).First();
-        Assert.Equal(resolvedTool.Name, resolved);
-        Assert.True(DiffTools.TryFindByExtension(".jpg", out var forExtension));
-        Assert.Equal(resolvedTool.Name, forExtension.Name);
+        await Assert.That(resolved).IsEqualTo(resolvedTool.Name);
+        await Assert.That(DiffTools.TryFindByExtension(".jpg", out var forExtension)).IsTrue();
+        await Assert.That(forExtension!.Name).IsEqualTo(resolvedTool.Name);
     }
 
-    [Fact]
-    public void OrderShouldNotMessWithAddTool()
+    [Test]
+    public async Task OrderShouldNotMessWithAddTool()
     {
         var diffToolPath = FakeDiffTool.Exe;
         var resolvedTool = DiffTools.AddTool(
@@ -54,13 +54,13 @@ public class DiffToolsTest
             exePath: diffToolPath,
             binaryExtensions: [])!;
         DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
-        Assert.Equal("MyCustomDiffTool", resolvedTool.Name);
-        Assert.True(DiffTools.TryFindByExtension(".txt", out var forExtension));
-        Assert.Equal("MyCustomDiffTool", forExtension.Name);
+        await Assert.That(resolvedTool.Name).IsEqualTo("MyCustomDiffTool");
+        await Assert.That(DiffTools.TryFindByExtension(".txt", out var forExtension)).IsTrue();
+        await Assert.That(forExtension!.Name).IsEqualTo("MyCustomDiffTool");
     }
 
-    [Fact]
-    public void TextConvention()
+    [Test]
+    public async Task TextConvention()
     {
         var diffToolPath = FakeDiffTool.Exe;
         DiffTools.AddTool(
@@ -76,12 +76,12 @@ public class DiffToolsTest
             exePath: diffToolPath,
             binaryExtensions: []);
         var combine = Path.Combine(SourceDirectory, "input.temp.txtConvention");
-        Assert.True(DiffTools.TryFindForInputFilePath(combine, out var tool));
-        Assert.Equal("MyCustomDiffTool", tool.Name);
+        await Assert.That(DiffTools.TryFindForInputFilePath(combine, out var tool)).IsTrue();
+        await Assert.That(tool!.Name).IsEqualTo("MyCustomDiffTool");
     }
 
 #if DEBUG
-     [Fact]
+     [Test]
      public void AddToolBasedOn()
      {
          // ReSharper disable once UnusedVariable
@@ -219,8 +219,8 @@ public class DiffToolsTest
     }
 #endif
 */
-    [Fact]
-    public void TryFindByName_IsCaseInsensitive()
+    [Test]
+    public async Task TryFindByName_IsCaseInsensitive()
     {
         var diffToolPath = FakeDiffTool.Exe;
 
@@ -238,24 +238,24 @@ public class DiffToolsTest
             binaryExtensions: []);
 
         // Exact case
-        Assert.True(DiffTools.TryFindByName("MyCaseSensitiveTool", out var tool1));
-        Assert.Equal("MyCaseSensitiveTool", tool1.Name);
+        await Assert.That(DiffTools.TryFindByName("MyCaseSensitiveTool", out var tool1)).IsTrue();
+        await Assert.That(tool1!.Name).IsEqualTo("MyCaseSensitiveTool");
 
         // All lowercase
-        Assert.True(DiffTools.TryFindByName("mycasesensitivetool", out var tool2));
-        Assert.Equal("MyCaseSensitiveTool", tool2.Name);
+        await Assert.That(DiffTools.TryFindByName("mycasesensitivetool", out var tool2)).IsTrue();
+        await Assert.That(tool2!.Name).IsEqualTo("MyCaseSensitiveTool");
 
         // All uppercase
-        Assert.True(DiffTools.TryFindByName("MYCASESENSITIVETOOL", out var tool3));
-        Assert.Equal("MyCaseSensitiveTool", tool3.Name);
+        await Assert.That(DiffTools.TryFindByName("MYCASESENSITIVETOOL", out var tool3)).IsTrue();
+        await Assert.That(tool3!.Name).IsEqualTo("MyCaseSensitiveTool");
 
         // Mixed case
-        Assert.True(DiffTools.TryFindByName("myCASEsensitiveTOOL", out var tool4));
-        Assert.Equal("MyCaseSensitiveTool", tool4.Name);
+        await Assert.That(DiffTools.TryFindByName("myCASEsensitiveTOOL", out var tool4)).IsTrue();
+        await Assert.That(tool4!.Name).IsEqualTo("MyCaseSensitiveTool");
     }
 
-    [Fact]
-    public void AddTool_RejectsDuplicateNameCaseInsensitive()
+    [Test]
+    public async Task AddTool_RejectsDuplicateNameCaseInsensitive()
     {
         var diffToolPath = FakeDiffTool.Exe;
 
@@ -287,7 +287,7 @@ public class DiffToolsTest
                 exePath: diffToolPath,
                 binaryExtensions: []));
 
-        Assert.Contains("Tool with name already exists", exception.Message);
+        await Assert.That(exception.Message).Contains("Tool with name already exists");
     }
 
     public DiffToolsTest() =>

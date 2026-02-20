@@ -7,10 +7,10 @@
         {
         })
 {
-    public void AssertEmpty()
+    public async Task AssertEmpty()
     {
-        Assert.Empty(Deletes);
-        Assert.Empty(Moves);
-        Assert.False(TrackingAny);
+        await Assert.That(Deletes).IsEmpty();
+        await Assert.That(Moves).IsEmpty();
+        await Assert.That(TrackingAny).IsFalse();
     }
 }

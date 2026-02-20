@@ -3,7 +3,7 @@ public class DefinitionsTest
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
     static string GetSourceFile([CallerFilePath] string path = "") => path;
 
-    [Fact]
+    [Test]
     public void WriteList()
     {
         var md = Path.Combine(SourceDirectory, "diffToolList.include.md");
@@ -16,10 +16,10 @@ public class DefinitionsTest
         }
     }
 
-    [Fact]
-    public void EnvironmentVariablesShouldBeUnique()
+    [Test]
+    public async Task EnvironmentVariablesShouldBeUnique()
     {
-        static void FindDuplicates(Func<OsSupport, OsSettings?> selectOs)
+        static async Task FindDuplicates(Func<OsSupport, OsSettings?> selectOs)
         {
             var findDuplicates = Definitions.Tools
                 .Select(_ => _.OsSupport)
@@ -28,13 +28,13 @@ public class DefinitionsTest
                 .GroupBy(_ => _);
             foreach (var group in findDuplicates)
             {
-                Assert.Single(group);
+                await Assert.That(group).HasSingleItem();
             }
         }
 
-        FindDuplicates(_ => _.Windows);
-        FindDuplicates(_ => _.Osx);
-        FindDuplicates(_ => _.Linux);
+        await FindDuplicates(_ => _.Windows);
+        await FindDuplicates(_ => _.Osx);
+        await FindDuplicates(_ => _.Linux);
     }
 
     static void AddToolLink(TextWriter writer, Definition tool)
@@ -65,7 +65,7 @@ public class DefinitionsTest
         return builder.ToString();
     }
 
-    [Fact]
+    [Test]
     public void WriteDefaultOrder()
     {
         var md = Path.Combine(SourceDirectory, "defaultOrder.include.md");
@@ -78,7 +78,7 @@ public class DefinitionsTest
         }
     }
 
-    [Fact]
+    [Test]
     public void WriteFoundTools()
     {
         var md = Path.Combine(SourceDirectory, "diffTools.include.md");

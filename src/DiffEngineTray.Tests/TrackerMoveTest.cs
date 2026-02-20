@@ -1,26 +1,26 @@
 public class TrackerMoveTest :
     IDisposable
 {
-    [Fact]
+    [Test]
     public async Task AddSingle()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
-        Assert.Single(tracker.Moves);
-        Assert.True(tracker.TrackingAny);
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task AddMultiple()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
-        Assert.Equal(2, tracker.Moves.Count);
-        Assert.True(tracker.TrackingAny);
+        await Assert.That(tracker.Moves.Count).IsEqualTo(2);
+        await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task AddSame()
     {
         await using var tracker = new RecordingTracker();
@@ -28,37 +28,37 @@ public class TrackerMoveTest :
         using var process = Process.GetCurrentProcess();
         var processId = process.Id;
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", false, processId);
-        Assert.Single(tracker.Moves);
-        Assert.Equal(process.Id, tracked.Process!.Id);
-        Assert.True(tracker.TrackingAny);
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracked.Process!.Id).IsEqualTo(process.Id);
+        await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptAllSingle()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AcceptAll();
-        tracker.AssertEmpty();
+        await tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptAllMultiple()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         tracker.AcceptAll();
-        tracker.AssertEmpty();
+        await tracker.AssertEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptSingle()
     {
         await using var tracker = new RecordingTracker();
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.Accept(tracked);
-        tracker.AssertEmpty();
+        await tracker.AssertEmpty();
     }
 
     // [Fact]
@@ -71,7 +71,7 @@ public class TrackerMoveTest :
     //     tracker.AssertEmpty();
     // }
 
-    [Fact]
+    [Test]
     public async Task AddSingle_BackgroundDeleteTarget()
     {
         await using var tracker = new RecordingTracker();
@@ -80,19 +80,19 @@ public class TrackerMoveTest :
         Thread.Sleep(3000);
         // many diff tools do not require a target.
         // so the non exist of a target file should not flush that item
-        Assert.Single(tracker.Moves);
-        Assert.True(tracker.TrackingAny);
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task AcceptSingle_NotEmpty()
     {
         await using var tracker = new RecordingTracker();
         var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         tracker.Accept(tracked);
-        Assert.Single(tracker.Moves);
-        Assert.True(tracker.TrackingAny);
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
     public void Dispose()

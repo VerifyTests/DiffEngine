@@ -1,38 +1,38 @@
 public class TargetPositionTest
 {
-    [Theory]
-    [InlineData("true", true)]
-    [InlineData("TRUE", true)]
-    [InlineData("True", true)]
-    [InlineData("tRuE", true)]
-    [InlineData("false", false)]
-    [InlineData("FALSE", false)]
-    [InlineData("False", false)]
-    [InlineData("fAlSe", false)]
-    public void ParseTargetOnLeft_IsCaseInsensitive(string input, bool expected)
+    [Test]
+    [Arguments("true", true)]
+    [Arguments("TRUE", true)]
+    [Arguments("True", true)]
+    [Arguments("tRuE", true)]
+    [Arguments("false", false)]
+    [Arguments("FALSE", false)]
+    [Arguments("False", false)]
+    [Arguments("fAlSe", false)]
+    public async Task ParseTargetOnLeft_IsCaseInsensitive(string input, bool expected)
     {
         var result = TargetPosition.ParseTargetOnLeft(input);
-        Assert.Equal(expected, result);
+        await Assert.That(result).IsEqualTo(expected);
     }
 
-    [Fact]
-    public void ParseTargetOnLeft_NullReturnsNull()
+    [Test]
+    public async Task ParseTargetOnLeft_NullReturnsNull()
     {
         var result = TargetPosition.ParseTargetOnLeft(null);
-        Assert.Null(result);
+        await Assert.That(result).IsNull();
     }
 
-    [Theory]
-    [InlineData("yes")]
-    [InlineData("no")]
-    [InlineData("1")]
-    [InlineData("0")]
-    [InlineData("")]
-    [InlineData("invalid")]
-    public void ParseTargetOnLeft_InvalidValueThrows(string input)
+    [Test]
+    [Arguments("yes")]
+    [Arguments("no")]
+    [Arguments("1")]
+    [Arguments("0")]
+    [Arguments("")]
+    [Arguments("invalid")]
+    public async Task ParseTargetOnLeft_InvalidValueThrows(string input)
     {
         var exception = Assert.Throws<Exception>(() => TargetPosition.ParseTargetOnLeft(input));
-        Assert.Contains("Unable to parse Position", exception.Message);
-        Assert.Contains(input, exception.Message);
+        await Assert.That(exception.Message).Contains("Unable to parse Position");
+        await Assert.That(exception.Message).Contains(input);
     }
 }

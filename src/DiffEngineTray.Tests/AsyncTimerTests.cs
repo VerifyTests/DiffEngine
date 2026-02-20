@@ -1,6 +1,6 @@
 ﻿public class AsyncTimerTests
 {
-    [Fact]
+    [Test]
     public async Task It_calls_error_callback()
     {
         var errorCallbackInvoked = new TaskCompletionSource<bool>();
@@ -13,10 +13,10 @@
                 errorCallbackInvoked.TrySetResult(true);
             });
 
-        Assert.True(await errorCallbackInvoked.Task);
+        await Assert.That(await errorCallbackInvoked.Task).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task It_continues_to_run_after_an_error()
     {
         var callbackInvokedAfterError = new TaskCompletionSource<bool>();
@@ -24,7 +24,7 @@
         var fail = true;
         var exceptionThrown = false;
         await using var timer = new AsyncTimer(
-            callback: _ =>
+            callback: async _ =>
             {
                 if (fail)
                 {
@@ -32,9 +32,8 @@
                     throw new("Simulated!");
                 }
 
-                Assert.True(exceptionThrown);
+                await Assert.That(exceptionThrown).IsTrue();
                 callbackInvokedAfterError.TrySetResult(true);
-                return Task.FromResult(0);
             },
             interval: TimeSpan.Zero,
             errorCallback: _ =>
@@ -42,10 +41,10 @@
                 exceptionThrown = true;
             });
 
-        Assert.True(await callbackInvokedAfterError.Task);
+        await Assert.That(await callbackInvokedAfterError.Task).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task Stop_cancels_token_while_in_callback()
     {
         var callbackCanceled = false;
@@ -67,10 +66,10 @@
         var stopTask = timer.DisposeAsync();
         stopInitiated.SetResult(true);
         await stopTask;
-        Assert.True(callbackCanceled);
+        await Assert.That(callbackCanceled).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task Stop_waits_for_callback_to_complete()
     {
         var callbackCompleted = new TaskCompletionSource<bool>();
@@ -89,7 +88,7 @@
         var delayTask = Task.Delay(1000);
 
         var firstToComplete = await Task.WhenAny(stopTask, delayTask);
-        Assert.Equal(delayTask, firstToComplete);
+        await Assert.That(firstToComplete).IsEqualTo(delayTask);
         callbackCompleted.SetResult(true);
 
         await stopTask;
