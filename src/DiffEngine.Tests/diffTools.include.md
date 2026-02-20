@@ -1168,18 +1168,18 @@ DiffTools.UseOrder(DiffTool.VisualStudio);
    /diff "tempFile.txt" "targetFile.txt" "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
-    * `%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
-    * `%ProgramW6432%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
-    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe`
-    * `%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
-    * `%ProgramW6432%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
-    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe`
-    * `%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
-    * `%ProgramW6432%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
-    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Professional\Common7\IDE\devenv.exe`
-    * `%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
-    * `%ProgramW6432%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
-    * `%ProgramFiles(x86)%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe`
+    * `%ProgramFiles%\Microsoft Visual Studio\*\Preview\Common7\IDE\devenv.exe`
+    * `%ProgramW6432%\Microsoft Visual Studio\*\Preview\Common7\IDE\devenv.exe`
+    * `%ProgramFiles(x86)%\Microsoft Visual Studio\*\Preview\Common7\IDE\devenv.exe`
+    * `%ProgramFiles%\Microsoft Visual Studio\*\Community\Common7\IDE\devenv.exe`
+    * `%ProgramW6432%\Microsoft Visual Studio\*\Community\Common7\IDE\devenv.exe`
+    * `%ProgramFiles(x86)%\Microsoft Visual Studio\*\Community\Common7\IDE\devenv.exe`
+    * `%ProgramFiles%\Microsoft Visual Studio\*\Professional\Common7\IDE\devenv.exe`
+    * `%ProgramW6432%\Microsoft Visual Studio\*\Professional\Common7\IDE\devenv.exe`
+    * `%ProgramFiles(x86)%\Microsoft Visual Studio\*\Professional\Common7\IDE\devenv.exe`
+    * `%ProgramFiles%\Microsoft Visual Studio\*\Enterprise\Common7\IDE\devenv.exe`
+    * `%ProgramW6432%\Microsoft Visual Studio\*\Enterprise\Common7\IDE\devenv.exe`
+    * `%ProgramFiles(x86)%\Microsoft Visual Studio\*\Enterprise\Common7\IDE\devenv.exe`
     * `%PATH%devenv.exe`
 
 ### [VisualStudioCode](https://code.visualstudio.com)
