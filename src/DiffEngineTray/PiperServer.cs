@@ -35,6 +35,11 @@ static class PiperServer
                     //when task is cancelled socket is disposed
                     break;
                 }
+                catch (IOException exception)
+                    when (exception.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset })
+                {
+                    //client disconnected abruptly, e.g. test was canceled
+                }
                 catch (Exception exception)
                 {
                     if (cancel.IsCancellationRequested)
@@ -58,6 +63,7 @@ static class PiperServer
         {
             using var client = await listener.AcceptTcpClientAsync(cancel);
             using var reader = new StreamReader(client.GetStream());
+
             var payload = await reader.ReadToEndAsync(cancel);
 
             if (payload.Contains("\"Type\":\"Move\"") ||
