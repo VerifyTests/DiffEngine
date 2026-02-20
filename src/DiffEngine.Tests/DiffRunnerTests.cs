@@ -9,7 +9,8 @@ public class DiffRunnerTests
     string file1;
     string command;
 
-    [Fact(Skip = "Explicit")]
+    [Test]
+    [Skip("Explicit")]
     public async Task MaxInstancesToLaunch()
     {
         DiffRunner.MaxInstancesToLaunch(1);
@@ -19,10 +20,10 @@ public class DiffRunnerTests
             ProcessCleanup.Refresh();
             var result = await DiffRunner.LaunchAsync(file1, "fake.txt");
             await Task.Delay(300);
-            Assert.Equal(LaunchResult.StartedNewInstance, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
             ProcessCleanup.Refresh();
             result = await DiffRunner.LaunchAsync(file2, "fake.txt");
-            Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
             ProcessCleanup.Refresh();
             DiffRunner.Kill(file1, "fake.txt");
             DiffRunner.Kill(file2, "fake.txt");
@@ -33,7 +34,8 @@ public class DiffRunnerTests
         }
     }
 
-    [Fact(Skip = "Explicit")]
+    [Test]
+    [Skip("Explicit")]
     public async Task MaxInstancesToLaunchAsync()
     {
         DiffRunner.MaxInstancesToLaunch(1);
@@ -43,10 +45,10 @@ public class DiffRunnerTests
             ProcessCleanup.Refresh();
             var result = await DiffRunner.LaunchAsync(file1, "fake.txt");
             await Task.Delay(300);
-            Assert.Equal(LaunchResult.StartedNewInstance, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
             ProcessCleanup.Refresh();
             result = await DiffRunner.LaunchAsync(file2, "fake.txt");
-            Assert.Equal(LaunchResult.TooManyRunningDiffTools, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
             ProcessCleanup.Refresh();
             DiffRunner.Kill(file1, "fake.txt");
             DiffRunner.Kill(file2, "fake.txt");
@@ -69,7 +71,8 @@ public class DiffRunnerTests
         #endregion
     }
 
-    [Fact(Skip = "Explicit")]
+    [Test]
+    [Skip("Explicit")]
     public async Task KillAsync()
     {
         await DiffRunner.LaunchAsync(file1, file2);
@@ -82,25 +85,25 @@ public class DiffRunnerTests
         #endregion
     }
 
-    [Fact]
-    public void LaunchAndKillDisabled()
+    [Test]
+    public async Task LaunchAndKillDisabled()
     {
         DiffRunner.Disabled = true;
         try
         {
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
             var result = DiffRunner.Launch(file1, file2);
-            Assert.Equal(LaunchResult.Disabled, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
             DiffRunner.Kill(file1, file2);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
         }
         finally
         {
@@ -108,25 +111,25 @@ public class DiffRunnerTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task LaunchAndKillDisabledAsync()
     {
         DiffRunner.Disabled = true;
         try
         {
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
             var result = await DiffRunner.LaunchAsync(file1, file2);
-            Assert.Equal(LaunchResult.Disabled, result);
+            await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
             DiffRunner.Kill(file1, file2);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
-            Assert.False(IsRunning());
-            Assert.False(ProcessCleanup.IsRunning(command));
+            await Assert.That(IsRunning()).IsFalse();
+            await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
         }
         finally
         {
@@ -134,40 +137,40 @@ public class DiffRunnerTests
         }
     }
 
-    [Fact]
-    public void LaunchAndKill()
+    [Test]
+    public async Task LaunchAndKill()
     {
-        Assert.False(IsRunning());
-        Assert.False(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsFalse();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
         var result = DiffRunner.Launch(file1, file2);
-        Assert.Equal(LaunchResult.StartedNewInstance, result);
+        await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
-        Assert.True(IsRunning());
-        Assert.True(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsTrue();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsTrue();
         DiffRunner.Kill(file1, file2);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
-        Assert.False(IsRunning());
-        Assert.False(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsFalse();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task LaunchAndKillAsync()
     {
-        Assert.False(IsRunning());
-        Assert.False(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsFalse();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
         var result = await DiffRunner.LaunchAsync(file1, file2);
-        Assert.Equal(LaunchResult.StartedNewInstance, result);
+        await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
-        Assert.True(IsRunning());
-        Assert.True(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsTrue();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsTrue();
         DiffRunner.Kill(file1, file2);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
-        Assert.False(IsRunning());
-        Assert.False(ProcessCleanup.IsRunning(command));
+        await Assert.That(IsRunning()).IsFalse();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
     }
 
     static bool IsRunning() =>

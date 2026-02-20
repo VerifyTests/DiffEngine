@@ -53,7 +53,7 @@ New tools are added to the top of the order, the last tool added will resolve be
 ```cs
 await DiffRunner.LaunchAsync(tempFile, targetFile);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L65-L69' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L67-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunch' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Alternatively the instance  returned from `AddTool*` can be used to explicitly launch that tool.

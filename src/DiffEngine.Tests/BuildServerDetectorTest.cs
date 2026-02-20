@@ -1,6 +1,6 @@
 public class BuildServerDetectorTest
 {
-    [Fact]
+    [Test]
     public void Props()
     {
         // ReSharper disable UnusedVariable
@@ -26,18 +26,18 @@ public class BuildServerDetectorTest
 
     #region BuildServerDetectorDetectedOverride
 
-    [Fact]
+    [Test]
     public async Task SetDetectedPersistsInAsyncContext()
     {
         var original = BuildServerDetector.Detected;
         try
         {
             BuildServerDetector.Detected = true;
-            Assert.True(BuildServerDetector.Detected);
+            await Assert.That(BuildServerDetector.Detected).IsTrue();
 
             await Task.Delay(1);
 
-            Assert.True(BuildServerDetector.Detected);
+            await Assert.That(BuildServerDetector.Detected).IsTrue();
         }
         finally
         {
@@ -45,18 +45,18 @@ public class BuildServerDetectorTest
         }
     }
 
-    [Fact]
+    [Test]
     public async Task SetDetectedDoesNotLeakToOtherContexts()
     {
         var parentValue = BuildServerDetector.Detected;
 
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             BuildServerDetector.Detected = true;
-            Assert.True(BuildServerDetector.Detected);
+            await Assert.That(BuildServerDetector.Detected).IsTrue();
         });
 
-        Assert.Equal(parentValue, BuildServerDetector.Detected);
+        await Assert.That(BuildServerDetector.Detected).IsEqualTo(parentValue);
     }
 
     #endregion

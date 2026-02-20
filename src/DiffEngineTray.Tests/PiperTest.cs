@@ -16,7 +16,7 @@ public class PiperTest :
         listener.Dispose();
     }
 
-    [Fact]
+    [Test]
     public Task MoveJson() =>
         Verify(
             PiperClient.BuildMovePayload(
@@ -27,7 +27,7 @@ public class PiperTest :
                 true,
                 1000));
 
-    [Fact]
+    [Test]
     public Task DeleteJson() =>
         Verify(
             PiperClient.BuildMovePayload(
@@ -38,7 +38,7 @@ public class PiperTest :
                 true,
                 1000));
 
-    [Fact]
+    [Test]
     public async Task Delete()
     {
         DeletePayload received = null!;
@@ -51,7 +51,7 @@ public class PiperTest :
         await Verify(received);
     }
 
-    [Fact]
+    [Test]
     public async Task Move()
     {
         MovePayload received = null!;
@@ -64,7 +64,7 @@ public class PiperTest :
         await Verify(received);
     }
 
-    [Fact]
+    [Test]
     public async Task SendOnly()
     {
         var file = Path.GetFullPath("temp.txt");

@@ -1,53 +1,53 @@
 public class ImagesTest
 {
-    [Fact]
-    public void AllImagesLoaded()
+    [Test]
+    public async Task AllImagesLoaded()
     {
         // Verify all icon resources load correctly
-        Assert.NotNull(Images.Active);
-        Assert.NotNull(Images.Default);
+        await Assert.That(Images.Active).IsNotNull();
+        await Assert.That(Images.Default).IsNotNull();
 
         // Verify all image resources load correctly
-        Assert.NotNull(Images.Exit);
-        Assert.NotNull(Images.Delete);
-        Assert.NotNull(Images.AcceptAll);
-        Assert.NotNull(Images.Accept);
-        Assert.NotNull(Images.Discard);
-        Assert.NotNull(Images.VisualStudio);
-        Assert.NotNull(Images.Folder);
-        Assert.NotNull(Images.Options);
-        Assert.NotNull(Images.Link);
+        await Assert.That(Images.Exit).IsNotNull();
+        await Assert.That(Images.Delete).IsNotNull();
+        await Assert.That(Images.AcceptAll).IsNotNull();
+        await Assert.That(Images.Accept).IsNotNull();
+        await Assert.That(Images.Discard).IsNotNull();
+        await Assert.That(Images.VisualStudio).IsNotNull();
+        await Assert.That(Images.Folder).IsNotNull();
+        await Assert.That(Images.Options).IsNotNull();
+        await Assert.That(Images.Link).IsNotNull();
     }
 
-    [Fact]
-    public void IconsHaveValidSize()
+    [Test]
+    public async Task IconsHaveValidSize()
     {
-        Assert.True(Images.Active.Width > 0);
-        Assert.True(Images.Active.Height > 0);
-        Assert.True(Images.Default.Width > 0);
-        Assert.True(Images.Default.Height > 0);
+        await Assert.That(Images.Active.Width > 0).IsTrue();
+        await Assert.That(Images.Active.Height > 0).IsTrue();
+        await Assert.That(Images.Default.Width > 0).IsTrue();
+        await Assert.That(Images.Default.Height > 0).IsTrue();
     }
 
-    [Fact]
-    public void ImagesHaveValidSize()
+    [Test]
+    public async Task ImagesHaveValidSize()
     {
-        Assert.True(Images.Exit.Width > 0);
-        Assert.True(Images.Exit.Height > 0);
-        Assert.True(Images.Delete.Width > 0);
-        Assert.True(Images.Delete.Height > 0);
-        Assert.True(Images.AcceptAll.Width > 0);
-        Assert.True(Images.AcceptAll.Height > 0);
-        Assert.True(Images.Accept.Width > 0);
-        Assert.True(Images.Accept.Height > 0);
-        Assert.True(Images.Discard.Width > 0);
-        Assert.True(Images.Discard.Height > 0);
-        Assert.True(Images.VisualStudio.Width > 0);
-        Assert.True(Images.VisualStudio.Height > 0);
-        Assert.True(Images.Folder.Width > 0);
-        Assert.True(Images.Folder.Height > 0);
-        Assert.True(Images.Options.Width > 0);
-        Assert.True(Images.Options.Height > 0);
-        Assert.True(Images.Link.Width > 0);
-        Assert.True(Images.Link.Height > 0);
+        await Assert.That(Images.Exit.Width > 0).IsTrue();
+        await Assert.That(Images.Exit.Height > 0).IsTrue();
+        await Assert.That(Images.Delete.Width > 0).IsTrue();
+        await Assert.That(Images.Delete.Height > 0).IsTrue();
+        await Assert.That(Images.AcceptAll.Width > 0).IsTrue();
+        await Assert.That(Images.AcceptAll.Height > 0).IsTrue();
+        await Assert.That(Images.Accept.Width > 0).IsTrue();
+        await Assert.That(Images.Accept.Height > 0).IsTrue();
+        await Assert.That(Images.Discard.Width > 0).IsTrue();
+        await Assert.That(Images.Discard.Height > 0).IsTrue();
+        await Assert.That(Images.VisualStudio.Width > 0).IsTrue();
+        await Assert.That(Images.VisualStudio.Height > 0).IsTrue();
+        await Assert.That(Images.Folder.Width > 0).IsTrue();
+        await Assert.That(Images.Folder.Height > 0).IsTrue();
+        await Assert.That(Images.Options.Width > 0).IsTrue();
+        await Assert.That(Images.Options.Height > 0).IsTrue();
+        await Assert.That(Images.Link.Width > 0).IsTrue();
+        await Assert.That(Images.Link.Height > 0).IsTrue();
     }
 }

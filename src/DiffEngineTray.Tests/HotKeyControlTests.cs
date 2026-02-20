@@ -1,7 +1,7 @@
 #if DEBUG
 public class HotKeyControlTests
 {
-    [Fact]
+    [Test]
     public async Task WithKeys()
     {
         using var target = new HotKeyControl
@@ -15,7 +15,7 @@ public class HotKeyControlTests
         await Verify(target);
     }
 
-    [Fact]
+    [Test]
     public async Task Default()
     {
         using var target = new HotKeyControl();

@@ -13,13 +13,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 dotnet build src --configuration Release
 
 # Run all tests
-dotnet test src --configuration Release
+dotnet test --project src/DiffEngine.Tests --configuration Release
+dotnet test --project src/DiffEngineTray.Tests --configuration Release
 
-# Run a single test file
-dotnet test src/DiffEngine.Tests --filter "FullyQualifiedName~ClassName"
+# Run a single test project with filter
+dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName~ClassName"
 
 # Run a specific test
-dotnet test src/DiffEngine.Tests --filter "FullyQualifiedName=DiffEngine.Tests.ClassName.TestMethod"
+dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName=DiffEngine.Tests.ClassName.TestMethod"
 ```
 
 **SDK Requirements:** .NET 10 SDK (see `src/global.json`). The project uses preview/prerelease SDK features.
@@ -66,4 +67,4 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 - Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations
 - Tool order can be customized via `DiffEngine_ToolOrder` environment variable
 - `DisabledChecker` respects `DiffEngine_Disabled` env var
-- Tests use xUnit and Verify for snapshot testing
+- Tests use TUnit and Verify for snapshot testing

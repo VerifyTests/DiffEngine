@@ -1,14 +1,14 @@
 public class TrackerClearTest :
     IDisposable
 {
-    [Fact]
+    [Test]
     public async Task Simple()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
         tracker.Clear();
-        tracker.AssertEmpty();
+        await tracker.AssertEmpty();
     }
 
     public void Dispose()

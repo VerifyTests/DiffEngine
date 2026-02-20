@@ -1,5 +1,6 @@
 using EmptyFiles;
 
+[TUnit.Core.Executors.STAThreadExecutor]
 public class MenuBuilderTest :
     IDisposable
 {
@@ -7,7 +8,7 @@ public class MenuBuilderTest :
     {
     };
 
-    [Fact]
+    [Test]
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
@@ -18,7 +19,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task OnlyMove()
     {
         await using var tracker = new RecordingTracker();
@@ -30,7 +31,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task OnlyDelete()
     {
         await using var tracker = new RecordingTracker();
@@ -42,7 +43,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task Full()
     {
         await using var tracker = new RecordingTracker();
@@ -57,7 +58,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task DiffTempTarget()
     {
         await using var tracker = new RecordingTracker();
@@ -71,7 +72,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task Many()
     {
         await using var tracker = new RecordingTracker();
@@ -87,7 +88,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task Grouped()
     {
         await using var tracker = new RecordingTracker();
@@ -100,7 +101,7 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
-    [Fact]
+    [Test]
     public async Task FullGrouped()
     {
         await using var tracker = new RecordingTracker();

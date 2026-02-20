@@ -1,42 +1,42 @@
 public class LinuxOsxProcessTests
 {
-    [Fact]
-    public void TryParseWithZshInstalled()
+    [Test]
+    public async Task TryParseWithZshInstalled()
     {
         var parse = LinuxOsxProcess.TryParse("20872 -zsh", out var command);
-        Assert.True(parse);
+        await Assert.That(parse).IsTrue();
         var processCommand = command!.Value;
-        Assert.Equal(20872, processCommand.Process);
-        Assert.Equal("-zsh", processCommand.Command);
+        await Assert.That(processCommand.Process).IsEqualTo(20872);
+        await Assert.That(processCommand.Command).IsEqualTo("-zsh");
     }
 
-    [Fact]
-    public void TryParse()
+    [Test]
+    public async Task TryParse()
     {
         var parse = LinuxOsxProcess.TryParse("309 /System/Library/coreauthd -foo", out var command);
-        Assert.True(parse);
+        await Assert.That(parse).IsTrue();
         var processCommand = command!.Value;
-        Assert.Equal(309, processCommand.Process);
-        Assert.Equal("/System/Library/coreauthd -foo", processCommand.Command);
+        await Assert.That(processCommand.Process).IsEqualTo(309);
+        await Assert.That(processCommand.Command).IsEqualTo("/System/Library/coreauthd -foo");
     }
 
-    [Fact]
-    public void TryParse_noSlash()
+    [Test]
+    public async Task TryParse_noSlash()
     {
         var parse = LinuxOsxProcess.TryParse("309 System/Library/coreauthd -foo", out var command);
-        Assert.True(parse);
+        await Assert.That(parse).IsTrue();
         var processCommand = command!.Value;
-        Assert.Equal(309, processCommand.Process);
-        Assert.Equal("System/Library/coreauthd -foo", processCommand.Command);
+        await Assert.That(processCommand.Process).IsEqualTo(309);
+        await Assert.That(processCommand.Command).IsEqualTo("System/Library/coreauthd -foo");
     }
 
-    [Fact]
-    public void TryParse_singleDigit()
+    [Test]
+    public async Task TryParse_singleDigit()
     {
         var parse = LinuxOsxProcess.TryParse("309 System/Library/coreauthd -foo", out var command);
-        Assert.True(parse);
+        await Assert.That(parse).IsTrue();
         var processCommand = command!.Value;
-        Assert.Equal(309, processCommand.Process);
-        Assert.Equal("System/Library/coreauthd -foo", processCommand.Command);
+        await Assert.That(processCommand.Process).IsEqualTo(309);
+        await Assert.That(processCommand.Command).IsEqualTo("System/Library/coreauthd -foo");
     }
 }

@@ -2,23 +2,23 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <NoWarn>$(NoWarn);CA1416;NU1902</NoWarn>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="DiffEngine" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.WinForms" />
-    <PackageReference Include="Verify.XunitV3" />
+    <PackageReference Include="Verify.TUnit" />
     <PackageReference Include="DiffEngine" />
     <PackageReference Include="EmptyFiles" />
     <PackageReference Include="SimpleInfoName" />
     <PackageReference Include="Verify" />
     <PackageReference Include="Verify.ImageMagick" />
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <PackageReference Include="TUnit" />
   </ItemGroup>
 </Project>

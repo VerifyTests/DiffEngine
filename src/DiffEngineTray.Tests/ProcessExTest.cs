@@ -1,18 +1,17 @@
 ﻿public class ProcessExTest
 {
-    [Fact]
-    public void TryGet()
+    [Test]
+    public async Task TryGet()
     {
         using var current = Process.GetCurrentProcess();
-        Assert.True(ProcessEx.TryGet(current.Id, out var found));
-        Assert.NotNull(found);
-        found.Dispose();
+        await Assert.That(ProcessEx.TryGet(current.Id, out var found)).IsTrue();
+        found!.Dispose();
     }
 
-    [Fact]
-    public void TryGetMissing()
+    [Test]
+    public async Task TryGetMissing()
     {
-        Assert.False(ProcessEx.TryGet(40000, out var found));
-        Assert.Null(found);
+        await Assert.That(ProcessEx.TryGet(40000, out var found)).IsFalse();
+        await Assert.That(found).IsNull();
     }
 }

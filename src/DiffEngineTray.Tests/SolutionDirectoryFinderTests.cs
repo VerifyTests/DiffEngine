@@ -4,7 +4,7 @@ public class SolutionDirectoryFinderTests
     static string SourceFile { get; } = GetSourceFile();
     static string GetSourceFile([CallerFilePath] string path = "") => path;
 
-    [Fact]
+    [Test]
     public Task Find() =>
         Verify(SolutionDirectoryFinder.Find(SourceFile));
 }
