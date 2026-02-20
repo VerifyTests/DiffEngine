@@ -49,7 +49,7 @@ public class PiperTest :
         var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
         await PiperClient.SendDeleteAsync("Foo", source.Token);
         await Task.Delay(1000, source.Token);
-        source.Cancel();
+        await source.CancelAsync();
         await task;
         await Verify(received);
     }
@@ -62,7 +62,7 @@ public class PiperTest :
         var task = PiperServer.Start(s => received = s, _ => { }, source.Token);
         await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
         await Task.Delay(1000, source.Token);
-        source.Cancel();
+        await source.CancelAsync();
         await task;
         await Verify(received);
     }
@@ -78,18 +78,18 @@ public class PiperTest :
         // simulating a client that was canceled mid-connection.
         using (var client = new TcpClient())
         {
-            await client.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+            await client.ConnectAsync(IPAddress.Loopback, PiperClient.Port, source.Token);
             // Linger with timeout 0 causes a RST (forcible close) on Close
             client.LingerState = new(true, 0);
         }
 
         // Give the server time to process the abrupt disconnect
-        await Task.Delay(500);
+        await Task.Delay(500, source.Token);
 
         // Server should still work after the abrupt disconnect
         await PiperClient.SendDeleteAsync("Foo", source.Token);
         await Task.Delay(1000, source.Token);
-        source.Cancel();
+        await source.CancelAsync();
         await task;
 
         // Verify the server recovered and processed the subsequent valid message
