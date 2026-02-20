@@ -31,9 +31,9 @@ static partial class Implementation
                     "devenv.exe", new(
                         LeftArguments,
                         RightArguments),
-                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Preview\Common7\IDE\",
-                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\IDE\",
-                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Professional\Common7\IDE\",
-                    @"%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\")));
+                    @"%ProgramFiles%\Microsoft Visual Studio\*\Preview\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\*\Community\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\*\Professional\Common7\IDE\",
+                    @"%ProgramFiles%\Microsoft Visual Studio\*\Enterprise\Common7\IDE\")));
     }
 }
