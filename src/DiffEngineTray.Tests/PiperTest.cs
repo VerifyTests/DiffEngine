@@ -93,8 +93,8 @@ public class PiperTest :
         await task;
 
         // Verify the server recovered and processed the subsequent valid message
-        Assert.NotNull(received);
-        Assert.Equal("Foo", received!.File);
+        await Assert.That(received).IsNotNull();
+        await Assert.That(received!.File).IsEqualTo("Foo");
     }
 
     [Test]
