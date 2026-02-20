@@ -1,3 +1,5 @@
+using Assembly = System.Reflection.Assembly;
+
 public class OsSettingsResolverTest
 {
     [Test]
