@@ -109,7 +109,8 @@ static class FileLockKiller
         }
         finally
         {
-            RmEndSession(sessionHandle);
+            // Nothing useful to do if ending the session fails
+            _ = RmEndSession(sessionHandle);
         }
 
         return killed;
