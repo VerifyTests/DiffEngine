@@ -7,7 +7,8 @@ class TrackedMove
         bool canKill,
         Process? process,
         string? group,
-        string extension)
+        string extension,
+        bool killLockingProcess = false)
     {
         Temp = temp;
         Target = target;
@@ -18,6 +19,7 @@ class TrackedMove
         CanKill = canKill;
         Process = process;
         Group = group;
+        KillLockingProcess = killLockingProcess;
     }
 
     public string Extension { get; }
@@ -29,4 +31,5 @@ class TrackedMove
     public bool CanKill { get; }
     public Process? Process { get; set; }
     public string? Group { get; }
+    public bool KillLockingProcess { get; }
 }

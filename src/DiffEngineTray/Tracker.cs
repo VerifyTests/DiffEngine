@@ -156,6 +156,7 @@ class Tracker :
     {
         var solution = SolutionDirectoryFinder.Find(target);
         var extension = Path.GetExtension(target).TrimStart('.');
+        var killLockingProcess = false;
         if (exe == null)
         {
             if (DiffTools.TryFindByExtension(extension, out var tool))
@@ -163,6 +164,7 @@ class Tracker :
                 arguments = tool.GetArguments(temp, target);
                 exe = tool.ExePath;
                 canKill = !tool.IsMdi;
+                killLockingProcess = tool.KillLockingProcess;
             }
         }
         else if (canKill == null)
@@ -170,14 +172,22 @@ class Tracker :
             if (DiffTools.TryFindByPath(exe, out var tool))
             {
                 canKill = !tool.IsMdi;
+                killLockingProcess = tool.KillLockingProcess;
             }
             else
             {
                 canKill = false;
             }
         }
+        else
+        {
+            if (DiffTools.TryFindByPath(exe, out var tool))
+            {
+                killLockingProcess = tool.KillLockingProcess;
+            }
+        }
 
-        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension);
+        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess);
     }
 
     public TrackedDelete AddDelete(string file) =>
@@ -247,7 +257,18 @@ class Tracker :
 
         if (!FileEx.SafeMove(move.Temp, move.Target))
         {
-            return;
+            if (move.KillLockingProcess &&
+                FileLockKiller.KillLockingProcesses(move.Target))
+            {
+                if (!FileEx.SafeMove(move.Temp, move.Target))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                return;
+            }
         }
 
         var directory = Path.GetDirectoryName(move.Temp)!;
