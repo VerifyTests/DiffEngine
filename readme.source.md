@@ -21,10 +21,6 @@ include: intro
 include: sponsors
 
 
-### JetBrains
-
-[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport)
-
 
 toc
 include: doc-index

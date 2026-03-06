@@ -32,11 +32,6 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
 [![Entity Framework Extensions](https://raw.githubusercontent.com/VerifyTests/DiffEngine/refs/heads/main/docs/zzz.png)](https://entityframework-extensions.net/?utm_source=simoncropp&utm_medium=DiffEngine)<!-- endInclude -->
 
 
-### JetBrains
-
-[![JetBrains logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg)](https://jb.gg/OpenSourceSupport)
-
-
 <!-- toc -->
 ## Contents
 
