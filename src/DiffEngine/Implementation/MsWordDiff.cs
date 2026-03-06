@@ -26,6 +26,7 @@ static partial class Implementation
                     @"%USERPROFILE%\.dotnet\tools\")),
             UseShellExecute: false,
             CreateNoWindow: true,
+            KillLockingProcess: true,
             Notes: """
                  * Install via `dotnet tool install -g MsWordDiff`
                  * Requires Microsoft Word to be installed

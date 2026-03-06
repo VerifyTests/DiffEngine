@@ -12,4 +12,5 @@ public record Definition(
     OsSupport OsSupport,
     bool UseShellExecute = true,
     bool CreateNoWindow = false,
+    bool KillLockingProcess = false,
     string? Notes = null);

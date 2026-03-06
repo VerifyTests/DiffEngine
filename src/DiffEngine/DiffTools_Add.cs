@@ -10,6 +10,7 @@ public static partial class DiffTools
         bool? requiresTarget = null,
         bool? useShellExecute = true,
         bool? createNoWindow = null,
+        bool? killLockingProcess = null,
         LaunchArguments? launchArguments = null,
         string? exePath = null,
         IEnumerable<string>? binaryExtensions = null)
@@ -30,26 +31,27 @@ public static partial class DiffTools
             launchArguments ?? existing.LaunchArguments,
             exePath ?? existing.ExePath,
             binaryExtensions ?? existing.BinaryExtensions,
-            createNoWindow ?? existing.CreateNoWindow);
+            createNoWindow ?? existing.CreateNoWindow,
+            killLockingProcess ?? existing.KillLockingProcess);
     }
 
     public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool useShellExecute, IEnumerable<string> binaryExtensions, OsSupport osSupport) =>
         AddTool(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, osSupport, useShellExecute, createNoWindow: false);
 
-    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool useShellExecute, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions, bool createNoWindow = false) =>
-        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute, createNoWindow);
+    public static ResolvedTool? AddTool(string name, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, bool useShellExecute, LaunchArguments launchArguments, string exePath, IEnumerable<string> binaryExtensions, bool createNoWindow = false, bool killLockingProcess = false) =>
+        AddInner(name, null, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute, createNoWindow, killLockingProcess);
 
-    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool useShellExecute, bool createNoWindow)
+    static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool useShellExecute, bool createNoWindow, bool killLockingProcess = false)
     {
         if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments))
         {
             return null;
         }
 
-        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute, createNoWindow);
+        return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute, createNoWindow, killLockingProcess);
     }
 
-    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool useShellExecute, bool createNoWindow)
+    static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool useShellExecute, bool createNoWindow, bool killLockingProcess = false)
     {
         Guard.AgainstEmpty(name, nameof(name));
         if (resolved.Any(_ => _.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -73,7 +75,8 @@ public static partial class DiffTools
             requiresTarget,
             supportsText,
             useShellExecute,
-            createNoWindow);
+            createNoWindow,
+            killLockingProcess);
 
         AddResolvedToolAtStart(tool);
 
@@ -111,7 +114,8 @@ public static partial class DiffTools
                 definition.BinaryExtensions,
                 definition.OsSupport,
                 definition.UseShellExecute,
-                definition.CreateNoWindow);
+                definition.CreateNoWindow,
+                definition.KillLockingProcess);
         }
 
         custom.Reverse();
