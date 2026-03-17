@@ -7,6 +7,8 @@ public static class Definitions
     static Definitions() =>
         Tools =
         [
+            Implementation.MsWordDiff(),
+            Implementation.MsExcelDiff(),
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),
             Implementation.Kaleidoscope(),
@@ -30,7 +32,5 @@ public static class Definitions
             Implementation.VisualStudioCode(),
             Implementation.Cursor(),
             Implementation.VisualStudio(),
-            Implementation.MsWordDiff(),
-            Implementation.MsExcelDiff()
         ];
 }

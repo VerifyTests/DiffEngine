@@ -1,3 +1,5 @@
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)
+ * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Free)
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Windows/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
@@ -21,5 +23,3 @@
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
- * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)
- * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Free)
