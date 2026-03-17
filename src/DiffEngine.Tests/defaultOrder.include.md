@@ -22,3 +22,4 @@
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
  * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)
+ * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Free)

@@ -94,7 +94,7 @@ public class DiffRunnerTests
         {
             await Assert.That(IsRunning()).IsFalse();
             await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
-            var result = DiffRunner.Launch(file1, file2);
+            var result = await DiffRunner.LaunchAsync(file1, file2);
             await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
             Thread.Sleep(500);
             ProcessCleanup.Refresh();
@@ -143,7 +143,7 @@ public class DiffRunnerTests
     {
         await Assert.That(IsRunning()).IsFalse();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
-        var result = DiffRunner.Launch(file1, file2);
+        var result = await DiffRunner.LaunchAsync(file1, file2);
         await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
         Thread.Sleep(500);
         ProcessCleanup.Refresh();
