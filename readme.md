@@ -88,7 +88,8 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
- * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)<!-- endInclude -->
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)
+ * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Free)<!-- endInclude -->
 
 
 ## Launching a tool
