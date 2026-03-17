@@ -10,7 +10,7 @@ public class DefinitionsTest
         File.Delete(md);
         using var writer = File.CreateText(md);
 
-        foreach (var tool in Definitions.Tools)
+        foreach (var tool in Definitions.Tools.OrderBy(_ => _.Tool.ToString()))
         {
             AddToolLink(writer, tool);
         }
