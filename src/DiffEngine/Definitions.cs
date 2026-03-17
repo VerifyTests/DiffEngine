@@ -30,6 +30,7 @@ public static class Definitions
             Implementation.VisualStudioCode(),
             Implementation.Cursor(),
             Implementation.VisualStudio(),
-            Implementation.MsWordDiff()
+            Implementation.MsWordDiff(),
+            Implementation.MsExcelDiff()
         ];
 }

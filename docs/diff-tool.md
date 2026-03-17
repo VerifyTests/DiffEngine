@@ -483,7 +483,46 @@ DiffTools.UseOrder(DiffTool.KDiff3);
     * `/Applications/kdiff3.app/Contents/MacOS/kdiff3`
     * `%PATH%kdiff3`
 
-### [MsWordDiff](https://github.com/SimonCropp/MsWordDiff)
+### [MsExcelDiff](https://github.com/SimonCropp/MsOfficeDiff)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: False
+  * Use shell execute: False
+  * Create no window: True
+  * Environment variable for custom install location: `DiffEngine_MsExcelDiff`
+  * Supported binaries: .xls, .xlsx
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise MsExcelDiff over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.MsExcelDiff);
+```
+
+#### Notes:
+
+ * Install via `dotnet tool install -g MsExcelDiff`
+ * Requires Spreadsheet Compare (Office Professional Plus / Microsoft 365 Apps for Enterprise)
+ * Uses Microsoft's Spreadsheet Compare to show differences between workbooks
+
+#### Windows settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%USERPROFILE%\.dotnet\tools\diffexcel.exe`
+    * `%PATH%diffexcel.exe`
+
+### [MsWordDiff](https://github.com/SimonCropp/MsOfficeDiff)
 
   * Cost: Free
   * Is MDI: False

@@ -25,5 +25,6 @@ public enum DiffTool
     VisualStudioCode,
     VisualStudio,
     Cursor,
-    MsWordDiff
+    MsWordDiff,
+    MsExcelDiff
 }
