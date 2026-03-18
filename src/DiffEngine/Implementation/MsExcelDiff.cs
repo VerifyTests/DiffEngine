@@ -18,7 +18,7 @@ static partial class Implementation
                 ".xlsx",
                 ".xls"
             ],
-            Cost: "Free",
+            Cost: "Requires Excel installed",
             OsSupport: new(
                 Windows: new(
                     "diffexcel.exe",

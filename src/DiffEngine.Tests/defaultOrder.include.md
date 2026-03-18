@@ -1,5 +1,5 @@
- * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Free)
- * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Free)
+ * **[MsWordDiff](/docs/diff-tool.md#msworddiff)** Windows (Cost: Requires Word installed)
+ * **[MsExcelDiff](/docs/diff-tool.md#msexceldiff)** Windows (Cost: Requires Excel installed)
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Windows/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)

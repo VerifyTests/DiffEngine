@@ -350,7 +350,7 @@ DiffTools.UseOrder(DiffTool.KDiff3);
 
 ### [MsExcelDiff](https://github.com/SimonCropp/MsOfficeDiff)
 
-  * Cost: Free
+  * Cost: Requires Excel installed
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
@@ -389,7 +389,7 @@ DiffTools.UseOrder(DiffTool.MsExcelDiff);
 
 ### [MsWordDiff](https://github.com/SimonCropp/MsOfficeDiff)
 
-  * Cost: Free
+  * Cost: Requires Word installed
   * Is MDI: False
   * Supports auto-refresh: False
   * Supports text files: False
@@ -409,7 +409,6 @@ DiffTools.UseOrder(DiffTool.MsWordDiff);
 #### Notes:
 
  * Install via `dotnet tool install -g MsWordDiff`
- * Requires Microsoft Word to be installed
  * Uses Word's built-in document comparison feature
 
 #### Windows settings:

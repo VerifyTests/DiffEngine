@@ -18,7 +18,7 @@ static partial class Implementation
                 ".docx",
                 ".doc"
             ],
-            Cost: "Free",
+            Cost: "Requires Word installed",
             OsSupport: new(
                 Windows: new(
                     "diffword.exe",
@@ -29,7 +29,6 @@ static partial class Implementation
             KillLockingProcess: true,
             Notes: """
                  * Install via `dotnet tool install -g MsWordDiff`
-                 * Requires Microsoft Word to be installed
                  * Uses Word's built-in document comparison feature
                 """);
     }
