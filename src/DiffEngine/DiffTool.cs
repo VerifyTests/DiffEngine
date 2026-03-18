@@ -1,7 +1,11 @@
 namespace DiffEngine;
 
+// The order of this enum determines the default tool priority in DiffTools.Resolved.
+// Keep this order in sync with Definitions.Tools.
 public enum DiffTool
 {
+    MsWordDiff,
+    MsExcelDiff,
     BeyondCompare,
     P4Merge,
     Kaleidoscope,
@@ -25,6 +29,4 @@ public enum DiffTool
     VisualStudioCode,
     VisualStudio,
     Cursor,
-    MsWordDiff,
-    MsExcelDiff
 }
