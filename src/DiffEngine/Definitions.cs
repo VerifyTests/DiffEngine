@@ -5,6 +5,7 @@ public static class Definitions
     public static IReadOnlyCollection<Definition> Tools { get; }
 
     static Definitions() =>
+        // Order determines default tool priority. Keep in sync with the DiffTool enum.
         Tools =
         [
             Implementation.MsWordDiff(),

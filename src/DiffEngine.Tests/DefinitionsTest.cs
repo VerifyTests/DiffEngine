@@ -66,6 +66,14 @@ public class DefinitionsTest
     }
 
     [Test]
+    public async Task ToolOrderMatchesEnumOrder()
+    {
+        var definitionsOrder = Definitions.Tools.Select(_ => _.Tool).ToList();
+        var enumOrder = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>().ToList();
+        await Assert.That(definitionsOrder).IsEquivalentTo(enumOrder);
+    }
+
+    [Test]
     public void WriteDefaultOrder()
     {
         var md = Path.Combine(SourceDirectory, "defaultOrder.include.md");
