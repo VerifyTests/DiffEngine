@@ -53,35 +53,63 @@ static class FilePurger
         for (var index = 0; index < files.Length; index++)
         {
             var file = files[index];
-            try
+            var result = TryDeleteWithLockKill(file);
+            if (result.Deleted)
             {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
+                continue;
             }
-            catch (Exception exception)
+
+            var failedResult = AskQuestion(
+                $"""
+                 Could not delete file: {file}
+                 Exception: {result.Exception!.Message}
+                 """,
+                "Delete failed",
+                MessageBoxButtons.AbortRetryIgnore);
+
+            if (failedResult == DialogResult.Abort)
             {
-                var failedResult = AskQuestion(
-                    $"""
-                     Could not delete file: {file}
-                     Exception: {exception.Message}
-                     """,
-                    "Delete failed",
-                    MessageBoxButtons.AbortRetryIgnore);
+                return;
+            }
 
-                if (failedResult == DialogResult.Abort)
-                {
-                    return;
-                }
-
-                if (failedResult == DialogResult.Retry)
-                {
-                    index--;
-                }
+            if (failedResult == DialogResult.Retry)
+            {
+                index--;
             }
         }
     }
+
+    internal static DeleteResult TryDeleteWithLockKill(string file)
+    {
+        try
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+
+            return new(true, null);
+        }
+        catch (Exception exception)
+        {
+            if (FileLockKiller.KillLockingProcesses(file))
+            {
+                try
+                {
+                    File.Delete(file);
+                    return new(true, null);
+                }
+                catch (Exception retryException)
+                {
+                    return new(false, retryException);
+                }
+            }
+
+            return new(false, exception);
+        }
+    }
+
+    internal record DeleteResult(bool Deleted, Exception? Exception);
 
     static DialogResult AskQuestion(string text, string caption, MessageBoxButtons buttons) =>
         MessageBox.Show(
