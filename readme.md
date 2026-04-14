@@ -47,7 +47,8 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
     * [Override in tests](#override-in-tests)
-  * [AiCliDetector](#aiclidetector)
+  * [Automatic AI detection](#automatic-ai-detection)
+    * [Programmatic usage](#programmatic-usage)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Disable in code](#disable-in-code)
   * [Icons](#icons)<!-- endToc -->
@@ -208,15 +209,20 @@ public async Task SetDetectedDoesNotLeakToOtherContexts()
 <!-- endSnippet -->
 
 
-## AiCliDetector
+## Automatic AI detection
 
-`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
+DiffEngine automatically detects when it is running inside an AI-powered CLI environment and disables the diff tool launch. This means no `DiffEngine_Disabled=true` environment variable is required when running tests from within an AI CLI — it is detected and handled automatically.
 
-Supports:
+Supported AI CLIs:
 
  * [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
  * [Aider](https://aider.chat/docs/config/dotenv.html)
  * [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-cli)
+
+
+### Programmatic usage
+
+`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
 
 There are also individual properties to check for each specific AI CLI
 
