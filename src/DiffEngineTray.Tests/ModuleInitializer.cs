@@ -5,7 +5,6 @@
     {
         VerifyDiffPlex.Initialize();
         VerifyWinForms.Initialize();
-        VerifyImageMagick.Initialize();
-        VerifyImageMagick.RegisterComparers(.5);
+        VerifierSettings.UseSsimForPng();
     }
 }
