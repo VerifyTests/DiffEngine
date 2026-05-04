@@ -9,7 +9,7 @@
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.2.0" />
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="4.1.5" />
     <PackageVersion Include="Polyfill" Version="10.3.0" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.173" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.174" />
     <PackageVersion Include="Serilog" Version="4.3.1" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
@@ -18,6 +18,6 @@
     <PackageVersion Include="Verify.TUnit" Version="31.16.2" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
     <PackageVersion Include="Verify" Version="31.16.2" />
-    <PackageVersion Include="TUnit" Version="1.37.36" />
+    <PackageVersion Include="TUnit" Version="1.43.11" />
   </ItemGroup>
 </Project>
