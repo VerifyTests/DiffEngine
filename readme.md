@@ -233,8 +233,17 @@ var isCopilot = AiCliDetector.IsCopilot;
 var isCursor = AiCliDetector.IsCursor;
 var isAider = AiCliDetector.IsAider;
 var isClaudeCode = AiCliDetector.IsClaudeCode;
+var isGeminiCli = AiCliDetector.IsGeminiCli;
+var isCodex = AiCliDetector.IsCodex;
+var isAmazonQ = AiCliDetector.IsAmazonQ;
+var isOpenCode = AiCliDetector.IsOpenCode;
+var isCline = AiCliDetector.IsCline;
+var isAugment = AiCliDetector.IsAugment;
+var isTraeAi = AiCliDetector.IsTraeAi;
+var isGoose = AiCliDetector.IsGoose;
+var isAmp = AiCliDetector.IsAmp;
 ```
-<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L8-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/AiCliDetectorTest.cs#L8-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-AiCliDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
