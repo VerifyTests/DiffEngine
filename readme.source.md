@@ -87,15 +87,20 @@ snippet: BuildServerDetectorProps
 snippet: BuildServerDetectorDetectedOverride
 
 
-## AiCliDetector
+## Automatic AI detection
 
-`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
+DiffEngine automatically detects when it is running inside an AI-powered CLI environment and disables the diff tool launch. This means no `DiffEngine_Disabled=true` environment variable is required when running tests from within an AI CLI — it is detected and handled automatically.
 
-Supports:
+Supported AI CLIs:
 
  * [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
  * [Aider](https://aider.chat/docs/config/dotenv.html)
  * [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-cli)
+
+
+### Programmatic usage
+
+`AiCliDetector.Detected` returns true if the current code is running in an AI-powered CLI environment.
 
 There are also individual properties to check for each specific AI CLI
 

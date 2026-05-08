@@ -13,7 +13,6 @@
     <PackageReference Include="EmptyFiles" />
     <PackageReference Include="SimpleInfoName" />
     <PackageReference Include="Verify" />
-    <PackageReference Include="Verify.ImageMagick" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
