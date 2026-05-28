@@ -3,7 +3,6 @@
     [ModuleInitializer]
     public static void Initialize()
     {
-        VerifyDiffPlex.Initialize();
         VerifyWinForms.Initialize();
         VerifierSettings.UseSsimForPng();
     }
