@@ -22,9 +22,11 @@ build_script:
       } else {
         sudo ./dotnet-install.sh --jsonfile global.json --architecture x64 --install-dir '/usr/share/dotnet'
       }
-      dotnet build src --configuration Release-NotWindows
-      dotnet test --solution src/DiffEngine.slnx --configuration Release-NotWindows --no-build --no-restore
-      dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release-NotWindows
+      # FakeDiffTool (net10.0-windows WinForms) and DiffEngine.AotTests (host-RID native AOT) cannot build
+      # on non-Windows, and DiffEngine.Tests depends on FakeDiffTool. So validate just the cross-platform
+      # DiffEngineTray stack here: the launcher build (Core + Avalonia head) and the Verify.Avalonia tests.
+      dotnet build src/DiffEngineTray.Launcher --configuration Release
+      dotnet test src/DiffEngineTray.Avalonia.Tests --configuration Release
     }
 on_failure:
   - ps: |
