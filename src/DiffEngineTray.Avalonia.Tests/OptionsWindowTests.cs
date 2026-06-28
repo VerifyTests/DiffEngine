@@ -1,6 +1,8 @@
 // Renders the options window through Verify.Avalonia (headless Skia) to a PNG + text snapshot.
 public class OptionsWindowTests
 {
+    // Returns a value so the lambda binds to Dispatch<TResult>(Func<Task<TResult>>): the non-generic
+    // Dispatch(Action) overload would treat an async lambda as `async void` and swallow Verify's failure.
     [Test]
     public Task Render() =>
         AvaloniaSession.Instance.Dispatch(
@@ -22,7 +24,10 @@ public class OptionsWindowTests
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
 
-                await Verify(window);
+                // Per-OS baselines: the Windows PNG is committed here; the macOS PNG is captured from the
+                // first macOS CI run's *.received.* artifact. Avoids cross-OS pixel comparison.
+                await Verify(window).UniqueForOSPlatform();
+                return true;
             },
             Cancel.None);
 }
