@@ -8,8 +8,17 @@ static class DiffToolLauncher
         var process = move.Process;
         if (process is { HasExited: false })
         {
-            if (SetForegroundWindow(process.MainWindowHandle))
+            if (OperatingSystem.IsWindows())
             {
+                if (SetForegroundWindow(process.MainWindowHandle))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                // Bringing an existing window to the foreground is Windows-only.
+                // On other platforms leave the already-open diff tool as-is.
                 return;
             }
         }

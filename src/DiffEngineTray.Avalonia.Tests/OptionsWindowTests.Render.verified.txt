@@ -1,0 +1,232 @@
+﻿{
+  Type: OptionsWindow,
+  SizeToContent: WidthAndHeight,
+  Title: DiffEngineTray Options,
+  Icon: {},
+  WindowStartupLocation: CenterScreen,
+  CanResize: false,
+  Content: {
+    Type: StackPanel,
+    Spacing: 12.0,
+    MinWidth: 360.0,
+    Margin: 20,
+    Children: [
+      {
+        Type: TextBlock,
+        FontWeight: Bold,
+        Text: Hotkeys,
+        Margin: 0,8,0,0
+      },
+      {
+        Type: StackPanel,
+        Spacing: 10.0,
+        Orientation: Horizontal,
+        Children: [
+          {
+            Type: TextBlock,
+            Text: Accept all,
+            Width: 150.0,
+            VerticalAlignment: Center
+          },
+          {
+            Type: HotKeyEditor,
+            Spacing: 6.0,
+            Orientation: Horizontal,
+            Children: [
+              {
+                Type: CheckBox,
+                IsChecked: true,
+                Content: Ctrl
+              },
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Alt
+              },
+              {
+                Type: CheckBox,
+                IsChecked: true,
+                Content: Shift
+              },
+              {
+                Type: TextBox,
+                Text: A,
+                Watermark: Key,
+                Width: 70.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        Type: StackPanel,
+        Spacing: 10.0,
+        Orientation: Horizontal,
+        Children: [
+          {
+            Type: TextBlock,
+            Text: Accept open,
+            Width: 150.0,
+            VerticalAlignment: Center
+          },
+          {
+            Type: HotKeyEditor,
+            Spacing: 6.0,
+            Orientation: Horizontal,
+            Children: [
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Ctrl
+              },
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Alt
+              },
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Shift
+              },
+              {
+                Type: TextBox,
+                Text: ,
+                Watermark: Key,
+                Width: 70.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        Type: StackPanel,
+        Spacing: 10.0,
+        Orientation: Horizontal,
+        Children: [
+          {
+            Type: TextBlock,
+            Text: Discard all,
+            Width: 150.0,
+            VerticalAlignment: Center
+          },
+          {
+            Type: HotKeyEditor,
+            Spacing: 6.0,
+            Orientation: Horizontal,
+            Children: [
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Ctrl
+              },
+              {
+                Type: CheckBox,
+                IsChecked: true,
+                Content: Alt
+              },
+              {
+                Type: CheckBox,
+                IsChecked: false,
+                Content: Shift
+              },
+              {
+                Type: TextBox,
+                Text: D,
+                Watermark: Key,
+                Width: 70.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        Type: TextBlock,
+        FontWeight: Bold,
+        Text: Behaviour,
+        Margin: 0,8,0,0
+      },
+      {
+        Type: CheckBox,
+        IsChecked: true,
+        Content: Run at login
+      },
+      {
+        Type: CheckBox,
+        IsChecked: true,
+        Content: Place target file on the left
+      },
+      {
+        Type: StackPanel,
+        Spacing: 10.0,
+        Orientation: Horizontal,
+        Children: [
+          {
+            Type: TextBlock,
+            Text: Max diff tool instances,
+            Width: 150.0,
+            VerticalAlignment: Center
+          },
+          {
+            Type: NumericUpDown,
+            Increment: 1.0,
+            Maximum: 100.0,
+            Minimum: 1.0,
+            Value: 5.0,
+            Width: 120.0
+          }
+        ]
+      },
+      {
+        Type: TextBlock,
+        FontWeight: Bold,
+        Text: About,
+        Margin: 0,8,0,0
+      },
+      {
+        Type: TextBlock,
+        Text: Version: 1.2.3
+      },
+      {
+        Type: Button,
+        Content: DiffEngine on GitHub
+      },
+      {
+        Type: Button,
+        Content: Tray documentation
+      },
+      {
+        Type: Button,
+        Content: Update DiffEngineTray
+      },
+      {
+        Type: TextBlock,
+        Foreground: OrangeRed,
+        TextWrapping: Wrap
+      },
+      {
+        Type: StackPanel,
+        Spacing: 10.0,
+        Orientation: Horizontal,
+        HorizontalAlignment: Right,
+        Children: [
+          {
+            Type: Button,
+            IsDefault: true,
+            Content: Save,
+            MinWidth: 80.0
+          },
+          {
+            Type: Button,
+            IsCancel: true,
+            Content: Cancel,
+            MinWidth: 80.0
+          }
+        ]
+      }
+    ]
+  },
+  Width: 445.0,
+  Height: 629.0,
+  IsVisible: true
+}

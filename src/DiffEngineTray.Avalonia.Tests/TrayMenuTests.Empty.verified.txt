@@ -1,0 +1,37 @@
+﻿[
+  {
+    Kind: Item,
+    Header: Options,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Open logs,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Purge verified files,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Raise issue,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Exit,
+    Enabled: true,
+    HasCommand: true
+  }
+]

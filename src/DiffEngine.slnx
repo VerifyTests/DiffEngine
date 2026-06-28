@@ -30,6 +30,18 @@
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
+  <Project Path="DiffEngineTray.Core/DiffEngineTray.Core.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineTray.Avalonia/DiffEngineTray.Avalonia.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineTray.Avalonia.Tests/DiffEngineTray.Avalonia.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineTray.Launcher/DiffEngineTray.Launcher.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

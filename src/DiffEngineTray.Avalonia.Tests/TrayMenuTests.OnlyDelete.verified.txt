@@ -1,0 +1,85 @@
+﻿[
+  {
+    Kind: Item,
+    Header: Pending Deletes (1):,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: file1.txt,
+    Enabled: true,
+    HasCommand: false,
+    Items: [
+      {
+        Kind: Item,
+        Header: Accept delete,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open directory,
+        Enabled: true,
+        HasCommand: true
+      }
+    ]
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Discard (1),
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Accept all (1),
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Options,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Open logs,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Purge verified files,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Raise issue,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Exit,
+    Enabled: true,
+    HasCommand: true
+  }
+]

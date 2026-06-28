@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>Shared, platform-agnostic core for the DiffEngineTray heads (Windows Forms and Avalonia).</Description>
+    <RollForward>LatestMajor</RollForward>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Bundled inside the DiffEngineTray tool package via the launcher; never shipped standalone. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+  </ItemGroup>
+
+</Project>

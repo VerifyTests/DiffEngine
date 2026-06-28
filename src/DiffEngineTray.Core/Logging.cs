@@ -17,5 +17,5 @@ static class Logging
     }
 
     public static void OpenDirectory() =>
-        ExplorerLauncher.OpenDirectory(LogsDirectory);
+        TrayServices.OpenDirectory(LogsDirectory);
 }

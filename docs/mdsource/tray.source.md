@@ -1,6 +1,8 @@
 # DiffEngineTray
 
-DiffEngineTray sits in the Windows tray. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
+DiffEngineTray sits in the Windows system tray or the macOS menu bar. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
+
+The single `DiffEngineTray` dotnet tool bundles a Windows Forms tray (Windows) and an [Avalonia](https://avaloniaui.net) menu-bar app (macOS/Linux). A small launcher detects the operating system and starts the matching app.
 
 
 ## NuGet

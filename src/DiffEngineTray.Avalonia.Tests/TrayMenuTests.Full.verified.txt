@@ -1,0 +1,175 @@
+﻿[
+  {
+    Kind: Item,
+    Header: Pending Deletes (2):,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: file1.txt,
+    Enabled: true,
+    HasCommand: false,
+    Items: [
+      {
+        Kind: Item,
+        Header: Accept delete,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open directory,
+        Enabled: true,
+        HasCommand: true
+      }
+    ]
+  },
+  {
+    Kind: Item,
+    Header: file2.txt,
+    Enabled: true,
+    HasCommand: false,
+    Items: [
+      {
+        Kind: Item,
+        Header: Accept delete,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open directory,
+        Enabled: true,
+        HasCommand: true
+      }
+    ]
+  },
+  {
+    Kind: Item,
+    Header: Pending Moves (2):,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: file3 (txt),
+    Enabled: true,
+    HasCommand: false,
+    Items: [
+      {
+        Kind: Item,
+        Header: Accept move,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Discard,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open diff tool,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open directory,
+        Enabled: true,
+        HasCommand: true
+      }
+    ]
+  },
+  {
+    Kind: Item,
+    Header: file4 (txt),
+    Enabled: true,
+    HasCommand: false,
+    Items: [
+      {
+        Kind: Item,
+        Header: Accept move,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Discard,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open diff tool,
+        Enabled: true,
+        HasCommand: true
+      },
+      {
+        Kind: Item,
+        Header: Open directory,
+        Enabled: true,
+        HasCommand: true
+      }
+    ]
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Discard (4),
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Accept all (4),
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Options,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Open logs,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Purge verified files,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Item,
+    Header: Raise issue,
+    Enabled: true,
+    HasCommand: true
+  },
+  {
+    Kind: Separator,
+    Enabled: true,
+    HasCommand: false
+  },
+  {
+    Kind: Item,
+    Header: Exit,
+    Enabled: true,
+    HasCommand: true
+  }
+]

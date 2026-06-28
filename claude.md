@@ -15,6 +15,7 @@ dotnet build src --configuration Release
 # Run all tests
 dotnet test --project src/DiffEngine.Tests --configuration Release
 dotnet test --project src/DiffEngineTray.Tests --configuration Release
+dotnet test --project src/DiffEngineTray.Avalonia.Tests --configuration Release
 
 # Run a single test project with filter
 dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName~ClassName"
@@ -27,8 +28,14 @@ dotnet test --project src/DiffEngine.Tests --configuration Release --filter "Ful
 
 **Target Frameworks:**
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
-- DiffEngineTray: net10.0 Windows Forms application
-- Tests: net10.0 (net48 on Windows)
+- DiffEngineTray.Core: net10.0 shared, platform-agnostic tray logic
+- DiffEngineTray: net10.0 Windows Forms head (Windows only)
+- DiffEngineTray.Avalonia: net10.0 Avalonia head (macOS/Linux)
+- DiffEngineTray.Launcher: net10.0 cross-platform launcher; the published `DiffEngineTray` dotnet tool
+- Tests: net10.0 (DiffEngineTray.Tests is net10.0-windows; net48 also on Windows)
+
+On non-Windows the solution builds with the `Release-NotWindows` configuration, which excludes the
+Windows Forms head and its tests (see `src/DiffEngine.slnx`).
 
 ## Architecture Overview
 
@@ -45,11 +52,11 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 - `ResolvedTool` - A diff tool that was found on the system with its resolved executable path.
 - `BuildServerDetector` - Detects CI/build server environments to disable diff tool launching.
 
-**DiffEngineTray (`src/DiffEngineTray/`):**
-- Windows Forms tray application that handles pending file diffs
-- `PiperServer` - TCP server (localhost) receiving move/delete payloads from DiffEngine library
-- `Tracker` - Manages pending file moves and deletes with concurrent dictionaries
-- Allows accepting/discarding diffs from system tray
+**DiffEngineTray** - the cross-platform tray utility that handles pending file diffs. It is split into a shared core, two platform UI "heads", and a launcher that bundles them into a single dotnet tool:
+- `DiffEngineTray.Core` (`src/DiffEngineTray.Core/`) - shared, platform-agnostic logic. Includes `PiperServer` (localhost TCP server receiving move/delete payloads from the DiffEngine library), `Tracker` (manages pending moves/deletes via concurrent dictionaries), payload models, settings, and file/process utilities. Windows-only P/Invokes are guarded with `OperatingSystem.IsWindows()`. The `TrayServices` static holds platform seams (confirm dialog, open directory, reveal file) that each head wires up at startup.
+- `DiffEngineTray` (`src/DiffEngineTray/`) - the Windows Forms head (Windows only). Renders the tray menu via `NotifyIcon`/`MenuBuilder`; owns the registry run-at-login, `RegisterHotKey` global hotkeys, and the options form.
+- `DiffEngineTray.Avalonia` (`src/DiffEngineTray.Avalonia/`) - the [Avalonia](https://avaloniaui.net) head (macOS/Linux). Renders a `TrayIcon` + `NativeMenu` (`TrayMenuBuilder`); owns the macOS LaunchAgent run-at-login, Carbon `RegisterEventHotKey` global hotkeys (`MacHotKeys`), and the options window.
+- `DiffEngineTray.Launcher` (`src/DiffEngineTray.Launcher/`) - the published `DiffEngineTray` dotnet tool (`PackAsTool`). At runtime it detects the OS and `dotnet exec`s the matching head, which are bundled under `tools/net10.0/any/{windows,avalonia}/` by an MSBuild `TargetsForTfmSpecificContentInPackage` target. The full package (both heads) can only be produced on Windows; pack via `dotnet build` (not `dotnet pack`, which double-packs).
 
 ### Adding a New Diff Tool
 

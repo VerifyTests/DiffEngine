@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RollForward>LatestMajor</RollForward>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- This is the published dotnet tool. It keeps the original package id and command name. -->
+    <PackAsTool>true</PackAsTool>
+    <PackageId>DiffEngineTray</PackageId>
+    <ToolCommandName>DiffEngineTray</ToolCommandName>
+    <AssemblyName>DiffEngineTray.Launcher</AssemblyName>
+    <Description>A utility that runs in the tray (Windows) or menu bar (macOS) and handles the results of file differences.</Description>
+
+    <!-- Stay framework-dependent and platform-agnostic: a single tools/net10.0/any package whose
+         entry point is run via the dotnet host. Avoids the .NET 10 RID-specific tool packaging. -->
+    <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+    <RuntimeIdentifiers></RuntimeIdentifiers>
+
+    <!-- The Windows Forms head only builds on Windows, so only Windows produces the full, shippable
+         package (both heads). On other hosts the launcher still builds (validating the bundling) but
+         does not pack a partial package. -->
+    <IsPackable Condition="'$(OS)' != 'Windows_NT'">false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Build-only references: force the heads to build before packing without referencing their
+       assemblies (the Windows head targets the WindowsDesktop runtime and only builds on Windows). -->
+  <ItemGroup>
+    <ProjectReference Include="..\DiffEngineTray.Avalonia\DiffEngineTray.Avalonia.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      Private="false"
+                      PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj"
+                      Condition="'$(OS)' == 'Windows_NT'"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      Private="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Publish each head (framework-dependent) into obj/heads/<head>/ (git-ignored) so it can be bundled. -->
+  <PropertyGroup>
+    <HeadsPublishDir>$(MSBuildProjectDirectory)/obj/heads</HeadsPublishDir>
+  </PropertyGroup>
+
+  <Target Name="PublishHeads">
+    <RemoveDir Directories="$(HeadsPublishDir)" />
+    <MSBuild Projects="..\DiffEngineTray.Avalonia\DiffEngineTray.Avalonia.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(HeadsPublishDir)/avalonia/;SelfContained=false" />
+    <MSBuild Projects="..\DiffEngineTray\DiffEngineTray.csproj"
+             Condition="'$(OS)' == 'Windows_NT'"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$(HeadsPublishDir)/windows/;SelfContained=false" />
+  </Target>
+
+  <!-- Add each head's published files into tools/net10.0/any/<head>/ in the tool package. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AddHeadsToToolPackage</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="AddHeadsToToolPackage" DependsOnTargets="PublishHeads">
+    <ItemGroup>
+      <_AvaloniaHead Include="$(HeadsPublishDir)/avalonia/**/*" />
+      <TfmSpecificPackageFile Include="@(_AvaloniaHead)">
+        <PackagePath>tools/net10.0/any/avalonia/%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+
+      <_WindowsHead Include="$(HeadsPublishDir)/windows/**/*" Condition="'$(OS)' == 'Windows_NT'" />
+      <TfmSpecificPackageFile Include="@(_WindowsHead)" Condition="'$(OS)' == 'Windows_NT'">
+        <PackagePath>tools/net10.0/any/windows/%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+
+</Project>

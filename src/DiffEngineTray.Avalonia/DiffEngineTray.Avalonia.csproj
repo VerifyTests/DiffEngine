@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>The Avalonia (macOS/Linux) head of DiffEngineTray. Bundled into the DiffEngineTray tool by the launcher.</Description>
+    <!-- Namespace is plain "DiffEngineTray" to avoid clashing with the "Avalonia" framework namespace;
+         the assembly name stays distinct so the launcher can pick it by file name. -->
+    <RootNamespace>DiffEngineTray</RootNamespace>
+    <AssemblyName>DiffEngineTray.Avalonia</AssemblyName>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RollForward>LatestMajor</RollForward>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Bundled into the DiffEngineTray tool package and launched via `dotnet DiffEngineTray.Avalonia.dll`. -->
+    <IsPackable>false</IsPackable>
+    <UseAppHost>false</UseAppHost>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -4,12 +4,14 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <PackAsTool>True</PackAsTool>
-    <Description>A utility that runs in the windows tray and handles the results of file differences.</Description>
+    <Description>The Windows Forms head of DiffEngineTray. Bundled into the DiffEngineTray tool by the launcher.</Description>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>NETSDK1137;WFAC010;NU5119</NoWarn>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
+    <!-- Bundled into the DiffEngineTray tool package and launched via `dotnet DiffEngineTray.dll`. -->
+    <IsPackable>false</IsPackable>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
     <PropertyGroup>
@@ -32,5 +34,6 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
   </ItemGroup>
 </Project>

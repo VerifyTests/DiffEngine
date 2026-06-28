@@ -2,6 +2,9 @@ using System.Net;
 
 static class IssueLauncher
 {
+    // Caption used by heads that surface the "open an issue?" prompt.
+    public const string ErrorCaption = "DiffEngineTray Error";
+
     static ConcurrentBag<string> recorded = [];
     static string defaultBody;
 
@@ -31,7 +34,7 @@ static class IssueLauncher
 
                     Open an issue on GitHub?
                     """;
-        if (AskIfOpenIssue(text))
+        if (!AskIfOpenIssue(text))
         {
             return;
         }
@@ -63,7 +66,7 @@ static class IssueLauncher
 
                     Open an issue on GitHub?
                     """;
-        if (AskIfOpenIssue(text))
+        if (!AskIfOpenIssue(text))
         {
             return;
         }
@@ -77,15 +80,9 @@ static class IssueLauncher
         LinkLauncher.LaunchUrl(url);
     }
 
-    static bool AskIfOpenIssue(string text)
-    {
-        var result = MessageBox.Show(
-            text,
-            "DiffEngineTray Error",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Error);
-        return result == DialogResult.No;
-    }
+    // Returns true when the user wants to open a GitHub issue. Routed through the head's UI via TrayServices.
+    static bool AskIfOpenIssue(string text) =>
+        TrayServices.Confirm(text);
 
     static bool CheckRecorded(string message)
     {

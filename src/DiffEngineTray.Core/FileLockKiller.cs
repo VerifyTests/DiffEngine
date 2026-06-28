@@ -53,6 +53,12 @@ static class FileLockKiller
 
     public static bool KillLockingProcesses(string filePath)
     {
+        // The Restart Manager API (rstrtmgr.dll) is Windows-only.
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
         var killed = false;
 
         if (RmStartSession(out var sessionHandle, 0, Guid.NewGuid().ToString()) != 0)

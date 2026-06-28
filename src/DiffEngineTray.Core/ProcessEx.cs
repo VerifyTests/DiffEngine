@@ -7,8 +7,9 @@ static class ProcessEx
 
     public static bool TryGet(int id, [NotNullWhen(true)] out Process? process)
     {
-        using (var handle = OpenProcess(processQueryInfo, false, id))
+        if (OperatingSystem.IsWindows())
         {
+            using var handle = OpenProcess(processQueryInfo, false, id);
             if (handle.IsInvalid)
             {
                 process = null;

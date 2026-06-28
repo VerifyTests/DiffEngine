@@ -5,6 +5,7 @@ static class Program
     static async Task Main()
     {
         Logging.Init();
+        WindowsTrayServices.Wire();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
@@ -111,7 +112,7 @@ static class Program
         if (acceptOpenHotKey != null)
         {
             keyRegister.TryAddBinding(
-                KeyBindingIds.AcceptAll,
+                KeyBindingIds.AcceptOpen,
                 acceptOpenHotKey.Shift,
                 acceptOpenHotKey.Control,
                 acceptOpenHotKey.Alt,
