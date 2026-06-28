@@ -10,3 +10,4 @@ nugets/
 .claude/settings.local.json
 nul
 /TestResults
+/coverage

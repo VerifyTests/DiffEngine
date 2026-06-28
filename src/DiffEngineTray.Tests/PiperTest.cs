@@ -9,8 +9,25 @@ public class PiperTest :
 
     public PiperTest()
     {
+        // Use a free ephemeral port rather than the hardcoded default (3492), so these tests
+        // pass even when a real DiffEngineTray instance is running and holding that port.
+        PiperClient.Port = GetFreePort();
         listener = new LogCapture(Logs);
         Trace.Listeners.Add(listener);
+    }
+
+    static int GetFreePort()
+    {
+        var probe = new TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        try
+        {
+            return ((IPEndPoint) probe.LocalEndpoint).Port;
+        }
+        finally
+        {
+            probe.Stop();
+        }
     }
 
     public void Dispose()
