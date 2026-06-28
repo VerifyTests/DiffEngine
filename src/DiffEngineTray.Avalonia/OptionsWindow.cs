@@ -1,6 +1,3 @@
-using Avalonia.Layout;
-using Avalonia.Media;
-
 namespace DiffEngineTray;
 
 // Avalonia equivalent of the Windows Forms OptionsForm.
@@ -164,7 +161,7 @@ class HotKeyEditor :
     readonly CheckBox control = new() { Content = "Ctrl" };
     readonly CheckBox alt = new() { Content = "Alt" };
     readonly CheckBox shift = new() { Content = "Shift" };
-    readonly TextBox key = new() { Width = 70, Watermark = "Key" };
+    readonly TextBox key = new() { Width = 70, PlaceholderText = "Key" };
 
     public HotKeyEditor()
     {

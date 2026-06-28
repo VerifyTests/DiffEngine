@@ -1,6 +1,7 @@
 ﻿{
   Type: OptionsWindow,
   SizeToContent: WidthAndHeight,
+  WindowState: Normal,
   Title: DiffEngineTray Options,
   Icon: {},
   WindowStartupLocation: CenterScreen,
@@ -51,7 +52,7 @@
               {
                 Type: TextBox,
                 Text: A,
-                Watermark: Key,
+                PlaceholderText: Key,
                 Width: 70.0
               }
             ]
@@ -92,7 +93,7 @@
               {
                 Type: TextBox,
                 Text: ,
-                Watermark: Key,
+                PlaceholderText: Key,
                 Width: 70.0
               }
             ]
@@ -133,7 +134,7 @@
               {
                 Type: TextBox,
                 Text: D,
-                Watermark: Key,
+                PlaceholderText: Key,
                 Width: 70.0
               }
             ]

@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace DiffEngineTray;
 
 // Best-effort macOS global hotkeys via the Carbon RegisterEventHotKey API (the cross-app
@@ -99,7 +97,7 @@ class MacHotKeys :
             }
         };
         var functionPointer = Marshal.GetFunctionPointerForDelegate(handler);
-        var status = InstallEventHandler(GetApplicationEventTarget(), functionPointer, (UIntPtr) 1, typeList, IntPtr.Zero, out handlerRef);
+        var status = InstallEventHandler(GetApplicationEventTarget(), functionPointer, 1, typeList, IntPtr.Zero, out handlerRef);
         if (status != 0)
         {
             throw new($"InstallEventHandler failed: {status}");

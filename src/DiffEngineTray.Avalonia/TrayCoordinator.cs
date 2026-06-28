@@ -48,7 +48,7 @@ class TrayCoordinator(Application application, IClassicDesktopStyleApplicationLi
             }));
 
         RebuildMenu();
-        TrayIcon.SetIcons(application, new() { trayIcon });
+        TrayIcon.SetIcons(application, [trayIcon]);
 
         piperTask = StartServer();
         hotKeys = MacHotKeys.TryCreate(settings, tracker);

@@ -30,7 +30,7 @@ dotnet test --project src/DiffEngine.Tests --configuration Release --filter "Ful
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
 - DiffEngineTray.Core: net10.0 shared, platform-agnostic tray logic
 - DiffEngineTray: net10.0 Windows Forms head (Windows only)
-- DiffEngineTray.Avalonia: net10.0 Avalonia head (macOS/Linux)
+- DiffEngineTray.Avalonia: net10.0 Avalonia 12 head (macOS/Linux)
 - DiffEngineTray.Launcher: net10.0 cross-platform launcher; the published `DiffEngineTray` dotnet tool
 - Tests: net10.0 (DiffEngineTray.Tests is net10.0-windows; net48 also on Windows)
 

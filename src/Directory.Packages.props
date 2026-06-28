@@ -5,17 +5,16 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Argon" Version="0.34.0" />
-    <!-- Avalonia stack pinned to 11.3.x to match Verify.Avalonia 1.4.0 (depends on Avalonia.Headless >= 11.3.0) -->
-    <PackageVersion Include="Avalonia" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Desktop" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Headless" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Skia" Version="11.3.18" />
-    <!-- Transitive Avalonia.* brought in by Verify.Avalonia; pinned to existing 11.3.x patches
-         (DataGrid lags core; AssemblyVersion is stable across 11.3.x so it binds against 11.3.18). -->
-    <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="11.3.18" />
-    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="11.3.13" />
+    <!-- Avalonia 12. Verify.Avalonia 1.4.0 declares Avalonia deps as >= 11.3.0 and binds cleanly to 12. -->
+    <PackageVersion Include="Avalonia" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Headless" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.0.5" />
+    <!-- Transitive Avalonia.* brought in by Verify.Avalonia (DataGrid lags core). -->
+    <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="12.0.5" />
+    <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
     <PackageVersion Include="Verify.Avalonia" Version="1.4.0" />
     <PackageVersion Include="EmptyFiles" Version="8.18.1" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.3.1" />

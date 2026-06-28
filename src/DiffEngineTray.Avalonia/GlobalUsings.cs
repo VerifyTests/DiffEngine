@@ -5,3 +5,5 @@ global using Avalonia.Markup.Xaml;
 global using Avalonia.Threading;
 global using Serilog;
 global using System.Windows.Input;
+global using Avalonia.Layout;
+global using Avalonia.Media;

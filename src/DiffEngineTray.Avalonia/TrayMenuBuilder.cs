@@ -78,7 +78,7 @@ static class TrayMenuBuilder
 
             if (groupDeletes.Count != 0)
             {
-                yield return new NativeMenuItem($"Pending Deletes ({groupDeletes.Count}):")
+                yield return new($"Pending Deletes ({groupDeletes.Count}):")
                 {
                     Command = mutating(() => tracker.Accept(groupDeletes))
                 };
@@ -95,7 +95,7 @@ static class TrayMenuBuilder
 
             if (groupMoves.Count != 0)
             {
-                yield return new NativeMenuItem($"Pending Moves ({groupMoves.Count}):")
+                yield return new($"Pending Moves ({groupMoves.Count}):")
                 {
                     Command = mutating(() => tracker.Accept(groupMoves))
                 };

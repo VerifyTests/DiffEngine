@@ -65,7 +65,7 @@ public class TrayMenuTests
             // model there and verify the model on the test thread.
             var model = await AvaloniaSession.Instance.Dispatch(
                 () => Task.FromResult(MenuDump.ToModel(TrayMenuBuilder.Build(commands, tracker))),
-                CancellationToken.None);
+                Cancel.None);
 
             await Verify(model);
         }

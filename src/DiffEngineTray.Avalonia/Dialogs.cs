@@ -1,7 +1,3 @@
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.Platform.Storage;
-
 namespace DiffEngineTray;
 
 static class Dialogs
@@ -140,7 +136,7 @@ static class Dialogs
             Width = 1,
             Height = 1,
             ShowInTaskbar = false,
-            SystemDecorations = SystemDecorations.None,
+            WindowDecorations = WindowDecorations.None,
             Opacity = 0,
             WindowStartupLocation = WindowStartupLocation.CenterScreen
         };

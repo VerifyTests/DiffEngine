@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 // The launcher is the entry point of the cross-platform `DiffEngineTray` dotnet tool.
 // It detects the OS and starts the matching head, which lives in a sibling folder:
 //   tools/net10.0/any/DiffEngineTray.Launcher.dll  <- this
