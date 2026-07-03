@@ -28,6 +28,8 @@ static class Program
             return;
         }
 
+        LockedFilesHandler.AlwaysKill = settings.AlwaysKillLockingProcesses;
+
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancelSource();
@@ -48,7 +50,8 @@ static class Program
 
         await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
-            inactive: () => icon.Icon = Images.Default);
+            inactive: () => icon.Icon = Images.Default,
+            lockedFilesResolver: LockedFilesHandler.Resolve);
 
         using var task = StartServer(tracker, cancel);
 

@@ -6,6 +6,7 @@
     Key: T
   },
   RunAtStartup: false,
+  AlwaysKillLockingProcesses: true,
   TargetOnLeft: false,
   MaxInstancesToLaunch: 5
 }

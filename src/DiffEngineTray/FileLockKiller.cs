@@ -51,13 +51,13 @@ static class FileLockKiller
         public bool bRestartable;
     }
 
-    public static bool KillLockingProcesses(string filePath)
+    public static List<LockingProcess> GetLockingProcesses(string filePath)
     {
-        var killed = false;
+        var processes = new List<LockingProcess>();
 
         if (RmStartSession(out var sessionHandle, 0, Guid.NewGuid().ToString()) != 0)
         {
-            return false;
+            return processes;
         }
 
         try
@@ -65,7 +65,7 @@ static class FileLockKiller
             var resources = new[] { filePath };
             if (RmRegisterResources(sessionHandle, (uint)resources.Length, resources, 0, [], 0, []) != 0)
             {
-                return false;
+                return processes;
             }
 
             var procInfo = 0u;
@@ -74,7 +74,7 @@ static class FileLockKiller
 
             if (result != errorMoreData || procInfoNeeded == 0)
             {
-                return false;
+                return processes;
             }
 
             var processInfo = new RM_PROCESS_INFO[procInfoNeeded];
@@ -83,29 +83,25 @@ static class FileLockKiller
 
             if (result != 0)
             {
-                return false;
+                return processes;
             }
 
+            var currentProcessId = Environment.ProcessId;
             for (var i = 0; i < procInfo; i++)
             {
-                var processId = (int)processInfo[i].Process.dwProcessId;
-                if (!ProcessEx.TryGet(processId, out var process))
+                var info = processInfo[i];
+                var processId = (int)info.Process.dwProcessId;
+                if (processId == currentProcessId)
                 {
                     continue;
                 }
 
-                Log.Information(
-                    "Killing locking process '{ProcessName}' (PID: {ProcessId}) for file '{FilePath}'",
-                    processInfo[i].strAppName,
-                    processId,
-                    filePath);
-                process.KillAndDispose();
-                killed = true;
+                processes.Add(new(processId, info.strAppName));
             }
         }
         catch (Exception exception)
         {
-            ExceptionHandler.Handle($"Failed to kill locking processes for '{filePath}'.", exception);
+            ExceptionHandler.Handle($"Failed to get locking processes for '{filePath}'.", exception);
         }
         finally
         {
@@ -113,6 +109,31 @@ static class FileLockKiller
             _ = RmEndSession(sessionHandle);
         }
 
+        return processes;
+    }
+
+    public static bool Kill(IEnumerable<LockingProcess> processes)
+    {
+        var killed = false;
+
+        foreach (var locking in processes)
+        {
+            if (!ProcessEx.TryGet(locking.ProcessId, out var process))
+            {
+                continue;
+            }
+
+            Log.Information(
+                "Killing locking process '{ProcessName}' (PID: {ProcessId})",
+                locking.Name,
+                locking.ProcessId);
+            process.KillAndDispose();
+            killed = true;
+        }
+
         return killed;
     }
+
+    public static bool KillLockingProcesses(string filePath) =>
+        Kill(GetLockingProcesses(filePath));
 }

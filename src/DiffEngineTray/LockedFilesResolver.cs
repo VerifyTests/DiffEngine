@@ -1,0 +1,1 @@
+delegate LockedFilesResponse LockedFilesResolver(TrackedMove move, LockedFiles locked);

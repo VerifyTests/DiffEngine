@@ -49,6 +49,18 @@ Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop do
 "Accept all" will accept all pending moves and all pending deletes.
 
 
+### Locked files
+
+If accepting a move fails because the files are locked by another process (for example the snapshot is open in Microsoft Word), a prompt is shown listing the locked files and the locking processes:
+
+<img src="..\src\DiffEngineTray.Tests\LockedFilesFormTests.Default.verified.png">
+
+ * "Ignore" leaves the move pending so it can be accepted later.
+ * "Kill [process] and accept" kills the locking processes and accepts the move.
+ * "Kill and accept all pending" kills the locking processes and accepts all pending moves, killing any other locking processes without further prompts.
+ * "Always kill" kills the locking processes and accepts the move. The choice is stored in settings, so future locked files are killed without prompting. It can be toggled in the Options dialog.
+
+
 ### Discard
 
 Discard will clear all currently tracked items.
@@ -77,6 +89,11 @@ By default, when a diff is opened, the temp file will be on the left and the tar
 #### Max instances to launch
 
 Control the [max instances to launch setting](docs/diff-tool.md#maxinstancestolaunch).
+
+
+#### Always kill locking processes
+
+When accepting a move with [locked files](#locked-files), kill the locking processes without prompting.
 
 
 #### Discard all HotKey
