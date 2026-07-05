@@ -27,7 +27,7 @@ public class TrackerLockedMoveTest :
             FileLockUtils.Cleanup(lockProcess);
         }
 
-        await Assert.That(File.ReadAllText(target1)).IsEqualTo("old");
+        await Assert.That(await File.ReadAllTextAsync(target1)).IsEqualTo("old");
     }
 
     [Test]
@@ -42,7 +42,7 @@ public class TrackerLockedMoveTest :
             tracker.Accept(tracked);
 
             await tracker.AssertEmpty();
-            await Assert.That(File.ReadAllText(target1)).IsEqualTo("new");
+            await Assert.That(await File.ReadAllTextAsync(target1)).IsEqualTo("new");
             await Assert.That(lockProcess.WaitForExit(5000)).IsTrue();
         }
         finally
@@ -72,8 +72,8 @@ public class TrackerLockedMoveTest :
 
             await tracker.AssertEmpty();
             await Assert.That(resolveCount).IsEqualTo(1);
-            await Assert.That(File.ReadAllText(target1)).IsEqualTo("new");
-            await Assert.That(File.ReadAllText(target2)).IsEqualTo("new");
+            await Assert.That(await File.ReadAllTextAsync(target1)).IsEqualTo("new");
+            await Assert.That(await File.ReadAllTextAsync(target2)).IsEqualTo("new");
         }
         finally
         {
@@ -99,7 +99,7 @@ public class TrackerLockedMoveTest :
             FileLockUtils.Cleanup(lockProcess);
         }
 
-        await Assert.That(File.ReadAllText(target1)).IsEqualTo("old");
+        await Assert.That(await File.ReadAllTextAsync(target1)).IsEqualTo("old");
     }
 
     static string CreateFile(string content)

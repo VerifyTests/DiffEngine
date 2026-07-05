@@ -6,7 +6,7 @@ public class FileLockKillerTest
         var file = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
         try
         {
-            File.WriteAllText(file, "content");
+            await File.WriteAllTextAsync(file, "content");
             var result = FileLockKiller.GetLockingProcesses(file);
             await Assert.That(result).IsEmpty();
         }
@@ -20,7 +20,7 @@ public class FileLockKillerTest
     public async Task GetLockingProcesses_WhenFileLocked_ReturnsProcess()
     {
         var file = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
-        File.WriteAllText(file, "content");
+        await File.WriteAllTextAsync(file, "content");
 
         var lockProcess = FileLockUtils.StartFileLockProcess(file);
 
@@ -45,7 +45,7 @@ public class FileLockKillerTest
         var file = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
         try
         {
-            File.WriteAllText(file, "content");
+            await File.WriteAllTextAsync(file, "content");
             var result = FileLockKiller.KillLockingProcesses(file);
             await Assert.That(result).IsFalse();
         }
@@ -67,7 +67,7 @@ public class FileLockKillerTest
     public async Task KillLockingProcesses_WhenFileLocked_KillsProcess()
     {
         var file = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
-        File.WriteAllText(file, "content");
+        await File.WriteAllTextAsync(file, "content");
 
         var lockProcess = FileLockUtils.StartFileLockProcess(file);
 
@@ -94,8 +94,8 @@ public class FileLockKillerTest
     {
         var file = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
         var tempFile = Path.Combine(Path.GetTempPath(), $"FileLockKillerTest_{Guid.NewGuid()}.txt");
-        File.WriteAllText(file, "content");
-        File.WriteAllText(tempFile, "new content");
+        await File.WriteAllTextAsync(file, "content");
+        await File.WriteAllTextAsync(tempFile, "new content");
 
         var lockProcess = FileLockUtils.StartFileLockProcess(file);
 
@@ -107,7 +107,7 @@ public class FileLockKillerTest
             FileLockKiller.KillLockingProcesses(file);
 
             await Assert.That(FileEx.SafeMove(tempFile, file)).IsTrue();
-            await Assert.That(File.ReadAllText(file)).IsEqualTo("new content");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo("new content");
         }
         finally
         {

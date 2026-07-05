@@ -1,3 +1,4 @@
+// ReSharper disable PartialTypeWithSinglePart
 static partial class WindowsProcess
 {
 #if NET7_0_OR_GREATER
@@ -92,11 +93,11 @@ static partial class WindowsProcess
     static extern bool IsWow64Process(SafeProcessHandle handle, out bool isWow64);
 #endif
 
-    const uint TH32CS_SNAPPROCESS = 0x00000002;
-    const int PROCESS_QUERY_INFORMATION = 0x0400;
-    const int PROCESS_VM_READ = 0x0010;
-    const int PROCESS_TERMINATE = 0x0001;
-    const int ProcessBasicInformation = 0;
+    const uint th32CsSnapprocess = 0x00000002;
+    const int processQueryInformation = 0x0400;
+    const int processVmReadI = 0x0010;
+    const int processTerminate = 0x0001;
+    const int processBasicInformation = 0;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct PROCESSENTRY32W
@@ -149,7 +150,7 @@ static partial class WindowsProcess
         }
 
         // Fall back to forceful termination
-        using var processHandle = OpenProcess(PROCESS_TERMINATE, false, processId);
+        using var processHandle = OpenProcess(processTerminate, false, processId);
         if (processHandle.IsInvalid)
         {
             return false;
@@ -162,7 +163,7 @@ static partial class WindowsProcess
     public static List<ProcessCommand> FindAll()
     {
         var commands = new List<ProcessCommand>();
-        var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        var snapshot = CreateToolhelp32Snapshot(th32CsSnapprocess, 0);
 
         if (snapshot == IntPtr.Zero || snapshot == new IntPtr(-1))
         {
@@ -264,7 +265,7 @@ static partial class WindowsProcess
 
     static string? GetCommandLine(int processId)
     {
-        using var handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, processId);
+        using var handle = OpenProcess(processQueryInformation | processVmReadI, false, processId);
         if (handle.IsInvalid)
         {
             return null;
@@ -282,7 +283,7 @@ static partial class WindowsProcess
             }
 
             var pbi = new PROCESS_BASIC_INFORMATION();
-            if (NtQueryInformationProcess(handle, ProcessBasicInformation, ref pbi, Marshal.SizeOf(pbi), out _) != 0)
+            if (NtQueryInformationProcess(handle, processBasicInformation, ref pbi, Marshal.SizeOf(pbi), out _) != 0)
             {
                 return null;
             }

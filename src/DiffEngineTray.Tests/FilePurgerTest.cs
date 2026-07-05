@@ -4,7 +4,7 @@ public class FilePurgerTest
     public async Task DeleteSucceeds_WhenFileNotLocked()
     {
         var file = Path.Combine(Path.GetTempPath(), $"FilePurgerTest_{Guid.NewGuid()}.verified.txt");
-        File.WriteAllText(file, "content");
+        await File.WriteAllTextAsync(file, "content");
 
         var result = FilePurger.TryDeleteWithLockKill(file);
 
@@ -28,7 +28,7 @@ public class FilePurgerTest
     public async Task DeleteSucceeds_WhenFileLocked_KillsLockingProcess()
     {
         var file = Path.Combine(Path.GetTempPath(), $"FilePurgerTest_{Guid.NewGuid()}.verified.txt");
-        File.WriteAllText(file, "content");
+        await File.WriteAllTextAsync(file, "content");
 
         var lockProcess = StartFileLockProcess(file);
 
