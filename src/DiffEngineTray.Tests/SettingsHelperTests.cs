@@ -20,7 +20,8 @@ public class SettingsHelperTests
                         Key = "T"
                     },
                     MaxInstancesToLaunch = 5,
-                    TargetOnLeft = false
+                    TargetOnLeft = false,
+                    AlwaysKillLockingProcesses = true
                 });
 
             var result = await SettingsHelper.Read();

@@ -1,11 +1,12 @@
-﻿class RecordingTracker() :
+class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null) :
     Tracker(
         () =>
         {
         },
         () =>
         {
-        })
+        },
+        lockedFilesResolver)
 {
     public async Task AssertEmpty()
     {

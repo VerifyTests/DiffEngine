@@ -28,6 +28,7 @@
         this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
         this.updateButton = new System.Windows.Forms.Button();
         this.targetOnLeftCheckBox = new System.Windows.Forms.CheckBox();
+        this.alwaysKillCheckBox = new System.Windows.Forms.CheckBox();
         this.maxInstancesGroupBox = new System.Windows.Forms.GroupBox();
         this.maxInstancesNumericUpDown = new System.Windows.Forms.NumericUpDown();
         this.label1 = new System.Windows.Forms.Label();
@@ -224,6 +225,20 @@
         this.targetOnLeftCheckBox.Text = "Open target on left. The default is temp on left and target on right";
         this.targetOnLeftCheckBox.UseVisualStyleBackColor = true;
         //
+        // alwaysKillCheckBox
+        //
+        this.alwaysKillCheckBox.AutoSize = true;
+        this.alwaysKillCheckBox.Dock = System.Windows.Forms.DockStyle.Top;
+        this.alwaysKillCheckBox.Location = new System.Drawing.Point(5, 58);
+        this.alwaysKillCheckBox.Margin = new System.Windows.Forms.Padding(2);
+        this.alwaysKillCheckBox.Name = "alwaysKillCheckBox";
+        this.alwaysKillCheckBox.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
+        this.alwaysKillCheckBox.Size = new System.Drawing.Size(520, 27);
+        this.alwaysKillCheckBox.TabIndex = 10;
+        this.alwaysKillCheckBox.Text = "Always kill processes locking files when accepting. When disabled, a prompt is s" +
+                                       "hown";
+        this.alwaysKillCheckBox.UseVisualStyleBackColor = true;
+        //
         // maxInstancesGroupBox
         //
         this.maxInstancesGroupBox.Controls.Add(this.maxInstancesNumericUpDown);
@@ -287,6 +302,7 @@
         this.Controls.Add(this.acceptAllHotKey);
         this.Controls.Add(this.discardAllHotKey);
         this.Controls.Add(this.maxInstancesGroupBox);
+        this.Controls.Add(this.alwaysKillCheckBox);
         this.Controls.Add(this.targetOnLeftCheckBox);
         this.Controls.Add(this.startupCheckBox);
         this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -325,6 +341,7 @@
     private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
     private System.Windows.Forms.Button updateButton;
     private System.Windows.Forms.CheckBox targetOnLeftCheckBox;
+    private System.Windows.Forms.CheckBox alwaysKillCheckBox;
     private System.Windows.Forms.GroupBox maxInstancesGroupBox;
     private System.Windows.Forms.NumericUpDown maxInstancesNumericUpDown;
     private System.Windows.Forms.Label label1;

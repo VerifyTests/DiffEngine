@@ -3,15 +3,17 @@ class Tracker :
 {
     Action active;
     Action inactive;
+    LockedFilesResolver? lockedFilesResolver;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null)
     {
         this.active = active;
         this.inactive = inactive;
+        this.lockedFilesResolver = lockedFilesResolver;
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
@@ -207,7 +209,7 @@ class Tracker :
 
     public void Accept(TrackedDelete delete)
     {
-        if (deletes.Remove(delete.File, out var removed))
+        if (deletes.TryRemove(delete.File, out var removed))
         {
             File.Delete(removed.File);
         }
@@ -217,60 +219,167 @@ class Tracker :
     {
         foreach (var delete in toAccept)
         {
-            if (deletes.Remove(delete.File, out var removed))
+            if (deletes.TryRemove(delete.File, out var removed))
             {
                 File.Delete(removed.File);
             }
         }
     }
 
-    public void Accept(IEnumerable<TrackedMove> toAccept)
+    public void Accept(IEnumerable<TrackedMove> toAccept) =>
+        AcceptMoves(toAccept);
+
+    public void Accept(TrackedMove move) =>
+        AcceptMoves([move]);
+
+    class AcceptBatch
     {
+        public bool KillWithoutPrompt;
+        public bool AcceptAllPending;
+    }
+
+    void AcceptMoves(IEnumerable<TrackedMove> toAccept)
+    {
+        var batch = new AcceptBatch();
         foreach (var move in toAccept)
         {
-            if (moves.Remove(move.Temp, out var removed))
+            AcceptMove(move, batch);
+        }
+
+        if (batch.AcceptAllPending)
+        {
+            foreach (var move in moves.Values)
             {
-                InnerMove(removed);
+                AcceptMove(move, batch);
             }
         }
     }
 
-    public void Accept(TrackedMove move)
+    void AcceptMove(TrackedMove move, AcceptBatch batch)
     {
-        if (moves.Remove(move.Temp, out var removed))
+        if (!moves.TryRemove(move.Temp, out var removed))
         {
-            InnerMove(removed);
+            return;
+        }
+
+        if (!InnerMove(removed, batch))
+        {
+            // Keep the move pending so accepting can be retried
+            moves.TryAdd(removed.Temp, removed);
         }
     }
 
     public void Discard(TrackedMove move)
     {
-        if (moves.Remove(move.Temp, out var removed))
+        if (moves.TryRemove(move.Temp, out var removed))
         {
             InnerDiscard(removed);
         }
     }
 
-    static void InnerMove(TrackedMove move)
+    // Returns false when the move should be kept pending
+    bool InnerMove(TrackedMove move, AcceptBatch batch)
     {
         KillProcesses(move);
 
-        if (!FileEx.SafeMove(move.Temp, move.Target))
+        if (FileEx.SafeMove(move.Temp, move.Target))
         {
-            if (move.KillLockingProcess &&
-                FileLockKiller.KillLockingProcesses(move.Target))
-            {
-                if (!FileEx.SafeMove(move.Temp, move.Target))
-                {
-                    return;
-                }
-            }
-            else
+            DeleteTempDirectory(move);
+            return true;
+        }
+
+        var locked = FindLockedFiles(move);
+        if (locked == null)
+        {
+            // Not caused by a file lock. Drop the move since it is likely a
+            // running test is reading or writing to the files, and the result
+            // will re-add the tracked item
+            return true;
+        }
+
+        Log.Information(
+            "Files for `{Name}` are locked by {Processes}",
+            move.Name,
+            locked.ProcessNames);
+
+        if (!ShouldKill(move, locked, batch))
+        {
+            return false;
+        }
+
+        FileLockKiller.Kill(locked.Processes);
+
+        if (FileEx.SafeMove(move.Temp, move.Target))
+        {
+            DeleteTempDirectory(move);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool ShouldKill(TrackedMove move, LockedFiles locked, AcceptBatch batch)
+    {
+        if (move.KillLockingProcess ||
+            batch.KillWithoutPrompt)
+        {
+            return true;
+        }
+
+        if (lockedFilesResolver == null)
+        {
+            return false;
+        }
+
+        switch (lockedFilesResolver(move, locked))
+        {
+            case LockedFilesResponse.Kill:
+                return true;
+            case LockedFilesResponse.KillAndAcceptAllPending:
+                batch.KillWithoutPrompt = true;
+                batch.AcceptAllPending = true;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static LockedFiles? FindLockedFiles(TrackedMove move)
+    {
+        var files = new List<string>();
+        var processes = new List<LockingProcess>();
+
+        void AddLockers(string file)
+        {
+            var lockers = FileLockKiller.GetLockingProcesses(file);
+            if (lockers.Count == 0)
             {
                 return;
             }
+
+            files.Add(file);
+            foreach (var locker in lockers)
+            {
+                if (processes.TrueForAll(_ => _.ProcessId != locker.ProcessId))
+                {
+                    processes.Add(locker);
+                }
+            }
         }
 
+        AddLockers(move.Temp);
+        AddLockers(move.Target);
+
+        if (files.Count == 0)
+        {
+            return null;
+        }
+
+        return new(files, processes);
+    }
+
+    static void DeleteTempDirectory(TrackedMove move)
+    {
         var directory = Path.GetDirectoryName(move.Temp)!;
         FileEx.SafeDeleteDirectory(directory);
     }
@@ -321,28 +430,17 @@ class Tracker :
     {
         AcceptAllDeletes();
 
-        foreach (var move in moves.Values)
-        {
-            if (move.Process == null)
-            {
-                continue;
-            }
-
-            if (move.Process.HasExited)
-            {
-                continue;
-            }
-
-            InnerMove(move);
-            moves.Remove(move.Temp, out _);
-        }
+        AcceptMoves(
+            moves.Values
+                .Where(_ => _.Process is { HasExited: false })
+                .ToList());
     }
 
     public void AcceptAll()
     {
         AcceptAllDeletes();
 
-        AcceptAllMoves();
+        AcceptMoves(moves.Values);
     }
 
     void AcceptAllDeletes()
@@ -353,16 +451,6 @@ class Tracker :
         }
 
         deletes.Clear();
-    }
-
-    void AcceptAllMoves()
-    {
-        foreach (var move in moves.Values)
-        {
-            InnerMove(move);
-        }
-
-        moves.Clear();
     }
 
     public ICollection<TrackedDelete> Deletes => deletes.Values;

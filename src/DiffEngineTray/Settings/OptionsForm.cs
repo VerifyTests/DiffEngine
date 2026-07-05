@@ -19,6 +19,7 @@
         discardAllHotKey.HotKey = settings.DiscardAllHotKey;
         startupCheckBox.Checked = settings.RunAtStartup;
         targetOnLeftCheckBox.Checked = settings.TargetOnLeft;
+        alwaysKillCheckBox.Checked = settings.AlwaysKillLockingProcesses;
         maxInstancesNumericUpDown.Value = settings.MaxInstancesToLaunch;
     }
 
@@ -28,6 +29,7 @@
         {
             TargetOnLeft = targetOnLeftCheckBox.Checked,
             RunAtStartup = startupCheckBox.Checked,
+            AlwaysKillLockingProcesses = alwaysKillCheckBox.Checked,
             AcceptAllHotKey = acceptAllHotKey.HotKey,
             DiscardAllHotKey = discardAllHotKey.HotKey,
             AcceptOpenHotKey = acceptOpenHotKey.HotKey,
