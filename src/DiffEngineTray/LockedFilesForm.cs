@@ -18,7 +18,11 @@ class LockedFilesForm :
         StartPosition = FormStartPosition.CenterScreen;
         TopMost = true;
         Padding = new(8);
-        ClientSize = new(560, 150);
+        // GrowAndShrink so the form hugs its content height; MinimumSize keeps
+        // the width stable. GrowOnly (the AutoSize default) plus a fixed
+        // ClientSize left extra padding below the content.
+        AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        MinimumSize = new(576, 0);
 
         var buttons = new FlowLayoutPanel
         {
