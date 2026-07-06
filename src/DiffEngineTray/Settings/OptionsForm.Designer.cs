@@ -235,8 +235,7 @@
         this.alwaysKillCheckBox.Padding = new System.Windows.Forms.Padding(5, 4, 5, 4);
         this.alwaysKillCheckBox.Size = new System.Drawing.Size(520, 27);
         this.alwaysKillCheckBox.TabIndex = 10;
-        this.alwaysKillCheckBox.Text = "Always kill processes locking files when accepting. When disabled, a prompt is s" +
-                                       "hown";
+        this.alwaysKillCheckBox.Text = "Kill processes locking files when accepting.";
         this.alwaysKillCheckBox.UseVisualStyleBackColor = true;
         //
         // maxInstancesGroupBox
