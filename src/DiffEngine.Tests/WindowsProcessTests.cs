@@ -68,7 +68,7 @@ public class WindowsProcessTests
             Arguments = "--windowed",
             UseShellExecute = false,
             CreateNoWindow = true
-        });
+        })!;
 
         await Assert.That(process).IsNotNull();
 

@@ -1,5 +1,5 @@
-﻿[  
-Failed to send payload to DiffEngineTray.
+﻿[
+  Failed to send payload to DiffEngineTray.
 
 Payload:
 {
@@ -16,9 +16,8 @@ System.Net.Sockets.SocketException (10061): No connection could be made because 
    at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
    at System.Threading.Tasks.ValueTask.ValueTaskSourceAsTask.<>c.<.cctor>b__4_0(Object state)
 --- End of stack trace from previous location ---
-   at System.Net.Sockets.TcpClient.CompleteConnectAsync(Task task)
-  
-Failed to send payload to DiffEngineTray.
+   at System.Net.Sockets.TcpClient.CompleteConnectAsync(Task task),
+  Failed to send payload to DiffEngineTray.
 
 Payload:
 {
