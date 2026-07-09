@@ -8,7 +8,7 @@
 
     static List<string> EnumerateDirectories(string directory)
     {
-        var expanded = Environment.ExpandEnvironmentVariables(directory);
+        // `directory` is already environment-variable-expanded by the sole caller (TryFind).
         if (!directory.Contains('*'))
         {
             if (Directory.Exists(directory))
@@ -17,7 +17,7 @@
             }
         }
 
-        var segments = expanded.Split(separators);
+        var segments = directory.Split(separators);
         var currentRoots = new List<string>
         {
             segments[0] + Path.DirectorySeparatorChar

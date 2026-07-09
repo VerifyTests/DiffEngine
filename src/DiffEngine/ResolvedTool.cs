@@ -50,15 +50,19 @@ public record ResolvedTool
         LaunchArguments = launchArguments;
         IsMdi = isMdi;
         AutoRefresh = autoRefresh;
-        BinaryExtensions = binaryExtensions.ToFrozenSet();
-        if (binaryExtensions.Any(_ => !_.StartsWith('.')))
+        foreach (var extension in binaryExtensions)
         {
-            throw new(
-                $"""
-                 Extensions must begin with a period.
-                 {string.Join(Environment.NewLine, binaryExtensions)}
-                 """);
+            if (!extension.StartsWith('.'))
+            {
+                throw new(
+                    $"""
+                     Extensions must begin with a period.
+                     {string.Join(Environment.NewLine, binaryExtensions)}
+                     """);
+            }
         }
+
+        BinaryExtensions = binaryExtensions.ToFrozenSet();
 
         RequiresTarget = requiresTarget;
         SupportsText = supportsText;

@@ -160,7 +160,11 @@ static partial class WindowsProcess
         return true;
     }
 
-    public static List<ProcessCommand> FindAll()
+    // When candidateExeNames is provided, only processes whose image name is in the set
+    // have their command line read. Reading a command line requires OpenProcess plus several
+    // ReadProcessMemory calls per process, so skipping non-candidate processes avoids that
+    // cost for the vast majority of processes on the machine. Passing null reads every process.
+    public static List<ProcessCommand> FindAll(HashSet<string>? candidateExeNames = null)
     {
         var commands = new List<ProcessCommand>();
         var snapshot = CreateToolhelp32Snapshot(th32CsSnapprocess, 0);
@@ -183,6 +187,12 @@ static partial class WindowsProcess
             {
                 var processId = (int)entry.th32ProcessID;
                 if (processId == 0)
+                {
+                    continue;
+                }
+
+                if (candidateExeNames != null &&
+                    !candidateExeNames.Contains(entry.szExeFile))
                 {
                     continue;
                 }
