@@ -19,7 +19,7 @@ public static class DiffEngineTray
         }
     }
 
-    public static bool IsRunning { get; }
+    public static bool IsRunning { get; internal set; }
 
     public static void AddDelete(string file)
     {

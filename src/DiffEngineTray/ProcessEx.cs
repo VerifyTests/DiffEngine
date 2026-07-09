@@ -31,13 +31,16 @@ static class ProcessEx
 
     public static void KillAndDispose(this Process process)
     {
+        // Capture identity up front. Once the process has exited, Id/MainModule can throw,
+        // so reading them in the error handlers below could mask the real failure.
+        var description = Describe(process);
         try
         {
             process.Kill();
             var exited = process.WaitForExit(500);
             if (!exited)
             {
-                ExceptionHandler.Handle($"Failed to kill process. Id:{process.Id} Name: {process.MainModule?.FileName}");
+                ExceptionHandler.Handle($"Failed to kill process. {description}");
             }
         }
         catch (InvalidOperationException)
@@ -51,11 +54,24 @@ static class ProcessEx
         }
         catch (Exception exception)
         {
-            ExceptionHandler.Handle($"Failed to kill process. Id:{process.Id} Name: {process.MainModule?.FileName}", exception);
+            ExceptionHandler.Handle($"Failed to kill process. {description}", exception);
         }
         finally
         {
             process.Dispose();
+        }
+    }
+
+    internal static string Describe(Process process)
+    {
+        try
+        {
+            return $"Id:{process.Id} Name: {process.MainModule?.FileName}";
+        }
+        catch (Exception)
+        {
+            // Id/MainModule can throw for an exited, disposed or inaccessible process.
+            return "Id: unknown";
         }
     }
 }
