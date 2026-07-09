@@ -11,3 +11,4 @@ nugets/
 nul
 /TestResults
 /coverage
+BenchmarkDotNet.Artifacts/

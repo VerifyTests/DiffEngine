@@ -13,7 +13,7 @@ public static partial class DiffTools
     {
         if (FileExtensions.IsTextExtension(extension))
         {
-            tool = resolved.FirstOrDefault(_ => _.SupportsText);
+            tool = firstTextTool;
             return tool != null;
         }
 
@@ -22,7 +22,7 @@ public static partial class DiffTools
 
     public static bool TryFindForText([NotNullWhen(true)] out ResolvedTool? tool)
     {
-        tool = resolved.FirstOrDefault(_ => _.SupportsText);
+        tool = firstTextTool;
         return tool != null;
     }
 
@@ -32,7 +32,7 @@ public static partial class DiffTools
     {
         if (FileExtensions.IsTextFile(path))
         {
-            tool = resolved.FirstOrDefault(_ => _.SupportsText);
+            tool = firstTextTool;
             return tool != null;
         }
 
@@ -45,7 +45,7 @@ public static partial class DiffTools
     {
         if (FileExtensions.IsTextFile(path))
         {
-            tool = resolved.FirstOrDefault(_ => _.SupportsText);
+            tool = firstTextTool;
             return tool != null;
         }
 
@@ -55,11 +55,8 @@ public static partial class DiffTools
 
     public static bool TryFindByName(
         DiffTool tool,
-        [NotNullWhen(true)] out ResolvedTool? resolvedTool)
-    {
-        resolvedTool = resolved.SingleOrDefault(_ => _.Tool == tool);
-        return resolvedTool != null;
-    }
+        [NotNullWhen(true)] out ResolvedTool? resolvedTool) =>
+        ToolLookup.TryGetValue(tool, out resolvedTool);
 
     public static bool TryFindByName(
         string name,

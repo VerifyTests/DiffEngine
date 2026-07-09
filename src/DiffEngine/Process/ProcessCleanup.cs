@@ -3,7 +3,7 @@
 public static class ProcessCleanup
 {
     static List<ProcessCommand> commands;
-    static Func<List<ProcessCommand>> findAll;
+    static Func<HashSet<string>?, List<ProcessCommand>> findAll;
     static Func<int, bool> tryTerminateProcess;
 
     static ProcessCleanup()
@@ -31,7 +31,23 @@ public static class ProcessCleanup
 
     [MemberNotNull(nameof(commands))]
     public static void Refresh() =>
-        commands = FindAll().ToList();
+        // Only processes launched as a resolved diff tool can ever match a command DiffEngine
+        // builds, so restrict the (expensive on Windows) per-process command-line reads to those
+        // images instead of scanning every process on the machine.
+        commands = findAll(CandidateExeNames())
+            .OrderByDescending(_ => _.Process)
+            .ToList();
+
+    static HashSet<string> CandidateExeNames()
+    {
+        HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var tool in DiffTools.Resolved)
+        {
+            names.Add(Path.GetFileName(tool.ExePath));
+        }
+
+        return names;
+    }
 
     /// <summary>
     /// Find a process with the matching command line and kill it.
@@ -95,5 +111,5 @@ public static class ProcessCleanup
     /// Find all processes with `% %.%.%` in the command line.
     /// </summary>
     public static IEnumerable<ProcessCommand> FindAll() =>
-        findAll().OrderByDescending(_ => _.Process);
+        findAll(null).OrderByDescending(_ => _.Process);
 }

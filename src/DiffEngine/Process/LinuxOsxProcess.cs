@@ -24,7 +24,10 @@
         throw new(message);
     }
 
-    public static List<ProcessCommand> FindAll()
+    // candidateExeNames is accepted for signature parity with the Windows implementation but
+    // ignored: a single `ps` invocation already returns every command line, so there is no
+    // per-process syscall cost to avoid by filtering here.
+    public static List<ProcessCommand> FindAll(HashSet<string>? candidateExeNames = null)
     {
         if (!TryRunPs(out var processList))
         {

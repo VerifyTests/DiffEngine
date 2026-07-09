@@ -4,6 +4,8 @@ public static partial class DiffTools
 {
     static Dictionary<string, ResolvedTool> ExtensionLookup = [];
     static Dictionary<string, ResolvedTool> PathLookup = [];
+    static Dictionary<DiffTool, ResolvedTool> ToolLookup = [];
+    static ResolvedTool? firstTextTool;
     static List<ResolvedTool> resolved = [];
 
     public static IEnumerable<ResolvedTool> Resolved => resolved;
@@ -37,8 +39,7 @@ public static partial class DiffTools
 
     public static bool IsDetectedForFile(DiffTool diffTool, string path)
     {
-        var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
-        if (tool == null)
+        if (!ToolLookup.TryGetValue(diffTool, out var tool))
         {
             return false;
         }
@@ -54,8 +55,7 @@ public static partial class DiffTools
 
     public static bool IsDetectedForExtension(DiffTool diffTool, string extension)
     {
-        var tool = resolved.SingleOrDefault(_ => _.Tool == diffTool);
-        if (tool == null)
+        if (!ToolLookup.TryGetValue(diffTool, out var tool))
         {
             return false;
         }

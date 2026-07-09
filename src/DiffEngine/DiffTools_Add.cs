@@ -15,8 +15,7 @@ public static partial class DiffTools
         string? exePath = null,
         IEnumerable<string>? binaryExtensions = null)
     {
-        var existing = resolved.SingleOrDefault(_ => _.Tool == basedOn);
-        if (existing == null)
+        if (!ToolLookup.TryGetValue(basedOn, out var existing))
         {
             return null;
         }
@@ -92,6 +91,18 @@ public static partial class DiffTools
         }
 
         PathLookup[resolvedTool.ExePath] = resolvedTool;
+
+        if (resolvedTool.Tool is { } diffTool)
+        {
+            ToolLookup[diffTool] = resolvedTool;
+        }
+
+        // Tools are always prepended, so the most recently inserted text-capable tool is the
+        // highest priority one. This mirrors `resolved.FirstOrDefault(_ => _.SupportsText)`.
+        if (resolvedTool.SupportsText)
+        {
+            firstTextTool = resolvedTool;
+        }
     }
 
     static void InitTools(bool throwForNoTool, IEnumerable<DiffTool> order)
@@ -99,6 +110,8 @@ public static partial class DiffTools
         var custom = resolved.Where(_ => _.Tool == null).ToList();
         ExtensionLookup.Clear();
         PathLookup.Clear();
+        ToolLookup.Clear();
+        firstTextTool = null;
         resolved.Clear();
 
         foreach (var definition in ToolsOrder.Sort(throwForNoTool, order).Reverse())

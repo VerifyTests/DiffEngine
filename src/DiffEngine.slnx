@@ -21,6 +21,9 @@
   <Project Path="DiffEngine/DiffEngine.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngine.Benchmarks/DiffEngine.Benchmarks.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="DiffEngineTray.Tests/DiffEngineTray.Tests.csproj">
     <BuildDependency Project="FakeDiffTool/FakeDiffTool.csproj" />
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
