@@ -53,6 +53,64 @@ public class WindowsProcessTests
         }
     }
 
+    // NotInParallel: this launches a real FakeDiffTool process, and DiffRunnerTests assert that
+    // no FakeDiffTool is running, so the two must not overlap.
+    [Test]
+    [NotInParallel]
+    public async Task FindAll_FiltersByImageName()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        // FakeDiffTool sleeps for 5s when launched without --windowed, giving a window to scan.
+        // The two dotted-path arguments make the command line match the diff-tool pattern.
+        var process = Process.Start(
+            new ProcessStartInfo
+            {
+                FileName = FakeDiffTool.Exe,
+                Arguments = "\"temp.1.txt\" \"target.2.txt\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            })!;
+        try
+        {
+            Thread.Sleep(500);
+
+            // Unfiltered reads every process and finds it.
+            await Assert.That(WindowsProcess.FindAll()
+                .Any(_ => _.Command.Contains("FakeDiffTool"))).IsTrue();
+
+            // Filtered by its image name finds it.
+            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase) { "FakeDiffTool.exe" })
+                .Any(_ => _.Command.Contains("FakeDiffTool"))).IsTrue();
+
+            // Filtered by a different image name excludes it.
+            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase) { "OtherTool.exe" })
+                .Any(_ => _.Command.Contains("FakeDiffTool"))).IsFalse();
+
+            // An empty candidate set reads no command lines at all.
+            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase))).IsEmpty();
+        }
+        finally
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                    // Ensure the process is gone before the test completes so no later test observes it.
+                    process.WaitForExit(5000);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+    }
+
     [Test]
     public async Task TryTerminateProcess_WithWindowedProcess_GracefullyCloses()
     {
