@@ -13,12 +13,27 @@
 
     static Result? Inner(string file)
     {
-        foreach (var result in cache.Values.Where(_ => _ != null))
+        // Reuse an already resolved solution when the file sits inside its directory.
+        // Prefer the nearest (longest) enclosing directory so nested solutions resolve correctly.
+        Result? nearest = null;
+        foreach (var result in cache.Values)
         {
-            if (file.StartsWith(result!.Directory))
+            if (result == null ||
+                !IsInDirectory(file, result.Directory))
             {
-                return result;
+                continue;
             }
+
+            if (nearest == null ||
+                result.Directory.Length > nearest.Directory.Length)
+            {
+                nearest = result;
+            }
+        }
+
+        if (nearest != null)
+        {
+            return nearest;
         }
 
         var currentDirectory = Path.GetDirectoryName(file);
@@ -47,6 +62,25 @@
 
             currentDirectory = parent.FullName;
         } while (true);
+    }
+
+    // True when file is directory itself or sits below it, requiring a directory-separator
+    // boundary so that a sibling like "AppTests" is not treated as being inside "App".
+    static bool IsInDirectory(string file, string directory)
+    {
+        if (!file.StartsWith(directory, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (file.Length == directory.Length)
+        {
+            return true;
+        }
+
+        var boundary = file[directory.Length];
+        return boundary == Path.DirectorySeparatorChar ||
+               boundary == Path.AltDirectorySeparatorChar;
     }
 
     static bool TryFind(string directory, string searchPattern, [NotNullWhen(true)] out Result? result)

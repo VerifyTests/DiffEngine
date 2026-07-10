@@ -2,8 +2,8 @@ using IOException = System.IO.IOException;
 
 static class FileEx
 {
-    public static bool IsEmptyDirectory(string directory) =>
-        !Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Any();
+    public static bool ContainsFiles(string directory) =>
+        Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Any();
 
     public static bool SafeDeleteFile(string path)
     {
@@ -37,14 +37,16 @@ static class FileEx
             return;
         }
 
-        if (!IsEmptyDirectory(path))
+        // Leave the directory if it still holds files (a running test may be using them).
+        // Otherwise it is safe to remove the whole tree, including any empty sub-directories.
+        if (ContainsFiles(path))
         {
             return;
         }
 
         try
         {
-            Directory.Delete(path, false);
+            Directory.Delete(path, true);
         }
         catch (IOException exception)
         {

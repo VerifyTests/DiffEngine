@@ -85,6 +85,25 @@ public class PiperTest :
     }
 
     [Test]
+    public async Task SendMoveAsyncHonorsCancellation()
+    {
+        using var source = new CancelSource();
+        source.Cancel();
+
+        var cancelled = false;
+        try
+        {
+            await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments", true, 10, source.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+
+        await Assert.That(cancelled).IsTrue();
+    }
+
+    [Test]
     public async Task ClientDisconnectsAbruptly()
     {
         DeletePayload? received = null;

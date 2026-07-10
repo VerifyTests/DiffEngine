@@ -156,11 +156,12 @@ public static partial class DiffRunner
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
+        var canKill = !tool.IsMdi;
         if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
         {
             if (tool.AutoRefresh)
             {
-                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi, processCommand.Process);
+                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process);
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
@@ -169,13 +170,13 @@ public static partial class DiffRunner
 
         if (MaxInstance.Reached())
         {
-            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, tool.IsMdi, null);
+            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
             return LaunchResult.TooManyRunningDiffTools;
         }
 
         var processId = LaunchProcess(tool, arguments);
 
-        DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, !tool.IsMdi, processId);
+        DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
 
         return LaunchResult.StartedNewInstance;
     }

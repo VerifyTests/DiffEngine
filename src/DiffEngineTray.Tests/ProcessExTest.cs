@@ -14,4 +14,16 @@
         await Assert.That(ProcessEx.TryGet(40000, out var found)).IsFalse();
         await Assert.That(found).IsNull();
     }
+
+    [Test]
+    public async Task DescribeIsSafeForDisposedProcess()
+    {
+        var process = Process.GetCurrentProcess();
+        process.Dispose();
+
+        // Id/MainModule can throw on a disposed process; Describe must swallow that.
+        var description = ProcessEx.Describe(process);
+
+        await Assert.That(description).IsNotNull();
+    }
 }

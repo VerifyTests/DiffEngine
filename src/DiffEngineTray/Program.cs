@@ -84,44 +84,42 @@ static class Program
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ShowContextMenu")]
     static extern void ShowContextMenu(NotifyIcon icon);
 
-    static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
+    internal static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
     {
-        var discardAllHotKey = settings.DiscardAllHotKey;
-        if (discardAllHotKey != null)
+        foreach (var binding in BuildKeyBindings(settings, tracker))
         {
+            var hotKey = binding.HotKey;
             keyRegister.TryAddBinding(
-                KeyBindingIds.DiscardAll,
-                discardAllHotKey.Shift,
-                discardAllHotKey.Control,
-                discardAllHotKey.Alt,
-                discardAllHotKey.Key,
-                tracker.Clear);
-        }
-
-        var acceptAllHotKey = settings.AcceptAllHotKey;
-        if (acceptAllHotKey != null)
-        {
-            keyRegister.TryAddBinding(
-                KeyBindingIds.AcceptAll,
-                acceptAllHotKey.Shift,
-                acceptAllHotKey.Control,
-                acceptAllHotKey.Alt,
-                acceptAllHotKey.Key,
-                tracker.AcceptAll);
-        }
-
-        var acceptOpenHotKey = settings.AcceptOpenHotKey;
-        if (acceptOpenHotKey != null)
-        {
-            keyRegister.TryAddBinding(
-                KeyBindingIds.AcceptAll,
-                acceptOpenHotKey.Shift,
-                acceptOpenHotKey.Control,
-                acceptOpenHotKey.Alt,
-                acceptOpenHotKey.Key,
-                tracker.AcceptOpen);
+                binding.Id,
+                hotKey.Shift,
+                hotKey.Control,
+                hotKey.Alt,
+                hotKey.Key,
+                binding.Action);
         }
     }
+
+    // Each configured hot key must map to a distinct KeyBindingIds value.
+    // Reusing an id causes KeyRegister.TryAddBinding to unregister and overwrite the earlier binding.
+    internal static IEnumerable<KeyBinding> BuildKeyBindings(Settings settings, Tracker tracker)
+    {
+        if (settings.DiscardAllHotKey is { } discardAll)
+        {
+            yield return new(KeyBindingIds.DiscardAll, discardAll, tracker.Clear);
+        }
+
+        if (settings.AcceptAllHotKey is { } acceptAll)
+        {
+            yield return new(KeyBindingIds.AcceptAll, acceptAll, tracker.AcceptAll);
+        }
+
+        if (settings.AcceptOpenHotKey is { } acceptOpen)
+        {
+            yield return new(KeyBindingIds.AcceptOpen, acceptOpen, tracker.AcceptOpen);
+        }
+    }
+
+    internal record KeyBinding(int Id, HotKey HotKey, Action Action);
 
     static async Task<Settings?> GetSettings()
     {

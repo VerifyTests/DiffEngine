@@ -10,7 +10,7 @@
         Cancel cancel = default)
     {
         var payload = BuildDeletePayload(file);
-        return SendAsync(payload);
+        return SendAsync(payload, cancel);
     }
 
     static string BuildDeletePayload(string file) =>
@@ -41,7 +41,7 @@
         Cancel cancel = default)
     {
         var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId);
-        return SendAsync(payload);
+        return SendAsync(payload, cancel);
     }
 
     public static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
@@ -91,13 +91,14 @@
         }
     }
 
-    static async Task SendAsync(string payload)
+    static async Task SendAsync(string payload, Cancel cancel)
     {
         try
         {
-            await InnerSendAsync(payload);
+            await InnerSendAsync(payload, cancel);
         }
-        catch (Exception exception)
+        // Let cancellation surface to the caller; only genuine send failures are swallowed.
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             HandleSendException(payload, exception);
         }
@@ -132,16 +133,28 @@
         }
     }
 
-    static async Task InnerSendAsync(string payload)
+    static async Task InnerSendAsync(string payload, Cancel cancel)
     {
         using var client = new TcpClient();
         var endpoint = GetEndpoint();
         try
         {
-            await client.ConnectAsync(endpoint.Address, endpoint.Port);
+#if NET6_0_OR_GREATER
+            await client.ConnectAsync(endpoint.Address, endpoint.Port, cancel);
             using var stream = client.GetStream();
             using var writer = new StreamWriter(stream);
-            await writer.WriteAsync(payload);
+            await writer.WriteAsync(payload.AsMemory(), cancel);
+#else
+            cancel.ThrowIfCancellationRequested();
+            // Older frameworks lack cancellable Connect/Write, so abort by closing the client.
+            using (cancel.Register(client.Close))
+            {
+                await client.ConnectAsync(endpoint.Address, endpoint.Port);
+                using var stream = client.GetStream();
+                using var writer = new StreamWriter(stream);
+                await writer.WriteAsync(payload);
+            }
+#endif
         }
         finally
         {
