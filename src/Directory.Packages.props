@@ -9,7 +9,7 @@
     <PackageVersion Include="EmptyFiles" Version="8.18.2" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.4.1" />
     <PackageVersion Include="Microsoft.Sbom.Targets" Version="4.1.5" />
-    <PackageVersion Include="Polyfill" Version="10.11.2" />
+    <PackageVersion Include="Polyfill" Version="11.0.0" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.174" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
