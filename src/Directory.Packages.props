@@ -16,10 +16,10 @@
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.3.1" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
-    <PackageVersion Include="Verify.TUnit" Version="31.24.2" />
+    <PackageVersion Include="Verify.TUnit" Version="31.25.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
-    <PackageVersion Include="Verify" Version="31.24.2" />
-    <PackageVersion Include="TUnit" Version="1.60.0" />
+    <PackageVersion Include="Verify" Version="31.25.0" />
+    <PackageVersion Include="TUnit" Version="1.61.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.9.0" />
   </ItemGroup>
 </Project>
