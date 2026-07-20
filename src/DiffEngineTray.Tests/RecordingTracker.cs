@@ -1,4 +1,4 @@
-class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null) :
+class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null) :
     Tracker(
         () =>
         {
@@ -6,7 +6,8 @@ class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null) :
         () =>
         {
         },
-        lockedFilesResolver)
+        lockedFilesResolver,
+        acceptFailed)
 {
     public async Task AssertEmpty()
     {
