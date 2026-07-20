@@ -37,15 +37,15 @@ static class FileEx
             return;
         }
 
-        // Leave the directory if it still holds files (a running test may be using them).
-        // Otherwise it is safe to remove the whole tree, including any empty sub-directories.
-        if (ContainsFiles(path))
-        {
-            return;
-        }
-
         try
         {
+            // Leave the directory if it still holds files (a running test may be using them).
+            // Otherwise it is safe to remove the whole tree, including any empty sub-directories.
+            if (ContainsFiles(path))
+            {
+                return;
+            }
+
             Directory.Delete(path, true);
         }
         catch (IOException exception)

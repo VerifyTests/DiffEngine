@@ -4,16 +4,18 @@ class Tracker :
     Action active;
     Action inactive;
     LockedFilesResolver? lockedFilesResolver;
+    Action<TrackedMove>? acceptFailed;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null)
     {
         this.active = active;
         this.inactive = inactive;
         this.lockedFilesResolver = lockedFilesResolver;
+        this.acceptFailed = acceptFailed;
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
@@ -69,8 +71,10 @@ class Tracker :
                 return;
             }
         }
-        catch (FileNotFoundException)
+        catch (IOException)
         {
+            // File is missing, or locked by a diff tool or a running test.
+            // Skip this scan round
             return;
         }
 
@@ -277,44 +281,75 @@ class Tracker :
         }
     }
 
+    const int acceptAttempts = 8;
+    static readonly TimeSpan acceptRetryDelay = TimeSpan.FromMilliseconds(400);
+
     // Returns false when the move should be kept pending
     bool InnerMove(TrackedMove move, AcceptBatch batch)
     {
         KillProcesses(move);
 
-        if (FileEx.SafeMove(move.Temp, move.Target))
+        // A single move attempt and a single lock query are both racy:
+        // * A killed diff tool releases its file handles asynchronously, and Job
+        //   Objects reap child processes (eg diffword's WINWORD) a beat after the
+        //   direct kill, so the first move attempt can fail while the locks are
+        //   already on their way out.
+        // * A diff tool killed mid-startup can leave an orphaned child that only
+        //   opens (and locks) the files after the kill, so a lock query can find
+        //   nothing even though the move keeps failing.
+        // So retry both for a few seconds before giving up, and never treat an
+        // unexplained failure as success.
+        var killApproved = false;
+        for (var attempt = 0; attempt < acceptAttempts; attempt++)
         {
-            DeleteTempDirectory(move);
-            return true;
+            if (attempt > 0)
+            {
+                Thread.Sleep(acceptRetryDelay);
+            }
+
+            if (!File.Exists(move.Temp))
+            {
+                // Nothing left to move. Drop the move since it is likely a
+                // running test deleted or is re-writing the file, and the result
+                // will re-add the tracked item
+                return true;
+            }
+
+            if (FileEx.SafeMove(move.Temp, move.Target))
+            {
+                DeleteTempDirectory(move);
+                return true;
+            }
+
+            var locked = FindLockedFiles(move);
+            if (locked == null)
+            {
+                // No lock visible (yet). The holder may be mid-death or mid-startup
+                continue;
+            }
+
+            Log.Information(
+                "Files for `{Name}` are locked by {Processes}",
+                move.Name,
+                locked.ProcessNames);
+
+            if (!killApproved &&
+                !ShouldKill(move, locked, batch))
+            {
+                // The user chose to keep the locking processes. Keep the move
+                // pending without further retries
+                return false;
+            }
+
+            // Remember the approval so re-surfacing lockers dont re-prompt
+            killApproved = true;
+            FileLockKiller.Kill(locked.Processes);
+            // Killed processes release their handles asynchronously; the next
+            // attempt re-tries the move
         }
 
-        var locked = FindLockedFiles(move);
-        if (locked == null)
-        {
-            // Not caused by a file lock. Drop the move since it is likely a
-            // running test is reading or writing to the files, and the result
-            // will re-add the tracked item
-            return true;
-        }
-
-        Log.Information(
-            "Files for `{Name}` are locked by {Processes}",
-            move.Name,
-            locked.ProcessNames);
-
-        if (!ShouldKill(move, locked, batch))
-        {
-            return false;
-        }
-
-        FileLockKiller.Kill(locked.Processes);
-
-        if (FileEx.SafeMove(move.Temp, move.Target))
-        {
-            DeleteTempDirectory(move);
-            return true;
-        }
-
+        Log.Warning("Could not accept `{Name}`: the move keeps failing. Kept pending", move.Name);
+        acceptFailed?.Invoke(move);
         return false;
     }
 

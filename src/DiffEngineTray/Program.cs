@@ -51,7 +51,12 @@ static class Program
         await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default,
-            lockedFilesResolver: LockedFilesHandler.Resolve);
+            lockedFilesResolver: LockedFilesHandler.Resolve,
+            acceptFailed: move => icon.ShowBalloonTip(
+                10000,
+                "DiffEngineTray",
+                $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried.",
+                ToolTipIcon.Warning));
 
         using var task = StartServer(tracker, cancel);
 
