@@ -11,7 +11,8 @@ build_script:
       Invoke-WebRequest "https://dot.net/v1/dotnet-install.ps1" -OutFile "./dotnet-install.ps1"
       ./dotnet-install.ps1 -JSonFile global.json -Architecture x64 -InstallDir 'C:\Program Files\dotnet'
       dotnet build src --configuration Release
-      dotnet test --solution src/DiffEngine.slnx --configuration Release --no-build --no-restore
+      dotnet test --solution src/DiffEngine.slnx --configuration Release --no-build --no-restore --report-trx
+      $testExit = $LASTEXITCODE
       dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release
     }
     else {
@@ -23,9 +24,18 @@ build_script:
         sudo ./dotnet-install.sh --jsonfile global.json --architecture x64 --install-dir '/usr/share/dotnet'
       }
       dotnet build src --configuration Release-NotWindows
-      dotnet test --solution src/DiffEngine.slnx --configuration Release-NotWindows --no-build --no-restore
+      dotnet test --solution src/DiffEngine.slnx --configuration Release-NotWindows --no-build --no-restore --report-trx
+      $testExit = $LASTEXITCODE
       dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release-NotWindows
     }
+    $url = "https://ci.appveyor.com/api/testresults/mstest/$($env:APPVEYOR_JOB_ID)"
+    Get-ChildItem -Recurse -Filter *.trx | ForEach-Object {
+      Write-Host "Uploading test results: $($_.FullName)"
+      try { (New-Object System.Net.WebClient).UploadFile($url, $_.FullName) }
+      catch { Write-Host "Failed to upload test results: $_" }
+    }
+    # Captured before the publish step so a test failure is not masked by it.
+    if ($testExit -ne 0) { exit $testExit }
 on_failure:
   - ps: |
       $root = (Get-Location).Path
