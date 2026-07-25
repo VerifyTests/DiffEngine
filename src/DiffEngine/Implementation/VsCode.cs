@@ -32,6 +32,9 @@ static partial class Implementation
                     "code",
                     launchArguments,
                     "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/")),
-            Notes: " * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)");
+            Notes: """
+                 * [Command line reference](https://code.visualstudio.com/docs/editor/command-line)
+                 * When a change is accepted by editing in the diff view, VS Code saves the file using `files.eol` (`crlf` on Windows by default), which can change its line endings. Consumers that require a specific line ending (for example [Verify](https://github.com/VerifyTests/Verify), which rejects a verified file containing `crlf`) can break. Install the [EditorConfig extension](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig) to honor `end_of_line` from `.editorconfig` on save, or set `"files.eol": "\n"`.
+                """);
     }
 }
