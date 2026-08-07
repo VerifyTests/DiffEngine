@@ -41,6 +41,16 @@ static class Program
             return;
         }
 
+        try
+        {
+            TrayVersionFile.Write(VersionReader.VersionString);
+        }
+        catch (Exception exception)
+        {
+            // The marker only gates inline snapshot payloads; the tray must still start
+            Log.Error(exception, "Failed to write the tray version marker");
+        }
+
         using var icon = new NotifyIcon
         {
             Icon = Images.Default,
@@ -56,6 +66,11 @@ static class Program
                 10000,
                 "DiffEngineTray",
                 $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried.",
+                ToolTipIcon.Warning),
+            inlineFailed: (_, message) => icon.ShowBalloonTip(
+                10000,
+                "DiffEngineTray",
+                message,
                 ToolTipIcon.Warning));
 
         using var task = StartServer(tracker, cancel);
@@ -81,7 +96,15 @@ static class Program
 
         icon.ContextMenuStrip = menuStrip;
 
-        Application.Run();
+        try
+        {
+            Application.Run();
+        }
+        finally
+        {
+            TrayVersionFile.Delete();
+        }
+
         await tokenSource.CancelAsync();
         await task;
     }
@@ -153,5 +176,10 @@ static class Program
                     payload.ProcessId);
             },
             payload => tracker.AddDelete(payload.File),
+            payload => tracker.AddInlineMove(
+                payload.Temp,
+                payload.Target,
+                payload.PatchFile,
+                payload.StagedVerified),
             cancel);
 }

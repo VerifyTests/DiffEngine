@@ -3,9 +3,15 @@ static class DiffToolLauncher
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    public static void Launch(TrackedMove move)
+    public static void Launch(TrackedMove move) =>
+        Launch(move.Exe!, move.Arguments!, move.CanKill, move.Process, _ => move.Process = _);
+
+    // Inline diff processes are always tray owned, so always killable
+    public static void Launch(TrackedInlineMove move) =>
+        Launch(move.Exe!, move.Arguments!, canKill: true, move.Process, _ => move.Process = _);
+
+    static void Launch(string exe, string arguments, bool canKill, Process? process, Action<Process?> assign)
     {
-        var process = move.Process;
         if (process is { HasExited: false })
         {
             if (SetForegroundWindow(process.MainWindowHandle))
@@ -14,15 +20,15 @@ static class DiffToolLauncher
             }
         }
 
-        if (move.CanKill)
+        if (canKill)
         {
             process?.Kill();
         }
 
         process?.Dispose();
-        move.Process = null;
+        assign(null);
 
-        var startInfo = new ProcessStartInfo(move.Exe!, move.Arguments!)
+        var startInfo = new ProcessStartInfo(exe, arguments)
         {
             // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
             // however UseShellExecute allows the test running to not block when the difftool is launched
@@ -35,7 +41,7 @@ static class DiffToolLauncher
             process = Process.Start(startInfo);
             if (process != null)
             {
-                move.Process = process;
+                assign(process);
                 return;
             }
 
@@ -44,7 +50,7 @@ static class DiffToolLauncher
                 Failed to launch diff tool.
                 {Exe} {Arguments}
                 """,
-                move.Exe, move.Arguments);
+                exe, arguments);
         }
         catch (Exception exception)
         {
@@ -54,8 +60,8 @@ static class DiffToolLauncher
                 Failed to launch diff tool.
                 {Exe} {Arguments}
                 """,
-                move.Exe,
-                move.Arguments);
+                exe,
+                arguments);
         }
     }
 }

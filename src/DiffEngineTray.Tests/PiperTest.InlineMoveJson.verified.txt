@@ -1,0 +1,7 @@
+﻿{
+"Type":"InlineMove",
+"Temp":"theTempFilePath",
+"Target":"theTargetFilePath",
+"PatchFile":"thePatchFilePath",
+"StagedVerified":"theStagedVerifiedPath"
+}

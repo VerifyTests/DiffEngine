@@ -1,0 +1,6 @@
+﻿{
+  Temp: Foo,
+  Target: Bar.cs,
+  PatchFile: patch.txt,
+  StagedVerified: verified.txt
+}
