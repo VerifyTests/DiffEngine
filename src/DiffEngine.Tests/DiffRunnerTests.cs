@@ -174,10 +174,21 @@ public class DiffRunnerTests
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
     }
 
-    static bool IsRunning() =>
-        ProcessCleanup
+    // Match this test's exact command, not any FakeDiffTool: DiffEngineTray.Tests
+    // runs concurrently in the same CI job and launches its own FakeDiffTool
+    // instances, which a machine-wide substring scan would see.
+    bool IsRunning()
+    {
+        var expected = command;
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            expected = expected.Replace("\"", "");
+        }
+
+        return ProcessCleanup
             .FindAll()
-            .Any(_ => _.Command.Contains("FakeDiffTool"));
+            .Any(_ => _.Command == expected);
+    }
 
     // Process spawn and kill are asynchronous, so poll instead of guessing with a
     // fixed sleep. Also used at test start: the previous test's kill may still be
