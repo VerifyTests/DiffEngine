@@ -182,12 +182,17 @@ public class DiffRunnerTests
     // Process spawn and kill are asynchronous, so poll instead of guessing with a
     // fixed sleep. Also used at test start: the previous test's kill may still be
     // completing when the next test begins.
-    static async Task WaitForRunning(bool expected)
+    // Both views must agree before returning: IsRunning() scans processes fresh,
+    // while ProcessCleanup.IsRunning(command) reads the cached list from the last
+    // Refresh(). A process dying between the two reads would otherwise leave the
+    // cache stale and fail the cached assert.
+    async Task WaitForRunning(bool expected)
     {
         for (var attempt = 0; attempt < 40; attempt++)
         {
             ProcessCleanup.Refresh();
-            if (IsRunning() == expected)
+            if (ProcessCleanup.IsRunning(command) == expected &&
+                IsRunning() == expected)
             {
                 return;
             }
