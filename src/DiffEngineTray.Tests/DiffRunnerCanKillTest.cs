@@ -54,7 +54,7 @@ public class DiffRunnerCanKillTest :
     {
         MovePayload? received = null;
         var source = new CancelSource();
-        var server = PiperServer.Start(move => received = move, _ => { }, source.Token);
+        var server = PiperServer.Start(move => received = move, _ => { }, _ => { }, source.Token);
         try
         {
             var result = await launch();

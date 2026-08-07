@@ -73,11 +73,16 @@ static class MenuBuilder
             .OrderBy(_ => _.Temp)
             .ToList();
 
-        var count = moves.Count + deletes.Count;
+        var inlineMoves = tracker
+            .InlineMoves
+            .OrderBy(_ => _.Temp)
+            .ToList();
+
+        var count = moves.Count + deletes.Count + inlineMoves.Count;
 
         yield return new ToolStripSeparator();
 
-        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves))
+        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves, inlineMoves))
         {
             yield return item;
         }
@@ -89,11 +94,13 @@ static class MenuBuilder
     static IEnumerable<ToolStripItem> BuildGroupedMenuItems(
         Tracker tracker,
         List<TrackedDelete> deletes,
-        List<TrackedMove> moves)
+        List<TrackedMove> moves,
+        List<TrackedInlineMove> inlineMoves)
     {
         var groups = deletes
             .Select(_ => _.Group)
             .Concat(moves.Select(_ => _.Group))
+            .Concat(inlineMoves.Select(_ => _.Group))
             .Distinct()
             .ToList();
 
@@ -107,6 +114,9 @@ static class MenuBuilder
                              .Where(_ => _.Group == group)
                              .ToList(),
                          moves
+                             .Where(_ => _.Group == group)
+                             .ToList(),
+                         inlineMoves
                              .Where(_ => _.Group == group)
                              .ToList()))
             {
@@ -125,7 +135,8 @@ static class MenuBuilder
         string? name,
         Tracker tracker,
         List<TrackedDelete> deletes,
-        List<TrackedMove> moves)
+        List<TrackedMove> moves,
+        List<TrackedInlineMove> inlineMoves)
     {
         if (name != null)
         {
@@ -159,7 +170,41 @@ static class MenuBuilder
             }
         }
 
+        if (inlineMoves.Count != 0)
+        {
+            yield return new MenuButton(
+                $"Pending Snapshots ({inlineMoves.Count}):",
+                () => tracker.Accept(inlineMoves),
+                Images.Accept);
+            foreach (var move in inlineMoves)
+            {
+                yield return BuildInlineMove(
+                    move,
+                    () => tracker.Accept(move),
+                    () => tracker.Discard(move));
+            }
+        }
+
         yield return new ToolStripSeparator();
+    }
+
+    static ToolStripDropDownButton BuildInlineMove(TrackedInlineMove move, Action accept, Action discard)
+    {
+        var targetName = Path.GetFileName(move.Target);
+        var menu = new ToolStripDropDownButton($"{move.Name} > {targetName} (inline)")
+        {
+            DropDownDirection = ToolStripDropDownDirection.Left
+        };
+        menu.DropDownItems.Add(new MenuButton("Accept snapshot", accept));
+        menu.DropDownItems.Add(new MenuButton("Discard", discard));
+        if (move.Exe != null)
+        {
+            menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
+        }
+
+        menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(move.Target)));
+        menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
+        return menu;
     }
 
     static ToolStripDropDownButton BuildDelete(TrackedDelete delete, Action accept)

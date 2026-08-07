@@ -116,6 +116,32 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
+    [Test]
+    public async Task OnlyInline()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddInlineMove(file1, "Tests.cs", file2, file3);
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        await Verify(menu, settings);
+    }
+
+    [Test]
+    public async Task FullWithInline()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
+        tracker.AddInlineMove(file4, "Tests.cs", file2, null);
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        await Verify(menu, settings);
+    }
+
     public MenuBuilderTest()
     {
         settings = new();

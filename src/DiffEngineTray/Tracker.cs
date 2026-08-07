@@ -5,17 +5,20 @@ class Tracker :
     Action inactive;
     LockedFilesResolver? lockedFilesResolver;
     Action<TrackedMove>? acceptFailed;
+    Action<TrackedInlineMove, string>? inlineFailed;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
+    ConcurrentDictionary<string, TrackedInlineMove> inlineMoves = new(StringComparer.OrdinalIgnoreCase);
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<TrackedInlineMove, string>? inlineFailed = null)
     {
         this.active = active;
         this.inactive = inactive;
         this.lockedFilesResolver = lockedFilesResolver;
         this.acceptFailed = acceptFailed;
+        this.inlineFailed = inlineFailed;
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
@@ -33,7 +36,24 @@ class Tracker :
             deletes.TryRemove(delete.Key, out _);
         }
 
-        var newCount = moves.Count + deletes.Count;
+        // Inline moves are settled when a passing re-run deletes the staging files.
+        // No FilesAreEqual check: comparing a text temp to a .cs target is meaningless.
+        foreach (var pair in inlineMoves.ToList())
+        {
+            var inline = pair.Value;
+            if (File.Exists(inline.Temp) &&
+                File.Exists(inline.PatchFile))
+            {
+                continue;
+            }
+
+            if (inlineMoves.TryRemove(pair.Key, out var removed))
+            {
+                removed.Process?.KillAndDispose();
+            }
+        }
+
+        var newCount = moves.Count + deletes.Count + inlineMoves.Count;
         if (lastScanCount != newCount)
         {
             ToggleActive();
@@ -95,7 +115,8 @@ class Tracker :
 
     public bool TrackingAny =>
         !moves.IsEmpty ||
-        !deletes.IsEmpty;
+        !deletes.IsEmpty ||
+        !inlineMoves.IsEmpty;
 
     public TrackedMove AddMove(
         string temp,
@@ -194,6 +215,125 @@ class Tracker :
         }
 
         return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess);
+    }
+
+    public TrackedInlineMove AddInlineMove(
+        string temp,
+        string target,
+        string patchFile,
+        string? stagedVerified)
+    {
+        var targetFile = Path.GetFileName(target);
+        return inlineMoves.AddOrUpdate(
+            temp,
+            addValueFactory: key =>
+            {
+                Log.Information("InlineMoveAdded. Target:{target}", targetFile);
+                return BuildTrackedInlineMove(key, target, patchFile, stagedVerified, null);
+            },
+            updateValueFactory: (key, existing) =>
+            {
+                Log.Information("InlineMoveUpdated. Target:{target}", targetFile);
+                return BuildTrackedInlineMove(key, target, patchFile, stagedVerified, existing.Process);
+            });
+    }
+
+    static TrackedInlineMove BuildTrackedInlineMove(string temp, string target, string patchFile, string? stagedVerified, Process? process)
+    {
+        var solution = SolutionDirectoryFinder.Find(target);
+        string? exe = null;
+        string? arguments = null;
+        if (stagedVerified != null)
+        {
+            var extension = Path.GetExtension(temp).TrimStart('.');
+            if (DiffTools.TryFindByExtension(extension, out var tool))
+            {
+                exe = tool.ExePath;
+                arguments = tool.GetArguments(temp, stagedVerified);
+            }
+        }
+
+        return new(temp, target, patchFile, stagedVerified, solution, exe, arguments)
+        {
+            Process = process
+        };
+    }
+
+    public void Accept(TrackedInlineMove move)
+    {
+        if (!inlineMoves.TryRemove(move.Temp, out var removed))
+        {
+            return;
+        }
+
+        removed.Process?.KillAndDispose();
+        removed.Process = null;
+
+        if (!InlinePatchFile.TryRead(removed.PatchFile, out var patch))
+        {
+            DiscardInlineStaging(removed);
+            Log.Warning("Could not read patch file for `{Name}`: {PatchFile}", removed.Name, removed.PatchFile);
+            inlineFailed?.Invoke(removed, $"Could not read the patch file for '{removed.Name}'. Re-run the test.");
+            return;
+        }
+
+        var result = InlineApplier.Apply(patch);
+        switch (result.Status)
+        {
+            case InlineApplyStatus.Applied:
+            case InlineApplyStatus.AlreadyApplied:
+                Log.Information("Inline snapshot accepted for `{Name}`. Target:{Target}", removed.Name, removed.Target);
+                DiscardInlineStaging(removed);
+                return;
+            case InlineApplyStatus.NotFound:
+                // The patch is stale; a re-run regenerates a fresh one. Discard.
+                Log.Warning("Inline snapshot for `{Name}` could not be applied: {Message}", removed.Name, result.Message);
+                DiscardInlineStaging(removed);
+                inlineFailed?.Invoke(removed, $"Could not apply the snapshot for '{removed.Name}': the source has changed. Re-run the test.");
+                return;
+            default:
+                // Retryable (eg file locked by an IDE). Keep pending
+                Log.Warning(result.Exception, "Inline snapshot accept failed for `{Name}`: {Message}. Kept pending", removed.Name, result.Message);
+                inlineMoves.TryAdd(removed.Temp, removed);
+                inlineFailed?.Invoke(removed, $"Could not accept the snapshot for '{removed.Name}': {result.Message}. The item is still pending, so accept can be retried.");
+                return;
+        }
+    }
+
+    public void Accept(IEnumerable<TrackedInlineMove> toAccept)
+    {
+        // Sequential arbitrary order is safe: anchoring is content based, and each
+        // apply is its own locked read-modify-write, even into the same .cs file
+        foreach (var move in toAccept)
+        {
+            Accept(move);
+        }
+    }
+
+    public void Discard(TrackedInlineMove move)
+    {
+        if (inlineMoves.TryRemove(move.Temp, out var removed))
+        {
+            removed.Process?.KillAndDispose();
+            removed.Process = null;
+            DiscardInlineStaging(removed);
+        }
+    }
+
+    static void DiscardInlineStaging(TrackedInlineMove move)
+    {
+        FileEx.SafeDeleteFile(move.Temp);
+        FileEx.SafeDeleteFile(move.PatchFile);
+        if (move.StagedVerified != null)
+        {
+            FileEx.SafeDeleteFile(move.StagedVerified);
+        }
+
+        var directory = Path.GetDirectoryName(move.Temp);
+        if (directory != null)
+        {
+            FileEx.SafeDeleteDirectory(directory);
+        }
     }
 
     public TrackedDelete AddDelete(string file) =>
@@ -459,6 +599,14 @@ class Tracker :
         }
 
         moves.Clear();
+
+        foreach (var inline in inlineMoves.Values)
+        {
+            inline.Process?.KillAndDispose();
+            inline.Process = null;
+        }
+
+        inlineMoves.Clear();
     }
 
     public void AcceptOpen()
@@ -469,6 +617,11 @@ class Tracker :
             moves.Values
                 .Where(_ => _.Process is { HasExited: false })
                 .ToList());
+
+        Accept(
+            inlineMoves.Values
+                .Where(_ => _.Process is { HasExited: false })
+                .ToList());
     }
 
     public void AcceptAll()
@@ -476,6 +629,8 @@ class Tracker :
         AcceptAllDeletes();
 
         AcceptMoves(moves.Values);
+
+        Accept(inlineMoves.Values.ToList());
     }
 
     void AcceptAllDeletes()
@@ -491,6 +646,8 @@ class Tracker :
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 
     public ICollection<TrackedMove> Moves => moves.Values;
+
+    public ICollection<TrackedInlineMove> InlineMoves => inlineMoves.Values;
 
     public ValueTask DisposeAsync()
     {
