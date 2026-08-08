@@ -16,22 +16,26 @@ public static class CsStringLiteral
     /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
     public static string RenderRaw(string content, string indent, string eol)
     {
+        if (content.Length == 0)
+        {
+            // A multi-line raw string requires at least one line of content (CS9002),
+            // so empty content cannot use the raw form
+            return "\"\"";
+        }
+
         var delimiter = new string('"', Math.Max(3, LongestQuoteRun(content) + 1));
         var builder = new StringBuilder();
         builder.Append(delimiter);
         builder.Append(eol);
-        if (content.Length > 0)
+        foreach (var line in content.Split('\n'))
         {
-            foreach (var line in content.Split('\n'))
+            if (line.Length > 0)
             {
-                if (line.Length > 0)
-                {
-                    builder.Append(indent);
-                    builder.Append(line);
-                }
-
-                builder.Append(eol);
+                builder.Append(indent);
+                builder.Append(line);
             }
+
+            builder.Append(eol);
         }
 
         builder.Append(indent);

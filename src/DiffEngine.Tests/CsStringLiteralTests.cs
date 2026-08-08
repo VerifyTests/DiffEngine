@@ -2,7 +2,11 @@
 {
     static readonly string[] renderRoundTripCases =
     [
+        "",
+        " ",
         "abc",
+        "abc\"\"\"",
+        "\"\"\"\n\"\"\"",
         "a\nb",
         "\nabc",
         "abc\n",
@@ -38,8 +42,9 @@
     [Test]
     public async Task RenderEmpty()
     {
+        // A multi-line raw string requires at least one line of content (CS9002)
         var rendered = CsStringLiteral.RenderRaw("", "    ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"\n    \"\"\"");
+        await Assert.That(rendered).IsEqualTo("\"\"");
     }
 
     [Test]
