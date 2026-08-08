@@ -1,0 +1,4 @@
+﻿{
+  Left: left.txt,
+  Right: right.txt
+}

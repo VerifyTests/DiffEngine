@@ -1,0 +1,133 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel in-progress runs if a new push lands on the same branch.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  windows:
+    name: windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # native/vendor holds the raylib and imgui submodules.
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # A plain build is also the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
+      # Release package project, so this produces ./nugets as a side effect.
+      - name: Build
+        run: dotnet build src --configuration Release
+
+      - name: Test
+        run: dotnet test --solution src/DiffEngine.slnx --configuration Release --no-build --no-restore
+
+      - name: AOT publish
+        run: dotnet publish src/DiffEngine.AotTests/DiffEngine.AotTests.csproj --configuration Release
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-windows
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload packages
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: nugets/*.nupkg
+          if-no-files-found: warn
+          retention-days: 30
+
+  unix:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # raylib links against X11, GL and friends. xvfb plus the Mesa software rasteriser are what
+      # the pixel snapshots run against.
+      - name: Install native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build \
+            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev \
+            xvfb libgl1-mesa-dri
+
+      # Built here rather than taken from the committed binaries, so the Linux job tests the
+      # current native source and the pixel baselines track it.
+      - name: Build native renderer
+        if: runner.os == 'Linux'
+        run: |
+          cmake -S native -B native/build/linux-x64 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build native/build/linux-x64
+          mkdir -p src/DiffEngineViewer/runtimes/linux-x64/native
+          cp native/build/linux-x64/libdiffengine_viewer.so src/DiffEngineViewer/runtimes/linux-x64/native/
+
+      # Release-NotWindows drops the WinForms tray and its tests from the solution.
+      - name: Build
+        run: dotnet build src --configuration Release-NotWindows
+
+      - name: Test
+        run: dotnet test --solution src/DiffEngine.slnx --configuration Release-NotWindows --no-build --no-restore
+
+      # Pinned to one rasteriser rather than one platform: llvmpipe is pure software and so more
+      # reproducible than any GPU driver, and ImGui rasterises glyphs itself.
+      - name: Pixel snapshots
+        if: runner.os == 'Linux'
+        env:
+          DIFFENGINE_VIEWER_PIXEL_TESTS: 'true'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GALLIUM_DRIVER: llvmpipe
+        run: >
+          xvfb-run -a --server-args="-screen 0 1920x1080x24"
+          dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj
+          --configuration Release-NotWindows --no-build --no-restore
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-${{ matrix.os }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14

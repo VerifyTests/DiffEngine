@@ -1,0 +1,147 @@
+name: Build native
+
+# Produces the diffengine_viewer binaries committed under
+# src/DiffEngineViewer/runtimes/{rid}/native.
+#
+# They are committed rather than built during a normal build so that a plain
+# `dotnet build src --configuration Release` produces a shippable package on any machine, and
+# contributors never need a C++ toolchain. Run this whenever native/ changes.
+on:
+  push:
+    paths:
+      - 'native/**'
+      - '.github/workflows/build-native.yml'
+  pull_request:
+    paths:
+      - 'native/**'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Open a PR with the rebuilt binaries'
+        type: boolean
+        default: true
+
+concurrency:
+  group: build-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            generator: -A x64
+          - rid: win-arm64
+            os: windows-latest
+            generator: -A ARM64
+          - rid: linux-x64
+            os: ubuntu-24.04
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+          # One universal binary covers both macOS RIDs; it is copied into each below.
+          - rid: osx
+            os: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build \
+            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "${{ matrix.rid }}" = "osx" ]; then
+            cmake -S native -B build -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -S native -B build ${{ matrix.generator }}
+          else
+            cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          fi
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Collect
+        shell: bash
+        run: |
+          collect() {
+            mkdir -p "artifacts/$1/native"
+            cp "$2" "artifacts/$1/native/"
+          }
+          case "${{ matrix.rid }}" in
+            win-*)
+              collect "${{ matrix.rid }}" build/Release/diffengine_viewer.dll
+              ;;
+            linux-*)
+              strip build/libdiffengine_viewer.so
+              collect "${{ matrix.rid }}" build/libdiffengine_viewer.so
+              ;;
+            osx)
+              strip -x build/libdiffengine_viewer.dylib
+              # The dylib is universal, so both macOS RIDs get the same file.
+              collect osx-x64 build/libdiffengine_viewer.dylib
+              collect osx-arm64 build/libdiffengine_viewer.dylib
+              ;;
+          esac
+          ls -lhR artifacts
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/
+          retention-days: 7
+
+  propose:
+    name: propose update
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: src/DiffEngineViewer/runtimes
+
+      - name: Show what changed
+        run: |
+          ls -lhR src/DiffEngineViewer/runtimes
+          git status --short
+
+      # A PR rather than a direct push: these are binaries, so the diff is not reviewable and the
+      # change deserves an explicit approval.
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: native-binaries
+          title: 'Rebuild native renderer binaries'
+          commit-message: 'Rebuild native renderer binaries'
+          body: |
+            Rebuilt `diffengine_viewer` from `native/` for all six RIDs.
+
+            Produced by the `build-native` workflow from ${{ github.sha }}.
+          add-paths: src/DiffEngineViewer/runtimes

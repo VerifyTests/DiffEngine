@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
 
 static class PiperServer
@@ -6,7 +6,6 @@ static class PiperServer
     public static async Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
-        Action<InlineMovePayload> inlineMove,
         Cancel cancel = default)
     {
         TcpListener? listener = default;
@@ -25,7 +24,7 @@ static class PiperServer
 
                 try
                 {
-                    await Handle(listener, move, delete, inlineMove, cancel);
+                    await Handle(listener, move, delete, cancel);
                 }
                 catch (TaskCanceledException)
                 {
@@ -58,7 +57,7 @@ static class PiperServer
         }
     }
 
-    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Action<InlineMovePayload> inlineMove, Cancel cancel)
+    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Cancel cancel)
     {
         await using (cancel.Register(listener.Stop))
         {
@@ -67,15 +66,8 @@ static class PiperServer
 
             var payload = await reader.ReadToEndAsync(cancel);
 
-            // InlineMove is checked before Move for specific-before-general ordering
-            // (not strictly load bearing: "Type":"Move" is not a substring of "Type":"InlineMove")
-            if (payload.Contains("\"Type\":\"InlineMove\"") ||
-                payload.Contains("\"Type\": \"InlineMove\""))
-            {
-                inlineMove(Serializer.Deserialize<InlineMovePayload>(payload));
-            }
-            else if (payload.Contains("\"Type\":\"Move\"") ||
-                     payload.Contains("\"Type\": \"Move\""))
+            if (payload.Contains("\"Type\":\"Move\"") ||
+                payload.Contains("\"Type\": \"Move\""))
             {
                 move(Serializer.Deserialize<MovePayload>(payload));
             }

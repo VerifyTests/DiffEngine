@@ -1,0 +1,79 @@
+name: Publish NuGet
+
+# Packs DiffEngine, DiffEngineTray and DiffEngineViewer and pushes them to nuget.org using Trusted
+# Publishing (OIDC), so no long lived API key is stored. GitHub Actions mints a short lived OIDC
+# token; the NuGet/login action exchanges it for a temporary nuget.org API key, issued only because
+# a matching trusted-publishing policy is registered for this repo and workflow.
+#
+# One-time setup:
+#   1. nuget.org -> Account -> Trusted Publishing: add a policy for this GitHub owner and
+#      repository, scoped to this workflow file, covering DiffEngine, DiffEngineTray and
+#      DiffEngineViewer.
+#   2. Repo -> Settings -> Secrets and variables -> Actions -> Variables: set NUGET_USER to the
+#      nuget.org username. A username is not sensitive, so it lives in a variable not a secret.
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required: lets the job request a GitHub OIDC token
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  publish:
+    # Windows, because DiffEngineTray is WinForms and is excluded from the non-Windows
+    # configuration. Publishing from anywhere else would silently drop it.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: NuGet OIDC login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # A plain build is the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
+      # Release package project, so each package is produced by its own build, in dependency
+      # order, into ./nugets. Deliberately not `dotnet pack`, which on a solution races with
+      # GeneratePackageOnBuild.
+      - name: Build and pack
+        run: dotnet build src --configuration Release
+
+      # DE0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
+      # platform it claims to support is worse than failing the release.
+      - name: Verify every RID has a native renderer
+        shell: bash
+        run: |
+          missing=0
+          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            directory="src/DiffEngineViewer/runtimes/$rid/native"
+            if [ -z "$(ls -A "$directory" 2>/dev/null)" ]; then
+              echo "::error::No native renderer for $rid. Run the build-native workflow."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Push to nuget.org
+        # --skip-duplicate makes re-runs idempotent.
+        run: >
+          dotnet nuget push "nugets/*.nupkg"
+          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

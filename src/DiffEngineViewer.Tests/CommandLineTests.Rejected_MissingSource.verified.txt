@@ -1,0 +1,1 @@
+﻿--inline requires --source.

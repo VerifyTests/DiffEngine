@@ -33,5 +33,6 @@ public static class Definitions
             Implementation.VisualStudioCode(),
             Implementation.Cursor(),
             Implementation.VisualStudio(),
+            Implementation.DiffEngineViewer(),
         ];
 }

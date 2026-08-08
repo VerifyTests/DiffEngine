@@ -2,6 +2,7 @@
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
+ * **[DiffEngineViewer](/docs/diff-tool.md#diffengineviewer)** Windows/OSX/Linux (Cost: Free)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Windows (Cost: Free with option to donate)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Windows (Cost: Paid)
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Windows/OSX (Cost: Paid)

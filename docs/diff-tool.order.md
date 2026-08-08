@@ -34,7 +34,8 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Windows/OSX/Linux (Cost: Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
- * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)<!-- endInclude -->
+ * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
+ * **[DiffEngineViewer](/docs/diff-tool.md#diffengineviewer)** Windows/OSX/Linux (Cost: Free)<!-- endInclude -->
 
 
 ## Custom order

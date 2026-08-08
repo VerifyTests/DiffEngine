@@ -6,10 +6,6 @@ static class DiffToolLauncher
     public static void Launch(TrackedMove move) =>
         Launch(move.Exe!, move.Arguments!, move.CanKill, move.Process, _ => move.Process = _);
 
-    // Inline diff processes are always tray owned, so always killable
-    public static void Launch(TrackedInlineMove move) =>
-        Launch(move.Exe!, move.Arguments!, canKill: true, move.Process, _ => move.Process = _);
-
     static void Launch(string exe, string arguments, bool canKill, Process? process, Action<Process?> assign)
     {
         if (process is { HasExited: false })

@@ -1,4 +1,4 @@
-﻿static class PiperClient
+static class PiperClient
 {
     public static int Port = 3492;
 
@@ -71,49 +71,6 @@
                 $"""
                  ,
                  "ProcessId":{processId}
-                 """);
-        }
-
-        builder.AppendLine();
-        builder.Append('}');
-        return builder.ToString();
-    }
-
-    public static void SendInlineMove(
-        string tempFile,
-        string targetFile,
-        string patchFile,
-        string? stagedVerified) =>
-        Send(BuildInlineMovePayload(tempFile, targetFile, patchFile, stagedVerified));
-
-    public static Task SendInlineMoveAsync(
-        string tempFile,
-        string targetFile,
-        string patchFile,
-        string? stagedVerified,
-        Cancel cancel = default)
-    {
-        var payload = BuildInlineMovePayload(tempFile, targetFile, patchFile, stagedVerified);
-        return SendAsync(payload, cancel);
-    }
-
-    public static string BuildInlineMovePayload(string tempFile, string targetFile, string patchFile, string? stagedVerified)
-    {
-        var builder = new StringBuilder(
-            $$"""
-              {
-              "Type":"InlineMove",
-              "Temp":"{{tempFile.JsonEscape()}}",
-              "Target":"{{targetFile.JsonEscape()}}",
-              "PatchFile":"{{patchFile.JsonEscape()}}"
-              """);
-
-        if (stagedVerified != null)
-        {
-            builder.Append(
-                $"""
-                 ,
-                 "StagedVerified":"{stagedVerified.JsonEscape()}"
                  """);
         }
 

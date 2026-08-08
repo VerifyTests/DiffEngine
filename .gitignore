@@ -12,3 +12,4 @@ nul
 /TestResults
 /coverage
 BenchmarkDotNet.Artifacts/
+native/build/

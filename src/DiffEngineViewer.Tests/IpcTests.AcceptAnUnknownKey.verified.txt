@@ -1,0 +1,4 @@
+﻿{
+  Ok: false,
+  Message: No pending snapshot for missing|1
+}
