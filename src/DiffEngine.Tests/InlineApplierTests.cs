@@ -212,6 +212,77 @@
         }
     }
 
+    static int Count(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while (true)
+        {
+            index = text.IndexOf(value, index, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return count;
+            }
+
+            count++;
+            index += value.Length;
+        }
+    }
+
+    // Two tests in the same file producing the same result, accepted concurrently.
+    // Both sites must end up patched: neither apply may claim the other's literal.
+    [Test]
+    public async Task ParallelAppliesWithIdenticalLiterals()
+    {
+        var multi = "class C\n{\n    void A() => VerifyInline(a, \"old\");\n    void B() => VerifyInline(b, \"old\");\n}";
+        var path = WriteTemp(Utf8(multi, bom: false));
+        try
+        {
+            var taskA = InlineApplier.ApplyAsync(new(path, 3, "\"old\"", "same"));
+            var taskB = InlineApplier.ApplyAsync(new(path, 4, "\"old\"", "same"));
+            var results = await Task.WhenAll(taskA, taskB);
+
+            await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(results[1].Status).IsEqualTo(InlineApplyStatus.Applied);
+
+            var text = File.ReadAllText(path);
+            await Assert.That(text).DoesNotContain("old");
+            await Assert.That(Count(text, "same")).IsEqualTo(2);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task SequentialAppliesWithIdenticalLiterals()
+    {
+        var multi = "class C\n{\n    void A() => VerifyInline(a, \"old\");\n    void B() => VerifyInline(b, \"old\");\n}";
+        var path = WriteTemp(Utf8(multi, bom: false));
+        try
+        {
+            var first = InlineApplier.Apply(new(path, 3, "\"old\"", "newA"));
+            var second = InlineApplier.Apply(new(path, 4, "\"old\"", "newB"));
+
+            await Assert.That(first.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(second.Status).IsEqualTo(InlineApplyStatus.Applied);
+
+            var text = File.ReadAllText(path);
+            await Assert.That(text).DoesNotContain("old");
+            var indexA = text.IndexOf("VerifyInline(a", StringComparison.Ordinal);
+            var indexB = text.IndexOf("VerifyInline(b", StringComparison.Ordinal);
+            var segmentA = text.Substring(indexA, indexB - indexA);
+            await Assert.That(segmentA).Contains("newA");
+            await Assert.That(segmentA).DoesNotContain("newB");
+            await Assert.That(text.Substring(indexB)).Contains("newB");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public async Task NotFoundWhenSourceChanged()
     {

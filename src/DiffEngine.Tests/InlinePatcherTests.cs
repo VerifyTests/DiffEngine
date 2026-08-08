@@ -74,6 +74,132 @@
         await Assert.That(newSource).DoesNotContain("VerifyInline(b, \"dup\")");
     }
 
+    // Two call sites, A on line 4 and B on line 7
+    static string TwoCallSites(string literalA, string literalB) =>
+        string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    void A() =>",
+            $"        VerifyInline(a, {literalA});",
+            "",
+            "    void B() =>",
+            $"        VerifyInline(b, {literalB});",
+            "}");
+
+    static (string a, string b) Segments(string text)
+    {
+        var indexA = text.IndexOf("VerifyInline(a", StringComparison.Ordinal);
+        var indexB = text.IndexOf("VerifyInline(b", StringComparison.Ordinal);
+        return (text.Substring(indexA, indexB - indexA), text.Substring(indexB));
+    }
+
+    [Test]
+    public async Task DuplicateLiteralsPicksNearestToHintFirst()
+    {
+        var source = TwoCallSites("\"dup\"", "\"dup\"");
+
+        var status = InlinePatcher.TryApply(source, 4, "\"dup\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        var (a, b) = Segments(newSource);
+        await Assert.That(a).Contains("new");
+        await Assert.That(a).DoesNotContain("dup");
+        // The other site is untouched
+        await Assert.That(b).Contains("\"dup\"");
+        await Assert.That(b).DoesNotContain("new");
+    }
+
+    [Test]
+    public async Task EquidistantDuplicatesPreferAtOrAfterHint()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    void A() =>",
+            "        VerifyInline(a, \"dup\");",
+            "    void B() =>",
+            "        VerifyInline(b, \"dup\");",
+            "}");
+
+        // Line 5 is equidistant from the sites on lines 4 and 6
+        var status = InlinePatcher.TryApply(source, 5, "\"dup\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        var (a, b) = Segments(newSource);
+        await Assert.That(a).Contains("\"dup\"");
+        await Assert.That(b).Contains("new");
+    }
+
+    // Two tests in the same file producing the same result: both sites must end up
+    // patched, and the second apply must not mistake the first for its own
+    [Test]
+    public async Task SequentialPatchesOfIdenticalLiteralsSameContent()
+    {
+        var source = TwoCallSites("\"old\"", "\"old\"");
+
+        var first = InlinePatcher.TryApply(source, 4, "\"old\"", "new", out var afterFirst, out _);
+        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "new", out var afterSecond, out var reason);
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(second).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(afterSecond).DoesNotContain("old");
+        var (a, b) = Segments(afterSecond);
+        await Assert.That(a).Contains("new");
+        await Assert.That(b).Contains("new");
+    }
+
+    [Test]
+    public async Task SequentialPatchesOfIdenticalLiteralsDifferentContent()
+    {
+        var source = TwoCallSites("\"old\"", "\"old\"");
+
+        var first = InlinePatcher.TryApply(source, 4, "\"old\"", "newA", out var afterFirst, out _);
+        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "newB", out var afterSecond, out _);
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(second).IsEqualTo(PatchStatus.Applied);
+        var (a, b) = Segments(afterSecond);
+        // Each site gets its own content, not the other's
+        await Assert.That(a).Contains("newA");
+        await Assert.That(a).DoesNotContain("newB");
+        await Assert.That(b).Contains("newB");
+        await Assert.That(b).DoesNotContain("newA");
+    }
+
+    // The first apply turns a single line literal into a multi line one, so the second
+    // site has shifted down by the time its (stale) line hint is used
+    [Test]
+    public async Task SecondPatchSurvivesLineShiftFromTheFirst()
+    {
+        var source = TwoCallSites("\"old\"", "\"old\"");
+
+        InlinePatcher.TryApply(source, 4, "\"old\"", "line1\nline2\nline3", out var afterFirst, out _);
+        var lineShift = afterFirst.Split('\n').Length - source.Split('\n').Length;
+        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "newB", out var afterSecond, out _);
+
+        await Assert.That(lineShift).IsGreaterThan(0);
+        await Assert.That(second).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(afterSecond).DoesNotContain("old");
+        var (a, b) = Segments(afterSecond);
+        await Assert.That(a).Contains("line1");
+        await Assert.That(b).Contains("newB");
+    }
+
+    // Re-applying a patch whose site is already done, while an identical literal exists
+    // elsewhere, must not patch the other site
+    [Test]
+    public async Task ReapplyingWithIdenticalLiteralsIsAlreadyApplied()
+    {
+        var source = TwoCallSites("\"new\"", "\"old\"");
+
+        var status = InlinePatcher.TryApply(source, 4, "\"gone\"", "new", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
     [Test]
     public async Task ExpressionGoneAndLiteralMatchesIsAlreadyApplied()
     {
