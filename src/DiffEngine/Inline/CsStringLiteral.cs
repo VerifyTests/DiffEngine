@@ -23,6 +23,13 @@ public static class CsStringLiteral
             return "\"\"";
         }
 
+        if (content.IndexOf('\r') != -1)
+        {
+            // Content is meant to arrive \n normalized. Be defensive: a stray \r would
+            // otherwise be emitted into the literal as content, corrupting the snapshot
+            content = NormalizeNewlines(content);
+        }
+
         var delimiter = new string('"', Math.Max(3, LongestQuoteRun(content) + 1));
         var builder = new StringBuilder();
         builder.Append(delimiter);

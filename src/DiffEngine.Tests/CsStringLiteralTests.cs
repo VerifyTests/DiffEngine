@@ -62,6 +62,25 @@
     }
 
     [Test]
+    [Arguments("a\r\nb")]
+    [Arguments("a\rb")]
+    [Arguments("a\r\nb\rc\nd")]
+    public async Task RenderNormalizesCarriageReturns(string content)
+    {
+        // Content is meant to arrive \n normalized; a stray \r must not reach the literal
+        var normalized = content.Replace("\r\n", "\n").Replace('\r', '\n');
+        foreach (var eol in new[] { "\n", "\r\n" })
+        {
+            var rendered = CsStringLiteral.RenderRaw(content, "    ", eol);
+            await Assert.That(rendered).IsEqualTo(CsStringLiteral.RenderRaw(normalized, "    ", eol));
+
+            var parsed = CsStringLiteral.TryParse(rendered, out var value);
+            await Assert.That(parsed).IsTrue();
+            await Assert.That(value).IsEqualTo(normalized);
+        }
+    }
+
+    [Test]
     public async Task RenderCrlf()
     {
         var rendered = CsStringLiteral.RenderRaw("a\nb", "\t", "\r\n");

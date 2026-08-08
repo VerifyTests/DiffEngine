@@ -212,4 +212,153 @@
         await Assert.That(newSource.StartsWith(prefix)).IsTrue();
         await Assert.That(newSource.EndsWith(suffix)).IsTrue();
     }
+
+    const string crlf = "\r\n";
+    const string lf = "\n";
+
+    static string BuildMultiLineSource(string eol) =>
+        string.Join(
+            eol,
+            "class Tests",
+            "{",
+            "    async Task Test()",
+            "    {",
+            "        await VerifyInline(value, \"\"\"",
+            "            old1",
+            "            old2",
+            "            \"\"\");",
+            "    }",
+            "}");
+
+    static string BuildExpression(string eol) =>
+        string.Join(
+            eol,
+            "\"\"\"",
+            "            old1",
+            "            old2",
+            "            \"\"\"");
+
+    // Every line ending in the result must match the file's, with no strays
+    static async Task AssertEolConsistent(string text, string eol)
+    {
+        for (var index = 0; index < text.Length; index++)
+        {
+            var current = text[index];
+            if (current == '\r')
+            {
+                await Assert.That(eol).IsEqualTo(crlf);
+                await Assert.That(index + 1 < text.Length && text[index + 1] == '\n').IsTrue();
+                continue;
+            }
+
+            if (current == '\n' &&
+                eol == crlf)
+            {
+                await Assert.That(index > 0 && text[index - 1] == '\r').IsTrue();
+            }
+        }
+    }
+
+    [Test]
+    [Arguments(crlf, crlf, crlf)]
+    [Arguments(crlf, crlf, lf)]
+    [Arguments(crlf, lf, crlf)]
+    [Arguments(crlf, lf, lf)]
+    [Arguments(lf, crlf, crlf)]
+    [Arguments(lf, crlf, lf)]
+    [Arguments(lf, lf, crlf)]
+    [Arguments(lf, lf, lf)]
+    public async Task EolCombinations(string fileEol, string expressionEol, string contentEol)
+    {
+        var source = BuildMultiLineSource(fileEol);
+        var expression = BuildExpression(expressionEol);
+        var content = "new1" + contentEol + "new2";
+
+        var status = InlinePatcher.TryApply(source, 5, expression, content, out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains("new1");
+        await Assert.That(newSource).Contains("new2");
+        await Assert.That(newSource).DoesNotContain("old1");
+        await Assert.That(newSource).DoesNotContain("old2");
+        await AssertEolConsistent(newSource, fileEol);
+    }
+
+    [Test]
+    [Arguments(crlf, crlf)]
+    [Arguments(crlf, lf)]
+    [Arguments(lf, crlf)]
+    [Arguments(lf, lf)]
+    public async Task EolCombinationsForInsert(string fileEol, string contentEol)
+    {
+        var source = string.Join(
+            fileEol,
+            "class Tests",
+            "{",
+            "    async Task Test()",
+            "    {",
+            "        await VerifyInline(value);",
+            "    }",
+            "}");
+        var content = "new1" + contentEol + "new2";
+
+        var status = InlinePatcher.TryApply(source, 5, null, content, out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("new1");
+        await Assert.That(newSource).Contains("new2");
+        await AssertEolConsistent(newSource, fileEol);
+    }
+
+    [Test]
+    public async Task LoneCarriageReturnInContentIsNormalized()
+    {
+        var source = BuildMultiLineSource(lf);
+        var expression = BuildExpression(lf);
+
+        var status = InlinePatcher.TryApply(source, 5, expression, "new1\rnew2", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).DoesNotContain("\r");
+        await Assert.That(newSource).Contains("new1");
+        await Assert.That(newSource).Contains("new2");
+    }
+
+    [Test]
+    public async Task MixedEolFileLeavesUntouchedRegionsAlone()
+    {
+        // The prefix and tail use LF, the body uses CRLF, so CRLF is dominant
+        var prefix = "// leading comment\n// another\n";
+        var body = string.Join(
+            crlf,
+            "class Tests",
+            "{",
+            "    async Task Test()",
+            "    {",
+            "        await VerifyInline(value, \"old\");",
+            "    }",
+            "}");
+        var suffix = "\r\n// trailing\n// mixed tail\n";
+        var source = prefix + body + suffix;
+
+        var status = InlinePatcher.TryApply(source, 7, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        // Untouched regions keep their original endings byte for byte
+        await Assert.That(newSource.StartsWith(prefix, StringComparison.Ordinal)).IsTrue();
+        await Assert.That(newSource.EndsWith(suffix, StringComparison.Ordinal)).IsTrue();
+        // The spliced literal uses the file's dominant ending
+        await Assert.That(newSource).Contains("\"\"\"\r\n            new\r\n            \"\"\"");
+    }
+
+    [Test]
+    public async Task SingleLineFileWithNoNewlines()
+    {
+        var status = InlinePatcher.TryApply("await VerifyInline(value, \"old\");", 1, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("new");
+        await Assert.That(newSource).DoesNotContain("\"old\"");
+    }
 }

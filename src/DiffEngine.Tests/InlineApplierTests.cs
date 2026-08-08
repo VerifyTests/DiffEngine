@@ -100,6 +100,72 @@
         }
     }
 
+    // fileEol x contentEol, with both bom states, asserting the file keeps a single
+    // consistent line ending and the BOM state is untouched
+    [Test]
+    [Arguments("\r\n", "\r\n", true)]
+    [Arguments("\r\n", "\n", true)]
+    [Arguments("\r\n", "\r\n", false)]
+    [Arguments("\r\n", "\n", false)]
+    [Arguments("\n", "\r\n", true)]
+    [Arguments("\n", "\n", true)]
+    [Arguments("\n", "\r\n", false)]
+    [Arguments("\n", "\n", false)]
+    public async Task EolAndBomCombinations(string fileEol, string contentEol, bool bom)
+    {
+        var path = WriteTemp(Utf8(source.Replace("\n", fileEol), bom));
+        try
+        {
+            var content = "a" + contentEol + "b";
+            var result = InlineApplier.Apply(new(path, 3, "\"old\"", content));
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+
+            var bytes = File.ReadAllBytes(path);
+            var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            await Assert.That(hasBom).IsEqualTo(bom);
+
+            var text = File.ReadAllText(path);
+            await Assert.That(text).Contains("a" + fileEol);
+            await Assert.That(text).Contains("b");
+            await Assert.That(text).DoesNotContain("old");
+
+            // No stray endings: every \r is part of the file ending, and when the file
+            // is LF there are no \r at all
+            for (var index = 0; index < text.Length; index++)
+            {
+                if (text[index] == '\r')
+                {
+                    await Assert.That(fileEol).IsEqualTo("\r\n");
+                    await Assert.That(index + 1 < text.Length && text[index + 1] == '\n').IsTrue();
+                }
+                else if (text[index] == '\n' && fileEol == "\r\n")
+                {
+                    await Assert.That(index > 0 && text[index - 1] == '\r').IsTrue();
+                }
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LfFileIsNotConvertedToCrlf()
+    {
+        var path = WriteTemp(Utf8(source, bom: false));
+        try
+        {
+            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "a\nb"));
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(File.ReadAllText(path)).DoesNotContain("\r");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public async Task MissingFileFails()
     {
