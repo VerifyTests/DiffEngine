@@ -89,14 +89,45 @@ jobs:
               collect DiffEngineViewer.Linux "${{ matrix.rid }}" build/libdiffengine_viewer.so
               ;;
             osx)
-              # SwiftPM puts a universal build under .build/apple, and a single arch one under
-              # .build/release, so it is found rather than assumed.
-              dylib=$(find native/swift/.build -name libdiffengine_viewer.dylib | head -1)
-              if [ -z "$dylib" ]; then
+              # swift build leaves a per architecture dylib in more than one place, so taking the
+              # first one found gives a single slice binary that loads on half the Macs in the
+              # world. Every candidate is checked, and if none is already universal they are
+              # merged, so the only thing that can be collected is a fat binary.
+              candidates=$(find native/swift/.build -name libdiffengine_viewer.dylib)
+              if [ -z "$candidates" ]; then
                 echo "::error::swift build produced no libdiffengine_viewer.dylib"
                 exit 1
               fi
-              lipo -archs "$dylib"
+
+              echo "$candidates" | while read -r candidate; do
+                echo "$candidate: $(lipo -archs "$candidate" 2>/dev/null)"
+              done
+
+              dylib=""
+              for candidate in $candidates; do
+                archs=$(lipo -archs "$candidate" 2>/dev/null || echo "")
+                if [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]; then
+                  dylib="$candidate"
+                  break
+                fi
+              done
+
+              if [ -z "$dylib" ]; then
+                dylib=universal/libdiffengine_viewer.dylib
+                mkdir -p universal
+                # shellcheck disable=SC2086
+                lipo -create $candidates -output "$dylib"
+              fi
+
+              archs=$(lipo -archs "$dylib")
+              echo "collecting $dylib: $archs"
+              for arch in x86_64 arm64; do
+                case " $archs " in
+                  *" $arch "*) ;;
+                  *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+                esac
+              done
+
               strip -x "$dylib"
               # The dylib is universal, so both macOS RIDs get the same file.
               collect DiffEngineViewer.Mac osx-x64 "$dylib"
