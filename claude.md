@@ -63,6 +63,8 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
   chooses a renderer; nothing else about the app is per platform.
 - Windows renders with **WinForms** and loads no native library. It is pumped through
   `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared.
+- macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
+  ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
 - Does **not** reference DiffEngine. It links `Inline/*.cs` and `Tray/TrayDetector.cs` as source,
   because DiffEngine publishes and embeds the heads and a reference back would be a cycle.
 - Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the window,

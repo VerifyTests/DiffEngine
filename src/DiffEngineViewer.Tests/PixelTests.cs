@@ -5,11 +5,25 @@
 /// rather than opening one per test.
 /// </para>
 /// <para>
-/// The verified images are the ones produced by the Linux CI job under Xvfb with Mesa llvmpipe.
-/// Determinism comes from pinning the rasteriser rather than the platform: llvmpipe is pure
-/// software and therefore more reproducible than any GPU driver, and ImGui rasterises glyphs with
-/// its own stb_truetype so text is identical everywhere. Opting in on another machine will render
-/// correctly but may not match those baselines pixel for pixel.
+/// Two sets of baselines, because the two platforms no longer share a renderer: Linux is raylib
+/// and ImGui, macOS is AppKit and Core Text.
+/// </para>
+/// <para>
+/// The Linux images come from the CI job under Xvfb with Mesa llvmpipe. Determinism there comes
+/// from pinning the rasteriser rather than the platform: llvmpipe is pure software and therefore
+/// more reproducible than any GPU driver, and ImGui rasterises glyphs with its own stb_truetype so
+/// text is identical everywhere.
+/// </para>
+/// <para>
+/// The macOS images come from the pinned macos-14 runner, and are the weaker guarantee of the two.
+/// Core Text is the system text stack, so the capture pins everything it can reach — scale, colour
+/// space, and the six font smoothing and subpixel switches — but Apple can still change glyph
+/// rasterisation within a runner image. That shows up as one legible diff to re-accept, not as
+/// flakiness.
+/// </para>
+/// <para>
+/// Opting in on a developer machine will render correctly but may not match either set pixel for
+/// pixel.
 /// </para>
 /// </summary>
 [NotInParallel]
@@ -87,7 +101,10 @@ public class PixelTests
         try
         {
             await Assert.That(window!.Capture(screen, width, height, path)).IsTrue();
-            await VerifyFile(path);
+            // Linux and macOS run the same tests against different renderers, so the baselines
+            // have to be told apart.
+            await VerifyFile(path)
+                .UniqueForOSPlatform();
         }
         finally
         {

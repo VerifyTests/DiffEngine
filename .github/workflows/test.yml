@@ -66,7 +66,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # macOS is pinned rather than latest, because it carries committed pixel baselines and
+        # Core Text rasterisation moves between OS versions. Same image build-native uses.
+        os: [ubuntu-latest, macos-14]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,6 +129,17 @@ jobs:
         # the solution configuration here points at a directory that never exists.
         run: >
           xvfb-run -a --server-args="-screen 0 1920x1080x24"
+          dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj
+          --configuration Release --no-build --no-restore
+
+      # No xvfb and no GL flags: deview_capture on this platform draws into a bitmap context of its
+      # own making, so it needs neither a window nor a window server. Determinism is pinned inside
+      # that call rather than by the environment.
+      - name: Pixel snapshots
+        if: runner.os == 'macOS'
+        env:
+          DIFFENGINE_VIEWER_PIXEL_TESTS: 'true'
+        run: >
           dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj
           --configuration Release --no-build --no-restore
 

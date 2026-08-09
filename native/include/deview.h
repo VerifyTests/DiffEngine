@@ -134,7 +134,22 @@ typedef struct DeviewInput {
 } DeviewInput;
 
 /*
- * Returns 1 on success. fontTtf may be NULL, in which case ImGui's built in font is used.
+ * Bumped whenever the structs above change, or what a field means changes, so a stale native
+ * library is detected not crashed.
+ *
+ * 2: DeviewInput.columns and rows carry character cells rather than pixels.
+ */
+#define DEVIEW_VERSION 2
+
+/*
+ * The Swift implementation imports this header for the struct layouts, because Swift does not
+ * guarantee its own, and then defines the entry points itself with @_cdecl. It defines
+ * DEVIEW_TYPES_ONLY so it does not also import prototypes for symbols it is about to provide.
+ */
+#ifndef DEVIEW_TYPES_ONLY
+
+/*
+ * Returns 1 on success. fontTtf may be NULL, in which case a built in font is used.
  * hidden starts the window offscreen, which the pixel snapshot tests rely on.
  */
 DEVIEW_API int32_t deview_init(
@@ -164,14 +179,9 @@ DEVIEW_API void deview_focus(void);
 
 DEVIEW_API void deview_shutdown(void);
 
-/*
- * Bumped whenever the structs above change, or what a field means changes, so a stale native
- * library is detected not crashed.
- *
- * 2: DeviewInput.columns and rows carry character cells rather than pixels.
- */
-#define DEVIEW_VERSION 2
 DEVIEW_API int32_t deview_version(void);
+
+#endif /* DEVIEW_TYPES_ONLY */
 
 #ifdef __cplusplus
 }

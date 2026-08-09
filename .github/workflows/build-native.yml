@@ -57,17 +57,22 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
 
       - name: Configure
-        shell: bash
-        run: |
-          if [ "${{ matrix.rid }}" = "osx" ]; then
-            cmake -S native -B build -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          else
-            cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          fi
+        if: matrix.rid != 'osx'
+        run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
+        if: matrix.rid != 'osx'
         run: cmake --build build --config Release
+
+      # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
+      # package rather than a CMake project. Both --arch flags in one invocation produce a
+      # universal binary, so there is no separate lipo step.
+      #
+      # Nothing of the Swift runtime is shipped: it has been part of macOS since 10.14.4, which is
+      # why this dylib is a fraction of the size of the one it replaced.
+      - name: Build
+        if: matrix.rid == 'osx'
+        run: swift build -c release --arch arm64 --arch x86_64 --package-path native/swift
 
       - name: Collect
         shell: bash
@@ -84,10 +89,18 @@ jobs:
               collect DiffEngineViewer.Linux "${{ matrix.rid }}" build/libdiffengine_viewer.so
               ;;
             osx)
-              strip -x build/libdiffengine_viewer.dylib
+              # SwiftPM puts a universal build under .build/apple, and a single arch one under
+              # .build/release, so it is found rather than assumed.
+              dylib=$(find native/swift/.build -name libdiffengine_viewer.dylib | head -1)
+              if [ -z "$dylib" ]; then
+                echo "::error::swift build produced no libdiffengine_viewer.dylib"
+                exit 1
+              fi
+              lipo -archs "$dylib"
+              strip -x "$dylib"
               # The dylib is universal, so both macOS RIDs get the same file.
-              collect DiffEngineViewer.Mac osx-x64 build/libdiffengine_viewer.dylib
-              collect DiffEngineViewer.Mac osx-arm64 build/libdiffengine_viewer.dylib
+              collect DiffEngineViewer.Mac osx-x64 "$dylib"
+              collect DiffEngineViewer.Mac osx-arm64 "$dylib"
               ;;
           esac
           ls -lhR artifacts

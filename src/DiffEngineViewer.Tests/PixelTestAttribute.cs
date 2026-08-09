@@ -1,7 +1,11 @@
 /// <summary>
-/// Pixel snapshots need a GL context, so they are opt in. CI runs them on Linux under Xvfb with
-/// Mesa llvmpipe, a pure software rasteriser and therefore more reproducible than any GPU driver.
-/// Windows and macOS developers are never blocked by a missing context.
+/// Pixel snapshots are opt in because their baselines are pinned to the CI images that produced
+/// them: Linux under Xvfb with Mesa llvmpipe, and the pinned macos-14 runner. A developer machine
+/// renders correctly but will not match them, and on Linux there may be no GL context at all.
+/// <para>
+/// The WinForms head does not use this. Its baselines reproduce off CI, the same way
+/// DiffEngineTray's do.
+/// </para>
 /// </summary>
 public sealed class PixelTestAttribute() : SkipAttribute($"Set {Variable}=true to run pixel snapshots.")
 {

@@ -74,6 +74,8 @@ else()
   target_compile_options(diffengine_viewer PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
+# Kept buildable on macOS for comparison against the Swift renderer that actually ships there,
+# but nothing consumes the result: build-native builds native/swift for the osx RIDs.
 if(APPLE)
   set_target_properties(diffengine_viewer PROPERTIES SUFFIX ".dylib")
 endif()

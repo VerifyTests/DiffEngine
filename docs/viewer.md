@@ -15,11 +15,15 @@ source file.
 Unlike every other entry in the [tool list](/docs/diff-tool.md), it does not need to be installed.
 A copy ships inside the DiffEngine package, so it is always present.
 
-The renderer is native to each platform. On Windows it is WinForms. Elsewhere it is
-[Dear ImGui](https://github.com/ocornut/imgui) rendered through
-[raylib](https://github.com/raysan5/raylib), in a small library shipped alongside.
+The renderer is native to each platform:
 
-All of them draw the same screen model, and the layout, scrolling and keyboard handling are shared,
+| Platform | Renderer |
+| --- | --- |
+| Windows | WinForms |
+| macOS | AppKit and Core Text |
+| Linux | [Dear ImGui](https://github.com/ocornut/imgui) through [raylib](https://github.com/raysan5/raylib) |
+
+All three draw the same screen model, and the layout, scrolling and keyboard handling are shared,
 so the only difference is how the pixels get there.
 
 
