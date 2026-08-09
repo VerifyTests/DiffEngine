@@ -155,8 +155,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - rid: osx-x64
-            os: macos-13
+          # osx-x64 has no entry: GitHub's Intel macOS runners are being retired and a job
+          # targeting one now sits queued indefinitely. Both macOS RIDs ship the same universal
+          # dylib, so loading it here covers the arm64 slice and the step below checks that the
+          # x86_64 slice is present.
           - rid: osx-arm64
             os: macos-14
           - rid: linux-arm64
@@ -180,6 +182,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libx11-6 libxrandr2 libxi6 libxcursor1 libxinerama1 libgl1 libglx-mesa0
+
+      # The runtime load above only exercises the arm64 slice. Assert the x86_64 one is there too,
+      # since osx-x64 ships this identical file and cannot be loaded anywhere in CI.
+      - name: Check the macOS dylib is universal
+        if: matrix.rid == 'osx-arm64'
+        run: |
+          for rid in osx-arm64 osx-x64; do
+            dylib="src/DiffEngineViewer/runtimes/$rid/native/libdiffengine_viewer.dylib"
+            archs=$(lipo -archs "$dylib")
+            echo "$rid: $archs"
+            for arch in x86_64 arm64; do
+              case " $archs " in
+                *" $arch "*) ;;
+                *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+              esac
+            done
+          done
 
       - name: Test
         run: dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj --configuration Release
