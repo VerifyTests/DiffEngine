@@ -122,10 +122,13 @@ jobs:
           DIFFENGINE_VIEWER_PIXEL_TESTS: 'true'
           LIBGL_ALWAYS_SOFTWARE: '1'
           GALLIUM_DRIVER: llvmpipe
+        # Release, not Release-NotWindows: that is a solution level configuration which the slnx
+        # maps to a project configuration of Release, so the output lives in bin/Release. Naming
+        # the solution configuration here points at a directory that never exists.
         run: >
           xvfb-run -a --server-args="-screen 0 1920x1080x24"
           dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj
-          --configuration Release-NotWindows --no-build --no-restore
+          --configuration Release --no-build --no-restore
 
       - name: Upload received on failure
         if: failure()
