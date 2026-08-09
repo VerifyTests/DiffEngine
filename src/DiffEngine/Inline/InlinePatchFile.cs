@@ -51,6 +51,9 @@ public static class InlinePatchFile
     {
         patch = null;
         var lines = text
+            // A writer that encodes with a preamble prefixes the text with a BOM. Tolerated here
+            // so the payload is judged on its content, wherever it came from.
+            .TrimStart('\uFEFF')
             .Replace("\r\n", "\n")
             .Split('\n');
         if (lines.Length < 6 ||

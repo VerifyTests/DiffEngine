@@ -31,7 +31,16 @@ static class Program
         // Drained before anything slow. OS pipe buffers are around 64 KB, so a parent writing a
         // larger payload blocks on the write until this side reads it, and that parent is a test
         // process that must not hang.
-        var payload = Console.In.ReadToEnd();
+        //
+        // Read as UTF8 rather than through Console.In, which decodes using the console code page.
+        // A .NET Framework parent writes through Process.StandardInput, whose writer emits a BOM,
+        // and under a non UTF8 code page those bytes decode to mojibake rather than a preamble.
+        // detectEncodingFromByteOrderMarks strips it.
+        using var reader = new StreamReader(
+            Console.OpenStandardInput(),
+            new UTF8Encoding(false),
+            detectEncodingFromByteOrderMarks: true);
+        var payload = reader.ReadToEnd();
         if (!InlinePatchFile.TryParse(payload, out var patch))
         {
             Console.Error.WriteLine("Could not read an inline patch payload from stdin.");

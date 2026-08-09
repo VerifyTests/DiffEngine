@@ -4,20 +4,19 @@ namespace DiffEngine;
 /// Locates the copy of DiffEngineViewer bundled inside DiffEngine.nupkg, so inline snapshots work
 /// with no extra install.
 /// <para>
-/// buildTransitive/DiffEngine.targets writes the package's tools/viewer path into the consuming
-/// project's runtimeconfig as DiffEngine.ViewerDirectory. Only projects that produce a
-/// runtimeconfig can carry it, which rules out net462 to net48; those fall back to the globally
-/// installed dotnet tool.
+/// buildTransitive/DiffEngine.targets publishes the package's tools/viewer path to the consuming
+/// project. Projects that produce a runtimeconfig carry it there, and .NET Framework projects,
+/// which do not, carry it as an assembly level <see cref="AssemblyMetadataAttribute" /> instead.
 /// </para>
 /// </summary>
 static class BundledViewerDirectory
 {
     public const string Key = "DiffEngine.ViewerDirectory";
 
-#if NET6_0_OR_GREATER
     public static string? Find()
     {
-        if (AppContext.GetData(Key) is not string root ||
+        var root = FindRoot();
+        if (root == null ||
             root.Length == 0)
         {
             return null;
@@ -35,12 +34,60 @@ static class BundledViewerDirectory
         return null;
     }
 
+#if NET6_0_OR_GREATER
+    static string? FindRoot() =>
+        AppContext.GetData(Key) as string;
+#else
+    /// <summary>
+    /// .NET Framework has no runtimeconfig to carry the path, so it is read from the metadata
+    /// attribute the targets add to the consuming assembly.
+    /// </summary>
+    static string? FindRoot()
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (assembly.IsDynamic)
+            {
+                continue;
+            }
+
+            string? value = null;
+            try
+            {
+                foreach (var attribute in assembly.GetCustomAttributes(typeof(AssemblyMetadataAttribute), false))
+                {
+                    var metadata = (AssemblyMetadataAttribute) attribute;
+                    if (metadata.Key == Key)
+                    {
+                        value = metadata.Value;
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+                // A reflection only or otherwise unreadable assembly cannot carry the path
+                continue;
+            }
+
+            if (value is {Length: > 0})
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+#endif
+
     static IEnumerable<string> Rids()
     {
+#if NET6_0_OR_GREATER
         // The framework's own value first. On Alpine that is linux-musl-x64, a RID we do not
         // ship, so the probe misses and the caller falls through to the dotnet tool rather than
         // resolving a glibc build against musl.
         yield return RuntimeInformation.RuntimeIdentifier;
+#endif
 
         var architecture = RuntimeInformation.OSArchitecture switch
         {
@@ -55,25 +102,17 @@ static class BundledViewerDirectory
             yield break;
         }
 
-        if (OperatingSystem.IsWindows())
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             yield return $"win-{architecture}";
         }
-        else if (OperatingSystem.IsMacOS())
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             yield return $"osx-{architecture}";
         }
-        else if (OperatingSystem.IsLinux())
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             yield return $"linux-{architecture}";
         }
     }
-#else
-    /// <summary>
-    /// .NET Framework consumers have no runtimeconfig to carry the path, so there is nothing to
-    /// find and resolution falls through to the dotnet tool location.
-    /// </summary>
-    public static string? Find() =>
-        null;
-#endif
 }

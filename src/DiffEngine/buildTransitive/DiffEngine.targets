@@ -2,16 +2,33 @@
 
   <!--
   Tells the library where the bundled DiffEngineViewer lives, without copying it into the
-  consumer's output. This lands in the consuming project's runtimeconfig.json, where
-  BundledViewerDirectory reads it back via AppContext.GetData.
-
-  Only projects that produce a runtimeconfig can carry it, which is every test project. net462 to
-  net48 consumers fall back to a globally installed DiffEngineViewer tool.
+  consumer's output.
   -->
-  <ItemGroup>
+  <PropertyGroup Condition="'$(DiffEngineBundledViewer)' != 'false'">
+    <_DiffEngineViewerDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..', 'tools', 'viewer'))</_DiffEngineViewerDirectory>
+  </PropertyGroup>
+
+  <!--
+  Lands in the consuming project's runtimeconfig.json, where BundledViewerDirectory reads it back
+  via AppContext.GetData.
+  -->
+  <ItemGroup Condition="'$(DiffEngineBundledViewer)' != 'false'">
     <RuntimeHostConfigurationOption Include="DiffEngine.ViewerDirectory"
-                                    Value="$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..', 'tools', 'viewer'))"
-                                    Condition="'$(DiffEngineBundledViewer)' != 'false'" />
+                                    Value="$(_DiffEngineViewerDirectory)" />
+  </ItemGroup>
+
+  <!--
+  .NET Framework produces no runtimeconfig, so the same path is carried as assembly metadata and
+  read back by reflection. Requires GenerateAssemblyInfo, which is on by default for SDK style
+  projects. A legacy project still falls back to a globally installed DiffEngineViewer tool.
+  -->
+  <ItemGroup Condition="'$(DiffEngineBundledViewer)' != 'false' and
+                        '$(TargetFrameworkIdentifier)' == '.NETFramework' and
+                        '$(GenerateAssemblyInfo)' != 'false'">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DiffEngine.ViewerDirectory</_Parameter1>
+      <_Parameter2>$(_DiffEngineViewerDirectory)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

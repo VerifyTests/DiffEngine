@@ -166,6 +166,22 @@
         }
     }
 
+    // A writer that encodes with a preamble, such as Process.StandardInput on .NET Framework,
+    // prefixes the payload with a BOM
+    [Test]
+    public async Task TryParseToleratesLeadingBom()
+    {
+        var patch = new InlinePatch(@"C:\proj\Tests.cs", 7, "\"old\"", "new content");
+        var payload = "﻿" + InlinePatchFile.Build(patch);
+
+        var read = InlinePatchFile.TryParse(payload, out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.SourceFile).IsEqualTo(patch.SourceFile);
+        await Assert.That(result.LineHint).IsEqualTo(7);
+        await Assert.That(result.NewContent).IsEqualTo("new content");
+    }
+
     [Test]
     public async Task MissingFileFails()
     {
