@@ -1,6 +1,0 @@
-[submodule "native/vendor/raylib"]
-	path = native/vendor/raylib
-	url = https://github.com/raysan5/raylib.git
-[submodule "native/vendor/imgui"]
-	path = native/vendor/imgui
-	url = https://github.com/ocornut/imgui.git

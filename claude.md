@@ -61,8 +61,11 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
   and a process that fails to bind forwards its patch and exits.
 
 **Native shim (`native/`):**
-- `raylib` and `imgui` are git submodules under `native/vendor`. Clone with
-  `git submodule update --init --recursive`.
+- `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in
+  `native/CMakeLists.txt`. Deliberately not submodules: nothing in a normal `dotnet build` touches
+  this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
+- Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
+  any of that, because the binaries are committed.
 - `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: ~12 exports
   taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
   `DEVIEW_VERSION` whenever the structs change.

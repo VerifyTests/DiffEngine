@@ -50,8 +50,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install build dependencies
         if: runner.os == 'Linux'
@@ -111,7 +109,11 @@ jobs:
   propose:
     name: propose update
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.commit
+    # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions UI
+    # until the workflow is on the default branch, so on a feature branch a push is the only way
+    # to trigger this, and leaving the binaries as bare artifacts to copy by hand is worse.
+    # Never on pull_request, which would mean opening a PR from a PR.
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.commit)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,7 +139,9 @@ jobs:
       - name: Open pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: native-binaries
+          # Scoped to the triggering branch, which is also the base, so a rebuild on a feature
+          # branch does not collide with one on main.
+          branch: native-binaries-${{ github.ref_name }}
           title: 'Rebuild native renderer binaries'
           commit-message: 'Rebuild native renderer binaries'
           body: |

@@ -24,9 +24,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # native/vendor holds the raylib and imgui submodules.
-          submodules: recursive
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -73,8 +70,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -92,6 +87,15 @@ jobs:
             libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
             libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev \
             xvfb libgl1-mesa-dri
+
+      # CMake fetches raylib and imgui, so without this every PR re-clones and recompiles them.
+      # Keyed on the shim's own sources, which is what actually changes.
+      - name: Cache native build
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: native/build
+          key: native-linux-x64-${{ hashFiles('native/CMakeLists.txt', 'native/src/**', 'native/include/**') }}
 
       # Built here rather than taken from the committed binaries, so the Linux job tests the
       # current native source and the pixel baselines track it.
