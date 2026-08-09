@@ -1,3 +1,7 @@
+// Serialised: each test stands up a real listener and drives it through a blocking client, so
+// running them concurrently starves the thread pool on a small machine and every exchange then
+// times out. Mirrors the assembly wide limiter DiffEngineTray.Tests uses for its socket tests.
+[NotInParallel]
 public class IpcTests
 {
     [Test]

@@ -1,6 +1,8 @@
 #if NET10_0
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 #endif
+// Needs the Windows only FakeDiffTool.exe, or the Win32 process APIs.
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class WindowsProcessTests
 {
     [Test]

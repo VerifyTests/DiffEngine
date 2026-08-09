@@ -49,7 +49,14 @@ static class ViewerClient
                 return false;
             }
 
-            response = Write(client, payload);
+            Configure(client);
+            var stream = client.GetStream();
+            var bytes = Encoding.UTF8.GetBytes(payload);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
+            HalfClose(client);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            response = reader.ReadToEnd();
             return true;
         }
         catch (Exception exception)
@@ -59,6 +66,11 @@ static class ViewerClient
         }
     }
 
+    /// <summary>
+    /// Fully async, including the read. A blocking read here would tie up a thread pool thread for
+    /// the whole exchange, and a parallel test run calling this once per failing snapshot would
+    /// starve the pool on a small machine.
+    /// </summary>
     public static async Task<bool> TrySendAsync(string payload, Cancel cancel)
     {
         try
@@ -73,7 +85,23 @@ static class ViewerClient
                 await client.ConnectAsync(IPAddress.Loopback, Port);
             }
 #endif
-            return Write(client, payload).Contains("status: ok");
+            Configure(client);
+            var stream = client.GetStream();
+            var bytes = Encoding.UTF8.GetBytes(payload);
+#if NET6_0_OR_GREATER
+            await stream.WriteAsync(bytes, cancel);
+            await stream.FlushAsync(cancel);
+            HalfClose(client);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var response = await reader.ReadToEndAsync(cancel);
+#else
+            await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
+            await stream.FlushAsync(cancel);
+            HalfClose(client);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var response = await reader.ReadToEndAsync();
+#endif
+            return response.Contains("status: ok");
         }
         // Cancellation is the caller's business; a missing viewer is not.
         catch (Exception exception)
@@ -83,21 +111,17 @@ static class ViewerClient
         }
     }
 
-    static string Write(TcpClient client, string payload)
+    static void Configure(TcpClient client)
     {
         client.SendTimeout = (int) timeout.TotalMilliseconds;
         client.ReceiveTimeout = (int) timeout.TotalMilliseconds;
-        var stream = client.GetStream();
-        var bytes = Encoding.UTF8.GetBytes(payload);
-        stream.Write(bytes, 0, bytes.Length);
-        stream.Flush();
-
-        // Half close so the viewer sees the end of the request without losing the socket it
-        // replies on. The reply is only an acknowledgement, so it is read and dropped.
-        client.Client.Shutdown(SocketShutdown.Send);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        return reader.ReadToEnd();
     }
+
+    /// <summary>
+    /// Signals the end of the request without losing the socket the viewer replies on.
+    /// </summary>
+    static void HalfClose(TcpClient client) =>
+        client.Client.Shutdown(SocketShutdown.Send);
 
     static bool Ignorable(Exception exception) =>
         exception is SocketException or IOException or ObjectDisposedException ||

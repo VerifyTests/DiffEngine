@@ -50,6 +50,12 @@
   </Project>
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!--
+    A WinForms app targeting net10.0-windows, so it cannot build off Windows without
+    EnableWindowsTargeting, and the result would not run there anyway. The tests that use it are
+    marked [RunOn(OS.Windows)].
+    -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
   <Project Path="DiffEngine.AotTests/DiffEngine.AotTests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />

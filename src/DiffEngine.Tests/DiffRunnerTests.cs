@@ -1,5 +1,7 @@
 #if NET10_0
 [NotInParallel]
+// Needs the Windows only FakeDiffTool.exe, or the Win32 process APIs.
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class DiffRunnerTests
 {
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
