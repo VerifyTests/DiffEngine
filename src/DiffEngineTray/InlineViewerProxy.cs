@@ -1,12 +1,16 @@
 /// <summary>
 /// The tray's half of the viewer protocol. Every call is a short loopback round trip, and a
 /// refused connection simply means no viewer is running, which is the same as nothing pending.
+/// <para>
+/// All of them use ViewerClient.ShortTimeout. These run from the 2 second scan timer and from the
+/// menu opening, so a slow exchange must not outlast the timer period or block the UI.
+/// </para>
 /// </summary>
 static class InlineViewerProxy
 {
     public static IReadOnlyList<PendingSnapshot> List()
     {
-        if (!ViewerClient.TryExchange(ViewerPayload.Build("list"), out var response))
+        if (!ViewerClient.TryExchange(ViewerPayload.Build("list"), ViewerClient.ShortTimeout, out var response))
         {
             return [];
         }
@@ -67,7 +71,7 @@ static class InlineViewerProxy
     static bool Send(string verb, string? key, out string? message)
     {
         message = null;
-        if (!ViewerClient.TryExchange(ViewerPayload.Build(verb, key), out var response))
+        if (!ViewerClient.TryExchange(ViewerPayload.Build(verb, key), ViewerClient.ShortTimeout, out var response))
         {
             message = "The snapshot viewer is not running.";
             return false;
