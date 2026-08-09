@@ -67,19 +67,22 @@
   <!--
   Each RID names the head that renders on it. Every head produces a DiffEngineViewer apphost, so
   tools/viewer keeps one shape and BundledViewerDirectory does not know any of this happened.
+
+  Native is false for Windows because WinForms is the renderer there, which is the whole reason
+  that head exists.
   -->
   <ItemGroup>
-    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" />
-    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" />
-    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" />
-    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" />
-    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" />
-    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" />
+    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" Native="false" />
+    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" Native="false" />
+    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" Native="true" />
+    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" Native="true" />
+    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" Native="true" />
+    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" Native="true" />
   </ItemGroup>
 
   <Target Name="PublishViewerHeads" Condition="'$(BundleViewer)' == 'true'">
     <RemoveDir Directories="$(ViewerStageDir)" />
-    <Warning Condition="!Exists('$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\runtimes\%(ViewerRid.Identity)\native')"
+    <Warning Condition="'%(ViewerRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\runtimes\%(ViewerRid.Identity)\native')"
              Code="DE0001"
              Text="No native renderer for %(ViewerRid.Identity). The package will not work on that platform. Run the build-native workflow." />
     <!--

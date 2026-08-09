@@ -1,17 +1,26 @@
 /// <summary>
 /// Loads the committed native renderer for whatever RID this is running on and checks its ABI.
 /// <para>
-/// Headless and cheap, which is the point: it is the only coverage four of the six RIDs get. The
-/// pixel tests only run on Linux, so without this a binary built for the wrong architecture,
-/// corrupted by a text mode checkout, or missing a runtime dependency would ship undetected.
+/// Headless and cheap, which is the point: it is the only coverage most of the RIDs get. The pixel
+/// tests only run on Linux, so without this a binary built for the wrong architecture, corrupted
+/// by a text mode checkout, or missing a runtime dependency would ship undetected.
+/// </para>
+/// <para>
+/// Windows is excluded because it has no native renderer to load. That head draws with WinForms,
+/// which is covered by DiffEngineViewer.Windows.Tests instead.
 /// </para>
 /// </summary>
 public class NativeTests
 {
+    static bool HasNativeRenderer =>
+        OperatingSystem.IsLinux() ||
+        OperatingSystem.IsMacOS();
+
     [Test]
     public async Task LoadsAndReportsItsAbiVersion()
     {
-        if (!NativeResolver.TryFind(out var path))
+        if (!HasNativeRenderer ||
+            !NativeResolver.TryFind(out var path))
         {
             // No binary is shipped for this RID, for example linux-musl. Resolution falls through
             // to a globally installed tool, so there is nothing to check here.
@@ -28,9 +37,7 @@ public class NativeTests
     [Test]
     public async Task ShipsABinaryForThisPlatform()
     {
-        if (!OperatingSystem.IsWindows() &&
-            !OperatingSystem.IsLinux() &&
-            !OperatingSystem.IsMacOS())
+        if (!HasNativeRenderer)
         {
             return;
         }

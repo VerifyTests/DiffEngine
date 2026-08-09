@@ -55,11 +55,9 @@ tools/viewer/win-arm64/DiffEngineViewer.dll
 tools/viewer/win-arm64/DiffEngineViewer.exe
 tools/viewer/win-arm64/DiffEngineViewer.runtimeconfig.json
 tools/viewer/win-arm64/DiffPlex.dll
-tools/viewer/win-arm64/runtimes/win-arm64/native/diffengine_viewer.dll
 tools/viewer/win-x64/DiffEngineViewer.Core.dll
 tools/viewer/win-x64/DiffEngineViewer.deps.json
 tools/viewer/win-x64/DiffEngineViewer.dll
 tools/viewer/win-x64/DiffEngineViewer.exe
 tools/viewer/win-x64/DiffEngineViewer.runtimeconfig.json
 tools/viewer/win-x64/DiffPlex.dll
-tools/viewer/win-x64/runtimes/win-x64/native/diffengine_viewer.dll

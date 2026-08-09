@@ -133,10 +133,13 @@ public class PackageTests
                 problems.Add($"{rid.Key} has no apphost");
             }
 
+            // Windows renders with WinForms, so a native renderer there is a leftover rather than
+            // a payload. Everywhere else exactly one, for this RID and no other.
+            var expected = rid.Key.StartsWith("win-", StringComparison.Ordinal) ? 0 : 1;
             var natives = names.Count(_ => _.StartsWith("runtimes/", StringComparison.Ordinal));
-            if (natives != 1)
+            if (natives != expected)
             {
-                problems.Add($"{rid.Key} has {natives} native renderers");
+                problems.Add($"{rid.Key} has {natives} native renderers, expected {expected}");
             }
         }
 

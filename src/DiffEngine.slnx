@@ -39,6 +39,14 @@
   <Project Path="DiffEngineViewer.Windows/DiffEngineViewer.Windows.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngineViewer.Windows.Tests/DiffEngineViewer.Windows.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!--
+    Targets net10.0-windows and opens real windows, so it neither builds nor runs off Windows.
+    The Windows head itself does build there, because DiffEngine bundles it for the win RIDs.
+    -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
   <Project Path="DiffEngineViewer.Mac/DiffEngineViewer.Mac.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

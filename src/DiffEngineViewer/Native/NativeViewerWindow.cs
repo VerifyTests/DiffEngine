@@ -44,7 +44,7 @@ sealed class NativeViewerWindow : IViewerWindow
             return null;
         }
 
-        if (!Init(title, width, height, hidden, Font()))
+        if (!Init(title, width, height, hidden, EmbeddedFont.Bytes()))
         {
             error = "The native renderer could not open a window.";
             return null;
@@ -59,21 +59,6 @@ sealed class NativeViewerWindow : IViewerWindow
         {
             return Deview.Init(width, height, title, bytes, font.Length, 15f, hidden ? 1 : 0) == 1;
         }
-    }
-
-    static byte[] Font()
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream("DiffEngineViewer.JetBrainsMono-Regular.ttf");
-        if (stream is null)
-        {
-            // The shim falls back to ImGui's built in font for an empty buffer.
-            return [];
-        }
-
-        using var memory = new MemoryStream();
-        stream.CopyTo(memory);
-        return memory.ToArray();
     }
 
     public bool Present(Screen screen)

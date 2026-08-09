@@ -11,5 +11,3 @@ tools/net10.0/any/DiffEngineViewer.dll
 tools/net10.0/any/DiffEngineViewer.runtimeconfig.json
 tools/net10.0/any/DiffPlex.dll
 tools/net10.0/any/DotnetToolSettings.xml
-tools/net10.0/any/runtimes/win-arm64/native/diffengine_viewer.dll
-tools/net10.0/any/runtimes/win-x64/native/diffengine_viewer.dll
