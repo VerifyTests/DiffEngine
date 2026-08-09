@@ -1,8 +1,8 @@
 /// <summary>
-/// Owns the native window. The only type in the app that touches the shim, so everything else
-/// stays testable on a machine with no GPU.
+/// The <see cref="IViewerWindow" /> backed by the native shim. The only type in the app that
+/// touches it, so everything else stays testable on a machine with no GPU.
 /// </summary>
-sealed class ViewerWindow : IDisposable
+sealed class NativeViewerWindow : IViewerWindow
 {
     /// <summary>
     /// Pixels per character cell, used to translate the window size into the character grid the
@@ -15,19 +15,12 @@ sealed class ViewerWindow : IDisposable
     readonly ScreenPayload payload = new();
     bool disposed;
 
-    ViewerWindow()
+    NativeViewerWindow()
     {
     }
 
-    public static bool TryOpen(
-        string title,
-        int width,
-        int height,
-        bool hidden,
-        [NotNullWhen(true)] out ViewerWindow? window,
-        [NotNullWhen(false)] out string? error)
+    public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
     {
-        window = null;
         error = null;
         int version;
         try
@@ -37,32 +30,30 @@ sealed class ViewerWindow : IDisposable
         catch (DllNotFoundException exception)
         {
             error = $"Could not load the native renderer for this platform. {exception.Message}";
-            return false;
+            return null;
         }
         catch (EntryPointNotFoundException exception)
         {
             error = $"The native renderer is missing an entry point. {exception.Message}";
-            return false;
+            return null;
         }
 
         if (version != Deview.ExpectedVersion)
         {
             error = $"Native renderer version {version} does not match the expected {Deview.ExpectedVersion}.";
-            return false;
+            return null;
         }
 
-        var font = Font();
-        if (!Open(title, width, height, hidden, font))
+        if (!Init(title, width, height, hidden, Font()))
         {
             error = "The native renderer could not open a window.";
-            return false;
+            return null;
         }
 
-        window = new();
-        return true;
+        return new NativeViewerWindow();
     }
 
-    static unsafe bool Open(string title, int width, int height, bool hidden, byte[] font)
+    static unsafe bool Init(string title, int width, int height, bool hidden, byte[] font)
     {
         fixed (byte* bytes = font)
         {
@@ -97,7 +88,11 @@ sealed class ViewerWindow : IDisposable
         return payload.Capture(width, height, pngPath) == 1;
     }
 
-    public static unsafe ViewerInput Poll()
+    /// <summary>
+    /// The shim owns one process wide window, so these forward to statics. Exposed as instance
+    /// members anyway, because that is the shape a per window toolkit needs.
+    /// </summary>
+    public unsafe ViewerInput Poll()
     {
         DeviewInput input;
         Deview.PollInput(&input);
@@ -111,10 +106,10 @@ sealed class ViewerWindow : IDisposable
             Rows: Math.Max(10, input.Rows / cellHeight));
     }
 
-    public static void SetHidden(bool hidden) =>
+    public void SetHidden(bool hidden) =>
         Deview.SetHidden(hidden ? 1 : 0);
 
-    public static void Focus() =>
+    public void Focus() =>
         Deview.Focus();
 
     /// <summary>

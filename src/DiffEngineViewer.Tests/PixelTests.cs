@@ -19,13 +19,14 @@ public class PixelTests
     const int height = 700;
 
     /// <summary>
-    /// Matches ViewerWindow's cell metrics, so the captured grid is the one ScreenBuilder sized.
+    /// Matches NativeViewerWindow's cell metrics, so the captured grid is the one ScreenBuilder
+    /// sized.
     /// </summary>
     const int columns = width / 9;
 
     const int rows = height / 18;
 
-    static ViewerWindow? window;
+    static IViewerWindow? window;
 
     [Before(Class)]
     public static void Open()
@@ -35,9 +36,10 @@ public class PixelTests
             return;
         }
 
-        if (!ViewerWindow.TryOpen("DiffEngineViewer", width, height, true, out window, out var error))
+        window = NativeViewerWindow.Open("DiffEngineViewer", width, height, true, out var error);
+        if (window is null)
         {
-            throw new(error);
+            throw new(error!);
         }
     }
 
