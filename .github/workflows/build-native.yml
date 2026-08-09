@@ -93,7 +93,9 @@ jobs:
               # first one found gives a single slice binary that loads on half the Macs in the
               # world. Every candidate is checked, and if none is already universal they are
               # merged, so the only thing that can be collected is a fat binary.
-              candidates=$(find native/swift/.build -name libdiffengine_viewer.dylib)
+              # The dSYM contains a DWARF file of the same name which is also universal, so the
+              # arch check below would happily accept it and ship debug symbols as the library.
+              candidates=$(find native/swift/.build -name libdiffengine_viewer.dylib -not -path '*.dSYM/*')
               if [ -z "$candidates" ]; then
                 echo "::error::swift build produced no libdiffengine_viewer.dylib"
                 exit 1
