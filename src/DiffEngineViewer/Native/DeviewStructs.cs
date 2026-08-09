@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// Mirrors of the structs in native/include/deview.h. Every string is a byte offset and length
 /// into one UTF-8 blob, so a frame costs one buffer rather than per string marshalling.

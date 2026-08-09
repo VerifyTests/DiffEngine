@@ -85,15 +85,15 @@ public class WindowsProcessTests
                 .Any(_ => _.Command.Contains("FakeDiffTool"))).IsTrue();
 
             // Filtered by its image name finds it.
-            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase) { "FakeDiffTool.exe" })
+            await Assert.That(WindowsProcess.FindAll([with(StringComparer.OrdinalIgnoreCase), "FakeDiffTool.exe"])
                 .Any(_ => _.Command.Contains("FakeDiffTool"))).IsTrue();
 
             // Filtered by a different image name excludes it.
-            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase) { "OtherTool.exe" })
+            await Assert.That(WindowsProcess.FindAll([with(StringComparer.OrdinalIgnoreCase), "OtherTool.exe"])
                 .Any(_ => _.Command.Contains("FakeDiffTool"))).IsFalse();
 
             // An empty candidate set reads no command lines at all.
-            await Assert.That(WindowsProcess.FindAll(new(StringComparer.OrdinalIgnoreCase))).IsEmpty();
+            await Assert.That(WindowsProcess.FindAll([with(StringComparer.OrdinalIgnoreCase)])).IsEmpty();
         }
         finally
         {

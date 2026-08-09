@@ -33,11 +33,11 @@
         {
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-            var bytes = File.ReadAllBytes(path);
+            var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)0xEF);
             await Assert.That(bytes[1]).IsEqualTo((byte)0xBB);
             await Assert.That(bytes[2]).IsEqualTo((byte)0xBF);
-            await Assert.That(File.ReadAllText(path)).Contains("new");
+            await Assert.That(await File.ReadAllTextAsync(path)).Contains("new");
         }
         finally
         {
@@ -53,7 +53,7 @@
         {
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-            var bytes = File.ReadAllBytes(path);
+            var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)'c');
         }
         finally
@@ -66,15 +66,15 @@
     public async Task Utf16Preserved()
     {
         var encoding = new UnicodeEncoding(false, true);
-        var path = WriteTemp(encoding.GetPreamble().Concat(encoding.GetBytes(source)).ToArray());
+        var path = WriteTemp([.. encoding.GetPreamble(), .. encoding.GetBytes(source)]);
         try
         {
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-            var bytes = File.ReadAllBytes(path);
+            var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)0xFF);
             await Assert.That(bytes[1]).IsEqualTo((byte)0xFE);
-            await Assert.That(File.ReadAllText(path, encoding)).Contains("new");
+            await Assert.That(await File.ReadAllTextAsync(path, encoding)).Contains("new");
         }
         finally
         {
@@ -90,7 +90,7 @@
         {
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", "a\nb"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-            var text = File.ReadAllText(path);
+            var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).DoesNotContain("a\nb");
             await Assert.That(text).Contains("a\r\n");
         }
@@ -120,11 +120,11 @@
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", content));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
 
-            var bytes = File.ReadAllBytes(path);
-            var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            var bytes = await File.ReadAllBytesAsync(path);
+            var hasBom = bytes is [0xEF, 0xBB, 0xBF, ..];
             await Assert.That(hasBom).IsEqualTo(bom);
 
-            var text = File.ReadAllText(path);
+            var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).Contains("a" + fileEol);
             await Assert.That(text).Contains("b");
             await Assert.That(text).DoesNotContain("old");
@@ -158,7 +158,7 @@
         {
             var result = InlineApplier.Apply(new(path, 3, "\"old\"", "a\nb"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-            await Assert.That(File.ReadAllText(path)).DoesNotContain("\r");
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("\r");
         }
         finally
         {
@@ -245,7 +245,7 @@
             await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(results[1].Status).IsEqualTo(InlineApplyStatus.Applied);
 
-            var text = File.ReadAllText(path);
+            var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).DoesNotContain("old");
             await Assert.That(Count(text, "same")).IsEqualTo(2);
         }
@@ -268,7 +268,7 @@
             await Assert.That(first.Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(second.Status).IsEqualTo(InlineApplyStatus.Applied);
 
-            var text = File.ReadAllText(path);
+            var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).DoesNotContain("old");
             var indexA = text.IndexOf("VerifyInline(a", StringComparison.Ordinal);
             var indexB = text.IndexOf("VerifyInline(b", StringComparison.Ordinal);

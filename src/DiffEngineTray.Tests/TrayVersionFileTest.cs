@@ -8,7 +8,7 @@ public class TrayVersionFileTest
         {
             var read = TrayVersionFile.TryRead(out var version);
             await Assert.That(read).IsTrue();
-            await Assert.That(version).IsEqualTo(new Version(20, 1, 3));
+            await Assert.That(version).IsEqualTo(new(20, 1, 3));
         }
         finally
         {
@@ -24,7 +24,7 @@ public class TrayVersionFileTest
         {
             var read = TrayVersionFile.TryRead(out var version);
             await Assert.That(read).IsTrue();
-            await Assert.That(version).IsEqualTo(new Version(21, 0, 0));
+            await Assert.That(version).IsEqualTo(new(21, 0, 0));
         }
         finally
         {

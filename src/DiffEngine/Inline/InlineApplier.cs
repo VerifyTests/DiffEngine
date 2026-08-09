@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace DiffEngine;
 
@@ -148,26 +147,22 @@ public static class InlineApplier
 
     static (Encoding encoding, int bomLength) DetectEncoding(byte[] bytes)
     {
-        if (bytes.Length >= 4 &&
-            bytes[0] == 0xFF && bytes[1] == 0xFE && bytes[2] == 0x00 && bytes[3] == 0x00)
+        if (bytes is [0xFF, 0xFE, 0x00, 0x00, ..])
         {
             return (new UTF32Encoding(false, true), 4);
         }
 
-        if (bytes.Length >= 3 &&
-            bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        if (bytes is [0xEF, 0xBB, 0xBF, ..])
         {
             return (new UTF8Encoding(true), 3);
         }
 
-        if (bytes.Length >= 2 &&
-            bytes[0] == 0xFF && bytes[1] == 0xFE)
+        if (bytes is [0xFF, 0xFE, ..])
         {
             return (new UnicodeEncoding(false, true), 2);
         }
 
-        if (bytes.Length >= 2 &&
-            bytes[0] == 0xFE && bytes[1] == 0xFF)
+        if (bytes is [0xFE, 0xFF, ..])
         {
             return (new UnicodeEncoding(true, true), 2);
         }

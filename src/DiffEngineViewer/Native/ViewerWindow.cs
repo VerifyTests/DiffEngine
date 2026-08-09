@@ -1,5 +1,3 @@
-using System.Reflection;
-
 /// <summary>
 /// Owns the native window. The only type in the app that touches the shim, so everything else
 /// stays testable on a machine with no GPU.

@@ -1,7 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
-using DiffEngine;
-
 #pragma warning disable CS0618 // DiffEngineTray is obsolete; the test drives it directly to enable the send path.
 
 // Regression test for the sync launch path sending the wrong `canKill` value.

@@ -1,6 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// Finds the shim under runtimes/{rid}/native.
 /// <para>

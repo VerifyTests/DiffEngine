@@ -315,8 +315,7 @@ public static class CsStringLiteral
                 return true;
             }
 
-            if (ch == '\n' ||
-                ch == '\r')
+            if (ch is '\n' or '\r')
             {
                 // Regular strings cannot span lines
                 return false;

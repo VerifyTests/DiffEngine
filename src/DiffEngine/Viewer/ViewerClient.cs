@@ -15,8 +15,7 @@ static class ViewerClient
         {
             var value = Environment.GetEnvironmentVariable(PortVariable);
             if (int.TryParse(value, out var port) &&
-                port > 0 &&
-                port < 65536)
+                port is > 0 and < 65536)
             {
                 return port;
             }
@@ -135,6 +134,12 @@ static class ViewerClient
         client.Client.Shutdown(SocketShutdown.Send);
 
     static bool Ignorable(Exception exception) =>
-        exception is SocketException or IOException or ObjectDisposedException ||
-        exception is AggregateException { InnerException: SocketException or IOException };
+        exception is
+            SocketException or
+            IOException or
+            ObjectDisposedException or
+            AggregateException
+            {
+                InnerException: SocketException or IOException
+            };
 }

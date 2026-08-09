@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// The whole native surface. Twelve or so entry points rather than a binding for all of Dear
 /// ImGui, because the shim is a renderer for <see cref="Screen"/> and nothing more.

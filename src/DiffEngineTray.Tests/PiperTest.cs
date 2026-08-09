@@ -1,10 +1,7 @@
-using System.Net;
-using System.Net.Sockets;
-
 public class PiperTest :
     IDisposable
 {
-    readonly List<string> Logs = [];
+    readonly List<string> logs = [];
     readonly TraceListener listener;
 
     public PiperTest()
@@ -12,7 +9,7 @@ public class PiperTest :
         // Use a free ephemeral port rather than the hardcoded default (3492), so these tests
         // pass even when a real DiffEngineTray instance is running and holding that port.
         PiperClient.Port = GetFreePort();
-        listener = new LogCapture(Logs);
+        listener = new LogCapture(logs);
         Trace.Listeners.Add(listener);
     }
 
@@ -88,7 +85,7 @@ public class PiperTest :
     public async Task SendMoveAsyncHonorsCancellation()
     {
         using var source = new CancelSource();
-        source.Cancel();
+        await source.CancelAsync();
 
         var cancelled = false;
         try
@@ -148,7 +145,7 @@ public class PiperTest :
         {
         }
 
-        await Verify(Logs)
+        await Verify(logs)
             .ScrubLinesContaining("temp.txt")
             //TODO: add "scrub source dir" to verify and remove the below
             .ScrubLinesContaining("PiperClient");

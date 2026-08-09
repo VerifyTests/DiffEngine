@@ -18,7 +18,7 @@ public class TrackerAcceptRetryTest :
         var release = Task.Run(async () =>
         {
             await Task.Delay(1000);
-            stream.Dispose();
+            await stream.DisposeAsync();
         });
 
         tracker.Accept(tracked);

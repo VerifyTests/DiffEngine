@@ -40,7 +40,7 @@ public static class ProcessCleanup
 
     static HashSet<string> CandidateExeNames()
     {
-        HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> names = [with(StringComparer.OrdinalIgnoreCase)];
         foreach (var tool in DiffTools.Resolved)
         {
             names.Add(Path.GetFileName(tool.ExePath));

@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 static class Program
 {
     static int Main(string[] args)
@@ -122,14 +120,13 @@ static class Program
         ViewerActions actions,
         ConcurrentQueue<WindowCommand> windowCommands)
     {
-        var hidden = false;
         while (true)
         {
             // GLFW is single threaded, so socket driven window changes are applied here rather
             // than on the listener's thread.
             while (windowCommands.TryDequeue(out var command))
             {
-                hidden = command == WindowCommand.Hide;
+                var hidden = command == WindowCommand.Hide;
                 if (command == WindowCommand.Focus)
                 {
                     ViewerWindow.Focus();
@@ -163,7 +160,6 @@ static class Program
             if (TrayDetector.IsRunning() &&
                 host.State.Queue.Count > 0)
             {
-                hidden = true;
                 ViewerWindow.SetHidden(true);
                 continue;
             }

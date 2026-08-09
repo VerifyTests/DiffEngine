@@ -3,12 +3,21 @@ public class DefinitionsTest
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
     static string GetSourceFile([CallerFilePath] string path = "") => path;
 
+    // the repo stores markdown as lf, so dont let Environment.NewLine leak into the generated files
+    static StreamWriter CreateWriter(string path)
+    {
+        File.Delete(path);
+        return new(path)
+        {
+            NewLine = "\n"
+        };
+    }
+
     [Test]
     public void WriteList()
     {
         var md = Path.Combine(SourceDirectory, "diffToolList.include.md");
-        File.Delete(md);
-        using var writer = File.CreateText(md);
+        using var writer = CreateWriter(md);
 
         foreach (var tool in Definitions.Tools.OrderBy(_ => _.Tool.ToString()))
         {
@@ -77,8 +86,7 @@ public class DefinitionsTest
     public void WriteDefaultOrder()
     {
         var md = Path.Combine(SourceDirectory, "defaultOrder.include.md");
-        File.Delete(md);
-        using var writer = File.CreateText(md);
+        using var writer = CreateWriter(md);
 
         foreach (var tool in Definitions.Tools)
         {
@@ -90,8 +98,7 @@ public class DefinitionsTest
     public void WriteFoundTools()
     {
         var md = Path.Combine(SourceDirectory, "diffTools.include.md");
-        File.Delete(md);
-        using var writer = File.CreateText(md);
+        using var writer = CreateWriter(md);
 
         writer.WriteLine(
             """

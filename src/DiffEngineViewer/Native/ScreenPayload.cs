@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// Flattens a <see cref="Screen"/> into the blittable form the shim reads. The buffers are reused
 /// across frames, so a steady state frame allocates nothing.

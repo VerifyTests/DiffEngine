@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
-
 public static class ModuleInitializer
 {
     [ModuleInitializer]

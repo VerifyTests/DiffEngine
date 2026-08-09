@@ -1,7 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-
 /// <summary>
 /// Stands in for a running DiffEngineViewer, so the tray's half of the protocol is exercised over
 /// a real socket rather than a mocked proxy.

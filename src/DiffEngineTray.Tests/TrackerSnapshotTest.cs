@@ -100,7 +100,7 @@ public class TrackerSnapshotTest
     public async Task ActingAfterTheViewerExitedNotifies()
     {
         PendingSnapshot snapshot;
-        using (var viewer = new FakeViewer("Sample.cs:1"))
+        using (new FakeViewer("Sample.cs:1"))
         {
             await using var listing = new RecordingTracker();
             snapshot = listing.Snapshots.Single();
