@@ -1,4 +1,4 @@
-﻿enum PatchStatus
+enum PatchStatus
 {
     Applied,
     AlreadyApplied,
@@ -11,11 +11,21 @@
 /// </summary>
 static class InlinePatcher
 {
-    const string methodName = "VerifyInline";
+    /// <summary>
+    /// The fluent call that carries the snapshot literal.
+    /// </summary>
+    const string methodName = "Snapshot";
+
+    /// <summary>
+    /// Append mode has no Snapshot call to find, so it locates the verify invocation instead.
+    /// Matched by prefix because every entry point is Verify, VerifyXml, VerifyJson and so on.
+    /// </summary>
+    const string verifyPrefix = "Verify";
 
     public static PatchStatus TryApply(
         string source,
         int lineHint,
+        InlinePatchMode mode,
         string? originalExpression,
         string newContent,
         out string newSource,
@@ -25,6 +35,16 @@ static class InlinePatcher
         failReason = "";
         var eol = DetectEol(source);
         var lineStarts = BuildLineStarts(source);
+
+        if (mode == InlinePatchMode.Remove)
+        {
+            return TryRemove(source, lineStarts, lineHint, ref newSource, ref failReason);
+        }
+
+        if (mode == InlinePatchMode.Append)
+        {
+            return TryAppend(source, lineStarts, lineHint, newContent, eol, ref newSource, ref failReason);
+        }
 
         if (!string.IsNullOrEmpty(originalExpression))
         {
@@ -75,43 +95,37 @@ static class InlinePatcher
             return PatchStatus.NotFound;
         }
 
-        if (topCommas.Count == 0)
-        {
-            // Only the target argument exists
-            if (source.Substring(openParen + 1, closeParen - openParen - 1).Trim().Length == 0)
-            {
-                failReason = $"The {methodName} call near line {lineHint} has no arguments.";
-                return PatchStatus.NotFound;
-            }
+        // expected is the first parameter of Snapshot, so the argument to set is the first one
+        var argStart = openParen + 1;
+        var argEnd = topCommas.Count > 0 ? topCommas[0] : closeParen;
+        TrimSpan(source, ref argStart, ref argEnd);
 
+        if (argStart == argEnd)
+        {
+            // The argument was left to its default
             if (alreadyOnly)
             {
-                failReason = $"The previous expected expression was not found near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+                failReason = StaleReason(lineHint);
                 return PatchStatus.NotFound;
             }
 
-            var insertAt = EndOfLastNonWhitespace(source, openParen + 1, closeParen);
-            var indent = IndentForSpan(source, lineStarts, insertAt) ;
-            var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
-            newSource = Splice(source, insertAt, insertAt, ", " + rendered);
+            var emptyIndent = IndentForSpan(source, lineStarts, argStart);
+            var emptyRendered = CsStringLiteral.RenderRaw(newContent, emptyIndent, eol);
+            newSource = Splice(source, argStart, argStart, emptyRendered);
             return PatchStatus.Applied;
         }
 
-        // A second argument exists
-        var argStart = topCommas[0] + 1;
-        var argEnd = topCommas.Count > 1 ? topCommas[1] : closeParen;
-        TrimSpan(source, ref argStart, ref argEnd);
         var argOriginalStart = argStart;
         var named = TryStripArgumentName(source, ref argStart, out var argumentName);
         var argText = source.Substring(argStart, argEnd - argStart);
 
         if (named && argumentName != "expected")
         {
-            // Second argument is some other named argument (eg settings:).
+            // Some other named argument came first (eg file:).
             // Insert a named expected argument before it.
             if (alreadyOnly)
             {
-                failReason = $"The previous expected expression was not found near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+                failReason = StaleReason(lineHint);
                 return PatchStatus.NotFound;
             }
 
@@ -125,7 +139,7 @@ static class InlinePatcher
         {
             if (alreadyOnly)
             {
-                failReason = $"The previous expected expression was not found near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+                failReason = StaleReason(lineHint);
                 return PatchStatus.NotFound;
             }
 
@@ -152,8 +166,204 @@ static class InlinePatcher
         return PatchStatus.NotFound;
     }
 
-    static bool TryFindCall(string source, List<int> lineStarts, int lineHint, out int openParen)
+    static string StaleReason(int lineHint) =>
+        $"The previous expected expression was not found near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+
+    /// <summary>
+    /// Appends a Snapshot call to the verify invocation, for a snapshot that has never been
+    /// accepted. Snapshot terminates the chain, so the insertion point is the end of any calls
+    /// already chained onto the invocation rather than the invocation's own closing paren.
+    /// </summary>
+    static PatchStatus TryAppend(
+        string source,
+        List<int> lineStarts,
+        int lineHint,
+        string newContent,
+        string eol,
+        ref string newSource,
+        ref string failReason)
     {
+        if (!TryFindCall(source, lineStarts, lineHint, verifyPrefix, true, out var nameStart, out var openParen))
+        {
+            failReason = $"Could not find a {verifyPrefix} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+            return PatchStatus.NotFound;
+        }
+
+        if (!TryScanArguments(source, openParen, out var closeParen, out _))
+        {
+            failReason = $"Could not parse the argument list of the {verifyPrefix} call near line {lineHint}.";
+            return PatchStatus.NotFound;
+        }
+
+        var insertAt = WalkChain(source, closeParen + 1, methodName, out var alreadyChained);
+        // Another process may have appended one between the run and the accept
+        if (alreadyChained)
+        {
+            failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
+            return PatchStatus.NotFound;
+        }
+
+        var statementIndent = LeadingWhitespace(source, lineStarts, nameStart);
+        var unit = statementIndent.Contains('\t') ? "\t" : "    ";
+        // Line up with the existing chain when there is one, otherwise start it one level in
+        var callIndent = LineOf(lineStarts, insertAt - 1) == LineOf(lineStarts, nameStart)
+            ? statementIndent + unit
+            : LeadingWhitespace(source, lineStarts, insertAt - 1);
+        var rendered = CsStringLiteral.RenderRaw(newContent, callIndent + unit, eol);
+        newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({rendered})");
+        return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Removes the Snapshot call, along with the whitespace and line break that preceded it so no
+    /// blank line is left behind.
+    /// </summary>
+    static PatchStatus TryRemove(
+        string source,
+        List<int> lineStarts,
+        int lineHint,
+        ref string newSource,
+        ref string failReason)
+    {
+        if (!TryFindCall(source, lineStarts, lineHint, methodName, false, out var nameStart, out var openParen))
+        {
+            failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+            return PatchStatus.NotFound;
+        }
+
+        if (!TryScanArguments(source, openParen, out var closeParen, out _))
+        {
+            failReason = $"Could not parse the argument list of the {methodName} call near line {lineHint}.";
+            return PatchStatus.NotFound;
+        }
+
+        var start = nameStart;
+        // Back over the dot that made it a chained call
+        while (start > 0 &&
+               char.IsWhiteSpace(source[start - 1]))
+        {
+            start--;
+        }
+
+        if (start == 0 ||
+            source[start - 1] != '.')
+        {
+            failReason = $"The {methodName} call near line {lineHint} is not a chained call.";
+            return PatchStatus.NotFound;
+        }
+
+        start--;
+        // Then back over the indentation and line break it sat on
+        while (start > 0 &&
+               (source[start - 1] == ' ' || source[start - 1] == '\t'))
+        {
+            start--;
+        }
+
+        if (start > 0 &&
+            source[start - 1] == '\n')
+        {
+            start--;
+            if (start > 0 &&
+                source[start - 1] == '\r')
+            {
+                start--;
+            }
+        }
+
+        newSource = Splice(source, start, closeParen + 1, "");
+        return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Walks the calls chained onto an invocation and returns the end of the chain.
+    /// <paramref name="found"/> is set when one of them is a call to <paramref name="name"/>.
+    /// </summary>
+    static int WalkChain(string source, int index, string name, out bool found)
+    {
+        found = false;
+        while (true)
+        {
+            var cursor = index;
+            if (!TrySkipTo(source, ref cursor, '.'))
+            {
+                return index;
+            }
+
+            cursor++;
+            while (cursor < source.Length &&
+                   char.IsWhiteSpace(source[cursor]))
+            {
+                cursor++;
+            }
+
+            var nameStart = cursor;
+            while (cursor < source.Length &&
+                   IsIdentifierChar(source[cursor]))
+            {
+                cursor++;
+            }
+
+            if (cursor == nameStart ||
+                !TrySkipToParen(source, cursor, out var paren) ||
+                !TryScanArguments(source, paren, out var closeParen, out _))
+            {
+                return index;
+            }
+
+            if (string.CompareOrdinal(source, nameStart, name, 0, name.Length) == 0 &&
+                cursor - nameStart == name.Length)
+            {
+                found = true;
+            }
+
+            index = closeParen + 1;
+        }
+    }
+
+    static bool TrySkipTo(string source, ref int index, char ch)
+    {
+        while (index < source.Length &&
+               char.IsWhiteSpace(source[index]))
+        {
+            index++;
+        }
+
+        return index < source.Length &&
+               source[index] == ch;
+    }
+
+    static string LeadingWhitespace(string source, List<int> lineStarts, int offset)
+    {
+        var lineStart = lineStarts[LineOf(lineStarts, offset) - 1];
+        var index = lineStart;
+        while (index < source.Length &&
+               (source[index] == ' ' || source[index] == '\t'))
+        {
+            index++;
+        }
+
+        return source.Substring(lineStart, index - lineStart);
+    }
+
+    static bool TryFindCall(string source, List<int> lineStarts, int lineHint, out int openParen) =>
+        TryFindCall(source, lineStarts, lineHint, methodName, false, out _, out openParen);
+
+    /// <summary>
+    /// Locates a call by name, searching outward from the hint. <paramref name="byPrefix"/> matches
+    /// any identifier starting with <paramref name="name"/>, which is how the several Verify
+    /// overloads are found with one search.
+    /// </summary>
+    static bool TryFindCall(
+        string source,
+        List<int> lineStarts,
+        int lineHint,
+        string name,
+        bool byPrefix,
+        out int nameStart,
+        out int openParen)
+    {
+        nameStart = -1;
         openParen = -1;
         var lineCount = lineStarts.Count;
         lineHint = Math.Min(Math.Max(lineHint, 1), lineCount);
@@ -175,20 +385,37 @@ static class InlinePatcher
                 var index = start;
                 while (true)
                 {
-                    index = source.IndexOf(methodName, index, StringComparison.Ordinal);
+                    index = source.IndexOf(name, index, StringComparison.Ordinal);
                     if (index < 0 || index >= end)
                     {
                         break;
                     }
 
-                    if (IsToken(source, index, methodName.Length) &&
-                        TrySkipToParen(source, index + methodName.Length, out var paren))
+                    var identifierEnd = index + name.Length;
+                    if (byPrefix)
                     {
+                        while (identifierEnd < source.Length &&
+                               IsIdentifierChar(source[identifierEnd]))
+                        {
+                            identifierEnd++;
+                        }
+                    }
+                    else if (identifierEnd < source.Length &&
+                             IsIdentifierChar(source[identifierEnd]))
+                    {
+                        index += name.Length;
+                        continue;
+                    }
+
+                    if (StartsToken(source, index) &&
+                        TrySkipToParen(source, identifierEnd, out var paren))
+                    {
+                        nameStart = index;
                         openParen = paren;
                         return true;
                     }
 
-                    index += methodName.Length;
+                    index += name.Length;
                 }
             }
         }
@@ -196,16 +423,9 @@ static class InlinePatcher
         return false;
     }
 
-    static bool IsToken(string source, int index, int length)
-    {
-        if (index > 0 && IsIdentifierChar(source[index - 1]))
-        {
-            return false;
-        }
-
-        var after = index + length;
-        return after >= source.Length || !IsIdentifierChar(source[after]);
-    }
+    static bool StartsToken(string source, int index) =>
+        index == 0 ||
+        !IsIdentifierChar(source[index - 1]);
 
     static bool IsIdentifierChar(char ch) =>
         char.IsLetterOrDigit(ch) || ch == '_';
@@ -617,18 +837,6 @@ static class InlinePatcher
             end--;
         }
     }
-
-    static int EndOfLastNonWhitespace(string source, int start, int end)
-    {
-        var index = end;
-        while (index > start && char.IsWhiteSpace(source[index - 1]))
-        {
-            index--;
-        }
-
-        return index;
-    }
-
 
     static string Splice(string source, int start, int end, string replacement) =>
         new StringBuilder(source.Length - (end - start) + replacement.Length)

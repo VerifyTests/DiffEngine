@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 
 namespace DiffEngine;
 
@@ -21,7 +21,8 @@ public static class InlineApplier
             return InlineApplyResult.Failed("InlinePatch.SourceFile is empty");
         }
 
-        if (patch.NewContent is null)
+        if (patch.NewContent is null &&
+            patch.Mode != InlinePatchMode.Remove)
         {
             return InlineApplyResult.Failed("InlinePatch.NewContent is null");
         }
@@ -46,7 +47,7 @@ public static class InlineApplier
             return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
         }
 
-        var newContent = CsStringLiteral.NormalizeNewlines(patch.NewContent);
+        var newContent = patch.NewContent is null ? "" : CsStringLiteral.NormalizeNewlines(patch.NewContent);
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
@@ -106,6 +107,7 @@ public static class InlineApplier
         var status = InlinePatcher.TryApply(
             source,
             patch.LineHint,
+            patch.Mode,
             patch.OriginalExpression,
             newContent,
             out var newSource,

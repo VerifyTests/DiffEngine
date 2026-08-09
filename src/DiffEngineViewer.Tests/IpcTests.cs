@@ -253,6 +253,21 @@ public class IpcTests
         await Assert.That(fixture.Send(new(ViewerVerb.List)).Ok).IsTrue();
     }
 
+    /// <summary>
+    /// Removing a literal is a configuration change with nothing to review, so it must never reach
+    /// the queue and sit there waiting for an accept that means nothing.
+    /// </summary>
+    [Test]
+    public async Task ARemovePatchIsRejected()
+    {
+        using var fixture = new ServerFixture();
+
+        var response = fixture.Send(Inline(new("Sample.cs", 1, "\"old\"", "", InlinePatchMode.Remove)));
+
+        await Assert.That(response.Ok).IsFalse();
+        await Assert.That(fixture.Host.State.Queue).IsEmpty();
+    }
+
     static ViewerMessage Inline(InlinePatch patch) =>
         new(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch));
 }

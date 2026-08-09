@@ -91,6 +91,20 @@ public class EngineInlineTests
         await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
     }
 
+    /// <summary>
+    /// Removing a literal is a configuration change with nothing to review. Rejected at the entry
+    /// point rather than at the far end, so a caller cannot spend a viewer launch to find out.
+    /// </summary>
+    [Test]
+    public async Task ARemovePatchIsRefused()
+    {
+        using var scope = new EngineScope();
+        var patch = new EnginePatch("Sample.cs", 42, "\"old\"", "", engine::DiffEngine.InlinePatchMode.Remove);
+
+        await Assert.That(() => EngineRunner.AddInlineAsync(patch)).Throws<ArgumentException>();
+        await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
+    }
+
     [Test]
     public async Task TheOptOutDoesNotReachTheViewer()
     {
