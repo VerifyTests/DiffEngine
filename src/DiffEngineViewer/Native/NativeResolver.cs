@@ -46,6 +46,25 @@ static class NativeResolver
         return nint.Zero;
     }
 
+    /// <summary>
+    /// The shipped binary for the current RID, or false when none is shipped for it, such as on
+    /// linux-musl.
+    /// </summary>
+    public static bool TryFind([NotNullWhen(true)] out string? path)
+    {
+        foreach (var candidate in Candidates())
+        {
+            if (File.Exists(candidate))
+            {
+                path = candidate;
+                return true;
+            }
+        }
+
+        path = null;
+        return false;
+    }
+
     static IEnumerable<string> Candidates()
     {
         var root = AppContext.BaseDirectory;

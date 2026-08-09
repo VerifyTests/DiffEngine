@@ -138,3 +138,57 @@ jobs:
           path: '**/*.received.*'
           if-no-files-found: ignore
           retention-days: 14
+
+  # The jobs above only ever load the x64 natives: the Linux one rebuilds its own from source, and
+  # Windows never P/Invokes because the pixel tests are Linux gated. This job exists so the other
+  # four committed binaries are actually loaded somewhere, which is what catches a wrong
+  # architecture, a file corrupted by a text mode checkout, or an unsatisfied runtime dependency.
+  #
+  # It runs DiffEngineViewer.Tests rather than the whole suite: that is where the native smoke test
+  # lives, it takes seconds, and it gives the screen and IPC tests some cross architecture coverage
+  # for free.
+  native:
+    name: native ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-x64
+            os: macos-13
+          - rid: osx-arm64
+            os: macos-14
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+          - rid: win-arm64
+            os: windows-11-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Runtime libraries only, not the -dev packages: the shim links X11 and GL, so loading it
+      # needs them present even though nothing here opens a window.
+      - name: Install runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxrandr2 libxi6 libxcursor1 libxinerama1 libgl1 libglx-mesa0
+
+      - name: Test
+        run: dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj --configuration Release
+
+      - name: Upload received on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: received-${{ matrix.rid }}
+          path: '**/*.received.*'
+          if-no-files-found: ignore
+          retention-days: 14
