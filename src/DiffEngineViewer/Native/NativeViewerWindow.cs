@@ -4,14 +4,6 @@
 /// </summary>
 sealed class NativeViewerWindow : IViewerWindow
 {
-    /// <summary>
-    /// Pixels per character cell, used to translate the window size into the character grid the
-    /// rest of the app reasons in. Measured for JetBrains Mono at 15px.
-    /// </summary>
-    const int cellWidth = 9;
-
-    const int cellHeight = 18;
-
     readonly ScreenPayload payload = new();
     bool disposed;
 
@@ -87,8 +79,10 @@ sealed class NativeViewerWindow : IViewerWindow
             ClickedQueueItem: input.ClickedQueueItem,
             ScrollDelta: input.ScrollDelta,
             CloseRequested: input.CloseRequested != 0,
-            Columns: Math.Max(40, input.Columns / cellWidth),
-            Rows: Math.Max(10, input.Rows / cellHeight));
+            // Already cells: the shim measures them from the font it loaded. Only the floors are
+            // applied here, because they are the app's rule rather than the renderer's.
+            Columns: Math.Max(40, input.Columns),
+            Rows: Math.Max(10, input.Rows));
     }
 
     public void SetHidden(bool hidden) =>

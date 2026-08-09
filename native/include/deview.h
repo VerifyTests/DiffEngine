@@ -124,6 +124,11 @@ typedef struct DeviewInput {
     int32_t scrollDelta;
     /* Set when the user asked to close the window; the managed side decides hide versus exit. */
     int32_t closeRequested;
+    /*
+     * The window size in character cells, not pixels. Measured here from the font that was
+     * actually loaded, because this side is the only one that knows it. Reporting pixels and
+     * having the managed side divide by a constant is what left the viewer with no DPI handling.
+     */
     int32_t columns;
     int32_t rows;
 } DeviewInput;
@@ -159,8 +164,13 @@ DEVIEW_API void deview_focus(void);
 
 DEVIEW_API void deview_shutdown(void);
 
-/* Bumped whenever the structs above change, so a stale native library is detected not crashed. */
-#define DEVIEW_VERSION 1
+/*
+ * Bumped whenever the structs above change, or what a field means changes, so a stale native
+ * library is detected not crashed.
+ *
+ * 2: DeviewInput.columns and rows carry character cells rather than pixels.
+ */
+#define DEVIEW_VERSION 2
 DEVIEW_API int32_t deview_version(void);
 
 #ifdef __cplusplus

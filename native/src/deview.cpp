@@ -307,6 +307,27 @@ int ReadKey()
     return DEVIEW_KEY_NONE;
 }
 
+/*
+ * The window size in character cells. Measured from the font that was actually loaded, because
+ * this side is the only one that knows it: the managed side used to divide pixels by a hardcoded
+ * 9 by 18, which is why the viewer had no DPI handling at all.
+ *
+ * A row is one text line plus the spacing between rows, which is what the table the panes are
+ * drawn in lays out on.
+ */
+void MeasureGrid()
+{
+    ImGui::SetCurrentContext(state.context);
+    const float width = ImGui::CalcTextSize("M").x;
+    const float height = ImGui::GetTextLineHeightWithSpacing();
+    state.input.columns = width > 0.0f
+        ? static_cast<int32_t>(static_cast<float>(GetScreenWidth()) / width)
+        : 0;
+    state.input.rows = height > 0.0f
+        ? static_cast<int32_t>(static_cast<float>(GetScreenHeight()) / height)
+        : 0;
+}
+
 /* ---- the frame ---- */
 
 void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column)
@@ -589,8 +610,7 @@ int32_t deview_present(const DeviewScreen* screen)
     RenderDrawData(ImGui::GetDrawData());
     EndDrawing();
 
-    state.input.columns = GetScreenWidth();
-    state.input.rows = GetScreenHeight();
+    MeasureGrid();
     return 1;
 }
 
@@ -606,8 +626,7 @@ void deview_poll_input(DeviewInput* input)
         state.input.key = ReadKey();
         const Vector2 wheel = GetMouseWheelMoveV();
         state.input.scrollDelta = static_cast<int32_t>(wheel.y);
-        state.input.columns = GetScreenWidth();
-        state.input.rows = GetScreenHeight();
+        MeasureGrid();
     }
 
     *input = state.input;

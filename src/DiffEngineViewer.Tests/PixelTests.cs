@@ -19,8 +19,9 @@ public class PixelTests
     const int height = 700;
 
     /// <summary>
-    /// Matches NativeViewerWindow's cell metrics, so the captured grid is the one ScreenBuilder
-    /// sized.
+    /// The grid JetBrains Mono at 15px gives at this window size. Fixed here rather than taken
+    /// from the shim's own measurement, so the baselines stay pinned to one layout: these are the
+    /// numbers they were captured at.
     /// </summary>
     const int columns = width / 9;
 
