@@ -24,6 +24,24 @@
   </ItemGroup>
 
   <!--
+  Ordering only. PublishViewerHeads shells out to dotnet publish for the viewer, so without this
+  a solution build can have two processes building that project at once.
+
+  Every piece of metadata here is load bearing: the viewer is an Exe whose output carries six
+  native renderers as content, and all of it would otherwise be copied into DiffEngine's output,
+  then on into DiffEngineTray, whose PackAsTool payload is its entire publish directory. That is
+  what a solution level BuildDependency used to do, silently.
+
+  Restricted to one target framework because the viewer only has one, and DiffEngine has eight.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+  </ItemGroup>
+
+  <!--
   Bundles DiffEngineViewer so inline snapshots work out of the box, with no second install.
 
   One framework dependent publish per RID, which gives a real apphost per platform and avoids

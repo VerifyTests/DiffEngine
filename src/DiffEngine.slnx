@@ -23,11 +23,11 @@
   </Project>
   <Project Path="DiffEngine/DiffEngine.csproj">
     <!--
-    DiffEngine bundles the viewer into its package. Expressed here rather than as a
-    ProjectReference, because a reference from this multi-targeted project would try to build the
-    single TFM viewer once per DiffEngine target framework.
+    No BuildDependency on DiffEngineViewer. A solution level dependency is treated as a reference,
+    so the viewer's content items and config files landed in DiffEngine's output for all eight
+    target frameworks and flowed on into DiffEngineTray. Ordering is expressed as a reference in
+    DiffEngine.csproj instead, where it can be told not to copy anything.
     -->
-    <BuildDependency Project="DiffEngineViewer/DiffEngineViewer.csproj" />
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
   <Project Path="DiffEngine.Benchmarks/DiffEngine.Benchmarks.csproj">

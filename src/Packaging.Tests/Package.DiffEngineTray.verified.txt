@@ -9,15 +9,7 @@ tools/net10.0/any/DiffEngine.xml
 tools/net10.0/any/DiffEngineTray.deps.json
 tools/net10.0/any/DiffEngineTray.dll
 tools/net10.0/any/DiffEngineTray.runtimeconfig.json
-tools/net10.0/any/DiffEngineViewer.exe
-tools/net10.0/any/DiffEngineViewer.runtimeconfig.json
 tools/net10.0/any/DotnetToolSettings.xml
 tools/net10.0/any/EmptyFiles.dll
 tools/net10.0/any/Serilog.Sinks.File.dll
 tools/net10.0/any/Serilog.dll
-tools/net10.0/any/runtimes/linux-arm64/native/libdiffengine_viewer.so
-tools/net10.0/any/runtimes/linux-x64/native/libdiffengine_viewer.so
-tools/net10.0/any/runtimes/osx-arm64/native/libdiffengine_viewer.dylib
-tools/net10.0/any/runtimes/osx-x64/native/libdiffengine_viewer.dylib
-tools/net10.0/any/runtimes/win-arm64/native/diffengine_viewer.dll
-tools/net10.0/any/runtimes/win-x64/native/diffengine_viewer.dll
