@@ -9,27 +9,6 @@ namespace DiffEngine;
 /// </summary>
 static class ViewerLauncher
 {
-    public static bool Launch(InlinePatch patch, string payload)
-    {
-        var process = Start(patch);
-        if (process == null)
-        {
-            return false;
-        }
-
-        try
-        {
-            process.StandardInput.Write(payload);
-            process.StandardInput.Close();
-            return true;
-        }
-        catch (IOException)
-        {
-            // The viewer died before reading, so treat it as not launched.
-            return false;
-        }
-    }
-
     public static async Task<bool> LaunchAsync(InlinePatch patch, string payload, Cancel cancel)
     {
         var process = Start(patch);

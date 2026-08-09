@@ -33,25 +33,12 @@ public static partial class DiffRunner
     /// running viewer receives it over a loopback socket, and a newly launched one receives it on
     /// stdin.
     /// </para>
+    /// <para>
+    /// Async only, deliberately. A synchronous overload would have to block on the socket read,
+    /// and a parallel run calls this once per failing snapshot, which would tie up a thread pool
+    /// thread per call.
+    /// </para>
     /// </summary>
-    public static InlineResult AddInline(InlinePatch patch)
-    {
-        var check = CheckInline();
-        if (check != InlineResult.Queued)
-        {
-            return check;
-        }
-
-        var payload = InlinePatchFile.Build(patch);
-        if (ViewerClient.TrySend(ViewerPayload.Inline(payload)))
-        {
-            return InlineResult.Queued;
-        }
-
-        return ViewerLauncher.Launch(patch, payload) ? InlineResult.Queued : InlineResult.NoViewerFound;
-    }
-
-    /// <inheritdoc cref="AddInline"/>
     public static async Task<InlineResult> AddInlineAsync(InlinePatch patch, Cancel cancel = default)
     {
         var check = CheckInline();
