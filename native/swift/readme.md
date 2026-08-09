@@ -35,6 +35,11 @@ build.
 **Nothing is flipped.** Core Graphics has a bottom left origin; layout is written top down and
 converted once, which avoids having to fight the text matrix to keep glyphs upright.
 
+**A hidden start creates no window.** `NSWindow` may only be instantiated on the main thread, and a
+test host runs `[Before(Class)]` on whatever thread it likes, so `deview_init(hidden: 1)` builds
+only the renderer and defers the window until `deview_set_hidden(0)` asks for one. The app always
+starts visible, from `Main`, which is the main thread.
+
 `deview_capture` draws into a bitmap context of its own making rather than asking the view for one.
 `bitmapImageRepForCachingDisplay` would inherit the window's backing scale, so a committed baseline
 would only match on the kind of display that produced it. Scale, colour space and the six font

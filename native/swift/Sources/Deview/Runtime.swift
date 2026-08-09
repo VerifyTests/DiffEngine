@@ -11,6 +11,8 @@ final class Runtime {
     static let shared = Runtime()
 
     private var delegate: WindowDelegate?
+    private var size = CGSize(width: 1100, height: 700)
+    private var title = "DiffEngineViewer"
 
     var window: NSWindow?
     var view: ViewerView?
@@ -27,6 +29,28 @@ final class Runtime {
             return true
         }
 
+        renderer = Renderer(fontData: font, size: fontSize)
+        size = CGSize(width: CGFloat(width), height: CGFloat(height))
+        self.title = title
+        initialised = true
+
+        // A hidden start is capture only, and capture draws into a bitmap of its own making. Not
+        // touching AppKit at all in that case is what lets the pixel tests run: NSWindow may only
+        // be instantiated on the main thread, and a test host runs them on whatever thread it
+        // likes. The app itself always starts visible, from Main, which is the main thread.
+        if !hidden {
+            makeWindow()
+        }
+
+        measureGrid()
+        return true
+    }
+
+    private func makeWindow() {
+        guard window == nil, let renderer else {
+            return
+        }
+
         let application = NSApplication.shared
         // Regular rather than accessory, so the window can take focus and appear in the dock
         // without this being an app bundle. finishLaunching is the part of run() that has to
@@ -34,8 +58,7 @@ final class Runtime {
         application.setActivationPolicy(.regular)
         application.finishLaunching()
 
-        let renderer = Renderer(fontData: font, size: fontSize)
-        let bounds = NSRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
+        let bounds = NSRect(origin: .zero, size: size)
         let view = ViewerView(renderer: renderer, frame: bounds)
         let window = NSWindow(
             contentRect: bounds,
@@ -50,24 +73,21 @@ final class Runtime {
         window.isReleasedWhenClosed = false
         window.center()
 
-        self.renderer = renderer
         self.view = view
         self.window = window
         self.delegate = delegate
-        initialised = true
-
-        if !hidden {
-            show()
-        }
-
-        measureGrid()
-        return true
     }
 
     func present(_ frame: Frame) {
-        view?.model = frame
-        view?.needsDisplay = true
-        view?.displayIfNeeded()
+        // Nothing to present when this runtime never took a window. Capture goes straight to the
+        // renderer, so a headless one is still useful.
+        guard let view else {
+            return
+        }
+
+        view.model = frame
+        view.needsDisplay = true
+        view.displayIfNeeded()
         pump()
         measureGrid()
     }
@@ -83,16 +103,21 @@ final class Runtime {
     }
 
     func measureGrid() {
-        guard let renderer, let view else {
+        guard let renderer else {
             return
         }
 
-        let grid = renderer.grid(for: view.bounds.size)
+        // The requested size when there is no view to ask, which is the headless capture case.
+        let grid = renderer.grid(for: view?.bounds.size ?? size)
         input.columns = grid.columns
         input.rows = grid.rows
     }
 
+    /// Builds the window if this runtime started headless, so a hidden start is still only a
+    /// deferral rather than a different contract from the other heads. Only reachable from the
+    /// managed loop's thread, which is the main one.
     func show() {
+        makeWindow()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

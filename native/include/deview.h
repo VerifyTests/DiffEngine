@@ -150,7 +150,11 @@ typedef struct DeviewInput {
 
 /*
  * Returns 1 on success. fontTtf may be NULL, in which case a built in font is used.
- * hidden starts the window offscreen, which the pixel snapshot tests rely on.
+ *
+ * hidden starts without a visible window, which the pixel snapshot tests rely on. An
+ * implementation may defer creating the window entirely until deview_set_hidden asks for one:
+ * capture does not need it, and on macOS a window may only be created on the main thread, which a
+ * test host does not promise.
  */
 DEVIEW_API int32_t deview_init(
     int32_t width,
