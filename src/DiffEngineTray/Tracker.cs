@@ -5,14 +5,16 @@ class Tracker :
     Action inactive;
     LockedFilesResolver? lockedFilesResolver;
     Action<TrackedMove>? acceptFailed;
-    Action<TrackedInlineMove, string>? inlineFailed;
+    Action<string>? inlineFailed;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
-    ConcurrentDictionary<string, TrackedInlineMove> inlineMoves = new(StringComparer.OrdinalIgnoreCase);
+    // The viewer owns the inline queue; this is the last listing the scan saw, used for the icon
+    // state. The menu re-reads live when it opens.
+    IReadOnlyList<PendingSnapshot> snapshots = [];
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<TrackedInlineMove, string>? inlineFailed = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null)
     {
         this.active = active;
         this.inactive = inactive;
@@ -36,24 +38,11 @@ class Tracker :
             deletes.TryRemove(delete.Key, out _);
         }
 
-        // Inline moves are settled when a passing re-run deletes the staging files.
-        // No FilesAreEqual check: comparing a text temp to a .cs target is meaningless.
-        foreach (var pair in inlineMoves.ToList())
-        {
-            var inline = pair.Value;
-            if (File.Exists(inline.Temp) &&
-                File.Exists(inline.PatchFile))
-            {
-                continue;
-            }
+        // The viewer settles its own queue when a passing re-run sends a settle message, so there
+        // is nothing to expire here. Just refresh the listing that drives the icon state.
+        snapshots = InlineViewerProxy.List();
 
-            if (inlineMoves.TryRemove(pair.Key, out var removed))
-            {
-                removed.Process?.KillAndDispose();
-            }
-        }
-
-        var newCount = moves.Count + deletes.Count + inlineMoves.Count;
+        var newCount = moves.Count + deletes.Count + snapshots.Count;
         if (lastScanCount != newCount)
         {
             ToggleActive();
@@ -116,7 +105,7 @@ class Tracker :
     public bool TrackingAny =>
         !moves.IsEmpty ||
         !deletes.IsEmpty ||
-        !inlineMoves.IsEmpty;
+        snapshots.Count > 0;
 
     public TrackedMove AddMove(
         string temp,
@@ -217,123 +206,55 @@ class Tracker :
         return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess);
     }
 
-    public TrackedInlineMove AddInlineMove(
-        string temp,
-        string target,
-        string patchFile,
-        string? stagedVerified)
+    /// <summary>
+    /// Applies the snapshot in the viewer, which owns the queue and the patch.
+    /// </summary>
+    public void Accept(PendingSnapshot snapshot)
     {
-        var targetFile = Path.GetFileName(target);
-        return inlineMoves.AddOrUpdate(
-            temp,
-            addValueFactory: key =>
-            {
-                Log.Information("InlineMoveAdded. Target:{target}", targetFile);
-                return BuildTrackedInlineMove(key, target, patchFile, stagedVerified, null);
-            },
-            updateValueFactory: (key, existing) =>
-            {
-                Log.Information("InlineMoveUpdated. Target:{target}", targetFile);
-                return BuildTrackedInlineMove(key, target, patchFile, stagedVerified, existing.Process);
-            });
-    }
-
-    static TrackedInlineMove BuildTrackedInlineMove(string temp, string target, string patchFile, string? stagedVerified, Process? process)
-    {
-        var solution = SolutionDirectoryFinder.Find(target);
-        string? exe = null;
-        string? arguments = null;
-        if (stagedVerified != null)
+        if (InlineViewerProxy.Accept(snapshot, out var message))
         {
-            var extension = Path.GetExtension(temp).TrimStart('.');
-            if (DiffTools.TryFindByExtension(extension, out var tool))
-            {
-                exe = tool.ExePath;
-                arguments = tool.GetArguments(temp, stagedVerified);
-            }
+            Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
+        }
+        else
+        {
+            Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
+            inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
         }
 
-        return new(temp, target, patchFile, stagedVerified, solution, exe, arguments)
-        {
-            Process = process
-        };
+        Refresh();
     }
 
-    public void Accept(TrackedInlineMove move)
+    public void Discard(PendingSnapshot snapshot)
     {
-        if (!inlineMoves.TryRemove(move.Temp, out var removed))
+        if (!InlineViewerProxy.Discard(snapshot, out var message))
+        {
+            inlineFailed?.Invoke($"Could not discard the snapshot for '{snapshot.Name}'. {message}");
+        }
+
+        Refresh();
+    }
+
+    public void AcceptAllSnapshots()
+    {
+        // Live read, not the scan cache: this can be called before the first scan, and acting on
+        // a stale empty cache would silently do nothing.
+        if (Snapshots.Count == 0)
         {
             return;
         }
 
-        removed.Process?.KillAndDispose();
-        removed.Process = null;
-
-        if (!InlinePatchFile.TryRead(removed.PatchFile, out var patch))
+        if (!InlineViewerProxy.AcceptAll(out var message))
         {
-            DiscardInlineStaging(removed);
-            Log.Warning("Could not read patch file for `{Name}`: {PatchFile}", removed.Name, removed.PatchFile);
-            inlineFailed?.Invoke(removed, $"Could not read the patch file for '{removed.Name}'. Re-run the test.");
-            return;
+            inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
         }
 
-        var result = InlineApplier.Apply(patch);
-        switch (result.Status)
-        {
-            case InlineApplyStatus.Applied:
-            case InlineApplyStatus.AlreadyApplied:
-                Log.Information("Inline snapshot accepted for `{Name}`. Target:{Target}", removed.Name, removed.Target);
-                DiscardInlineStaging(removed);
-                return;
-            case InlineApplyStatus.NotFound:
-                // The patch is stale; a re-run regenerates a fresh one. Discard.
-                Log.Warning("Inline snapshot for `{Name}` could not be applied: {Message}", removed.Name, result.Message);
-                DiscardInlineStaging(removed);
-                inlineFailed?.Invoke(removed, $"Could not apply the snapshot for '{removed.Name}': the source has changed. Re-run the test.");
-                return;
-            default:
-                // Retryable (eg file locked by an IDE). Keep pending
-                Log.Warning(result.Exception, "Inline snapshot accept failed for `{Name}`: {Message}. Kept pending", removed.Name, result.Message);
-                inlineMoves.TryAdd(removed.Temp, removed);
-                inlineFailed?.Invoke(removed, $"Could not accept the snapshot for '{removed.Name}': {result.Message}. The item is still pending, so accept can be retried.");
-                return;
-        }
+        Refresh();
     }
 
-    public void Accept(IEnumerable<TrackedInlineMove> toAccept)
+    void Refresh()
     {
-        // Sequential arbitrary order is safe: anchoring is content based, and each
-        // apply is its own locked read-modify-write, even into the same .cs file
-        foreach (var move in toAccept)
-        {
-            Accept(move);
-        }
-    }
-
-    public void Discard(TrackedInlineMove move)
-    {
-        if (inlineMoves.TryRemove(move.Temp, out var removed))
-        {
-            removed.Process?.KillAndDispose();
-            removed.Process = null;
-            DiscardInlineStaging(removed);
-        }
-    }
-
-    static void DiscardInlineStaging(TrackedInlineMove move)
-    {
-        FileEx.SafeDeleteFile(move.Temp);
-        FileEx.SafeDeleteFile(move.PatchFile);
-        if (move.StagedVerified != null)
-        {
-            FileEx.SafeDeleteFile(move.StagedVerified);
-        }
-
-        var directory = Path.GetDirectoryName(move.Temp);
-        if (directory != null)
-        {
-            FileEx.SafeDeleteDirectory(directory);
-        }
+        snapshots = InlineViewerProxy.List();
+        ToggleActive();
     }
 
     public TrackedDelete AddDelete(string file) =>
@@ -600,13 +521,9 @@ class Tracker :
 
         moves.Clear();
 
-        foreach (var inline in inlineMoves.Values)
-        {
-            inline.Process?.KillAndDispose();
-            inline.Process = null;
-        }
-
-        inlineMoves.Clear();
+        // Deliberately not touching the viewer's queue: Clear drops what the tray is tracking,
+        // and the viewer is a separate process the user can still act on.
+        snapshots = [];
     }
 
     public void AcceptOpen()
@@ -618,10 +535,9 @@ class Tracker :
                 .Where(_ => _.Process is { HasExited: false })
                 .ToList());
 
-        Accept(
-            inlineMoves.Values
-                .Where(_ => _.Process is { HasExited: false })
-                .ToList());
+        // Every pending snapshot is open by definition: the viewer only stays running while it
+        // has something to show.
+        AcceptAllSnapshots();
     }
 
     public void AcceptAll()
@@ -630,7 +546,7 @@ class Tracker :
 
         AcceptMoves(moves.Values);
 
-        Accept(inlineMoves.Values.ToList());
+        AcceptAllSnapshots();
     }
 
     void AcceptAllDeletes()
@@ -647,7 +563,18 @@ class Tracker :
 
     public ICollection<TrackedMove> Moves => moves.Values;
 
-    public ICollection<TrackedInlineMove> InlineMoves => inlineMoves.Values;
+    /// <summary>
+    /// Read live rather than from the scan cache, so the menu shows the viewer's current queue at
+    /// the moment it opens.
+    /// </summary>
+    public IReadOnlyList<PendingSnapshot> Snapshots
+    {
+        get
+        {
+            snapshots = InlineViewerProxy.List();
+            return snapshots;
+        }
+    }
 
     public ValueTask DisposeAsync()
     {

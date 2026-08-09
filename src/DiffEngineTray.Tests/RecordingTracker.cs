@@ -1,4 +1,4 @@
-class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<TrackedInlineMove, string>? inlineFailed = null) :
+class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null) :
     Tracker(
         () =>
         {
@@ -14,7 +14,7 @@ class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<T
     {
         await Assert.That(Deletes).IsEmpty();
         await Assert.That(Moves).IsEmpty();
-        await Assert.That(InlineMoves).IsEmpty();
+        await Assert.That(Snapshots).IsEmpty();
         await Assert.That(TrackingAny).IsFalse();
     }
 }

@@ -67,7 +67,7 @@ static class Program
                 "DiffEngineTray",
                 $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried.",
                 ToolTipIcon.Warning),
-            inlineFailed: (_, message) => icon.ShowBalloonTip(
+            inlineFailed: message => icon.ShowBalloonTip(
                 10000,
                 "DiffEngineTray",
                 message,
@@ -176,10 +176,5 @@ static class Program
                     payload.ProcessId);
             },
             payload => tracker.AddDelete(payload.File),
-            payload => tracker.AddInlineMove(
-                payload.Temp,
-                payload.Target,
-                payload.PatchFile,
-                payload.StagedVerified),
             cancel);
 }

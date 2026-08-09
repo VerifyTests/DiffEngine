@@ -63,7 +63,7 @@ public class PiperTest :
     {
         DeletePayload received = null!;
         var source = new CancelSource();
-        var task = PiperServer.Start(_ => { }, s => received = s, _ => { }, source.Token);
+        var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
         await PiperClient.SendDeleteAsync("Foo", source.Token);
         await Task.Delay(1000, source.Token);
         await source.CancelAsync();
@@ -76,7 +76,7 @@ public class PiperTest :
     {
         MovePayload received = null!;
         var source = new CancelSource();
-        var task = PiperServer.Start(s => received = s, _ => { }, _ => { }, source.Token);
+        var task = PiperServer.Start(s => received = s, _ => { }, source.Token);
         await PiperClient.SendMoveAsync("Foo", "Bar", "theExe", "TheArguments \"s\"", true, 10, source.Token);
         await Task.Delay(1000, source.Token);
         await source.CancelAsync();
@@ -108,7 +108,7 @@ public class PiperTest :
     {
         DeletePayload? received = null;
         var source = new CancelSource();
-        var task = PiperServer.Start(_ => { }, s => received = s, _ => { }, source.Token);
+        var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
 
         // Connect and immediately close with RST (no data sent),
         // simulating a client that was canceled mid-connection.
@@ -155,42 +155,11 @@ public class PiperTest :
     }
 
     [Test]
-    public Task InlineMoveJson() =>
-        Verify(
-            PiperClient.BuildInlineMovePayload(
-                "theTempFilePath",
-                "theTargetFilePath",
-                "thePatchFilePath",
-                "theStagedVerifiedPath"));
-
-    [Test]
-    public Task InlineMoveJsonNoStagedVerified() =>
-        Verify(
-            PiperClient.BuildInlineMovePayload(
-                "theTempFilePath",
-                "theTargetFilePath",
-                "thePatchFilePath",
-                null));
-
-    [Test]
-    public async Task InlineMove()
-    {
-        InlineMovePayload received = null!;
-        var source = new CancelSource();
-        var task = PiperServer.Start(_ => { }, _ => { }, s => received = s, source.Token);
-        await PiperClient.SendInlineMoveAsync("Foo", "Bar.cs", "patch.txt", "verified.txt", source.Token);
-        await Task.Delay(1000, source.Token);
-        await source.CancelAsync();
-        await task;
-        await Verify(received);
-    }
-
-    [Test]
     public async Task UnknownTypeIgnored()
     {
         DeletePayload? received = null;
         var source = new CancelSource();
-        var task = PiperServer.Start(_ => { }, s => received = s, _ => { }, source.Token);
+        var task = PiperServer.Start(_ => { }, s => received = s, source.Token);
 
         // A payload type from a future client version must not throw
         using (var client = new TcpClient())

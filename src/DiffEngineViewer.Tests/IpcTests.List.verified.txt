@@ -1,0 +1,13 @@
+﻿{
+  Ok: true,
+  Items: [
+    {
+      Key: sampletests.cs|42,
+      Name: SampleTests.cs:42
+    },
+    {
+      Key: othertests.cs|7,
+      Name: OtherTests.cs:7
+    }
+  ]
+}

@@ -55,6 +55,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Tools](/docs/diff-tool.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
+  * [DiffEngineViewer](/docs/viewer.md)
   * [DiffEngineTray](/docs/tray.md)
   * [Code versus machine level settings](/docs/code-versus-machine-settings.md)<!-- endInclude -->
 
@@ -70,6 +71,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
+ * **[DiffEngineViewer](/docs/diff-tool.md#diffengineviewer)** Windows/OSX/Linux (Cost: Free)
  * **[Diffinity](/docs/diff-tool.md#diffinity)** Windows (Cost: Free with option to donate)
  * **[ExamDiff](/docs/diff-tool.md#examdiff)** Windows (Cost: Paid)
  * **[Guiffy](/docs/diff-tool.md#guiffy)** Windows/OSX (Cost: Paid)

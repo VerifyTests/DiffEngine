@@ -1,6 +1,0 @@
-﻿{
-"Type":"InlineMove",
-"Temp":"theTempFilePath",
-"Target":"theTargetFilePath",
-"PatchFile":"thePatchFilePath"
-}

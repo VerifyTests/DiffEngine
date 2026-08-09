@@ -1,5 +1,6 @@
   * [Tools](/docs/diff-tool.md)
   * [Tool Order](/docs/diff-tool.order.md)
   * [Custom Tool](/docs/diff-tool.custom.md)
+  * [DiffEngineViewer](/docs/viewer.md)
   * [DiffEngineTray](/docs/tray.md)
   * [Code versus machine level settings](/docs/code-versus-machine-settings.md)

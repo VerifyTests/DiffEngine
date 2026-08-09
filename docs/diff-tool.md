@@ -263,6 +263,72 @@ DiffTools.UseOrder(DiffTool.DeltaWalker);
     * `/Applications/DeltaWalker.app/Contents/MacOS/DeltaWalker`
     * `%PATH%DeltaWalker`
 
+### [DiffEngineViewer](https://github.com/VerifyTests/DiffEngine)
+
+  * Cost: Free
+  * Is MDI: False
+  * Supports auto-refresh: False
+  * Supports text files: True
+  * Use shell execute: False
+  * Create no window: True
+  * Environment variable for custom install location: `DiffEngine_DiffEngineViewer`
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise DiffEngineViewer over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.DiffEngineViewer);
+```
+
+#### Notes:
+
+ * Bundled inside the DiffEngine package, so it needs no install
+ * Also available standalone via `dotnet tool install -g DiffEngineViewer`
+ * Cross platform: Windows, macOS and Linux
+
+#### Windows settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%USERPROFILE%\.dotnet\tools\DiffEngineViewer.exe`
+    * `%PATH%DiffEngineViewer.exe`
+
+#### OSX settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `$HOME/.dotnet/tools/DiffEngineViewer`
+    * `%PATH%DiffEngineViewer`
+
+#### Linux settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `$HOME/.dotnet/tools/DiffEngineViewer`
+    * `%PATH%DiffEngineViewer`
+
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)
 
   * Cost: Free with option to donate

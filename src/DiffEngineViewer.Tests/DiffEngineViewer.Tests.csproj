@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <PackageReference Include="Argon" />
+    <PackageReference Include="Verify.DiffPlex" />
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
+    <!--
+    Aliased. DiffEngineViewer links DiffEngine's Inline sources rather than referencing them, so
+    both assemblies declare a DiffEngine namespace. The alias keeps unqualified names resolving to
+    the viewer's copies, while ViewerProtocolTests can still reach the engine's half of the wire
+    format to prove the two agree.
+    -->
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" Aliases="engine" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+</Project>

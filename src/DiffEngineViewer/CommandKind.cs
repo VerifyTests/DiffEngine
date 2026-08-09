@@ -1,0 +1,20 @@
+enum CommandKind
+{
+    None,
+    ScrollUp,
+    ScrollDown,
+    PageUp,
+    PageDown,
+    ScrollHome,
+    ScrollEnd,
+    NextChange,
+    PreviousChange,
+    NextItem,
+    PreviousItem,
+    SelectItem,
+    Accept,
+    AcceptAll,
+    Discard,
+    DiscardAll,
+    Quit
+}

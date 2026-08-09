@@ -119,8 +119,8 @@ public class MenuBuilderTest :
     [Test]
     public async Task OnlyInline()
     {
+        using var viewer = new FakeViewer("Sample.cs:12", "Other.cs:40");
         await using var tracker = new RecordingTracker();
-        tracker.AddInlineMove(file1, "Tests.cs", file2, file3);
         var menu = MenuBuilder.Build(
             emptyAction,
             emptyAction,
@@ -131,10 +131,10 @@ public class MenuBuilderTest :
     [Test]
     public async Task FullWithInline()
     {
+        using var viewer = new FakeViewer("Sample.cs:12");
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
-        tracker.AddInlineMove(file4, "Tests.cs", file2, null);
         var menu = MenuBuilder.Build(
             emptyAction,
             emptyAction,

@@ -58,11 +58,9 @@ static class MenuBuilder
 
     static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
     {
-        if (!tracker.TrackingAny)
-        {
-            yield break;
-        }
-
+        // Read everything first and decide from the counts. TrackingAny is backed by the scan
+        // cache, which drives the icon, and the snapshot half of it can be up to one scan behind
+        // what the viewer actually has queued.
         var deletes = tracker
             .Deletes
             .OrderBy(_ => _.File)
@@ -73,16 +71,20 @@ static class MenuBuilder
             .OrderBy(_ => _.Temp)
             .ToList();
 
-        var inlineMoves = tracker
-            .InlineMoves
-            .OrderBy(_ => _.Temp)
+        var snapshots = tracker
+            .Snapshots
+            .OrderBy(_ => _.Name)
             .ToList();
 
-        var count = moves.Count + deletes.Count + inlineMoves.Count;
+        var count = moves.Count + deletes.Count + snapshots.Count;
+        if (count == 0)
+        {
+            yield break;
+        }
 
         yield return new ToolStripSeparator();
 
-        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves, inlineMoves))
+        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves, snapshots))
         {
             yield return item;
         }
@@ -95,12 +97,12 @@ static class MenuBuilder
         Tracker tracker,
         List<TrackedDelete> deletes,
         List<TrackedMove> moves,
-        List<TrackedInlineMove> inlineMoves)
+        List<PendingSnapshot> snapshots)
     {
         var groups = deletes
             .Select(_ => _.Group)
             .Concat(moves.Select(_ => _.Group))
-            .Concat(inlineMoves.Select(_ => _.Group))
+            .Concat(snapshots.Select(_ => _.Group))
             .Distinct()
             .ToList();
 
@@ -116,7 +118,7 @@ static class MenuBuilder
                          moves
                              .Where(_ => _.Group == group)
                              .ToList(),
-                         inlineMoves
+                         snapshots
                              .Where(_ => _.Group == group)
                              .ToList()))
             {
@@ -136,7 +138,7 @@ static class MenuBuilder
         Tracker tracker,
         List<TrackedDelete> deletes,
         List<TrackedMove> moves,
-        List<TrackedInlineMove> inlineMoves)
+        List<PendingSnapshot> snapshots)
     {
         if (name != null)
         {
@@ -170,40 +172,39 @@ static class MenuBuilder
             }
         }
 
-        if (inlineMoves.Count != 0)
+        if (snapshots.Count != 0)
         {
             yield return new MenuButton(
-                $"Pending Snapshots ({inlineMoves.Count}):",
-                () => tracker.Accept(inlineMoves),
+                $"Pending Snapshots ({snapshots.Count}):",
+                tracker.AcceptAllSnapshots,
                 Images.Accept);
-            foreach (var move in inlineMoves)
+            foreach (var snapshot in snapshots)
             {
-                yield return BuildInlineMove(
-                    move,
-                    () => tracker.Accept(move),
-                    () => tracker.Discard(move));
+                yield return BuildSnapshot(
+                    snapshot,
+                    () => tracker.Accept(snapshot),
+                    () => tracker.Discard(snapshot));
             }
+
+            yield return new MenuButton("Close snapshot viewer", InlineViewerProxy.Quit);
         }
 
         yield return new ToolStripSeparator();
     }
 
-    static ToolStripDropDownButton BuildInlineMove(TrackedInlineMove move, Action accept, Action discard)
+    static ToolStripDropDownButton BuildSnapshot(PendingSnapshot snapshot, Action accept, Action discard)
     {
-        var targetName = Path.GetFileName(move.Target);
-        var menu = new ToolStripDropDownButton($"{move.Name} > {targetName} (inline)")
+        var failed = snapshot.Status == null ? "" : " !";
+        var menu = new ToolStripDropDownButton($"{snapshot.Name} (inline){failed}")
         {
             DropDownDirection = ToolStripDropDownDirection.Left
         };
         menu.DropDownItems.Add(new MenuButton("Accept snapshot", accept));
         menu.DropDownItems.Add(new MenuButton("Discard", discard));
-        if (move.Exe != null)
-        {
-            menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
-        }
-
-        menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(move.Target)));
-        menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
+        // Replaces "Open diff tool": the viewer is the diff tool, and it is already showing this
+        // snapshot, so the useful action is to bring it forward on that item.
+        menu.DropDownItems.Add(new MenuButton("Open in viewer", () => InlineViewerProxy.Focus(snapshot)));
+        menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(snapshot.Source)));
         return menu;
     }
 

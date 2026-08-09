@@ -5,8 +5,11 @@
     <BuildType Name="Release-NotWindows" />
   </Configurations>
   <Folder Name="/Solution Items/">
-    <File Path="../appveyor.yml" />
     <File Path="../claude.md" />
+    <File Path="../.github/workflows/test.yml" />
+    <File Path="../.github/workflows/build-native.yml" />
+    <File Path="../.github/workflows/publish-nuget.yml" />
+    <File Path="../native/CMakeLists.txt" />
     <File Path="../readme.source.md" />
     <File Path="../.editorconfig" />
     <File Path="Directory.Build.props" />
@@ -19,9 +22,21 @@
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
   <Project Path="DiffEngine/DiffEngine.csproj">
+    <!--
+    DiffEngine bundles the viewer into its package. Expressed here rather than as a
+    ProjectReference, because a reference from this multi-targeted project would try to build the
+    single TFM viewer once per DiffEngine target framework.
+    -->
+    <BuildDependency Project="DiffEngineViewer/DiffEngineViewer.csproj" />
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
   <Project Path="DiffEngine.Benchmarks/DiffEngine.Benchmarks.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer/DiffEngineViewer.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
   <Project Path="DiffEngineTray.Tests/DiffEngineTray.Tests.csproj">

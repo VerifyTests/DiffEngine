@@ -9,12 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build and Test Commands
 
 ```bash
-# Build (from repo root)
+# Build (from repo root). Also packs: ProjectDefaults sets GeneratePackageOnBuild in Release.
 dotnet build src --configuration Release
 
 # Run all tests
 dotnet test --project src/DiffEngine.Tests --configuration Release
 dotnet test --project src/DiffEngineTray.Tests --configuration Release
+dotnet test --project src/DiffEngineViewer.Tests --configuration Release
 
 # Run a single test project with filter
 dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName~ClassName"
@@ -45,10 +46,40 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 - `ResolvedTool` - A diff tool that was found on the system with its resolved executable path.
 - `BuildServerDetector` - Detects CI/build server environments to disable diff tool launching.
 
+**DiffEngineViewer (`src/DiffEngineViewer/`):**
+- Cross platform GUI diff tool: Dear ImGui rendered through raylib. Reviews inline snapshots and
+  plain two-file diffs.
+- Bundled inside DiffEngine.nupkg under `tools/viewer/{rid}/`, so inline snapshots work with no
+  extra install. Also shipped standalone as the `DiffEngineViewer` dotnet tool.
+- `ViewerSession` is a pure state machine over an immutable `SessionState`. `ScreenBuilder`
+  projects that into a `Screen` (already sliced to the visible rows), which `AsciiRenderer` draws
+  as text and the native shim draws as pixels. Both renderers consume the identical structure,
+  which is what makes the text snapshots meaningful.
+- Does **not** reference DiffEngine. It links `Inline/*.cs` and `Tray/TrayDetector.cs` as source,
+  because DiffEngine publishes and embeds the viewer and a reference back would be a cycle.
+- Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the window,
+  and a process that fails to bind forwards its patch and exits.
+
+**Native shim (`native/`):**
+- `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in
+  `native/CMakeLists.txt`. Deliberately not submodules: nothing in a normal `dotnet build` touches
+  this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
+- Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
+  any of that, because the binaries are committed.
+- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: ~12 exports
+  taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
+  `DEVIEW_VERSION` whenever the structs change.
+- Built binaries are **committed** to `src/DiffEngineViewer/runtimes/{rid}/native/`, so a plain
+  `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
+  with the `build-native` GitHub workflow, which opens a PR.
+
 **DiffEngineTray (`src/DiffEngineTray/`):**
 - Windows Forms tray application that handles pending file diffs
 - `PiperServer` - TCP server (localhost) receiving move/delete payloads from DiffEngine library
 - `Tracker` - Manages pending file moves and deletes with concurrent dictionaries
+- `InlineViewerProxy` - Pending inline snapshots are **not** stored here. The viewer owns that
+  queue and the tray drives it over the same socket, so one queue and one set of semantics serve
+  every platform rather than a Windows-only copy that can drift.
 - Allows accepting/discarding diffs from system tray
 
 ### Adding a New Diff Tool

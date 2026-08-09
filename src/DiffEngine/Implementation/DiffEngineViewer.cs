@@ -1,0 +1,59 @@
+static partial class Implementation
+{
+    public static Definition DiffEngineViewer()
+    {
+        var launchArguments = new LaunchArguments(
+            Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+            Right: (temp, target) => $"\"{temp}\" \"{target}\"");
+
+        return new(
+            Tool: DiffTool.DiffEngineViewer,
+            Url: "https://github.com/VerifyTests/DiffEngine",
+            AutoRefresh: false,
+            IsMdi: false,
+            SupportsText: true,
+            RequiresTarget: true,
+            BinaryExtensions: [],
+            Cost: "Free",
+            OsSupport: new(
+                Windows: new(
+                    "DiffEngineViewer.exe",
+                    launchArguments,
+                    SearchDirectories(@"%USERPROFILE%\.dotnet\tools\")),
+                Linux: new(
+                    "DiffEngineViewer",
+                    launchArguments,
+                    SearchDirectories("$HOME/.dotnet/tools/")),
+                Osx: new(
+                    "DiffEngineViewer",
+                    launchArguments,
+                    SearchDirectories("$HOME/.dotnet/tools/"))),
+            UseShellExecute: false,
+            // Console subsystem, so without this a window flashes on every launch.
+            CreateNoWindow: true,
+            Notes: """
+                 * Bundled inside the DiffEngine package, so it needs no install
+                 * Also available standalone via `dotnet tool install -g DiffEngineViewer`
+                 * Cross platform: Windows, macOS and Linux
+                """);
+    }
+
+    /// <summary>
+    /// The bundled copy is preferred over a globally installed tool, because it is always version
+    /// matched to the library that is about to launch it.
+    /// </summary>
+    static string[] SearchDirectories(string toolsDirectory)
+    {
+        var bundled = BundledViewerDirectory.Find();
+        if (bundled == null)
+        {
+            return [toolsDirectory];
+        }
+
+        return
+        [
+            bundled,
+            toolsDirectory
+        ];
+    }
+}

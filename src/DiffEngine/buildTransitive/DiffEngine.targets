@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+  Tells the library where the bundled DiffEngineViewer lives, without copying it into the
+  consumer's output. This lands in the consuming project's runtimeconfig.json, where
+  BundledViewerDirectory reads it back via AppContext.GetData.
+
+  Only projects that produce a runtimeconfig can carry it, which is every test project. net462 to
+  net48 consumers fall back to a globally installed DiffEngineViewer tool.
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="DiffEngine.ViewerDirectory"
+                                    Value="$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..', 'tools', 'viewer'))"
+                                    Condition="'$(DiffEngineBundledViewer)' != 'false'" />
+  </ItemGroup>
+
+</Project>

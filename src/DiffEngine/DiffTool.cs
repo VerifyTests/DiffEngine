@@ -29,4 +29,8 @@ public enum DiffTool
     VisualStudioCode,
     VisualStudio,
     Cursor,
+
+    // Last, so it is the fallback used only when nothing else is installed. Bundled inside the
+    // DiffEngine package, so unlike every other entry it is always present.
+    DiffEngineViewer,
 }
