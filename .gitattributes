@@ -4,6 +4,9 @@
 *.png binary
 *.docx binary
 *.dll binary
+*.so binary
+*.dylib binary
+*.ttf binary
 
 src/Verify/EmptyFiles/* binary
 
