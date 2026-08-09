@@ -104,8 +104,8 @@ jobs:
         run: |
           cmake -S native -B native/build/linux-x64 -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build native/build/linux-x64
-          mkdir -p src/DiffEngineViewer/runtimes/linux-x64/native
-          cp native/build/linux-x64/libdiffengine_viewer.so src/DiffEngineViewer/runtimes/linux-x64/native/
+          mkdir -p src/DiffEngineViewer.Linux/runtimes/linux-x64/native
+          cp native/build/linux-x64/libdiffengine_viewer.so src/DiffEngineViewer.Linux/runtimes/linux-x64/native/
 
       # Release-NotWindows drops the WinForms tray and its tests from the solution.
       - name: Build
@@ -139,10 +139,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The jobs above only ever load the x64 natives: the Linux one rebuilds its own from source, and
-  # Windows never P/Invokes because the pixel tests are Linux gated. This job exists so the other
-  # four committed binaries are actually loaded somewhere, which is what catches a wrong
-  # architecture, a file corrupted by a text mode checkout, or an unsatisfied runtime dependency.
+  # The jobs above only ever load the x64 natives, and the Linux one rebuilds its own from source.
+  # This job exists so the arm64 binaries are actually loaded somewhere, which is what catches a
+  # wrong architecture, a file corrupted by a text mode checkout, or an unsatisfied runtime
+  # dependency.
   #
   # It runs DiffEngineViewer.Tests rather than the whole suite: that is where the native smoke test
   # lives, it takes seconds, and it gives the screen and IPC tests some cross architecture coverage
@@ -159,12 +159,12 @@ jobs:
           # targeting one now sits queued indefinitely. Both macOS RIDs ship the same universal
           # dylib, so loading it here covers the arm64 slice and the step below checks that the
           # x86_64 slice is present.
+          #
+          # No Windows entry either, since that head renders with WinForms and loads nothing.
           - rid: osx-arm64
             os: macos-14
           - rid: linux-arm64
             os: ubuntu-24.04-arm
-          - rid: win-arm64
-            os: windows-11-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -189,7 +189,7 @@ jobs:
         if: matrix.rid == 'osx-arm64'
         run: |
           for rid in osx-arm64 osx-x64; do
-            dylib="src/DiffEngineViewer/runtimes/$rid/native/libdiffengine_viewer.dylib"
+            dylib="src/DiffEngineViewer.Mac/runtimes/$rid/native/libdiffengine_viewer.dylib"
             archs=$(lipo -archs "$dylib")
             echo "$rid: $archs"
             for arch in x86_64 arm64; do

@@ -17,8 +17,9 @@ endif()
 # Sources are fetched rather than vendored as submodules.
 #
 # Nothing in a normal `dotnet build` touches this directory: the built binaries are committed to
-# src/DiffEngineViewer/runtimes, so only this file's own build needs raylib and imgui. Submodules
-# would have imposed a recursive clone on every checkout to serve a path almost nobody takes.
+# the runtimes folder of the Linux and Mac heads, so only this file's own build needs raylib and
+# imgui. Submodules would have imposed a recursive clone on every checkout to serve a path almost
+# nobody takes.
 #
 # The versions are pinned by tag here, in the same file as the build configuration.
 #

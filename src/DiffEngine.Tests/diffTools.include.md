@@ -149,8 +149,8 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
 #### Notes:
 
  * Bundled inside the DiffEngine package, so it needs no install
- * Also available standalone via `dotnet tool install -g DiffEngineViewer`
- * Cross platform: Windows, macOS and Linux
+ * Also available standalone as `DiffEngineViewer.Windows`, `.Mac` or `.Linux`
+ * Cross platform: WinForms on Windows, Dear ImGui through raylib elsewhere
 
 #### Windows settings:
 

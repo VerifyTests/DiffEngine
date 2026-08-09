@@ -15,18 +15,30 @@ source file.
 Unlike every other entry in the [tool list](/docs/diff-tool.md), it does not need to be installed.
 A copy ships inside the DiffEngine package, so it is always present.
 
-The UI is [Dear ImGui](https://github.com/ocornut/imgui) rendered through
-[raylib](https://github.com/raysan5/raylib).
+The renderer is native to each platform. On Windows it is WinForms. Elsewhere it is
+[Dear ImGui](https://github.com/ocornut/imgui) rendered through
+[raylib](https://github.com/raysan5/raylib), in a small library shipped alongside.
+
+All of them draw the same screen model, and the layout, scrolling and keyboard handling are shared,
+so the only difference is how the pixels get there.
 
 
 ## NuGet
 
- * https://www.nuget.org/packages/DiffEngineViewer
+ * https://www.nuget.org/packages/DiffEngineViewer.Windows
+ * https://www.nuget.org/packages/DiffEngineViewer.Mac
+ * https://www.nuget.org/packages/DiffEngineViewer.Linux
 
 Only needed to use the viewer outside a project that references DiffEngine, since DiffEngine
 already bundles it.
 
-`dotnet tool install -g DiffEngineViewer`
+```
+dotnet tool install -g DiffEngineViewer.Windows
+```
+
+One package per operating system rather than one for all of them, because WinForms has to be named
+as a framework dependency and a package that names it cannot start anywhere else. The copy bundled
+in DiffEngine is unaffected: it is published per RID and resolved by directory.
 
 
 ## Usage
@@ -87,5 +99,5 @@ continuous testing and AI CLIs.
 ## Platforms
 
 Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`. On a
-platform with no matching binary, resolution falls through to a globally installed
+platform with no matching build, resolution falls through to a globally installed
 DiffEngineViewer tool, and then to whatever other diff tool is available.

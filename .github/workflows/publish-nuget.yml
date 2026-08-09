@@ -59,13 +59,18 @@ jobs:
         shell: bash
         run: |
           missing=0
-          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
-            directory="src/DiffEngineViewer/runtimes/$rid/native"
+          check() {
+            directory="src/$1/runtimes/$2/native"
             if [ -z "$(ls -A "$directory" 2>/dev/null)" ]; then
-              echo "::error::No native renderer for $rid. Run the build-native workflow."
+              echo "::error::No native renderer for $2. Run the build-native workflow."
               missing=1
             fi
-          done
+          }
+          # No Windows RIDs: that head renders with WinForms and loads no native library.
+          check DiffEngineViewer.Linux linux-x64
+          check DiffEngineViewer.Linux linux-arm64
+          check DiffEngineViewer.Mac osx-x64
+          check DiffEngineViewer.Mac osx-arm64
           exit $missing
 
       # Enumerated rather than passed as a glob. This job runs on Windows, where the shell is pwsh
