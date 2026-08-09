@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.IO.Compression" />
+    <Using Include="System.Xml.Linq" />
+    <!--
+    No ProjectReference to anything packable. These tests read the .nupkg files a Release build
+    drops in nugets, so referencing the projects that produce them would add nothing and would tie
+    this project to their target frameworks.
+    -->
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+</Project>

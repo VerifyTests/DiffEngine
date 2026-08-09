@@ -1,0 +1,3 @@
+﻿DiffEngine.20.0.0-beta.6.nupkg
+DiffEngineTray.20.0.0-beta.6.nupkg
+DiffEngineViewer.20.0.0-beta.6.nupkg

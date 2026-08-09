@@ -39,6 +39,14 @@
   <Project Path="DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="Packaging.Tests/Packaging.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!--
+    Release-NotWindows drops DiffEngineTray, so its package would be missing and these baselines
+    would not describe a full release. Same reason publish-nuget.yml runs on windows-latest.
+    -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
   <Project Path="DiffEngineTray.Tests/DiffEngineTray.Tests.csproj">
     <BuildDependency Project="FakeDiffTool/FakeDiffTool.csproj" />
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
