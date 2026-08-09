@@ -49,11 +49,30 @@ static class Packages
 
     public static IReadOnlyList<string> Entries(ZipArchive archive) =>
         archive.Entries
-            .Select(_ => Normalize(_.FullName))
+            .Select(_ => _.FullName)
+            .Where(_ => !_.StartsWith(manifest, StringComparison.Ordinal))
+            .Select(Normalize)
             .Order(StringComparer.Ordinal)
             .ToList();
 
     const string coreProperties = "package/services/metadata/core-properties/";
+
+    /// <summary>
+    /// The SBOM, which only exists on CI: DiffEngine references Microsoft.Sbom.Targets under a
+    /// condition on the CI variable. Left out of the snapshots so one baseline describes both a
+    /// local pack and a release, and asserted separately where it is actually produced.
+    /// </summary>
+    public const string manifest = "_manifest/";
+
+    public static bool HasSbom(ZipArchive archive) =>
+        archive.Entries.Any(_ => _.FullName.StartsWith(manifest, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Whether this build was the one that generates an SBOM, matching the condition in
+    /// DiffEngine.csproj rather than guessing at a CI provider.
+    /// </summary>
+    public static bool OnCi() =>
+        Environment.GetEnvironmentVariable("CI") == "true";
 
     static string Normalize(string path)
     {

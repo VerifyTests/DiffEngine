@@ -72,6 +72,23 @@ public class PackageTests
     }
 
     /// <summary>
+    /// The SBOM is dropped from the content snapshots, since it only exists on CI, so its absence
+    /// there would otherwise go unnoticed. This is the half of that which can still be checked.
+    /// </summary>
+    [Test]
+    [PackageTest]
+    public async Task TheSbomIsGeneratedOnCi()
+    {
+        if (!Packages.OnCi())
+        {
+            return;
+        }
+
+        using var archive = Packages.Open("DiffEngine");
+        await Assert.That(Packages.HasSbom(archive)).IsTrue();
+    }
+
+    /// <summary>
     /// The tray resolves a viewer through <c>DiffTools</c> like any other tool rather than shipping
     /// one, so nothing named after it belongs in its package.
     /// </summary>
