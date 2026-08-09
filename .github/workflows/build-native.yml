@@ -112,8 +112,14 @@ jobs:
     # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions UI
     # until the workflow is on the default branch, so on a feature branch a push is the only way
     # to trigger this, and leaving the binaries as bare artifacts to copy by hand is worse.
-    # Never on pull_request, which would mean opening a PR from a PR.
-    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.commit)
+    #
+    # Branches only. Never on pull_request, which would mean opening a PR from a PR, and never on
+    # a tag: a tag checkout is a detached HEAD with no base branch to target, and proposing a
+    # binaries PR against a release tag is meaningless anyway.
+    if: >-
+      github.event_name != 'pull_request' &&
+      startsWith(github.ref, 'refs/heads/') &&
+      (github.event_name != 'workflow_dispatch' || inputs.commit)
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -68,10 +68,25 @@ jobs:
           done
           exit $missing
 
+      # Enumerated rather than passed as a glob. This job runs on Windows, where the shell is pwsh
+      # and a quoted wildcard reaches dotnet unexpanded, so "nugets/*.nupkg" is read as a literal
+      # filename and the push fails with "File does not exist".
+      #
+      # --skip-duplicate makes re-runs idempotent.
       - name: Push to nuget.org
-        # --skip-duplicate makes re-runs idempotent.
-        run: >
-          dotnet nuget push "nugets/*.nupkg"
-          --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
-          --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
+        run: |
+          $packages = Get-ChildItem -Path nugets -Filter *.nupkg
+          if ($packages.Count -eq 0)
+          {
+            throw "No packages were produced by the build."
+          }
+
+          Write-Host "Pushing $($packages.Count) packages"
+          foreach ($package in $packages)
+          {
+            dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0)
+            {
+              throw "Failed to push $($package.Name)"
+            }
+          }
