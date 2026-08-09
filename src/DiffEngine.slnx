@@ -36,6 +36,15 @@
   <Project Path="DiffEngineViewer/DiffEngineViewer.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngineViewer.Windows/DiffEngineViewer.Windows.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer.Mac/DiffEngineViewer.Mac.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer.Linux/DiffEngineViewer.Linux.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

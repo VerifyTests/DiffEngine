@@ -36,7 +36,9 @@ public class PackageTests
     [PackageTest]
     [Arguments("DiffEngine")]
     [Arguments("DiffEngineTray")]
-    [Arguments("DiffEngineViewer")]
+    [Arguments("DiffEngineViewer.Windows")]
+    [Arguments("DiffEngineViewer.Mac")]
+    [Arguments("DiffEngineViewer.Linux")]
     public async Task Contents(string id)
     {
         using var archive = Packages.Open(id);
@@ -52,7 +54,9 @@ public class PackageTests
     [PackageTest]
     [Arguments("DiffEngine")]
     [Arguments("DiffEngineTray")]
-    [Arguments("DiffEngineViewer")]
+    [Arguments("DiffEngineViewer.Windows")]
+    [Arguments("DiffEngineViewer.Mac")]
+    [Arguments("DiffEngineViewer.Linux")]
     public async Task EveryApphostHasItsAssembly(string id)
     {
         using var archive = Packages.Open(id);
@@ -111,6 +115,7 @@ public class PackageTests
             foreach (var required in (string[])
                      [
                          "DiffEngineViewer.dll",
+                         "DiffEngineViewer.Core.dll",
                          "DiffEngineViewer.deps.json",
                          $"DiffEngineViewer{runtimeConfig}",
                          "DiffPlex.dll"
