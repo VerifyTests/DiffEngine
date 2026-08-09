@@ -39,7 +39,7 @@ record QueueEntry(
             Name: $"{Path.GetFileName(patch.SourceFile)}:{patch.LineHint}",
             LeftHeader: "received",
             RightHeader: rightHeader,
-            LeftText: CsStringLiteral.NormalizeNewlines(patch.NewContent),
+            LeftText: CsStringLiteral.NormalizeNewlines(patch.NewContent ?? ""),
             RightText: rightText,
             Patch: patch,
             LeftFile: null,

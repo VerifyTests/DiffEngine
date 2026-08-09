@@ -1,5 +1,6 @@
 extern alias engine;
 
+using EngineMode = engine::DiffEngine.InlinePatchMode;
 using EnginePatch = engine::DiffEngine.InlinePatch;
 using EnginePatchFile = engine::DiffEngine.InlinePatchFile;
 using EnginePayload = engine::DiffEngine.ViewerPayload;
@@ -43,6 +44,29 @@ public class ViewerProtocolTests
         await Assert.That(InlinePatchFile.TryParse(message!.Body!, out var roundTripped)).IsTrue();
         await Assert.That(roundTripped!.NewContent).IsEqualTo(content);
         await Assert.That(roundTripped.OriginalExpression).IsNull();
+    }
+
+    /// <summary>
+    /// The mode is written by name, so the two enums have to stay member for member identical.
+    /// Both sides are enumerated rather than listed, so a member added to one and not the other
+    /// fails here rather than at a call site nobody wrote yet.
+    /// </summary>
+    [Test]
+    public async Task ModesAgree()
+    {
+        var engineModes = Enum.GetNames(typeof(EngineMode));
+
+        await Assert.That(engineModes).IsEquivalentTo(Enum.GetNames<InlinePatchMode>());
+
+        foreach (var name in engineModes)
+        {
+            var engineMode = (EngineMode) Enum.Parse(typeof(EngineMode), name);
+            var payload = EnginePayload.Inline(EnginePatchFile.Build(new("Tests.cs", 1, null, "content", engineMode)));
+
+            await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
+            await Assert.That(InlinePatchFile.TryParse(message!.Body!, out var roundTripped)).IsTrue();
+            await Assert.That(roundTripped!.Mode).IsEqualTo(Enum.Parse<InlinePatchMode>(name));
+        }
     }
 
     [Test]

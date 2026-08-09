@@ -50,6 +50,13 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             return ViewerResponse.Error("Inline body is not a readable patch payload");
         }
 
+        // Remove strips a literal when inline is switched off. That is a configuration change with
+        // nothing to review, so the sender applies it directly rather than queueing it here.
+        if (patch.Mode == InlinePatchMode.Remove)
+        {
+            return ViewerResponse.Error($"{InlinePatchMode.Remove} patches are not reviewable");
+        }
+
         var state = host.Mutate(_ => ViewerSession.Enqueue(_, QueueEntry.ForInline(patch)));
         return ViewerResponse.Success($"Queued {state.Queue.Count}");
     }

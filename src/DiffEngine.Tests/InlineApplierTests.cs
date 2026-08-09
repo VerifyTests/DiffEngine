@@ -23,7 +23,7 @@
         return result;
     }
 
-    const string source = "class C\n{\n    void M() => VerifyInline(value, \"old\");\n}";
+    const string source = "class C\n{\n    void M() => Verify(value).Snapshot(\"old\");\n}";
 
     [Test]
     public async Task Utf8BomPreserved()
@@ -193,7 +193,7 @@
     [Test]
     public async Task ParallelAppliesToSameFile()
     {
-        var multi = "class C\n{\n    void A() => VerifyInline(a, \"oldA\");\n    void B() => VerifyInline(b, \"oldB\");\n}";
+        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"oldA\");\n    void B() => Verify(b).Snapshot(\"oldB\");\n}";
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -234,7 +234,7 @@
     [Test]
     public async Task ParallelAppliesWithIdenticalLiterals()
     {
-        var multi = "class C\n{\n    void A() => VerifyInline(a, \"old\");\n    void B() => VerifyInline(b, \"old\");\n}";
+        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"old\");\n    void B() => Verify(b).Snapshot(\"old\");\n}";
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -258,7 +258,7 @@
     [Test]
     public async Task SequentialAppliesWithIdenticalLiterals()
     {
-        var multi = "class C\n{\n    void A() => VerifyInline(a, \"old\");\n    void B() => VerifyInline(b, \"old\");\n}";
+        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"old\");\n    void B() => Verify(b).Snapshot(\"old\");\n}";
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -270,8 +270,8 @@
 
             var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).DoesNotContain("old");
-            var indexA = text.IndexOf("VerifyInline(a", StringComparison.Ordinal);
-            var indexB = text.IndexOf("VerifyInline(b", StringComparison.Ordinal);
+            var indexA = text.IndexOf("Verify(a)", StringComparison.Ordinal);
+            var indexB = text.IndexOf("Verify(b)", StringComparison.Ordinal);
             var segmentA = text.Substring(indexA, indexB - indexA);
             await Assert.That(segmentA).Contains("newA");
             await Assert.That(segmentA).DoesNotContain("newB");
@@ -342,6 +342,44 @@ public class InlinePatchFileTests
     }
 
     [Test]
+    [Arguments(InlinePatchMode.Set)]
+    [Arguments(InlinePatchMode.Append)]
+    [Arguments(InlinePatchMode.Remove)]
+    public async Task RoundTripMode(InlinePatchMode mode)
+    {
+        var patch = new InlinePatch("Tests.cs", 1, null, "content", mode);
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.Mode).IsEqualTo(mode);
+    }
+
+    [Test]
+    public async Task DefaultModeIsSet()
+    {
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content")), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.Mode).IsEqualTo(InlinePatchMode.Set);
+    }
+
+    // The version 1 shape, which had no mode line
+    [Test]
+    public async Task PreviousVersionFails()
+    {
+        var read = InlinePatchFile.TryParse("version: 1\nsourceFile: x\nlineHint: 1\noriginalExpression:\nnewContent: YQ==\n", out _);
+        await Assert.That(read).IsFalse();
+    }
+
+    [Test]
+    public async Task UnknownModeFails()
+    {
+        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Sideways\noriginalExpression:\nnewContent: YQ==\n", out _);
+        await Assert.That(read).IsFalse();
+    }
+
+    [Test]
     public async Task MissingFileFails()
     {
         var read = InlinePatchFile.TryRead(Path.Combine(Path.GetTempPath(), "missing.inlinepatch"), out _);
@@ -358,7 +396,7 @@ public class InlinePatchFileTests
     [Test]
     public async Task WrongVersionFails()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\noriginalExpression:\nnewContent: YQ==\n", out _);
+        var read = InlinePatchFile.TryParse("version: 3\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\n", out _);
         await Assert.That(read).IsFalse();
     }
 }

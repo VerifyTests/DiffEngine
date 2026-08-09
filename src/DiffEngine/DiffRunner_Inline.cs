@@ -39,8 +39,17 @@ public static partial class DiffRunner
     /// thread per call.
     /// </para>
     /// </summary>
+    /// <exception cref="ArgumentException">
+    /// <see cref="InlinePatchMode.Remove"/>, which has nothing for a user to review. Apply it with
+    /// <see cref="InlineApplier"/> instead.
+    /// </exception>
     public static async Task<InlineResult> AddInlineAsync(InlinePatch patch, Cancel cancel = default)
     {
+        if (patch.Mode == InlinePatchMode.Remove)
+        {
+            throw new ArgumentException($"{InlinePatchMode.Remove} patches are not reviewable. Use InlineApplier.", nameof(patch));
+        }
+
         var check = CheckInline();
         if (check != InlineResult.Queued)
         {

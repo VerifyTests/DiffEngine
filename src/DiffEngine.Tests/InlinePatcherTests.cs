@@ -1,4 +1,4 @@
-﻿public class InlinePatcherTests
+public class InlinePatcherTests
 {
     const string rawOld = "\"\"\"\n        old\n        \"\"\"";
 
@@ -8,26 +8,26 @@
     [Test]
     public async Task ReplaceRawLiteral()
     {
-        var source = Method($"        await VerifyInline(value, {rawOld.Replace("\n", "\n        ")});");
-        var status = InlinePatcher.TryApply(source, 5, rawOld.Replace("\n", "\n        "), "new", out var newSource, out _);
+        var source = Method($"        await Snapshot({rawOld.Replace("\n", "\n        ")});");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, rawOld.Replace("\n", "\n        "), "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("new");
         await Assert.That(newSource).DoesNotContain("old");
         // Everything outside the span is untouched
         await Assert.That(newSource).Contains("class Tests");
-        await Assert.That(newSource).Contains("await VerifyInline(value, ");
+        await Assert.That(newSource).Contains("await Snapshot(");
         await Assert.That(newSource.EndsWith(");\n    }\n}")).IsTrue();
     }
 
     [Test]
     public async Task ReplaceRegularLiteral()
     {
-        var source = Method("        await VerifyInline(value, \"old\");");
-        var status = InlinePatcher.TryApply(source, 5, "\"old\"", "new", out var newSource, out _);
+        var source = Method("        await Snapshot(\"old\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             """
-            await VerifyInline(value, ""
+            await Snapshot(""
             """ + "\"");
         await Assert.That(newSource).Contains("            new");
     }
@@ -35,8 +35,8 @@
     [Test]
     public async Task ReplacementUsesFileEol()
     {
-        var source = Method("        await VerifyInline(value, \"old\");").Replace("\n", "\r\n");
-        var status = InlinePatcher.TryApply(source, 5, "\"old\"", "a\nb", out var newSource, out _);
+        var source = Method("        await Snapshot(\"old\");").Replace("\n", "\r\n");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).DoesNotContain("a\nb");
         await Assert.That(newSource).Contains("a\r\n            b");
@@ -45,8 +45,8 @@
     [Test]
     public async Task AlreadyAppliedWhenLiteralMatches()
     {
-        var source = Method("        await VerifyInline(value, \"same\");");
-        var status = InlinePatcher.TryApply(source, 5, "\"same\"", "same", out _, out _);
+        var source = Method("        await Snapshot(\"same\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"same\"", "same", out _, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
@@ -54,8 +54,8 @@
     public async Task ShiftedLinesStillFound()
     {
         var padding = string.Concat(Enumerable.Repeat("        // padding\n", 30));
-        var source = Method(padding + "        await VerifyInline(value, \"old\");");
-        var status = InlinePatcher.TryApply(source, 5, "\"old\"", "new", out var newSource, out _);
+        var source = Method(padding + "        await Snapshot(\"old\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).DoesNotContain("\"old\"");
     }
@@ -64,14 +64,14 @@
     public async Task DuplicateLiteralsPicksNearestToHint()
     {
         var source =
-            "await VerifyInline(a, \"dup\");\n" +
+            "await A().Snapshot(\"dup\");\n" +
             string.Concat(Enumerable.Repeat("// filler\n", 10)) +
-            "await VerifyInline(b, \"dup\");\n";
-        var status = InlinePatcher.TryApply(source, 12, "\"dup\"", "new", out var newSource, out _);
+            "await B().Snapshot(\"dup\");\n";
+        var status = InlinePatcher.TryApply(source, 12, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         // First occurrence untouched, second replaced
-        await Assert.That(newSource).Contains("VerifyInline(a, \"dup\")");
-        await Assert.That(newSource).DoesNotContain("VerifyInline(b, \"dup\")");
+        await Assert.That(newSource).Contains("A().Snapshot(\"dup\")");
+        await Assert.That(newSource).DoesNotContain("B().Snapshot(\"dup\")");
     }
 
     // Two call sites, A on line 4 and B on line 7
@@ -80,17 +80,17 @@
             "\n",
             "class Tests",
             "{",
-            "    void A() =>",
-            $"        VerifyInline(a, {literalA});",
+            "    Task A() =>",
+            $"        Verify(a).Snapshot({literalA});",
             "",
-            "    void B() =>",
-            $"        VerifyInline(b, {literalB});",
+            "    Task B() =>",
+            $"        Verify(b).Snapshot({literalB});",
             "}");
 
     static (string a, string b) Segments(string text)
     {
-        var indexA = text.IndexOf("VerifyInline(a", StringComparison.Ordinal);
-        var indexB = text.IndexOf("VerifyInline(b", StringComparison.Ordinal);
+        var indexA = text.IndexOf("Verify(a)", StringComparison.Ordinal);
+        var indexB = text.IndexOf("Verify(b)", StringComparison.Ordinal);
         return (text.Substring(indexA, indexB - indexA), text.Substring(indexB));
     }
 
@@ -99,7 +99,7 @@
     {
         var source = TwoCallSites("\"dup\"", "\"dup\"");
 
-        var status = InlinePatcher.TryApply(source, 4, "\"dup\"", "new", out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         var (a, b) = Segments(newSource);
@@ -117,14 +117,14 @@
             "\n",
             "class Tests",
             "{",
-            "    void A() =>",
-            "        VerifyInline(a, \"dup\");",
-            "    void B() =>",
-            "        VerifyInline(b, \"dup\");",
+            "    Task A() =>",
+            "        Verify(a).Snapshot(\"dup\");",
+            "    Task B() =>",
+            "        Verify(b).Snapshot(\"dup\");",
             "}");
 
         // Line 5 is equidistant from the sites on lines 4 and 6
-        var status = InlinePatcher.TryApply(source, 5, "\"dup\"", "new", out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         var (a, b) = Segments(newSource);
@@ -139,8 +139,8 @@
     {
         var source = TwoCallSites("\"old\"", "\"old\"");
 
-        var first = InlinePatcher.TryApply(source, 4, "\"old\"", "new", out var afterFirst, out _);
-        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "new", out var afterSecond, out var reason);
+        var first = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "new", out var afterFirst, out _);
+        var second = InlinePatcher.TryApply(afterFirst, 7, InlinePatchMode.Set, "\"old\"", "new", out var afterSecond, out var reason);
 
         await Assert.That(first).IsEqualTo(PatchStatus.Applied);
         await Assert.That(second).IsEqualTo(PatchStatus.Applied);
@@ -156,8 +156,8 @@
     {
         var source = TwoCallSites("\"old\"", "\"old\"");
 
-        var first = InlinePatcher.TryApply(source, 4, "\"old\"", "newA", out var afterFirst, out _);
-        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "newB", out var afterSecond, out _);
+        var first = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "newA", out var afterFirst, out _);
+        var second = InlinePatcher.TryApply(afterFirst, 7, InlinePatchMode.Set, "\"old\"", "newB", out var afterSecond, out _);
 
         await Assert.That(first).IsEqualTo(PatchStatus.Applied);
         await Assert.That(second).IsEqualTo(PatchStatus.Applied);
@@ -176,9 +176,9 @@
     {
         var source = TwoCallSites("\"old\"", "\"old\"");
 
-        InlinePatcher.TryApply(source, 4, "\"old\"", "line1\nline2\nline3", out var afterFirst, out _);
+        InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "line1\nline2\nline3", out var afterFirst, out _);
         var lineShift = afterFirst.Split('\n').Length - source.Split('\n').Length;
-        var second = InlinePatcher.TryApply(afterFirst, 7, "\"old\"", "newB", out var afterSecond, out _);
+        var second = InlinePatcher.TryApply(afterFirst, 7, InlinePatchMode.Set, "\"old\"", "newB", out var afterSecond, out _);
 
         await Assert.That(lineShift).IsGreaterThan(0);
         await Assert.That(second).IsEqualTo(PatchStatus.Applied);
@@ -195,7 +195,7 @@
     {
         var source = TwoCallSites("\"new\"", "\"old\"");
 
-        var status = InlinePatcher.TryApply(source, 4, "\"gone\"", "new", out _, out _);
+        var status = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"gone\"", "new", out _, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
@@ -205,71 +205,52 @@
     {
         // The other TFM already applied: the old expression is gone,
         // and the current argument renders to the new content.
-        var source = Method("        await VerifyInline(value, \"new\");");
-        var status = InlinePatcher.TryApply(source, 5, "\"old-gone\"", "new", out _, out _);
+        var source = Method("        await Snapshot(\"new\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old-gone\"", "new", out _, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
     [Test]
     public async Task ExpressionGoneAndLiteralDiffersIsNotFound()
     {
-        var source = Method("        await VerifyInline(value, \"different\");");
-        var status = InlinePatcher.TryApply(source, 5, "\"old-gone\"", "new", out _, out var reason);
+        var source = Method("        await Snapshot(\"different\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old-gone\"", "new", out _, out var reason);
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("Re-run the test");
     }
 
     [Test]
-    public async Task InsertIntoSingleArgumentCall()
+    public async Task InsertIntoEmptyArgumentList()
     {
-        var source = Method("        await VerifyInline(value);");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
+        var source = Method("        await Snapshot();");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await VerifyInline(value, \"\"\"\n            new\n            \"\"\");");
-    }
-
-    [Test]
-    public async Task InsertWithComplexTargetExpression()
-    {
-        var source = Method("        await VerifyInline(new { a = 1, b = Call(\"x, y\") });");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
-        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Call(\"x, y\") }, \"\"\"");
+        await Assert.That(newSource).Contains("await Snapshot(\"\"\"\n            new\n            \"\"\");");
     }
 
     [Test]
     public async Task InsertReplacesNullArgument()
     {
-        var source = Method("        await VerifyInline(value, null, settings);");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
+        var source = Method("        await Snapshot(null, file, line);");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await VerifyInline(value, \"\"\"\n            new\n            \"\"\", settings);");
+        await Assert.That(newSource).Contains("await Snapshot(\"\"\"\n            new\n            \"\"\", file, line);");
     }
 
     [Test]
-    public async Task InsertBeforeNamedSettingsArgument()
+    public async Task InsertBeforeAnotherNamedArgument()
     {
-        var source = Method("        await VerifyInline(value, settings: mySettings);");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
+        var source = Method("        await Snapshot(file: myFile);");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await VerifyInline(value, expected: \"\"\"\n            new\n            \"\"\", settings: mySettings);");
-    }
-
-    [Test]
-    public async Task InsertLeavesFluentContinuationIntact()
-    {
-        var source = Method("        await VerifyInline(value)\n            .UseDirectory(\"snapshots\");");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
-        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains(".UseDirectory(\"snapshots\");");
-        await Assert.That(newSource).Contains("VerifyInline(value, \"\"\"");
+        await Assert.That(newSource).Contains("await Snapshot(expected: \"\"\"\n            new\n            \"\"\", file: myFile);");
     }
 
     [Test]
     public async Task NullOriginalWithDifferingLiteralIsNotFound()
     {
-        var source = Method("        await VerifyInline(value, \"different\");");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out _, out var reason);
+        var source = Method("        await Snapshot(\"different\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out var reason);
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("different expected argument");
     }
@@ -277,8 +258,8 @@
     [Test]
     public async Task NullOriginalWithEqualLiteralIsAlreadyApplied()
     {
-        var source = Method("        await VerifyInline(value, \"new\");");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out _, out _);
+        var source = Method("        await Snapshot(\"new\");");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
@@ -286,43 +267,227 @@
     public async Task NoCallFound()
     {
         var source = Method("        await Verify(value);");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out _, out var reason);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out var reason);
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a VerifyInline call");
+        await Assert.That(reason).Contains("Could not find a Snapshot call");
     }
 
     [Test]
     public async Task PartialTokenIsNotMatched()
     {
-        var source = Method("        await MyVerifyInlineHelper(value);");
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out _, out _);
+        var source = Method("        await MySnapshotHelper(value);");
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+    }
+
+    [Test]
+    public async Task AppendToABareVerify()
+    {
+        var source = Method("        await Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(value)\n" +
+            "            .Snapshot(\"\"\"\n" +
+            "                new\n" +
+            "                \"\"\");");
+    }
+
+    // Snapshot terminates the chain, so it has to land after everything already chained on
+    [Test]
+    public async Task AppendGoesAfterAnExistingChain()
+    {
+        var source = Method(
+            "        await Verify(value)\n" +
+            "            .UseDirectory(\"snapshots\")\n" +
+            "            .ScrubLinesContaining(\"x\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "            .ScrubLinesContaining(\"x\")\n" +
+            "            .Snapshot(\"\"\"\n" +
+            "                new\n" +
+            "                \"\"\");");
+    }
+
+    [Test]
+    public async Task AppendToAnEntryPointOverload()
+    {
+        var source = Method("        await VerifyXml(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await VerifyXml(value)\n            .Snapshot(\"\"\"");
+    }
+
+    // The verify call spans lines, so the closing paren is nowhere near the hint
+    [Test]
+    public async Task AppendToAMultiLineVerifyCall()
+    {
+        var source = Method(
+            "        await Verify(\n" +
+            "            new\n" +
+            "            {\n" +
+            "                value\n" +
+            "            });");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("            })\n            .Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task AppendUsesTheFileEol()
+    {
+        var source = Method("        await Verify(value);").Replace("\n", "\r\n");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await AssertEolConsistent(newSource, crlf);
+    }
+
+    [Test]
+    public async Task AppendIsRefusedWhenOneIsAlreadyChained()
+    {
+        var source = Method("        await Verify(value)\n            .Snapshot(\"already\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    [Test]
+    public async Task AppendWithNoVerifyCall()
+    {
+        var source = Method("        await Something(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Verify call");
+    }
+
+    [Test]
+    public async Task RemoveTakesTheWholeLine()
+    {
+        var source = Method(
+            "        await Verify(value)\n" +
+            "            .Snapshot(\"\"\"\n" +
+            "                old\n" +
+            "                \"\"\");");
+
+        var status = InlinePatcher.TryApply(source, 6, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        await Verify(value);"));
+    }
+
+    [Test]
+    public async Task RemoveLeavesTheRestOfTheChain()
+    {
+        var source = Method(
+            "        await Verify(value)\n" +
+            "            .UseDirectory(\"snapshots\")\n" +
+            "            .Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                "        await Verify(value)\n" +
+                "            .UseDirectory(\"snapshots\");"));
+    }
+
+    [Test]
+    public async Task RemoveFromASingleLineChain()
+    {
+        var source = Method("        await Verify(value).Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        await Verify(value);"));
+    }
+
+    [Test]
+    public async Task RemoveWithCrlf()
+    {
+        var source = Method("        await Verify(value)\n            .Snapshot(\"old\");").Replace("\n", "\r\n");
+
+        var status = InlinePatcher.TryApply(source, 6, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        await Verify(value);").Replace("\n", "\r\n"));
+    }
+
+    [Test]
+    public async Task RemovePicksTheSiteNearestTheHint()
+    {
+        var source = TwoCallSites("\"a\"", "\"b\"");
+
+        var status = InlinePatcher.TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        var (a, b) = Segments(newSource);
+        await Assert.That(a).Contains(".Snapshot(\"a\")");
+        await Assert.That(b).DoesNotContain("Snapshot");
+    }
+
+    [Test]
+    public async Task RemoveWhenTheCallIsNotChained()
+    {
+        var source = Method("        await Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("not a chained call");
+    }
+
+    [Test]
+    public async Task RemoveWithNoSnapshotCall()
+    {
+        var source = Method("        await Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Snapshot call");
     }
 
     [Test]
     public async Task TabIndentedFileUsesTabUnit()
     {
-        var source = "class Tests\n{\n\tasync Task Test()\n\t{\n\t\tawait VerifyInline(value);\n\t}\n}";
-        var status = InlinePatcher.TryApply(source, 5, null, "new", out var newSource, out _);
+        var source = "class Tests\n{\n\tasync Task Test()\n\t{\n\t\tawait Snapshot();\n\t}\n}";
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("VerifyInline(value, \"\"\"\n\t\t\tnew\n\t\t\t\"\"\");");
+        await Assert.That(newSource).Contains("Snapshot(\"\"\"\n\t\t\tnew\n\t\t\t\"\"\");");
     }
 
     [Test]
     public async Task HintBeyondEndOfFile()
     {
-        var source = "await VerifyInline(value);";
-        var status = InlinePatcher.TryApply(source, 500, null, "new", out var newSource, out _);
+        var source = "await Snapshot();";
+        var status = InlinePatcher.TryApply(source, 500, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("VerifyInline(value, \"\"\"");
+        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
     }
 
     [Test]
     public async Task LfExpressionFoundInCrlfFile()
     {
-        var source = Method($"        await VerifyInline(value, {rawOld.Replace("\n", "\n        ")});").Replace("\n", "\r\n");
+        var source = Method($"        await Snapshot({rawOld.Replace("\n", "\n        ")});").Replace("\n", "\r\n");
         var expression = rawOld.Replace("\n", "\n        ");
-        var status = InlinePatcher.TryApply(source, 5, expression, "new", out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, expression, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).DoesNotContain("old");
     }
@@ -330,9 +495,9 @@
     [Test]
     public async Task OutsideSpanIsCharacterIdentical()
     {
-        var body = "        await VerifyInline(value, \"old\");";
+        var body = "        await Snapshot(\"old\");";
         var source = Method(body);
-        InlinePatcher.TryApply(source, 5, "\"old\"", "new", out var newSource, out _);
+        InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
         var prefix = source.Substring(0, source.IndexOf("\"old\"", StringComparison.Ordinal));
         var suffix = source.Substring(source.IndexOf("\"old\"", StringComparison.Ordinal) + 5);
         await Assert.That(newSource.StartsWith(prefix)).IsTrue();
@@ -349,7 +514,7 @@
             "{",
             "    async Task Test()",
             "    {",
-            "        await VerifyInline(value, \"\"\"",
+            "        await Snapshot(\"\"\"",
             "            old1",
             "            old2",
             "            \"\"\");",
@@ -400,7 +565,7 @@
         var expression = BuildExpression(expressionEol);
         var content = "new1" + contentEol + "new2";
 
-        var status = InlinePatcher.TryApply(source, 5, expression, content, out var newSource, out var reason);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, expression, content, out var newSource, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(reason).IsEmpty();
@@ -424,12 +589,12 @@
             "{",
             "    async Task Test()",
             "    {",
-            "        await VerifyInline(value);",
+            "        await Snapshot();",
             "    }",
             "}");
         var content = "new1" + contentEol + "new2";
 
-        var status = InlinePatcher.TryApply(source, 5, null, content, out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, content, out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("new1");
@@ -443,7 +608,7 @@
         var source = BuildMultiLineSource(lf);
         var expression = BuildExpression(lf);
 
-        var status = InlinePatcher.TryApply(source, 5, expression, "new1\rnew2", out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, expression, "new1\rnew2", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).DoesNotContain("\r");
@@ -462,13 +627,13 @@
             "{",
             "    async Task Test()",
             "    {",
-            "        await VerifyInline(value, \"old\");",
+            "        await Snapshot(\"old\");",
             "    }",
             "}");
         var suffix = "\r\n// trailing\n// mixed tail\n";
         var source = prefix + body + suffix;
 
-        var status = InlinePatcher.TryApply(source, 7, "\"old\"", "new", out var newSource, out _);
+        var status = InlinePatcher.TryApply(source, 7, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         // Untouched regions keep their original endings byte for byte
@@ -481,7 +646,7 @@
     [Test]
     public async Task SingleLineFileWithNoNewlines()
     {
-        var status = InlinePatcher.TryApply("await VerifyInline(value, \"old\");", 1, "\"old\"", "new", out var newSource, out _);
+        var status = InlinePatcher.TryApply("await Snapshot(\"old\");", 1, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("new");
