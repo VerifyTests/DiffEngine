@@ -1,24 +1,26 @@
+namespace DiffEngine;
+
 /// <summary>
-/// A request to the running viewer. <paramref name="Key"/> identifies a queue entry for the
-/// verbs that act on one; <paramref name="Body"/> carries an <see cref="InlinePatchFile"/>
+/// A request to whoever owns the inline queue. <paramref name="Key"/> identifies a queue entry for
+/// the verbs that act on one; <paramref name="Body"/> carries an <see cref="InlinePatchFile"/>
 /// payload for <see cref="ViewerVerb.Inline"/>.
 /// </summary>
 record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null)
 {
     public string Build()
     {
-        var builder = new StringBuilder($"version: {Payload.Version}\n");
+        var builder = new StringBuilder($"version: {ViewerPayload.Version}\n");
         builder.Append($"verb: {Verb.ToString().ToLowerInvariant()}\n");
-        Payload.Append(builder, "key", Key);
-        Payload.Append(builder, "body", Body);
+        ViewerPayload.Append(builder, "key", Key);
+        ViewerPayload.Append(builder, "body", Body);
         return builder.ToString();
     }
 
     public static bool TryParse(string text, [NotNullWhen(true)] out ViewerMessage? message)
     {
         message = null;
-        if (!Payload.TryReadLines(text, out var lines) ||
-            !Payload.HasVersion(lines))
+        if (!ViewerPayload.TryReadLines(text, out var lines) ||
+            !ViewerPayload.HasVersion(lines))
         {
             return false;
         }
@@ -41,14 +43,14 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null)
                     verb = parsed;
                     continue;
                 case "key":
-                    if (!Payload.TryDecode(value, out key))
+                    if (!ViewerPayload.TryDecode(value, out key))
                     {
                         return false;
                     }
 
                     continue;
                 case "body":
-                    if (!Payload.TryDecode(value, out body))
+                    if (!ViewerPayload.TryDecode(value, out body))
                     {
                         return false;
                     }
@@ -56,7 +58,7 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null)
                     continue;
                 default:
                     // Unknown fields are ignored so a newer client can add one without breaking
-                    // an older viewer, matching how PiperServer tolerates unknown payload types.
+                    // an older owner, matching how PiperServer tolerates unknown payload types.
                     continue;
             }
         }

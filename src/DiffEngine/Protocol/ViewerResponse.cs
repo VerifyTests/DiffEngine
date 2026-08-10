@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// One entry in a listing. <paramref name="Patch"/> is only carried by
 /// <see cref="ViewerVerb.ListFull"/>, as an <see cref="InlinePatchFile"/> payload, and is what
@@ -6,7 +8,7 @@
 record ViewerResponseItem(string Key, string Name, string? Status, string? Patch = null);
 
 /// <summary>
-/// The reply the viewer writes before closing the connection. Only the listing verbs populate
+/// The reply the queue owner writes before closing the connection. Only the listing verbs populate
 /// <paramref name="Items"/>; the rest report an outcome the tray can show in a balloon.
 /// </summary>
 record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem> Items)
@@ -22,22 +24,22 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
 
     public string Build()
     {
-        var builder = new StringBuilder($"version: {Payload.Version}\n");
+        var builder = new StringBuilder($"version: {ViewerPayload.Version}\n");
         builder.Append($"status: {(Ok ? "ok" : "error")}\n");
-        Payload.Append(builder, "message", Message);
+        ViewerPayload.Append(builder, "message", Message);
         foreach (var item in Items)
         {
-            var status = item.Status is null ? "" : Payload.Encode(item.Status);
-            var head = $"{Payload.Encode(item.Key)}|{Payload.Encode(item.Name)}|{status}";
+            var status = item.Status is null ? "" : ViewerPayload.Encode(item.Status);
+            var head = $"{ViewerPayload.Encode(item.Key)}|{ViewerPayload.Encode(item.Name)}|{status}";
             if (item.Patch is null)
             {
                 builder.Append($"item: {head}\n");
                 continue;
             }
 
-            // Its own line name rather than a fourth field on `item`, so a reader that only knows
-            // `list` skips these entirely instead of failing to split them.
-            builder.Append($"full: {head}|{Payload.Encode(item.Patch)}\n");
+            // Its own line name rather than a fourth field on `item`, so a reader that only wants
+            // a listing skips these entirely instead of failing to split them.
+            builder.Append($"full: {head}|{ViewerPayload.Encode(item.Patch)}\n");
         }
 
         return builder.ToString();
@@ -46,8 +48,8 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
     public static bool TryParse(string text, [NotNullWhen(true)] out ViewerResponse? response)
     {
         response = null;
-        if (!Payload.TryReadLines(text, out var lines) ||
-            !Payload.HasVersion(lines))
+        if (!ViewerPayload.TryReadLines(text, out var lines) ||
+            !ViewerPayload.HasVersion(lines))
         {
             return false;
         }
@@ -63,7 +65,7 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
                     ok = value == "ok";
                     continue;
                 case "message":
-                    if (!Payload.TryDecode(value, out message))
+                    if (!ViewerPayload.TryDecode(value, out message))
                     {
                         return false;
                     }
@@ -108,9 +110,9 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
             return false;
         }
 
-        if (!Payload.TryDecode(parts[0], out var key) ||
-            !Payload.TryDecode(parts[1], out var name) ||
-            !Payload.TryDecode(parts[2], out var status))
+        if (!ViewerPayload.TryDecode(parts[0], out var key) ||
+            !ViewerPayload.TryDecode(parts[1], out var name) ||
+            !ViewerPayload.TryDecode(parts[2], out var status))
         {
             return false;
         }
@@ -118,7 +120,7 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
         string? patch = null;
         if (withPatch)
         {
-            if (!Payload.TryDecode(parts[3], out var decoded))
+            if (!ViewerPayload.TryDecode(parts[3], out var decoded))
             {
                 return false;
             }

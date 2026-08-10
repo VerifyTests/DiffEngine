@@ -21,8 +21,12 @@
     else in DiffEngine.
     -->
     <Compile Include="..\DiffEngine\Inline\*.cs" LinkBase="Inline" />
+    <Compile Include="..\DiffEngine\Protocol\*.cs" LinkBase="Protocol" />
     <Compile Include="..\DiffEngine\Tray\TrayDetector.cs" LinkBase="Tray" />
     <Using Include="DiffEngine" />
+    <!-- What the linked Protocol files expect, declared the same way DiffEngine declares them. -->
+    <Using Include="System.Net" />
+    <Using Include="System.Net.Sockets" />
     <PackageReference Include="DiffPlex" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />

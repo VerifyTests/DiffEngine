@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// The wire format shared by requests and responses. Deliberately not JSON, for the same reason
 /// <see cref="InlinePatchFile"/> is not: every value is base64, so snapshot text containing
@@ -10,7 +12,7 @@
 /// body: {base64}
 /// </code>
 /// </summary>
-static class Payload
+static class ViewerPayload
 {
     public const int Version = 1;
 
@@ -71,7 +73,7 @@ static class Payload
                 return false;
             }
 
-            lines.Add((line[..separator], line[(separator + 1)..].Trim()));
+            lines.Add((line.Substring(0, separator), line.Substring(separator + 1).Trim()));
         }
 
         return lines.Count > 0;

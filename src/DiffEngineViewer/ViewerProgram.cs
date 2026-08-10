@@ -56,7 +56,7 @@ static class ViewerProgram
             return 2;
         }
 
-        var port = ViewerPort.Resolve();
+        var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
         {
             // Another viewer owns the queue, so hand the patch over and get out of the way.
@@ -85,7 +85,7 @@ static class ViewerProgram
     static int RunAttached(OpenWindow open)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
-        var link = new OwnerLink(host, ViewerPort.Resolve());
+        var link = new OwnerLink(host, ViewerClient.Port);
 
         // Read once before anything is shown, so an owner that has gone or has nothing pending
         // means no window at all rather than one that closes itself a frame later.

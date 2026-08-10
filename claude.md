@@ -65,10 +65,23 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
   `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared.
 - macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
   ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
-- Does **not** reference DiffEngine. It links `Inline/*.cs` and `Tray/TrayDetector.cs` as source,
-  because DiffEngine publishes and embeds the heads and a reference back would be a cycle.
-- Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the window,
-  and a process that fails to bind forwards its patch and exits.
+- Does **not** reference DiffEngine. It links `Inline/*.cs`, `Protocol/*.cs` and
+  `Tray/TrayDetector.cs` as source, because DiffEngine publishes and embeds the heads and a
+  reference back would be a cycle.
+- Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the queue,
+  and a process that fails to bind talks to the owner instead. A viewer that does not own one runs
+  with `--attach`: it polls `listfull`, derives every pane from the patches that come back, and
+  forwards accept and discard rather than applying them.
+
+**The viewer protocol (`src/DiffEngine/Protocol/`):**
+- `ViewerVerb`, `ViewerMessage`, `ViewerResponse`, `ViewerPayload`, `ViewerClient`, `ViewerServer`.
+- Lives in DiffEngine because all three processes speak it, and any of them can be the owner. It
+  was previously written twice, once per side, with tests holding the halves together; one
+  implementation removes the failure mode instead of detecting it.
+- Plain text, every value base64, for the same reason `InlinePatchFile` is: snapshot text contains
+  quotes, braces and newlines, and the `inline` body carries an `InlinePatchFile` payload verbatim.
+- Compiles for every DiffEngine target, so the socket calls carry `#if` branches for the
+  frameworks with no cancellation overloads. `ViewerProtocolTests` runs on all of them.
 
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in

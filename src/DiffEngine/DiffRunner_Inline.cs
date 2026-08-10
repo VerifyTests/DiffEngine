@@ -57,7 +57,7 @@ public static partial class DiffRunner
         }
 
         var payload = InlinePatchFile.Build(patch);
-        if (await ViewerClient.TrySendAsync(ViewerPayload.Inline(payload), cancel))
+        if (await ViewerClient.TrySendAsync(new(ViewerVerb.Inline, Body: payload), cancel))
         {
             return InlineResult.Queued;
         }
@@ -77,7 +77,7 @@ public static partial class DiffRunner
             return;
         }
 
-        ViewerClient.TrySend(ViewerPayload.Settle(sourceFile, line));
+        ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line)));
     }
 
     static InlineResult CheckInline()
