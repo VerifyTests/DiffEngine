@@ -1,5 +1,5 @@
-﻿DiffEngine.20.0.0-beta.6.nupkg
-DiffEngineTray.20.0.0-beta.6.nupkg
-DiffEngineViewer.Linux.20.0.0-beta.6.nupkg
-DiffEngineViewer.Mac.20.0.0-beta.6.nupkg
-DiffEngineViewer.Windows.20.0.0-beta.6.nupkg
+DiffEngine.{version}.nupkg
+DiffEngineTray.{version}.nupkg
+DiffEngineViewer.Linux.{version}.nupkg
+DiffEngineViewer.Mac.{version}.nupkg
+DiffEngineViewer.Windows.{version}.nupkg

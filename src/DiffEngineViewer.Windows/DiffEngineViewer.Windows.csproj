@@ -44,6 +44,7 @@
   </Target>
 
   <ItemGroup>
+    <Using Include="System.ComponentModel" />
     <Using Include="System.Drawing" />
     <Using Include="System.Drawing.Drawing2D" />
     <Using Include="System.Drawing.Imaging" />

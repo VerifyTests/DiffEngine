@@ -2,6 +2,7 @@
 /// The window. Accumulates what the user did so <see cref="IViewerWindow.Poll" /> can drain it,
 /// which keeps the loop in ViewerProgram identical to the one the native heads run.
 /// </summary>
+[DesignerCategory("")]
 sealed class ViewerForm : Form
 {
     readonly ViewerCanvas canvas = new()

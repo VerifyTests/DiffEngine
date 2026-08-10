@@ -7,6 +7,12 @@
 /// decision, and then the text snapshots would stop describing what this shows.
 /// </para>
 /// </summary>
+/// <remarks>
+/// The empty designer category opens this in the editor rather than on a design surface. Both
+/// controls here are drawn entirely in code, and the designer cannot instantiate them: it would
+/// have to run a constructor that loads a font.
+/// </remarks>
+[DesignerCategory("")]
 sealed class ViewerCanvas : Control
 {
     const int queueWidth = 220;

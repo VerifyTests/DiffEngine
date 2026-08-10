@@ -31,7 +31,8 @@ static class Packages
 
         return new DirectoryInfo(NugetsDirectory)
             .GetFiles($"*.{Version}.nupkg")
-            .Select(_ => _.Name)
+            // Normalised like the entry lists are, so a version bump is not a snapshot change.
+            .Select(_ => Normalize(_.Name))
             .Order(StringComparer.Ordinal)
             .ToList();
     }
