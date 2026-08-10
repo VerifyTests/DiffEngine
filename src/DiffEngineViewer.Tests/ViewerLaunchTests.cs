@@ -239,7 +239,7 @@ public class ViewerLaunchTests
     {
         var directory = ManualViewer.TempDirectory();
         var source = WriteSource(directory, "DiscardTests.cs", "\"old value\"");
-        var before = File.ReadAllText(source);
+        var before = await File.ReadAllTextAsync(source);
 
         ManualViewer.Expect(
             "Discard",
@@ -249,7 +249,7 @@ public class ViewerLaunchTests
         await EngineRunner.AddInlineAsync(new(source, 6, "\"old value\"", "new value"));
         await ManualViewer.WaitForClose();
 
-        await Assert.That(File.ReadAllText(source)).IsEqualTo(before);
+        await Assert.That(await File.ReadAllTextAsync(source)).IsEqualTo(before);
         Console.WriteLine("Source unchanged, as it should be after a discard.");
     }
 
