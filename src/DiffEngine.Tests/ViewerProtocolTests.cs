@@ -218,6 +218,7 @@ public class ViewerProtocolTests
     {
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
+        using var cancel = new CancelSource();
         var listening = server.Listen(_ => ViewerResponse.Success($"heard {_.Verb}"), cancel.Token);
 
         var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
