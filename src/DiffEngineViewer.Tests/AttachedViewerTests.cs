@@ -147,7 +147,7 @@ public class AttachedViewerTests
         await Assert.That(new OwnerLink(host, server.Port).Pump()).IsTrue();
 
         await Assert.That(host.State.Queue).HasSingleItem();
-        cancel.Cancel();
+        await cancel.CancelAsync();
         _ = listening;
     }
 
@@ -174,7 +174,7 @@ public class AttachedViewerTests
         // Queued for the render loop to drain, which is the only thread that may touch a window.
         await Assert.That(link.Windows).IsEquivalentTo([WindowCommand.Focus]);
         await Assert.That(host.State.Queue).HasSingleItem();
-        cancel.Cancel();
+        await cancel.CancelAsync();
     }
 
     /// <summary>
