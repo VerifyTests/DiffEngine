@@ -83,7 +83,7 @@ sealed class ViewerServer : IDisposable
             // Each connection on its own task, so one slow exchange does not stop the next from
             // being answered. Accepting an inline snapshot legitimately takes seconds, and a
             // client whose listing goes unanswered for that long concludes the owner has died.
-            _ = Task.Run(() => Handle(client, handle, cancel), CancellationToken.None);
+            _ = Task.Run(() => Handle(client, handle, cancel), Cancel.None);
         }
     }
 
