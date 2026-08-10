@@ -35,6 +35,44 @@ dotnet test --project src/DiffEngine.Tests --configuration Release --filter "Ful
 
 DiffEngine is a library that manages launching and cleanup of diff tools for snapshot/approval testing. It's used by ApprovalTests, Shouldly, and Verify.
 
+### The ecosystem
+
+Five parties, three transports. The library runs inside the test process (embedded in Verify and
+the others); the tray and viewer are separate processes; the ReSharper/Rider plugin
+([jetbrains-plugin-verify](https://github.com/VerifyTests/jetbrains-plugin-verify)) embeds the
+library inside the IDE. `docs/inline.md` is the durable, consumer-facing version of this map.
+
+```mermaid
+flowchart LR
+    subgraph Test["test process"]
+        Verify["Verify"] --> Engine["DiffEngine library"]
+    end
+    Tray["DiffEngineTray"]
+    Window["DiffEngineViewer window"]
+    Plugin["ReSharper / Rider plugin"]
+    Owner{{"inline queue owner: whoever bound 3493<br/>first — the tray at login, else a viewer"}}
+    Files[("source files and<br/>staged patch files")]
+
+    Engine -->|"3492 moves, deletes (one way)"| Tray
+    Engine -->|"3493 inline, settle"| Owner
+    Engine -.->|"launch with patch on stdin,<br/>when nothing owns 3493"| Window
+    Tray <-->|"3493 list, accept, focus"| Owner
+    Window <-->|"3493 listfull, accept, discard"| Owner
+    Plugin -->|"3493 settle, after accepting"| Owner
+    Owner -->|"InlineApplier"| Files
+    Plugin -->|"InlineApplier"| Files
+```
+
+The failing-inline-snapshot flow: Verify builds an `InlinePatch` and calls
+`DiffRunner.AddInlineAsync`. If something owns 3493 the patch goes over the socket and the owner
+shows or focuses a window; if nothing does, the bundled viewer is launched with the patch on
+stdin and binds the port itself; if no viewer resolves (or `DiffEngine_InlineViewer=false`),
+Verify stages `received`/`expected`/`.inlinepatch` files and the IDE plugin or a text diff tool
+becomes the review surface. Accepting anywhere runs `InlineApplier` against the source file
+(per-file cross-process mutex — safe concurrently from any process). A passing re-run calls
+`SettleInline`, and any surface that applies a patch itself must settle too, or the queue owner
+keeps offering a snapshot that is already in the source.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**

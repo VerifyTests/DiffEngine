@@ -60,6 +60,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Custom Tool](/docs/diff-tool.custom.md)
   * [DiffEngineViewer](/docs/viewer.md)
   * [DiffEngineTray](/docs/tray.md)
+  * [Inline snapshots](/docs/inline.md)
   * [Code versus machine level settings](/docs/code-versus-machine-settings.md)<!-- endInclude -->
 
 
