@@ -58,6 +58,11 @@ sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
         // back on the listing rather than being pushed at a port this process does not hold.
         if (response.Window is not null)
         {
+            if (response.WindowKey is { } key)
+            {
+                host.Mutate(_ => ViewerSession.SelectKey(_, key));
+            }
+
             window(response.Window.Value);
         }
 

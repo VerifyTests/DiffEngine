@@ -183,16 +183,17 @@ static class MenuBuilder
                 yield return BuildSnapshot(
                     snapshot,
                     () => tracker.Accept(snapshot),
-                    () => tracker.Discard(snapshot));
+                    () => tracker.Discard(snapshot),
+                    () => tracker.Focus(snapshot));
             }
 
-            yield return new MenuButton("Close snapshot viewer", InlineViewerProxy.Quit);
+            yield return new MenuButton("Close snapshot viewer", tracker.CloseViewer);
         }
 
         yield return new ToolStripSeparator();
     }
 
-    static ToolStripDropDownButton BuildSnapshot(PendingSnapshot snapshot, Action accept, Action discard)
+    static ToolStripDropDownButton BuildSnapshot(PendingSnapshot snapshot, Action accept, Action discard, Action focus)
     {
         var failed = snapshot.Status == null ? "" : " !";
         var menu = new ToolStripDropDownButton($"{snapshot.Name} (inline){failed}")
@@ -201,9 +202,9 @@ static class MenuBuilder
         };
         menu.DropDownItems.Add(new MenuButton("Accept snapshot", accept));
         menu.DropDownItems.Add(new MenuButton("Discard", discard));
-        // Replaces "Open diff tool": the viewer is the diff tool, and it is already showing this
-        // snapshot, so the useful action is to bring it forward on that item.
-        menu.DropDownItems.Add(new MenuButton("Open in viewer", () => InlineViewerProxy.Focus(snapshot)));
+        // Replaces "Open diff tool": the viewer is the diff tool, so the useful action is to bring
+        // it forward on this item, starting one if the queue is here and nothing is showing it.
+        menu.DropDownItems.Add(new MenuButton("Open in viewer", focus));
         menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(snapshot.Source)));
         return menu;
     }

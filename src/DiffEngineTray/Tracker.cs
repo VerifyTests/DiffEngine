@@ -8,19 +8,21 @@ class Tracker :
     Action<string>? inlineFailed;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
-    // The viewer owns the inline queue; this is the last listing the scan saw, used for the icon
-    // state. The menu re-reads live when it opens.
+    IInlineHost inline;
+    // The last listing seen, used for the icon state. Free when this tray owns the queue, and a
+    // loopback round trip when a viewer does, which is why the menu re-reads live when it opens.
     IReadOnlyList<PendingSnapshot> snapshots = [];
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null)
     {
         this.active = active;
         this.inactive = inactive;
         this.lockedFilesResolver = lockedFilesResolver;
         this.acceptFailed = acceptFailed;
         this.inlineFailed = inlineFailed;
+        this.inline = inline ?? new RemoteInlineHost();
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
@@ -38,9 +40,9 @@ class Tracker :
             deletes.TryRemove(delete.Key, out _);
         }
 
-        // The viewer settles its own queue when a passing re-run sends a settle message, so there
-        // is nothing to expire here. Just refresh the listing that drives the icon state.
-        snapshots = InlineViewerProxy.List();
+        // A passing re-run sends a settle message, and whoever owns the queue drops the entry
+        // then, so there is nothing to expire here. Just refresh the listing that drives the icon.
+        snapshots = inline.List();
 
         var newCount = moves.Count + deletes.Count + snapshots.Count;
         if (lastScanCount != newCount)
@@ -207,11 +209,12 @@ class Tracker :
     }
 
     /// <summary>
-    /// Applies the snapshot in the viewer, which owns the queue and the patch.
+    /// Applies the snapshot wherever the queue lives: here when this tray owns it, and in the
+    /// viewer when one bound the port first.
     /// </summary>
     public void Accept(PendingSnapshot snapshot)
     {
-        if (InlineViewerProxy.Accept(snapshot, out var message))
+        if (inline.Accept(snapshot, out var message))
         {
             Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
         }
@@ -226,7 +229,7 @@ class Tracker :
 
     public void Discard(PendingSnapshot snapshot)
     {
-        if (!InlineViewerProxy.Discard(snapshot, out var message))
+        if (!inline.Discard(snapshot, out var message))
         {
             inlineFailed?.Invoke($"Could not discard the snapshot for '{snapshot.Name}'. {message}");
         }
@@ -243,7 +246,7 @@ class Tracker :
             return;
         }
 
-        if (!InlineViewerProxy.AcceptAll(out var message))
+        if (!inline.AcceptAll(out var message))
         {
             inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
         }
@@ -251,9 +254,19 @@ class Tracker :
         Refresh();
     }
 
-    void Refresh()
+    /// <summary>
+    /// Bring the window forward on this snapshot, starting one when this tray owns the queue and
+    /// nothing is displaying it.
+    /// </summary>
+    public void Focus(PendingSnapshot snapshot) =>
+        inline.Focus(snapshot);
+
+    public void CloseViewer() =>
+        inline.Close();
+
+    public void Refresh()
     {
-        snapshots = InlineViewerProxy.List();
+        snapshots = inline.List();
         ToggleActive();
     }
 
@@ -571,7 +584,7 @@ class Tracker :
     {
         get
         {
-            snapshots = InlineViewerProxy.List();
+            snapshots = inline.List();
             return snapshots;
         }
     }

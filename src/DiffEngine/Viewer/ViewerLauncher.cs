@@ -39,24 +39,34 @@ static class ViewerLauncher
         }
     }
 
-    static Process? Start(InlinePatch patch)
+    /// <summary>
+    /// Starts a viewer to display a queue this process owns. No payload, because there is nothing
+    /// to hand over: the viewer reads the queue back over the socket. The process is returned so
+    /// the owner can tell whether it still has a window rather than probing a port it holds itself.
+    /// </summary>
+    public static Process? LaunchAttached() =>
+        Start("--attach");
+
+    static Process? Start(InlinePatch patch) =>
+        // The source and line go on the command line, not just in the payload, so each launch is
+        // distinguishable: ProcessCleanup matches on command line, and it makes the process
+        // readable in a task manager.
+        Start($"--inline --source \"{patch.SourceFile}\" --line {patch.LineHint}", stdin: true);
+
+    static Process? Start(string arguments, bool stdin = false)
     {
         if (!DiffTools.TryFindByName(DiffTool.DiffEngineViewer, out var tool))
         {
             return null;
         }
 
-        // The source and line go on the command line, not just in the payload, so each launch is
-        // distinguishable: ProcessCleanup matches on command line, and it makes the process
-        // readable in a task manager.
-        var arguments = $"--inline --source \"{patch.SourceFile}\" --line {patch.LineHint}";
         var info = new ProcessStartInfo(tool.ExePath, arguments)
         {
             UseShellExecute = false,
             CreateNoWindow = true,
-            // The patch is written here rather than passed as an argument: snapshots routinely
+            // A patch is written to stdin rather than passed as an argument: snapshots routinely
             // exceed the command line length limit and would need escaping.
-            RedirectStandardInput = true
+            RedirectStandardInput = stdin
         };
 
         try

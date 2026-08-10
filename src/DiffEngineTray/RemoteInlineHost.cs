@@ -1,16 +1,20 @@
 /// <summary>
-/// The tray's half of the viewer protocol. Every call is a short loopback round trip, and a
-/// refused connection simply means no viewer is running, which is the same as nothing pending.
+/// The queue belongs to a viewer that bound the port before this tray started, so every call is a
+/// short loopback round trip and the tray is a remote control.
 /// <para>
 /// All of them use ViewerClient.ShortTimeout. These run from the 2 second scan timer and from the
 /// menu opening, so a slow exchange must not outlast the timer period or block the UI.
 /// </para>
+/// <para>
+/// A refused connection means the viewer has gone, which is the same as nothing pending. The queue
+/// went with it, and this tray does not take ownership: it was decided at startup.
+/// </para>
 /// </summary>
-static class InlineViewerProxy
+class RemoteInlineHost : IInlineHost
 {
-    public static IReadOnlyList<PendingSnapshot> List()
+    public IReadOnlyList<PendingSnapshot> List()
     {
-        if (!ViewerClient.TrySend(new(ViewerVerb.List), out var response, wait: ViewerClient.ShortTimeout) ||
+        if (!Exchange(new(ViewerVerb.List), out var response) ||
             !response.Ok)
         {
             return [];
@@ -21,25 +25,25 @@ static class InlineViewerProxy
             .ToList();
     }
 
-    public static bool Accept(PendingSnapshot snapshot, out string? message) =>
+    public bool Accept(PendingSnapshot snapshot, out string? message) =>
         Send(ViewerVerb.Accept, snapshot.Key, out message);
 
-    public static bool Discard(PendingSnapshot snapshot, out string? message) =>
+    public bool Discard(PendingSnapshot snapshot, out string? message) =>
         Send(ViewerVerb.Discard, snapshot.Key, out message);
 
-    public static bool AcceptAll(out string? message) =>
+    public bool AcceptAll(out string? message) =>
         Send(ViewerVerb.AcceptAll, null, out message);
 
-    public static void Focus(PendingSnapshot snapshot) =>
+    public void Focus(PendingSnapshot snapshot) =>
         Send(ViewerVerb.Focus, snapshot.Key, out _);
 
-    public static void Quit() =>
+    public void Close() =>
         Send(ViewerVerb.Quit, null, out _);
 
     static bool Send(ViewerVerb verb, string? key, out string? message)
     {
         message = null;
-        if (!ViewerClient.TrySend(new(verb, key), out var response, wait: ViewerClient.ShortTimeout))
+        if (!Exchange(new(verb, key), out var response))
         {
             message = "The snapshot viewer is not running.";
             return false;
@@ -48,4 +52,7 @@ static class InlineViewerProxy
         message = response.Message is { Length: > 0 } text ? text : null;
         return response.Ok;
     }
+
+    static bool Exchange(ViewerMessage message, [NotNullWhen(true)] out ViewerResponse? response) =>
+        ViewerClient.TrySend(message, out response, wait: ViewerClient.ShortTimeout);
 }

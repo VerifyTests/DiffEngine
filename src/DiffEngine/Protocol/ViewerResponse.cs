@@ -17,11 +17,16 @@ record ViewerResponseItem(string Key, string Name, string? Status, string? Patch
 /// What the owner wants done to the window, for an owner that has none of its own. Answered on a
 /// listing rather than pushed, so this stays one port with no discovery order.
 /// </param>
+/// <param name="WindowKey">
+/// The entry to select while doing it, so "Open in viewer" on a tray menu item still lands on that
+/// item. Selection belongs to the display, which is why it travels with the command.
+/// </param>
 record ViewerResponse(
     bool Ok,
     string? Message,
     IReadOnlyList<ViewerResponseItem> Items,
-    WindowCommand? Window = null)
+    WindowCommand? Window = null,
+    string? WindowKey = null)
 {
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
@@ -29,8 +34,11 @@ record ViewerResponse(
     public static ViewerResponse Error(string message) =>
         new(false, message, []);
 
-    public static ViewerResponse Listing(IReadOnlyList<ViewerResponseItem> items, WindowCommand? window = null) =>
-        new(true, null, items, window);
+    public static ViewerResponse Listing(
+        IReadOnlyList<ViewerResponseItem> items,
+        WindowCommand? window = null,
+        string? windowKey = null) =>
+        new(true, null, items, window, windowKey);
 
     public string Build()
     {
@@ -41,6 +49,7 @@ record ViewerResponse(
         {
             // Plain, like `verb` and `status`. Only the encoded fields can carry snapshot text.
             builder.Append($"window: {Window.ToString()!.ToLowerInvariant()}\n");
+            ViewerPayload.Append(builder, "windowKey", WindowKey);
         }
 
         foreach (var item in Items)
@@ -73,6 +82,7 @@ record ViewerResponse(
         bool? ok = null;
         string? message = null;
         WindowCommand? window = null;
+        string? windowKey = null;
         var items = new List<ViewerResponseItem>();
         foreach (var (name, value) in lines)
         {
@@ -88,6 +98,13 @@ record ViewerResponse(
                     }
 
                     window = command;
+                    continue;
+                case "windowKey":
+                    if (!ViewerPayload.TryDecode(value, out windowKey))
+                    {
+                        return false;
+                    }
+
                     continue;
                 case "message":
                     if (!ViewerPayload.TryDecode(value, out message))
@@ -122,7 +139,7 @@ record ViewerResponse(
             return false;
         }
 
-        response = new(ok.Value, message, items, window);
+        response = new(ok.Value, message, items, window, windowKey);
         return true;
     }
 

@@ -93,6 +93,17 @@ static class ViewerSession
     }
 
     /// <summary>
+    /// Selects by key rather than index, for a queue owner asking that a particular item be the
+    /// one on screen. A key that is not here leaves the selection alone, because a listing and the
+    /// command that came with it can disagree by one refresh.
+    /// </summary>
+    public static SessionState SelectKey(SessionState state, string key)
+    {
+        var index = IndexOf(state.Queue, key);
+        return index < 0 ? state : Select(state, index);
+    }
+
+    /// <summary>
     /// For commands that only move the view. Accept and accept all reach disk, so they go through
     /// the overload that takes the actions; passing one here throws rather than doing nothing.
     /// </summary>

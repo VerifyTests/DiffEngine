@@ -1,9 +1,10 @@
 /// <summary>
-/// A pending inline snapshot, as reported by the running viewer.
+/// A pending inline snapshot, as the menu shows it.
 /// <para>
-/// Unlike <see cref="TrackedMove"/> the tray does not own this: the viewer holds the queue, and
-/// the tray is a remote control over the same socket. That keeps one queue and one set of
-/// semantics on every platform, rather than a Windows-only copy that can drift.
+/// The queue behind it is held by whichever process bound the port: this tray when it started
+/// first, which is the usual case, and a viewer otherwise. Either way there is one implementation
+/// of it, <see cref="InlineQueue"/> in DiffEngine, so the two hosts cannot differ on what
+/// accepting or settling means.
 /// </para>
 /// </summary>
 record PendingSnapshot(string Key, string Name, string? Status)

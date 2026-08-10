@@ -58,20 +58,31 @@ static class Program
             Text = "DiffEngineTray"
         };
 
+        void Warn(string message) =>
+            icon.ShowBalloonTip(10000, "DiffEngineTray", message, ToolTipIcon.Warning);
+
+        // Ownership of the inline queue is decided here, once, by whether the bind succeeds, and
+        // never transfers. Usually the tray wins, because it starts at login. A viewer that was
+        // already running keeps the queue for as long as it lives, and this tray drives it
+        // remotely for the rest of its own life rather than trying to take over mid flight.
+        await using var owned = OwnedInlineHost.TryOwn(Warn);
+        if (owned is null)
+        {
+            Log.Information("A viewer owns the inline queue. Driving it remotely.");
+        }
+
         await using var tracker = new Tracker(
             active: () => icon.Icon = Images.Active,
             inactive: () => icon.Icon = Images.Default,
             lockedFilesResolver: LockedFilesHandler.Resolve,
-            acceptFailed: move => icon.ShowBalloonTip(
-                10000,
-                "DiffEngineTray",
-                $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried.",
-                ToolTipIcon.Warning),
-            inlineFailed: message => icon.ShowBalloonTip(
-                10000,
-                "DiffEngineTray",
-                message,
-                ToolTipIcon.Warning));
+            acceptFailed: move => Warn(
+                $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried."),
+            inlineFailed: Warn,
+            inline: owned);
+
+        // Owning the queue means knowing the moment it changes, rather than finding out on the
+        // next two second scan.
+        owned?.Changed = tracker.Refresh;
 
         using var task = StartServer(tracker, cancel);
 
