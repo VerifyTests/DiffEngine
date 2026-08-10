@@ -5,8 +5,12 @@
 /// What changes the inline queue is delegated to <see cref="InlineQueue"/>, the same
 /// implementation DiffEngineTray hosts, so what enqueueing, settling or accepting means cannot
 /// differ between the two. What stays here is the view: selection, scrolling, and the projection
-/// back onto <see cref="QueueEntry"/>. File mode keeps its own accept, because copying left over
-/// right is not something the tray ever queues.
+/// back onto <see cref="QueueEntry"/>.
+/// </para>
+/// <para>
+/// File mode keeps its own accept, because copying left over right is not something the tray ever
+/// queues. It is deliberately not a queue: <c>RunFile</c> enqueues one comparison and runs without
+/// a socket, so nothing arrives after it and every acting command is that one entry.
 /// </para>
 /// </summary>
 static class ViewerSession
@@ -60,6 +64,14 @@ static class ViewerSession
     /// </summary>
     public static SessionState Settle(SessionState state, string key)
     {
+        // Nothing can settle a file comparison: settles arrive over the socket, and file mode runs
+        // without one. Guarded rather than assumed, because Pending would dereference the null
+        // patch a file entry carries.
+        if (state.Mode != ViewerMode.Inline)
+        {
+            return state;
+        }
+
         var pending = Pending(state);
         var settled = pending.Settle(key);
         if (ReferenceEquals(settled, pending))
@@ -141,13 +153,16 @@ static class ViewerSession
             case CommandKind.Accept:
                 return inline ? AcceptInline(state, actions) : AcceptFile(state, actions);
             case CommandKind.AcceptAll:
-                return inline ? AcceptAllInline(state, actions) : AcceptAllFiles(state, actions);
+                // File mode shows one comparison and cannot grow, so accepting all of it is
+                // accepting it. Reachable through shift+A even though the button is disabled for
+                // a single item, so it behaves rather than being a hole.
+                return inline ? AcceptAllInline(state, actions) : AcceptFile(state, actions);
             case CommandKind.Discard:
                 return inline ? DiscardInline(state) : DiscardFile(state);
             case CommandKind.DiscardAll:
                 return inline
                     ? Remove(state, Project(state, Pending(state).DiscardAll(out var summary)), summary)
-                    : Remove(state, [], $"Discarded {state.Queue.Count}");
+                    : DiscardFile(state);
             case CommandKind.Quit:
                 return state with { Exit = true };
             default:
@@ -196,6 +211,14 @@ static class ViewerSession
         return Remove(state, Project(state, discarded), message);
     }
 
+    /// <summary>
+    /// Copies left over right, which is the whole of accepting in file mode.
+    /// <para>
+    /// The paths are known non null: a file entry only comes from
+    /// <see cref="QueueEntry.ForFiles"/>, whose parameters are not nullable, and only file mode
+    /// reaches here.
+    /// </para>
+    /// </summary>
     static SessionState AcceptFile(SessionState state, ViewerActions actions)
     {
         var current = state.Current;
@@ -204,49 +227,21 @@ static class ViewerSession
             return state;
         }
 
-        var (removed, message) = CopyOver(current, actions);
-        if (removed)
+        try
         {
-            var queue = state.Queue.ToList();
-            queue.RemoveAt(state.Selected);
-            return Remove(state, queue, message);
+            actions.CopyFile(current.LeftFile!, current.TargetFile!);
         }
-
-        var kept = state.Queue.ToList();
-        kept[state.Selected] = current with { Status = message };
-        return state with
+        catch (Exception exception)
         {
-            Queue = kept,
-            Message = message
-        };
-    }
-
-    /// <summary>
-    /// Reachable in file mode through shift+A even though the button is disabled for a single
-    /// item, so it behaves rather than being a hole.
-    /// </summary>
-    static SessionState AcceptAllFiles(SessionState state, ViewerActions actions)
-    {
-        var remaining = new List<QueueEntry>();
-        var accepted = 0;
-        string? failure = null;
-        foreach (var entry in state.Queue)
-        {
-            var (removed, message) = CopyOver(entry, actions);
-            if (removed)
+            // Kept so it can be retried, for example while the target is locked.
+            return state with
             {
-                accepted++;
-                continue;
-            }
-
-            failure = message;
-            remaining.Add(entry with { Status = message });
+                Queue = [current with { Status = exception.Message }],
+                Message = exception.Message
+            };
         }
 
-        var summary = failure is null
-            ? $"Accepted {accepted}"
-            : $"Accepted {accepted}, {remaining.Count} failed. {failure}";
-        return Remove(state, remaining, summary);
+        return Remove(state, [], $"Accepted {current.Name}");
     }
 
     static SessionState DiscardFile(SessionState state)
@@ -257,28 +252,7 @@ static class ViewerSession
             return state;
         }
 
-        var queue = state.Queue.ToList();
-        queue.RemoveAt(state.Selected);
-        return Remove(state, queue, $"Discarded {current.Name}");
-    }
-
-    static (bool removed, string message) CopyOver(QueueEntry entry, ViewerActions actions)
-    {
-        if (entry.LeftFile is null ||
-            entry.TargetFile is null)
-        {
-            return (false, $"Nothing to accept for {entry.Name}");
-        }
-
-        try
-        {
-            actions.CopyFile(entry.LeftFile, entry.TargetFile);
-            return (true, $"Accepted {entry.Name}");
-        }
-        catch (Exception exception)
-        {
-            return (false, exception.Message);
-        }
+        return Remove(state, [], $"Discarded {current.Name}");
     }
 
     /// <summary>

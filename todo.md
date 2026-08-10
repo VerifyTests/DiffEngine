@@ -47,17 +47,18 @@ the viewer, instead of stashing a focus for an entry that is not there. The tray
 
 All 705 tests unchanged, including every wire-shape baseline.
 
-## 3. File mode carries queue machinery for a queue of one (medium)
+## 3. ~~File mode carries queue machinery for a queue of one~~ (done)
 
-`ViewerSession.AcceptFile` / `AcceptAllFiles` / `DiscardFile` / `CopyOver` (~90 lines) generalize
-over a queue that file mode can never grow: `RunFile` enqueues exactly one entry and runs with no
-server. `AcceptAllFiles` is reachable only by pressing shift+A with a single item, where it equals
-accept. Collapse to accept/discard-of-current and delete the loops. `SelectingResetsScroll`-class
-tests do not cover file mode multi-entry because it cannot exist.
+`AcceptAllFiles` and `CopyOver` are gone; accept-all and discard-all in file mode now route to the
+same accept and discard as their singular forms, which is what they always were with one entry.
+`Settle` gained the mode guard. Net −63/+37 in `ViewerSession`.
 
-Same theme, smaller: `ViewerSession.Settle`/`Pending` assume inline entries (`_.Patch!`). A settle
-against a file-mode session would NRE. Unreachable today (file mode has no socket), but a one-line
-mode guard, like `Apply` already has, would make the invariant explicit instead of implicit.
+Worth recording: this code had **no** test coverage at all — `Fixtures.File` was used only by
+render and scroll tests, so file-mode accept and discard were never exercised. Five tests now
+cover copy, a failed copy staying pending, accept-all equalling accept, both discard forms, and
+the settle guard. Two message changes fell out, both improvements and both previously unasserted:
+accept-all in file mode said "Accepted 1" and discard-all said "Discarded 1"; both now name the
+comparison.
 
 ## 4. Small cleanups
 

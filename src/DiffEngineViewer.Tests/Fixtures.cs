@@ -83,6 +83,13 @@ static class Fixtures
     public static ViewerActions Applied =>
         Applying(InlineApplyResult.Applied);
 
+    /// <summary>
+    /// File mode's half of the same idea: a copy that records or throws, so accepting a comparison
+    /// is reachable without touching disk.
+    /// </summary>
+    public static ViewerActions Copying(Action<string, string> copy) =>
+        new(static _ => throw new("File mode does not apply patches."), copy);
+
     public static string Render(SessionState state) =>
         AsciiRenderer.Render(ScreenBuilder.Build(state));
 }

@@ -104,6 +104,89 @@ public class ViewerSessionTests
         await Assert.That(accepted.Queue).IsEmpty();
     }
 
+    /// <summary>
+    /// File mode is one comparison, so accepting copies left over right and there is nothing left
+    /// to show.
+    /// </summary>
+    [Test]
+    public async Task AcceptingAFileCopiesLeftOverRight()
+    {
+        var copies = new List<(string Left, string Right)>();
+        var state = Fixtures.File();
+
+        var accepted = ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Copying((left, right) => copies.Add((left, right))));
+
+        await Assert.That(copies).IsEquivalentTo([("Sample.received.txt", "Sample.verified.txt")]);
+        await Assert.That(accepted.Queue).IsEmpty();
+        await Assert.That(accepted.Exit).IsTrue();
+        await Assert.That(accepted.Message).IsEqualTo("Accepted Sample.received.txt <> Sample.verified.txt");
+    }
+
+    /// <summary>
+    /// A locked target is retryable, so the comparison stays on screen carrying what went wrong.
+    /// </summary>
+    [Test]
+    public async Task AFailedCopyKeepsTheComparison()
+    {
+        var state = Fixtures.File();
+        var actions = Fixtures.Copying((_, _) => throw new IOException("the target is locked"));
+
+        var accepted = ViewerSession.Apply(state, CommandKind.Accept, actions);
+
+        await Assert.That(accepted.Queue).HasSingleItem();
+        await Assert.That(accepted.Queue[0].Status).IsEqualTo("the target is locked");
+        await Assert.That(accepted.Message).IsEqualTo("the target is locked");
+        await Assert.That(accepted.Exit).IsFalse();
+    }
+
+    /// <summary>
+    /// Shift+A reaches accept all even though the button is disabled for a single item. With one
+    /// comparison it is the same act, and must not copy twice or report a count.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllInFileModeIsAccept()
+    {
+        var copies = new List<(string Left, string Right)>();
+        var state = Fixtures.File();
+
+        var accepted = ViewerSession.Apply(state, CommandKind.AcceptAll, Fixtures.Copying((left, right) => copies.Add((left, right))));
+
+        await Assert.That(copies).HasSingleItem();
+        await Assert.That(accepted.Queue).IsEmpty();
+        await Assert.That(accepted.Message).IsEqualTo("Accepted Sample.received.txt <> Sample.verified.txt");
+    }
+
+    /// <summary>
+    /// Both, because with one comparison discard all is discard. Looped rather than parameterised
+    /// because CommandKind is internal and a test method taking one cannot be public.
+    /// </summary>
+    [Test]
+    public async Task DiscardingAFileLeavesNothingToShow()
+    {
+        foreach (var command in (CommandKind[]) [CommandKind.Discard, CommandKind.DiscardAll])
+        {
+            var discarded = ViewerSession.Apply(Fixtures.File(), command);
+
+            await Assert.That(discarded.Queue).IsEmpty();
+            await Assert.That(discarded.Exit).IsTrue();
+            await Assert.That(discarded.Message).IsEqualTo("Discarded Sample.received.txt <> Sample.verified.txt");
+        }
+    }
+
+    /// <summary>
+    /// Settles arrive over the socket and file mode runs without one, so this cannot happen. The
+    /// guard is what stops it being an NRE if it ever does.
+    /// </summary>
+    [Test]
+    public async Task SettlingAFileComparisonIsIgnored()
+    {
+        var state = Fixtures.File();
+
+        var settled = ViewerSession.Settle(state, state.Queue[0].Key);
+
+        await Assert.That(settled).IsSameReferenceAs(state);
+    }
+
     [Test]
     public async Task ScrollIsClampedToTheLastPage()
     {
