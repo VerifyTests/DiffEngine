@@ -218,7 +218,6 @@ public class ViewerProtocolTests
     {
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
-        using var cancel = new CancellationTokenSource();
         var listening = server.Listen(_ => ViewerResponse.Success($"heard {_.Verb}"), cancel.Token);
 
         var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
@@ -227,7 +226,7 @@ public class ViewerProtocolTests
         await Assert.That(response!.Ok).IsTrue();
         await Assert.That(response.Message).IsEqualTo("heard List");
 
-        cancel.Cancel();
+        await cancel.CancelAsync();
         await Wait(listening);
     }
 
@@ -241,7 +240,7 @@ public class ViewerProtocolTests
     {
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
-        using var cancel = new CancellationTokenSource();
+        using var cancel = new CancelSource();
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         var listening = server.Listen(
@@ -262,7 +261,7 @@ public class ViewerProtocolTests
             var accepting = Task.Run(() =>
                 ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, TimeSpan.FromSeconds(15))
                     ? slow
-                    : null);
+                    : null, cancel.Token);
             entered.Wait(TimeSpan.FromSeconds(5));
 
             // Default timeout, while the accept is still held open.
@@ -278,7 +277,7 @@ public class ViewerProtocolTests
         finally
         {
             release.Set();
-            cancel.Cancel();
+            await cancel.CancelAsync();
             await Wait(listening);
         }
     }
@@ -292,7 +291,7 @@ public class ViewerProtocolTests
     {
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
-        using var cancel = new CancellationTokenSource();
+        using var cancel = new CancelSource();
         var listening = server.Listen(_ => throw new("the handler is broken"), cancel.Token);
 
         var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
@@ -301,7 +300,7 @@ public class ViewerProtocolTests
         await Assert.That(response!.Ok).IsFalse();
         await Assert.That(response.Message).IsEqualTo("the handler is broken");
 
-        cancel.Cancel();
+        await cancel.CancelAsync();
         await Wait(listening);
     }
 
