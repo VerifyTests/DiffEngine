@@ -22,7 +22,7 @@ public static class InlinePatchFile
         var expression = patch.OriginalExpression is null
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.OriginalExpression));
-        var content = Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.NewContent ?? ""));
+        var content = Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.NewContent));
         return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\n";
     }
 

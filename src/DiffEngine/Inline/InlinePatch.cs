@@ -2,14 +2,14 @@ namespace DiffEngine;
 
 /// <summary>
 /// Describes a pending inline-snapshot edit to a C# source file.
-/// Mutable POCO so it round-trips through <see cref="InlinePatchFile"/>.
+/// <para>
+/// Settable properties so it round-trips through <see cref="InlinePatchFile"/>, but no
+/// parameterless constructor: a patch with no source file or no content is not a patch, and
+/// letting one be built only moved the problem to a null check further along.
+/// </para>
 /// </summary>
 public sealed class InlinePatch
 {
-    public InlinePatch()
-    {
-    }
-
     public InlinePatch(
         string sourceFile,
         int lineHint,
@@ -27,7 +27,7 @@ public sealed class InlinePatch
     /// <summary>
     /// Full path to the .cs file.
     /// </summary>
-    public string SourceFile { get; set; } = null!;
+    public string SourceFile { get; set; }
 
     /// <summary>
     /// 1 based line of the verify or Snapshot call. A hint only; content search is the locator.
@@ -41,9 +41,10 @@ public sealed class InlinePatch
     public string? OriginalExpression { get; set; }
 
     /// <summary>
-    /// The new snapshot text. Newlines are \n. Ignored for <see cref="InlinePatchMode.Remove"/>.
+    /// The new snapshot text. Newlines are \n. Empty for
+    /// <see cref="InlinePatchMode.Remove"/>, which deletes a call rather than writing one.
     /// </summary>
-    public string NewContent { get; set; } = null!;
+    public string NewContent { get; set; }
 
     public InlinePatchMode Mode { get; set; }
 }

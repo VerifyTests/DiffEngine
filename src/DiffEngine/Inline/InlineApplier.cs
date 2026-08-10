@@ -21,12 +21,6 @@ public static class InlineApplier
             return InlineApplyResult.Failed("InlinePatch.SourceFile is empty");
         }
 
-        if (patch.NewContent is null &&
-            patch.Mode != InlinePatchMode.Remove)
-        {
-            return InlineApplyResult.Failed("InlinePatch.NewContent is null");
-        }
-
         if (patch.LineHint < 1)
         {
             return InlineApplyResult.Failed($"InlinePatch.LineHint must be 1 or greater. Value: {patch.LineHint}");
@@ -47,7 +41,7 @@ public static class InlineApplier
             return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
         }
 
-        var newContent = patch.NewContent is null ? "" : CsStringLiteral.NormalizeNewlines(patch.NewContent);
+        var newContent = CsStringLiteral.NormalizeNewlines(patch.NewContent);
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
