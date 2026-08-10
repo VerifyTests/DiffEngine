@@ -4,6 +4,7 @@ static class Program
 {
     static async Task Main()
     {
+        TrayViewerDirectory.Register();
         Logging.Init();
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

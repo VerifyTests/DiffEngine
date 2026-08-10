@@ -21,6 +21,13 @@
 public class PackageTests
 {
     const string bundled = "tools/viewer/";
+
+    /// <summary>
+    /// PackAsTool packs the publish directory wholesale, so the tray's copy sits under its tool
+    /// payload rather than at a path of its own choosing.
+    /// </summary>
+    const string trayBundled = "tools/net10.0/any/viewer/";
+
     const string runtimeConfig = ".runtimeconfig.json";
 
     /// <summary>
@@ -89,20 +96,30 @@ public class PackageTests
     }
 
     /// <summary>
-    /// The tray resolves a viewer through <c>DiffTools</c> like any other tool rather than shipping
-    /// one, so nothing named after it belongs in its package.
+    /// The tray can own the inline queue, so it has to be able to open a window on one, and the
+    /// copy inside DiffEngine.nupkg is only reachable from a project that references that package.
+    /// <para>
+    /// This assertion used to be the reverse. The tray once shipped 13 MB of broken viewer payload
+    /// through a solution level build dependency nobody intended; what it carries now is a
+    /// deliberate few hundred KB, and <see cref="EveryBundledViewerIsComplete"/> is what tells the
+    /// difference.
+    /// </para>
     /// </summary>
     [Test]
     [PackageTest]
-    public async Task TheTrayShipsNoViewer()
+    public async Task TheTrayShipsAViewer()
     {
         using var archive = Packages.Open("DiffEngineTray");
-        var viewerFiles = Packages.Entries(archive)
+        var stray = Packages.Entries(archive)
             .Where(_ => _.Contains("DiffEngineViewer", StringComparison.Ordinal) ||
                         _.Contains("diffengine_viewer", StringComparison.Ordinal))
+            .Where(_ => !_.StartsWith(trayBundled, StringComparison.Ordinal))
             .ToList();
 
-        await Assert.That(viewerFiles).IsEmpty();
+        // Under tools/net10.0/any/viewer and nowhere else. Loose beside the tray's own assemblies
+        // is how the leak looked.
+        await Assert.That(stray).IsEmpty();
+        await Assert.That(Rids(archive, trayBundled)).IsNotEmpty();
     }
 
     /// <summary>
@@ -111,13 +128,12 @@ public class PackageTests
     /// </summary>
     [Test]
     [PackageTest]
-    public async Task EveryBundledViewerIsComplete()
+    [Arguments("DiffEngine", bundled)]
+    [Arguments("DiffEngineTray", trayBundled)]
+    public async Task EveryBundledViewerIsComplete(string id, string root)
     {
-        using var archive = Packages.Open("DiffEngine");
-        var rids = Packages.Entries(archive)
-            .Where(_ => _.StartsWith(bundled, StringComparison.Ordinal))
-            .GroupBy(_ => _[bundled.Length..].Split('/')[0])
-            .ToList();
+        using var archive = Packages.Open(id);
+        var rids = Rids(archive, root);
 
         // Otherwise a package that bundled nothing at all would pass vacuously.
         await Assert.That(rids).IsNotEmpty();
@@ -126,7 +142,7 @@ public class PackageTests
         foreach (var rid in rids)
         {
             var names = rid
-                .Select(_ => _[(bundled.Length + rid.Key.Length + 1)..])
+                .Select(_ => _[(root.Length + rid.Key.Length + 1)..])
                 .ToList();
 
             foreach (var required in (string[])
@@ -162,4 +178,10 @@ public class PackageTests
 
         await Assert.That(problems).IsEmpty();
     }
+
+    static List<IGrouping<string, string>> Rids(ZipArchive archive, string root) =>
+        Packages.Entries(archive)
+            .Where(_ => _.StartsWith(root, StringComparison.Ordinal))
+            .GroupBy(_ => _[root.Length..].Split('/')[0])
+            .ToList();
 }

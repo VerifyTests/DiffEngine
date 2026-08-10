@@ -13,9 +13,16 @@ static class BundledViewerDirectory
 {
     public const string Key = "DiffEngine.ViewerDirectory";
 
-    public static string? Find()
+    public static string? Find() =>
+        Find(FindRoot());
+
+    /// <summary>
+    /// The RID probe on its own, for a caller that knows where the bundle is rather than reading
+    /// it from the consuming project. DiffEngineTray ships its own copy and points
+    /// <see cref="Key"/> at it.
+    /// </summary>
+    public static string? Find(string? root)
     {
-        var root = FindRoot();
         if (root == null ||
             root.Length == 0)
         {

@@ -33,4 +33,74 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
+
+  <!--
+  Bundles the Windows head, because a tray that owns the inline queue has to be able to open a
+  window on it and cannot reach the copy inside DiffEngine.nupkg. Newly affordable: the head is a
+  few hundred KB with no native renderer, WinForms being the renderer on Windows.
+
+  Off by default, like DiffEngine's own bundling, so a Debug build and a test run do not pay for a
+  nested publish. TrayViewerDirectory tolerates its absence.
+  -->
+  <PropertyGroup>
+    <TrayViewerStageDir>$(MSBuildThisFileDirectory)..\DiffEngine\obj\viewer\</TrayViewerStageDir>
+    <BundleTrayViewer Condition="'$(BundleTrayViewer)' == '' And '$(GeneratePackageOnBuild)' == 'true'">true</BundleTrayViewer>
+    <GenerateNuspecDependsOn Condition="'$(BundleTrayViewer)' == 'true'">AddViewerToTrayPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+  </PropertyGroup>
+
+  <!--
+  Asks DiffEngine for its staged heads rather than publishing the Windows one again here. There
+  must be exactly one publisher: two `dotnet publish` runs of the same project write the same
+  intermediate and the same restore assets, and a ProjectReference does not order them, because it
+  builds DiffEngine's inner net10.0 build while the staging happens in its outer build during pack.
+
+  No Properties or RemoveProperties, deliberately. That makes this the same project instance the
+  solution builds, so MSBuild either runs the target once here or hands back the result of having
+  already run it. Passing properties would fork a second instance and reintroduce the race.
+  -->
+  <Target Name="PublishTrayViewer" Condition="'$(BundleTrayViewer)' == 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\DiffEngine\DiffEngine.csproj"
+             Targets="PublishViewerHeads" />
+    <ItemGroup>
+      <!-- Windows only, and both architectures, because a tool package is RID agnostic and the
+           apphost inside it is not. -->
+      <_TrayViewerFile Include="$(TrayViewerStageDir)win-x64\**\*" Rid="win-x64" />
+      <_TrayViewerFile Include="$(TrayViewerStageDir)win-arm64\**\*" Rid="win-arm64" />
+    </ItemGroup>
+    <Error Condition="'@(_TrayViewerFile)' == ''"
+           Code="DE0002"
+           Text="No staged Windows viewer under $(TrayViewerStageDir). PublishViewerHeads should have produced one." />
+  </Target>
+
+  <!--
+  Also into bin, so a maintainer running the tray from a Release build resolves the viewer the same
+  way someone who installed the tool does, rather than falling through to whatever happens to be
+  installed globally.
+  -->
+  <Target Name="CopyViewerToTrayOutput"
+          AfterTargets="Build"
+          DependsOnTargets="PublishTrayViewer"
+          Condition="'$(BundleTrayViewer)' == 'true'">
+    <Copy SourceFiles="@(_TrayViewerFile)"
+          DestinationFolder="$(OutDir)viewer\%(_TrayViewerFile.Rid)\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="AddViewerToTrayPackage"
+          DependsOnTargets="PublishTrayViewer"
+          Condition="'$(BundleTrayViewer)' == 'true'">
+    <ItemGroup>
+      <!--
+      PackAsTool packs the publish directory into tools/$(TargetFramework)/any, so the bundle goes
+      beside it rather than at a path of its own. NuGet appends each file's path relative to the
+      wildcard, which is what keeps the RID folder.
+      -->
+      <_PackageFiles Include="$(TrayViewerStageDir)win-x64\**\*"
+                     BuildAction="None"
+                     PackagePath="tools\$(TargetFramework)\any\viewer\win-x64" />
+      <_PackageFiles Include="$(TrayViewerStageDir)win-arm64\**\*"
+                     BuildAction="None"
+                     PackagePath="tools\$(TargetFramework)\any\viewer\win-arm64" />
+    </ItemGroup>
+  </Target>
 </Project>

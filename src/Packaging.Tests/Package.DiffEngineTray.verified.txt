@@ -13,3 +13,15 @@ tools/net10.0/any/DotnetToolSettings.xml
 tools/net10.0/any/EmptyFiles.dll
 tools/net10.0/any/Serilog.Sinks.File.dll
 tools/net10.0/any/Serilog.dll
+tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.Core.dll
+tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.deps.json
+tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.dll
+tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.exe
+tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.runtimeconfig.json
+tools/net10.0/any/viewer/win-arm64/DiffPlex.dll
+tools/net10.0/any/viewer/win-x64/DiffEngineViewer.Core.dll
+tools/net10.0/any/viewer/win-x64/DiffEngineViewer.deps.json
+tools/net10.0/any/viewer/win-x64/DiffEngineViewer.dll
+tools/net10.0/any/viewer/win-x64/DiffEngineViewer.exe
+tools/net10.0/any/viewer/win-x64/DiffEngineViewer.runtimeconfig.json
+tools/net10.0/any/viewer/win-x64/DiffPlex.dll
