@@ -51,7 +51,7 @@ static class Fixtures
     }
 
     public static SessionState File(string left = Received, string right = Expected) =>
-        ViewerSession.Enqueue(
+        ViewerSession.EnqueueFile(
             SessionState.Start(ViewerMode.File, Columns, Rows),
             QueueEntry.ForFiles("Sample.received.txt", "Sample.verified.txt", left, right));
 
@@ -60,7 +60,7 @@ static class Fixtures
         var state = SessionState.Start(ViewerMode.Inline, Columns, Rows);
         foreach (var patch in patches)
         {
-            state = ViewerSession.Enqueue(state, QueueEntry.ForInline(patch));
+            state = ViewerSession.EnqueueInline(state, patch);
         }
 
         return state;

@@ -19,6 +19,13 @@ public sealed class InlineQueue
     InlineQueue(IReadOnlyList<PendingInline> items) =>
         Items = items;
 
+    /// <summary>
+    /// A queue over items a host already holds, used when the pending list is derived from
+    /// something else: the viewer's display list, or a listing read back over the socket.
+    /// </summary>
+    public static InlineQueue From(IEnumerable<PendingInline> items) =>
+        new(items.ToList());
+
     public IReadOnlyList<PendingInline> Items { get; }
 
     public int Count => Items.Count;

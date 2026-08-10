@@ -1,6 +1,13 @@
 /// <summary>
 /// The application logic, as pure state transitions. Every screen the user can reach is
 /// reproducible by replaying commands, which is what the snapshot tests do.
+/// <para>
+/// What changes the inline queue is delegated to <see cref="InlineQueue"/>, the same
+/// implementation DiffEngineTray hosts, so what enqueueing, settling or accepting means cannot
+/// differ between the two. What stays here is the view: selection, scrolling, and the projection
+/// back onto <see cref="QueueEntry"/>. File mode keeps its own accept, because copying left over
+/// right is not something the tray ever queues.
+/// </para>
 /// </summary>
 static class ViewerSession
 {
@@ -12,48 +19,67 @@ static class ViewerSession
         });
 
     /// <summary>
-    /// Adds an item, or replaces the existing one with the same key so a re-run of the same test
-    /// updates its entry rather than appending a duplicate.
+    /// Adds a patch, or replaces the existing one for the same call site so a re-run of the same
+    /// test updates its entry rather than appending a duplicate.
     /// </summary>
-    public static SessionState Enqueue(SessionState state, QueueEntry entry)
+    public static SessionState EnqueueInline(SessionState state, InlinePatch patch)
     {
-        var queue = state.Queue.ToList();
-        var existing = queue.FindIndex(_ => _.Key == entry.Key);
-        if (existing >= 0)
+        var replaced = IndexOf(state, InlineKey.For(patch.SourceFile, patch.LineHint));
+        var queue = Project(state, Pending(state).Enqueue(patch));
+        if (replaced < 0)
         {
-            queue[existing] = entry;
-            var scroll = existing == state.Selected ? 0 : state.ScrollTop;
             return Clamp(state with
             {
                 Queue = queue,
-                ScrollTop = scroll
+                Selected = state.Selected < 0 ? 0 : state.Selected
             });
         }
 
-        queue.Add(entry);
+        // The text under the reader just changed, so start it at the top again. Only when it is
+        // the item on screen; replacing one further down the list should not move anything.
         return Clamp(state with
         {
             Queue = queue,
-            Selected = state.Selected < 0 ? 0 : state.Selected
+            ScrollTop = replaced == state.Selected ? 0 : state.ScrollTop
         });
     }
+
+    /// <summary>
+    /// The single entry a file comparison shows. Nothing arrives after it, because file mode runs
+    /// without a socket.
+    /// </summary>
+    public static SessionState EnqueueFile(SessionState state, QueueEntry entry) =>
+        Clamp(state with
+        {
+            Queue = [..state.Queue, entry],
+            Selected = state.Selected < 0 ? 0 : state.Selected
+        });
 
     /// <summary>
     /// Drops the item for a key, used when a previously failing test starts passing.
     /// </summary>
     public static SessionState Settle(SessionState state, string key)
     {
-        var queue = state.Queue.Where(_ => _.Key != key).ToList();
-        if (queue.Count == state.Queue.Count)
+        var pending = Pending(state);
+        var settled = pending.Settle(key);
+        if (ReferenceEquals(settled, pending))
         {
             return state;
         }
 
-        return Remove(state, queue, null);
+        return Remove(state, Project(state, settled), null);
     }
+
+    /// <summary>
+    /// For commands that only move the view. Accept and accept all reach disk, so they go through
+    /// the overload that takes the actions; passing one here throws rather than doing nothing.
+    /// </summary>
+    public static SessionState Apply(SessionState state, Command command) =>
+        Apply(state, command, ViewerActions.None);
 
     public static SessionState Apply(SessionState state, Command command, ViewerActions actions)
     {
+        var inline = state.Mode == ViewerMode.Inline;
         var body = ScreenBuilder.BodyRows(state);
         switch (command.Kind)
         {
@@ -80,13 +106,15 @@ static class ViewerSession
             case CommandKind.SelectItem:
                 return Select(state, command.Index);
             case CommandKind.Accept:
-                return Accept(state, actions);
+                return inline ? AcceptInline(state, actions) : AcceptFile(state, actions);
             case CommandKind.AcceptAll:
-                return AcceptAll(state, actions);
+                return inline ? AcceptAllInline(state, actions) : AcceptAllFiles(state, actions);
             case CommandKind.Discard:
-                return Discard(state);
+                return inline ? DiscardInline(state) : DiscardFile(state);
             case CommandKind.DiscardAll:
-                return Remove(state, [], $"Discarded {state.Queue.Count}");
+                return inline
+                    ? Remove(state, Project(state, Pending(state).DiscardAll(out var summary)), summary)
+                    : Remove(state, [], $"Discarded {state.Queue.Count}");
             case CommandKind.Quit:
                 return state with { Exit = true };
             default:
@@ -94,7 +122,7 @@ static class ViewerSession
         }
     }
 
-    static SessionState Accept(SessionState state, ViewerActions actions)
+    static SessionState AcceptInline(SessionState state, ViewerActions actions)
     {
         var current = state.Current;
         if (current is null)
@@ -102,7 +130,48 @@ static class ViewerSession
             return state;
         }
 
-        var (removed, message) = ApplyOne(current, actions);
+        var accepted = Pending(state).Accept(current.Key, actions.ApplyInline, out var message);
+        var queue = Project(state, accepted);
+        if (accepted.Count < state.Queue.Count)
+        {
+            return Remove(state, queue, message);
+        }
+
+        // Kept pending so it can be retried, for example when an IDE holds the file open.
+        return state with
+        {
+            Queue = queue,
+            Message = message
+        };
+    }
+
+    static SessionState AcceptAllInline(SessionState state, ViewerActions actions)
+    {
+        var accepted = Pending(state).AcceptAll(actions.ApplyInline, out var message);
+        return Remove(state, Project(state, accepted), message);
+    }
+
+    static SessionState DiscardInline(SessionState state)
+    {
+        var current = state.Current;
+        if (current is null)
+        {
+            return state;
+        }
+
+        var discarded = Pending(state).Discard(current.Key, out var message);
+        return Remove(state, Project(state, discarded), message);
+    }
+
+    static SessionState AcceptFile(SessionState state, ViewerActions actions)
+    {
+        var current = state.Current;
+        if (current is null)
+        {
+            return state;
+        }
+
+        var (removed, message) = CopyOver(current, actions);
         if (removed)
         {
             var queue = state.Queue.ToList();
@@ -110,7 +179,6 @@ static class ViewerSession
             return Remove(state, queue, message);
         }
 
-        // Kept pending so it can be retried, for example when an IDE holds the file open.
         var kept = state.Queue.ToList();
         kept[state.Selected] = current with { Status = message };
         return state with
@@ -120,14 +188,18 @@ static class ViewerSession
         };
     }
 
-    static SessionState AcceptAll(SessionState state, ViewerActions actions)
+    /// <summary>
+    /// Reachable in file mode through shift+A even though the button is disabled for a single
+    /// item, so it behaves rather than being a hole.
+    /// </summary>
+    static SessionState AcceptAllFiles(SessionState state, ViewerActions actions)
     {
         var remaining = new List<QueueEntry>();
         var accepted = 0;
         string? failure = null;
         foreach (var entry in state.Queue)
         {
-            var (removed, message) = ApplyOne(entry, actions);
+            var (removed, message) = CopyOver(entry, actions);
             if (removed)
             {
                 accepted++;
@@ -144,7 +216,7 @@ static class ViewerSession
         return Remove(state, remaining, summary);
     }
 
-    static SessionState Discard(SessionState state)
+    static SessionState DiscardFile(SessionState state)
     {
         var current = state.Current;
         if (current is null)
@@ -157,22 +229,8 @@ static class ViewerSession
         return Remove(state, queue, $"Discarded {current.Name}");
     }
 
-    static (bool removed, string message) ApplyOne(QueueEntry entry, ViewerActions actions)
+    static (bool removed, string message) CopyOver(QueueEntry entry, ViewerActions actions)
     {
-        if (entry.Patch is not null)
-        {
-            var result = actions.ApplyInline(entry.Patch);
-            return result.Status switch
-            {
-                InlineApplyStatus.Applied => (true, $"Applied {entry.Name}"),
-                InlineApplyStatus.AlreadyApplied => (true, $"Already applied {entry.Name}"),
-                // The patch is stale. A re-run regenerates a fresh one, so drop it rather than
-                // leaving an item that can never succeed.
-                InlineApplyStatus.NotFound => (true, $"{entry.Name} source changed, re-run the test"),
-                _ => (false, result.Message ?? $"Failed to apply {entry.Name}")
-            };
-        }
-
         if (entry.LeftFile is null ||
             entry.TargetFile is null)
         {
@@ -188,6 +246,51 @@ static class ViewerSession
         {
             return (false, exception.Message);
         }
+    }
+
+    /// <summary>
+    /// The queue as its owner holds it. The display list is the only copy the viewer keeps, so
+    /// this is rebuilt from it rather than stored beside it, which is what stops the two from
+    /// disagreeing.
+    /// </summary>
+    static InlineQueue Pending(SessionState state) =>
+        InlineQueue.From(state.Queue.Select(_ => new PendingInline(_.Patch!, _.Status)));
+
+    /// <summary>
+    /// And back onto the display list. Building an entry runs the diff, so an entry already built
+    /// for the same patch is reused and only its status carried across.
+    /// </summary>
+    static IReadOnlyList<QueueEntry> Project(SessionState state, InlineQueue queue)
+    {
+        var existing = state.Queue.ToDictionary(_ => _.Key);
+        var entries = new List<QueueEntry>(queue.Count);
+        foreach (var pending in queue.Items)
+        {
+            if (existing.TryGetValue(pending.Key, out var entry) &&
+                ReferenceEquals(entry.Patch, pending.Patch))
+            {
+                entries.Add(entry.Status == pending.Status ? entry : entry with { Status = pending.Status });
+                continue;
+            }
+
+            var built = QueueEntry.ForInline(pending.Patch);
+            entries.Add(pending.Status is null ? built : built with { Status = pending.Status });
+        }
+
+        return entries;
+    }
+
+    static int IndexOf(SessionState state, string key)
+    {
+        for (var index = 0; index < state.Queue.Count; index++)
+        {
+            if (state.Queue[index].Key == key)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     static SessionState Remove(SessionState state, IReadOnlyList<QueueEntry> queue, string? message) =>

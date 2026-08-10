@@ -22,7 +22,7 @@ public class InlineScreenTests
 
     [Test]
     public Task SecondItemSelected() =>
-        Verify(Fixtures.Render(ViewerSession.Apply(Pending(), CommandKind.NextItem, Fixtures.Applied)));
+        Verify(Fixtures.Render(ViewerSession.Apply(Pending(), CommandKind.NextItem)));
 
     [Test]
     public Task AfterAccept() =>
@@ -30,7 +30,7 @@ public class InlineScreenTests
 
     [Test]
     public Task AfterDiscard() =>
-        Verify(Fixtures.Render(ViewerSession.Apply(Pending(), CommandKind.Discard, Fixtures.Applied)));
+        Verify(Fixtures.Render(ViewerSession.Apply(Pending(), CommandKind.Discard)));
 
     [Test]
     public Task AfterAcceptAll() =>

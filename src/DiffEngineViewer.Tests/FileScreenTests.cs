@@ -48,7 +48,7 @@ public class FileScreenTests
     {
         foreach (var command in commands)
         {
-            state = ViewerSession.Apply(state, command, Fixtures.Applied);
+            state = ViewerSession.Apply(state, command);
         }
 
         return state;

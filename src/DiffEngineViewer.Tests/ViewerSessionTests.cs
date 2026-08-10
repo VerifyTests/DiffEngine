@@ -109,7 +109,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
 
-        var end = ViewerSession.Apply(state, CommandKind.ScrollEnd, Fixtures.Applied);
+        var end = ViewerSession.Apply(state, CommandKind.ScrollEnd);
 
         var body = ScreenBuilder.BodyRows(state);
         await Assert.That(end.ScrollTop).IsEqualTo(state.Queue[0].TotalRows - body);
@@ -120,7 +120,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.File();
 
-        var up = ViewerSession.Apply(state, CommandKind.PageUp, Fixtures.Applied);
+        var up = ViewerSession.Apply(state, CommandKind.PageUp);
 
         await Assert.That(up.ScrollTop).IsEqualTo(0);
     }
@@ -130,7 +130,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.File();
 
-        var down = ViewerSession.Apply(state, CommandKind.ScrollDown, Fixtures.Applied);
+        var down = ViewerSession.Apply(state, CommandKind.ScrollDown);
 
         await Assert.That(down.ScrollTop).IsEqualTo(0);
     }
@@ -139,7 +139,7 @@ public class ViewerSessionTests
     public async Task GrowingTheWindowPullsScrollBack()
     {
         var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
-        var end = ViewerSession.Apply(state, CommandKind.ScrollEnd, Fixtures.Applied);
+        var end = ViewerSession.Apply(state, CommandKind.ScrollEnd);
 
         var resized = ViewerSession.Resize(end, Fixtures.Columns, 200);
 
@@ -151,10 +151,10 @@ public class ViewerSessionTests
     {
         var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
 
-        var first = ViewerSession.Apply(state, CommandKind.NextChange, Fixtures.Applied);
-        var second = ViewerSession.Apply(first, CommandKind.NextChange, Fixtures.Applied);
-        var third = ViewerSession.Apply(second, CommandKind.NextChange, Fixtures.Applied);
-        var past = ViewerSession.Apply(third, CommandKind.NextChange, Fixtures.Applied);
+        var first = ViewerSession.Apply(state, CommandKind.NextChange);
+        var second = ViewerSession.Apply(first, CommandKind.NextChange);
+        var third = ViewerSession.Apply(second, CommandKind.NextChange);
+        var past = ViewerSession.Apply(third, CommandKind.NextChange);
 
         // Changes sit on lines 3, 17 and 33, so rows 2, 16 and 32 zero based. Row 32 is past the
         // last full page of 40 rows in a 16 row viewport, so it clamps to 24 and stays there.
@@ -170,10 +170,10 @@ public class ViewerSessionTests
         var state = Fixtures.Inline(
             Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true)),
             Fixtures.Patch("B.cs", 1, "\"b\"", "y"));
-        var scrolled = ViewerSession.Apply(state, CommandKind.PageDown, Fixtures.Applied);
+        var scrolled = ViewerSession.Apply(state, CommandKind.PageDown);
         await Assert.That(scrolled.ScrollTop).IsGreaterThan(0);
 
-        var selected = ViewerSession.Apply(scrolled, CommandKind.NextItem, Fixtures.Applied);
+        var selected = ViewerSession.Apply(scrolled, CommandKind.NextItem);
 
         await Assert.That(selected.Selected).IsEqualTo(1);
         await Assert.That(selected.ScrollTop).IsEqualTo(0);
@@ -184,7 +184,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.Inline(Fixtures.Patch());
 
-        var selected = ViewerSession.Apply(state, CommandKind.NextItem, Fixtures.Applied);
+        var selected = ViewerSession.Apply(state, CommandKind.NextItem);
 
         await Assert.That(selected.Selected).IsEqualTo(0);
     }
@@ -194,7 +194,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.Inline(Fixtures.Patch());
 
-        var quit = ViewerSession.Apply(state, CommandKind.Quit, Fixtures.Applied);
+        var quit = ViewerSession.Apply(state, CommandKind.Quit);
 
         await Assert.That(quit.Exit).IsTrue();
         await Assert.That(quit.Queue.Count).IsEqualTo(1);

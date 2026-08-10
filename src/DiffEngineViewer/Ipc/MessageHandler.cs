@@ -31,7 +31,7 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
                 window(WindowCommand.Hide);
                 return ViewerResponse.Success();
             case ViewerVerb.Quit:
-                host.Mutate(_ => ViewerSession.Apply(_, CommandKind.Quit, actions));
+                host.Mutate(_ => ViewerSession.Apply(_, CommandKind.Quit));
                 return ViewerResponse.Success("Closing");
             default:
                 return ViewerResponse.Error($"Unsupported verb: {message.Verb}");
@@ -57,7 +57,7 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             return ViewerResponse.Error($"{InlinePatchMode.Remove} patches are not reviewable");
         }
 
-        var state = host.Mutate(_ => ViewerSession.Enqueue(_, QueueEntry.ForInline(patch)));
+        var state = host.Mutate(_ => ViewerSession.EnqueueInline(_, patch));
         return ViewerResponse.Success($"Queued {state.Queue.Count}");
     }
 
@@ -104,7 +104,7 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
                 return _;
             }
 
-            var selected = ViewerSession.Apply(_, Command.Select(index), actions);
+            var selected = ViewerSession.Apply(_, Command.Select(index));
             return ViewerSession.Apply(selected, command, actions);
         });
 
@@ -129,7 +129,7 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             host.Mutate(_ =>
             {
                 var index = IndexOf(_, key);
-                return index < 0 ? _ : ViewerSession.Apply(_, Command.Select(index), actions);
+                return index < 0 ? _ : ViewerSession.Apply(_, Command.Select(index));
             });
         }
 

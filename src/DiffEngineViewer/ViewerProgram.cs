@@ -67,9 +67,7 @@ static class ViewerProgram
 
         using (server)
         {
-            var start = ViewerSession.Enqueue(
-                SessionState.Start(ViewerMode.Inline),
-                QueueEntry.ForInline(patch));
+            var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
             return Run(new(start), server, open);
         }
     }
@@ -85,7 +83,7 @@ static class ViewerProgram
         }
 
         var entry = QueueEntry.ForFiles(left, right, Read(left), Read(right));
-        var start = ViewerSession.Enqueue(SessionState.Start(ViewerMode.File), entry);
+        var start = ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry);
         return Run(new(start), null, open);
     }
 
@@ -192,13 +190,13 @@ static class ViewerProgram
             var steps = Math.Min(Math.Abs(input.ScrollDelta) * 3, 30);
             for (var step = 0; step < steps; step++)
             {
-                state = ViewerSession.Apply(state, command, actions);
+                state = ViewerSession.Apply(state, command);
             }
         }
 
         if (input.ClickedQueueItem >= 0)
         {
-            state = ViewerSession.Apply(state, Command.Select(input.ClickedQueueItem), actions);
+            state = ViewerSession.Apply(state, Command.Select(input.ClickedQueueItem));
         }
 
         if (input.ClickedButton >= 0)
