@@ -77,7 +77,7 @@ public class DebugReportTests :
         settings.AddScrubber(_ => _.Replace(directory.ToLowerInvariant(), "{Directory}"));
 
         var source = Path.Combine(directory, "SampleTests.cs");
-        File.WriteAllText(source, "");
+        await File.WriteAllTextAsync(source, "");
         var patch = new InlinePatch(source, 42, "\"old\"", "line one\nline two");
         // Over the socket, as the test process that failed the assertion sends it
         if (!ViewerClient.TrySend(new(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch)), out _, host.Port))
