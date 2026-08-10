@@ -30,6 +30,12 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
     <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+    <!--
+    The apphost icon, so the exe and its taskbar button are not the generic .NET one. Embedded as
+    well as compiled in, because ApplicationIcon only reaches the native apphost and a Form picks
+    its own icon from managed resources.
+    -->
+    <ApplicationIcon>viewer.ico</ApplicationIcon>
   </PropertyGroup>
 
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
@@ -58,5 +64,7 @@
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Include="..\DiffEngineViewer\Assets\JetBrainsMono-OFL.txt" Pack="true" PackagePath="\" />
+    <None Remove="viewer.ico" />
+    <EmbeddedResource Include="viewer.ico" LogicalName="DiffEngineViewer.viewer.ico" />
   </ItemGroup>
 </Project>

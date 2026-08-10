@@ -50,6 +50,12 @@ sealed class ViewerForm : Form
         BackColor = Palette.Background
     };
 
+    /// <summary>
+    /// Shared, because a Form does not own the icon it is given and a window can be opened and
+    /// hidden many times over one process.
+    /// </summary>
+    static readonly Icon? icon = EmbeddedIcon.Load();
+
     Screen? last;
     CommandKind key;
     int clickedButton = -1;
@@ -61,6 +67,11 @@ sealed class ViewerForm : Form
     public ViewerForm(string title, int width, int height)
     {
         Text = title;
+        if (icon is not null)
+        {
+            Icon = icon;
+        }
+
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
         ClientSize = new(width, height);
