@@ -82,6 +82,52 @@
         }
     }
 
+    // The whole file is rewritten, not just the patched span, so a byte that does not decode
+    // would come back as a replacement character everywhere it appears
+    [Test]
+    public async Task NonUtf8FileIsRefused()
+    {
+        byte[] bytes =
+        [
+            .. Utf8("class C\n{\n    // caf", bom: false),
+            0xE9, // é in Latin-1, not valid UTF-8
+            .. Utf8("\n    void M() => Verify(value).Snapshot(\"old\");\n}", bom: false)
+        ];
+        var path = WriteTemp(bytes);
+        try
+        {
+            var result = InlineApplier.Apply(new(path, 4, "\"old\"", "new"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
+            await Assert.That(result.Message!).Contains("Convert it to UTF-8");
+            await Assert.That((await File.ReadAllBytesAsync(path)).SequenceEqual(bytes)).IsTrue();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task NonAsciiUtf8IsPreserved()
+    {
+        var text = "class C\n{\n    // café ☕\n    void M() => Verify(value).Snapshot(\"old\");\n}";
+        var path = WriteTemp(Utf8(text, bom: false));
+        try
+        {
+            var result = InlineApplier.Apply(new(path, 4, "\"old\"", "naïve ☕"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            var after = await File.ReadAllTextAsync(path);
+            await Assert.That(after).Contains("// café ☕");
+            await Assert.That(after).Contains("naïve ☕");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public async Task CrlfPreserved()
     {

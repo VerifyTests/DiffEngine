@@ -88,6 +88,12 @@ public static class InlineApplier
         {
             source = encoding.GetString(bytes, bomLength, bytes.Length - bomLength);
         }
+        catch (DecoderFallbackException exception)
+        {
+            return InlineApplyResult.Failed(
+                $"Could not decode as {encoding.WebName}: {fullPath}. Every byte that failed to decode would be replaced on write, so the file is left alone. Convert it to UTF-8 and re-run the test.",
+                exception);
+        }
         catch (Exception exception)
         {
             return InlineApplyResult.Failed($"Failed to decode: {fullPath}", exception);
@@ -136,29 +142,36 @@ public static class InlineApplier
         return InlineApplyResult.Applied;
     }
 
+    /// <summary>
+    /// The encoding to read and write the file with. Every one of them throws rather than
+    /// substituting: the applier rewrites the whole file, not just the patched span, so a
+    /// replacement character for an undecodable byte is not a local defect but a file wide one.
+    /// A source file that is not what its BOM says, or is not UTF-8 when it has no BOM, has to
+    /// fail loudly and stay as it was.
+    /// </summary>
     static (Encoding encoding, int bomLength) DetectEncoding(byte[] bytes)
     {
         if (bytes is [0xFF, 0xFE, 0x00, 0x00, ..])
         {
-            return (new UTF32Encoding(false, true), 4);
+            return (new UTF32Encoding(false, true, true), 4);
         }
 
         if (bytes is [0xEF, 0xBB, 0xBF, ..])
         {
-            return (new UTF8Encoding(true), 3);
+            return (new UTF8Encoding(true, true), 3);
         }
 
         if (bytes is [0xFF, 0xFE, ..])
         {
-            return (new UnicodeEncoding(false, true), 2);
+            return (new UnicodeEncoding(false, true, true), 2);
         }
 
         if (bytes is [0xFE, 0xFF, ..])
         {
-            return (new UnicodeEncoding(true, true), 2);
+            return (new UnicodeEncoding(true, true, true), 2);
         }
 
-        return (new UTF8Encoding(false), 0);
+        return (new UTF8Encoding(false, true), 0);
     }
 
     static string MutexName(string normalizedPath)
