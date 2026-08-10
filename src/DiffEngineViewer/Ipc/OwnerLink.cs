@@ -85,7 +85,7 @@ sealed class OwnerLink(SessionHost host, int port)
         return true;
     }
 
-    public void Run(CancellationToken cancel)
+    public void Run(Cancel cancel)
     {
         while (!cancel.IsCancellationRequested)
         {
