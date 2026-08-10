@@ -52,8 +52,14 @@ Reviewing an inline snapshot, where the patch payload arrives on stdin:
 DiffEngineViewer --inline --source <file.cs> --line <number>
 ```
 
+Displaying a queue held by another process, which is how [DiffEngineTray](/docs/tray.md) opens one:
+
+```
+DiffEngineViewer --attach
+```
+
 Nothing is written to disk for inline review. The patch travels over stdin, or over a loopback
-socket when a viewer is already running.
+socket when something is already holding the queue.
 
 
 ## Keys
@@ -71,19 +77,32 @@ socket when a viewer is already running.
 
 ## Multiple pending snapshots
 
-A test run that fails several inline snapshots produces one window, not several. The first launch
-takes ownership by binding a loopback port; later launches hand their patch to that instance and
-exit. The window lists everything pending and offers **Accept all**.
+A test run that fails several inline snapshots produces one window, not several. Whichever process
+binds the loopback port holds the queue; everything else hands its patch to that one. The window
+lists everything pending and offers **Accept all**.
 
 Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
-case the window hides and the tray can reopen it.
+case the tray still has it and can reopen a window on it.
 
 
 ## With DiffEngineTray
 
-The viewer owns the queue and the tray is a remote control over the same socket, so both surfaces
-always agree. The tray's **Pending Snapshots** group can accept, discard, open the viewer on a
-particular snapshot, and close the viewer.
+The tray starts at login, so it normally binds the port first and holds the queue. The viewer then
+displays it: it reads the pending snapshots back over the socket and forwards accept and discard
+rather than applying them. That is what `--attach` is for, and the tray starts one whenever a
+snapshot arrives with no window open.
+
+The point of that arrangement is that the queue outlives the window. A viewer that is closed,
+killed or crashes takes nothing with it, and there is no 52 MB process kept resident purely to hold
+a list.
+
+If a viewer was already running when the tray started, the viewer keeps the queue for as long as it
+lives and the tray drives it remotely instead. Ownership is decided once and never moves. Either
+way both surfaces run the same queue implementation, so they cannot disagree on what accepting or
+settling means, and the tray's **Pending Snapshots** group can accept, discard, open the viewer on
+a particular snapshot, and close the viewer.
+
+A tray restart loses the queue, as it loses pending file moves and deletes. Re-run the tests.
 
 
 ## Disabling

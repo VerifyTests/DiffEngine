@@ -1,7 +1,10 @@
 /// <summary>
-/// The tray no longer stores pending inline snapshots; the viewer owns the queue and the tray
-/// drives it over the socket. These drive a real <see cref="FakeViewer"/> rather than staging
-/// files on disk.
+/// The tray driving a queue it does not own, which is what happens when a viewer bound the port
+/// before this tray started. The other arrangement, where the tray holds the queue itself, is
+/// covered by <see cref="OwnedInlineHostTest"/>.
+/// <para>
+/// These drive a real <see cref="FakeViewer"/> over a socket rather than staging files on disk.
+/// </para>
 /// </summary>
 public class TrackerSnapshotTest
 {

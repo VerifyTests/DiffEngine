@@ -59,7 +59,8 @@ static class ViewerProgram
         var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
         {
-            // Another viewer owns the queue, so hand the patch over and get out of the way.
+            // Something else holds the queue, a tray or another viewer, so hand the patch over and
+            // get out of the way. Whichever it is will show it.
             var forwarded = ViewerClient.TrySend(new(ViewerVerb.Inline, Body: payload), out _, port);
             if (!forwarded)
             {
@@ -215,8 +216,12 @@ static class ViewerProgram
                 continue;
             }
 
-            // With a tray to reopen from, closing hides rather than discards. Without one there
-            // is nothing to reopen from, so closing means closing.
+            // With a tray to reopen from, closing hides rather than exits. Without one there is
+            // nothing to reopen from, so closing means closing.
+            //
+            // Hidden rather than exited even when the tray owns the queue and could relaunch:
+            // staying up makes reopening a focus rather than a process start, and the tray tracks
+            // the process it launched, so it sends that focus instead of starting a second one.
             if (TrayDetector.IsRunning() &&
                 host.State.Queue.Count > 0)
             {

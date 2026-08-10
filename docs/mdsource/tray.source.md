@@ -44,6 +44,23 @@ A test can produce multiple resulting snapshots. If the accepted versions has a 
 Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop down will expose extra actions for that change.
 
 
+### Pending snapshots
+
+[Inline snapshots](/docs/viewer.md) are reviewed in DiffEngineViewer rather than in a diff tool,
+but the queue of them lives here. The tray starts at login, so it normally claims the queue before
+any viewer exists, and holds it for as long as it runs.
+
+That is what makes the window disposable. A viewer that is closed, killed or crashes takes nothing
+pending with it, and the tray opens a new one on the same queue. A snapshot arriving with no window
+open starts one.
+
+"Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers
+discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is
+marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
+
+A tray restart loses the queue, as it loses pending moves and deletes. Re-run the tests.
+
+
 ### Accept all
 
 "Accept all" will accept all pending moves and all pending deletes.
