@@ -98,7 +98,12 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 
 **DiffEngineTray (`src/DiffEngineTray/`):**
 - Windows Forms tray application that handles pending file diffs
-- `PiperServer` - TCP server (localhost) receiving move/delete payloads from DiffEngine library
+- `PiperServer` - TCP server (localhost, 3492) receiving move/delete payloads from DiffEngine.
+  Deliberately a second listener beside the viewer protocol, not debt: its format is frozen
+  (every stable DiffEngine embeds PiperClient, pinned in test projects while the tray updates
+  independently), and the ports answer different questions — 3492 "a tray is here", 3493 "the
+  queue owner is here", which is sometimes a viewer. Merging them breaks the late-starting-tray
+  case. Full rationale on the PiperServer class doc.
 - `Tracker` - Manages pending file moves and deletes with concurrent dictionaries
 - `OwnedInlineHost` / `RemoteInlineHost` - The tray binds 3493 at startup and holds the inline
   queue when it wins, which it usually does because it starts at login. A viewer that got there

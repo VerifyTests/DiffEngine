@@ -88,31 +88,12 @@ one, so the outcome described nothing the caller still had. Now `Unknown`, which
 pre-existing test `AReplacedEntrySurvivesTheAcceptItInterrupted` was asserting through the old
 bool shape — it caught the regression.
 
-## 5. Resolved: the two servers in the tray stay two
+## 5. ~~Two servers in the tray~~ (resolved: they stay two)
 
-Earlier revisions of this note called the second listener debt and sketched "one port, one codec,
-one listener". Wrong, on inspection — the ports answer different questions and cannot merge in
-either direction:
-
-- **3492 means "a tray is here."** Moves and deletes need the tracker, the balloon, the menu;
-  only the tray can serve them.
-- **3493 means "the inline queue owner is here"** — tray *or* viewer, decided by bind.
-- Collapse them and the late-tray case breaks: today a viewer can own the queue on 3493 while the
-  tray still receives every move on 3492. One port cannot serve that, and a standalone viewer
-  would have to squat the tray's port to own its queue.
-
-Nor should the queue protocol fold into Piper's format: Piper is the frozen side. Every stable
-DiffEngine since ~15.x embeds `PiperClient`, pinned inside test projects while the tray updates
-independently, so old-library + new-tray is the normal pairing. Piper is also one-way — the server
-never writes, the client never reads, unknown payloads are deliberately ignored — and the queue
-protocol is request/response at its core.
-
-What could ever unify, fully back-compat, is the codec on 3492: sniff `version:` vs `"Type"` and
-answer the new format while accepting the old. But fire-and-forget means a new library can never
-detect an old tray ignoring the new format, so legacy emission stays forever, both readers stay
-forever, and the net is plus one format, minus nothing. The one real prize available additively is
-an ack for moves — today the library cannot know the tray received one. Do that as new verbs on
-3492's listener if and when it is actually wanted; nothing requires a major version.
+Moved to where it survives this file: the full rationale is the class doc on `PiperServer`, and
+the compressed invariant is in `claude.md`'s DiffEngineTray section. Short form: the ports answer
+different questions (3492 "a tray is here", 3493 "the queue owner is here", sometimes a viewer),
+Piper's client population is frozen in the wild, and nothing on this table needs a major version.
 
 ## 6. Process
 

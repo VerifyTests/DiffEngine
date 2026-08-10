@@ -1,6 +1,25 @@
 using System.Net;
 using System.Net.Sockets;
 
+/// <summary>
+/// Receives moves and deletes from the DiffEngine library. One way by design: nothing is ever
+/// written back, dispatch is by substring, and unknown payloads are ignored so a newer client
+/// never surfaces an error dialog on an older tray.
+/// <para>
+/// Deliberately not the viewer protocol, and deliberately not sharing its port. This format is
+/// frozen: every stable DiffEngine embeds <see cref="PiperClient"/>, pinned inside test projects
+/// while this tray updates independently as a global tool, so old library plus new tray is the
+/// normal pairing. And the two ports answer different questions — 3492 means "a tray is here",
+/// 3493 means "the inline queue owner is here", and the owner is sometimes a viewer. Merged,
+/// a late starting tray could not receive moves while a viewer owned the queue.
+/// </para>
+/// <para>
+/// If this listener ever needs to answer anything, for example acknowledging a move, do it by
+/// sniffing a versioned payload beside this format rather than replacing it: fire and forget
+/// means a new library can never detect an old tray ignoring a new format, so this reader can
+/// never be retired detectably.
+/// </para>
+/// </summary>
 static class PiperServer
 {
     public static async Task Start(
