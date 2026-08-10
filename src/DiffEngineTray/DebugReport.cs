@@ -120,7 +120,7 @@ static class DebugReport
         var heading = $"{name} ({count})";
         builder.AppendLine();
         builder.AppendLine(heading);
-        builder.AppendLine(new string('-', heading.Length));
+        builder.AppendLine(new('-', heading.Length));
         if (count == 0)
         {
             builder.AppendLine("none");
