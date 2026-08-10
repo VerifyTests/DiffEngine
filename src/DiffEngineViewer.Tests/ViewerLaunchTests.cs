@@ -66,7 +66,7 @@ public class ViewerLaunchTests
             "No pending queue column",
             "Buttons are Accept and Close");
 
-        var result = EngineRunner.Launch(EngineTool.DiffEngineViewer, temp, target);
+        var result = await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
 
         await Assert.That(result).IsEqualTo(EngineLaunch.StartedNewInstance);
         await ManualViewer.WaitForClose();
@@ -89,7 +89,7 @@ public class ViewerLaunchTests
             "Right pane is empty",
             "No crash from the missing file");
 
-        var result = EngineRunner.Launch(EngineTool.DiffEngineViewer, temp, target);
+        var result = await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
 
         await Assert.That(result).IsEqualTo(EngineLaunch.StartedNewInstance);
         await ManualViewer.WaitForClose();
@@ -114,7 +114,7 @@ public class ViewerLaunchTests
             "n jumps forward through changes at lines 3, 17 and 33, p jumps back",
             "The mouse wheel scrolls");
 
-        EngineRunner.Launch(EngineTool.DiffEngineViewer, temp, target);
+        await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
         await ManualViewer.WaitForClose();
     }
 
