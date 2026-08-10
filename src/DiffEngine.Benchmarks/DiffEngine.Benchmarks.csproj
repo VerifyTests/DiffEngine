@@ -9,9 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
   </ItemGroup>
 

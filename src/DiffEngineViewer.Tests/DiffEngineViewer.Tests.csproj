@@ -21,14 +21,12 @@
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" Aliases="engine" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
-  </ItemGroup>
 
   <!--
   The native renderers belong to the platform heads, but NativeTests and PixelTests exercise them
   through the core, so this project needs whichever one matches the RID it is running on. Taking
   all of them keeps that a single rule rather than three conditions.
   -->
-  <ItemGroup>
     <None Include="..\DiffEngineViewer.Linux\runtimes\**\*;..\DiffEngineViewer.Mac\runtimes\**\*;..\DiffEngineViewer.Windows\runtimes\**\*"
           CopyToOutputDirectory="PreserveNewest"
           Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" />

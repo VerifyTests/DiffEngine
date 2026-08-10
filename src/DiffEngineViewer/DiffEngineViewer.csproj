@@ -30,9 +30,6 @@
     <PackageReference Include="DiffPlex" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup>
     <EmbeddedResource Include="Assets\JetBrainsMono-Regular.ttf" LogicalName="DiffEngineViewer.JetBrainsMono-Regular.ttf" />
   </ItemGroup>
 </Project>
