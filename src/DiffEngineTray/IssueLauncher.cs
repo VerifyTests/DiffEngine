@@ -1,5 +1,3 @@
-using System.Net;
-
 static class IssueLauncher
 {
     static ConcurrentBag<string> recorded = [];

@@ -1,0 +1,46 @@
+﻿DiffEngineTray TheVersion
+Captured: 2024-10-01 13:45:30
+Inline queue: owned by another process on port {Port}
+Tracking: True
+
+Deletes (1)
+-----------
+[1] Extra.verified.txt
+    File:               {Directory}\Extra.verified.txt (missing)
+    Group:              <null>
+
+Moves (1)
+---------
+[1] Sample.Test
+    Temp:               {Directory}\Sample.Test.received.txt (exists)
+    Target:             {Directory}\Sample.Test.verified.txt (missing)
+    Extension:          txt
+    Group:              <null>
+    Exe:                C:\tools\diff.exe
+    Arguments:          "{Directory}\Sample.Test.received.txt" "{Directory}\Sample.Test.verified.txt"
+    CanKill:            True
+    KillLockingProcess: False
+    Process:            none
+
+Snapshots (3)
+-------------
+[1] Failed.cs:7
+    Key:                c:\repo\failed.cs|7
+    Source:             c:\repo\failed.cs (missing)
+    Group:              <null>
+    Status:             the file is locked
+    Patch:              held by the process that owns the queue
+
+[2] Other.cs:40
+    Key:                c:\repo\other.cs:40|1
+    Source:             c:\repo\other.cs:40 (missing)
+    Group:              <null>
+    Status:             <null>
+    Patch:              held by the process that owns the queue
+
+[3] Sample.cs:12
+    Key:                c:\repo\sample.cs:12|1
+    Source:             c:\repo\sample.cs:12 (missing)
+    Group:              <null>
+    Status:             <null>
+    Patch:              held by the process that owns the queue

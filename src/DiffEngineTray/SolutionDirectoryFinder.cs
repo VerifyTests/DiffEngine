@@ -8,10 +8,34 @@
 
     static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The solution a file belongs to, or null when it has none.
+    /// <para>
+    /// Never throws, because the paths reaching here arrive from another process — over the piper
+    /// socket, or as an inline snapshot key — and are not guaranteed to exist on this machine, or
+    /// even to be a usable path. Every caller treats null as ungrouped, while a throw used to
+    /// escape <see cref="PiperServer"/>, drop the pending item, and open an issue page.
+    /// </para>
+    /// </summary>
     public static string? Find(string file) =>
         cache.GetOrAdd(file, Inner)?.Name;
 
     static Result? Inner(string file)
+    {
+        try
+        {
+            return Walk(file);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            // Nothing usable in the path itself, which no amount of walking up improves on. A
+            // directory that merely cannot be listed is handled in TryFind, and keeps walking.
+            return null;
+        }
+    }
+
+    static Result? Walk(string file)
     {
         // Reuse an already resolved solution when the file sits inside its directory.
         // Prefer the nearest (longest) enclosing directory so nested solutions resolve correctly.
@@ -85,7 +109,21 @@
 
     static bool TryFind(string directory, string searchPattern, [NotNullWhen(true)] out Result? result)
     {
-        var solutions = Directory.GetFiles(directory, searchPattern);
+        string[] solutions;
+        try
+        {
+            solutions = Directory.GetFiles(directory, searchPattern);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A directory that is not there, or that cannot be listed, holds no solution this
+            // process can see. Keep walking up rather than giving up: a file under a directory
+            // that has since been deleted still belongs to the solution above it.
+            result = null;
+            return false;
+        }
+
         if (solutions.Length != 0)
         {
             result = new(directory, Path.GetFileNameWithoutExtension(solutions.First()));

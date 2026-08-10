@@ -104,6 +104,18 @@ class Tracker :
         }
     }
 
+    /// <summary>
+    /// Where the inline queue lives, for the debug view. Decided at startup by which process bound
+    /// the port, and never changes after that.
+    /// </summary>
+    public string InlineDescription => inline.Description;
+
+    /// <summary>
+    /// The queued patches, for the debug view, when this tray owns the queue. Null when a viewer
+    /// does, since then they are held over there.
+    /// </summary>
+    public IReadOnlyList<PendingInline>? QueuedPatches => inline.Queued();
+
     public bool TrackingAny =>
         !moves.IsEmpty ||
         !deletes.IsEmpty ||

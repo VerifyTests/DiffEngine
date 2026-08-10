@@ -1,5 +1,3 @@
-namespace DiffEngine;
-
 /// <summary>
 /// Maps wire messages onto whoever owns the queue.
 /// <para>

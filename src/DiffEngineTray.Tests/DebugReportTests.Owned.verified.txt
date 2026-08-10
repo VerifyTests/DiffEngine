@@ -1,0 +1,27 @@
+﻿DiffEngineTray TheVersion
+Captured: 2024-10-01 13:45:30
+Inline queue: owned by this tray on port {Port}
+Tracking: True
+
+Deletes (0)
+-----------
+none
+
+Moves (0)
+---------
+none
+
+Snapshots (1)
+-------------
+[1] SampleTests.cs:42
+    Key:                {Directory}\sampletests.cs|42
+    Source:             {Directory}\sampletests.cs (exists)
+    Group:              <null>
+    Status:             <null>
+    SourceFile:         {Directory}\SampleTests.cs
+    LineHint:           42
+    Mode:               Set
+    OriginalExpression: "old"
+    NewContent:
+        line one
+        line two

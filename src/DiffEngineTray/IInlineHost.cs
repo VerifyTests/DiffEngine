@@ -8,7 +8,19 @@
 /// </summary>
 interface IInlineHost
 {
+    /// <summary>
+    /// Which process holds the queue, and on which port, for the debug view.
+    /// </summary>
+    string Description { get; }
+
     IReadOnlyList<PendingSnapshot> List();
+
+    /// <summary>
+    /// The queued patches themselves, for the debug view, and null when the queue is not in this
+    /// process. What the tray holds then is the listing and nothing more: the patch is in the
+    /// owning process's memory, and that process has its own view of it.
+    /// </summary>
+    IReadOnlyList<PendingInline>? Queued();
 
     AcceptOutcome Accept(PendingSnapshot snapshot, out string? message);
 

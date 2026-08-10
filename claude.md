@@ -150,6 +150,9 @@ keeps offering a snapshot that is already in the source.
 - Either host runs the same `InlineQueue` from DiffEngine, so the two cannot differ on what
   accepting or settling means. Owning it means accepting runs on a listener thread rather than on
   a render loop, which is where `InlineApplier`'s ten second mutex wait used to sit.
+- `DebugReport` / `DebugForm` - the menu's "Debug view": every field of every tracked move, delete
+  and snapshot as text, plus the queued patches when this tray owns the queue. The report is a
+  string so it can be copied into an issue and snapshot tested without rendering a window.
 - Allows accepting/discarding diffs from system tray
 
 **Packaging.Tests (`src/Packaging.Tests/`):**

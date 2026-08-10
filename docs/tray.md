@@ -96,6 +96,17 @@ Discard will clear all currently tracked items.
 Prompts for a directory, and then recursively deletes all `*.verified.*` in that directory.
 
 
+### Debug view
+
+Everything currently tracked, as text: every field of every pending move, delete and snapshot, plus which process owns the inline queue.
+
+<img src="..\src\DiffEngineTray.Tests\DebugFormTests.Default.verified.png">
+
+The menu shows each pending item reduced to what fits on a line, a name and a few actions. This is the rest of it, for when the interesting part is a path, an argument list, or the process a diff tool was launched as. "Copy" puts the whole report on the clipboard, which is what to attach to an issue.
+
+Nothing pushes at the window, so it shows the moment it was read. "Refresh" takes a newer reading.
+
+
 ### Options
 
 <img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">

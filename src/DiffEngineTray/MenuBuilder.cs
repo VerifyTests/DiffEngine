@@ -22,20 +22,32 @@ static class MenuBuilder
         menu.Font = new(menu.Font.FontFamily, 10);
         items.Add(new MenuButton("Exit", exit, Images.Exit));
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
+        items.Add(new MenuButton("Debug view", async () => await DebugFormLauncher.Launch(tracker), Images.Options));
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
         items.Add(new MenuButton("Purge verified files", FilePurger.Launch, Images.Folder));
         items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
         return menu;
     }
 
+    /// <summary>
+    /// The items that survive a close, matched by text. The tracked ones are rebuilt from scratch
+    /// every time the menu opens, so anything added in <see cref="Build"/> has to be listed here
+    /// too or it is removed the first time the menu closes.
+    /// </summary>
+    static readonly string[] fixedItems =
+    [
+        "Exit",
+        "Options",
+        "Debug view",
+        "Open logs",
+        "Purge verified files",
+        "Raise issue"
+    ];
+
     static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items) =>
         items
             .Cast<ToolStripItem>()
-            .Where(_ => _.Text != "Exit" &&
-                        _.Text != "Options" &&
-                        _.Text != "Open logs" &&
-                        _.Text != "Raise issue" &&
-                        _.Text != "Purge verified files")
+            .Where(_ => !fixedItems.Contains(_.Text))
             .ToList();
 
     static void RemovePreviousItems(ToolStripItemCollection items)

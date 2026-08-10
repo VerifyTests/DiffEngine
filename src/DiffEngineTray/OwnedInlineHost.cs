@@ -66,6 +66,8 @@ sealed class OwnedInlineHost :
 
     public int Port => server.Port;
 
+    public string Description => $"owned by this tray on port {server.Port}";
+
     /// <summary>
     /// Raised when the queue changes from the socket rather than from the menu, so the icon lights
     /// up as a snapshot arrives instead of up to one scan later.
@@ -89,6 +91,17 @@ sealed class OwnedInlineHost :
             return queue.Items
                 .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
                 .ToList();
+        }
+    }
+
+    /// <summary>
+    /// The queue is immutable, so the list can be handed out under the gate without copying it.
+    /// </summary>
+    public IReadOnlyList<PendingInline>? Queued()
+    {
+        lock (gate)
+        {
+            return queue.Items;
         }
     }
 

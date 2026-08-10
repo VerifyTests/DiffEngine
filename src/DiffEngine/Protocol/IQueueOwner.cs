@@ -1,5 +1,3 @@
-namespace DiffEngine;
-
 /// <summary>
 /// The queue half of the wire protocol, implemented by whoever owns the inline queue: the tray
 /// over its <see cref="InlineQueue"/>, the viewer over its session. <see cref="ViewerMessageHandler"/>

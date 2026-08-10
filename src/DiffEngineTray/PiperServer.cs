@@ -1,6 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
-
 /// <summary>
 /// Receives moves and deletes from the DiffEngine library. One way by design: nothing is ever
 /// written back, dispatch is by substring, and unknown payloads are ignored so a newer client

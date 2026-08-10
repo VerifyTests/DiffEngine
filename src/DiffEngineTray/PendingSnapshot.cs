@@ -22,25 +22,9 @@ record PendingSnapshot(string Key, string Name, string? Status)
     }
 
     /// <summary>
-    /// Solution directory, so snapshots group alongside moves and deletes in the menu.
-    /// <para>
-    /// The source path arrives from another process and is not guaranteed to exist here, so a
-    /// missing directory means ungrouped rather than a crash while building the menu.
-    /// </para>
+    /// Solution directory, so snapshots group alongside moves and deletes in the menu. A source
+    /// path that does not exist here, which one from another process need not, is ungrouped:
+    /// <see cref="SolutionDirectoryFinder.Find"/> answers rather than throws.
     /// </summary>
-    public string? Group
-    {
-        get
-        {
-            try
-            {
-                return SolutionDirectoryFinder.Find(Source);
-            }
-            catch (Exception exception)
-                when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-            {
-                return null;
-            }
-        }
-    }
+    public string? Group => SolutionDirectoryFinder.Find(Source);
 }

@@ -12,6 +12,8 @@
 /// </summary>
 class RemoteInlineHost : IInlineHost
 {
+    public string Description => $"owned by another process on port {ViewerClient.Port}";
+
     public IReadOnlyList<PendingSnapshot> List()
     {
         if (!Exchange(new(ViewerVerb.List), out var response) ||
@@ -24,6 +26,9 @@ class RemoteInlineHost : IInlineHost
             .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
             .ToList();
     }
+
+    public IReadOnlyList<PendingInline>? Queued() =>
+        null;
 
     /// <summary>
     /// Applied or failed only. The wire carries <c>ok</c> and a message, not an apply status, so a
