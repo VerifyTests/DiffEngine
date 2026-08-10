@@ -104,6 +104,71 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// A full listing carries the payload each entry was queued from, which is what lets a viewer
+    /// showing a queue it does not own rebuild every pane without a diff crossing the wire.
+    /// </summary>
+    [Test]
+    public async Task FullListingRoundTripsThePatch()
+    {
+        var patch = new InlinePatch("Tests.cs", 42, "\"old\"", "new content");
+        var listing = ViewerResponse.Listing(
+        [
+            new("tests.cs|42", "Tests.cs:42", "locked", InlinePatchFile.Build(patch))
+        ]);
+
+        await Assert.That(ViewerResponse.TryParse(listing.Build(), out var parsed)).IsTrue();
+        var item = parsed!.Items.Single();
+        await Assert.That(item.Key).IsEqualTo("tests.cs|42");
+        await Assert.That(item.Status).IsEqualTo("locked");
+        await Assert.That(InlinePatchFile.TryParse(item.Patch!, out var roundTripped)).IsTrue();
+        await Assert.That(roundTripped!.SourceFile).IsEqualTo("Tests.cs");
+        await Assert.That(roundTripped.LineHint).IsEqualTo(42);
+        await Assert.That(roundTripped.NewContent).IsEqualTo("new content");
+    }
+
+    /// <summary>
+    /// The tray reads a listing by looking for `item: ` and splitting three base64 fields with its
+    /// own decoder. Nothing else holds that reader to this writer, so the shape is pinned here.
+    /// </summary>
+    [Test]
+    public async Task ListItemsKeepTheShapeTheTrayReads()
+    {
+        var text = ViewerResponse.Listing([new("the key", "Sample.cs:42", "locked")]).Build();
+
+        var parts = Fields(text, "item: ").Single();
+        await Assert.That(parts.Length).IsEqualTo(3);
+        await Assert.That(Decoded(parts[0])).IsEqualTo("the key");
+        await Assert.That(Decoded(parts[1])).IsEqualTo("Sample.cs:42");
+        await Assert.That(Decoded(parts[2])).IsEqualTo("locked");
+    }
+
+    /// <summary>
+    /// Patches ride on their own line name, so that reader skips a full listing entirely rather
+    /// than tripping over a fourth field it knows nothing about.
+    /// </summary>
+    [Test]
+    public async Task AFullListingHasNoItemLines()
+    {
+        var patch = InlinePatchFile.Build(new("Tests.cs", 1, null, "content"));
+        var text = ViewerResponse.Listing([new("key", "Tests.cs:1", null, patch)]).Build();
+
+        await Assert.That(Fields(text, "item: ")).IsEmpty();
+        await Assert.That(Fields(text, "full: ").Single().Length).IsEqualTo(4);
+    }
+
+    static List<string[]> Fields(string text, string prefix) =>
+        text.Split('\n')
+            .Where(_ => _.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(_ => _[prefix.Length..].Split('|'))
+            .ToList();
+
+    static string Decoded(string value)
+    {
+        EnginePayload.TryDecode(value, out var decoded);
+        return decoded;
+    }
+
+    /// <summary>
     /// Read into locals rather than compared directly, because both sides declare these as
     /// constants and a constant to constant assertion is compiled away.
     /// </summary>

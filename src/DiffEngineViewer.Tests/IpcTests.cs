@@ -90,6 +90,29 @@ public class IpcTests
         return Verify(fixture.Send(new(ViewerVerb.List)));
     }
 
+    /// <summary>
+    /// What a viewer showing someone else's queue asks for. Checked by parsing the patches back
+    /// rather than snapshotting, because the payload is base64 and a baseline of it pins nothing
+    /// a reader could judge.
+    /// </summary>
+    [Test]
+    public async Task ListFullCarriesThePatches()
+    {
+        using var fixture = new ServerFixture();
+        fixture.Send(Inline(Fixtures.Patch()));
+        fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+
+        var response = fixture.Send(new(ViewerVerb.ListFull));
+
+        await Assert.That(response.Items.Select(_ => _.Name))
+            .IsEquivalentTo(["SampleTests.cs:42", "OtherTests.cs:7"]);
+        foreach (var item in response.Items)
+        {
+            await Assert.That(InlinePatchFile.TryParse(item.Patch!, out var patch)).IsTrue();
+            await Assert.That(QueueEntry.ForInline(patch!).Name).IsEqualTo(item.Name);
+        }
+    }
+
     [Test]
     public async Task AcceptAppliesAndRemoves()
     {

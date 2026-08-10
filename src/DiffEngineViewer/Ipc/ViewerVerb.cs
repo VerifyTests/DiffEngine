@@ -11,9 +11,16 @@ enum ViewerVerb
     Settle,
 
     /// <summary>
-    /// Return the pending entries. From the tray.
+    /// Return the pending entries as key, name and status. Enough to build a menu. From the tray.
     /// </summary>
     List,
+
+    /// <summary>
+    /// Return the pending entries carrying their patches, which is everything needed to rebuild
+    /// the whole display: the two texts, the diff, the headers and the scroll bounds. From a
+    /// viewer showing a queue it does not own.
+    /// </summary>
+    ListFull,
 
     Accept,
     AcceptAll,

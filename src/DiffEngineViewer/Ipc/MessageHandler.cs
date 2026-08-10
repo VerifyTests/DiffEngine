@@ -13,7 +13,9 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             case ViewerVerb.Settle:
                 return Settle(message.Key);
             case ViewerVerb.List:
-                return List();
+                return List(false);
+            case ViewerVerb.ListFull:
+                return List(true);
             case ViewerVerb.Accept:
                 return Act(message.Key, CommandKind.Accept);
             case ViewerVerb.Discard:
@@ -72,13 +74,21 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
         return ViewerResponse.Success();
     }
 
-    ViewerResponse List()
+    /// <summary>
+    /// The pending entries. With <paramref name="withPatches"/> each carries the payload it was
+    /// queued from, so a viewer showing someone else's queue can rebuild every pane locally and
+    /// no diff has to cross the wire. A file entry has no patch to send and is listed without one.
+    /// </summary>
+    ViewerResponse List(bool withPatches)
     {
         var state = host.State;
         var items = new List<ViewerResponseItem>(state.Queue.Count);
         foreach (var entry in state.Queue)
         {
-            items.Add(new(entry.Key, entry.Name, entry.Status));
+            var patch = withPatches && entry.Patch is not null
+                ? InlinePatchFile.Build(entry.Patch)
+                : null;
+            items.Add(new(entry.Key, entry.Name, entry.Status, patch));
         }
 
         return ViewerResponse.Listing(items);
