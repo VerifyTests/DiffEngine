@@ -11,6 +11,9 @@ To change this file edit the source file and then run MarkdownSnippets.
 [![Build status](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg?label=DiffEngine)](https://www.nuget.org/packages/DiffEngine/)
 [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineTray.svg?label=DiffEngineTray)](https://www.nuget.org/packages/DiffEngineTray/)
+[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Windows.svg?label=DiffEngineViewer.Windows)](https://www.nuget.org/packages/DiffEngineViewer.Windows/)
+[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Mac.svg?label=DiffEngineViewer.Mac)](https://www.nuget.org/packages/DiffEngineViewer.Mac/)
+[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Linux.svg?label=DiffEngineViewer.Linux)](https://www.nuget.org/packages/DiffEngineViewer.Linux/)
 
 DiffEngine manages launching and cleanup of diff tools. It is designed to be used by any Snapshot/Approval testing library.<!-- singleLineInclude: intro. path: /docs/mdsource/intro.include.md -->
 
