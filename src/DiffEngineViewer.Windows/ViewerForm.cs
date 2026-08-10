@@ -37,6 +37,19 @@ sealed class ViewerForm : Form
         BackColor = Palette.Background
     };
 
+    /// <summary>
+    /// Height is set from the display, not here. Forty logical pixels is a hair over what a
+    /// button needs at 100%, and scaling that button without scaling the panel leaves an AutoSize
+    /// row docked inside something too short for it, which is a layout fight rather than a clipped
+    /// button.
+    /// </summary>
+    readonly Panel footer = new()
+    {
+        Dock = DockStyle.Bottom,
+        Padding = new(6, 4, 6, 6),
+        BackColor = Palette.Background
+    };
+
     Screen? last;
     CommandKind key;
     int clickedButton = -1;
@@ -54,13 +67,6 @@ sealed class ViewerForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         KeyPreview = true;
 
-        var footer = new Panel
-        {
-            Dock = DockStyle.Bottom,
-            Height = 40,
-            Padding = new(6, 4, 6, 6),
-            BackColor = Palette.Background
-        };
         footer.Controls.Add(status);
         footer.Controls.Add(buttonRow);
 
@@ -74,6 +80,25 @@ sealed class ViewerForm : Form
         canvas.QueueItemClicked += _ => clickedQueueItem = _;
         canvas.Scrolled += _ => scrollDelta += _;
     }
+
+    /// <summary>
+    /// Once the handle exists, because DeviceDpi is only meaningful then, and again whenever the
+    /// window moves to a display with different scaling.
+    /// </summary>
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        ScaleFooter();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        ScaleFooter();
+    }
+
+    void ScaleFooter() =>
+        footer.Height = LogicalToDeviceUnits(40);
 
     public void Apply(Screen screen)
     {

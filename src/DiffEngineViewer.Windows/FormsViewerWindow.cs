@@ -69,15 +69,17 @@ sealed class FormsViewerWindow : IViewerWindow
     public ViewerInput Poll() =>
         form.IsDisposed ? default : form.Drain();
 
+    /// <summary>
+    /// Visibility only. Assigning ShowInTaskbar recreates the window handle, and doing that under
+    /// a loop that is pumping with DoEvents means tearing the handle out from under an in flight
+    /// paint. A hidden window has no taskbar button anyway, so it bought nothing.
+    /// </summary>
     public void SetHidden(bool hidden)
     {
-        if (form.IsDisposed)
+        if (!form.IsDisposed)
         {
-            return;
+            form.Visible = !hidden;
         }
-
-        form.Visible = !hidden;
-        form.ShowInTaskbar = !hidden;
     }
 
     public void Focus()
@@ -88,7 +90,6 @@ sealed class FormsViewerWindow : IViewerWindow
         }
 
         form.Visible = true;
-        form.ShowInTaskbar = true;
         form.BringToFront();
         form.Activate();
     }
