@@ -58,7 +58,7 @@ public class DiffRunnerCanKillTest :
 
             for (var i = 0; received == null && i < 50; i++)
             {
-                await Task.Delay(100);
+                await Task.Delay(100, source.Token);
             }
         }
         finally

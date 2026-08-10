@@ -28,7 +28,6 @@ sealed class ViewerCanvas : Control
 
     readonly Font font = MonoFont.Create();
     Screen? screen;
-    Size cell;
 
     public ViewerCanvas()
     {
@@ -66,13 +65,13 @@ sealed class ViewerCanvas : Control
     {
         get
         {
-            if (cell.IsEmpty)
+            if (field.IsEmpty)
             {
                 using var graphics = CreateGraphics();
-                cell = MonoFont.Cell(graphics, font);
+                field = MonoFont.Cell(graphics, font);
             }
 
-            return cell;
+            return field;
         }
     }
 

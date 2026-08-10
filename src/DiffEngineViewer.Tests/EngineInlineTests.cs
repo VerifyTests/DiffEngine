@@ -55,8 +55,8 @@ public class EngineInlineTests
     public async Task SettleDropsTheEntry()
     {
         using var scope = new EngineScope();
-        await EngineRunner.AddInlineAsync(new EnginePatch("Sample.cs", 42, "\"old\"", "new"));
-        await EngineRunner.AddInlineAsync(new EnginePatch("Other.cs", 7, "\"old\"", "new"));
+        await EngineRunner.AddInlineAsync(new("Sample.cs", 42, "\"old\"", "new"));
+        await EngineRunner.AddInlineAsync(new("Other.cs", 7, "\"old\"", "new"));
 
         EngineRunner.SettleInline("Sample.cs", 42);
 
@@ -69,7 +69,7 @@ public class EngineInlineTests
     public async Task SettleForAnUnknownCallSiteIsHarmless()
     {
         using var scope = new EngineScope();
-        await EngineRunner.AddInlineAsync(new EnginePatch("Sample.cs", 42, "\"old\"", "new"));
+        await EngineRunner.AddInlineAsync(new("Sample.cs", 42, "\"old\"", "new"));
 
         EngineRunner.SettleInline("Nothing.cs", 1);
 
@@ -85,7 +85,7 @@ public class EngineInlineTests
     {
         using var scope = new EngineScope(disabled: true);
 
-        var result = await EngineRunner.AddInlineAsync(new EnginePatch("Sample.cs", 42, "\"old\"", "new"));
+        var result = await EngineRunner.AddInlineAsync(new("Sample.cs", 42, "\"old\"", "new"));
 
         await Assert.That(result).IsEqualTo(EngineResult.Disabled);
         await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
@@ -110,7 +110,7 @@ public class EngineInlineTests
     {
         using var scope = new EngineScope(optOut: true);
 
-        var result = await EngineRunner.AddInlineAsync(new EnginePatch("Sample.cs", 42, "\"old\"", "new"));
+        var result = await EngineRunner.AddInlineAsync(new("Sample.cs", 42, "\"old\"", "new"));
 
         await Assert.That(result).IsEqualTo(EngineResult.NoViewerFound);
         await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();

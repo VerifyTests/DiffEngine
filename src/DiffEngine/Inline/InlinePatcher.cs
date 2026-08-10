@@ -49,6 +49,7 @@ static class InlinePatcher
         if (!string.IsNullOrEmpty(originalExpression))
         {
             // Search for the previous expression verbatim, with newlines matched to the file's EOL
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
             var needle = NormalizeTo(originalExpression!, eol);
             var occurrences = FindAll(source, needle);
             if (occurrences.Count > 0)
