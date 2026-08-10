@@ -198,12 +198,16 @@ Accept all open HotKey allows the current batch of open diffs to be accepted.
 
 ## Logging Directory
 
+Beside the installed tool, so it moves with the target framework the tray is built for:
+
 ```
-%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net8.0\any\logs
+%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net10.0\any\logs
 ```
 
 For example:
 
 ```
-C:\Users\simon\.dotnet\tools\.store\diffenginetray\9.0.0\diffenginetray\9.0.0\tools\net8.0\any\logs
+C:\Users\simon\.dotnet\tools\.store\diffenginetray\20.0.0\diffenginetray\20.0.0\tools\net10.0\any\logs
 ```
+
+The menu's "Open logs" opens it without any of that.
