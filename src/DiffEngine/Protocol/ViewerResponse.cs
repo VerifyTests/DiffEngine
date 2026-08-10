@@ -8,10 +8,20 @@ namespace DiffEngine;
 record ViewerResponseItem(string Key, string Name, string? Status, string? Patch = null);
 
 /// <summary>
-/// The reply the queue owner writes before closing the connection. Only the listing verbs populate
-/// <paramref name="Items"/>; the rest report an outcome the tray can show in a balloon.
+/// The reply the queue owner writes before closing the connection.
 /// </summary>
-record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem> Items)
+/// <param name="Ok">Whether the verb was carried out.</param>
+/// <param name="Message">An outcome the tray can show in a balloon.</param>
+/// <param name="Items">Populated by the listing verbs, and empty for everything else.</param>
+/// <param name="Window">
+/// What the owner wants done to the window, for an owner that has none of its own. Answered on a
+/// listing rather than pushed, so this stays one port with no discovery order.
+/// </param>
+record ViewerResponse(
+    bool Ok,
+    string? Message,
+    IReadOnlyList<ViewerResponseItem> Items,
+    WindowCommand? Window = null)
 {
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
@@ -19,14 +29,20 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
     public static ViewerResponse Error(string message) =>
         new(false, message, []);
 
-    public static ViewerResponse Listing(IReadOnlyList<ViewerResponseItem> items) =>
-        new(true, null, items);
+    public static ViewerResponse Listing(IReadOnlyList<ViewerResponseItem> items, WindowCommand? window = null) =>
+        new(true, null, items, window);
 
     public string Build()
     {
         var builder = new StringBuilder($"version: {ViewerPayload.Version}\n");
         builder.Append($"status: {(Ok ? "ok" : "error")}\n");
         ViewerPayload.Append(builder, "message", Message);
+        if (Window is not null)
+        {
+            // Plain, like `verb` and `status`. Only the encoded fields can carry snapshot text.
+            builder.Append($"window: {Window.ToString()!.ToLowerInvariant()}\n");
+        }
+
         foreach (var item in Items)
         {
             var status = item.Status is null ? "" : ViewerPayload.Encode(item.Status);
@@ -56,6 +72,7 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
 
         bool? ok = null;
         string? message = null;
+        WindowCommand? window = null;
         var items = new List<ViewerResponseItem>();
         foreach (var (name, value) in lines)
         {
@@ -63,6 +80,14 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
             {
                 case "status":
                     ok = value == "ok";
+                    continue;
+                case "window":
+                    if (!Enum.TryParse<WindowCommand>(value, true, out var command))
+                    {
+                        return false;
+                    }
+
+                    window = command;
                     continue;
                 case "message":
                     if (!ViewerPayload.TryDecode(value, out message))
@@ -97,7 +122,7 @@ record ViewerResponse(bool Ok, string? Message, IReadOnlyList<ViewerResponseItem
             return false;
         }
 
-        response = new(ok.Value, message, items);
+        response = new(ok.Value, message, items, window);
         return true;
     }
 

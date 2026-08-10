@@ -218,6 +218,11 @@ public class IpcTests
         await Assert.That(fixture.Windows).IsEquivalentTo([WindowCommand.Hide, WindowCommand.Show]);
     }
 
+    /// <summary>
+    /// A window command rather than a state change, because that is the one route that also works
+    /// when the queue's owner is not the process holding the window. Closing the window is this
+    /// process exiting, since it owns the queue; the queue itself is left alone.
+    /// </summary>
     [Test]
     public async Task Quit()
     {
@@ -226,7 +231,8 @@ public class IpcTests
 
         fixture.Send(new(ViewerVerb.Quit));
 
-        await Assert.That(fixture.Host.State.Exit).IsTrue();
+        await Assert.That(fixture.Windows).IsEquivalentTo([WindowCommand.Close]);
+        await Assert.That(fixture.Host.State.Queue).HasSingleItem();
     }
 
     /// <summary>

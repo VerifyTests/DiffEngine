@@ -85,7 +85,8 @@ static class ViewerProgram
     static int RunAttached(OpenWindow open)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
-        var link = new OwnerLink(host, ViewerClient.Port);
+        var windowCommands = new ConcurrentQueue<WindowCommand>();
+        var link = new OwnerLink(host, ViewerClient.Port, windowCommands.Enqueue);
 
         // Read once before anything is shown, so an owner that has gone or has nothing pending
         // means no window at all rather than one that closes itself a frame later.
@@ -100,7 +101,7 @@ static class ViewerProgram
             return 0;
         }
 
-        return Run(host, null, link, open);
+        return Run(host, null, link, open, windowCommands);
     }
 
     static int RunFile(ViewerRequest request, OpenWindow open)
@@ -127,7 +128,12 @@ static class ViewerProgram
     /// A non null <paramref name="link"/> means this window is displaying someone else's queue, so
     /// commands that change it are forwarded rather than applied here.
     /// </summary>
-    static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
+    static int Run(
+        SessionHost host,
+        ViewerServer? server,
+        OwnerLink? link,
+        OpenWindow open,
+        ConcurrentQueue<WindowCommand>? windowCommands = null)
     {
         var window = open("DiffEngineViewer", 1100, 700, false, out var error);
         if (window is null)
@@ -136,7 +142,7 @@ static class ViewerProgram
             return 4;
         }
 
-        var windowCommands = new ConcurrentQueue<WindowCommand>();
+        windowCommands ??= new();
         using var cancel = new CancelSource();
         var listening = server?.Listen(
             new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue).Handle,
@@ -176,14 +182,18 @@ static class ViewerProgram
             // on this thread rather than on the listener's.
             while (windowCommands.TryDequeue(out var command))
             {
-                var hidden = command == WindowCommand.Hide;
+                if (command == WindowCommand.Close)
+                {
+                    return;
+                }
+
                 if (command == WindowCommand.Focus)
                 {
                     window.Focus();
                     continue;
                 }
 
-                window.SetHidden(hidden);
+                window.SetHidden(command == WindowCommand.Hide);
             }
 
             var state = host.State;

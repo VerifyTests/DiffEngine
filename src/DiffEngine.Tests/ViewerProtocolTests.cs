@@ -182,6 +182,34 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// How an owner with no window of its own drives one: answered on a listing, so there is still
+    /// one port and no discovery order.
+    /// </summary>
+    [Test]
+    public async Task EveryWindowCommandRidesOnAListing()
+    {
+        foreach (var name in Enum.GetNames(typeof(WindowCommand)))
+        {
+            var command = (WindowCommand) Enum.Parse(typeof(WindowCommand), name);
+            var text = ViewerResponse.Listing([], command).Build();
+
+            await Assert.That(text).Contains($"window: {name.ToLowerInvariant()}\n");
+            await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+            await Assert.That(parsed!.Window).IsEqualTo(command);
+        }
+    }
+
+    [Test]
+    public async Task AListingWithNoWindowCommandSaysNothing()
+    {
+        var text = ViewerResponse.Listing([]).Build();
+
+        await Assert.That(text).DoesNotContain("window:");
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Window).IsNull();
+    }
+
+    /// <summary>
     /// Bind, serve and exchange for real. The one test here that is not pure string work, because
     /// the async socket calls take a different path on the frameworks without a token overload.
     /// </summary>

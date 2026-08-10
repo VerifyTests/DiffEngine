@@ -11,7 +11,7 @@ public class AttachedViewerTests
     static (SessionHost host, OwnerLink link) Attach(ServerFixture owner)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
-        return (host, new(host, owner.Server.Port));
+        return (host, new(host, owner.Server.Port, _ => { }));
     }
 
     /// <summary>
@@ -117,7 +117,32 @@ public class AttachedViewerTests
         var port = server!.Port;
         server.Dispose();
 
-        await Assert.That(new OwnerLink(host, port).Pump()).IsFalse();
+        await Assert.That(new OwnerLink(host, port, _ => { }).Pump()).IsFalse();
+    }
+
+    /// <summary>
+    /// The owner has no window of its own, so raising, hiding and closing come back on a listing
+    /// rather than being pushed at a port this process does not hold.
+    /// </summary>
+    [Test]
+    public async Task AWindowCommandFromTheOwnerIsRaised()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        var patch = InlinePatchFile.Build(Fixtures.Patch());
+        var listening = server.Listen(
+            _ => ViewerResponse.Listing([new("key", "SampleTests.cs:42", null, patch)], WindowCommand.Focus),
+            cancel.Token);
+
+        var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+        var windows = new List<WindowCommand>();
+
+        await Assert.That(new OwnerLink(host, server.Port, windows.Add).Pump()).IsTrue();
+
+        await Assert.That(windows).IsEquivalentTo([WindowCommand.Focus]);
+        await Assert.That(host.State.Queue).HasSingleItem();
+        cancel.Cancel();
     }
 
     /// <summary>
@@ -131,7 +156,7 @@ public class AttachedViewerTests
         var port = server!.Port;
         server.Dispose();
 
-        var link = new OwnerLink(host, port);
+        var link = new OwnerLink(host, port, _ => { });
         link.Post(ViewerVerb.Accept, "nope|1");
 
         await Assert.That(link.Pump(out var sent)).IsFalse();

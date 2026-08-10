@@ -33,7 +33,9 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
                 window(WindowCommand.Hide);
                 return ViewerResponse.Success();
             case ViewerVerb.Quit:
-                host.Mutate(_ => ViewerSession.Apply(_, CommandKind.Quit));
+                // A window command like the three above, rather than a state change, because that
+                // is the one route that also works when the window belongs to another process.
+                window(WindowCommand.Close);
                 return ViewerResponse.Success("Closing");
             default:
                 return ViewerResponse.Error($"Unsupported verb: {message.Verb}");

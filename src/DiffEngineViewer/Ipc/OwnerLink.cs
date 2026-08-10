@@ -12,7 +12,7 @@
 /// viewer a server as well, needing a second port and an order to discover them in.
 /// </para>
 /// </summary>
-sealed class OwnerLink(SessionHost host, int port)
+sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
 {
     /// <summary>
     /// Fast enough that someone accepting from the tray sees the window follow, slow enough that
@@ -53,6 +53,14 @@ sealed class OwnerLink(SessionHost host, int port)
 
         var pending = InlineQueue.From(response.Items.Select(Read).OfType<PendingInline>());
         host.Mutate(_ => ViewerSession.Sync(_, pending, message));
+
+        // The owner has no window of its own, so anything it wants raised, hidden or closed comes
+        // back on the listing rather than being pushed at a port this process does not hold.
+        if (response.Window is not null)
+        {
+            window(response.Window.Value);
+        }
+
         return true;
     }
 
