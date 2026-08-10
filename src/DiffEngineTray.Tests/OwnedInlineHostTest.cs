@@ -24,9 +24,14 @@ public class OwnedInlineHostTest
 
     sealed class Owner : IDisposable
     {
-        public Owner(Func<InlinePatch, InlineApplyResult>? applier = null) =>
+        public Owner(Func<InlinePatch, InlineApplyResult>? applier = null)
+        {
             Host = OwnedInlineHost.TryOwn(Warnings.Add, Launcher, 0, applier) ??
                    throw new("Could not bind an ephemeral port.");
+            // Binding claims ownership; serving is separate so the real tray can wire Changed
+            // first. Nothing here watches Changed, so the two happen together.
+            Host.Start();
+        }
 
         public OwnedInlineHost Host { get; }
         public FakeLauncher Launcher { get; } = new();
@@ -190,9 +195,57 @@ public class OwnedInlineHostTest
 
         var accepted = owner.Host.Accept(snapshot, out var message);
 
-        await Assert.That(accepted).IsFalse();
+        await Assert.That(accepted).IsEqualTo(AcceptOutcome.Failed);
         await Assert.That(message).Contains("Source file does not exist");
         await Assert.That(owner.Host.List().Single().Status).IsEqualTo(message);
+    }
+
+    /// <summary>
+    /// A patch whose call site has moved is dropped rather than left to fail forever, but dropped
+    /// is not accepted: it has to read as something the user must re-run, or the snapshot vanishing
+    /// from the menu is indistinguishable from success.
+    /// </summary>
+    [Test]
+    public async Task AStaleAcceptIsNotReportedAsApplied()
+    {
+        using var owner = new Owner(_ => InlineApplyResult.NotFound("the call site moved"));
+        owner.Queue();
+        var snapshot = owner.Host.List().Single();
+
+        var accepted = owner.Host.Accept(snapshot, out var message);
+
+        await Assert.That(accepted).IsEqualTo(AcceptOutcome.Stale);
+        await Assert.That(message).IsEqualTo("SampleTests.cs:42 source changed, re-run the test");
+        await Assert.That(owner.Host.List()).IsEmpty();
+    }
+
+    [Test]
+    public async Task AcceptingSomethingAlreadyGoneIsUnknown()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+        var snapshot = owner.Host.List().Single();
+        owner.Host.Discard(snapshot, out _);
+
+        var accepted = owner.Host.Accept(snapshot, out var message);
+
+        await Assert.That(accepted).IsEqualTo(AcceptOutcome.Unknown);
+        await Assert.That(message).IsNull();
+    }
+
+    /// <summary>
+    /// The menu counts snapshots in "Discard (n)", so discarding has to include them.
+    /// </summary>
+    [Test]
+    public async Task DiscardAllEmptiesTheQueue()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+
+        owner.Host.DiscardAll();
+
+        await Assert.That(owner.Host.List()).IsEmpty();
     }
 
     [Test]

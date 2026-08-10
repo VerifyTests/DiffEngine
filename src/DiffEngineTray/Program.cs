@@ -82,8 +82,12 @@ static class Program
             inline: owned);
 
         // Owning the queue means knowing the moment it changes, rather than finding out on the
-        // next two second scan.
-        owned?.Changed = tracker.Refresh;
+        // next two second scan. Wired before serving starts, so the first patch to arrive counts.
+        if (owned is not null)
+        {
+            owned.Changed = tracker.Refresh;
+            owned.Start();
+        }
 
         using var task = StartServer(tracker, cancel);
 

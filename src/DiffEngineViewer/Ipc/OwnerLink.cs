@@ -12,8 +12,15 @@
 /// viewer a server as well, needing a second port and an order to discover them in.
 /// </para>
 /// </summary>
-sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
+sealed class OwnerLink(SessionHost host, int port)
 {
+    /// <summary>
+    /// What the owner asked be done to the window, for the render loop to drain. Owned here rather
+    /// than handed in, because this is the only thing that produces into it when there is no
+    /// server, and the two never coexist: a process either owns the queue or displays one.
+    /// </summary>
+    public ConcurrentQueue<WindowCommand> Windows { get; } = new();
+
     /// <summary>
     /// Fast enough that someone accepting from the tray sees the window follow, slow enough that
     /// an idle pair is not a busy loop over loopback.
@@ -72,7 +79,7 @@ sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
                 host.Mutate(_ => ViewerSession.SelectKey(_, key));
             }
 
-            window(response.Window.Value);
+            Windows.Enqueue(response.Window.Value);
         }
 
         return true;

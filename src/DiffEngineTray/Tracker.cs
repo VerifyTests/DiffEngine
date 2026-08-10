@@ -222,14 +222,22 @@ class Tracker :
         {
             try
             {
-                if (inline.Accept(snapshot, out var message))
+                var outcome = inline.Accept(snapshot, out var message);
+                switch (outcome)
                 {
-                    Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
-                }
-                else
-                {
-                    Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
-                    inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                    case AcceptOutcome.Applied:
+                        Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
+                        break;
+                    case AcceptOutcome.Stale:
+                        // Gone, but not accepted. Told rather than logged, because the snapshot
+                        // vanishing from the menu otherwise reads as success.
+                        Log.Warning("Inline snapshot stale for `{Name}`: {Message}", snapshot.Name, message);
+                        inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                        break;
+                    default:
+                        Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
+                        inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                        break;
                 }
 
                 Refresh();
@@ -557,8 +565,10 @@ class Tracker :
 
         moves.Clear();
 
-        // Deliberately not touching the viewer's queue: Clear drops what the tray is tracking,
-        // and the viewer is a separate process the user can still act on.
+        // The menu counts snapshots in "Discard (n)", so discarding has to include them. Clearing
+        // only the cache used to make the button lie twice over: it discarded fewer things than it
+        // said, and the ones it skipped came back on the next scan two seconds later.
+        inline.DiscardAll();
         snapshots = [];
     }
 

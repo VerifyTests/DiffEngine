@@ -25,14 +25,24 @@ class RemoteInlineHost : IInlineHost
             .ToList();
     }
 
-    public bool Accept(PendingSnapshot snapshot, out string? message) =>
-        Send(ViewerVerb.Accept, snapshot.Key, out message);
+    /// <summary>
+    /// Applied or failed only. The wire carries <c>ok</c> and a message, not an apply status, so a
+    /// stale patch reads as applied here. It costs nothing: the owner is a viewer, and it is
+    /// showing that message in its own footer.
+    /// </summary>
+    public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message) =>
+        Send(ViewerVerb.Accept, snapshot.Key, out message)
+            ? AcceptOutcome.Applied
+            : AcceptOutcome.Failed;
 
     public bool Discard(PendingSnapshot snapshot, out string? message) =>
         Send(ViewerVerb.Discard, snapshot.Key, out message);
 
     public bool AcceptAll(out string? message) =>
         Send(ViewerVerb.AcceptAll, null, out message);
+
+    public void DiscardAll() =>
+        Send(ViewerVerb.DiscardAll, null, out _);
 
     public void Focus(PendingSnapshot snapshot) =>
         Send(ViewerVerb.Focus, snapshot.Key, out _);

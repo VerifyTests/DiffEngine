@@ -86,8 +86,7 @@ static class ViewerProgram
     static int RunAttached(OpenWindow open)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
-        var windowCommands = new ConcurrentQueue<WindowCommand>();
-        var link = new OwnerLink(host, ViewerClient.Port, windowCommands.Enqueue);
+        var link = new OwnerLink(host, ViewerClient.Port);
 
         // Read once before anything is shown, so an owner that has gone or has nothing pending
         // means no window at all rather than one that closes itself a frame later.
@@ -102,7 +101,7 @@ static class ViewerProgram
             return 0;
         }
 
-        return Run(host, null, link, open, windowCommands);
+        return Run(host, null, link, open);
     }
 
     static int RunFile(ViewerRequest request, OpenWindow open)
@@ -129,12 +128,7 @@ static class ViewerProgram
     /// A non null <paramref name="link"/> means this window is displaying someone else's queue, so
     /// commands that change it are forwarded rather than applied here.
     /// </summary>
-    static int Run(
-        SessionHost host,
-        ViewerServer? server,
-        OwnerLink? link,
-        OpenWindow open,
-        ConcurrentQueue<WindowCommand>? windowCommands = null)
+    static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
     {
         var window = open("DiffEngineViewer", 1100, 700, false, out var error);
         if (window is null)
@@ -143,7 +137,8 @@ static class ViewerProgram
             return 4;
         }
 
-        windowCommands ??= new();
+        // Whichever of the two produces them; a process either owns the queue or displays one.
+        var windowCommands = link?.Windows ?? new();
         using var cancel = new CancelSource();
         var listening = server?.Listen(
             new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue).Handle,

@@ -118,19 +118,21 @@ public class TrackerSnapshotTest
     }
 
     /// <summary>
-    /// Clear drops what the tray tracks. The viewer is a separate process the user can still act
-    /// on, so its queue is deliberately left alone.
+    /// The menu counts snapshots in "Discard (n)", so discarding has to include them. Clearing
+    /// only the local cache made the button lie twice over: fewer things went than it said, and
+    /// the ones it skipped came back on the next scan.
     /// </summary>
     [Test]
-    public async Task ClearLeavesTheViewerQueueAlone()
+    public async Task ClearDiscardsSnapshots()
     {
         using var viewer = new FakeViewer("Sample.cs:1");
         await using var tracker = new RecordingTracker();
 
         tracker.Clear();
 
-        await Assert.That(viewer.Queue).HasSingleItem();
-        await Assert.That(viewer.Verbs).DoesNotContain("discardall");
+        await Assert.That(viewer.Verbs).Contains("discardall");
+        await Assert.That(viewer.Queue).IsEmpty();
+        await Assert.That(tracker.Snapshots).IsEmpty();
     }
 
     [Test]

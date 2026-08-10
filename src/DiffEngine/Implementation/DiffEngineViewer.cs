@@ -34,7 +34,8 @@ static partial class Implementation
             Notes: """
                  * Bundled inside the DiffEngine package, so it needs no install
                  * Also available standalone as `DiffEngineViewer.Windows`, `.Mac` or `.Linux`
-                 * Cross platform: WinForms on Windows, Dear ImGui through raylib elsewhere
+                 * Renders natively per platform: WinForms on Windows, AppKit and Core Text on
+                   macOS, Dear ImGui through raylib on Linux
                 """);
     }
 

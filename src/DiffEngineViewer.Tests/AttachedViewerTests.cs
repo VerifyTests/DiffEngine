@@ -11,7 +11,7 @@ public class AttachedViewerTests
     static (SessionHost host, OwnerLink link) Attach(ServerFixture owner)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
-        return (host, new(host, owner.Server.Port, _ => { }));
+        return (host, new(host, owner.Server.Port));
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public class AttachedViewerTests
         var port = server!.Port;
         server.Dispose();
 
-        await Assert.That(new OwnerLink(host, port, _ => { }).Pump()).IsFalse();
+        await Assert.That(new OwnerLink(host, port).Pump()).IsFalse();
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public class AttachedViewerTests
 
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
 
-        await Assert.That(new OwnerLink(host, server.Port, _ => { }).Pump()).IsTrue();
+        await Assert.That(new OwnerLink(host, server.Port).Pump()).IsTrue();
 
         await Assert.That(host.State.Queue).HasSingleItem();
         cancel.Cancel();
@@ -167,11 +167,12 @@ public class AttachedViewerTests
             cancel.Token);
 
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
-        var windows = new List<WindowCommand>();
+        var link = new OwnerLink(host, server.Port);
 
-        await Assert.That(new OwnerLink(host, server.Port, windows.Add).Pump()).IsTrue();
+        await Assert.That(link.Pump()).IsTrue();
 
-        await Assert.That(windows).IsEquivalentTo([WindowCommand.Focus]);
+        // Queued for the render loop to drain, which is the only thread that may touch a window.
+        await Assert.That(link.Windows).IsEquivalentTo([WindowCommand.Focus]);
         await Assert.That(host.State.Queue).HasSingleItem();
         cancel.Cancel();
     }
@@ -187,7 +188,7 @@ public class AttachedViewerTests
         var port = server!.Port;
         server.Dispose();
 
-        var link = new OwnerLink(host, port, _ => { });
+        var link = new OwnerLink(host, port);
         link.Post(ViewerVerb.Accept, "nope|1");
 
         await Assert.That(link.Pump(out var sent)).IsFalse();

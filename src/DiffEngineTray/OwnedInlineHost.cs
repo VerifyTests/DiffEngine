@@ -25,7 +25,7 @@ sealed class OwnedInlineHost :
 {
     readonly ViewerServer server;
     readonly CancelSource cancel = new();
-    readonly Task listening;
+    Task? listening;
     readonly Action<string> failed;
     readonly IViewerLauncher launcher;
     readonly Func<InlinePatch, InlineApplyResult> applier;
@@ -44,7 +44,6 @@ sealed class OwnedInlineHost :
         this.failed = failed;
         this.launcher = launcher;
         this.applier = applier;
-        listening = server.Listen(Handle, cancel.Token);
     }
 
     /// <summary>
@@ -73,6 +72,16 @@ sealed class OwnedInlineHost :
     /// </summary>
     public Action? Changed { get; set; }
 
+    /// <summary>
+    /// Begin answering. Separate from <see cref="TryOwn"/>, because binding is the ownership claim
+    /// and has to happen before anything else can take it, while serving cannot start until
+    /// <see cref="Changed"/> is wired — a patch answered before then would light the icon only on
+    /// the next scan. The port is already bound and backlogging by now, so nothing is refused in
+    /// between.
+    /// </summary>
+    public void Start() =>
+        listening = server.Listen(Handle, cancel.Token);
+
     public IReadOnlyList<PendingSnapshot> List()
     {
         lock (gate)
@@ -83,13 +92,11 @@ sealed class OwnedInlineHost :
         }
     }
 
-    public bool Accept(PendingSnapshot snapshot, out string? message)
+    public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message)
     {
-        // Gone means applied, already applied, or a patch too stale to ever apply. A failure
-        // keeps its entry and says why, so nothing is lost either way.
-        var (removed, outcome) = AcceptOne(snapshot.Key);
-        message = outcome;
-        return removed;
+        var (outcome, text) = AcceptOne(snapshot.Key);
+        message = text;
+        return outcome;
     }
 
     public bool Discard(PendingSnapshot snapshot, out string? message)
@@ -112,6 +119,9 @@ sealed class OwnedInlineHost :
             return queue.Count == 0;
         }
     }
+
+    public void DiscardAll() =>
+        ((IQueueOwner) this).DiscardAll();
 
     public void Focus(PendingSnapshot snapshot) =>
         Show(WindowCommand.Focus, snapshot.Key);
@@ -185,9 +195,8 @@ sealed class OwnedInlineHost :
 
     (bool known, string? message) IQueueOwner.Accept(string key)
     {
-        var (removed, message) = AcceptOne(key);
-        if (!removed &&
-            message is null)
+        var (outcome, message) = AcceptOne(key);
+        if (outcome == AcceptOutcome.Unknown)
         {
             return (false, null);
         }
@@ -253,7 +262,7 @@ sealed class OwnedInlineHost :
     /// Completion re-checks the entry, so a re-run that replaced the patch mid apply keeps its
     /// new entry.
     /// </summary>
-    (bool removed, string? message) AcceptOne(string key)
+    (AcceptOutcome outcome, string? message) AcceptOne(string key)
     {
         PendingInline? entry;
         lock (gate)
@@ -263,16 +272,33 @@ sealed class OwnedInlineHost :
 
         if (entry is null)
         {
-            return (false, null);
+            return (AcceptOutcome.Unknown, null);
         }
 
         var result = applier(entry.Patch);
+        string? message;
         lock (gate)
         {
-            var before = queue.Count;
-            queue = queue.Accept(entry, result, out var message);
-            return (queue.Count < before, message);
+            queue = queue.Accept(entry, result, out message);
         }
+
+        if (message is null)
+        {
+            // The completion was ignored: a re-run replaced this call site, or something else
+            // took it, while the patch was applying. The patch did reach the file, but what is
+            // pending now is a different one, so this outcome describes nothing the caller has.
+            return (AcceptOutcome.Unknown, null);
+        }
+
+        // From the result rather than from whether the entry went, because a stale patch also
+        // goes and reporting that as accepted is how "re-run the test" used to get swallowed.
+        var outcome = result.Status switch
+        {
+            InlineApplyStatus.Applied or InlineApplyStatus.AlreadyApplied => AcceptOutcome.Applied,
+            InlineApplyStatus.NotFound => AcceptOutcome.Stale,
+            _ => AcceptOutcome.Failed
+        };
+        return (outcome, message);
     }
 
     string AcceptEvery()
@@ -336,6 +362,12 @@ sealed class OwnedInlineHost :
     {
         await cancel.CancelAsync();
         server.Dispose();
+        if (listening is null)
+        {
+            cancel.Dispose();
+            return;
+        }
+
         try
         {
             await listening.WaitAsync(TimeSpan.FromSeconds(2));

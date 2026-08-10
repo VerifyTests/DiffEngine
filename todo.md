@@ -60,29 +60,33 @@ the settle guard. Two message changes fell out, both improvements and both previ
 accept-all in file mode said "Accepted 1" and discard-all said "Discarded 1"; both now name the
 comparison.
 
-## 4. Small cleanups
+## 4. ~~Small cleanups~~ (done)
 
-- **`BundledViewerDirectory.Find(string?)` overload is dead.** Its doc comment says it exists for
-  "a caller that knows where the bundle is" — but `TrayViewerDirectory` went the `AppContext`
-  route instead, so the only caller of `Find(root)` is `Find()`. Collapse it back.
-- **Stale renderer note in `Implementation/DiffEngineViewer.cs`.** `Notes` says "WinForms on
-  Windows, Dear ImGui through raylib elsewhere" — macOS has been AppKit/Core Text since the Swift
-  head. This text flows into the generated diff-tool docs, so regenerate after fixing.
-- **`owned.Changed` is wired after the listener is already serving** (`Program.cs`). A patch
-  arriving in that window lights the icon a scan late. Either pass `Changed` into `TryOwn` or
-  accept the two-second worst case with a comment.
-- **A stale accept from the tray menu succeeds silently.** `NotFound` drops the entry (right) and
-  `OwnedInlineHost.Accept` reports success by count-decrease, so "source changed, re-run the test"
-  goes to the log but never to the user. The viewer surfaces the same outcome in its footer. Cheap
-  fix: balloon when the entry was dropped without `Applied`/`AlreadyApplied`.
-- **`ViewerProgram.Run`'s optional `windowCommands` parameter** exists only so `RunAttached` can
-  share the queue with its `OwnerLink`. Constructing the link inside `Run` (or passing a factory)
-  would remove the nullable parameter and the `??= new()`.
-- **`Tracker.Clear` still skips snapshots.** The plan noted this would become fixable once the
-  tray owns the queue ("`Discard (3)` on one move and two snapshots discards one thing"), and the
-  comment in `Clear` still describes the viewer-owned arrangement. With `IInlineHost` in hand it
-  could discard-all when this tray owns; when remote, leaving the viewer's queue alone remains
-  defensible.
+All six. The two that turned out to be more than tidying:
+
+- **A stale accept reported as success.** `NotFound` drops the entry, and reporting by
+  count-decrease made that indistinguishable from applied — the snapshot vanished from the menu
+  and the user was never told to re-run. `IInlineHost.Accept` now returns an `AcceptOutcome`
+  (`Unknown`/`Applied`/`Stale`/`Failed`) taken from the apply status rather than inferred from the
+  queue, and the tray balloons on `Stale`. `RemoteInlineHost` can only say Applied or Failed,
+  because the wire carries `ok` and a message rather than an apply status — noted in place, and it
+  costs nothing there since a viewer owner is displaying that message itself.
+- **`Tracker.Clear` skipping snapshots** was worse than recorded: it cleared only the local cache,
+  so "Discard (3)" discarded one thing *and* the other two reappeared on the next scan. Now
+  discards through `IInlineHost.DiscardAll` in both arrangements, since the count in the label
+  includes them either way.
+
+The other four: the dead `Find(string?)` overload collapsed back; the tool `Definition` Notes now
+name all three renderers (regenerated into `docs/diff-tool.md`); `OwnedInlineHost.Start()` split
+from `TryOwn` so binding claims ownership early while serving waits until `Changed` is wired; and
+`OwnerLink` owns the `ConcurrentQueue<WindowCommand>` it produces into, which removed
+`ViewerProgram.Run`'s optional parameter and a constructor argument.
+
+Found while doing it, and fixed: the item-1 completion path reported `Applied` when a re-run had
+replaced the entry mid-apply. The patch did reach the file, but the queue had moved on to a newer
+one, so the outcome described nothing the caller still had. Now `Unknown`, which is what the
+pre-existing test `AReplacedEntrySurvivesTheAcceptItInterrupted` was asserting through the old
+bool shape — it caught the regression.
 
 ## 5. Direction, not action: two servers in the tray
 
