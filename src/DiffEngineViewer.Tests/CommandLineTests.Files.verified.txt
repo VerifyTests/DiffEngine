@@ -1,4 +1,5 @@
 ﻿{
   Left: left.txt,
-  Right: right.txt
+  Right: right.txt,
+  Attach: false
 }

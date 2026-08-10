@@ -47,4 +47,16 @@ public sealed class InlinePatch
     public string NewContent { get; set; }
 
     public InlinePatchMode Mode { get; set; }
+
+    /// <summary>
+    /// The same edit, field for field. Lets a reader tell a patch that arrived again unchanged
+    /// from one that actually changed, without giving a settable type value equality and the
+    /// broken-key hazard that comes with it.
+    /// </summary>
+    public bool Matches(InlinePatch other) =>
+        SourceFile == other.SourceFile &&
+        LineHint == other.LineHint &&
+        OriginalExpression == other.OriginalExpression &&
+        NewContent == other.NewContent &&
+        Mode == other.Mode;
 }

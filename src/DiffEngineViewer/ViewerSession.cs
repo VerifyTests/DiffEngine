@@ -24,7 +24,7 @@ static class ViewerSession
     /// </summary>
     public static SessionState EnqueueInline(SessionState state, InlinePatch patch)
     {
-        var replaced = IndexOf(state, InlineKey.For(patch.SourceFile, patch.LineHint));
+        var replaced = IndexOf(state.Queue, InlineKey.For(patch.SourceFile, patch.LineHint));
         var queue = Project(state, Pending(state).Enqueue(patch));
         if (replaced < 0)
         {
@@ -68,6 +68,28 @@ static class ViewerSession
         }
 
         return Remove(state, Project(state, settled), null);
+    }
+
+    /// <summary>
+    /// Replaces the queue with what its owner reports, for a viewer that is displaying rather
+    /// than owning. Selection follows the key, so something accepted elsewhere in the list does
+    /// not silently change what is on screen, and the scroll position is only given up when the
+    /// item being read has gone.
+    /// </summary>
+    public static SessionState Sync(SessionState state, InlineQueue pending, string? message)
+    {
+        var queue = Project(state, pending);
+        var key = state.Current?.Key;
+        var selected = key is null ? -1 : IndexOf(queue, key);
+        return Clamp(state with
+        {
+            Queue = queue,
+            Selected = selected < 0 ? state.Selected : selected,
+            ScrollTop = selected < 0 ? 0 : state.ScrollTop,
+            Message = message ?? state.Message,
+            // Nothing left to show, and this window is not what is holding the queue.
+            Exit = queue.Count == 0
+        });
     }
 
     /// <summary>
@@ -259,6 +281,11 @@ static class ViewerSession
     /// <summary>
     /// And back onto the display list. Building an entry runs the diff, so an entry already built
     /// for the same patch is reused and only its status carried across.
+    /// <para>
+    /// Compared by value rather than by reference, because an attached viewer parses fresh patch
+    /// instances out of every refresh and would otherwise re-diff the whole queue five times a
+    /// second.
+    /// </para>
     /// </summary>
     static IReadOnlyList<QueueEntry> Project(SessionState state, InlineQueue queue)
     {
@@ -267,7 +294,8 @@ static class ViewerSession
         foreach (var pending in queue.Items)
         {
             if (existing.TryGetValue(pending.Key, out var entry) &&
-                ReferenceEquals(entry.Patch, pending.Patch))
+                entry.Patch is not null &&
+                entry.Patch.Matches(pending.Patch))
             {
                 entries.Add(entry.Status == pending.Status ? entry : entry with { Status = pending.Status });
                 continue;
@@ -280,11 +308,11 @@ static class ViewerSession
         return entries;
     }
 
-    static int IndexOf(SessionState state, string key)
+    static int IndexOf(IReadOnlyList<QueueEntry> queue, string key)
     {
-        for (var index = 0; index < state.Queue.Count; index++)
+        for (var index = 0; index < queue.Count; index++)
         {
-            if (state.Queue[index].Key == key)
+            if (queue[index].Key == key)
             {
                 return index;
             }

@@ -13,7 +13,12 @@ public class CommandLineTests
         Verify(CommandLine.Parse(["--inline", "--line", "42", "--source", "Tests.cs"]));
 
     [Test]
+    public Task Attach() =>
+        Verify(CommandLine.Parse(["--attach"]));
+
+    [Test]
     [Arguments("NoArguments")]
+    [Arguments("AttachWithMore", "--attach", "--source", "Tests.cs")]
     [Arguments("OneFile", "only.txt")]
     [Arguments("ThreeFiles", "a.txt", "b.txt", "c.txt")]
     [Arguments("MissingSource", "--inline", "--line", "42")]

@@ -1,0 +1,4 @@
+﻿{
+  Mode: Inline,
+  Attach: true
+}

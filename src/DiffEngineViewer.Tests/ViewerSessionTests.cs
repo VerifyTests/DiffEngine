@@ -189,6 +189,57 @@ public class ViewerSessionTests
         await Assert.That(selected.Selected).IsEqualTo(0);
     }
 
+    /// <summary>
+    /// Something accepted elsewhere shifts the list under the reader, so selection follows the key
+    /// rather than the index and what is on screen does not silently change.
+    /// </summary>
+    [Test]
+    public async Task SyncKeepsTheReaderOnTheSameItem()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch("A.cs", 1, null, "a"),
+            Fixtures.Patch("B.cs", 2, null, "b"));
+        var onB = ViewerSession.Apply(state, CommandKind.NextItem);
+
+        var synced = ViewerSession.Sync(onB, Queue(Fixtures.Patch("B.cs", 2, null, "b")), null);
+
+        await Assert.That(synced.Selected).IsEqualTo(0);
+        await Assert.That(synced.Current!.Name).IsEqualTo("B.cs:2");
+    }
+
+    /// <summary>
+    /// Every refresh parses fresh patch instances off the wire, so an entry has to be recognised
+    /// by value. Otherwise the whole queue is re-diffed five times a second and the reader is
+    /// thrown back to the top of the pane each time.
+    /// </summary>
+    [Test]
+    public async Task SyncKeepsTheScrollWhenNothingChanged()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true)));
+        var scrolled = ViewerSession.Apply(state, CommandKind.PageDown);
+        await Assert.That(scrolled.ScrollTop).IsGreaterThan(0);
+
+        var synced = ViewerSession.Sync(scrolled, Queue(Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true))), null);
+
+        await Assert.That(synced.ScrollTop).IsEqualTo(scrolled.ScrollTop);
+        await Assert.That(synced.Queue[0]).IsSameReferenceAs(scrolled.Queue[0]);
+    }
+
+    [Test]
+    public async Task SyncClosesOnAnEmptyQueue()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+
+        var synced = ViewerSession.Sync(state, InlineQueue.Empty, "Accepted 1");
+
+        await Assert.That(synced.Queue).IsEmpty();
+        await Assert.That(synced.Exit).IsTrue();
+        await Assert.That(synced.Message).IsEqualTo("Accepted 1");
+    }
+
+    static InlineQueue Queue(params InlinePatch[] patches) =>
+        patches.Aggregate(InlineQueue.Empty, (queue, patch) => queue.Enqueue(patch));
+
     [Test]
     public async Task QuitExitsWithoutTouchingTheQueue()
     {

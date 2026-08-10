@@ -1,5 +1,6 @@
 ﻿{
   Mode: Inline,
   Source: Tests.cs,
-  Line: 42
+  Line: 42,
+  Attach: false
 }

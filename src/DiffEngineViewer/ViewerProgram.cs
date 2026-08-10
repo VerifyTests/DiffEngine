@@ -16,6 +16,11 @@ static class ViewerProgram
 
         try
         {
+            if (request.Attach)
+            {
+                return RunAttached(open);
+            }
+
             if (request.Mode == ViewerMode.Inline)
             {
                 return RunInline(open);
@@ -68,8 +73,34 @@ static class ViewerProgram
         using (server)
         {
             var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
-            return Run(new(start), server, open);
+            return Run(new(start), server, null, open);
         }
+    }
+
+    /// <summary>
+    /// Display only: the queue belongs to whoever holds the port, and this process just draws it
+    /// and forwards commands. Launched this way by DiffEngineTray, which owns the queue itself and
+    /// so can never be the window.
+    /// </summary>
+    static int RunAttached(OpenWindow open)
+    {
+        var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
+        var link = new OwnerLink(host, ViewerPort.Resolve());
+
+        // Read once before anything is shown, so an owner that has gone or has nothing pending
+        // means no window at all rather than one that closes itself a frame later.
+        if (!link.Pump())
+        {
+            Console.Error.WriteLine("No queue owner is running.");
+            return 1;
+        }
+
+        if (host.State.Queue.Count == 0)
+        {
+            return 0;
+        }
+
+        return Run(host, null, link, open);
     }
 
     static int RunFile(ViewerRequest request, OpenWindow open)
@@ -84,7 +115,7 @@ static class ViewerProgram
 
         var entry = QueueEntry.ForFiles(left, right, Read(left), Read(right));
         var start = ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry);
-        return Run(new(start), null, open);
+        return Run(new(start), null, null, open);
     }
 
     // A missing target is normal: DiffEngine creates an empty one for tools that need it, and a
@@ -92,7 +123,11 @@ static class ViewerProgram
     static string Read(string path) =>
         File.Exists(path) ? File.ReadAllText(path) : "";
 
-    static int Run(SessionHost host, ViewerServer? server, OpenWindow open)
+    /// <summary>
+    /// A non null <paramref name="link"/> means this window is displaying someone else's queue, so
+    /// commands that change it are forwarded rather than applied here.
+    /// </summary>
+    static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
     {
         var window = open("DiffEngineViewer", 1100, 700, false, out var error);
         if (window is null)
@@ -101,26 +136,29 @@ static class ViewerProgram
             return 4;
         }
 
-        var actions = ViewerActions.Real;
         var windowCommands = new ConcurrentQueue<WindowCommand>();
         using var cancel = new CancelSource();
         var listening = server?.Listen(
-            new MessageHandler(host, actions, windowCommands.Enqueue).Handle,
+            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue).Handle,
             cancel.Token);
+        var polling = link is null
+            ? null
+            : Task.Run(() => link.Run(cancel.Token), CancellationToken.None);
 
         using (window)
         {
-            Loop(host, window, actions, windowCommands);
+            Loop(host, window, link, windowCommands);
         }
 
         cancel.Cancel();
         try
         {
             listening?.Wait(TimeSpan.FromSeconds(2));
+            polling?.Wait(TimeSpan.FromSeconds(2));
         }
         catch (AggregateException)
         {
-            // Cancellation unwinds through the listener; nothing to report.
+            // Cancellation unwinds through both; nothing to report.
         }
 
         return 0;
@@ -129,7 +167,7 @@ static class ViewerProgram
     static void Loop(
         SessionHost host,
         IViewerWindow window,
-        ViewerActions actions,
+        OwnerLink? link,
         ConcurrentQueue<WindowCommand> windowCommands)
     {
         while (true)
@@ -160,7 +198,7 @@ static class ViewerProgram
             }
 
             var input = window.Poll();
-            host.Mutate(_ => Apply(_, input, actions));
+            host.Mutate(_ => Apply(_, input, link));
 
             if (!input.CloseRequested)
             {
@@ -180,7 +218,7 @@ static class ViewerProgram
         }
     }
 
-    static SessionState Apply(SessionState state, ViewerInput input, ViewerActions actions)
+    static SessionState Apply(SessionState state, ViewerInput input, OwnerLink? link)
     {
         state = ViewerSession.Resize(state, input.Columns, input.Rows);
 
@@ -207,16 +245,50 @@ static class ViewerProgram
                 var button = buttons[input.ClickedButton];
                 if (button.Enabled)
                 {
-                    state = ViewerSession.Apply(state, button.Command, actions);
+                    state = Dispatch(state, button.Command, link);
                 }
             }
         }
 
         if (input.Key != CommandKind.None)
         {
-            state = ViewerSession.Apply(state, input.Key, actions);
+            state = Dispatch(state, input.Key, link);
         }
 
         return state;
     }
+
+    /// <summary>
+    /// Owning the queue means applying a command here. Displaying someone else's means posting it
+    /// to them and letting the next refresh bring the result back, which keeps the round trip and
+    /// the ten second mutex behind it off this thread.
+    /// </summary>
+    static SessionState Dispatch(SessionState state, Command command, OwnerLink? link)
+    {
+        if (link is null)
+        {
+            return ViewerSession.Apply(state, command, ViewerActions.Real);
+        }
+
+        var verb = Remote(command.Kind);
+        if (verb is null)
+        {
+            return ViewerSession.Apply(state, command);
+        }
+
+        // Captured now rather than when it is sent, because selection can move in between.
+        var key = verb is ViewerVerb.Accept or ViewerVerb.Discard ? state.Current?.Key : null;
+        link.Post(verb.Value, key);
+        return state with { Message = "Waiting for the queue owner." };
+    }
+
+    static ViewerVerb? Remote(CommandKind kind) =>
+        kind switch
+        {
+            CommandKind.Accept => ViewerVerb.Accept,
+            CommandKind.AcceptAll => ViewerVerb.AcceptAll,
+            CommandKind.Discard => ViewerVerb.Discard,
+            CommandKind.DiscardAll => ViewerVerb.DiscardAll,
+            _ => null
+        };
 }

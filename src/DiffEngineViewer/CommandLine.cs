@@ -3,8 +3,10 @@ static class CommandLine
     public const string Usage = """
         DiffEngineViewer <left> <right>
         DiffEngineViewer --inline --source <file.cs> --line <number>
+        DiffEngineViewer --attach
 
         Inline mode reads the patch payload from stdin.
+        Attach mode reads nothing, and displays the queue of whoever owns the port.
         """;
 
     public static ViewerRequest Parse(IReadOnlyList<string> args)
@@ -12,6 +14,16 @@ static class CommandLine
         if (args.Count == 0)
         {
             return Error("No arguments.");
+        }
+
+        if (args[0] == "--attach")
+        {
+            if (args.Count != 1)
+            {
+                return Error("--attach takes no other arguments.");
+            }
+
+            return new(ViewerMode.Inline, null, null, null, 0, null, true);
         }
 
         if (args[0] == "--inline")
