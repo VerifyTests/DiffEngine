@@ -88,14 +88,31 @@ one, so the outcome described nothing the caller still had. Now `Unknown`, which
 pre-existing test `AReplacedEntrySurvivesTheAcceptItInterrupted` was asserting through the old
 bool shape — it caught the regression.
 
-## 5. Direction, not action: two servers in the tray
+## 5. Resolved: the two servers in the tray stay two
 
-The tray now hosts two hand-rolled TCP protocols: Piper on 3492 (JSON-ish lines, fire-and-forget,
-substring dispatch) for moves/deletes, and the viewer protocol on 3493 (versioned, base64,
-request/response) for snapshots. Long-term the moves/deletes are two more verbs on the newer
-protocol — one port, one codec, one listener, and `PiperClient`/`PiperServer` retire. Major-version
-change because every Verify/ApprovalTests/Shouldly in the wild speaks Piper; not worth starting
-until something else forces a protocol bump.
+Earlier revisions of this note called the second listener debt and sketched "one port, one codec,
+one listener". Wrong, on inspection — the ports answer different questions and cannot merge in
+either direction:
+
+- **3492 means "a tray is here."** Moves and deletes need the tracker, the balloon, the menu;
+  only the tray can serve them.
+- **3493 means "the inline queue owner is here"** — tray *or* viewer, decided by bind.
+- Collapse them and the late-tray case breaks: today a viewer can own the queue on 3493 while the
+  tray still receives every move on 3492. One port cannot serve that, and a standalone viewer
+  would have to squat the tray's port to own its queue.
+
+Nor should the queue protocol fold into Piper's format: Piper is the frozen side. Every stable
+DiffEngine since ~15.x embeds `PiperClient`, pinned inside test projects while the tray updates
+independently, so old-library + new-tray is the normal pairing. Piper is also one-way — the server
+never writes, the client never reads, unknown payloads are deliberately ignored — and the queue
+protocol is request/response at its core.
+
+What could ever unify, fully back-compat, is the codec on 3492: sniff `version:` vs `"Type"` and
+answer the new format while accepting the old. But fire-and-forget means a new library can never
+detect an old tray ignoring the new format, so legacy emission stays forever, both readers stay
+forever, and the net is plus one format, minus nothing. The one real prize available additively is
+an ack for moves — today the library cannot know the tray received one. Do that as new verbs on
+3492's listener if and when it is actually wanted; nothing requires a major version.
 
 ## 6. Process
 
