@@ -14,19 +14,35 @@ static class ManualViewer
     static readonly TimeSpan patience = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Set before anything can touch DiffTools, which resolves and caches on first use. Without
-    /// this the resolver would look for an installed tool rather than the build under test.
+    /// Points the resolver at the head built from this working tree.
+    /// <para>
+    /// From the module initializer, because DiffTools resolves and caches on first use: set any
+    /// later and it is ignored. Unconditional, since nothing else in this assembly launches a
+    /// viewer, but only when the head is actually there. OsSettingsResolver throws when the
+    /// variable is set and cannot be resolved, which would take the whole assembly down for
+    /// anyone who has not built it.
+    /// </para>
     /// </summary>
     public static void Register()
     {
-        if (!ManualTestAttribute.Enabled)
+        var executable = Executable();
+        if (File.Exists(executable))
         {
-            return;
+            Environment.SetEnvironmentVariable(EnvironmentVariable, executable);
+        }
+    }
+
+    /// <summary>
+    /// A test run counts as disabled, and these are the one case that wants a window. Per class
+    /// rather than process wide, so an ordinary run cannot pop one open.
+    /// </summary>
+    public static void Enable()
+    {
+        if (!File.Exists(Executable()))
+        {
+            throw new($"Build the viewer head first. Not found: {Executable()}");
         }
 
-        Environment.SetEnvironmentVariable(EnvironmentVariable, Executable());
-        // Off by default in this process, because a test run counts as disabled. These tests are
-        // the one case that wants a window.
         EngineRunner.Disabled = false;
     }
 
@@ -49,13 +65,7 @@ static class ManualViewer
         var configuration = thisBin.Parent!.Name;
         var source = thisBin.Parent!.Parent!.Parent!.Parent!;
 
-        var path = Path.Combine(source.FullName, head, "bin", configuration, tfm, name);
-        if (!File.Exists(path))
-        {
-            throw new($"Build {head} first. Not found: {path}");
-        }
-
-        return path;
+        return Path.Combine(source.FullName, head, "bin", configuration, tfm, name);
     }
 
     public static DirectoryInfo TempDirectory()

@@ -19,10 +19,24 @@ using EngineLaunch = engine::DiffEngine.LaunchResult;
 /// Each case prints what to look for. Accepting rewrites a file in a temp directory, and the test
 /// prints it afterwards, so the outcome is visible rather than taken on trust.
 /// </para>
+/// <para>
+/// Explicit, so an ordinary run never opens a window. Run one at a time, because the viewer is
+/// single instance:
+/// <code>
+/// dotnet test --project src/DiffEngineViewer.Tests -- --treenode-filter "/*/*/ViewerLaunchTests/InlineQueueFromSeparateLaunches"
+/// </code>
+/// </para>
 /// </summary>
 [NotInParallel]
 public class ViewerLaunchTests
 {
+    /// <summary>
+    /// Here rather than in the module initializer, so only these tests can produce a window.
+    /// </summary>
+    [Before(Class)]
+    public static void Enable() =>
+        ManualViewer.Enable();
+
     const string received =
         """
         the quick
@@ -38,7 +52,7 @@ public class ViewerLaunchTests
         """;
 
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task FileDiff()
     {
         var directory = ManualViewer.TempDirectory();
@@ -62,7 +76,7 @@ public class ViewerLaunchTests
     /// The shape a brand new snapshot takes: nothing to compare against yet.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task FileDiffWithNoTarget()
     {
         var directory = ManualViewer.TempDirectory();
@@ -86,7 +100,7 @@ public class ViewerLaunchTests
     /// something to land on both inside and outside the first viewport.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task FileDiffLongEnoughToScroll()
     {
         var directory = ManualViewer.TempDirectory();
@@ -108,7 +122,7 @@ public class ViewerLaunchTests
     /// The common inline case: a literal exists and the snapshot changed.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task InlineReplacesALiteral()
     {
         var directory = ManualViewer.TempDirectory();
@@ -121,7 +135,7 @@ public class ViewerLaunchTests
             "Accept rewrites the literal in the source file");
 
         var result = await EngineRunner.AddInlineAsync(
-            new EnginePatch(source, 6, "\"old value\"", "new value"));
+            new(source, 6, "\"old value\"", "new value"));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -133,7 +147,7 @@ public class ViewerLaunchTests
     /// than replacing an argument.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task InlineAppendsToACallWithNoSnapshot()
     {
         var directory = ManualViewer.TempDirectory();
@@ -146,7 +160,7 @@ public class ViewerLaunchTests
             "Accept adds a .Snapshot(...) call after the verify call");
 
         var result = await EngineRunner.AddInlineAsync(
-            new EnginePatch(source, 6, null, "brand new", EnginePatchMode.Append));
+            new(source, 6, null, "brand new", EnginePatchMode.Append));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -158,7 +172,7 @@ public class ViewerLaunchTests
     /// exit, which is the behaviour a failing test run depends on.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task InlineQueueFromSeparateLaunches()
     {
         var directory = ManualViewer.TempDirectory();
@@ -182,7 +196,7 @@ public class ViewerLaunchTests
                  })
         {
             var mode = expression is null ? EnginePatchMode.Append : EnginePatchMode.Set;
-            var result = await EngineRunner.AddInlineAsync(new EnginePatch(source, 6, expression, content, mode));
+            var result = await EngineRunner.AddInlineAsync(new(source, 6, expression, content, mode));
             await Assert.That(result).IsEqualTo(EngineResult.Queued);
         }
 
@@ -195,7 +209,7 @@ public class ViewerLaunchTests
     /// file mode: the content comes over stdin rather than off disk.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task InlineLongEnoughToScroll()
     {
         var directory = ManualViewer.TempDirectory();
@@ -208,7 +222,7 @@ public class ViewerLaunchTests
             "Accept writes the whole thing as a raw string literal");
 
         var result = await EngineRunner.AddInlineAsync(
-            new EnginePatch(source, 6, "\"old value\"", Long(changed: true)));
+            new(source, 6, "\"old value\"", Long(changed: true)));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -220,7 +234,7 @@ public class ViewerLaunchTests
     /// unless someone looks.
     /// </summary>
     [Test]
-    [ManualTest]
+    [Explicit]
     public async Task InlineDiscardLeavesTheSourceAlone()
     {
         var directory = ManualViewer.TempDirectory();
@@ -232,7 +246,7 @@ public class ViewerLaunchTests
             "Press Discard, or d",
             "The window closes because the queue is empty");
 
-        await EngineRunner.AddInlineAsync(new EnginePatch(source, 6, "\"old value\"", "new value"));
+        await EngineRunner.AddInlineAsync(new(source, 6, "\"old value\"", "new value"));
         await ManualViewer.WaitForClose();
 
         await Assert.That(File.ReadAllText(source)).IsEqualTo(before);

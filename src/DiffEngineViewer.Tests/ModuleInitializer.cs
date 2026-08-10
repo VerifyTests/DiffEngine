@@ -8,8 +8,8 @@ public static class ModuleInitializer
         // default probing rules would have to find the native under runtimes/{rid}/native, which
         // they only do for natives that arrived through a NuGet package.
         NativeResolver.Register();
-        // Before anything can touch DiffTools, which resolves and caches on first use. No effect
-        // unless the manual checks are switched on.
+        // Before anything can touch DiffTools, which resolves and caches on first use. Only points
+        // the resolver at the local build; nothing here launches anything.
         ManualViewer.Register();
     }
 }
