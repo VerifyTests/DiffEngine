@@ -652,4 +652,246 @@ public class InlinePatcherTests
         await Assert.That(newSource).Contains("new");
         await Assert.That(newSource).DoesNotContain("\"old\"");
     }
+
+    // The verify argument is the same text as the snapshot, and comes first on the line
+    [Test]
+    public async Task SameLiteralInTheVerifyArgumentIsNotPatched()
+    {
+        var source = Method("        await Verify(\"same\").Snapshot(\"same\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"same\"", "changed", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Verify(\"same\").Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("changed");
+    }
+
+    // The expression search must match a whole argument, not the quoted part of a longer literal
+    [Test]
+    public async Task PrefixedLiteralIsNotPatchedThroughItsQuote()
+    {
+        var source = Method("        await Verify(x).Snapshot(@\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Re-run the test");
+    }
+
+    [Test]
+    public async Task SuffixedLiteralIsNotPatchedThroughItsQuote()
+    {
+        var source = Method("        await Verify(x).Snapshot(\"old\"u8);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("not a string literal");
+    }
+
+    [Test]
+    public async Task CommentedOutCallIsSkipped()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    // await Verify(x).Snapshot(\"doc example\");",
+            "    async Task Test() =>",
+            "        await Verify(x).Snapshot();",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 3, InlinePatchMode.Set, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("    // await Verify(x).Snapshot(\"doc example\");\n");
+        await Assert.That(newSource).Contains("        await Verify(x).Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task CallInsideAStringIsSkipped()
+    {
+        var source = Method(
+            "        var text = \"await Snapshot(\\\"x\\\")\";\n" +
+            "        await Verify(x).Snapshot();");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("var text = \"await Snapshot(\\\"x\\\")\";\n");
+        await Assert.That(newSource).Contains("await Verify(x).Snapshot(\"\"\"");
+    }
+
+    // A declaration is a name followed by parens too, so it has to be told apart by what precedes it
+    [Test]
+    public async Task SnapshotDeclarationIsNotMistakenForACall()
+    {
+        var source = string.Join(
+            "\n",
+            "static class Extensions",
+            "{",
+            "    public static Task Snapshot(this Task task, string? expected = null) =>",
+            "        task;",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 3, InlinePatchMode.Set, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Snapshot call");
+    }
+
+    [Test]
+    public async Task AppendSkipsAVerifyPrefixedDeclaration()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    Task VerifyThing(string value) => Verify(value);",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 3, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "    Task VerifyThing(string value) => Verify(value)\n" +
+            "        .Snapshot(\"\"\"");
+    }
+
+    // Snapshot terminates the chain, so a comment in the middle of one must not end the walk
+    [Test]
+    public async Task AppendGoesAfterACommentInTheChain()
+    {
+        var source = Method(
+            "        await Verify(value) // note\n" +
+            "            .UseDirectory(\"snapshots\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "            .UseDirectory(\"snapshots\")\n" +
+            "            .Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task LiteralInACommentIsNotPatched()
+    {
+        var source = Method(
+            "        // was \"old\"\n" +
+            "        await Verify(x).Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("// was \"old\"\n");
+        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task LiteralInAnotherMethodIsNotPatched()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    void Helper() => Log(\"old\");",
+            "",
+            "    async Task Test() =>",
+            "        await Verify(x).Snapshot(\"old\");",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 3, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("void Helper() => Log(\"old\");");
+        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
+    }
+
+    // The empty literal is two characters, and the opening of every raw literal holds a pair
+    [Test]
+    public async Task EmptyOriginalIsNotMatchedInsideARawDelimiter()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    Task A() =>",
+            "        Verify(a).Snapshot(\"\"\"",
+            "            content",
+            "            \"\"\");",
+            "",
+            "    Task B() =>",
+            "        Verify(b).Snapshot(\"\");",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 7, InlinePatchMode.Set, "\"\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("            content\n            \"\"\");");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"\"\"\n            new\n            \"\"\");");
+    }
+
+    [Test]
+    public async Task GenericSnapshotCall()
+    {
+        var source = Method("        await Verify(x).Snapshot<Thing>();");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(".Snapshot<Thing>(\"\"\"");
+    }
+
+    [Test]
+    public async Task AppendToAGenericVerify()
+    {
+        var source = Method("        await Verify<Thing>(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Verify<Thing>(value)\n            .Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task CommentInTheArgumentListIsNotTheArgument()
+    {
+        var source = Method("        await Verify(x).Snapshot(/* keep */);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Snapshot(/* keep */\"\"\"");
+    }
+
+    [Test]
+    public async Task CommentAfterTheArgumentIsKept()
+    {
+        var source = Method("        await Verify(x).Snapshot(\"old\" /* why */);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("\"\"\" /* why */);");
+    }
+
+    // Pulling the call up onto the line above would take the semicolon into the comment
+    [Test]
+    public async Task RemoveLeavesALineCommentAboveIntact()
+    {
+        var source = Method(
+            "        await Verify(value)\n" +
+            "            // note\n" +
+            "            .Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                "        await Verify(value)\n" +
+                "            // note\n" +
+                "            ;"));
+    }
 }

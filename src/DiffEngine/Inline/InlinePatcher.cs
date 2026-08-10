@@ -17,6 +17,12 @@ static class InlinePatcher
     const string methodName = "Snapshot";
 
     /// <summary>
+    /// The parameter the snapshot literal binds to. Positional in a normal call, but it can be
+    /// written by name.
+    /// </summary>
+    const string parameterName = "expected";
+
+    /// <summary>
     /// Append mode has no Snapshot call to find, so it locates the verify invocation instead.
     /// Matched by prefix because every entry point is Verify, VerifyXml, VerifyJson and so on.
     /// </summary>
@@ -35,47 +41,58 @@ static class InlinePatcher
         failReason = "";
         var eol = DetectEol(source);
         var lineStarts = BuildLineStarts(source);
+        var scan = new CsScan(source);
 
         if (mode == InlinePatchMode.Remove)
         {
-            return TryRemove(source, lineStarts, lineHint, ref newSource, ref failReason);
+            return TryRemove(source, scan, lineStarts, lineHint, ref newSource, ref failReason);
         }
 
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, lineStarts, lineHint, newContent, eol, ref newSource, ref failReason);
+            return TryAppend(source, scan, lineStarts, lineHint, newContent, eol, ref newSource, ref failReason);
         }
 
         if (!string.IsNullOrEmpty(originalExpression))
         {
-            // Search for the previous expression verbatim, with newlines matched to the file's EOL
+            // Located by content: the Snapshot call whose expected argument is still the text the
+            // test run saw, nearest the hint first. Matched against expected arguments rather than
+            // searched for as plain text, because the same literal is just as likely to sit in a
+            // comment, in another test's snapshot content, or in the verify call on the same line,
+            // and splicing into one of those leaves a file that no longer compiles and a snapshot
+            // still unaccepted.
             // ReSharper disable once RedundantSuppressNullableWarningExpression
             var needle = NormalizeTo(originalExpression!, eol);
-            var occurrences = FindAll(source, needle);
-            if (occurrences.Count > 0)
+            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, methodName, false))
             {
-                var start = Nearest(occurrences, lineStarts, lineHint);
+                if (!TryReadArguments(source, scan, openParen, out var expected) ||
+                    !expected.Matches(source, needle))
+                {
+                    continue;
+                }
+
                 if (CsStringLiteral.TryParse(needle, out var oldValue) &&
                     oldValue == newContent)
                 {
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var indent = IndentForSpan(source, lineStarts, start);
+                var indent = IndentForSpan(source, lineStarts, expected.Start);
                 var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
-                newSource = Splice(source, start, start + needle.Length, rendered);
+                newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
 
             // Expression gone: another process may have applied the same patch already
-            return InsertOrCheck(source, lineStarts, lineHint, newContent, eol, alreadyOnly: true, ref newSource, ref failReason);
+            return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, alreadyOnly: true, ref newSource, ref failReason);
         }
 
-        return InsertOrCheck(source, lineStarts, lineHint, newContent, eol, alreadyOnly: false, ref newSource, ref failReason);
+        return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, alreadyOnly: false, ref newSource, ref failReason);
     }
 
     static PatchStatus InsertOrCheck(
         string source,
+        CsScan scan,
         List<int> lineStarts,
         int lineHint,
         string newContent,
@@ -84,24 +101,19 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, lineStarts, lineHint, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
         }
 
-        if (!TryScanArguments(source, openParen, out var closeParen, out var topCommas))
+        if (!TryReadArguments(source, scan, openParen, out var expected))
         {
             failReason = $"Could not parse the argument list of the {methodName} call near line {lineHint}.";
             return PatchStatus.NotFound;
         }
 
-        // expected is the first parameter of Snapshot, so the argument to set is the first one
-        var argStart = openParen + 1;
-        var argEnd = topCommas.Count > 0 ? topCommas[0] : closeParen;
-        TrimSpan(source, ref argStart, ref argEnd);
-
-        if (argStart == argEnd)
+        if (expected.IsAbsent)
         {
             // The argument was left to its default
             if (alreadyOnly)
@@ -110,17 +122,13 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var emptyIndent = IndentForSpan(source, lineStarts, argStart);
+            var emptyIndent = IndentForSpan(source, lineStarts, expected.Start);
             var emptyRendered = CsStringLiteral.RenderRaw(newContent, emptyIndent, eol);
-            newSource = Splice(source, argStart, argStart, emptyRendered);
+            newSource = Splice(source, expected.Start, expected.Start, emptyRendered);
             return PatchStatus.Applied;
         }
 
-        var argOriginalStart = argStart;
-        var named = TryStripArgumentName(source, ref argStart, out var argumentName);
-        var argText = source.Substring(argStart, argEnd - argStart);
-
-        if (named && argumentName != "expected")
+        if (expected.BlockedByName)
         {
             // Some other named argument came first (eg file:).
             // Insert a named expected argument before it.
@@ -130,12 +138,13 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var namedIndent = IndentForSpan(source, lineStarts, argOriginalStart);
+            var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart);
             var namedRendered = CsStringLiteral.RenderRaw(newContent, namedIndent, eol);
-            newSource = Splice(source, argOriginalStart, argOriginalStart, "expected: " + namedRendered + ", ");
+            newSource = Splice(source, expected.ListStart, expected.ListStart, $"{parameterName}: {namedRendered}, ");
             return PatchStatus.Applied;
         }
 
+        var argText = source.Substring(expected.Start, expected.End - expected.Start);
         if (argText == "null")
         {
             if (alreadyOnly)
@@ -144,9 +153,9 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var indent = IndentForSpan(source, lineStarts, argStart);
+            var indent = IndentForSpan(source, lineStarts, expected.Start);
             var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
-            newSource = Splice(source, argStart, argEnd, rendered);
+            newSource = Splice(source, expected.Start, expected.End, rendered);
             return PatchStatus.Applied;
         }
 
@@ -171,12 +180,73 @@ static class InlinePatcher
         $"The previous expected expression was not found near line {lineHint}. The source may have changed since the test run. Re-run the test.";
 
     /// <summary>
+    /// Where the expected argument of a call is, and in what shape. Worked out once because the
+    /// content search and the insert path need the same answer: one compares the span, the other
+    /// decides from the shape what to splice.
+    /// </summary>
+    readonly struct ExpectedArgument(int start, int end, int listStart, bool blockedByName)
+    {
+        /// <summary>
+        /// Start of the argument, past any <c>expected:</c> name.
+        /// </summary>
+        public int Start { get; } = start;
+
+        public int End { get; } = end;
+
+        /// <summary>
+        /// Start of the first argument, before any argument name.
+        /// </summary>
+        public int ListStart { get; } = listStart;
+
+        /// <summary>
+        /// The first argument is named, and is not the expected one, so an expected argument has
+        /// to be inserted in front of it.
+        /// </summary>
+        public bool BlockedByName { get; } = blockedByName;
+
+        /// <summary>
+        /// The argument was left to its default.
+        /// </summary>
+        public bool IsAbsent => Start == End;
+
+        /// <summary>
+        /// True when the argument is character for character the given expression.
+        /// </summary>
+        public bool Matches(string source, string expression) =>
+            !IsAbsent &&
+            !BlockedByName &&
+            End - Start == expression.Length &&
+            string.CompareOrdinal(source, Start, expression, 0, expression.Length) == 0;
+    }
+
+    static bool TryReadArguments(string source, CsScan scan, int openParen, out ExpectedArgument expected)
+    {
+        expected = default;
+        if (!TryScanArguments(source, scan, openParen, out var closeParen, out var topCommas))
+        {
+            return false;
+        }
+
+        // expected is the first parameter of Snapshot, so the argument to read is the first one
+        var start = openParen + 1;
+        var end = topCommas.Count > 0 ? topCommas[0] : closeParen;
+        TrimSpan(source, scan, ref start, ref end);
+        var listStart = start;
+        var blockedByName = start != end &&
+                            TryStripArgumentName(source, ref start, out var argumentName) &&
+                            argumentName != parameterName;
+        expected = new(start, end, listStart, blockedByName);
+        return true;
+    }
+
+    /// <summary>
     /// Appends a Snapshot call to the verify invocation, for a snapshot that has never been
     /// accepted. Snapshot terminates the chain, so the insertion point is the end of any calls
     /// already chained onto the invocation rather than the invocation's own closing paren.
     /// </summary>
     static PatchStatus TryAppend(
         string source,
+        CsScan scan,
         List<int> lineStarts,
         int lineHint,
         string newContent,
@@ -184,19 +254,19 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, lineStarts, lineHint, verifyPrefix, true, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, verifyPrefix, true, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {verifyPrefix} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
         }
 
-        if (!TryScanArguments(source, openParen, out var closeParen, out _))
+        if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
         {
             failReason = $"Could not parse the argument list of the {verifyPrefix} call near line {lineHint}.";
             return PatchStatus.NotFound;
         }
 
-        var insertAt = WalkChain(source, closeParen + 1, methodName, out var alreadyChained);
+        var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var alreadyChained);
         // Another process may have appended one between the run and the accept
         if (alreadyChained)
         {
@@ -221,18 +291,19 @@ static class InlinePatcher
     /// </summary>
     static PatchStatus TryRemove(
         string source,
+        CsScan scan,
         List<int> lineStarts,
         int lineHint,
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, lineStarts, lineHint, methodName, false, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, methodName, false, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
         }
 
-        if (!TryScanArguments(source, openParen, out var closeParen, out _))
+        if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
         {
             failReason = $"Could not parse the argument list of the {methodName} call near line {lineHint}.";
             return PatchStatus.NotFound;
@@ -254,6 +325,7 @@ static class InlinePatcher
         }
 
         start--;
+        var dotStart = start;
         // Then back over the indentation and line break it sat on
         while (start > 0 &&
                (source[start - 1] == ' ' || source[start - 1] == '\t'))
@@ -264,12 +336,16 @@ static class InlinePatcher
         if (start > 0 &&
             source[start - 1] == '\n')
         {
-            start--;
-            if (start > 0 &&
-                source[start - 1] == '\r')
+            var lineBreak = start - 1;
+            if (lineBreak > 0 &&
+                source[lineBreak - 1] == '\r')
             {
-                start--;
+                lineBreak--;
             }
+
+            // Not when the line above ends in a line comment: pulling the call up would take the
+            // semicolon that follows it into the comment
+            start = scan.IsCode(lineBreak) ? lineBreak : dotStart;
         }
 
         newSource = Splice(source, start, closeParen + 1, "");
@@ -280,34 +356,32 @@ static class InlinePatcher
     /// Walks the calls chained onto an invocation and returns the end of the chain.
     /// <paramref name="found"/> is set when one of them is a call to <paramref name="name"/>.
     /// </summary>
-    static int WalkChain(string source, int index, string name, out bool found)
+    static int WalkChain(string source, CsScan scan, int index, string name, out bool found)
     {
         found = false;
         while (true)
         {
             var cursor = index;
-            if (!TrySkipTo(source, ref cursor, '.'))
+            scan.SkipTrivia(ref cursor);
+            if (cursor >= source.Length ||
+                source[cursor] != '.')
             {
                 return index;
             }
 
             cursor++;
-            while (cursor < source.Length &&
-                   char.IsWhiteSpace(source[cursor]))
-            {
-                cursor++;
-            }
+            scan.SkipTrivia(ref cursor);
 
             var nameStart = cursor;
             while (cursor < source.Length &&
-                   IsIdentifierChar(source[cursor]))
+                   CsScan.IsIdentifierChar(source[cursor]))
             {
                 cursor++;
             }
 
             if (cursor == nameStart ||
-                !TrySkipToParen(source, cursor, out var paren) ||
-                !TryScanArguments(source, paren, out var closeParen, out _))
+                !TrySkipToParen(source, scan, cursor, out var paren) ||
+                !TryScanArguments(source, scan, paren, out var closeParen, out _))
             {
                 return index;
             }
@@ -320,18 +394,6 @@ static class InlinePatcher
 
             index = closeParen + 1;
         }
-    }
-
-    static bool TrySkipTo(string source, ref int index, char ch)
-    {
-        while (index < source.Length &&
-               char.IsWhiteSpace(source[index]))
-        {
-            index++;
-        }
-
-        return index < source.Length &&
-               source[index] == ch;
     }
 
     static string LeadingWhitespace(string source, List<int> lineStarts, int offset)
@@ -347,16 +409,12 @@ static class InlinePatcher
         return source.Substring(lineStart, index - lineStart);
     }
 
-    static bool TryFindCall(string source, List<int> lineStarts, int lineHint, out int openParen) =>
-        TryFindCall(source, lineStarts, lineHint, methodName, false, out _, out openParen);
+    static bool TryFindCall(string source, CsScan scan, List<int> lineStarts, int lineHint, out int openParen) =>
+        TryFindCall(source, scan, lineStarts, lineHint, methodName, false, out _, out openParen);
 
-    /// <summary>
-    /// Locates a call by name, searching outward from the hint. <paramref name="byPrefix"/> matches
-    /// any identifier starting with <paramref name="name"/>, which is how the several Verify
-    /// overloads are found with one search.
-    /// </summary>
     static bool TryFindCall(
         string source,
+        CsScan scan,
         List<int> lineStarts,
         int lineHint,
         string name,
@@ -364,16 +422,39 @@ static class InlinePatcher
         out int nameStart,
         out int openParen)
     {
+        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, name, byPrefix))
+        {
+            (nameStart, openParen) = call;
+            return true;
+        }
+
         nameStart = -1;
         openParen = -1;
+        return false;
+    }
+
+    /// <summary>
+    /// Locates calls by name, searching outward from the hint: hint, hint+1, hint-1, hint+2 and so
+    /// on. A tie goes to the line at or after the hint, because a file that moved under a pending
+    /// patch usually grew above the call rather than below it.
+    /// <paramref name="byPrefix"/> matches any identifier starting with <paramref name="name"/>,
+    /// which is how the several Verify overloads are found with one search.
+    /// </summary>
+    static IEnumerable<(int nameStart, int openParen)> FindCalls(
+        string source,
+        CsScan scan,
+        List<int> lineStarts,
+        int lineHint,
+        string name,
+        bool byPrefix)
+    {
         var lineCount = lineStarts.Count;
         lineHint = Math.Min(Math.Max(lineHint, 1), lineCount);
-        // Outward from the hint: hint, hint-1, hint+1, hint-2, ...
         for (var distance = 0; distance < lineCount; distance++)
         {
             var candidates = distance == 0
                 ? new[] { lineHint }
-                : new[] { lineHint - distance, lineHint + distance };
+                : new[] { lineHint + distance, lineHint - distance };
             foreach (var line in candidates)
             {
                 if (line < 1 || line > lineCount)
@@ -396,50 +477,51 @@ static class InlinePatcher
                     if (byPrefix)
                     {
                         while (identifierEnd < source.Length &&
-                               IsIdentifierChar(source[identifierEnd]))
+                               CsScan.IsIdentifierChar(source[identifierEnd]))
                         {
                             identifierEnd++;
                         }
                     }
                     else if (identifierEnd < source.Length &&
-                             IsIdentifierChar(source[identifierEnd]))
+                             CsScan.IsIdentifierChar(source[identifierEnd]))
                     {
                         index += name.Length;
                         continue;
                     }
 
-                    if (StartsToken(source, index) &&
-                        TrySkipToParen(source, identifierEnd, out var paren))
+                    // In code, a whole token, an invocation rather than a declaration, and
+                    // followed by an argument list. A commented out example passes none of these
+                    if (scan.IsCode(index) &&
+                        StartsToken(source, index) &&
+                        !scan.IsDeclaration(index) &&
+                        TrySkipToParen(source, scan, identifierEnd, out var paren))
                     {
-                        nameStart = index;
-                        openParen = paren;
-                        return true;
+                        yield return (index, paren);
                     }
 
                     index += name.Length;
                 }
             }
         }
-
-        return false;
     }
 
     static bool StartsToken(string source, int index) =>
         index == 0 ||
-        !IsIdentifierChar(source[index - 1]);
+        !CsScan.IsIdentifierChar(source[index - 1]);
 
-    static bool IsIdentifierChar(char ch) =>
-        char.IsLetterOrDigit(ch) || ch == '_';
-
-    static bool TrySkipToParen(string source, int index, out int paren)
+    static bool TrySkipToParen(string source, CsScan scan, int index, out int paren)
     {
         paren = -1;
-        while (index < source.Length && char.IsWhiteSpace(source[index]))
+        scan.SkipTrivia(ref index);
+        if (index < source.Length &&
+            source[index] == '<' &&
+            CsScan.TrySkipTypeArguments(source, ref index))
         {
-            index++;
+            scan.SkipTrivia(ref index);
         }
 
-        if (index < source.Length && source[index] == '(')
+        if (index < source.Length &&
+            source[index] == '(')
         {
             paren = index;
             return true;
@@ -449,8 +531,8 @@ static class InlinePatcher
     }
 
     // Scans a balanced argument list starting at the open paren.
-    // Records top level comma positions. Skips strings, chars and comments.
-    static bool TryScanArguments(string source, int openParen, out int closeParen, out List<int> topCommas)
+    // Records top level comma positions. Comments and literals are stepped over whole.
+    static bool TryScanArguments(string source, CsScan scan, int openParen, out int closeParen, out List<int> topCommas)
     {
         closeParen = -1;
         topCommas = [];
@@ -458,32 +540,14 @@ static class InlinePatcher
         var index = openParen + 1;
         while (index < source.Length)
         {
-            var ch = source[index];
-            switch (ch)
+            if (scan.TryGetSkip(index, out var skipTo))
             {
-                case '/':
-                    if (!TrySkipComment(source, ref index))
-                    {
-                        index++;
-                    }
+                index = skipTo;
+                continue;
+            }
 
-                    continue;
-                case '\'':
-                    if (!TrySkipCharLiteral(source, ref index))
-                    {
-                        return false;
-                    }
-
-                    continue;
-                case '"':
-                case '@':
-                case '$':
-                    if (!TrySkipStringLike(source, ref index))
-                    {
-                        index++;
-                    }
-
-                    continue;
+            switch (source[index])
+            {
                 case '(':
                 case '[':
                 case '{':
@@ -527,267 +591,6 @@ static class InlinePatcher
         return false;
     }
 
-    static bool TrySkipComment(string source, ref int index)
-    {
-        if (index + 1 >= source.Length)
-        {
-            return false;
-        }
-
-        var next = source[index + 1];
-        if (next == '/')
-        {
-            var end = source.IndexOf('\n', index);
-            index = end < 0 ? source.Length : end + 1;
-            return true;
-        }
-
-        if (next == '*')
-        {
-            var end = source.IndexOf("*/", index + 2, StringComparison.Ordinal);
-            index = end < 0 ? source.Length : end + 2;
-            return true;
-        }
-
-        return false;
-    }
-
-    static bool TrySkipCharLiteral(string source, ref int index)
-    {
-        // index at the opening quote
-        index++;
-        while (index < source.Length)
-        {
-            var ch = source[index];
-            if (ch == '\\')
-            {
-                index += 2;
-                continue;
-            }
-
-            if (ch == '\'')
-            {
-                index++;
-                return true;
-            }
-
-            if (ch == '\n')
-            {
-                return false;
-            }
-
-            index++;
-        }
-
-        return false;
-    }
-
-    // index at '$', '@' or '"'. Returns false when the characters do not start a string literal
-    // (eg '@identifier'); the caller then advances by one.
-    static bool TrySkipStringLike(string source, ref int index)
-    {
-        var cursor = index;
-        var dollars = 0;
-        var verbatim = false;
-        while (cursor < source.Length)
-        {
-            var ch = source[cursor];
-            if (ch == '$')
-            {
-                dollars++;
-                cursor++;
-                continue;
-            }
-
-            if (ch == '@')
-            {
-                verbatim = true;
-                cursor++;
-                continue;
-            }
-
-            break;
-        }
-
-        if (cursor >= source.Length || source[cursor] != '"')
-        {
-            return false;
-        }
-
-        var quotes = QuoteRun(source, cursor);
-        if (quotes >= 3)
-        {
-            // Raw string (interpolated or not): skip blindly to a closing run of >= quotes.
-            // Interpolation holes are skipped as part of the content.
-            var search = cursor + quotes;
-            while (true)
-            {
-                if (search >= source.Length)
-                {
-                    index = source.Length;
-                    return true;
-                }
-
-                if (source[search] != '"')
-                {
-                    search++;
-                    continue;
-                }
-
-                var run = QuoteRun(source, search);
-                if (run >= quotes)
-                {
-                    index = search + run;
-                    return true;
-                }
-
-                search += run;
-            }
-        }
-
-        cursor += quotes == 2 ? 2 : 1;
-        if (quotes == 2 && dollars == 0)
-        {
-            // Empty string ""
-            index = cursor;
-            return true;
-        }
-
-        if (quotes == 2)
-        {
-            // Interpolated empty string $""
-            index = cursor;
-            return true;
-        }
-
-        while (cursor < source.Length)
-        {
-            var ch = source[cursor];
-            if (ch == '"')
-            {
-                if (verbatim &&
-                    cursor + 1 < source.Length &&
-                    source[cursor + 1] == '"')
-                {
-                    cursor += 2;
-                    continue;
-                }
-
-                index = cursor + 1;
-                return true;
-            }
-
-            if (!verbatim && ch == '\\')
-            {
-                cursor += 2;
-                continue;
-            }
-
-            if (!verbatim && ch == '\n')
-            {
-                // Malformed: unterminated regular string. Stop at the line end.
-                index = cursor;
-                return true;
-            }
-
-            if (dollars > 0 && ch == '{')
-            {
-                if (cursor + 1 < source.Length && source[cursor + 1] == '{')
-                {
-                    cursor += 2;
-                    continue;
-                }
-
-                if (!TrySkipHole(source, ref cursor))
-                {
-                    index = source.Length;
-                    return true;
-                }
-
-                continue;
-            }
-
-            if (dollars > 0 && ch == '}' &&
-                cursor + 1 < source.Length && source[cursor + 1] == '}')
-            {
-                cursor += 2;
-                continue;
-            }
-
-            cursor++;
-        }
-
-        index = source.Length;
-        return true;
-    }
-
-    // cursor at '{' of an interpolation hole; skips past the matching '}'
-    static bool TrySkipHole(string source, ref int cursor)
-    {
-        var depth = 1;
-        cursor++;
-        while (cursor < source.Length)
-        {
-            var ch = source[cursor];
-            switch (ch)
-            {
-                case '/':
-                    if (!TrySkipComment(source, ref cursor))
-                    {
-                        cursor++;
-                    }
-
-                    continue;
-                case '\'':
-                    if (!TrySkipCharLiteral(source, ref cursor))
-                    {
-                        return false;
-                    }
-
-                    continue;
-                case '"':
-                case '@':
-                case '$':
-                    if (!TrySkipStringLike(source, ref cursor))
-                    {
-                        cursor++;
-                    }
-
-                    continue;
-                case '{':
-                    depth++;
-                    cursor++;
-                    continue;
-                case '}':
-                    depth--;
-                    cursor++;
-                    if (depth == 0)
-                    {
-                        return true;
-                    }
-
-                    continue;
-                default:
-                    cursor++;
-                    continue;
-            }
-        }
-
-        return false;
-    }
-
-    static int QuoteRun(string source, int index)
-    {
-        var count = 0;
-        while (index + count < source.Length &&
-               source[index + count] == '"')
-        {
-            count++;
-        }
-
-        return count;
-    }
-
     static bool TryStripArgumentName(string source, ref int start, out string name)
     {
         name = "";
@@ -797,7 +600,7 @@ static class InlinePatcher
             return false;
         }
 
-        while (index < source.Length && IsIdentifierChar(source[index]))
+        while (index < source.Length && CsScan.IsIdentifierChar(source[index]))
         {
             index++;
         }
@@ -826,16 +629,48 @@ static class InlinePatcher
         return true;
     }
 
-    static void TrimSpan(string source, ref int start, ref int end)
+    /// <summary>
+    /// Narrows a span to the expression in it: whitespace and comments are not part of the
+    /// argument, and leaving a comment in makes the argument read as something other than the
+    /// literal it is.
+    /// </summary>
+    static void TrimSpan(string source, CsScan scan, ref int start, ref int end)
     {
-        while (start < end && char.IsWhiteSpace(source[start]))
+        while (start < end)
         {
-            start++;
+            if (char.IsWhiteSpace(source[start]))
+            {
+                start++;
+                continue;
+            }
+
+            if (source[start] == '/' &&
+                scan.TryGetSkip(start, out var afterComment) &&
+                afterComment <= end)
+            {
+                start = afterComment;
+                continue;
+            }
+
+            break;
         }
 
-        while (end > start && char.IsWhiteSpace(source[end - 1]))
+        while (end > start)
         {
-            end--;
+            if (char.IsWhiteSpace(source[end - 1]))
+            {
+                end--;
+                continue;
+            }
+
+            if (scan.TryGetCommentEndingAt(end, out var commentStart) &&
+                commentStart >= start)
+            {
+                end = commentStart;
+                continue;
+            }
+
+            break;
         }
     }
 
@@ -918,47 +753,6 @@ static class InlinePatcher
         }
 
         return low + 1;
-    }
-
-    static List<int> FindAll(string source, string needle)
-    {
-        List<int> result = [];
-        var index = 0;
-        while (true)
-        {
-            index = source.IndexOf(needle, index, StringComparison.Ordinal);
-            if (index < 0)
-            {
-                break;
-            }
-
-            result.Add(index);
-            index++;
-        }
-
-        return result;
-    }
-
-    static int Nearest(List<int> occurrences, List<int> lineStarts, int lineHint)
-    {
-        var best = occurrences[0];
-        var bestDistance = int.MaxValue;
-        var bestAfter = false;
-        foreach (var occurrence in occurrences)
-        {
-            var line = LineOf(lineStarts, occurrence);
-            var distance = Math.Abs(line - lineHint);
-            var after = line >= lineHint;
-            if (distance < bestDistance ||
-                distance == bestDistance && after && !bestAfter)
-            {
-                best = occurrence;
-                bestDistance = distance;
-                bestAfter = after;
-            }
-        }
-
-        return best;
     }
 
     static string IndentForSpan(string source, List<int> lineStarts, int spanStart)
