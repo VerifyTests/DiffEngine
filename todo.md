@@ -32,23 +32,20 @@ runs on the render thread inside `host.Mutate` — the window itself freezes for
 Socket-driven accepts don't stall rendering (lock-free `State` reads), only the user's own click
 does. Same two-phase pattern would fix it; lower stakes because the user just asked for the work.
 
-## 2. The verb dispatch is written twice (medium)
+## 2. ~~The verb dispatch is written twice~~ (done)
 
-`MessageHandler` (viewer owns) and `OwnedInlineHost.Handle` (tray owns) are the same 12-verb
-switch with the same validation and the same error strings — "Inline requires a body", the
-`Remove` rejection, "No pending snapshot for {key}", "Queued {n}". The queue extraction removed
-semantic drift; the *server behaviour* can still drift, which is the same class of bug.
+`ViewerMessageHandler` in `Protocol/` now owns the twelve-verb switch, the validation and every
+wire string, mapping onto `IQueueOwner` — the queue half of the protocol, implemented by
+`MessageHandler` over the session (selection-follow stays in the same mutation) and by
+`OwnedInlineHost` over its `InlineQueue` (stash-and-launch stays in its `Window`). Landed slightly
+wider than sketched: the window verbs went through a `Window(command, key)` seam rather than
+staying per-host, so the dispatch itself is not duplicated either.
 
-Direction: extract the queue-facing verbs (`inline`, `settle`, `list`, `listfull`, `accept`,
-`discard`, `acceptall`, `discardall`) into a shared handler in DiffEngine — it owns an
-`InlineQueue`, a `Func<InlinePatch, InlineApplyResult>` and an `Action<WindowCommand, string?>`
-sink. The viewer wraps it to project into `SessionState` (selection-follow on act); the tray wraps
-it with the stash-and-launch behaviour. The window verbs (`focus`/`show`/`hide`/`quit`) stay
-per-host, they are genuinely different.
+One deliberate delta: a wire `focus` with an unknown key now errors on the tray as it always did on
+the viewer, instead of stashing a focus for an entry that is not there. The tray's own menu path
+(`IInlineHost.Focus`) is unaffected.
 
-Note if attempted: the viewer side routes through `ViewerSession` so the *display* updates with the
-queue in one mutation. The shared handler would need the same seam `ViewerSession.Sync` already
-provides.
+All 705 tests unchanged, including every wire-shape baseline.
 
 ## 3. File mode carries queue machinery for a queue of one (medium)
 

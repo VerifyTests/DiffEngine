@@ -1,87 +1,27 @@
 /// <summary>
-/// Maps a wire message onto the session. Split from the transport so the whole protocol,
-/// including the tray facing half, is testable without a socket or a window.
+/// The viewer as queue owner: <see cref="IQueueOwner"/> over the session, for
+/// <see cref="ViewerMessageHandler"/> to map the wire onto. What a verb means lives there; what
+/// stays here is the projection into <see cref="SessionState"/>, so the display follows the queue
+/// in the same mutation — acting on an entry selects it, and a focus lands on its item.
 /// </summary>
-class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowCommand> window)
+class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowCommand> window) :
+    IQueueOwner
 {
-    public ViewerResponse Handle(ViewerMessage message)
-    {
-        switch (message.Verb)
-        {
-            case ViewerVerb.Inline:
-                return Inline(message.Body);
-            case ViewerVerb.Settle:
-                return Settle(message.Key);
-            case ViewerVerb.List:
-                return List(false);
-            case ViewerVerb.ListFull:
-                return List(true);
-            case ViewerVerb.Accept:
-                return Act(message.Key, CommandKind.Accept);
-            case ViewerVerb.Discard:
-                return Act(message.Key, CommandKind.Discard);
-            case ViewerVerb.AcceptAll:
-                return All(CommandKind.AcceptAll);
-            case ViewerVerb.DiscardAll:
-                return All(CommandKind.DiscardAll);
-            case ViewerVerb.Focus:
-                return Focus(message.Key);
-            case ViewerVerb.Show:
-                window(WindowCommand.Show);
-                return ViewerResponse.Success();
-            case ViewerVerb.Hide:
-                window(WindowCommand.Hide);
-                return ViewerResponse.Success();
-            case ViewerVerb.Quit:
-                // A window command like the three above, rather than a state change, because that
-                // is the one route that also works when the window belongs to another process.
-                window(WindowCommand.Close);
-                return ViewerResponse.Success("Closing");
-            default:
-                return ViewerResponse.Error($"Unsupported verb: {message.Verb}");
-        }
-    }
+    public ViewerResponse Handle(ViewerMessage message) =>
+        ViewerMessageHandler.Handle(this, message);
 
-    ViewerResponse Inline(string? body)
-    {
-        if (body is null)
-        {
-            return ViewerResponse.Error("Inline requires a body");
-        }
+    int IQueueOwner.Enqueue(InlinePatch patch) =>
+        host.Mutate(_ => ViewerSession.EnqueueInline(_, patch)).Queue.Count;
 
-        if (!InlinePatchFile.TryParse(body, out var patch))
-        {
-            return ViewerResponse.Error("Inline body is not a readable patch payload");
-        }
-
-        // Remove strips a literal when inline is switched off. That is a configuration change with
-        // nothing to review, so the sender applies it directly rather than queueing it here.
-        if (patch.Mode == InlinePatchMode.Remove)
-        {
-            return ViewerResponse.Error($"{InlinePatchMode.Remove} patches are not reviewable");
-        }
-
-        var state = host.Mutate(_ => ViewerSession.EnqueueInline(_, patch));
-        return ViewerResponse.Success($"Queued {state.Queue.Count}");
-    }
-
-    ViewerResponse Settle(string? key)
-    {
-        if (key is null)
-        {
-            return ViewerResponse.Error("Settle requires a key");
-        }
-
+    void IQueueOwner.Settle(string key) =>
         host.Mutate(_ => ViewerSession.Settle(_, key));
-        return ViewerResponse.Success();
-    }
 
     /// <summary>
-    /// The pending entries. With <paramref name="withPatches"/> each carries the payload it was
-    /// queued from, so a viewer showing someone else's queue can rebuild every pane locally and
-    /// no diff has to cross the wire. A file entry has no patch to send and is listed without one.
+    /// With patches, each item carries the payload it was queued from, so a viewer showing
+    /// someone else's queue can rebuild every pane locally and no diff has to cross the wire. A
+    /// file entry has no patch to send and is listed without one.
     /// </summary>
-    ViewerResponse List(bool withPatches)
+    ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
         var state = host.State;
         var items = new List<ViewerResponseItem>(state.Queue.Count);
@@ -96,16 +36,20 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
         return ViewerResponse.Listing(items);
     }
 
-    ViewerResponse Act(string? key, CommandKind command)
-    {
-        if (key is null)
-        {
-            return ViewerResponse.Error($"{command} requires a key");
-        }
+    bool IQueueOwner.Has(string key) =>
+        IndexOf(host.State, key) >= 0;
 
-        if (IndexOf(key) < 0)
+    (bool known, string? message) IQueueOwner.Accept(string key) =>
+        Act(key, CommandKind.Accept);
+
+    (bool known, string? message) IQueueOwner.Discard(string key) =>
+        Act(key, CommandKind.Discard);
+
+    (bool known, string? message) Act(string key, CommandKind command)
+    {
+        if (IndexOf(host.State, key) < 0)
         {
-            return ViewerResponse.Error($"No pending snapshot for {key}");
+            return (false, null);
         }
 
         var state = host.Mutate(_ =>
@@ -120,37 +64,24 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             return ViewerSession.Apply(selected, command, actions);
         });
 
-        return ViewerResponse.Success(state.Message);
+        return (true, state.Message);
     }
 
-    ViewerResponse All(CommandKind command)
-    {
-        var state = host.Mutate(_ => ViewerSession.Apply(_, command, actions));
-        return ViewerResponse.Success(state.Message);
-    }
+    string? IQueueOwner.AcceptAll() =>
+        host.Mutate(_ => ViewerSession.Apply(_, CommandKind.AcceptAll, actions)).Message;
 
-    ViewerResponse Focus(string? key)
+    string? IQueueOwner.DiscardAll() =>
+        host.Mutate(_ => ViewerSession.Apply(_, CommandKind.DiscardAll, actions)).Message;
+
+    void IQueueOwner.Window(WindowCommand command, string? key)
     {
         if (key is not null)
         {
-            if (IndexOf(key) < 0)
-            {
-                return ViewerResponse.Error($"No pending snapshot for {key}");
-            }
-
-            host.Mutate(_ =>
-            {
-                var index = IndexOf(_, key);
-                return index < 0 ? _ : ViewerSession.Apply(_, Command.Select(index));
-            });
+            host.Mutate(_ => ViewerSession.SelectKey(_, key));
         }
 
-        window(WindowCommand.Focus);
-        return ViewerResponse.Success();
+        window(command);
     }
-
-    int IndexOf(string key) =>
-        IndexOf(host.State, key);
 
     static int IndexOf(SessionState state, string key)
     {

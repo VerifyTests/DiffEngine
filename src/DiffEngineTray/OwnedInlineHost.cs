@@ -20,6 +20,7 @@
 /// </summary>
 sealed class OwnedInlineHost :
     IInlineHost,
+    IQueueOwner,
     IAsyncDisposable
 {
     readonly ViewerServer server;
@@ -118,62 +119,11 @@ sealed class OwnedInlineHost :
     public void Close() =>
         Ask(WindowCommand.Close, null);
 
-    ViewerResponse Handle(ViewerMessage message)
+    ViewerResponse Handle(ViewerMessage message) =>
+        ViewerMessageHandler.Handle(this, message);
+
+    int IQueueOwner.Enqueue(InlinePatch patch)
     {
-        switch (message.Verb)
-        {
-            case ViewerVerb.Inline:
-                return Inline(message.Body);
-            case ViewerVerb.Settle:
-                return Settle(message.Key);
-            case ViewerVerb.List:
-                return Listing(false);
-            case ViewerVerb.ListFull:
-                return Listing(true);
-            case ViewerVerb.Accept:
-                return One(message.Key, ViewerVerb.Accept);
-            case ViewerVerb.Discard:
-                return One(message.Key, ViewerVerb.Discard);
-            case ViewerVerb.AcceptAll:
-                return Every(ViewerVerb.AcceptAll);
-            case ViewerVerb.DiscardAll:
-                return Every(ViewerVerb.DiscardAll);
-            case ViewerVerb.Focus:
-                Show(WindowCommand.Focus, message.Key);
-                return ViewerResponse.Success();
-            case ViewerVerb.Show:
-                Show(WindowCommand.Show, null);
-                return ViewerResponse.Success();
-            case ViewerVerb.Hide:
-                Ask(WindowCommand.Hide, null);
-                return ViewerResponse.Success();
-            case ViewerVerb.Quit:
-                Ask(WindowCommand.Close, null);
-                return ViewerResponse.Success("Closing");
-            default:
-                return ViewerResponse.Error($"Unsupported verb: {message.Verb}");
-        }
-    }
-
-    ViewerResponse Inline(string? body)
-    {
-        if (body is null)
-        {
-            return ViewerResponse.Error("Inline requires a body");
-        }
-
-        if (!InlinePatchFile.TryParse(body, out var patch))
-        {
-            return ViewerResponse.Error("Inline body is not a readable patch payload");
-        }
-
-        // Remove strips a literal when inline is switched off. That is a configuration change with
-        // nothing to review, so the sender applies it directly rather than queueing it here.
-        if (patch.Mode == InlinePatchMode.Remove)
-        {
-            return ViewerResponse.Error($"{InlinePatchMode.Remove} patches are not reviewable");
-        }
-
         int count;
         lock (gate)
         {
@@ -182,33 +132,28 @@ sealed class OwnedInlineHost :
         }
 
         Changed?.Invoke();
+        // A patch arriving with no window open starts one; with one, this is the focus.
         Show(WindowCommand.Focus, InlineKey.For(patch.SourceFile, patch.LineHint));
-        return ViewerResponse.Success($"Queued {count}");
+        return count;
     }
 
-    ViewerResponse Settle(string? key)
+    void IQueueOwner.Settle(string key)
     {
-        if (key is null)
-        {
-            return ViewerResponse.Error("Settle requires a key");
-        }
-
         lock (gate)
         {
             var settled = queue.Settle(key);
             if (ReferenceEquals(settled, queue))
             {
-                return ViewerResponse.Success();
+                return;
             }
 
             queue = settled;
         }
 
         Changed?.Invoke();
-        return ViewerResponse.Success();
     }
 
-    ViewerResponse Listing(bool withPatches)
+    ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
         lock (gate)
         {
@@ -230,59 +175,75 @@ sealed class OwnedInlineHost :
         }
     }
 
-    ViewerResponse One(string? key, ViewerVerb verb)
+    bool IQueueOwner.Has(string key)
     {
-        if (key is null)
+        lock (gate)
         {
-            return ViewerResponse.Error($"{verb} requires a key");
+            return queue.Find(key) is not null;
         }
-
-        string? message;
-        if (verb == ViewerVerb.Accept)
-        {
-            var (removed, outcome) = AcceptOne(key);
-            if (!removed &&
-                outcome is null)
-            {
-                return ViewerResponse.Error($"No pending snapshot for {key}");
-            }
-
-            message = outcome;
-        }
-        else
-        {
-            lock (gate)
-            {
-                if (queue.Find(key) is null)
-                {
-                    return ViewerResponse.Error($"No pending snapshot for {key}");
-                }
-
-                queue = queue.Discard(key, out message);
-            }
-        }
-
-        Changed?.Invoke();
-        return ViewerResponse.Success(message);
     }
 
-    ViewerResponse Every(ViewerVerb verb)
+    (bool known, string? message) IQueueOwner.Accept(string key)
     {
-        string message;
-        if (verb == ViewerVerb.AcceptAll)
+        var (removed, message) = AcceptOne(key);
+        if (!removed &&
+            message is null)
         {
-            message = AcceptEvery();
-        }
-        else
-        {
-            lock (gate)
-            {
-                queue = queue.DiscardAll(out message);
-            }
+            return (false, null);
         }
 
         Changed?.Invoke();
-        return ViewerResponse.Success(message);
+        return (true, message);
+    }
+
+    (bool known, string? message) IQueueOwner.Discard(string key)
+    {
+        string? message;
+        lock (gate)
+        {
+            if (queue.Find(key) is null)
+            {
+                return (false, null);
+            }
+
+            queue = queue.Discard(key, out message);
+        }
+
+        Changed?.Invoke();
+        return (true, message);
+    }
+
+    string? IQueueOwner.AcceptAll()
+    {
+        var message = AcceptEvery();
+        Changed?.Invoke();
+        return message;
+    }
+
+    string? IQueueOwner.DiscardAll()
+    {
+        string message;
+        lock (gate)
+        {
+            queue = queue.DiscardAll(out message);
+        }
+
+        Changed?.Invoke();
+        return message;
+    }
+
+    void IQueueOwner.Window(WindowCommand command, string? key)
+    {
+        // Raising means there has to be something to raise; hiding or closing what is already
+        // gone can stay a stash that the next viewer to attach will consume.
+        if (command is WindowCommand.Focus or WindowCommand.Show)
+        {
+            Show(command, key);
+        }
+        else
+        {
+            Ask(command, key);
+        }
     }
 
     /// <summary>
