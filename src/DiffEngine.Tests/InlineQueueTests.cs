@@ -153,6 +153,59 @@ public class InlineQueueTests
         await Assert.That(message).IsEqualTo("Accepted 1, 1 failed. locked");
     }
 
+    /// <summary>
+    /// The two phase form: find, apply outside the host's lock, complete. A re-run that replaced
+    /// the patch while it was applying keeps its new entry, because the outcome describes the old
+    /// one.
+    /// </summary>
+    [Test]
+    public async Task CompletingAfterAReplaceLeavesTheNewEntry()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "first"));
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Enqueue(Patch(content: "second"));
+
+        var after = queue.Accept(entry, InlineApplyResult.Applied, out var message);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(message).IsNull();
+        await Assert.That(after.Items[0].Patch.NewContent).IsEqualTo("second");
+    }
+
+    [Test]
+    public async Task CompletingAfterASettleDoesNothing()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch());
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Settle(entry.Key);
+
+        var after = queue.Accept(entry, InlineApplyResult.Applied, out var message);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(message).IsNull();
+    }
+
+    /// <summary>
+    /// An entry that arrived while the batch was applying was not part of the accept, so it is
+    /// kept untouched rather than counted as a failure.
+    /// </summary>
+    [Test]
+    public async Task ABatchCompletionSkipsANewcomer()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2));
+        var outcomes = queue.Items
+            .Select(_ => (_, InlineApplyResult.Applied))
+            .ToList();
+        queue = queue.Enqueue(Patch("C.cs", 3));
+
+        var after = queue.AcceptAll(outcomes, out var message);
+
+        await Assert.That(after.Items.Select(_ => _.Name)).IsEquivalentTo(["C.cs:3"]);
+        await Assert.That(message).IsEqualTo("Accepted 2");
+    }
+
     [Test]
     public async Task DiscardRemovesWithoutApplying()
     {

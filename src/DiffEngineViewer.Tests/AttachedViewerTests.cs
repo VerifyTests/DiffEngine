@@ -121,6 +121,37 @@ public class AttachedViewerTests
     }
 
     /// <summary>
+    /// A busy owner is not a dead one. An accept can hold the owner for ten seconds on
+    /// InlineApplier's cross process mutex, and the old three second wait read that as the owner
+    /// having died and closed the window mid apply. Only a refused connection, which arrives in
+    /// milliseconds, means gone.
+    /// </summary>
+    [Test]
+    public async Task ABusyOwnerDoesNotReadAsDead()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        var patch = InlinePatchFile.Build(Fixtures.Patch());
+        var listening = server.Listen(
+            _ =>
+            {
+                // Longer than the old wait, shorter than OwnerLink.Wait.
+                Thread.Sleep(TimeSpan.FromSeconds(4));
+                return ViewerResponse.Listing([new("key", "SampleTests.cs:42", null, patch)]);
+            },
+            cancel.Token);
+
+        var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+
+        await Assert.That(new OwnerLink(host, server.Port, _ => { }).Pump()).IsTrue();
+
+        await Assert.That(host.State.Queue).HasSingleItem();
+        cancel.Cancel();
+        _ = listening;
+    }
+
+    /// <summary>
     /// The owner has no window of its own, so raising, hiding and closing come back on a listing
     /// rather than being pushed at a port this process does not hold.
     /// </summary>

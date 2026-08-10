@@ -176,7 +176,7 @@ static class MenuBuilder
         {
             yield return new MenuButton(
                 $"Pending Snapshots ({snapshots.Count}):",
-                tracker.AcceptAllSnapshots,
+                () => tracker.AcceptAllSnapshots(),
                 Images.Accept);
             foreach (var snapshot in snapshots)
             {

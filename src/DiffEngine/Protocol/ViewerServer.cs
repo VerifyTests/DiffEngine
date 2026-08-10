@@ -56,10 +56,10 @@ sealed class ViewerServer : IDisposable
         using var registration = cancel.Register(listener.Stop);
         while (!cancel.IsCancellationRequested)
         {
+            TcpClient client;
             try
             {
-                using var client = await Accept(cancel);
-                await Handle(client, handle, cancel);
+                client = await Accept(cancel);
             }
             catch (OperationCanceledException)
             {
@@ -79,10 +79,11 @@ sealed class ViewerServer : IDisposable
             {
                 return;
             }
-            catch (IOException)
-            {
-                // A client disconnected part way through. Keep serving.
-            }
+
+            // Each connection on its own task, so one slow exchange does not stop the next from
+            // being answered. Accepting an inline snapshot legitimately takes seconds, and a
+            // client whose listing goes unanswered for that long concludes the owner has died.
+            _ = Task.Run(() => Handle(client, handle, cancel), CancellationToken.None);
         }
     }
 
@@ -100,25 +101,57 @@ sealed class ViewerServer : IDisposable
 
     static async Task Handle(TcpClient client, Func<ViewerMessage, ViewerResponse> handle, Cancel cancel)
     {
-        using var stream = client.GetStream();
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        try
+        {
+            using (client)
+            {
+                using var stream = client.GetStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
 #if NET7_0_OR_GREATER
-        var text = await reader.ReadToEndAsync(cancel);
+                var text = await reader.ReadToEndAsync(cancel);
 #else
-        var text = await reader.ReadToEndAsync();
+                var text = await reader.ReadToEndAsync();
 #endif
 
-        var response = ViewerMessage.TryParse(text, out var message)
-            ? handle(message)
-            : ViewerResponse.Error("Unreadable request");
-
-        var bytes = Encoding.UTF8.GetBytes(response.Build());
+                var response = Respond(handle, text);
+                var bytes = Encoding.UTF8.GetBytes(response.Build());
 #if NET6_0_OR_GREATER
-        await stream.WriteAsync(bytes, cancel);
+                await stream.WriteAsync(bytes, cancel);
 #else
-        await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
+                await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
 #endif
-        await stream.FlushAsync(cancel);
+                await stream.FlushAsync(cancel);
+            }
+        }
+        catch (Exception exception)
+            when (exception is
+                IOException or
+                SocketException or
+                ObjectDisposedException or
+                OperationCanceledException)
+        {
+            // A client that vanished mid exchange, or shutdown arriving midway. Nothing left to
+            // answer, and nothing the owner of the queue needs to hear about.
+        }
+    }
+
+    static ViewerResponse Respond(Func<ViewerMessage, ViewerResponse> handle, string text)
+    {
+        if (!ViewerMessage.TryParse(text, out var message))
+        {
+            return ViewerResponse.Error("Unreadable request");
+        }
+
+        try
+        {
+            return handle(message);
+        }
+        catch (Exception exception)
+        {
+            // Answered rather than thrown: the connection runs on an untracked task, so a throwing
+            // handler would otherwise vanish silently and leave the client waiting out its timeout.
+            return ViewerResponse.Error(exception.Message);
+        }
     }
 
     public void Dispose() =>

@@ -211,21 +211,34 @@ class Tracker :
     /// <summary>
     /// Applies the snapshot wherever the queue lives: here when this tray owns it, and in the
     /// viewer when one bound the port first.
+    /// <para>
+    /// On a worker, because this is called from a menu click and applying can wait ten seconds on
+    /// InlineApplier's cross process mutex. The task is returned for tests; the menu discards it,
+    /// and the balloon channel carries any failure back.
+    /// </para>
     /// </summary>
-    public void Accept(PendingSnapshot snapshot)
-    {
-        if (inline.Accept(snapshot, out var message))
+    public Task Accept(PendingSnapshot snapshot) =>
+        Task.Run(() =>
         {
-            Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
-        }
-        else
-        {
-            Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
-            inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
-        }
+            try
+            {
+                if (inline.Accept(snapshot, out var message))
+                {
+                    Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
+                }
+                else
+                {
+                    Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
+                    inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                }
 
-        Refresh();
-    }
+                Refresh();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle($"Failed to accept the snapshot for '{snapshot.Name}'", exception);
+            }
+        });
 
     public void Discard(PendingSnapshot snapshot)
     {
@@ -237,21 +250,31 @@ class Tracker :
         Refresh();
     }
 
-    public void AcceptAllSnapshots()
+    public Task AcceptAllSnapshots()
     {
         // Live read, not the scan cache: this can be called before the first scan, and acting on
         // a stale empty cache would silently do nothing.
         if (Snapshots.Count == 0)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        if (!inline.AcceptAll(out var message))
+        return Task.Run(() =>
         {
-            inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
-        }
+            try
+            {
+                if (!inline.AcceptAll(out var message))
+                {
+                    inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
+                }
 
-        Refresh();
+                Refresh();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle("Failed to accept the pending snapshots", exception);
+            }
+        });
     }
 
     /// <summary>

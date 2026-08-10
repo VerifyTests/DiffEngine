@@ -7,9 +7,11 @@
 /// stops meaning "keep a 52 MB process resident purely as a data store".
 /// </para>
 /// <para>
-/// Accepting runs here, on a listener thread. That matters: InlineApplier takes a cross process
-/// mutex and can wait ten seconds for it, and everywhere else it could have run is a UI or render
-/// thread that has to keep pumping.
+/// Accepting runs here, never on a UI or render thread: the listener thread for socket driven
+/// accepts, and a worker the tray spins up for menu clicks. The patch is applied outside the gate
+/// as well, because InlineApplier can wait ten seconds on its cross process mutex, and holding the
+/// gate that long would stall every listing the attached viewer polls for — which it reads as the
+/// owner having died.
 /// </para>
 /// <para>
 /// A tray restart still loses the queue, exactly as it loses tracked moves and deletes. The
@@ -25,16 +27,22 @@ sealed class OwnedInlineHost :
     readonly Task listening;
     readonly Action<string> failed;
     readonly IViewerLauncher launcher;
+    readonly Func<InlinePatch, InlineApplyResult> applier;
     readonly Lock gate = new();
     InlineQueue queue = InlineQueue.Empty;
     WindowCommand? window;
     string? windowKey;
 
-    OwnedInlineHost(ViewerServer server, Action<string> failed, IViewerLauncher launcher)
+    OwnedInlineHost(
+        ViewerServer server,
+        Action<string> failed,
+        IViewerLauncher launcher,
+        Func<InlinePatch, InlineApplyResult> applier)
     {
         this.server = server;
         this.failed = failed;
         this.launcher = launcher;
+        this.applier = applier;
         listening = server.Listen(Handle, cancel.Token);
     }
 
@@ -42,16 +50,18 @@ sealed class OwnedInlineHost :
     /// Null when the bind failed, which means a viewer started first and owns the queue for as
     /// long as it runs. The caller falls back to <see cref="RemoteInlineHost"/>.
     /// <para>
-    /// <paramref name="port"/> and <paramref name="launcher"/> are for tests, which need an
-    /// ephemeral port so a live tray on the machine is not in the way, and no real window.
+    /// <paramref name="port"/>, <paramref name="launcher"/> and <paramref name="applier"/> are for
+    /// tests, which need an ephemeral port so a live tray on the machine is not in the way, no
+    /// real window, and an apply that can be made slow or refused without arranging a locked file.
     /// </para>
     /// </summary>
     public static OwnedInlineHost? TryOwn(
         Action<string> failed,
         IViewerLauncher? launcher = null,
-        int? port = null) =>
+        int? port = null,
+        Func<InlinePatch, InlineApplyResult>? applier = null) =>
         ViewerServer.TryBind(port ?? ViewerClient.Port, out var server)
-            ? new(server, failed, launcher ?? new ProcessViewerLauncher())
+            ? new(server, failed, launcher ?? new ProcessViewerLauncher(), applier ?? InlineApplier.Apply)
             : null;
 
     public int Port => server.Port;
@@ -74,14 +84,11 @@ sealed class OwnedInlineHost :
 
     public bool Accept(PendingSnapshot snapshot, out string? message)
     {
-        lock (gate)
-        {
-            // Gone means applied, already applied, or a patch too stale to ever apply. A failure
-            // keeps its entry and says why, so nothing is lost either way.
-            var before = queue.Count;
-            queue = queue.Accept(snapshot.Key, InlineApplier.Apply, out message);
-            return queue.Count < before;
-        }
+        // Gone means applied, already applied, or a patch too stale to ever apply. A failure
+        // keeps its entry and says why, so nothing is lost either way.
+        var (removed, outcome) = AcceptOne(snapshot.Key);
+        message = outcome;
+        return removed;
     }
 
     public bool Discard(PendingSnapshot snapshot, out string? message)
@@ -96,10 +103,11 @@ sealed class OwnedInlineHost :
 
     public bool AcceptAll(out string? message)
     {
+        message = AcceptEvery();
         lock (gate)
         {
-            queue = queue.AcceptAll(InlineApplier.Apply, out var outcome);
-            message = outcome;
+            // A snapshot that arrived while the batch was applying is still pending, and saying
+            // "could not accept everything" is then the truth.
             return queue.Count == 0;
         }
     }
@@ -230,16 +238,28 @@ sealed class OwnedInlineHost :
         }
 
         string? message;
-        lock (gate)
+        if (verb == ViewerVerb.Accept)
         {
-            if (queue.Find(key) is null)
+            var (removed, outcome) = AcceptOne(key);
+            if (!removed &&
+                outcome is null)
             {
                 return ViewerResponse.Error($"No pending snapshot for {key}");
             }
 
-            queue = verb == ViewerVerb.Accept
-                ? queue.Accept(key, InlineApplier.Apply, out message)
-                : queue.Discard(key, out message);
+            message = outcome;
+        }
+        else
+        {
+            lock (gate)
+            {
+                if (queue.Find(key) is null)
+                {
+                    return ViewerResponse.Error($"No pending snapshot for {key}");
+                }
+
+                queue = queue.Discard(key, out message);
+            }
         }
 
         Changed?.Invoke();
@@ -249,15 +269,69 @@ sealed class OwnedInlineHost :
     ViewerResponse Every(ViewerVerb verb)
     {
         string message;
-        lock (gate)
+        if (verb == ViewerVerb.AcceptAll)
         {
-            queue = verb == ViewerVerb.AcceptAll
-                ? queue.AcceptAll(InlineApplier.Apply, out message)
-                : queue.DiscardAll(out message);
+            message = AcceptEvery();
+        }
+        else
+        {
+            lock (gate)
+            {
+                queue = queue.DiscardAll(out message);
+            }
         }
 
         Changed?.Invoke();
         return ViewerResponse.Success(message);
+    }
+
+    /// <summary>
+    /// Find, apply, complete — with the patch applied outside the gate. Applying waits on
+    /// InlineApplier's cross process mutex, up to ten seconds, and everything else here queues
+    /// behind the gate: the menu, the listener, every listing the attached viewer polls for.
+    /// Completion re-checks the entry, so a re-run that replaced the patch mid apply keeps its
+    /// new entry.
+    /// </summary>
+    (bool removed, string? message) AcceptOne(string key)
+    {
+        PendingInline? entry;
+        lock (gate)
+        {
+            entry = queue.Find(key);
+        }
+
+        if (entry is null)
+        {
+            return (false, null);
+        }
+
+        var result = applier(entry.Patch);
+        lock (gate)
+        {
+            var before = queue.Count;
+            queue = queue.Accept(entry, result, out var message);
+            return (queue.Count < before, message);
+        }
+    }
+
+    string AcceptEvery()
+    {
+        IReadOnlyList<PendingInline> pending;
+        lock (gate)
+        {
+            pending = queue.Items;
+        }
+
+        // The list is immutable, so applying over it outside the gate is safe; the completion
+        // skips anything that changed underneath.
+        var outcomes = pending
+            .Select(_ => (_, applier(_.Patch)))
+            .ToList();
+        lock (gate)
+        {
+            queue = queue.AcceptAll(outcomes, out var message);
+            return message;
+        }
     }
 
     /// <summary>

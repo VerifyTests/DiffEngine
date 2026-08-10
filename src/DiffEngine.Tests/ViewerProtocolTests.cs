@@ -232,6 +232,80 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// Connections are handled concurrently, so one slow exchange does not stop the next from
+    /// being answered. Accepting an inline snapshot legitimately takes seconds, and a client
+    /// whose listing goes unanswered for that long concludes the owner has died.
+    /// </summary>
+    [Test]
+    public async Task ASlowExchangeDoesNotBlockTheNext()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancellationTokenSource();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var listening = server.Listen(
+            _ =>
+            {
+                if (_.Verb == ViewerVerb.Accept)
+                {
+                    entered.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                }
+
+                return ViewerResponse.Success($"heard {_.Verb}");
+            },
+            cancel.Token);
+
+        try
+        {
+            var accepting = Task.Run(() =>
+                ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, TimeSpan.FromSeconds(15))
+                    ? slow
+                    : null);
+            entered.Wait(TimeSpan.FromSeconds(5));
+
+            // Default timeout, while the accept is still held open.
+            var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
+
+            await Assert.That(sent).IsTrue();
+            await Assert.That(response!.Message).IsEqualTo("heard List");
+
+            release.Set();
+            var accepted = await accepting;
+            await Assert.That(accepted!.Message).IsEqualTo("heard Accept");
+        }
+        finally
+        {
+            release.Set();
+            cancel.Cancel();
+            await Wait(listening);
+        }
+    }
+
+    /// <summary>
+    /// Connections run on untracked tasks, so a throwing handler is answered as an error rather
+    /// than vanishing silently and leaving the client to wait out its timeout.
+    /// </summary>
+    [Test]
+    public async Task AThrowingHandlerAnswersAnError()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancellationTokenSource();
+        var listening = server.Listen(_ => throw new("the handler is broken"), cancel.Token);
+
+        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
+
+        await Assert.That(sent).IsTrue();
+        await Assert.That(response!.Ok).IsFalse();
+        await Assert.That(response.Message).IsEqualTo("the handler is broken");
+
+        cancel.Cancel();
+        await Wait(listening);
+    }
+
+    /// <summary>
     /// The whole ownership model: whoever binds owns the queue, and nobody else can.
     /// </summary>
     [Test]

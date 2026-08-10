@@ -98,53 +98,93 @@ public sealed class InlineQueue
             return this;
         }
 
-        var (removed, outcome) = Apply(entry, apply);
+        return Accept(entry, apply(entry.Patch), out message);
+    }
+
+    /// <summary>
+    /// The second half of an accept whose patch was applied outside the host's lock. Applying can
+    /// wait ten seconds on a cross process mutex, and a host that held its lock for that long
+    /// would stall every listing behind one file operation.
+    /// <para>
+    /// Ignored, returning this same queue, when the entry was replaced or removed while the patch
+    /// was applying: the outcome describes a patch that is no longer here, and says nothing about
+    /// the one that is.
+    /// </para>
+    /// </summary>
+    public InlineQueue Accept(PendingInline entry, InlineApplyResult result, out string? message)
+    {
+        var current = Find(entry.Key);
+        if (current is null ||
+            !ReferenceEquals(current.Patch, entry.Patch))
+        {
+            message = null;
+            return this;
+        }
+
+        var (removed, outcome) = Outcome(current, result);
         message = outcome;
         var items = Items.ToList();
-        var index = items.FindIndex(_ => _.Key == key);
+        var index = items.FindIndex(_ => _.Key == entry.Key);
         if (removed)
         {
             items.RemoveAt(index);
         }
         else
         {
-            items[index] = entry with { Status = outcome };
+            items[index] = current with { Status = outcome };
         }
 
         return new(items);
     }
 
-    public InlineQueue AcceptAll(Func<InlinePatch, InlineApplyResult> apply, out string message)
+    public InlineQueue AcceptAll(Func<InlinePatch, InlineApplyResult> apply, out string message) =>
+        AcceptAll(Items.Select(_ => (_, apply(_.Patch))).ToList(), out message);
+
+    /// <summary>
+    /// The batch counterpart of <see cref="Accept(PendingInline, InlineApplyResult, out string)"/>.
+    /// An item with no outcome, or whose patch was replaced while the batch was applying, was not
+    /// part of this accept and is kept untouched rather than counted as a failure.
+    /// </summary>
+    public InlineQueue AcceptAll(
+        IReadOnlyList<(PendingInline Entry, InlineApplyResult Result)> outcomes,
+        out string message)
     {
         var remaining = new List<PendingInline>();
         var accepted = 0;
+        var failed = 0;
         string? failure = null;
         foreach (var entry in Items)
         {
-            var (removed, outcome) = Apply(entry, apply);
+            var outcome = outcomes.FirstOrDefault(_ => ReferenceEquals(_.Entry.Patch, entry.Patch));
+            if (outcome.Entry is null)
+            {
+                remaining.Add(entry);
+                continue;
+            }
+
+            var (removed, text) = Outcome(entry, outcome.Result);
             if (removed)
             {
                 accepted++;
                 continue;
             }
 
-            failure = outcome;
-            remaining.Add(entry with { Status = outcome });
+            failed++;
+            failure = text;
+            remaining.Add(entry with { Status = text });
         }
 
         message = failure is null
             ? $"Accepted {accepted}"
-            : $"Accepted {accepted}, {remaining.Count} failed. {failure}";
+            : $"Accepted {accepted}, {failed} failed. {failure}";
         return new(remaining);
     }
 
     public PendingInline? Find(string key) =>
         Items.FirstOrDefault(_ => _.Key == key);
 
-    static (bool removed, string message) Apply(PendingInline entry, Func<InlinePatch, InlineApplyResult> apply)
-    {
-        var result = apply(entry.Patch);
-        return result.Status switch
+    static (bool removed, string message) Outcome(PendingInline entry, InlineApplyResult result) =>
+        result.Status switch
         {
             InlineApplyStatus.Applied => (true, $"Applied {entry.Name}"),
             InlineApplyStatus.AlreadyApplied => (true, $"Already applied {entry.Name}"),
@@ -153,5 +193,4 @@ public sealed class InlineQueue
             InlineApplyStatus.NotFound => (true, $"{entry.Name} source changed, re-run the test"),
             _ => (false, result.Message ?? $"Failed to apply {entry.Name}")
         };
-    }
 }

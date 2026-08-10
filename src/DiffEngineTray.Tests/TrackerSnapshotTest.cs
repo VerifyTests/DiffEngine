@@ -33,7 +33,7 @@ public class TrackerSnapshotTest
         await using var tracker = new RecordingTracker();
         var snapshot = tracker.Snapshots.Single(_ => _.Name == "Sample.cs:1");
 
-        tracker.Accept(snapshot);
+        await tracker.Accept(snapshot);
 
         await Assert.That(viewer.Verbs).Contains($"accept:{snapshot.Key}");
         await Assert.That(tracker.Snapshots.Count).IsEqualTo(1);
@@ -59,7 +59,7 @@ public class TrackerSnapshotTest
         using var viewer = new FakeViewer("Sample.cs:1", "Other.cs:1", "Third.cs:1");
         await using var tracker = new RecordingTracker();
 
-        tracker.AcceptAllSnapshots();
+        await tracker.AcceptAllSnapshots();
 
         await Assert.That(viewer.Verbs).Contains("acceptall");
         await Assert.That(tracker.Snapshots).IsEmpty();
@@ -71,7 +71,7 @@ public class TrackerSnapshotTest
         using var viewer = new FakeViewer();
         await using var tracker = new RecordingTracker();
 
-        tracker.AcceptAllSnapshots();
+        await tracker.AcceptAllSnapshots();
 
         await Assert.That(viewer.Verbs).DoesNotContain("acceptall");
     }
@@ -87,7 +87,7 @@ public class TrackerSnapshotTest
         await using var tracker = new RecordingTracker(inlineFailed: failures.Add);
         var snapshot = tracker.Snapshots.Single();
 
-        tracker.Accept(snapshot);
+        await tracker.Accept(snapshot);
 
         await Assert.That(failures).HasSingleItem();
         await Assert.That(failures[0]).Contains("Sample.cs:1");
@@ -111,7 +111,7 @@ public class TrackerSnapshotTest
 
         var failures = new List<string>();
         await using var tracker = new RecordingTracker(inlineFailed: failures.Add);
-        tracker.Accept(snapshot);
+        await tracker.Accept(snapshot);
 
         await Assert.That(failures).HasSingleItem();
         await Assert.That(failures[0]).Contains("not running");

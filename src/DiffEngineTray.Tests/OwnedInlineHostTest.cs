@@ -24,8 +24,8 @@ public class OwnedInlineHostTest
 
     sealed class Owner : IDisposable
     {
-        public Owner() =>
-            Host = OwnedInlineHost.TryOwn(Warnings.Add, Launcher, 0) ??
+        public Owner(Func<InlinePatch, InlineApplyResult>? applier = null) =>
+            Host = OwnedInlineHost.TryOwn(Warnings.Add, Launcher, 0, applier) ??
                    throw new("Could not bind an ephemeral port.");
 
         public OwnedInlineHost Host { get; }
@@ -207,6 +207,88 @@ public class OwnedInlineHostTest
         await Assert.That(discarded).IsTrue();
         await Assert.That(message).IsEqualTo("Discarded SampleTests.cs:42");
         await Assert.That(owner.Host.List()).IsEmpty();
+    }
+
+    /// <summary>
+    /// The wedge this exists to prevent: applying can wait ten seconds on InlineApplier's cross
+    /// process mutex, and the attached viewer polls a listing on a three second timeout, reading
+    /// silence as the owner having died. So a listing must be answered while an accept is mid
+    /// apply — which takes both the apply running outside the gate and the server handling
+    /// connections concurrently.
+    /// </summary>
+    [Test]
+    public async Task AListingIsAnsweredWhileAnAcceptIsApplying()
+    {
+        using var applying = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var owner = new Owner(_ =>
+        {
+            applying.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+            return InlineApplyResult.Applied;
+        });
+        try
+        {
+            owner.Queue();
+            var snapshot = owner.Host.List().Single();
+
+            var accepting = Task.Run(() => owner.Send(new(ViewerVerb.Accept, snapshot.Key)));
+            applying.Wait(TimeSpan.FromSeconds(5));
+
+            // On the default three second client timeout, so a listing that queued behind the
+            // accept, on the gate or on the socket, fails here rather than passing slowly.
+            var listing = owner.Send(new(ViewerVerb.ListFull));
+
+            await Assert.That(listing.Ok).IsTrue();
+            await Assert.That(listing.Items).HasSingleItem();
+
+            release.Set();
+            var accepted = await accepting;
+            await Assert.That(accepted.Ok).IsTrue();
+            await Assert.That(accepted.Message).IsEqualTo("Applied SampleTests.cs:42");
+            await Assert.That(owner.Host.List()).IsEmpty();
+        }
+        finally
+        {
+            // Never leave the applier blocked when an assertion throws.
+            release.Set();
+        }
+    }
+
+    /// <summary>
+    /// A re-run finishing while its old patch is mid apply must keep the new entry: the outcome
+    /// describes the old patch and says nothing about the one that replaced it.
+    /// </summary>
+    [Test]
+    public async Task AReplacedEntrySurvivesTheAcceptItInterrupted()
+    {
+        using var applying = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var owner = new Owner(_ =>
+        {
+            applying.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+            return InlineApplyResult.Applied;
+        });
+        try
+        {
+            owner.Queue();
+            var snapshot = owner.Host.List().Single();
+            var accepting = Task.Run(() => owner.Send(new(ViewerVerb.Accept, snapshot.Key)));
+            applying.Wait(TimeSpan.FromSeconds(5));
+
+            // The same call site again, mid apply, as a re-run of the test would send it.
+            owner.Queue();
+            release.Set();
+            var accepted = await accepting;
+
+            await Assert.That(accepted.Ok).IsFalse();
+            await Assert.That(owner.Host.List()).HasSingleItem();
+        }
+        finally
+        {
+            release.Set();
+        }
     }
 
     /// <summary>

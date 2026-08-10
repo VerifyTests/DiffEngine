@@ -20,6 +20,15 @@ sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
     /// </summary>
     public static TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(200);
 
+    /// <summary>
+    /// Sized to outlast a slow reply, not to detect absence. A dead owner refuses the connection
+    /// in milliseconds, so failure still means gone almost immediately; a reply can legitimately
+    /// take ten seconds, because accepting waits on InlineApplier's cross process mutex, and a
+    /// wait shorter than that would read a busy owner as a dead one and close the window under
+    /// the user.
+    /// </summary>
+    public static TimeSpan Wait { get; set; } = TimeSpan.FromSeconds(15);
+
     readonly ConcurrentQueue<Outbound> outbound = new();
 
     record Outbound(ViewerVerb Verb, string? Key);
@@ -45,7 +54,7 @@ sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
             message = Send(command);
         }
 
-        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port) ||
+        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port, Wait) ||
             !response.Ok)
         {
             return false;
@@ -97,7 +106,9 @@ sealed class OwnerLink(SessionHost host, int port, Action<WindowCommand> window)
 
     string Send(Outbound command)
     {
-        if (!ViewerClient.TrySend(new(command.Verb, command.Key), out var response, port))
+        // The long wait matters most here: an accept is the command that takes ten seconds, and
+        // failing it at three used to report the owner dead while it was mid apply.
+        if (!ViewerClient.TrySend(new(command.Verb, command.Key), out var response, port, Wait))
         {
             return "The queue owner is no longer running.";
         }
