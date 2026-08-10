@@ -213,12 +213,12 @@
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
-            var taskA = InlineApplier.ApplyAsync(new(path, 3, "\"oldA\"", "newA"));
-            var taskB = InlineApplier.ApplyAsync(new(path, 4, "\"oldB\"", "newB"));
+            var taskA = Task.Run(() => InlineApplier.Apply(new(path, 3, "\"oldA\"", "newA")));
+            var taskB = Task.Run(() => InlineApplier.Apply(new(path, 4, "\"oldB\"", "newB")));
             var results = await Task.WhenAll(taskA, taskB);
             await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(results[1].Status).IsEqualTo(InlineApplyStatus.Applied);
-            var text = File.ReadAllText(path);
+            var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).Contains("newA");
             await Assert.That(text).Contains("newB");
         }
@@ -254,8 +254,8 @@
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
-            var taskA = InlineApplier.ApplyAsync(new(path, 3, "\"old\"", "same"));
-            var taskB = InlineApplier.ApplyAsync(new(path, 4, "\"old\"", "same"));
+            var taskA = Task.Run(() => InlineApplier.Apply(new(path, 3, "\"old\"", "same")));
+            var taskB = Task.Run(() => InlineApplier.Apply(new(path, 4, "\"old\"", "same")));
             var results = await Task.WhenAll(taskA, taskB);
 
             await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);

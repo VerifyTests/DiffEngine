@@ -145,7 +145,7 @@ static class ViewerProgram
             cancel.Token);
         var polling = link is null
             ? null
-            : Task.Run(() => link.Run(cancel.Token), CancellationToken.None);
+            : Task.Run(() => link.Run(cancel.Token), Cancel.None);
 
         using (window)
         {

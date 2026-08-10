@@ -1,6 +1,4 @@
 extern alias engine;
-
-using EnginePatch = engine::DiffEngine.InlinePatch;
 using EnginePatchMode = engine::DiffEngine.InlinePatchMode;
 using EngineResult = engine::DiffEngine.InlineResult;
 using EngineRunner = engine::DiffEngine.DiffRunner;

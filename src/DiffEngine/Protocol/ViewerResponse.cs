@@ -48,6 +48,7 @@ record ViewerResponse(
         if (Window is not null)
         {
             // Plain, like `verb` and `status`. Only the encoded fields can carry snapshot text.
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
             builder.Append($"window: {Window.ToString()!.ToLowerInvariant()}\n");
             ViewerPayload.Append(builder, "windowKey", WindowKey);
         }

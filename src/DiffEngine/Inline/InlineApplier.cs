@@ -9,9 +9,6 @@ public static class InlineApplier
 {
     static readonly ConcurrentDictionary<string, object> gates = new(StringComparer.OrdinalIgnoreCase);
 
-    public static Task<InlineApplyResult> ApplyAsync(InlinePatch patch, Cancel cancel = default) =>
-        Task.Run(() => Apply(patch), cancel);
-
     public static InlineApplyResult Apply(InlinePatch patch)
     {
         if (string.IsNullOrWhiteSpace(patch.SourceFile))

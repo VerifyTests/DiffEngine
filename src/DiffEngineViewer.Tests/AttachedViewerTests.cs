@@ -162,6 +162,7 @@ public class AttachedViewerTests
         using var server = bound!;
         using var cancel = new CancelSource();
         var patch = InlinePatchFile.Build(Fixtures.Patch());
+        // ReSharper disable once UnusedVariable
         var listening = server.Listen(
             _ => ViewerResponse.Listing([new("key", "SampleTests.cs:42", null, patch)], WindowCommand.Focus),
             cancel.Token);

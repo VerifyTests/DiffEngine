@@ -87,6 +87,7 @@ sealed class ViewerServer : IDisposable
         }
     }
 
+    // ReSharper disable once ReplaceAsyncWithTaskReturn
     async Task<TcpClient> Accept(Cancel cancel)
     {
 #if NET6_0_OR_GREATER
