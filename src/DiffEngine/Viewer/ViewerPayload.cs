@@ -35,11 +35,8 @@ static class ViewerPayload
     public static string Settle(string sourceFile, int line) =>
         Build("settle", Key(sourceFile, line));
 
-    /// <summary>
-    /// Must match QueueEntry.KeyForInline in the viewer.
-    /// </summary>
     public static string Key(string sourceFile, int line) =>
-        $"{sourceFile.ToLowerInvariant()}|{line}";
+        InlineKey.For(sourceFile, line);
 
     static string Encode(string value) =>
         Convert.ToBase64String(Encoding.UTF8.GetBytes(value));

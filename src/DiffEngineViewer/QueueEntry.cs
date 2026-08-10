@@ -25,11 +25,8 @@ record QueueEntry(
     public IReadOnlyList<Row> RightRows => rows.Right;
     public int TotalRows => rows.Left.Count;
 
-    /// <summary>
-    /// Identity for replace-in-place and settle. A re-run of the same test produces the same key.
-    /// </summary>
     public static string KeyForInline(string sourceFile, int line) =>
-        $"{sourceFile.ToLowerInvariant()}|{line}";
+        InlineKey.For(sourceFile, line);
 
     public static QueueEntry ForInline(InlinePatch patch)
     {
