@@ -24,6 +24,32 @@
   </ItemGroup>
 
   <!--
+  Ordering only. PublishViewerHeads shells out to dotnet publish for the viewer, so without this
+  a solution build can have two processes building that project at once.
+
+  Every piece of metadata here is load bearing: the viewer is an Exe whose output carries six
+  native renderers as content, and all of it would otherwise be copied into DiffEngine's output,
+  then on into DiffEngineTray, whose PackAsTool payload is its entire publish directory. That is
+  what a solution level BuildDependency used to do, silently.
+
+  Restricted to one target framework because the viewer only has one, and DiffEngine has eight.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+    <ProjectReference Include="..\DiffEngineViewer.Mac\DiffEngineViewer.Mac.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+    <ProjectReference Include="..\DiffEngineViewer.Linux\DiffEngineViewer.Linux.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+  </ItemGroup>
+
+  <!--
   Bundles DiffEngineViewer so inline snapshots work out of the box, with no second install.
 
   One framework dependent publish per RID, which gives a real apphost per platform and avoids
@@ -38,32 +64,39 @@
     <GenerateNuspecDependsOn Condition="'$(BundleViewer)' == 'true'">AddViewerToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
   </PropertyGroup>
 
+  <!--
+  Each RID names the head that renders on it. Every head produces a DiffEngineViewer apphost, so
+  tools/viewer keeps one shape and BundledViewerDirectory does not know any of this happened.
+
+  Native is false for Windows because WinForms is the renderer there, which is the whole reason
+  that head exists.
+  -->
   <ItemGroup>
-    <ViewerRid Include="win-x64" />
-    <ViewerRid Include="win-arm64" />
-    <ViewerRid Include="linux-x64" />
-    <ViewerRid Include="linux-arm64" />
-    <ViewerRid Include="osx-x64" />
-    <ViewerRid Include="osx-arm64" />
+    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" Native="false" />
+    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" Native="false" />
+    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" Native="true" />
+    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" Native="true" />
+    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" Native="true" />
+    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" Native="true" />
   </ItemGroup>
 
   <Target Name="PublishViewerHeads" Condition="'$(BundleViewer)' == 'true'">
     <RemoveDir Directories="$(ViewerStageDir)" />
-    <Warning Condition="!Exists('$(MSBuildThisFileDirectory)..\DiffEngineViewer\runtimes\%(ViewerRid.Identity)\native')"
+    <Warning Condition="'%(ViewerRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\runtimes\%(ViewerRid.Identity)\native')"
              Code="DE0001"
              Text="No native renderer for %(ViewerRid.Identity). The package will not work on that platform. Run the build-native workflow." />
     <!--
     A separate process per RID rather than the MSBuild task. Each publish needs its own restore,
     and Restore plus Publish in one MSBuild task invocation do not see each other's results
-    because the evaluated project is cached. Declaring RuntimeIdentifiers on the viewer instead
+    because the evaluated project is cached. Declaring RuntimeIdentifiers on a head instead
     would avoid the restores, but combined with PackAsTool it empties the tools/net10.0/any
-    payload of the viewer's own standalone package.
+    payload of that head's own standalone package.
 
     GeneratePackageOnBuild is switched off for these. ProjectDefaults turns it on for every Release
-    project, so otherwise each per-RID publish would also pack the viewer and the last one would
+    project, so otherwise each per-RID publish would also pack its head and the last one would
     leave behind a RID-specific tool package.
     -->
-    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\DiffEngineViewer\DiffEngineViewer.csproj&quot; --configuration $(Configuration) --runtime %(ViewerRid.Identity) --self-contained false --output &quot;$(ViewerStageDir)%(ViewerRid.Identity)&quot; -p:GeneratePackageOnBuild=false"
+    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\%(ViewerRid.Head).csproj&quot; --configuration $(Configuration) --runtime %(ViewerRid.Identity) --self-contained false --output &quot;$(ViewerStageDir)%(ViewerRid.Identity)&quot; -p:GeneratePackageOnBuild=false"
           StandardOutputImportance="low" />
   </Target>
 

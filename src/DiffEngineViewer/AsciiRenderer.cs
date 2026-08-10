@@ -167,7 +167,7 @@ static class AsciiRenderer
     static string Fit(string text, int width)
     {
         // Tabs and stray newlines would break the grid, so flatten them before measuring.
-        var flat = Flatten(text);
+        var flat = RowText.Flatten(text);
         if (flat.Length == width)
         {
             return flat;
@@ -179,18 +179,5 @@ static class AsciiRenderer
         }
 
         return $"{flat.AsSpan(0, width - 1)}>";
-    }
-
-    static string Flatten(string text)
-    {
-        if (text.AsSpan().IndexOfAny('\t', '\r', '\n') < 0)
-        {
-            return text;
-        }
-
-        return text
-            .Replace("\t", "    ")
-            .Replace("\r", "")
-            .Replace("\n", " ");
     }
 }

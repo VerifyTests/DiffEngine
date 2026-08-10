@@ -1,7 +1,8 @@
 name: Build native
 
 # Produces the diffengine_viewer binaries committed under
-# src/DiffEngineViewer/runtimes/{rid}/native.
+# src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native, in the head that loads them. There is no
+# Windows equivalent: that head renders with WinForms.
 #
 # They are committed rather than built during a normal build so that a plain
 # `dotnet build src --configuration Release` produces a shippable package on any machine, and
@@ -34,12 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - rid: win-x64
-            os: windows-latest
-            generator: -A x64
-          - rid: win-arm64
-            os: windows-latest
-            generator: -A ARM64
+          # No Windows entries. That head renders with WinForms and loads no native library.
           - rid: linux-x64
             os: ubuntu-24.04
           - rid: linux-arm64
@@ -61,40 +57,83 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
 
       - name: Configure
-        shell: bash
-        run: |
-          if [ "${{ matrix.rid }}" = "osx" ]; then
-            cmake -S native -B build -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          elif [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -S native -B build ${{ matrix.generator }}
-          else
-            cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          fi
+        if: matrix.rid != 'osx'
+        run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
+        if: matrix.rid != 'osx'
         run: cmake --build build --config Release
+
+      # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
+      # package rather than a CMake project. Both --arch flags in one invocation produce a
+      # universal binary, so there is no separate lipo step.
+      #
+      # Nothing of the Swift runtime is shipped: it has been part of macOS since 10.14.4, which is
+      # why this dylib is a fraction of the size of the one it replaced.
+      - name: Build
+        if: matrix.rid == 'osx'
+        run: swift build -c release --arch arm64 --arch x86_64 --package-path native/swift
 
       - name: Collect
         shell: bash
         run: |
+          # Laid out as src/{head}/runtimes/{rid}/native, so the propose job below can merge every
+          # artifact straight into src and the binaries land in the head that loads them.
           collect() {
-            mkdir -p "artifacts/$1/native"
-            cp "$2" "artifacts/$1/native/"
+            mkdir -p "artifacts/$1/runtimes/$2/native"
+            cp "$3" "artifacts/$1/runtimes/$2/native/"
           }
           case "${{ matrix.rid }}" in
-            win-*)
-              collect "${{ matrix.rid }}" build/Release/diffengine_viewer.dll
-              ;;
             linux-*)
               strip build/libdiffengine_viewer.so
-              collect "${{ matrix.rid }}" build/libdiffengine_viewer.so
+              collect DiffEngineViewer.Linux "${{ matrix.rid }}" build/libdiffengine_viewer.so
               ;;
             osx)
-              strip -x build/libdiffengine_viewer.dylib
+              # swift build leaves a per architecture dylib in more than one place, so taking the
+              # first one found gives a single slice binary that loads on half the Macs in the
+              # world. Every candidate is checked, and if none is already universal they are
+              # merged, so the only thing that can be collected is a fat binary.
+              # The dSYM contains a DWARF file of the same name which is also universal, so the
+              # arch check below would happily accept it and ship debug symbols as the library.
+              candidates=$(find native/swift/.build -name libdiffengine_viewer.dylib -not -path '*.dSYM/*')
+              if [ -z "$candidates" ]; then
+                echo "::error::swift build produced no libdiffengine_viewer.dylib"
+                exit 1
+              fi
+
+              echo "$candidates" | while read -r candidate; do
+                echo "$candidate: $(lipo -archs "$candidate" 2>/dev/null)"
+              done
+
+              dylib=""
+              for candidate in $candidates; do
+                archs=$(lipo -archs "$candidate" 2>/dev/null || echo "")
+                if [[ "$archs" == *x86_64* && "$archs" == *arm64* ]]; then
+                  dylib="$candidate"
+                  break
+                fi
+              done
+
+              if [ -z "$dylib" ]; then
+                dylib=universal/libdiffengine_viewer.dylib
+                mkdir -p universal
+                # shellcheck disable=SC2086
+                lipo -create $candidates -output "$dylib"
+              fi
+
+              archs=$(lipo -archs "$dylib")
+              echo "collecting $dylib: $archs"
+              for arch in x86_64 arm64; do
+                case " $archs " in
+                  *" $arch "*) ;;
+                  *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+                esac
+              done
+
+              strip -x "$dylib"
               # The dylib is universal, so both macOS RIDs get the same file.
-              collect osx-x64 build/libdiffengine_viewer.dylib
-              collect osx-arm64 build/libdiffengine_viewer.dylib
+              collect DiffEngineViewer.Mac osx-x64 "$dylib"
+              collect DiffEngineViewer.Mac osx-arm64 "$dylib"
               ;;
           esac
           ls -lhR artifacts
@@ -133,11 +172,11 @@ jobs:
         with:
           pattern: native-*
           merge-multiple: true
-          path: src/DiffEngineViewer/runtimes
+          path: src
 
       - name: Show what changed
         run: |
-          ls -lhR src/DiffEngineViewer/runtimes
+          ls -lhR src/DiffEngineViewer.Linux/runtimes src/DiffEngineViewer.Mac/runtimes
           git status --short
 
       # A PR rather than a direct push: these are binaries, so the diff is not reviewable and the
@@ -151,7 +190,10 @@ jobs:
           title: 'Rebuild native renderer binaries'
           commit-message: 'Rebuild native renderer binaries'
           body: |
-            Rebuilt `diffengine_viewer` from `native/` for all six RIDs.
+            Rebuilt `diffengine_viewer` from `native/` for the four RIDs that load one.
+            Windows is not among them: that head renders with WinForms.
 
             Produced by the `build-native` workflow from ${{ github.sha }}.
-          add-paths: src/DiffEngineViewer/runtimes
+          add-paths: |
+            src/DiffEngineViewer.Linux/runtimes
+            src/DiffEngineViewer.Mac/runtimes

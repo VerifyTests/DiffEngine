@@ -23,11 +23,11 @@
   </Project>
   <Project Path="DiffEngine/DiffEngine.csproj">
     <!--
-    DiffEngine bundles the viewer into its package. Expressed here rather than as a
-    ProjectReference, because a reference from this multi-targeted project would try to build the
-    single TFM viewer once per DiffEngine target framework.
+    No BuildDependency on DiffEngineViewer. A solution level dependency is treated as a reference,
+    so the viewer's content items and config files landed in DiffEngine's output for all eight
+    target frameworks and flowed on into DiffEngineTray. Ordering is expressed as a reference in
+    DiffEngine.csproj instead, where it can be told not to copy anything.
     -->
-    <BuildDependency Project="DiffEngineViewer/DiffEngineViewer.csproj" />
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
   <Project Path="DiffEngine.Benchmarks/DiffEngine.Benchmarks.csproj">
@@ -36,8 +36,33 @@
   <Project Path="DiffEngineViewer/DiffEngineViewer.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngineViewer.Windows/DiffEngineViewer.Windows.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer.Windows.Tests/DiffEngineViewer.Windows.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!--
+    Targets net10.0-windows and opens real windows, so it neither builds nor runs off Windows.
+    The Windows head itself does build there, because DiffEngine bundles it for the win RIDs.
+    -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
+  <Project Path="DiffEngineViewer.Mac/DiffEngineViewer.Mac.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="DiffEngineViewer.Linux/DiffEngineViewer.Linux.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
+  <Project Path="Packaging.Tests/Packaging.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!--
+    Release-NotWindows drops DiffEngineTray, so its package would be missing and these baselines
+    would not describe a full release. Same reason publish-nuget.yml runs on windows-latest.
+    -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
   <Project Path="DiffEngineTray.Tests/DiffEngineTray.Tests.csproj">
     <BuildDependency Project="FakeDiffTool/FakeDiffTool.csproj" />

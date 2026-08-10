@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.Drawing" />
+    <Using Include="System.Windows.Forms" />
+    <!--
+    The core links DiffEngine's Inline sources, so InlinePatch and friends are in that namespace.
+    No alias needed here, unlike DiffEngineViewer.Tests: this project never references the real
+    DiffEngine assembly, so there is only one of each type in scope.
+    -->
+    <Using Include="DiffEngine" />
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="Verify.WinForms" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <ProjectReference Include="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj" />
+    <!--
+    Linked rather than shared through a helper package: the same fixtures back the ASCII snapshots,
+    so the WinForms baselines describe the same screens the text ones do.
+    -->
+    <Compile Include="..\DiffEngineViewer.Tests\Fixtures.cs" Link="Fixtures.cs" />
+  </ItemGroup>
+</Project>

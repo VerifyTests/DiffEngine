@@ -1,0 +1,15 @@
+﻿DiffEngineTray.nuspec
+[Content_Types].xml
+_rels/.rels
+icon.png
+nuget.md
+package/services/metadata/core-properties/{guid}.psmdcp
+tools/net10.0/any/DiffEngine.dll
+tools/net10.0/any/DiffEngine.xml
+tools/net10.0/any/DiffEngineTray.deps.json
+tools/net10.0/any/DiffEngineTray.dll
+tools/net10.0/any/DiffEngineTray.runtimeconfig.json
+tools/net10.0/any/DotnetToolSettings.xml
+tools/net10.0/any/EmptyFiles.dll
+tools/net10.0/any/Serilog.Sinks.File.dll
+tools/net10.0/any/Serilog.dll

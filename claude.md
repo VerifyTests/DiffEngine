@@ -46,30 +46,40 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
 - `ResolvedTool` - A diff tool that was found on the system with its resolved executable path.
 - `BuildServerDetector` - Detects CI/build server environments to disable diff tool launching.
 
-**DiffEngineViewer (`src/DiffEngineViewer/`):**
-- Cross platform GUI diff tool: Dear ImGui rendered through raylib. Reviews inline snapshots and
-  plain two-file diffs.
+**DiffEngineViewer (`src/DiffEngineViewer/` plus three heads):**
+- Cross platform GUI diff tool. Reviews inline snapshots and plain two-file diffs.
+- `src/DiffEngineViewer/` is a **library** (`DiffEngineViewer.Core.dll`) holding everything that is
+  not a renderer. `src/DiffEngineViewer.{Windows,Mac,Linux}/` are thin `Exe` heads, one package
+  each, all named `DiffEngineViewer` so the launcher can resolve the executable by name.
+- One package per OS rather than one portable one, because WinForms must be named as a framework
+  dependency and such a package cannot start on macOS or Linux.
 - Bundled inside DiffEngine.nupkg under `tools/viewer/{rid}/`, so inline snapshots work with no
-  extra install. Also shipped standalone as the `DiffEngineViewer` dotnet tool.
+  extra install. `DiffEngine.csproj` maps each RID to the head that renders on it.
 - `ViewerSession` is a pure state machine over an immutable `SessionState`. `ScreenBuilder`
   projects that into a `Screen` (already sliced to the visible rows), which `AsciiRenderer` draws
-  as text and the native shim draws as pixels. Both renderers consume the identical structure,
-  which is what makes the text snapshots meaningful.
+  as text and each `IViewerWindow` draws as pixels. Every renderer consumes the identical
+  structure, which is what makes the text snapshots meaningful and keeps three renderers honest.
+- `ViewerProgram.Run(args, OpenWindow)` owns the loop for all heads. A head is a `Main` that
+  chooses a renderer; nothing else about the app is per platform.
+- Windows renders with **WinForms** and loads no native library. It is pumped through
+  `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared.
+- macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
+  ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
 - Does **not** reference DiffEngine. It links `Inline/*.cs` and `Tray/TrayDetector.cs` as source,
-  because DiffEngine publishes and embeds the viewer and a reference back would be a cycle.
+  because DiffEngine publishes and embeds the heads and a reference back would be a cycle.
 - Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the window,
   and a process that fails to bind forwards its patch and exits.
 
-**Native shim (`native/`):**
+**Native shim (`native/`), used by the Mac and Linux heads only:**
 - `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in
   `native/CMakeLists.txt`. Deliberately not submodules: nothing in a normal `dotnet build` touches
   this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
 - Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
   any of that, because the binaries are committed.
-- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: ~12 exports
+- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: eight exports
   taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
-  `DEVIEW_VERSION` whenever the structs change.
-- Built binaries are **committed** to `src/DiffEngineViewer/runtimes/{rid}/native/`, so a plain
+  `DEVIEW_VERSION` whenever the structs change **or a field changes meaning**.
+- Built binaries are **committed** to `src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native/`, so a plain
   `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
   with the `build-native` GitHub workflow, which opens a PR.
 
@@ -81,6 +91,16 @@ DiffEngine is a library that manages launching and cleanup of diff tools for sna
   queue and the tray drives it over the same socket, so one queue and one set of semantics serve
   every platform rather than a Windows-only copy that can drift.
 - Allows accepting/discarding diffs from system tray
+
+**Packaging.Tests (`src/Packaging.Tests/`):**
+- Opens each `.nupkg` a Release build drops in `nugets` and snapshots its entry list, plus a few
+  invariants a snapshot states poorly: an apphost with no assembly beside it, a viewer file in the
+  tray package, an incomplete bundled head.
+- Exists because package content is assembled by several unrelated MSBuild mechanisms and nothing
+  else asserts the result. The failure mode it was written for is stale build output: `PackAsTool`
+  packages the publish directory wholesale, and MSBuild never removes a file that stopped being
+  produced, so anything a discarded experiment left in `bin` keeps shipping.
+- Windows only, and skipped entirely when no packages were produced, which is every Debug build.
 
 ### Adding a New Diff Tool
 

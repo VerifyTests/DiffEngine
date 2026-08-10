@@ -124,13 +124,37 @@ typedef struct DeviewInput {
     int32_t scrollDelta;
     /* Set when the user asked to close the window; the managed side decides hide versus exit. */
     int32_t closeRequested;
+    /*
+     * The window size in character cells, not pixels. Measured here from the font that was
+     * actually loaded, because this side is the only one that knows it. Reporting pixels and
+     * having the managed side divide by a constant is what left the viewer with no DPI handling.
+     */
     int32_t columns;
     int32_t rows;
 } DeviewInput;
 
 /*
- * Returns 1 on success. fontTtf may be NULL, in which case ImGui's built in font is used.
- * hidden starts the window offscreen, which the pixel snapshot tests rely on.
+ * Bumped whenever the structs above change, or what a field means changes, so a stale native
+ * library is detected not crashed.
+ *
+ * 2: DeviewInput.columns and rows carry character cells rather than pixels.
+ */
+#define DEVIEW_VERSION 2
+
+/*
+ * The Swift implementation imports this header for the struct layouts, because Swift does not
+ * guarantee its own, and then defines the entry points itself with @_cdecl. It defines
+ * DEVIEW_TYPES_ONLY so it does not also import prototypes for symbols it is about to provide.
+ */
+#ifndef DEVIEW_TYPES_ONLY
+
+/*
+ * Returns 1 on success. fontTtf may be NULL, in which case a built in font is used.
+ *
+ * hidden starts without a visible window, which the pixel snapshot tests rely on. An
+ * implementation may defer creating the window entirely until deview_set_hidden asks for one:
+ * capture does not need it, and on macOS a window may only be created on the main thread, which a
+ * test host does not promise.
  */
 DEVIEW_API int32_t deview_init(
     int32_t width,
@@ -159,9 +183,9 @@ DEVIEW_API void deview_focus(void);
 
 DEVIEW_API void deview_shutdown(void);
 
-/* Bumped whenever the structs above change, so a stale native library is detected not crashed. */
-#define DEVIEW_VERSION 1
 DEVIEW_API int32_t deview_version(void);
+
+#endif /* DEVIEW_TYPES_ONLY */
 
 #ifdef __cplusplus
 }
