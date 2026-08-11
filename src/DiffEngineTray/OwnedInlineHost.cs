@@ -75,6 +75,13 @@ sealed class OwnedInlineHost :
     public Action? Changed { get; set; }
 
     /// <summary>
+    /// The tray's tracked moves and deletes, wired before <see cref="Start"/> like
+    /// <see cref="Changed"/>, so the first listing answered already carries them. Null in tests
+    /// that only exercise the queue.
+    /// </summary>
+    public ITrackedFiles? TrackedFiles { get; set; }
+
+    /// <summary>
     /// Begin answering. Separate from <see cref="TryOwn"/>, because binding is the ownership claim
     /// and has to happen before anything else can take it, while serving cannot start until
     /// <see cref="Changed"/> is wired — a patch answered before then would light the icon only on
@@ -88,7 +95,9 @@ sealed class OwnedInlineHost :
     {
         lock (gate)
         {
-            return queue.Items
+            // Through the shared projection, so a conflicted entry reads the same here as it does
+            // to a remote tray listing over the wire.
+            return ViewerListing.Items(queue.Items, withPatches: false)
                 .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
                 .ToList();
         }
@@ -107,7 +116,7 @@ sealed class OwnedInlineHost :
 
     public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message)
     {
-        var (outcome, text) = AcceptOne(snapshot.Key);
+        var (outcome, text, _) = AcceptOne(snapshot.Key, null);
         message = text;
         return outcome;
     }
@@ -160,11 +169,11 @@ sealed class OwnedInlineHost :
         return count;
     }
 
-    void IQueueOwner.Settle(string key)
+    void IQueueOwner.Settle(string key, string? origin)
     {
         lock (gate)
         {
-            var settled = queue.Settle(key);
+            var settled = queue.Settle(key, origin);
             if (ReferenceEquals(settled, queue))
             {
                 return;
@@ -178,15 +187,15 @@ sealed class OwnedInlineHost :
 
     ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
+        // Read outside the gate: the tracked collections are concurrent, and only the full
+        // listing carries them — the plain listing drives the tray menu, which reads the tracker
+        // directly.
+        var tracked = withPatches ? TrackedFiles : null;
+        var moves = tracked?.Moves();
+        var deletes = tracked?.Deletes();
         lock (gate)
         {
-            var items = queue.Items
-                .Select(_ => new ViewerResponseItem(
-                    _.Key,
-                    _.Name,
-                    _.Status,
-                    withPatches ? InlinePatchFile.Build(_.Patch) : null))
-                .ToList();
+            var items = ViewerListing.Items(queue.Items, withPatches);
 
             // Taken rather than read, so a focus happens once, on whichever viewer refreshes
             // first, rather than five times a second forever.
@@ -194,32 +203,66 @@ sealed class OwnedInlineHost :
             var key = windowKey;
             window = null;
             windowKey = null;
-            return ViewerResponse.Listing(items, command, key);
+            return ViewerResponse.Listing(items, command, key, moves, deletes);
         }
     }
 
     bool IQueueOwner.Has(string key)
     {
+        if (TrackedKeys.IsTracked(key))
+        {
+            return TrackedFiles?.Has(key) ?? false;
+        }
+
         lock (gate)
         {
             return queue.Find(key) is not null;
         }
     }
 
-    (bool known, string? message) IQueueOwner.Accept(string key)
+    (bool ok, string? message) IQueueOwner.Accept(string key, string? origin)
     {
-        var (outcome, message) = AcceptOne(key);
+        if (TrackedKeys.IsTracked(key))
+        {
+            var result = TrackedFiles?.Accept(key) ?? (false, null);
+            if (result.ok)
+            {
+                Changed?.Invoke();
+            }
+
+            return result;
+        }
+
+        var (outcome, message, refused) = AcceptOne(key, origin);
         if (outcome == AcceptOutcome.Unknown)
         {
             return (false, null);
+        }
+
+        if (refused)
+        {
+            // Nothing changed and nothing was attempted; the message says what a reviewer has to
+            // do, and it goes on the wire as an error so a remote surface shows it as one.
+            return (false, message);
         }
 
         Changed?.Invoke();
         return (true, message);
     }
 
-    (bool known, string? message) IQueueOwner.Discard(string key)
+    (bool ok, string? message) IQueueOwner.Discard(string key)
     {
+        if (TrackedKeys.IsTracked(key))
+        {
+            var result = TrackedFiles?.Discard(key) ?? (false, null);
+            if (result.ok)
+            {
+                Changed?.Invoke();
+            }
+
+            return result;
+        }
+
         string? message;
         lock (gate)
         {
@@ -235,15 +278,32 @@ sealed class OwnedInlineHost :
         return (true, message);
     }
 
+    /// <summary>
+    /// The wire's accept-all sweeps everything this owner shows a viewer: tracked deletes and
+    /// moves as well as the snapshots, mirroring the tray menu's own "Accept all". Files first,
+    /// the order that menu has always used, and never through <see cref="Tracker.AcceptAll"/>,
+    /// whose snapshot half would re-enter this host and whose move path can prompt.
+    /// </summary>
     string IQueueOwner.AcceptAll()
     {
+        var tracked = TrackedFiles?.AcceptAll();
         var message = AcceptEvery();
         Changed?.Invoke();
-        return message;
+        if (tracked is not { } swept ||
+            swept is { accepted: 0, kept: 0 })
+        {
+            return message;
+        }
+
+        var clause = swept.kept == 0
+            ? $"{swept.accepted} files"
+            : $"{swept.accepted} files ({swept.kept} kept)";
+        return $"{message}, plus {clause}";
     }
 
     string IQueueOwner.DiscardAll()
     {
+        var tracked = TrackedFiles?.DiscardAll() ?? 0;
         string message;
         lock (gate)
         {
@@ -251,7 +311,7 @@ sealed class OwnedInlineHost :
         }
 
         Changed?.Invoke();
-        return message;
+        return tracked == 0 ? message : $"{message}, plus {tracked} files";
     }
 
     void IQueueOwner.Window(WindowCommand command, string? key)
@@ -274,21 +334,59 @@ sealed class OwnedInlineHost :
     /// behind the gate: the menu, the listener, every listing the attached viewer polls for.
     /// Completion re-checks the entry, so a re-run that replaced the patch mid apply keeps its
     /// new entry.
+    /// <para>
+    /// A conflicted entry with no origin to pick is refused before anything is applied: an
+    /// un-targeted accept has no honest way to choose a side. Refusals report as
+    /// <see cref="AcceptOutcome.Failed"/> so the menu path raises its balloon with the reason.
+    /// </para>
     /// </summary>
-    (AcceptOutcome outcome, string? message) AcceptOne(string key)
+    (AcceptOutcome outcome, string? message, bool refused) AcceptOne(string key, string? origin)
     {
         PendingInline? entry;
+        InlinePatch? patch = null;
+        string? refusal = null;
         lock (gate)
         {
             entry = queue.Find(key);
+            if (entry is not null)
+            {
+                if (origin is null)
+                {
+                    if (entry.Conflicted)
+                    {
+                        refusal = entry.ConflictRefusal;
+                    }
+                    else
+                    {
+                        patch = entry.Patch;
+                    }
+                }
+                else
+                {
+                    var variant = entry.Variants.FirstOrDefault(_ => _.Origins.Contains(origin));
+                    if (variant is null)
+                    {
+                        refusal = $"No {origin} variant for {entry.Name}";
+                    }
+                    else
+                    {
+                        patch = variant.Patch;
+                    }
+                }
+            }
         }
 
         if (entry is null)
         {
-            return (AcceptOutcome.Unknown, null);
+            return (AcceptOutcome.Unknown, null, false);
         }
 
-        var result = applier(entry.Patch);
+        if (refusal is not null)
+        {
+            return (AcceptOutcome.Failed, refusal, true);
+        }
+
+        var result = applier(patch!);
         string? message;
         lock (gate)
         {
@@ -300,7 +398,7 @@ sealed class OwnedInlineHost :
             // The completion was ignored: a re-run replaced this call site, or something else
             // took it, while the patch was applying. The patch did reach the file, but what is
             // pending now is a different one, so this outcome describes nothing the caller has.
-            return (AcceptOutcome.Unknown, null);
+            return (AcceptOutcome.Unknown, null, false);
         }
 
         // From the result rather than from whether the entry went, because a stale patch also
@@ -311,7 +409,7 @@ sealed class OwnedInlineHost :
             InlineApplyStatus.NotFound => AcceptOutcome.Stale,
             _ => AcceptOutcome.Failed
         };
-        return (outcome, message);
+        return (outcome, message, false);
     }
 
     string AcceptEvery()
@@ -323,8 +421,10 @@ sealed class OwnedInlineHost :
         }
 
         // The list is immutable, so applying over it outside the gate is safe; the completion
-        // skips anything that changed underneath.
+        // skips anything that changed underneath. Conflicted entries are never applied: the
+        // batch completion counts what it skipped into the message.
         var outcomes = pending
+            .Where(_ => !_.Conflicted)
             .Select(_ => (_, applier(_.Patch)))
             .ToList();
         lock (gate)

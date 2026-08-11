@@ -56,6 +56,9 @@ public static partial class DiffRunner
             return check;
         }
 
+        // Stamped here and nowhere else: the one place both the socket and stdin-launch paths
+        // share, and always the sending process, so a re-parsed patch keeps its birth framework.
+        patch.Framework ??= RuntimeMoniker.Current;
         var payload = InlinePatchFile.Build(patch);
         if (await ViewerClient.TrySendAsync(new(ViewerVerb.Inline, Body: payload), cancel))
         {
@@ -69,6 +72,10 @@ public static partial class DiffRunner
     /// <summary>
     /// Drops a pending inline snapshot from the viewer's queue, for when a previously failing test
     /// starts passing. Does nothing when no viewer is running.
+    /// <para>
+    /// Carries this process's framework so a multi-targeted run only settles its own variant of a
+    /// conflicted entry; the other framework's differing content stays pending.
+    /// </para>
     /// </summary>
     public static void SettleInline(string sourceFile, int line)
     {
@@ -77,7 +84,7 @@ public static partial class DiffRunner
             return;
         }
 
-        ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line)));
+        ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current));
     }
 
     static InlineResult CheckInline()

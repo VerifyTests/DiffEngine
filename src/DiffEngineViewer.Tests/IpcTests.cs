@@ -109,7 +109,7 @@ public class IpcTests
         foreach (var item in response.Items)
         {
             await Assert.That(InlinePatchFile.TryParse(item.Patch!, out var patch)).IsTrue();
-            await Assert.That(QueueEntry.ForInline(patch!).Name).IsEqualTo(item.Name);
+            await Assert.That(QueueEntry.ForInline(new(patch!)).Name).IsEqualTo(item.Name);
         }
     }
 
@@ -295,6 +295,28 @@ public class IpcTests
 
         await Assert.That(response.Ok).IsFalse();
         await Assert.That(fixture.Host.State.Queue).IsEmpty();
+    }
+
+    /// <summary>
+    /// A viewer owning the queue lists a conflicted entry the same way a tray owner does: the
+    /// primary on the entry line, the disagreeing content on variant lines. This is what lets a
+    /// second, attached viewer show the same conflict.
+    /// </summary>
+    [Test]
+    public async Task ListFullCarriesVariants()
+    {
+        using var fixture = new ServerFixture();
+        fixture.Send(Inline(Fixtures.Patch(content: "eight", framework: "net8.0")));
+        fixture.Send(Inline(Fixtures.Patch(content: "nine", framework: "net9.0")));
+
+        var response = fixture.Send(new(ViewerVerb.ListFull));
+
+        var item = response.Items.Single();
+        await Assert.That(item.Origins).IsEquivalentTo(["net8.0"]);
+        var variant = item.Variants.Single();
+        await Assert.That(variant.Origins).IsEquivalentTo(["net9.0"]);
+        await Assert.That(InlinePatchFile.TryParse(variant.Patch, out var patch)).IsTrue();
+        await Assert.That(patch!.NewContent).IsEqualTo("nine");
     }
 
     static ViewerMessage Inline(InlinePatch patch) =>

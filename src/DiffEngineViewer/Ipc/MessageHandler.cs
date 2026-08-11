@@ -13,54 +13,66 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
     int IQueueOwner.Enqueue(InlinePatch patch) =>
         host.Mutate(_ => ViewerSession.EnqueueInline(_, patch)).Queue.Count;
 
-    void IQueueOwner.Settle(string key) =>
-        host.Mutate(_ => ViewerSession.Settle(_, key));
+    void IQueueOwner.Settle(string key, string? origin) =>
+        host.Mutate(_ => ViewerSession.Settle(_, key, origin));
 
     /// <summary>
-    /// With patches, each item carries the payload it was queued from, so a viewer showing
-    /// someone else's queue can rebuild every pane locally and no diff has to cross the wire. A
-    /// file entry has no patch to send and is listed without one.
+    /// With patches, each item carries the payloads it was queued from — every variant of it —
+    /// so a viewer showing someone else's queue can rebuild every pane locally and no diff has
+    /// to cross the wire. Through the shared projection, so a conflicted entry lists identically
+    /// whichever process owns the queue.
     /// </summary>
     ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
-        var state = host.State;
-        var items = new List<ViewerResponseItem>(state.Queue.Count);
-        foreach (var entry in state.Queue)
-        {
-            var patch = withPatches && entry.Patch is not null
-                ? InlinePatchFile.Build(entry.Patch)
-                : null;
-            items.Add(new(entry.Key, entry.Name, entry.Status, patch));
-        }
-
+        var items = ViewerListing.Items(
+            host.State.Queue
+                .Where(_ => _.Kind == QueueEntryKind.Inline)
+                .Select(_ => new PendingInline(_.Variants, _.Status)),
+            withPatches);
         return ViewerResponse.Listing(items);
     }
 
     bool IQueueOwner.Has(string key) =>
         IndexOf(host.State, key) >= 0;
 
-    (bool known, string? message) IQueueOwner.Accept(string key) =>
-        Act(key, CommandKind.Accept);
+    (bool ok, string? message) IQueueOwner.Accept(string key, string? origin) =>
+        Act(key, CommandKind.Accept, origin);
 
-    (bool known, string? message) IQueueOwner.Discard(string key) =>
+    (bool ok, string? message) IQueueOwner.Discard(string key) =>
         Act(key, CommandKind.Discard);
 
-    (bool known, string? message) Act(string key, CommandKind command)
+    (bool ok, string? message) Act(string key, CommandKind command, string? origin = null)
     {
-        if (IndexOf(host.State, key) < 0)
+        var index = IndexOf(host.State, key);
+        if (index < 0)
         {
             return (false, null);
         }
 
+        // Refused before anything moves, and as a wire error, matching the tray owner: an
+        // un-targeted accept of a conflicted entry has no honest way to pick a side.
+        var entry = host.State.Queue[index];
+        if (command == CommandKind.Accept &&
+            origin is null &&
+            entry.Conflicted)
+        {
+            return (false, new PendingInline(entry.Variants, entry.Status).ConflictRefusal);
+        }
+
         var state = host.Mutate(_ =>
         {
-            var index = IndexOf(_, key);
-            if (index < 0)
+            var found = IndexOf(_, key);
+            if (found < 0)
             {
                 return _;
             }
 
-            var selected = ViewerSession.Apply(_, Command.Select(index));
+            var selected = ViewerSession.Apply(_, Command.Select(found));
+            if (origin is not null)
+            {
+                selected = ViewerSession.SelectVariant(selected, origin);
+            }
+
             return ViewerSession.Apply(selected, command, actions);
         });
 

@@ -284,7 +284,7 @@ public class ViewerSessionTests
             Fixtures.Patch("B.cs", 2, null, "b"));
         var onB = ViewerSession.Apply(state, CommandKind.NextItem);
 
-        var synced = ViewerSession.Sync(onB, Queue(Fixtures.Patch("B.cs", 2, null, "b")), null);
+        var synced = ViewerSession.Sync(onB, Queue(Fixtures.Patch("B.cs", 2, null, "b")), [], null);
 
         await Assert.That(synced.Selected).IsEqualTo(0);
         await Assert.That(synced.Current!.Name).IsEqualTo("B.cs:2");
@@ -302,7 +302,7 @@ public class ViewerSessionTests
         var scrolled = ViewerSession.Apply(state, CommandKind.PageDown);
         await Assert.That(scrolled.ScrollTop).IsGreaterThan(0);
 
-        var synced = ViewerSession.Sync(scrolled, Queue(Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true))), null);
+        var synced = ViewerSession.Sync(scrolled, Queue(Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true))), [], null);
 
         await Assert.That(synced.ScrollTop).IsEqualTo(scrolled.ScrollTop);
         await Assert.That(synced.Queue[0]).IsSameReferenceAs(scrolled.Queue[0]);
@@ -313,7 +313,7 @@ public class ViewerSessionTests
     {
         var state = Fixtures.Inline(Fixtures.Patch());
 
-        var synced = ViewerSession.Sync(state, InlineQueue.Empty, "Accepted 1");
+        var synced = ViewerSession.Sync(state, InlineQueue.Empty, [], "Accepted 1");
 
         await Assert.That(synced.Queue).IsEmpty();
         await Assert.That(synced.Exit).IsTrue();
@@ -332,5 +332,219 @@ public class ViewerSessionTests
 
         await Assert.That(quit.Exit).IsTrue();
         await Assert.That(quit.Queue.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// Grouping keeps a solution's entries contiguous, so an arrival for the first solution slots
+    /// beside its siblings rather than appending at the end.
+    /// </summary>
+    [Test]
+    public async Task EnqueueKeepsSolutionsContiguous()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 1),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 2),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "OtherTests.cs"), 3));
+
+        await Assert.That(state.Queue.Select(_ => _.Name))
+            .IsEquivalentTo(["ATests.cs:1", "OtherTests.cs:3", "BTests.cs:2"]);
+    }
+
+    /// <summary>
+    /// The reorder must not move the reader: selection follows its key through the shuffle.
+    /// </summary>
+    [Test]
+    public async Task SelectionFollowsItsKeyWhenGroupingReorders()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 1),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 2));
+        var onB = ViewerSession.Apply(state, CommandKind.NextItem);
+        await Assert.That(onB.Current!.Name).IsEqualTo("BTests.cs:2");
+
+        var arrived = ViewerSession.EnqueueInline(
+            onB,
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "OtherTests.cs"), 3));
+
+        await Assert.That(arrived.Current!.Name).IsEqualTo("BTests.cs:2");
+    }
+
+    /// <summary>
+    /// A test's several changes coalesce at its first member's position, which is what the test
+    /// sub-header renders over.
+    /// </summary>
+    [Test]
+    public async Task ATestsChangesCoalesce()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch("SampleTests.cs", 10, testName: "Compare handles nulls"),
+            Fixtures.Patch("OtherTests.cs", 20),
+            Fixtures.Patch("SampleTests.cs", 30, testName: "Compare handles nulls"));
+
+        await Assert.That(state.Queue.Select(_ => _.Name))
+            .IsEquivalentTo(["SampleTests.cs:10", "SampleTests.cs:30", "OtherTests.cs:20"]);
+    }
+
+    [Test]
+    public async Task HeaderRowsMapToNoEntry()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 1),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 2));
+
+        var rows = QueueProjection.Rows(state);
+
+        await Assert.That(rows.Where(_ => _.Kind == QueueRowKind.Header).Select(_ => _.EntryIndex))
+            .IsEquivalentTo([-1, -1]);
+        await Assert.That(rows.Where(_ => _.Kind == QueueRowKind.Entry).Select(_ => _.EntryIndex))
+            .IsEquivalentTo([0, 1]);
+    }
+
+    static SessionState Conflicted() =>
+        Fixtures.Inline(
+            Fixtures.Patch(content: "eight", framework: "net8.0"),
+            Fixtures.Patch(content: "nine", framework: "net9.0"));
+
+    [Test]
+    public async Task NextVariantCyclesAndWraps()
+    {
+        var state = Conflicted();
+        await Assert.That(state.Current!.LeftHeader).IsEqualTo("received (net8.0)");
+
+        var second = ViewerSession.Apply(state, CommandKind.NextVariant);
+        await Assert.That(second.Current!.LeftHeader).IsEqualTo("received (net9.0)");
+        await Assert.That(second.Current.LeftText).IsEqualTo("nine");
+
+        var wrapped = ViewerSession.Apply(second, CommandKind.NextVariant);
+        await Assert.That(wrapped.Current!.LeftHeader).IsEqualTo("received (net8.0)");
+    }
+
+    [Test]
+    public async Task NextVariantWithoutAConflictIsIgnored()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+
+        await Assert.That(ViewerSession.Apply(state, CommandKind.NextVariant)).IsSameReferenceAs(state);
+    }
+
+    [Test]
+    public async Task AcceptAppliesTheVariantOnScreen()
+    {
+        var applied = new List<InlinePatch>();
+        var second = ViewerSession.Apply(Conflicted(), CommandKind.NextVariant);
+
+        var accepted = ViewerSession.Apply(
+            second,
+            CommandKind.Accept,
+            new(patch =>
+            {
+                applied.Add(patch);
+                return InlineApplyResult.Applied;
+            }, static (_, _) =>
+            {
+            }));
+
+        await Assert.That(applied.Single().NewContent).IsEqualTo("nine");
+        await Assert.That(accepted.Queue).IsEmpty();
+    }
+
+    [Test]
+    public async Task AcceptAllSkipsConflictedEntries()
+    {
+        var state = ViewerSession.EnqueueInline(Conflicted(), Fixtures.Patch("OtherTests.cs", 7));
+
+        var accepted = ViewerSession.Apply(state, CommandKind.AcceptAll, Fixtures.Applied);
+
+        await Assert.That(accepted.Queue.Select(_ => _.Name)).IsEquivalentTo(["SampleTests.cs:42"]);
+        await Assert.That(accepted.Message).IsEqualTo("Accepted 1, 1 conflict needs review");
+    }
+
+    /// <summary>
+    /// What the reader cycled to survives a refresh that changed nothing, exactly as the scroll
+    /// does.
+    /// </summary>
+    [Test]
+    public async Task SyncPreservesTheSelectedVariant()
+    {
+        var second = ViewerSession.Apply(Conflicted(), CommandKind.NextVariant);
+        var pending = Fixtures.Pending(
+            Fixtures.Patch(content: "eight", framework: "net8.0"),
+            Fixtures.Patch(content: "nine", framework: "net9.0"));
+
+        var synced = ViewerSession.Sync(second, pending, [], null);
+
+        await Assert.That(synced.Current!.SelectedVariant).IsEqualTo(1);
+        await Assert.That(synced.Current.LeftHeader).IsEqualTo("received (net9.0)");
+    }
+
+    [Test]
+    public async Task SyncClampsTheSelectedVariantWhenTheListShrinks()
+    {
+        var second = ViewerSession.Apply(Conflicted(), CommandKind.NextVariant);
+        var pending = Fixtures.Pending(Fixtures.Patch(content: "eight", framework: "net8.0"));
+
+        var synced = ViewerSession.Sync(second, pending, [], null);
+
+        await Assert.That(synced.Current!.SelectedVariant).IsEqualTo(0);
+        await Assert.That(synced.Current.Conflicted).IsFalse();
+    }
+
+    [Test]
+    public async Task SyncMaterializesMovesAndDeletes()
+    {
+        var state = Fixtures.Attached(
+            Fixtures.Pending(Fixtures.Patch()),
+            Fixtures.Move(),
+            Fixtures.Delete());
+
+        await Assert.That(state.Queue.Select(_ => _.Kind))
+            .IsEquivalentTo([QueueEntryKind.Inline, QueueEntryKind.Move, QueueEntryKind.Delete]);
+    }
+
+    /// <summary>
+    /// A delete is the file against nothing, so every content row reads as removed.
+    /// </summary>
+    [Test]
+    public async Task ADeleteShowsRemovalRows()
+    {
+        var state = Fixtures.Attached(InlineQueue.Empty, Fixtures.Delete());
+
+        var entry = state.Queue.Single();
+        await Assert.That(entry.LeftHeader).IsEqualTo("(deleted)");
+        await Assert.That(entry.LeftText).IsEmpty();
+        // Every content line reads as going away: nothing against the file.
+        await Assert.That(entry.RightRows
+                .Where(_ => _.LineNumber is not null)
+                .All(_ => _.Kind != RowKind.Unchanged))
+            .IsTrue();
+    }
+
+    /// <summary>
+    /// An attached viewer now has a reason to stay open with no snapshots: the tray's moves and
+    /// deletes are still reviewable.
+    /// </summary>
+    [Test]
+    public async Task SyncWithOnlyChangesStaysOpen()
+    {
+        var state = Fixtures.Attached(InlineQueue.Empty, Fixtures.Delete());
+
+        await Assert.That(state.Exit).IsFalse();
+        await Assert.That(state.Queue).HasSingleItem();
+    }
+
+    /// <summary>
+    /// Owner-mode operations rebuild the inline queue from the display list, and tracked entries
+    /// must never leak into it.
+    /// </summary>
+    [Test]
+    public async Task AnInlineAcceptIgnoresChangeEntries()
+    {
+        var state = Fixtures.Attached(Fixtures.Pending(Fixtures.Patch()), Fixtures.Move());
+
+        var accepted = ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applied);
+
+        // The move entry is display state from the owner; accepting the inline entry must not
+        // count it as pending.
+        await Assert.That(accepted.Message).IsEqualTo("Applied SampleTests.cs:42");
     }
 }

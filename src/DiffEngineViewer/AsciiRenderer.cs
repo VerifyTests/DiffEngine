@@ -52,7 +52,7 @@ static class AsciiRenderer
         {
             return Bordered(
             [
-                Cell($"Pending ({screen.Queue.Count})", widths[0]),
+                Cell($"Pending ({screen.PendingCount})", widths[0]),
                 Cell(screen.Left.Header, widths[1]),
                 Cell(screen.Right.Header, widths[2])
             ]);
@@ -86,6 +86,12 @@ static class AsciiRenderer
         }
 
         var item = screen.Queue[index];
+        if (item.Kind == QueueRowKind.Header)
+        {
+            // Flush left with no marker column, which is what reads as a heading in plain text.
+            return item.Label;
+        }
+
         var marker = item.Selected ? '>' : ' ';
         var failed = item.Status is null ? "" : " !";
         return $"{marker} {item.Label}{failed}";

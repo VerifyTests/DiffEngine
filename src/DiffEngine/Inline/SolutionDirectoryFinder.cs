@@ -1,4 +1,8 @@
-﻿static class SolutionDirectoryFinder
+using System.Collections.Concurrent;
+
+namespace DiffEngine;
+
+static class SolutionDirectoryFinder
 {
     class Result(string directory, string name)
     {
@@ -12,9 +16,9 @@
     /// The solution a file belongs to, or null when it has none.
     /// <para>
     /// Never throws, because the paths reaching here arrive from another process — over the piper
-    /// socket, or as an inline snapshot key — and are not guaranteed to exist on this machine, or
-    /// even to be a usable path. Every caller treats null as ungrouped, while a throw used to
-    /// escape <see cref="PiperServer"/>, drop the pending item, and open an issue page.
+    /// socket, or as an inline snapshot source path — and are not guaranteed to exist on this
+    /// machine, or even to be a usable path. Every caller treats null as ungrouped, while a throw
+    /// used to escape the tray's piper server, drop the pending item, and open an issue page.
     /// </para>
     /// </summary>
     public static string? Find(string file) =>

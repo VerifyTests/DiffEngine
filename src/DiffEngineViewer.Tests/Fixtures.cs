@@ -70,8 +70,90 @@ static class Fixtures
         string source = "SampleTests.cs",
         int line = 42,
         string? expression = "\"\"\"\n    the quick\n    brown fox\n    jumps over\n    the lazy\n    dog\n    \"\"\"",
-        string content = Received) =>
-        new(source, line, expression, content);
+        string content = Received,
+        string? testName = null,
+        string? framework = null) =>
+        new(source, line, expression, content)
+        {
+            TestName = testName,
+            Framework = framework
+        };
+
+    /// <summary>
+    /// A source path under a real solution marker directory in temp, so grouping exercises the
+    /// real finder while only the solution name reaches a snapshot. The directory persists across
+    /// runs deliberately: the finder caches per path, and the marker being already there changes
+    /// nothing it answers.
+    /// </summary>
+    public static string SolutionFile(string solution, string project, string file)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "deview-fixtures", solution);
+        Directory.CreateDirectory(directory);
+        var marker = Path.Combine(directory, $"{solution}.slnx");
+        if (!System.IO.File.Exists(marker))
+        {
+            try
+            {
+                System.IO.File.WriteAllText(marker, "");
+            }
+            catch (IOException)
+            {
+                // Tests run in parallel and two can create the same marker; whoever lost still
+                // finds it there.
+            }
+        }
+
+        var projectDirectory = Path.Combine(directory, project);
+        Directory.CreateDirectory(projectDirectory);
+        return Path.Combine(projectDirectory, file);
+    }
+
+    /// <summary>
+    /// A move entry built from in-memory text, the way <see cref="Applying"/> keeps accepting off
+    /// disk.
+    /// </summary>
+    public static QueueEntry Move(
+        string name = "Sample.Test (txt)",
+        string? solution = null,
+        string left = Received,
+        string right = Expected) =>
+        QueueEntry.ForMove(
+            $@"move:c:\temp\{name}",
+            name,
+            solution,
+            @"c:\temp\sample.received.txt",
+            @"c:\code\sample.verified.txt",
+            new(left, null, null),
+            new(right, null, null));
+
+    public static QueueEntry Delete(
+        string name = "extra.verified.txt",
+        string? solution = null,
+        string content = Expected) =>
+        QueueEntry.ForDelete(
+            $@"delete:c:\code\{name}",
+            name,
+            solution,
+            $@"c:\code\{name}",
+            new(content, null, null));
+
+    /// <summary>
+    /// A state displaying someone else's queue, without a socket: what an attached viewer holds
+    /// after one pump.
+    /// </summary>
+    public static SessionState Attached(InlineQueue pending, params QueueEntry[] changes) =>
+        ViewerSession.Sync(SessionState.Start(ViewerMode.Inline, Columns, Rows), pending, changes, null);
+
+    public static InlineQueue Pending(params InlinePatch[] patches)
+    {
+        var queue = InlineQueue.Empty;
+        foreach (var patch in patches)
+        {
+            queue = queue.Enqueue(patch);
+        }
+
+        return queue;
+    }
 
     /// <summary>
     /// Accept actions that report a fixed outcome, so the failure screens are reachable without
@@ -92,4 +174,20 @@ static class Fixtures
 
     public static string Render(SessionState state) =>
         AsciiRenderer.Render(ScreenBuilder.Build(state));
+
+    /// <summary>
+    /// The one grouped-and-conflicted scene the pixel suites mirror: two solutions, a test
+    /// sub-group, and the selection on a conflicted entry so the variant button is on screen.
+    /// Shared here so the heads capture the same frame the ASCII snapshots describe.
+    /// </summary>
+    public static SessionState GroupedConflicted()
+    {
+        var state = Inline(
+            Patch(SolutionFile("SolutionA", "Tests", "ATests.cs"), 10, testName: "Compare handles nulls"),
+            Patch(SolutionFile("SolutionA", "Tests", "ATests.cs"), 30, "\"a\"", "b", testName: "Compare handles nulls"),
+            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), 42, content: "eight", framework: "net8.0"),
+            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), 42, content: "nine", framework: "net9.0"));
+        state = ViewerSession.Apply(state, CommandKind.NextItem);
+        return ViewerSession.Apply(state, CommandKind.NextItem);
+    }
 }

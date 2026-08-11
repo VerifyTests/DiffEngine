@@ -195,4 +195,175 @@ public class AttachedViewerTests
         await Assert.That(link.Pump(out var sent)).IsFalse();
         await Assert.That(sent).IsTrue();
     }
+
+    /// <summary>
+    /// A raw owner answering a fixed listing, for driving the tracked-file half of the wire
+    /// without a tray.
+    /// </summary>
+    static (ViewerServer server, CancelSource cancel) Listing(Func<ViewerResponse> respond)
+    {
+        if (!ViewerServer.TryBind(0, out var bound))
+        {
+            throw new("Could not bind an ephemeral port.");
+        }
+
+        var cancel = new CancelSource();
+        _ = bound.Listen(_ => respond(), cancel.Token);
+        return (bound, cancel);
+    }
+
+    /// <summary>
+    /// The owner sends paths; the panes are read from local disk on this side, the same shape as
+    /// patches carrying the snapshot text.
+    /// </summary>
+    [Test]
+    public async Task MoveAndDeleteLinesMaterialize()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.received.txt");
+        var target = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
+        File.WriteAllText(temp, "incoming");
+        File.WriteAllText(target, "committed");
+        try
+        {
+            var (server, cancel) = Listing(() => ViewerResponse.Listing(
+                [],
+                moves: [new(TrackedKeys.ForMove(temp), "Sample.Test (txt)", "MySolution", temp, target)],
+                deletes: [new(TrackedKeys.ForDelete(target), "extra.verified.txt", null, target)]));
+            using (server)
+            using (cancel)
+            {
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+
+                await Assert.That(new OwnerLink(host, server.Port).Pump()).IsTrue();
+
+                var move = host.State.Queue.Single(_ => _.Kind == QueueEntryKind.Move);
+                await Assert.That(move.LeftText).IsEqualTo("incoming");
+                await Assert.That(move.RightText).IsEqualTo("committed");
+                await Assert.That(move.Solution).IsEqualTo("MySolution");
+                var delete = host.State.Queue.Single(_ => _.Kind == QueueEntryKind.Delete);
+                await Assert.That(delete.RightText).IsEqualTo("committed");
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(temp);
+            File.Delete(target);
+        }
+    }
+
+    /// <summary>
+    /// The poller must survive a file it cannot read — a throw here closes the window as "owner
+    /// gone". An unreadable file degrades to an empty pane carrying the reason.
+    /// </summary>
+    [Test]
+    public async Task AnUnreadableFileDegradesNotCrashes()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
+        File.WriteAllText(file, "locked away");
+        try
+        {
+            using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+            var (server, cancel) = Listing(() => ViewerResponse.Listing(
+                [],
+                deletes: [new(TrackedKeys.ForDelete(file), "extra.verified.txt", null, file)]));
+            using (server)
+            using (cancel)
+            {
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+
+                await Assert.That(new OwnerLink(host, server.Port).Pump()).IsTrue();
+
+                var entry = host.State.Queue.Single();
+                await Assert.That(entry.RightText).IsEmpty();
+                await Assert.That(entry.Warning).Contains("Could not read");
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
+    /// This runs five times a second: an entry whose files have not changed is the same instance
+    /// across pumps, and a rewrite underneath it refreshes the pane.
+    /// </summary>
+    [Test]
+    public async Task UnchangedFilesAreNotReReadAndAChangeRefreshes()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
+        File.WriteAllText(file, "first");
+        try
+        {
+            var (server, cancel) = Listing(() => ViewerResponse.Listing(
+                [],
+                deletes: [new(TrackedKeys.ForDelete(file), "extra.verified.txt", null, file)]));
+            using (server)
+            using (cancel)
+            {
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+                var link = new OwnerLink(host, server.Port);
+                link.Pump();
+                var first = host.State.Queue.Single();
+
+                link.Pump();
+                await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
+
+                // A stamp needs a distinct write time; length changing makes it deterministic.
+                File.WriteAllText(file, "second, longer");
+                link.Pump();
+                await Assert.That(host.State.Queue.Single().RightText).IsEqualTo("second, longer");
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
+    /// Accepting a conflicted entry names the variant on screen, and the owner applies exactly
+    /// that one.
+    /// </summary>
+    [Test]
+    public async Task AForwardedAcceptCarriesTheVariantOrigin()
+    {
+        using var owner = new ServerFixture();
+        owner.Send(Inline(Fixtures.Patch(content: "eight", framework: "net8.0")));
+        owner.Send(Inline(Fixtures.Patch(content: "nine", framework: "net9.0")));
+        var (host, link) = Attach(owner);
+        link.Pump();
+        await Assert.That(host.State.Current!.Conflicted).IsTrue();
+
+        link.Post(ViewerVerb.Accept, host.State.Current!.Key, "net9.0");
+        link.Pump();
+
+        await Assert.That(owner.Applied.Single().NewContent).IsEqualTo("nine");
+        await Assert.That(host.State.Queue).IsEmpty();
+    }
+
+    /// <summary>
+    /// The refusal a key-only accept of a conflict earns, surfaced in the footer rather than
+    /// silently doing nothing.
+    /// </summary>
+    [Test]
+    public async Task AKeyOnlyAcceptOfAConflictIsRefused()
+    {
+        using var owner = new ServerFixture();
+        owner.Send(Inline(Fixtures.Patch(content: "eight", framework: "net8.0")));
+        owner.Send(Inline(Fixtures.Patch(content: "nine", framework: "net9.0")));
+        var (host, link) = Attach(owner);
+        link.Pump();
+
+        link.Post(ViewerVerb.Accept, host.State.Current!.Key);
+        link.Pump();
+
+        await Assert.That(owner.Applied).IsEmpty();
+        await Assert.That(host.State.Queue).HasSingleItem();
+        await Assert.That(host.State.Message)
+            .IsEqualTo("Conflicting snapshots (net8.0 / net9.0), resolve in the viewer");
+    }
 }

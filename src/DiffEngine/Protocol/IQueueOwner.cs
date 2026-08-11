@@ -8,31 +8,35 @@
 interface IQueueOwner
 {
     /// <summary>
-    /// Add, or replace the entry for the same call site, returning how many are now pending.
+    /// Add, or fold into the entry for the same call site, returning how many are now pending.
     /// </summary>
     int Enqueue(InlinePatch patch);
 
     /// <summary>
-    /// Drop the entry for a key whose test started passing. An unknown key is a no-op, because
-    /// the entry being gone is the goal state.
+    /// Drop the entry for a key whose test started passing — or, with an origin, just that
+    /// framework's variant of it. An unknown key is a no-op, because the entry being gone is the
+    /// goal state.
     /// </summary>
-    void Settle(string key);
+    void Settle(string key, string? origin);
 
     /// <summary>
     /// The whole listing response rather than just its items, because the tray answers with the
-    /// window command it has stashed and the viewer has nothing to add to the items.
+    /// window command it has stashed plus its tracked moves and deletes, and the viewer has
+    /// nothing to add to the items.
     /// </summary>
     ViewerResponse Listing(bool withPatches);
 
     bool Has(string key);
 
     /// <summary>
-    /// Not known means no entry for the key, which goes on the wire as an error. An entry that
-    /// failed to apply is still known: it stays pending and the message says what went wrong.
+    /// Ok false with no message means no entry for the key. False with a message is a refusal:
+    /// nothing was attempted, and the message says why — a conflicted entry with no origin to
+    /// pick, or a locked tracked move. True means attempted, including a retryable apply failure,
+    /// whose message says what went wrong while the entry stays pending.
     /// </summary>
-    (bool known, string? message) Accept(string key);
+    (bool ok, string? message) Accept(string key, string? origin);
 
-    (bool known, string? message) Discard(string key);
+    (bool ok, string? message) Discard(string key);
 
     string? AcceptAll();
 

@@ -16,14 +16,14 @@ static class ViewerMessageHandler
             case ViewerVerb.Inline:
                 return Inline(owner, message.Body);
             case ViewerVerb.Settle:
-                return Settle(owner, message.Key);
+                return Settle(owner, message.Key, message.Body);
             case ViewerVerb.List:
                 return owner.Listing(false);
             case ViewerVerb.ListFull:
                 return owner.Listing(true);
             case ViewerVerb.Accept:
             case ViewerVerb.Discard:
-                return Act(owner, message.Key, message.Verb);
+                return Act(owner, message.Key, message.Body, message.Verb);
             case ViewerVerb.AcceptAll:
                 return ViewerResponse.Success(owner.AcceptAll());
             case ViewerVerb.DiscardAll:
@@ -70,30 +70,31 @@ static class ViewerMessageHandler
         return ViewerResponse.Success($"Queued {owner.Enqueue(patch)}");
     }
 
-    static ViewerResponse Settle(IQueueOwner owner, string? key)
+    static ViewerResponse Settle(IQueueOwner owner, string? key, string? origin)
     {
         if (key is null)
         {
             return ViewerResponse.Error("Settle requires a key");
         }
 
-        owner.Settle(key);
+        owner.Settle(key, origin);
         return ViewerResponse.Success();
     }
 
-    static ViewerResponse Act(IQueueOwner owner, string? key, ViewerVerb verb)
+    static ViewerResponse Act(IQueueOwner owner, string? key, string? body, ViewerVerb verb)
     {
         if (key is null)
         {
             return ViewerResponse.Error($"{verb} requires a key");
         }
 
-        var (known, message) = verb == ViewerVerb.Accept
-            ? owner.Accept(key)
+        // The body is the variant origin a reviewer picked, and only an accept carries one.
+        var (ok, message) = verb == ViewerVerb.Accept
+            ? owner.Accept(key, body)
             : owner.Discard(key);
-        if (!known)
+        if (!ok)
         {
-            return ViewerResponse.Error($"No pending snapshot for {key}");
+            return ViewerResponse.Error(message ?? $"No pending snapshot for {key}");
         }
 
         return ViewerResponse.Success(message);

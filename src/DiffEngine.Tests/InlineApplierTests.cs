@@ -461,4 +461,92 @@ public class InlinePatchFileTests
         var read = InlinePatchFile.TryParse("version: 3\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\n", out _);
         await Assert.That(read).IsFalse();
     }
+
+    [Test]
+    public async Task MetadataRoundTrips()
+    {
+        var patch = new InlinePatch("Tests.cs", 1, null, "content")
+        {
+            TestName = "Compare handles nulls",
+            Framework = "net9.0"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.TestName).IsEqualTo("Compare handles nulls");
+        await Assert.That(result.Framework).IsEqualTo("net9.0");
+    }
+
+    [Test]
+    public async Task NullMetadataRoundTripsAsNull()
+    {
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content")), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.TestName).IsNull();
+        await Assert.That(result.Framework).IsNull();
+    }
+
+    /// <summary>
+    /// A payload with only the six fixed lines still parses; parsers never invent metadata, so
+    /// both fields come back null rather than being stamped by the reading process.
+    /// </summary>
+    [Test]
+    public async Task AbsentMetadataParsesAsNull()
+    {
+        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\n", out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.TestName).IsNull();
+        await Assert.That(result.Framework).IsNull();
+    }
+
+    /// <summary>
+    /// Test names are caller supplied, so the field has to survive the same hostile content the
+    /// snapshot fields do.
+    /// </summary>
+    [Test]
+    public async Task AnAwkwardTestNameSurvives()
+    {
+        var patch = new InlinePatch("Tests.cs", 1, null, "content")
+        {
+            TestName = "pipes | and\nnewlines and framework: lies"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.TestName).IsEqualTo("pipes | and\nnewlines and framework: lies");
+    }
+
+    [Test]
+    public async Task MetadataOrderIsFlexible()
+    {
+        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\nframework: net8.0\ntestName:\n", out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.Framework).IsEqualTo("net8.0");
+        await Assert.That(result.TestName).IsNull();
+    }
+
+    [Test]
+    public async Task UnknownTrailingLinesAreIgnored()
+    {
+        var payload = InlinePatchFile.Build(new("Tests.cs", 1, null, "content")) + "future: value\n";
+
+        var read = InlinePatchFile.TryParse(payload, out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.SourceFile).IsEqualTo("Tests.cs");
+    }
+
+    // Matching the strictness of the other encoded fields
+    [Test]
+    public async Task ABadTestNameBase64Fails()
+    {
+        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\ntestName: not-base64!\n", out _);
+
+        await Assert.That(read).IsFalse();
+    }
 }

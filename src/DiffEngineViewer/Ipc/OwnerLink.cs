@@ -38,10 +38,10 @@ sealed class OwnerLink(SessionHost host, int port)
 
     readonly ConcurrentQueue<Outbound> outbound = new();
 
-    record Outbound(ViewerVerb Verb, string? Key);
+    record Outbound(ViewerVerb Verb, string? Key, string? Body);
 
-    public void Post(ViewerVerb verb, string? key) =>
-        outbound.Enqueue(new(verb, key));
+    public void Post(ViewerVerb verb, string? key, string? body = null) =>
+        outbound.Enqueue(new(verb, key, body));
 
     public bool Pump() =>
         Pump(out _);
@@ -68,7 +68,8 @@ sealed class OwnerLink(SessionHost host, int port)
         }
 
         var pending = InlineQueue.From(response.Items.Select(Read).OfType<PendingInline>());
-        host.Mutate(_ => ViewerSession.Sync(_, pending, message));
+        var changes = ReadChanges(response);
+        host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message));
 
         // The owner has no window of its own, so anything it wants raised, hidden or closed comes
         // back on the listing rather than being pushed at a port this process does not hold.
@@ -115,7 +116,7 @@ sealed class OwnerLink(SessionHost host, int port)
     {
         // The long wait matters most here: an accept is the command that takes ten seconds, and
         // failing it at three used to report the owner dead while it was mid apply.
-        if (!ViewerClient.TrySend(new(command.Verb, command.Key), out var response, port, Wait))
+        if (!ViewerClient.TrySend(new(command.Verb, command.Key, command.Body), out var response, port, Wait))
         {
             return "The queue owner is no longer running.";
         }
@@ -124,8 +125,8 @@ sealed class OwnerLink(SessionHost host, int port)
     }
 
     /// <summary>
-    /// An item with no patch is a file comparison, which no owner queues and this viewer cannot
-    /// display, so it is dropped rather than shown as a blank pane.
+    /// An item with no patch, or whose payload does not parse, is dropped rather than shown as a
+    /// blank pane.
     /// </summary>
     static PendingInline? Read(ViewerResponseItem item)
     {
@@ -135,6 +136,77 @@ sealed class OwnerLink(SessionHost host, int port)
             return null;
         }
 
-        return new(patch, item.Status);
+        var variants = new List<InlineVariant>
+        {
+            new(patch, item.Origins)
+        };
+        foreach (var variant in item.Variants)
+        {
+            if (InlinePatchFile.TryParse(variant.Patch, out var extra))
+            {
+                variants.Add(new(extra, variant.Origins));
+            }
+        }
+
+        return new(variants, item.Status);
+    }
+
+    /// <summary>
+    /// Materializes the owner's tracked moves and deletes into displayable entries, reading the
+    /// files here on the polling thread — the read seam, keeping the session IO free the way
+    /// <see cref="ViewerActions"/> keeps it write free.
+    /// <para>
+    /// Building an entry reads two files and runs a diff, and this runs five times a second, so
+    /// an entry whose paths and stamps are unchanged is reused rather than rebuilt. A stat per
+    /// pump is the price of a pane that refreshes when a re-run rewrites the file underneath it.
+    /// </para>
+    /// </summary>
+    List<QueueEntry> ReadChanges(ViewerResponse response)
+    {
+        var existing = host.State.Queue
+            .Where(_ => _.Kind is QueueEntryKind.Move or QueueEntryKind.Delete)
+            .ToDictionary(_ => _.Key);
+        var changes = new List<QueueEntry>(response.Moves.Count + response.Deletes.Count);
+        foreach (var move in response.Moves)
+        {
+            if (existing.TryGetValue(move.Key, out var entry) &&
+                entry.LeftFile == move.Temp &&
+                entry.TargetFile == move.Target &&
+                entry.LeftStamp == FileText.StampOf(move.Temp) &&
+                entry.RightStamp == FileText.StampOf(move.Target))
+            {
+                changes.Add(entry);
+                continue;
+            }
+
+            changes.Add(QueueEntry.ForMove(
+                move.Key,
+                move.Name,
+                move.Group,
+                move.Temp,
+                move.Target,
+                FileText.Read(move.Temp),
+                FileText.Read(move.Target)));
+        }
+
+        foreach (var delete in response.Deletes)
+        {
+            if (existing.TryGetValue(delete.Key, out var entry) &&
+                entry.LeftFile == delete.File &&
+                entry.LeftStamp == FileText.StampOf(delete.File))
+            {
+                changes.Add(entry);
+                continue;
+            }
+
+            changes.Add(QueueEntry.ForDelete(
+                delete.Key,
+                delete.Name,
+                delete.Group,
+                delete.File,
+                FileText.Read(delete.File)));
+        }
+
+        return changes;
     }
 }

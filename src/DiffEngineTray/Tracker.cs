@@ -1,5 +1,6 @@
 class Tracker :
-    IAsyncDisposable
+    IAsyncDisposable,
+    ITrackedFiles
 {
     Action active;
     Action inactive;
@@ -298,6 +299,49 @@ class Tracker :
     }
 
     /// <summary>
+    /// Accepts just these snapshots, for a group header: unlike <see cref="AcceptAllSnapshots"/>,
+    /// solution A's header must not accept solution B's queue.
+    /// </summary>
+    public Task Accept(IEnumerable<PendingSnapshot> toAccept) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                var failures = new List<string>();
+                foreach (var snapshot in toAccept)
+                {
+                    var outcome = inline.Accept(snapshot, out var message);
+                    if (outcome == AcceptOutcome.Applied)
+                    {
+                        Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
+                        continue;
+                    }
+
+                    if (outcome == AcceptOutcome.Unknown)
+                    {
+                        continue;
+                    }
+
+                    Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
+                    failures.Add(message ?? snapshot.Name);
+                }
+
+                if (failures.Count > 0)
+                {
+                    inlineFailed?.Invoke(failures.Count == 1
+                        ? $"Could not accept a snapshot. {failures[0]}"
+                        : $"Could not accept {failures.Count} snapshots. {failures[0]}");
+                }
+
+                Refresh();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle("Failed to accept the snapshots", exception);
+            }
+        });
+
+    /// <summary>
     /// Bring the window forward on this snapshot, starting one when this tray owns the queue and
     /// nothing is displaying it.
     /// </summary>
@@ -357,6 +401,10 @@ class Tracker :
     {
         public bool KillWithoutPrompt;
         public bool AcceptAllPending;
+
+        // Wire-driven accepts run on a listener thread with no user attached, so the locked-files
+        // dialog must never be raised for them.
+        public bool NeverPrompt;
     }
 
     void AcceptMoves(IEnumerable<TrackedMove> toAccept)
@@ -478,7 +526,8 @@ class Tracker :
             return true;
         }
 
-        if (lockedFilesResolver == null)
+        if (batch.NeverPrompt ||
+            lockedFilesResolver == null)
         {
             return false;
         }
@@ -620,6 +669,177 @@ class Tracker :
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 
     public ICollection<TrackedMove> Moves => moves.Values;
+
+    IReadOnlyList<ViewerResponseMove> ITrackedFiles.Moves() =>
+        moves.Values
+            .Select(_ => new ViewerResponseMove(
+                TrackedKeys.ForMove(_.Temp),
+                $"{_.Name} ({_.Extension})",
+                _.Group,
+                _.Temp,
+                _.Target))
+            .ToList();
+
+    IReadOnlyList<ViewerResponseDelete> ITrackedFiles.Deletes() =>
+        deletes.Values
+            .Select(_ => new ViewerResponseDelete(
+                TrackedKeys.ForDelete(_.File),
+                _.Name,
+                _.Group,
+                _.File))
+            .ToList();
+
+    bool ITrackedFiles.Has(string key)
+    {
+        if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
+        {
+            return moves.ContainsKey(temp);
+        }
+
+        return TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) &&
+               deletes.ContainsKey(file);
+    }
+
+    (bool ok, string? message) ITrackedFiles.Accept(string key)
+    {
+        if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
+        {
+            return moves.TryGetValue(temp, out var move)
+                ? AcceptWithoutPrompting(move)
+                : (false, null);
+        }
+
+        if (TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file))
+        {
+            return deletes.TryGetValue(file, out var delete)
+                ? AcceptTracked(delete)
+                : (false, null);
+        }
+
+        return (false, null);
+    }
+
+    (bool ok, string? message) ITrackedFiles.Discard(string key)
+    {
+        if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
+        {
+            if (!moves.TryRemove(temp, out var removed))
+            {
+                return (false, null);
+            }
+
+            InnerDiscard(removed);
+            return (true, $"Discarded {removed.Name}");
+        }
+
+        if (TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file))
+        {
+            if (!deletes.TryRemove(file, out var removed))
+            {
+                return (false, null);
+            }
+
+            // Untracked only: the file stays, matching what Clear has always meant for deletes.
+            // The next test run re-tracks it.
+            return (true, $"Discarded {removed.Name}");
+        }
+
+        return (false, null);
+    }
+
+    (int accepted, int kept) ITrackedFiles.AcceptAll()
+    {
+        var accepted = 0;
+        var kept = 0;
+        foreach (var delete in deletes.Values.ToList())
+        {
+            if (AcceptTracked(delete).ok)
+            {
+                accepted++;
+            }
+            else
+            {
+                kept++;
+            }
+        }
+
+        foreach (var move in moves.Values.ToList())
+        {
+            if (AcceptWithoutPrompting(move).ok)
+            {
+                accepted++;
+            }
+            else
+            {
+                kept++;
+            }
+        }
+
+        return (accepted, kept);
+    }
+
+    int ITrackedFiles.DiscardAll()
+    {
+        var count = 0;
+        foreach (var delete in deletes.Values.ToList())
+        {
+            if (deletes.TryRemove(delete.File, out _))
+            {
+                count++;
+            }
+        }
+
+        foreach (var move in moves.Values.ToList())
+        {
+            if (moves.TryRemove(move.Temp, out var removed))
+            {
+                InnerDiscard(removed);
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    (bool ok, string? message) AcceptTracked(TrackedDelete delete)
+    {
+        if (!deletes.TryRemove(delete.File, out var removed))
+        {
+            return (false, null);
+        }
+
+        try
+        {
+            File.Delete(removed.File);
+        }
+        catch (Exception exception)
+        {
+            // Re-tracked so it can be retried, and refused so the caller shows why.
+            deletes.TryAdd(removed.File, removed);
+            return (false, $"Could not delete {removed.Name}. {exception.Message}");
+        }
+
+        return (true, $"Deleted {removed.Name}");
+    }
+
+    (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move)
+    {
+        if (!moves.TryRemove(move.Temp, out var removed))
+        {
+            return (false, null);
+        }
+
+        if (InnerMove(removed, new()
+            {
+                NeverPrompt = true
+            }))
+        {
+            return (true, $"Accepted {removed.Name}");
+        }
+
+        moves.TryAdd(removed.Temp, removed);
+        return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
+    }
 
     /// <summary>
     /// Read live rather than from the scan cache, so the menu shows the viewer's current queue at

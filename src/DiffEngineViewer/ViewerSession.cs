@@ -23,28 +23,25 @@ static class ViewerSession
         });
 
     /// <summary>
-    /// Adds a patch, or replaces the existing one for the same call site so a re-run of the same
-    /// test updates its entry rather than appending a duplicate.
+    /// Adds a patch, or folds it into the existing entry for the same call site so a re-run of
+    /// the same test updates its entry rather than appending a duplicate.
     /// </summary>
     public static SessionState EnqueueInline(SessionState state, InlinePatch patch)
     {
-        var replaced = IndexOf(state.Queue, InlineKey.For(patch.SourceFile, patch.LineHint));
+        var key = InlineKey.For(patch.SourceFile, patch.LineHint);
+        var replacedCurrent = state.Current?.Key == key;
         var queue = Project(state, Pending(state).Enqueue(patch));
-        if (replaced < 0)
-        {
-            return Clamp(state with
-            {
-                Queue = queue,
-                Selected = state.Selected < 0 ? 0 : state.Selected
-            });
-        }
-
-        // The text under the reader just changed, so start it at the top again. Only when it is
-        // the item on screen; replacing one further down the list should not move anything.
+        // Grouping can reorder the list, so the selection follows its key rather than its index.
+        var currentKey = state.Current?.Key;
+        var selected = currentKey is null ? 0 : IndexOf(queue, currentKey);
         return Clamp(state with
         {
             Queue = queue,
-            ScrollTop = replaced == state.Selected ? 0 : state.ScrollTop
+            Selected = selected < 0 ? 0 : selected,
+            // The text under the reader just changed, so start it at the top again. Only when it
+            // is the item on screen; folding into one further down the list should not move
+            // anything.
+            ScrollTop = replacedCurrent ? 0 : state.ScrollTop
         });
     }
 
@@ -60,9 +57,10 @@ static class ViewerSession
         });
 
     /// <summary>
-    /// Drops the item for a key, used when a previously failing test starts passing.
+    /// Drops the item for a key, used when a previously failing test starts passing — or, with an
+    /// origin, just that framework's variant of it.
     /// </summary>
-    public static SessionState Settle(SessionState state, string key)
+    public static SessionState Settle(SessionState state, string key, string? origin = null)
     {
         // Nothing can settle a file comparison: settles arrive over the socket, and file mode runs
         // without one. Guarded rather than assumed, because Pending would dereference the null
@@ -73,7 +71,7 @@ static class ViewerSession
         }
 
         var pending = Pending(state);
-        var settled = pending.Settle(key);
+        var settled = pending.Settle(key, origin);
         if (ReferenceEquals(settled, pending))
         {
             return state;
@@ -84,13 +82,20 @@ static class ViewerSession
 
     /// <summary>
     /// Replaces the queue with what its owner reports, for a viewer that is displaying rather
-    /// than owning. Selection follows the key, so something accepted elsewhere in the list does
-    /// not silently change what is on screen, and the scroll position is only given up when the
-    /// item being read has gone.
+    /// than owning: the inline entries plus the owner's tracked moves and deletes, already
+    /// materialized by the poller. Selection follows the key, so something accepted elsewhere in
+    /// the list does not silently change what is on screen, and the scroll position is only given
+    /// up when the item being read has gone.
     /// </summary>
-    public static SessionState Sync(SessionState state, InlineQueue pending, string? message)
+    public static SessionState Sync(
+        SessionState state,
+        InlineQueue pending,
+        IReadOnlyList<QueueEntry> changes,
+        string? message)
     {
-        var queue = Project(state, pending);
+        var entries = new List<QueueEntry>(Project(state, pending));
+        entries.AddRange(changes);
+        var queue = QueueProjection.Order(entries);
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
         return Clamp(state with
@@ -163,6 +168,8 @@ static class ViewerSession
                 return inline
                     ? Remove(state, Project(state, Pending(state).DiscardAll(out var summary)), summary)
                     : DiscardFile(state);
+            case CommandKind.NextVariant:
+                return NextVariant(state);
             case CommandKind.Quit:
                 return state with { Exit = true };
             default:
@@ -173,14 +180,29 @@ static class ViewerSession
     static SessionState AcceptInline(SessionState state, ViewerActions actions)
     {
         var current = state.Current;
-        if (current is null)
+        if (current is not { Kind: QueueEntryKind.Inline })
         {
             return state;
         }
 
-        var accepted = Pending(state).Accept(current.Key, actions.ApplyInline, out var message);
+        var pending = Pending(state);
+        InlineQueue accepted;
+        string? message;
+        if (current.Conflicted &&
+            current.Variants[current.SelectedVariant].Origins is { Count: > 0 } origins &&
+            origins[0] is { } origin)
+        {
+            // The reviewer picked a side by cycling to it; accepting applies exactly what is on
+            // screen and resolves the whole call site.
+            accepted = pending.Accept(current.Key, origin, actions.ApplyInline, out message);
+        }
+        else
+        {
+            accepted = pending.Accept(current.Key, actions.ApplyInline, out message);
+        }
+
         var queue = Project(state, accepted);
-        if (accepted.Count < state.Queue.Count)
+        if (accepted.Count < pending.Count)
         {
             return Remove(state, queue, message);
         }
@@ -191,6 +213,67 @@ static class ViewerSession
             Queue = queue,
             Message = message
         };
+    }
+
+    /// <summary>
+    /// Rebuilds the current entry showing its next variant. A no-op unless the entry is a
+    /// conflicted inline one, and purely view state: it changes what is being read, never a file.
+    /// </summary>
+    static SessionState NextVariant(SessionState state)
+    {
+        var current = state.Current;
+        if (current is not { Kind: QueueEntryKind.Inline, Conflicted: true })
+        {
+            return state;
+        }
+
+        var rebuilt = QueueEntry.ForInline(
+            new(current.Variants, current.Status),
+            (current.SelectedVariant + 1) % current.Variants.Count);
+        var queue = state.Queue.ToList();
+        queue[state.Selected] = rebuilt;
+        // The text under the reader changed, the same reason a fold resets it.
+        return Clamp(state with
+        {
+            Queue = queue,
+            ScrollTop = 0
+        });
+    }
+
+    /// <summary>
+    /// Points the current selection's entry at the variant carrying an origin, for a wire accept
+    /// that named one. A key or origin that is not here leaves the state alone.
+    /// </summary>
+    public static SessionState SelectVariant(SessionState state, string origin)
+    {
+        var current = state.Current;
+        if (current is not { Kind: QueueEntryKind.Inline })
+        {
+            return state;
+        }
+
+        for (var index = 0; index < current.Variants.Count; index++)
+        {
+            if (!current.Variants[index].Origins.Contains(origin))
+            {
+                continue;
+            }
+
+            if (index == current.SelectedVariant)
+            {
+                return state;
+            }
+
+            var queue = state.Queue.ToList();
+            queue[state.Selected] = QueueEntry.ForInline(new(current.Variants, current.Status), index);
+            return Clamp(state with
+            {
+                Queue = queue,
+                ScrollTop = 0
+            });
+        }
+
+        return state;
     }
 
     static SessionState AcceptAllInline(SessionState state, ViewerActions actions)
@@ -258,14 +341,18 @@ static class ViewerSession
     /// <summary>
     /// The queue as its owner holds it. The display list is the only copy the viewer keeps, so
     /// this is rebuilt from it rather than stored beside it, which is what stops the two from
-    /// disagreeing.
+    /// disagreeing. Tracked moves and deletes belong to the tray, not the queue, so only the
+    /// inline entries round-trip.
     /// </summary>
     static InlineQueue Pending(SessionState state) =>
-        InlineQueue.From(state.Queue.Select(_ => new PendingInline(_.Patch!, _.Status)));
+        InlineQueue.From(state.Queue
+            .Where(_ => _.Kind == QueueEntryKind.Inline)
+            .Select(_ => new PendingInline(_.Variants, _.Status)));
 
     /// <summary>
-    /// And back onto the display list. Building an entry runs the diff, so an entry already built
-    /// for the same patch is reused and only its status carried across.
+    /// And back onto the display list, in display order. Building an entry runs the diff, so an
+    /// entry already built for the same variants is reused, keeping its selected variant, and
+    /// only its status carried across.
     /// <para>
     /// Compared by value rather than by reference, because an attached viewer parses fresh patch
     /// instances out of every refresh and would otherwise re-diff the whole queue five times a
@@ -274,23 +361,49 @@ static class ViewerSession
     /// </summary>
     static IReadOnlyList<QueueEntry> Project(SessionState state, InlineQueue queue)
     {
-        var existing = state.Queue.ToDictionary(_ => _.Key);
+        var existing = state.Queue
+            .Where(_ => _.Kind == QueueEntryKind.Inline)
+            .ToDictionary(_ => _.Key);
         var entries = new List<QueueEntry>(queue.Count);
         foreach (var pending in queue.Items)
         {
-            if (existing.TryGetValue(pending.Key, out var entry) &&
-                entry.Patch is not null &&
-                entry.Patch.Matches(pending.Patch))
+            if (existing.TryGetValue(pending.Key, out var entry))
             {
-                entries.Add(entry.Status == pending.Status ? entry : entry with { Status = pending.Status });
+                if (VariantsMatch(entry.Variants, pending.Variants))
+                {
+                    entries.Add(entry.Status == pending.Status ? entry : entry with { Status = pending.Status });
+                    continue;
+                }
+
+                // The variants changed, so the entry rebuilds, but what the reader had cycled to
+                // survives where it still exists.
+                entries.Add(QueueEntry.ForInline(pending, entry.SelectedVariant));
                 continue;
             }
 
-            var built = QueueEntry.ForInline(pending.Patch);
-            entries.Add(pending.Status is null ? built : built with { Status = pending.Status });
+            entries.Add(QueueEntry.ForInline(pending));
         }
 
-        return entries;
+        return QueueProjection.Order(entries);
+    }
+
+    static bool VariantsMatch(IReadOnlyList<InlineVariant> left, IReadOnlyList<InlineVariant> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!left[index].Patch.Matches(right[index].Patch) ||
+                !left[index].Origins.SequenceEqual(right[index].Origins))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static int IndexOf(IReadOnlyList<QueueEntry> queue, string key)

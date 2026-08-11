@@ -195,9 +195,11 @@ static class MenuBuilder
 
         if (snapshots.Count != 0)
         {
+            // The group's own list, matching the deletes and moves headers above: solution A's
+            // header must not accept solution B's queue.
             yield return new MenuButton(
                 $"Pending Snapshots ({snapshots.Count}):",
-                () => tracker.AcceptAllSnapshots(),
+                () => tracker.Accept(snapshots),
                 Images.Accept);
             foreach (var snapshot in snapshots)
             {

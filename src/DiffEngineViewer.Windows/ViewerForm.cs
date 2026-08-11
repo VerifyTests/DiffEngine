@@ -230,6 +230,7 @@ sealed class ViewerForm : Form
             Keys.Tab => shift ? CommandKind.PreviousItem : CommandKind.NextItem,
             Keys.A => shift ? CommandKind.AcceptAll : CommandKind.Accept,
             Keys.D => CommandKind.Discard,
+            Keys.V => CommandKind.NextVariant,
             Keys.Q or Keys.Escape => CommandKind.Quit,
             _ => CommandKind.None
         };

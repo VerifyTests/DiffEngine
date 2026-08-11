@@ -75,10 +75,11 @@ socket when something is already holding the queue.
 | --- | --- |
 | `Up` `Down` `PgUp` `PgDn` `Home` `End` | Scroll |
 | `n` `p` | Next and previous change |
-| `Tab` `Shift+Tab` | Next and previous pending snapshot |
+| `Tab` `Shift+Tab` | Next and previous pending item |
 | `a` | Accept |
 | `Shift+A` | Accept all |
 | `d` | Discard |
+| `v` | Cycle the variants of a conflicted snapshot (also the Variant button) |
 | `q` `Esc` | Close |
 
 
@@ -89,10 +90,53 @@ binds the loopback port holds the queue; everything else hands its patch to that
 lists everything pending and offers **Accept all**.
 
 The list sits in a column on the left. Drag the divider beside it to widen the column when the file
-names are longer than it is.
+names are longer than it is. When the list outgrows the window it follows the selection, keeping
+the selected row visible.
 
 Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
 case the tray still has it and can reopen a window on it.
+
+
+## Grouping
+
+When the pending items span more than one solution, the list groups them under solution headers
+with counts. The solution is found by walking up from each source file; items with no discoverable
+solution trail at the end, ungrouped. A queue from one solution stays flat.
+
+When one test produced more than one change, those changes gather under a sub-header carrying the
+test name. Test names come from the caller (Verify) and are optional; without them, items are
+labeled by call site. Two items that would read identically — the same file name and line in two
+projects — grow the shortest distinguishing directory prefix.
+
+
+## Conflicting snapshots
+
+A test run under several target frameworks can produce different content for the same call site.
+The queue keeps each distinct content as a labeled variant of one entry — `net8.0`, `net9.0` —
+rather than letting the last writer win. Identical content from several frameworks merges into one
+variant carrying all their labels.
+
+A conflicted entry is marked `*` in the list, the pane header names the framework on screen
+(`received (net8.0)`), and a **Variant** button (or `v`) cycles through the disagreeing contents.
+Accepting applies exactly the variant on screen and resolves the whole call site; a framework that
+still disagrees will re-report on its next run. **Accept all** never picks sides: it skips
+conflicted entries and says how many still need review. A framework whose test starts passing
+settles only its own variant, so the other framework's still-failing content stays reviewable.
+
+
+## Moves and deletes
+
+When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the tray's pending file
+moves and deletes beside the snapshots, grouped by solution like everything else. A move shows the
+received file against the committed one; a delete shows the file's content against nothing. The
+files are read locally — the protocol never leaves the machine — and accept and discard are
+forwarded to the tray, which is why the buttons name the act: **Accept move**, **Accept delete**.
+
+**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and
+snapshots, with conflicted snapshots skipped and anything locked kept pending and counted.
+
+A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends
+them to a running tray.
 
 
 ## With DiffEngineTray

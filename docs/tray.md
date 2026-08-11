@@ -32,7 +32,7 @@ Run `diffenginetray` in a console to start the app.
 
 ### Grouping
 
-Moves and deletes will be grouped by the containing solution. In the above, the files exist in DiffEngine, so they are grouped under it.
+Moves, deletes and pending snapshots are grouped by the containing solution. In the above, the files exist in DiffEngine, so they are grouped under it. The per-group headers act on that group only: clicking one solution's "Pending Snapshots" does not accept another's.
 
 
 ### Moves
@@ -71,7 +71,7 @@ A tray restart loses the queue, as it loses pending moves and deletes. Re-run th
 
 ### Accept all
 
-"Accept all" will accept all pending moves and all pending deletes.
+"Accept all" will accept all pending moves, deletes and inline snapshots. Snapshots whose target frameworks disagree about the content are skipped rather than picked between; resolve those in the viewer.
 
 
 ### Locked files
@@ -138,6 +138,7 @@ Registers a system wide HotKey to discard pending:
 
  * Deletes
  * Moves
+ * Inline snapshots
 
 
 #### Accept all HotKey
@@ -146,6 +147,7 @@ Registers a system wide HotKey to accept pending:
 
  * Deletes
  * Moves
+ * Inline snapshots (conflicted ones are skipped)
 
 
 #### Accept all open HotKey
@@ -154,6 +156,7 @@ Registers a system wide HotKey to accept pending:
 
  * Deletes
  * Moves that are currently open in a diff tool
+ * Inline snapshots, all of which are open by definition: the viewer only stays running while it has something to show
 
 To limit impact on system resources, the [default max concurrent open tool instances is limited to 5](/docs/diff-tool.md#maxinstancestolaunch).
 

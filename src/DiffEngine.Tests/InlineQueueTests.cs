@@ -5,8 +5,11 @@
 /// </summary>
 public class InlineQueueTests
 {
-    static InlinePatch Patch(string source = "Sample.cs", int line = 42, string content = "new") =>
-        new(source, line, "\"old\"", content);
+    static InlinePatch Patch(string source = "Sample.cs", int line = 42, string content = "new", string? framework = null) =>
+        new(source, line, "\"old\"", content)
+        {
+            Framework = framework
+        };
 
     static InlineApplyResult Fails(InlinePatch patch) =>
         InlineApplyResult.Failed("locked");
@@ -227,5 +230,329 @@ public class InlineQueueTests
 
         await Assert.That(queue.Count).IsEqualTo(0);
         await Assert.That(message).IsEqualTo("Discarded 2");
+    }
+
+    /// <summary>
+    /// A multi-targeted run disagreeing with itself is one call site with two contents, not two
+    /// entries and not a silent overwrite.
+    /// </summary>
+    [Test]
+    public async Task ADifferentFrameworkWithDifferentContentAddsAVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"));
+
+        await Assert.That(queue.Count).IsEqualTo(1);
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsTrue();
+        await Assert.That(entry.Variants.Count).IsEqualTo(2);
+        // The primary stays the first arrival, so the display does not jump under a reader.
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("eight");
+        await Assert.That(entry.OriginsLabel).IsEqualTo("net8.0 / net9.0");
+    }
+
+    [Test]
+    public async Task ADifferentFrameworkWithSameContentMergesOrigins()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(framework: "net8.0"))
+            .Enqueue(Patch(framework: "net9.0"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Variants).HasSingleItem();
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net8.0", "net9.0"]);
+    }
+
+    [Test]
+    public async Task ASameFrameworkRerunReplacesItsVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "first", framework: "net9.0"))
+            .Enqueue(Patch(content: "second", framework: "net9.0"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("second");
+    }
+
+    /// <summary>
+    /// The conflict-clearing path: a re-run whose content now agrees moves its label across, and
+    /// the variant it abandons disappears with its last label.
+    /// </summary>
+    [Test]
+    public async Task ARerunThatConvergesClearsTheConflict()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Enqueue(Patch(content: "nine", framework: "net8.0"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Variants).HasSingleItem();
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("nine");
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net9.0", "net8.0"]);
+    }
+
+    [Test]
+    public async Task AMergedVariantSplitsWhenAFrameworkDiverges()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "same", framework: "net8.0"))
+            .Enqueue(Patch(content: "same", framework: "net9.0"))
+            .Enqueue(Patch(content: "different", framework: "net8.0"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsTrue();
+        await Assert.That(entry.Variants.Count).IsEqualTo(2);
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net9.0"]);
+        await Assert.That(entry.Variants[1].Origins).IsEquivalentTo(["net8.0"]);
+        await Assert.That(entry.Variants[1].Patch.NewContent).IsEqualTo("different");
+    }
+
+    /// <summary>
+    /// An unlabeled arrival cannot be told apart from a re-run, so it falls back to the
+    /// pre-variant semantics: the newest content wins outright.
+    /// </summary>
+    [Test]
+    public async Task AnUnlabeledArrivalReplacesEverything()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Enqueue(Patch(content: "plain"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Variants).HasSingleItem();
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("plain");
+        await Assert.That(entry.Variants[0].Origins).IsEmpty();
+    }
+
+    /// <summary>
+    /// The mirror case: a labeled arrival into an unlabeled entry cannot be presented as an
+    /// honest conflict, so it also collapses to a replace.
+    /// </summary>
+    [Test]
+    public async Task ALabeledArrivalReplacesAnUnlabeledEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "plain"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"));
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Variants).HasSingleItem();
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("nine");
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net9.0"]);
+    }
+
+    [Test]
+    public async Task AcceptRefusesAConflictedEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"));
+
+        var after = queue.Accept(InlineKey.For("Sample.cs", 42), _ => throw new("must not be applied"), out var message);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(message).IsEqualTo("Conflicting snapshots (net8.0 / net9.0), resolve in the viewer");
+    }
+
+    [Test]
+    public async Task AcceptByOriginAppliesThatVariantAndRemovesTheEntry()
+    {
+        var applied = new List<InlinePatch>();
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Accept(InlineKey.For("Sample.cs", 42), "net9.0", _ =>
+            {
+                applied.Add(_);
+                return InlineApplyResult.Applied;
+            }, out var message);
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+        await Assert.That(applied.Single().NewContent).IsEqualTo("nine");
+        await Assert.That(message).IsEqualTo("Applied Sample.cs:42");
+    }
+
+    [Test]
+    public async Task AcceptByOriginFailureKeepsTheWholeEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Accept(InlineKey.For("Sample.cs", 42), "net9.0", Fails, out var message);
+
+        await Assert.That(queue.Count).IsEqualTo(1);
+        await Assert.That(queue.Items[0].Conflicted).IsTrue();
+        await Assert.That(queue.Items[0].Status).IsEqualTo("locked");
+        await Assert.That(message).IsEqualTo("locked");
+    }
+
+    [Test]
+    public async Task AcceptByAnUnknownOriginDoesNothing()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"));
+
+        var after = queue.Accept(InlineKey.For("Sample.cs", 42), "net6.0", _ => throw new("must not be applied"), out var message);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(message).IsEqualTo("No net6.0 variant for Sample.cs:42");
+    }
+
+    /// <summary>
+    /// A bulk accept never picks sides: the conflicted entry survives untouched and the message
+    /// says what still needs a human.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllSkipsConflictsAndCountsThem()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2, content: "eight", framework: "net8.0"))
+            .Enqueue(Patch("B.cs", 2, content: "nine", framework: "net9.0"))
+            .AcceptAll(_ => InlineApplyResult.Applied, out var message);
+
+        await Assert.That(queue.Items.Select(_ => _.Name)).IsEquivalentTo(["B.cs:2"]);
+        await Assert.That(message).IsEqualTo("Accepted 1, 1 conflict needs review");
+    }
+
+    [Test]
+    public async Task AcceptAllPluralizesConflicts()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1, content: "eight", framework: "net8.0"))
+            .Enqueue(Patch("A.cs", 1, content: "nine", framework: "net9.0"))
+            .Enqueue(Patch("B.cs", 2, content: "eight", framework: "net8.0"))
+            .Enqueue(Patch("B.cs", 2, content: "nine", framework: "net9.0"))
+            .AcceptAll(_ => InlineApplyResult.Applied, out var message);
+
+        await Assert.That(queue.Count).IsEqualTo(2);
+        await Assert.That(message).IsEqualTo("Accepted 0, 2 conflicts need review");
+    }
+
+    [Test]
+    public async Task AcceptAllComposesFailuresAndConflicts()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2, content: "eight", framework: "net8.0"))
+            .Enqueue(Patch("B.cs", 2, content: "nine", framework: "net9.0"))
+            .AcceptAll(Fails, out var message);
+
+        await Assert.That(message).IsEqualTo("Accepted 0, 1 failed, 1 conflict needs review. locked");
+    }
+
+    /// <summary>
+    /// The mid-apply guard, generalized: an entry that grew a variant while its patch was applying
+    /// keeps its new self, so the other framework's differing content is never silently dropped.
+    /// A later targeted accept resolves it, with the applied side completing as already applied.
+    /// </summary>
+    [Test]
+    public async Task CompletingAfterAVariantArrivedLeavesTheEntry()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "eight", framework: "net8.0"));
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Enqueue(Patch(content: "nine", framework: "net9.0"));
+
+        var after = queue.Accept(entry, InlineApplyResult.Applied, out var message);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(message).IsNull();
+        await Assert.That(after.Items[0].Conflicted).IsTrue();
+    }
+
+    [Test]
+    public async Task SettleWithOriginRemovesThatVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Settle(InlineKey.For("Sample.cs", 42), "net8.0");
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Patch.NewContent).IsEqualTo("nine");
+    }
+
+    /// <summary>
+    /// The content is still pending for the other framework, so only the label goes.
+    /// </summary>
+    [Test]
+    public async Task SettleWithOriginRemovesJustTheLabelOfAMergedVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(framework: "net8.0"))
+            .Enqueue(Patch(framework: "net9.0"))
+            .Settle(InlineKey.For("Sample.cs", 42), "net8.0");
+
+        var entry = queue.Items[0];
+        await Assert.That(entry.Variants).HasSingleItem();
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net9.0"]);
+    }
+
+    [Test]
+    public async Task SettleWithOriginRemovesTheEntryWithTheLastVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(framework: "net9.0"))
+            .Settle(InlineKey.For("Sample.cs", 42), "net9.0");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// An unlabeled entry cannot be scoped, and leaving it would strand a stale entry, so a
+    /// labeled settle takes the whole thing.
+    /// </summary>
+    [Test]
+    public async Task SettleWithOriginRemovesAnUnlabeledEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch())
+            .Settle(InlineKey.For("Sample.cs", 42), "net9.0");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SettleWithoutOriginRemovesTheWholeEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Settle(InlineKey.For("Sample.cs", 42), null);
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A settle from a framework with nothing pending changed nothing, and the same-instance
+    /// contract lets the host see that.
+    /// </summary>
+    [Test]
+    public async Task SettleForAnAbsentOriginReturnsTheSameQueue()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(framework: "net9.0"));
+
+        await Assert.That(queue.Settle(InlineKey.For("Sample.cs", 42), "net8.0")).IsSameReferenceAs(queue);
+    }
+
+    [Test]
+    public async Task DiscardRemovesAllVariants()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0"))
+            .Discard(InlineKey.For("Sample.cs", 42), out var message);
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+        await Assert.That(message).IsEqualTo("Discarded Sample.cs:42");
     }
 }

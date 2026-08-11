@@ -244,7 +244,15 @@ static class ViewerProgram
 
         if (input.ClickedQueueItem >= 0)
         {
-            state = ViewerSession.Apply(state, Command.Select(input.ClickedQueueItem));
+            // The head reports a row in the drawn column, which the projection maps back to an
+            // entry; a header row maps to nothing, so its clicks go nowhere. Rebuilt the same way
+            // the button lookup below rebuilds.
+            var rows = ScreenBuilder.Build(state).Queue;
+            if (input.ClickedQueueItem < rows.Count &&
+                rows[input.ClickedQueueItem].EntryIndex >= 0)
+            {
+                state = ViewerSession.Apply(state, Command.Select(rows[input.ClickedQueueItem].EntryIndex));
+            }
         }
 
         if (input.ClickedButton >= 0)
@@ -288,7 +296,17 @@ static class ViewerProgram
 
         // Captured now rather than when it is sent, because selection can move in between.
         var key = verb is ViewerVerb.Accept or ViewerVerb.Discard ? state.Current?.Key : null;
-        link.Post(verb.Value, key);
+        // Accepting a conflicted entry names the variant on screen, so the owner applies exactly
+        // what the reviewer was reading.
+        string? body = null;
+        if (verb is ViewerVerb.Accept &&
+            state.Current is { Kind: QueueEntryKind.Inline, Conflicted: true } current &&
+            current.Variants[current.SelectedVariant].Origins is { Count: > 0 } origins)
+        {
+            body = origins[0];
+        }
+
+        link.Post(verb.Value, key, body);
         return state with { Message = "Waiting for the queue owner." };
     }
 

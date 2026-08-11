@@ -77,6 +77,14 @@ public class WindowsPixelTests
                 Fixtures.Patch("HeaderPropagationExtensionsTests.cs", 130),
                 Fixtures.Patch()));
 
+    /// <summary>
+    /// The new queue primitives in one frame: solution headers, a test sub-group, the conflict
+    /// marker and the variant button. Mirrored in the native suite, as ever.
+    /// </summary>
+    [Test]
+    public Task GroupedConflictedQueue() =>
+        Capture(Fixtures.GroupedConflicted());
+
     [Test]
     public Task InlineAccepted()
     {

@@ -17,4 +17,7 @@ record Screen(
     IReadOnlyList<Button> Buttons,
     string Status,
     int Columns,
-    int Rows);
+    int Rows,
+    // Entries only. Queue.Count stopped meaning this once the column gained header rows and a
+    // selection-anchored slice.
+    int PendingCount);

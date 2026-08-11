@@ -164,7 +164,7 @@ sealed class ViewerCanvas : Control
         var headerTop = firstRule + gap;
         if (hasQueue)
         {
-            Painter.Draw(graphics, $"Pending ({screen.Queue.Count})", font, Palette.Text, Cellular(padding, headerTop, queue, lineHeight));
+            Painter.Draw(graphics, $"Pending ({screen.PendingCount})", font, Palette.Text, Cellular(padding, headerTop, queue, lineHeight));
         }
 
         Painter.Draw(graphics, screen.Left.Header, font, Palette.Text, Cellular(panesLeft, headerTop, half, lineHeight));
@@ -215,6 +215,13 @@ sealed class ViewerCanvas : Control
         }
 
         var item = screen.Queue[index];
+        if (item.Kind == QueueRowKind.Header)
+        {
+            // Flush left with no selection fill, dimmed: a heading, not a clickable row.
+            Painter.Draw(graphics, item.Label, font, Palette.Dim, Cellular(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+            return;
+        }
+
         if (item.Selected)
         {
             graphics.FillRectangle(Painter.Brush(Palette.Selected), bounds);

@@ -31,13 +31,14 @@ static class ScreenBuilder
             Title: current?.Name ?? "nothing pending",
             Subtitle: BuildSubtitle(state),
             Mode: state.Mode,
-            Queue: BuildQueue(state),
+            Queue: BuildQueue(state, body),
             Left: left,
             Right: right,
             Buttons: BuildButtons(state),
             Status: BuildStatus(state, current, body),
             Columns: state.Columns,
-            Rows: state.Rows);
+            Rows: state.Rows,
+            PendingCount: state.Mode == ViewerMode.File ? 0 : state.Queue.Count);
     }
 
     static Pane BuildPane(string header, IReadOnlyList<Row> rows, int scrollTop, int body)
@@ -52,7 +53,7 @@ static class ScreenBuilder
         return new(header, visible, scrollTop, rows.Count);
     }
 
-    static IReadOnlyList<QueueItem> BuildQueue(SessionState state)
+    static IReadOnlyList<QueueItem> BuildQueue(SessionState state, int body)
     {
         // File mode is one window per invocation, so it has no queue to show.
         if (state.Mode == ViewerMode.File)
@@ -60,19 +61,13 @@ static class ScreenBuilder
             return [];
         }
 
-        var items = new List<QueueItem>(state.Queue.Count);
-        for (var index = 0; index < state.Queue.Count; index++)
-        {
-            var entry = state.Queue[index];
-            items.Add(new(entry.Name, index == state.Selected, entry.Status));
-        }
-
-        return items;
+        return QueueProjection.Visible(state, body);
     }
 
     static IReadOnlyList<Button> BuildButtons(SessionState state)
     {
-        var enabled = state.Current is not null;
+        var current = state.Current;
+        var enabled = current is not null;
         if (state.Mode == ViewerMode.File)
         {
             return
@@ -82,14 +77,33 @@ static class ScreenBuilder
             ];
         }
 
-        return
-        [
-            new("Accept", enabled, CommandKind.Accept),
+        // Named per kind, because "Accept delete" is a destructive act worth naming as itself.
+        var accept = current?.Kind switch
+        {
+            QueueEntryKind.Move => "Accept move",
+            QueueEntryKind.Delete => "Accept delete",
+            _ => "Accept"
+        };
+
+        var buttons = new List<Button>
+        {
+            new(accept, enabled, CommandKind.Accept),
             new("Discard", enabled, CommandKind.Discard),
             // Enabled from one, not two. Shift+A has always accepted a queue of one, and a button
             // that refuses what the key it names does reads as a bug rather than a nicety.
             new("Accept all", state.Queue.Count > 0, CommandKind.AcceptAll)
-        ];
+        };
+
+        if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
+        {
+            var variant = current.Variants[current.SelectedVariant];
+            buttons.Add(new(
+                $"Variant {current.SelectedVariant + 1}/{current.Variants.Count}: {variant.Label ?? "unknown"}",
+                true,
+                CommandKind.NextVariant));
+        }
+
+        return buttons;
     }
 
     static string BuildSubtitle(SessionState state)

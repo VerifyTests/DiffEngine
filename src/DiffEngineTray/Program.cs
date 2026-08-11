@@ -86,6 +86,7 @@ static class Program
         if (owned is not null)
         {
             owned.Changed = tracker.Refresh;
+            owned.TrackedFiles = tracker;
             owned.Start();
         }
 

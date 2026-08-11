@@ -1,11 +1,40 @@
 namespace DiffEngine;
 
 /// <summary>
+/// One non-primary variant of a listed entry: a distinct content for the same call site, with the
+/// origin labels that produced it and its own <see cref="InlinePatchFile"/> payload.
+/// </summary>
+record ViewerResponseVariant(IReadOnlyList<string> Origins, string Patch);
+
+/// <summary>
 /// One entry in a listing. <paramref name="Patch"/> is only carried by
 /// <see cref="ViewerVerb.ListFull"/>, as an <see cref="InlinePatchFile"/> payload, and is what
 /// lets a reader derive the diff locally instead of it crossing the wire.
 /// </summary>
-record ViewerResponseItem(string Key, string Name, string? Status, string? Patch = null);
+record ViewerResponseItem(string Key, string Name, string? Status, string? Patch = null)
+{
+    /// <summary>
+    /// The primary variant's origin labels. Empty for an unlabeled sender.
+    /// </summary>
+    public IReadOnlyList<string> Origins { get; init; } = [];
+
+    /// <summary>
+    /// The non-primary variants of a conflicted entry, in order. Empty when the entry has one
+    /// content, which is almost always.
+    /// </summary>
+    public IReadOnlyList<ViewerResponseVariant> Variants { get; init; } = [];
+}
+
+/// <summary>
+/// A tracked file move riding a full listing, so a viewer displaying the tray's queue can render
+/// it from the two local paths and accept or discard it by key.
+/// </summary>
+record ViewerResponseMove(string Key, string Name, string? Group, string Temp, string Target);
+
+/// <summary>
+/// A tracked pending delete riding a full listing.
+/// </summary>
+record ViewerResponseDelete(string Key, string Name, string? Group, string File);
 
 /// <summary>
 /// The reply the queue owner writes before closing the connection.
@@ -28,6 +57,14 @@ record ViewerResponse(
     WindowCommand? Window = null,
     string? WindowKey = null)
 {
+    /// <summary>
+    /// The tray's tracked moves, on a full listing from a tray owner. A viewer that owns the
+    /// queue never has any: DiffEngine only sends moves and deletes to a running tray.
+    /// </summary>
+    public IReadOnlyList<ViewerResponseMove> Moves { get; init; } = [];
+
+    public IReadOnlyList<ViewerResponseDelete> Deletes { get; init; } = [];
+
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
 
@@ -37,8 +74,14 @@ record ViewerResponse(
     public static ViewerResponse Listing(
         IReadOnlyList<ViewerResponseItem> items,
         WindowCommand? window = null,
-        string? windowKey = null) =>
-        new(true, null, items, window, windowKey);
+        string? windowKey = null,
+        IReadOnlyList<ViewerResponseMove>? moves = null,
+        IReadOnlyList<ViewerResponseDelete>? deletes = null) =>
+        new(true, null, items, window, windowKey)
+        {
+            Moves = moves ?? [],
+            Deletes = deletes ?? []
+        };
 
     public string Build()
     {
@@ -65,7 +108,23 @@ record ViewerResponse(
 
             // Its own line name rather than a fourth field on `item`, so a reader that only wants
             // a listing skips these entirely instead of failing to split them.
-            builder.Append($"full: {head}|{ViewerPayload.Encode(item.Patch)}\n");
+            builder.Append($"full: {head}|{EncodeOrigins(item.Origins)}|{ViewerPayload.Encode(item.Patch)}\n");
+            foreach (var variant in item.Variants)
+            {
+                builder.Append($"variant: {ViewerPayload.Encode(item.Key)}|{EncodeOrigins(variant.Origins)}|{ViewerPayload.Encode(variant.Patch)}\n");
+            }
+        }
+
+        foreach (var move in Moves)
+        {
+            var group = move.Group is null ? "" : ViewerPayload.Encode(move.Group);
+            builder.Append($"move: {ViewerPayload.Encode(move.Key)}|{ViewerPayload.Encode(move.Name)}|{group}|{ViewerPayload.Encode(move.Temp)}|{ViewerPayload.Encode(move.Target)}\n");
+        }
+
+        foreach (var delete in Deletes)
+        {
+            var group = delete.Group is null ? "" : ViewerPayload.Encode(delete.Group);
+            builder.Append($"delete: {ViewerPayload.Encode(delete.Key)}|{ViewerPayload.Encode(delete.Name)}|{group}|{ViewerPayload.Encode(delete.File)}\n");
         }
 
         return builder.ToString();
@@ -85,6 +144,9 @@ record ViewerResponse(
         WindowCommand? window = null;
         string? windowKey = null;
         var items = new List<ViewerResponseItem>();
+        var moves = new List<ViewerResponseMove>();
+        var deletes = new List<ViewerResponseDelete>();
+        Dictionary<string, List<ViewerResponseVariant>>? variants = null;
         foreach (var (name, value) in lines)
         {
             switch (name)
@@ -130,6 +192,36 @@ record ViewerResponse(
 
                     items.Add(full);
                     continue;
+                case "variant":
+                    if (!TryParseVariant(value, out var variantKey, out var variant))
+                    {
+                        return false;
+                    }
+
+                    variants ??= new(StringComparer.Ordinal);
+                    if (!variants.TryGetValue(variantKey, out var list))
+                    {
+                        variants[variantKey] = list = [];
+                    }
+
+                    list.Add(variant);
+                    continue;
+                case "move":
+                    if (!TryParseMove(value, out var move))
+                    {
+                        return false;
+                    }
+
+                    moves.Add(move);
+                    continue;
+                case "delete":
+                    if (!TryParseDelete(value, out var delete))
+                    {
+                        return false;
+                    }
+
+                    deletes.Add(delete);
+                    continue;
                 default:
                     continue;
             }
@@ -140,7 +232,45 @@ record ViewerResponse(
             return false;
         }
 
-        response = new(ok.Value, message, items, window, windowKey);
+        // Attached after the loop rather than during it, so the parse does not depend on variant
+        // lines following their entry. A variant for a key with no entry is dropped.
+        if (variants is not null)
+        {
+            for (var index = 0; index < items.Count; index++)
+            {
+                if (variants.TryGetValue(items[index].Key, out var list))
+                {
+                    items[index] = items[index] with { Variants = list };
+                }
+            }
+        }
+
+        response = new(ok.Value, message, items, window, windowKey)
+        {
+            Moves = moves,
+            Deletes = deletes
+        };
+        return true;
+    }
+
+    static string EncodeOrigins(IReadOnlyList<string> origins) =>
+        origins.Count == 0 ? "" : ViewerPayload.Encode(string.Join(",", origins));
+
+    static bool TryDecodeOrigins(string value, out IReadOnlyList<string> origins)
+    {
+        if (value.Length == 0)
+        {
+            origins = [];
+            return true;
+        }
+
+        if (!ViewerPayload.TryDecode(value, out var joined))
+        {
+            origins = [];
+            return false;
+        }
+
+        origins = joined.Split(',');
         return true;
     }
 
@@ -148,7 +278,7 @@ record ViewerResponse(
     {
         item = null;
         var parts = value.Split('|');
-        if (parts.Length != (withPatch ? 4 : 3))
+        if (parts.Length != (withPatch ? 5 : 3))
         {
             return false;
         }
@@ -160,18 +290,75 @@ record ViewerResponse(
             return false;
         }
 
-        string? patch = null;
-        if (withPatch)
+        if (!withPatch)
         {
-            if (!ViewerPayload.TryDecode(parts[3], out var decoded))
-            {
-                return false;
-            }
-
-            patch = decoded;
+            item = new(key, name, status.Length == 0 ? null : status);
+            return true;
         }
 
-        item = new(key, name, status.Length == 0 ? null : status, patch);
+        if (!TryDecodeOrigins(parts[3], out var origins) ||
+            !ViewerPayload.TryDecode(parts[4], out var patch))
+        {
+            return false;
+        }
+
+        item = new(key, name, status.Length == 0 ? null : status, patch)
+        {
+            Origins = origins
+        };
+        return true;
+    }
+
+    static bool TryParseVariant(string value, out string key, [NotNullWhen(true)] out ViewerResponseVariant? variant)
+    {
+        key = "";
+        variant = null;
+        var parts = value.Split('|');
+        if (parts.Length != 3 ||
+            !ViewerPayload.TryDecode(parts[0], out var decodedKey) ||
+            !TryDecodeOrigins(parts[1], out var origins) ||
+            !ViewerPayload.TryDecode(parts[2], out var patch))
+        {
+            return false;
+        }
+
+        key = decodedKey;
+        variant = new(origins, patch);
+        return true;
+    }
+
+    static bool TryParseMove(string value, [NotNullWhen(true)] out ViewerResponseMove? move)
+    {
+        move = null;
+        var parts = value.Split('|');
+        if (parts.Length != 5 ||
+            !ViewerPayload.TryDecode(parts[0], out var key) ||
+            !ViewerPayload.TryDecode(parts[1], out var name) ||
+            !ViewerPayload.TryDecode(parts[2], out var group) ||
+            !ViewerPayload.TryDecode(parts[3], out var temp) ||
+            !ViewerPayload.TryDecode(parts[4], out var target))
+        {
+            return false;
+        }
+
+        move = new(key, name, group.Length == 0 ? null : group, temp, target);
+        return true;
+    }
+
+    static bool TryParseDelete(string value, [NotNullWhen(true)] out ViewerResponseDelete? delete)
+    {
+        delete = null;
+        var parts = value.Split('|');
+        if (parts.Length != 4 ||
+            !ViewerPayload.TryDecode(parts[0], out var key) ||
+            !ViewerPayload.TryDecode(parts[1], out var name) ||
+            !ViewerPayload.TryDecode(parts[2], out var group) ||
+            !ViewerPayload.TryDecode(parts[3], out var file))
+        {
+            return false;
+        }
+
+        delete = new(key, name, group.Length == 0 ? null : group, file);
         return true;
     }
 }

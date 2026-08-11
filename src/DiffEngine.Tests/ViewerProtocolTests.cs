@@ -178,7 +178,243 @@ public class ViewerProtocolTests
         var text = ViewerResponse.Listing([new("key", "Tests.cs:1", null, patch)]).Build();
 
         await Assert.That(Fields(text, "item: ")).IsEmpty();
-        await Assert.That(Fields(text, "full: ").Single().Length).IsEqualTo(4);
+        await Assert.That(Fields(text, "full: ").Single().Length).IsEqualTo(5);
+    }
+
+    [Test]
+    public async Task MetadataRidesTheInlineBody()
+    {
+        var patch = new InlinePatch("Tests.cs", 42, "\"old\"", "new content")
+        {
+            TestName = "Compare handles nulls",
+            Framework = "net9.0"
+        };
+
+        var payload = new ViewerMessage(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch)).Build();
+
+        await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
+        await Assert.That(InlinePatchFile.TryParse(message!.Body!, out var roundTripped)).IsTrue();
+        await Assert.That(roundTripped!.TestName).IsEqualTo("Compare handles nulls");
+        await Assert.That(roundTripped.Framework).IsEqualTo("net9.0");
+    }
+
+    /// <summary>
+    /// The body is the settling framework, so a multi-targeted run only settles its own variant.
+    /// </summary>
+    [Test]
+    public async Task SettleCarriesTheOriginInTheBody()
+    {
+        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("Tests.cs", 42), "net9.0").Build();
+
+        await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
+        await Assert.That(message!.Key).IsEqualTo("tests.cs|42");
+        await Assert.That(message.Body).IsEqualTo("net9.0");
+    }
+
+    [Test]
+    public async Task AFullListingCarriesThePrimaryOrigins()
+    {
+        var patch = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "new content"));
+        var listing = ViewerResponse.Listing(
+        [
+            new("tests.cs|42", "Tests.cs:42", null, patch)
+            {
+                Origins = ["net8.0", "net9.0"]
+            }
+        ]);
+
+        var text = listing.Build();
+        await Assert.That(Decoded(Fields(text, "full: ").Single()[3])).IsEqualTo("net8.0,net9.0");
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Items.Single().Origins).IsEquivalentTo(["net8.0", "net9.0"]);
+    }
+
+    /// <summary>
+    /// Non-primary variants ride their own line name, keyed back to their entry, so an entry line
+    /// stays one per call site however many frameworks disagree about it.
+    /// </summary>
+    [Test]
+    public async Task AVariantLineRoundTrips()
+    {
+        var primary = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "eight"));
+        var other = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "nine"));
+        var listing = ViewerResponse.Listing(
+        [
+            new("tests.cs|42", "Tests.cs:42", null, primary)
+            {
+                Origins = ["net8.0"],
+                Variants = [new(["net9.0"], other)]
+            }
+        ]);
+
+        var text = listing.Build();
+        await Assert.That(Fields(text, "variant: ").Single().Length).IsEqualTo(3);
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        var variant = parsed!.Items.Single().Variants.Single();
+        await Assert.That(variant.Origins).IsEquivalentTo(["net9.0"]);
+        await Assert.That(InlinePatchFile.TryParse(variant.Patch, out var roundTripped)).IsTrue();
+        await Assert.That(roundTripped!.NewContent).IsEqualTo("nine");
+    }
+
+    [Test]
+    public async Task AMoveLineRoundTrips()
+    {
+        var listing = ViewerResponse.Listing(
+            [],
+            moves: [new(@"move:c:\temp\a.received.txt", "Sample.Test (txt)", "MySolution", @"c:\temp\a.received.txt", @"c:\code\a.verified.txt")]);
+
+        var text = listing.Build();
+        await Assert.That(Fields(text, "move: ").Single().Length).IsEqualTo(5);
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        var move = parsed!.Moves.Single();
+        await Assert.That(move.Key).IsEqualTo(@"move:c:\temp\a.received.txt");
+        await Assert.That(move.Group).IsEqualTo("MySolution");
+        await Assert.That(move.Temp).IsEqualTo(@"c:\temp\a.received.txt");
+        await Assert.That(move.Target).IsEqualTo(@"c:\code\a.verified.txt");
+    }
+
+    [Test]
+    public async Task ADeleteLineRoundTrips()
+    {
+        var listing = ViewerResponse.Listing(
+            [],
+            deletes: [new(@"delete:c:\code\extra.verified.txt", "extra.verified.txt", null, @"c:\code\extra.verified.txt")]);
+
+        var text = listing.Build();
+        await Assert.That(Fields(text, "delete: ").Single().Length).IsEqualTo(4);
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        var delete = parsed!.Deletes.Single();
+        await Assert.That(delete.Group).IsNull();
+        await Assert.That(delete.File).IsEqualTo(@"c:\code\extra.verified.txt");
+    }
+
+    [Test]
+    public async Task AListingWithoutTrackedItemsParsesEmpty()
+    {
+        var text = ViewerResponse.Listing([new("key", "Sample.cs:42", null)]).Build();
+
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Moves).IsEmpty();
+        await Assert.That(parsed.Deletes).IsEmpty();
+        await Assert.That(parsed.Items.Single().Variants).IsEmpty();
+    }
+
+    // Field counts are strict, like item and full: growth means a new line name, never a new field
+    [Test]
+    public async Task AMalformedMoveLineRejectsTheResponse()
+    {
+        var valid = ViewerResponse.Listing(
+            [],
+            moves: [new("move:x", "x", null, "x", "y")]).Build();
+        var truncated = valid.Replace(
+            $"|{ViewerPayload.Encode("y")}\n",
+            "\n");
+
+        await Assert.That(ViewerResponse.TryParse(truncated, out _)).IsFalse();
+    }
+
+    /// <summary>
+    /// The routing contract: only the tray parses keys, and it tells its collections apart by
+    /// prefix, which an inline key can never carry because a Windows path cannot put a colon
+    /// there.
+    /// </summary>
+    [Test]
+    public async Task TrackedKeysCannotCollideWithInlineKeys()
+    {
+        await Assert.That(TrackedKeys.ForMove(@"C:\Temp\A.txt")).IsEqualTo(@"move:c:\temp\a.txt");
+        await Assert.That(TrackedKeys.ForDelete(@"C:\Code\B.txt")).IsEqualTo(@"delete:c:\code\b.txt");
+        await Assert.That(TrackedKeys.IsTracked(@"move:c:\temp\a.txt")).IsTrue();
+        await Assert.That(TrackedKeys.IsTracked(@"delete:c:\code\b.txt")).IsTrue();
+        await Assert.That(TrackedKeys.IsTracked(InlineKey.For(@"C:\Repo\Tests.cs", 42))).IsFalse();
+        await Assert.That(TrackedKeys.TryStrip(@"move:c:\temp\a.txt", TrackedKeys.MovePrefix, out var path)).IsTrue();
+        await Assert.That(path).IsEqualTo(@"c:\temp\a.txt");
+    }
+
+    /// <summary>
+    /// The shared projection both hosts list through. Without patches the conflict has to ride the
+    /// status, because there are no variant lines to carry it; with them it stays structural and
+    /// the real status is preserved.
+    /// </summary>
+    [Test]
+    public async Task AConflictedEntryListsItsStatus()
+    {
+        var eight = new InlinePatch("Tests.cs", 42, "\"old\"", "eight") { Framework = "net8.0" };
+        var nine = new InlinePatch("Tests.cs", 42, "\"old\"", "nine") { Framework = "net9.0" };
+        var entry = new PendingInline([new(eight, ["net8.0"]), new(nine, ["net9.0"])]);
+
+        var listed = ViewerListing.Items([entry], withPatches: false).Single();
+        await Assert.That(listed.Status).IsEqualTo("Conflicting snapshots (net8.0 / net9.0)");
+
+        var full = ViewerListing.Items([entry], withPatches: true).Single();
+        await Assert.That(full.Status).IsNull();
+        await Assert.That(full.Origins).IsEquivalentTo(["net8.0"]);
+        await Assert.That(full.Variants).HasSingleItem();
+    }
+
+    /// <summary>
+    /// The wire mapping for refusals: an entry that exists but was not acted on answers an error
+    /// carrying the reason, distinct from the unknown-key error, so a remote surface shows why
+    /// nothing happened.
+    /// </summary>
+    [Test]
+    public async Task ARefusedAcceptGoesOnTheWireAsAnError()
+    {
+        var refusing = new FakeOwner((false, "Conflicting snapshots (net8.0 / net9.0), resolve in the viewer"));
+        var refused = ViewerMessageHandler.Handle(refusing, new(ViewerVerb.Accept, "key"));
+        await Assert.That(refused.Ok).IsFalse();
+        await Assert.That(refused.Message).IsEqualTo("Conflicting snapshots (net8.0 / net9.0), resolve in the viewer");
+
+        var unknown = ViewerMessageHandler.Handle(new FakeOwner((false, null)), new(ViewerVerb.Accept, "key"));
+        await Assert.That(unknown.Ok).IsFalse();
+        await Assert.That(unknown.Message).IsEqualTo("No pending snapshot for key");
+
+        var done = ViewerMessageHandler.Handle(new FakeOwner((true, "Applied Tests.cs:42")), new(ViewerVerb.Accept, "key"));
+        await Assert.That(done.Ok).IsTrue();
+        await Assert.That(done.Message).IsEqualTo("Applied Tests.cs:42");
+    }
+
+    /// <summary>
+    /// The accept body is the variant origin a reviewer picked, and it has to reach the owner.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptForwardsItsOriginToTheOwner()
+    {
+        var owner = new FakeOwner((true, null));
+        ViewerMessageHandler.Handle(owner, new(ViewerVerb.Accept, "key", "net9.0"));
+
+        await Assert.That(owner.AcceptedOrigin).IsEqualTo("net9.0");
+    }
+
+    class FakeOwner((bool ok, string? message) act) :
+        IQueueOwner
+    {
+        public string? AcceptedOrigin { get; private set; }
+
+        public int Enqueue(InlinePatch patch) => 1;
+
+        public void Settle(string key, string? origin)
+        {
+        }
+
+        public ViewerResponse Listing(bool withPatches) => ViewerResponse.Listing([]);
+
+        public bool Has(string key) => true;
+
+        public (bool ok, string? message) Accept(string key, string? origin)
+        {
+            AcceptedOrigin = origin;
+            return act;
+        }
+
+        public (bool ok, string? message) Discard(string key) => act;
+
+        public string? AcceptAll() => null;
+
+        public string? DiscardAll() => null;
+
+        public void Window(WindowCommand command, string? key)
+        {
+        }
     }
 
     /// <summary>

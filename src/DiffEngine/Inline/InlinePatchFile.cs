@@ -23,7 +23,12 @@ public static class InlinePatchFile
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.OriginalExpression));
         var content = Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.NewContent));
-        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\n";
+        // Test names are caller supplied and can contain anything, so base64 like the content
+        // fields. Frameworks are short monikers and stay readable, like mode.
+        var testName = patch.TestName is null
+            ? ""
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.TestName));
+        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {patch.Framework}\n";
     }
 
     public static bool TryRead(string path, [NotNullWhen(true)] out InlinePatch? patch)
@@ -73,19 +78,43 @@ public static class InlinePatchFile
 
         string? expression;
         string content;
+        string? testName = null;
+        string? framework = null;
         try
         {
             expression = expressionBase64.Length == 0
                 ? null
                 : Encoding.UTF8.GetString(Convert.FromBase64String(expressionBase64));
             content = Encoding.UTF8.GetString(Convert.FromBase64String(contentBase64));
+
+            // Read tolerantly past the six fixed lines: order agnostic, absent means null, and
+            // unknown lines are skipped so a payload written by a newer sender still parses.
+            for (var index = 6; index < lines.Length; index++)
+            {
+                if (TryValue(lines[index], "testName", out var testNameBase64))
+                {
+                    testName = testNameBase64.Length == 0
+                        ? null
+                        : Encoding.UTF8.GetString(Convert.FromBase64String(testNameBase64));
+                    continue;
+                }
+
+                if (TryValue(lines[index], "framework", out var frameworkValue))
+                {
+                    framework = frameworkValue.Length == 0 ? null : frameworkValue;
+                }
+            }
         }
         catch (FormatException)
         {
             return false;
         }
 
-        patch = new(sourceFile, lineHint, expression, content, mode);
+        patch = new(sourceFile, lineHint, expression, content, mode)
+        {
+            TestName = testName,
+            Framework = framework
+        };
         return true;
     }
 

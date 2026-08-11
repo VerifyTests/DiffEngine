@@ -16,5 +16,12 @@ enum CommandKind
     AcceptAll,
     Discard,
     DiscardAll,
+
+    /// <summary>
+    /// Cycle to the next variant of a conflicted entry. Wraps, so one command covers the two or
+    /// three variants a multi-targeted run produces. View state only: it changes what is being
+    /// read, never a file, and applies locally even when the queue belongs to someone else.
+    /// </summary>
+    NextVariant,
     Quit
 }

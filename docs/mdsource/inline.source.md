@@ -27,7 +27,7 @@ flowchart LR
     Engine -->|"3493 inline, settle"| Owner
     Engine -.->|"launch with patch on stdin,<br/>when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
-    Window <-->|"3493 listfull, accept, discard"| Owner
+    Window <-->|"3493 listfull (with the tray's moves<br/>and deletes), accept, discard"| Owner
     Plugin -->|"3493 settle, after accepting"| Owner
     Owner -->|"InlineApplier"| Files
     Plugin -->|"InlineApplier"| Files
@@ -85,7 +85,12 @@ For the producing side — a test library with a failing inline snapshot:
   back to a text diff.
 * `DiffRunner.SettleInline(sourceFile, line)` drops the pending entry for a call site, for when
   a previously failing test passes. Unknown entries and an absent owner are no-ops, so call it
-  freely.
+  freely. The settle carries the running framework, so a multi-targeted run only settles its own
+  variant of a conflicted entry.
+* `AddInlineAsync` stamps `patch.Framework` with the running process's target framework
+  ("net9.0", "net48") unless the caller already set it, which is what lets the owner tell a
+  re-run from another framework disagreeing. Callers may also set `patch.TestName`, which the
+  viewer uses to group and label the queue; without it, items are labeled by call site.
 * Setting `DiffEngine_InlineViewer` to `false` reports `NoViewerFound` without probing, which is
   how a user opts into reviewing in their IDE instead of a window.
 
@@ -102,12 +107,16 @@ lineHint: 42
 mode: Set
 originalExpression: {base64}
 newContent: {base64}
+testName: {base64}
+framework: net9.0
 ```
 
 `lineHint` is a hint: locating the call is content anchored, so a file that shifted since the
 test run still patches, and one whose call site changed reports rather than corrupts. `mode` is
 `Set` (replace or insert the expected argument), `Append` (add a Snapshot call where none exists
-yet), or `Remove` (delete the call, used when migrating a snapshot back to a file).
+yet), or `Remove` (delete the call, used when migrating a snapshot back to a file). `testName`
+and `framework` are optional provenance — who produced the patch and under which target
+framework — parsed tolerantly: absent means unknown, and unknown trailing lines are ignored.
 
 
 ## Applying a patch from another surface

@@ -49,9 +49,28 @@ public sealed class InlinePatch
     public InlinePatchMode Mode { get; set; }
 
     /// <summary>
+    /// Display name of the test that produced this patch. Optional; supplied by the caller
+    /// (Verify). Null when the caller did not provide one.
+    /// </summary>
+    public string? TestName { get; set; }
+
+    /// <summary>
+    /// Short target framework of the test process that produced this patch ("net9.0", "net48").
+    /// Stamped by <see cref="DiffRunner.AddInlineAsync"/> in the sending process, never by a
+    /// parser or a re-host, so a patch that crosses processes keeps the framework it was born
+    /// under. Null means unknown origin, which selects last-writer-wins queue semantics.
+    /// </summary>
+    public string? Framework { get; set; }
+
+    /// <summary>
     /// The same edit, field for field. Lets a reader tell a patch that arrived again unchanged
     /// from one that actually changed, without giving a settable type value equality and the
     /// broken-key hazard that comes with it.
+    /// <para>
+    /// Provenance (<see cref="TestName"/>, <see cref="Framework"/>) is deliberately excluded:
+    /// two frameworks producing this identical edit are one edit, which is what lets the queue
+    /// merge their origins instead of manufacturing a conflict.
+    /// </para>
     /// </summary>
     public bool Matches(InlinePatch other) =>
         SourceFile == other.SourceFile &&
