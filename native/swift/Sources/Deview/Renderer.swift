@@ -135,7 +135,9 @@ final class Renderer {
 
         let headerTop = firstRule + Renderer.gap
         if hasQueue {
-            text("Pending (\(frame.queue.count))", in: rect(top: headerTop, left: Renderer.padding, width: queue, height: line, size), Palette.text, context)
+            // Entries only: the rows include group headings, which are not pending anything.
+            let pending = frame.queue.filter { !$0.header }.count
+            text("Pending (\(pending))", in: rect(top: headerTop, left: Renderer.padding, width: queue, height: line, size), Palette.text, context)
         }
 
         text(frame.left.header, in: rect(top: headerTop, left: panesLeft, width: half, height: line, size), Palette.text, context)
