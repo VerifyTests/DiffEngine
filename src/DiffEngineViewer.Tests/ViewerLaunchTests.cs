@@ -285,6 +285,9 @@ public class ViewerLaunchTests
                 "Order is stable labels the OtherTests.cs entry by test name",
                 "The BTests.cs entry is marked *, its pane header says received (net8.0)",
                 "The Variant 1/2: net8.0 button (or v) flips to net9.0 and back",
+                "Right-clicking BTests.cs selects it and offers Accept, Show next variant, Discard, Open source file",
+                "Right-clicking the SolutionA header offers Accept all in SolutionA and Discard all in SolutionA, sweeping only that solution",
+                "Any other click or key closes the menu",
                 "Accepting the conflicted entry writes the variant on screen",
                 "Accept all skips the conflict and says 1 conflict needs review");
 
