@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <vector>
 
 /*
  * raylib latches GLFW's close flag and exposes no way to clear it, but the window has to survive a
@@ -598,7 +599,24 @@ void BuildFrame(const DeviewScreen* screen)
      */
     if (screen->menuCount > 0 && menuAnchored)
     {
+        /* Sized by hand rather than AlwaysAutoResize, which measures during its first frame and
+         * so draws nothing on it — and a pixel capture is exactly one frame. */
+        std::vector<std::string> labels;
+        float widest = 0.0f;
+        for (int index = 0; index < screen->menuCount; index++)
+        {
+            const DeviewMenuItem& item = screen->menu[index];
+            labels.push_back(Copy(screen, item.labelOffset, item.labelLength));
+            widest = std::max(widest, ImGui::CalcTextSize(labels.back().c_str()).x);
+        }
+
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec2 size(
+            widest + style.WindowPadding.x * 2.0f + cell,
+            static_cast<float>(screen->menuCount) * ImGui::GetTextLineHeightWithSpacing() +
+                style.WindowPadding.y * 2.0f);
         ImGui::SetNextWindowPos(ImVec2(menuAnchor.x + cell, menuAnchor.y));
+        ImGui::SetNextWindowSize(size);
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(28, 28, 28, 255));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
         ImGui::Begin(
@@ -606,14 +624,11 @@ void BuildFrame(const DeviewScreen* screen)
             nullptr,
             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoFocusOnAppearing);
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoFocusOnAppearing);
         for (int index = 0; index < screen->menuCount; index++)
         {
-            const DeviewMenuItem& item = screen->menu[index];
-            const std::string label = Copy(screen, item.labelOffset, item.labelLength);
             ImGui::PushID(index);
-            if (ImGui::Selectable(label.c_str()))
+            if (ImGui::Selectable(labels[static_cast<size_t>(index)].c_str()))
             {
                 state.input.clickedMenuItem = index;
             }
