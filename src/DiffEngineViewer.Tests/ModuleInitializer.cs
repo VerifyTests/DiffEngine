@@ -3,7 +3,12 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
-        VerifierSettings.UseSsimForPng();
+        // Tighter than Verify's 0.98 default, which cannot see a real defect on these screens: they
+        // are mostly flat background, so dropping a whole row of body text still scores about
+        // 0.998. Looser than the WinForms suites' 0.9999, because these baselines come from CI
+        // rasterisers rather than from this machine, and macOS glyph drift is expected to surface
+        // as a diff to re-accept rather than as a run that cannot be reproduced locally at all.
+        VerifierSettings.UseSsimForPng(0.999);
         // Program.Main does this for the app. A test host never runs Main, so without it the
         // default probing rules would have to find the native under runtimes/{rid}/native, which
         // they only do for natives that arrived through a NuGet package.

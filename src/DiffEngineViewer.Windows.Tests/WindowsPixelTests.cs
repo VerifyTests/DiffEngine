@@ -16,6 +16,21 @@ public class WindowsPixelTests
     const int width = 1100;
     const int height = 700;
 
+    /// <summary>
+    /// The grid this head reports at that window size. Fixed here rather than read back from the
+    /// canvas, for the same reason the native suite fixes its own: the baselines stay pinned to one
+    /// layout instead of moving with a measurement.
+    /// <para>
+    /// Same columns as the native suite, one row fewer. The shim assumes a flat 18px line, while
+    /// this head measures its own cell and reserves padding above the body, so the same window
+    /// holds one less. Feeding it 38 would not widen the window, it would clip the bottom row: the
+    /// canvas draws <c>Math.Min(capacity, rows)</c>.
+    /// </para>
+    /// </summary>
+    const int columns = 122;
+
+    const int rows = 37;
+
     static IViewerWindow? window;
 
     [Before(Class)]
@@ -73,7 +88,7 @@ public class WindowsPixelTests
 
     static async Task Capture(SessionState state)
     {
-        var screen = ScreenBuilder.Build(state);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {

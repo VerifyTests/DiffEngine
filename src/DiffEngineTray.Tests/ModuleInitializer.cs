@@ -4,9 +4,17 @@ public static class ModuleInitializer
     public static void Initialize()
     {
         VerifyWinForms.Initialize();
-        VerifierSettings.UseSsimForPng();
+        VerifierSettings.UseSsimForPng(PngSsimThreshold);
         PointAtAClosedPort();
     }
+
+    /// <summary>
+    /// Effectively "the same pixels", rather than Verify's 0.98 default. These screens are mostly
+    /// flat background, so 0.98 is far looser than it sounds on them: a whole missing row of text
+    /// still scores about 0.998, which the default would pass. The remaining slack is for float
+    /// dust and PNG encoder differences, not for anything visible.
+    /// </summary>
+    const double PngSsimThreshold = 0.9999;
 
     /// <summary>
     /// The tray asks the viewer for pending snapshots. Without this a DiffEngineViewer running on
