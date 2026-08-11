@@ -97,7 +97,7 @@ sealed class OwnedInlineHost :
     /// <summary>
     /// The queue is immutable, so the list can be handed out under the gate without copying it.
     /// </summary>
-    public IReadOnlyList<PendingInline>? Queued()
+    public IReadOnlyList<PendingInline> Queued()
     {
         lock (gate)
         {
@@ -235,14 +235,14 @@ sealed class OwnedInlineHost :
         return (true, message);
     }
 
-    string? IQueueOwner.AcceptAll()
+    string IQueueOwner.AcceptAll()
     {
         var message = AcceptEvery();
         Changed?.Invoke();
         return message;
     }
 
-    string? IQueueOwner.DiscardAll()
+    string IQueueOwner.DiscardAll()
     {
         string message;
         lock (gate)

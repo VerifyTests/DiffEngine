@@ -174,14 +174,15 @@ sealed class CsScan
     /// The keywords that can sit immediately before a call. Anything else that reads as an
     /// identifier there is a return type or a modifier, which makes what follows a declaration.
     /// </summary>
-    static readonly HashSet<string> callablePredecessors = new(StringComparer.Ordinal)
-    {
+    static readonly HashSet<string> callablePredecessors =
+    [
+        with(StringComparer.Ordinal),
         "and", "as", "await", "by", "case", "catch", "checked", "default", "do", "else",
         "equals", "fixed", "foreach", "from", "goto", "group", "if", "in", "into", "is",
         "join", "let", "lock", "new", "not", "on", "or", "orderby", "out", "params", "ref",
         "return", "select", "stackalloc", "switch", "throw", "unchecked", "using", "when",
         "where", "while", "with", "yield"
-    };
+    ];
 
     /// <summary>
     /// The offset of the last character before <paramref name="index"/> that is neither

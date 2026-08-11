@@ -101,6 +101,15 @@ static class MenuBuilder
             yield return item;
         }
 
+        // Closing the viewer is a process-wide action, not something done to one group's
+        // snapshots, so it sits on its own rather than trailing the last group that happens to
+        // have some.
+        if (snapshots.Count != 0)
+        {
+            yield return new MenuButton("Close snapshot viewer", tracker.CloseViewer);
+            yield return new ToolStripSeparator();
+        }
+
         yield return new MenuButton($"Discard ({count})", tracker.Clear, Images.Discard);
         yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
     }
@@ -198,8 +207,6 @@ static class MenuBuilder
                     () => tracker.Discard(snapshot),
                     () => tracker.Focus(snapshot));
             }
-
-            yield return new MenuButton("Close snapshot viewer", tracker.CloseViewer);
         }
 
         yield return new ToolStripSeparator();

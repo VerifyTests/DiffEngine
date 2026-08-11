@@ -1,5 +1,3 @@
-using EmptyFiles;
-
 [TUnit.Core.Executors.STAThreadExecutor]
 public class MenuBuilderTest :
     IDisposable
@@ -46,6 +44,7 @@ public class MenuBuilderTest :
     [Test]
     public async Task Full()
     {
+        using var viewer = new FakeViewer("Sample.cs:12", "Other.cs:40");
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
@@ -121,20 +120,6 @@ public class MenuBuilderTest :
     {
         using var viewer = new FakeViewer("Sample.cs:12", "Other.cs:40");
         await using var tracker = new RecordingTracker();
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task FullWithInline()
-    {
-        using var viewer = new FakeViewer("Sample.cs:12");
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete(file1);
-        tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         var menu = MenuBuilder.Build(
             emptyAction,
             emptyAction,
