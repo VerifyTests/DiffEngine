@@ -55,6 +55,20 @@ constexpr float minPaneCells = 12.0f;
  */
 constexpr float grabWidth = 4.0f;
 
+/*
+ * deview_init's fontSize is an em size, which is what Core Text and GDI+ take and therefore what
+ * the other two heads render at. ImGui's stb_truetype loader scales by pixel height instead
+ * (stbtt_ScaleForPixelHeight in imgui_draw.cpp), so the same 15 came out as an em of about 11 and
+ * text a quarter smaller than the other heads, which is what left this head's queue column holding
+ * 34 characters in far fewer pixels.
+ *
+ * The correction is the font's own ascent plus descent over its em, and it is a constant because
+ * the only font that reaches here is the JetBrains Mono the managed side embeds: 1020 and 300 over
+ * 1000 units. Swapping that font means revisiting this number, hence naming it rather than folding
+ * it into the size.
+ */
+constexpr float emScale = 1.32f;
+
 struct State
 {
     bool initialised = false;
@@ -667,6 +681,7 @@ int32_t deview_init(
         memcpy(copy, fontTtf, static_cast<size_t>(fontLength));
         ImFontConfig config;
         config.FontDataOwnedByAtlas = true;
+        config.ExtraSizeScale = emScale;
         io.Fonts->AddFontFromMemoryTTF(copy, fontLength, fontSize <= 0.0f ? 15.0f : fontSize, &config);
     }
 
