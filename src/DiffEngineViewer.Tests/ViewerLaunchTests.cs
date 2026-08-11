@@ -252,6 +252,80 @@ public class ViewerLaunchTests
     }
 
     /// <summary>
+    /// Everything the queue column gained in one window: solution headers, a test sub-group, a
+    /// conflicted entry with its variant button, and a per-kind accept label is out of reach here
+    /// because moves and deletes need a tray owner.
+    /// <para>
+    /// On its own port, deliberately: a machine running the real DiffEngineTray would otherwise
+    /// receive these patches into its live queue and open its installed viewer, which is not the
+    /// code in this working tree.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Explicit]
+    public async Task GroupedQueue()
+    {
+        Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", "3499");
+        try
+        {
+            var root = ManualViewer.TempDirectory();
+            var solutionA = root.CreateSubdirectory("SolutionA");
+            await File.WriteAllTextAsync(Path.Combine(solutionA.FullName, "SolutionA.slnx"), "");
+            var solutionB = root.CreateSubdirectory("SolutionB");
+            await File.WriteAllTextAsync(Path.Combine(solutionB.FullName, "SolutionB.slnx"), "");
+
+            var grouped = WriteSource(solutionA, "ATests.cs", "\"old value\"");
+            var single = WriteSource(solutionA, "OtherTests.cs", "\"other value\"");
+            var conflicted = WriteSource(solutionB, "BTests.cs", "\"framework value\"");
+
+            ManualViewer.Expect(
+                "Grouped queue with a conflict",
+                "SolutionA (3) and SolutionB (1) headers, dimmed, with the entries indented",
+                "Compare handles nulls (2) sub-header over the two ATests.cs call sites",
+                "Order is stable labels the OtherTests.cs entry by test name",
+                "The BTests.cs entry is marked *, its pane header says received (net8.0)",
+                "The Variant 1/2: net8.0 button (or v) flips to net9.0 and back",
+                "Accepting the conflicted entry writes the variant on screen",
+                "Accept all skips the conflict and says 1 conflict needs review");
+
+            foreach (var patch in new engine::DiffEngine.InlinePatch[]
+                     {
+                         new(grouped, 6, "\"old value\"", "first new")
+                         {
+                             TestName = "Compare handles nulls"
+                         },
+                         new(grouped, 7, "\"old value\"", "second new")
+                         {
+                             TestName = "Compare handles nulls"
+                         },
+                         new(single, 6, "\"other value\"", "other new")
+                         {
+                             TestName = "Order is stable"
+                         },
+                         new(conflicted, 6, "\"framework value\"", "eight")
+                         {
+                             Framework = "net8.0"
+                         },
+                         new(conflicted, 6, "\"framework value\"", "nine")
+                         {
+                             Framework = "net9.0"
+                         }
+                     })
+            {
+                var result = await EngineRunner.AddInlineAsync(patch);
+                await Assert.That(result).IsEqualTo(EngineResult.Queued);
+            }
+
+            await ManualViewer.WaitForClose();
+            Report(grouped, single, conflicted);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", null);
+        }
+    }
+
+    /// <summary>
     /// Line 6 is the verify call in both shapes, which is what every patch above points at.
     /// </summary>
     static string WriteSource(DirectoryInfo directory, string name, string? literal)
