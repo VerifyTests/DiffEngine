@@ -177,6 +177,30 @@ public class InlineScreenTests
             Fixtures.Delete(solution: "SolutionB"))));
 
     /// <summary>
+    /// The context menu, drawn over the frame the way every head draws it, so the offering per
+    /// row kind is pinned as text.
+    /// </summary>
+    [Test]
+    public Task MenuOnEntry() =>
+        Verify(Fixtures.Render(ViewerSession.OpenMenu(Pending(), 0)));
+
+    [Test]
+    public Task MenuOnConflictedEntry() =>
+        Verify(Fixtures.Render(ViewerSession.OpenMenu(Conflicted(), 0)));
+
+    [Test]
+    public Task MenuOnSolutionHeader() =>
+        Verify(Fixtures.Render(ViewerSession.OpenMenu(Fixtures.Inline(
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "OtherTests.cs"), 20, "\"a\"", "b"),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 30, "\"x\"", "y")), 0)));
+
+    [Test]
+    public Task MenuOnMove() =>
+        Verify(Fixtures.Render(ViewerSession.OpenMenu(
+            Fixtures.Attached(InlineQueue.Empty, Fixtures.Move(), Fixtures.Delete()), 0)));
+
+    /// <summary>
     /// More rows than fit: the column slices to keep the selection visible, second from the
     /// bottom once it walks below the fold.
     /// </summary>

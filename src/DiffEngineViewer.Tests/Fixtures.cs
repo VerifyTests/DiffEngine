@@ -162,7 +162,11 @@ static class Fixtures
     /// arranging a locked file or a rewritten source.
     /// </summary>
     public static ViewerActions Applying(InlineApplyResult result) =>
-        new(_ => result, static (_, _) => { });
+        new(_ => result, static (_, _) =>
+        {
+        }, static _ =>
+        {
+        });
 
     public static ViewerActions Applied =>
         Applying(InlineApplyResult.Applied);
@@ -172,7 +176,9 @@ static class Fixtures
     /// is reachable without touching disk.
     /// </summary>
     public static ViewerActions Copying(Action<string, string> copy) =>
-        new(static _ => throw new("File mode does not apply patches."), copy);
+        new(static _ => throw new("File mode does not apply patches."), copy, static _ =>
+        {
+        });
 
     public static string Render(SessionState state) =>
         AsciiRenderer.Render(ScreenBuilder.Build(state));

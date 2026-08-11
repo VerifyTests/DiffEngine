@@ -47,6 +47,13 @@ struct DeviewQueueItem
 }
 
 [StructLayout(LayoutKind.Sequential)]
+struct DeviewMenuItem
+{
+    public int LabelOffset;
+    public int LabelLength;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 unsafe struct DeviewScreen
 {
     public byte* Strings;
@@ -65,6 +72,9 @@ unsafe struct DeviewScreen
     public int SubtitleLength;
     public int StatusOffset;
     public int StatusLength;
+    public DeviewMenuItem* Menu;
+    public int MenuCount;
+    public int MenuRow;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -73,6 +83,8 @@ struct DeviewInput
     public int Key;
     public int ClickedButton;
     public int ClickedQueueItem;
+    public int RightClickedQueueItem;
+    public int ClickedMenuItem;
     public int ScrollDelta;
     public int CloseRequested;
     public int Columns;

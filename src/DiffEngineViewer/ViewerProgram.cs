@@ -242,16 +242,32 @@ static class ViewerProgram
             }
         }
 
-        if (input.ClickedQueueItem >= 0)
+        if (input.ClickedMenuItem >= 0)
+        {
+            if (state.Menu is { } open &&
+                input.ClickedMenuItem < open.Items.Count)
+            {
+                state = Dispatch(state, open.Items[input.ClickedMenuItem].Kind, link);
+            }
+        }
+        else if (input.RightClickedQueueItem >= 0)
+        {
+            state = ViewerSession.OpenMenu(state, input.RightClickedQueueItem);
+        }
+        else if (input.ClickedQueueItem >= 0)
         {
             // The head reports a row in the drawn column, which the projection maps back to an
             // entry; a header row maps to nothing, so its clicks go nowhere. Rebuilt the same way
-            // the button lookup below rebuilds.
+            // the button lookup below rebuilds. Either way a left click closes an open menu.
             var rows = ScreenBuilder.Build(state).Queue;
             if (input.ClickedQueueItem < rows.Count &&
                 rows[input.ClickedQueueItem].EntryIndex >= 0)
             {
                 state = ViewerSession.Apply(state, Command.Select(rows[input.ClickedQueueItem].EntryIndex));
+            }
+            else if (state.Menu is not null)
+            {
+                state = state with { Menu = null };
             }
         }
 
@@ -288,6 +304,18 @@ static class ViewerProgram
             return ViewerSession.Apply(state, command, ViewerActions.Real);
         }
 
+        // Local even when displaying someone else's queue: revealing reads this machine's disk,
+        // which is where the files are, because the protocol never leaves the machine.
+        if (command.Kind == CommandKind.RevealSource)
+        {
+            return ViewerSession.Apply(state, command, ViewerActions.Real);
+        }
+
+        if (command.Kind is CommandKind.AcceptGroup or CommandKind.DiscardGroup)
+        {
+            return DispatchGroup(state, command.Kind, link);
+        }
+
         var verb = Remote(command.Kind);
         if (verb is null)
         {
@@ -307,7 +335,52 @@ static class ViewerProgram
         }
 
         link.Post(verb.Value, key, body);
-        return state with { Message = "Waiting for the queue owner." };
+        return state with
+        {
+            Message = "Waiting for the queue owner.",
+            Menu = null
+        };
+    }
+
+    /// <summary>
+    /// A group command against someone else's queue: one accept or discard per member, by key,
+    /// with conflicted entries skipped the way every bulk accept skips them. The results come
+    /// back on the next listing like any other forwarded command.
+    /// </summary>
+    static SessionState DispatchGroup(SessionState state, CommandKind kind, OwnerLink link)
+    {
+        if (state.Menu is not { } menu)
+        {
+            return state;
+        }
+
+        foreach (var index in menu.Members)
+        {
+            if (index < 0 ||
+                index >= state.Queue.Count)
+            {
+                continue;
+            }
+
+            var entry = state.Queue[index];
+            if (kind == CommandKind.AcceptGroup)
+            {
+                if (!entry.Conflicted)
+                {
+                    link.Post(ViewerVerb.Accept, entry.Key);
+                }
+
+                continue;
+            }
+
+            link.Post(ViewerVerb.Discard, entry.Key);
+        }
+
+        return state with
+        {
+            Message = "Waiting for the queue owner.",
+            Menu = null
+        };
     }
 
     static ViewerVerb? Remote(CommandKind kind) =>

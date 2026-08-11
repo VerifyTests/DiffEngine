@@ -84,7 +84,9 @@ sealed class NativeViewerWindow : IViewerWindow
             // Already cells: the shim measures them from the font it loaded. Only the floors are
             // applied here, because they are the app's rule rather than the renderer's.
             Columns: Math.Max(40, input.Columns),
-            Rows: Math.Max(10, input.Rows));
+            Rows: Math.Max(10, input.Rows),
+            RightClickedQueueItem: input.RightClickedQueueItem,
+            ClickedMenuItem: input.ClickedMenuItem);
     }
 
     public void SetHidden(bool hidden) =>

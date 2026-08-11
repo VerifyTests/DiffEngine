@@ -48,6 +48,13 @@ final class ViewerView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        // The open menu floats over everything, so it hit-tests first: an item click chooses it,
+        // and any click beside it falls through and closes it on the way.
+        if let item = layout.menuItems.firstIndex(where: { $0.contains(point) }) {
+            Runtime.shared.input.clickedMenuItem = Int32(item)
+            return
+        }
+
         if let index = layout.buttons.firstIndex(where: { $0.contains(point) }) {
             Runtime.shared.input.clickedButton = Int32(index)
             return
@@ -83,6 +90,17 @@ final class ViewerView: NSView {
         }
 
         super.mouseUp(with: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
+           index < model.queue.count {
+            Runtime.shared.input.rightClickedQueueItem = Int32(index)
+            return
+        }
+
+        super.rightMouseDown(with: event)
     }
 
     /// Accumulated, because a trackpad delivers many small deltas between two polls and the

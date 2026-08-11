@@ -143,6 +143,8 @@ final class Runtime {
         input.key = DEVIEW_KEY_NONE.value
         input.clickedButton = -1
         input.clickedQueueItem = -1
+        input.rightClickedQueueItem = -1
+        input.clickedMenuItem = -1
         input.scrollDelta = 0
         input.closeRequested = 0
     }

@@ -10,7 +10,10 @@ record SessionState(
     string? Message,
     int Columns,
     int Rows,
-    bool Exit)
+    bool Exit,
+    // The open context menu. Closed by any other input, and by anything that changes the queue,
+    // because its members index the queue it was opened over.
+    MenuState? Menu = null)
 {
     public QueueEntry? Current =>
         Selected >= 0 && Selected < Queue.Count ? Queue[Selected] : null;

@@ -14,6 +14,11 @@ struct Frame {
     var left = Pane()
     var right = Pane()
 
+    /// The open context menu's labels, empty on almost every frame, and the queue row it hangs
+    /// under.
+    var menu: [String] = []
+    var menuRow: Int32 = -1
+
     struct Row {
         var kind: Int32 = 0
         var lineNumber: Int32 = -1
@@ -53,6 +58,14 @@ struct Frame {
                         selected: item.flags & DEVIEW_QUEUE_SELECTED.value != 0,
                         failed: item.flags & DEVIEW_QUEUE_FAILED.value != 0,
                         header: item.flags & DEVIEW_QUEUE_HEADER.value != 0))
+            }
+        }
+
+        if let items = screen.menu, screen.menuCount > 0 {
+            frame.menuRow = screen.menuRow
+            for index in 0 ..< Int(screen.menuCount) {
+                let item = items[index]
+                frame.menu.append(string(screen, item.labelOffset, item.labelLength))
             }
         }
 

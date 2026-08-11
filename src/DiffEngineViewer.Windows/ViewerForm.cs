@@ -60,6 +60,8 @@ sealed class ViewerForm : Form
     CommandKind key;
     int clickedButton = -1;
     int clickedQueueItem = -1;
+    int rightClickedQueueItem = -1;
+    int clickedMenuItem = -1;
     int scrollDelta;
     bool closeRequested;
     bool closingForReal;
@@ -89,6 +91,8 @@ sealed class ViewerForm : Form
         Controls.Add(Surface);
 
         canvas.QueueItemClicked += _ => clickedQueueItem = _;
+        canvas.QueueItemRightClicked += _ => rightClickedQueueItem = _;
+        canvas.MenuItemClicked += _ => clickedMenuItem = _;
         canvas.Scrolled += _ => scrollDelta += _;
     }
 
@@ -169,11 +173,15 @@ sealed class ViewerForm : Form
             Columns: canvas.ColumnCapacity,
             // ScreenBuilder subtracts Chrome to get the body, so adding it back asks for exactly
             // the rows the canvas can draw rather than a guess from a fixed cell height.
-            Rows: canvas.BodyCapacity + ScreenBuilder.Chrome);
+            Rows: canvas.BodyCapacity + ScreenBuilder.Chrome,
+            RightClickedQueueItem: rightClickedQueueItem,
+            ClickedMenuItem: clickedMenuItem);
 
         key = CommandKind.None;
         clickedButton = -1;
         clickedQueueItem = -1;
+        rightClickedQueueItem = -1;
+        clickedMenuItem = -1;
         scrollDelta = 0;
         closeRequested = false;
         return input;
@@ -247,8 +255,16 @@ sealed class ViewerForm : Form
         left.Status == right.Status &&
         left.Queue.SequenceEqual(right.Queue) &&
         left.Buttons.SequenceEqual(right.Buttons) &&
+        Same(left.Menu, right.Menu) &&
         Same(left.Left, right.Left) &&
         Same(left.Right, right.Right);
+
+    static bool Same(MenuOverlay? left, MenuOverlay? right) =>
+        left is null
+            ? right is null
+            : right is not null &&
+              left.Row == right.Row &&
+              left.Labels.SequenceEqual(right.Labels);
 
     static bool Same(Pane left, Pane right) =>
         left.Header == right.Header &&

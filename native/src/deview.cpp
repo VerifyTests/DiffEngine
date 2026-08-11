@@ -106,6 +106,8 @@ void ResetInput()
     state.input.key = DEVIEW_KEY_NONE;
     state.input.clickedButton = -1;
     state.input.clickedQueueItem = -1;
+    state.input.rightClickedQueueItem = -1;
+    state.input.clickedMenuItem = -1;
     state.input.scrollDelta = 0;
     state.input.closeRequested = 0;
 }
@@ -453,6 +455,8 @@ void BuildFrame(const DeviewScreen* screen)
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
     const float cell = ImGui::CalcTextSize("M").x;
+    ImVec2 menuAnchor;
+    bool menuAnchored = false;
     if (state.queueWidth <= 0.0f)
     {
         state.queueWidth = cell * queueCells;
@@ -501,7 +505,8 @@ void BuildFrame(const DeviewScreen* screen)
                     if (item.flags & DEVIEW_QUEUE_HEADER)
                     {
                         /* A heading, not a row: dimmed like the subtitle, and plain text rather
-                         * than a Selectable so it neither hovers nor clicks. */
+                         * than a Selectable so it neither hovers nor left-clicks. Right-clicks
+                         * still count: a heading's menu is how a whole group is swept. */
                         ImGui::TextDisabled("%s", label.c_str());
                     }
                     else
@@ -523,6 +528,18 @@ void BuildFrame(const DeviewScreen* screen)
                         {
                             ImGui::PopStyleColor();
                         }
+                    }
+
+                    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                    {
+                        state.input.rightClickedQueueItem = index;
+                    }
+
+                    if (index == screen->menuRow &&
+                        screen->menuCount > 0)
+                    {
+                        menuAnchor = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+                        menuAnchored = true;
                     }
                 }
             }
@@ -574,6 +591,40 @@ void BuildFrame(const DeviewScreen* screen)
 
     ImGui::EndChild();
     ImGui::Separator();
+
+    /*
+     * The context menu, its own floating window so it draws over the panes. The managed side owns
+     * opening and closing; this only draws what the screen carries and reports a clicked item.
+     */
+    if (screen->menuCount > 0 && menuAnchored)
+    {
+        ImGui::SetNextWindowPos(ImVec2(menuAnchor.x + cell, menuAnchor.y));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(28, 28, 28, 255));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+        ImGui::Begin(
+            "##contextmenu",
+            nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoFocusOnAppearing);
+        for (int index = 0; index < screen->menuCount; index++)
+        {
+            const DeviewMenuItem& item = screen->menu[index];
+            const std::string label = Copy(screen, item.labelOffset, item.labelLength);
+            ImGui::PushID(index);
+            if (ImGui::Selectable(label.c_str()))
+            {
+                state.input.clickedMenuItem = index;
+            }
+
+            ImGui::PopID();
+        }
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+    }
 
     for (int index = 0; index < screen->buttonCount; index++)
     {

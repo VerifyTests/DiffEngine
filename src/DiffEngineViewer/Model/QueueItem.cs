@@ -7,11 +7,37 @@ enum QueueRowKind
 /// <summary>
 /// One row of the queue column. Headers are labels only: <paramref name="EntryIndex"/> maps an
 /// entry row back to its <see cref="SessionState.Queue"/> index for click handling, and is -1 for
-/// a header, whose clicks go nowhere.
+/// a header, whose left-clicks go nowhere.
 /// </summary>
 record QueueItem(
     string Label,
     bool Selected,
     string? Status,
     QueueRowKind Kind = QueueRowKind.Entry,
-    int EntryIndex = -1);
+    int EntryIndex = -1)
+{
+    /// <summary>
+    /// For a header: the name without its count, and the queue indexes it spans, which is what a
+    /// right-click's group commands act on. Null on entry rows.
+    /// </summary>
+    public string? GroupName { get; init; }
+
+    public IReadOnlyList<int>? GroupMembers { get; init; }
+
+    // By value, because the members list is rebuilt every frame and reference equality would
+    // defeat the WinForms head's idle repaint check the moment a header is on screen.
+    public virtual bool Equals(QueueItem? other) =>
+        other is not null &&
+        Label == other.Label &&
+        Selected == other.Selected &&
+        Status == other.Status &&
+        Kind == other.Kind &&
+        EntryIndex == other.EntryIndex &&
+        GroupName == other.GroupName &&
+        (GroupMembers is null
+            ? other.GroupMembers is null
+            : other.GroupMembers is not null && GroupMembers.SequenceEqual(other.GroupMembers));
+
+    public override int GetHashCode() =>
+        HashCode.Combine(Label, Selected, Status, Kind, EntryIndex, GroupName);
+}

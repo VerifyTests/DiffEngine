@@ -23,5 +23,18 @@ enum CommandKind
     /// read, never a file, and applies locally even when the queue belongs to someone else.
     /// </summary>
     NextVariant,
+
+    /// <summary>
+    /// Accept every member of the group whose header the context menu was opened on, skipping
+    /// conflicted entries the way accept-all does.
+    /// </summary>
+    AcceptGroup,
+    DiscardGroup,
+
+    /// <summary>
+    /// Show the current entry's file in the platform's file manager. Local IO even when the queue
+    /// belongs to someone else, because the protocol never leaves the machine.
+    /// </summary>
+    RevealSource,
     Quit
 }

@@ -68,8 +68,18 @@ sealed class ViewerCanvas : Control
 
     public event Action<int>? QueueItemClicked;
 
+    public event Action<int>? QueueItemRightClicked;
+
+    public event Action<int>? MenuItemClicked;
+
     /// <summary>Notches, positive for up, matching what the shim reports.</summary>
     public event Action<int>? Scrolled;
+
+    /// <summary>
+    /// Where the open menu's items were drawn, for the click hit test. Rebuilt every paint and
+    /// cleared when there is no menu, so a stale rectangle can never eat a click.
+    /// </summary>
+    readonly List<Rectangle> menuRects = [];
 
     /// <summary>
     /// How many body rows fit. Reported back as part of the grid size so ScreenBuilder slices to
@@ -193,6 +203,42 @@ sealed class ViewerCanvas : Control
         }
 
         DrawColumnRule(graphics, panesLeft + half - gap / 2, bodyTop, bodyBottom);
+
+        // Last, so it floats over whatever it overlaps.
+        DrawMenu(graphics);
+    }
+
+    /// <summary>
+    /// The context menu, floated over the frame under its queue row, the same panel every head
+    /// draws. Items are plain rows; the hit test lives in the rectangles this records.
+    /// </summary>
+    void DrawMenu(Graphics graphics)
+    {
+        menuRects.Clear();
+        if (screen?.Menu is not { } menu ||
+            menu.Labels.Count == 0)
+        {
+            return;
+        }
+
+        var width = (menu.Labels.Max(_ => _.Length) + 2) * Cell.Width;
+        var left = padding + Cell.Width;
+        var top = BodyTop + (menu.Row + 1) * Cell.Height;
+        var bounds = new Rectangle(left, top, width, menu.Labels.Count * Cell.Height + padding * 2);
+        graphics.FillRectangle(Painter.Brush(Palette.Filler), bounds);
+        graphics.DrawRectangle(new(Palette.Rule), bounds);
+
+        for (var index = 0; index < menu.Labels.Count; index++)
+        {
+            var item = new Rectangle(left + 1, top + padding + index * Cell.Height, width - 2, Cell.Height);
+            menuRects.Add(item);
+            Painter.Draw(
+                graphics,
+                menu.Labels[index],
+                font,
+                Palette.Text,
+                Cellular(item.X + Cell.Width - 1, item.Y, item.Width - Cell.Width, item.Height));
+        }
     }
 
     void DrawTitle(Graphics graphics, int lineHeight)
@@ -291,9 +337,24 @@ sealed class ViewerCanvas : Control
             return;
         }
 
+        // The open menu floats over everything, so it hit-tests first, whichever button: an item
+        // click chooses it, and any click beside it falls through and closes it on the way.
+        if (screen.Menu is not null)
+        {
+            for (var item = 0; item < menuRects.Count; item++)
+            {
+                if (menuRects[item].Contains(e.Location))
+                {
+                    MenuItemClicked?.Invoke(item);
+                    return;
+                }
+            }
+        }
+
         // Checked before the queue hit test, because the grab zone overlaps the right edge of the
         // column and a drag that started there would otherwise also select whatever it began over.
-        if (OverSplitter(e.X))
+        if (e.Button == MouseButtons.Left &&
+            OverSplitter(e.X))
         {
             dragging = true;
             Capture = true;
@@ -307,11 +368,19 @@ sealed class ViewerCanvas : Control
         }
 
         var index = (e.Y - BodyTop) / Cell.Height;
-        if (index >= 0 &&
-            index < screen.Queue.Count)
+        if (index < 0 ||
+            index >= screen.Queue.Count)
         {
-            QueueItemClicked?.Invoke(index);
+            return;
         }
+
+        if (e.Button == MouseButtons.Right)
+        {
+            QueueItemRightClicked?.Invoke(index);
+            return;
+        }
+
+        QueueItemClicked?.Invoke(index);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

@@ -27,18 +27,41 @@ static class ScreenBuilder
             state.ScrollTop,
             body);
 
+        var queue = BuildQueue(state, body, out var top);
         return new(
             Title: current?.Name ?? "nothing pending",
             Subtitle: BuildSubtitle(state),
             Mode: state.Mode,
-            Queue: BuildQueue(state, body),
+            Queue: queue,
             Left: left,
             Right: right,
             Buttons: BuildButtons(state),
             Status: BuildStatus(state, current, body),
             Columns: state.Columns,
             Rows: state.Rows,
-            PendingCount: state.Mode == ViewerMode.File ? 0 : state.Queue.Count);
+            PendingCount: state.Mode == ViewerMode.File ? 0 : state.Queue.Count,
+            Menu: BuildMenu(state, queue.Count, top));
+    }
+
+    /// <summary>
+    /// The open menu, anchored into the visible slice. An anchor that scrolled out draws nothing:
+    /// the commands that scroll also close the menu, so this is a frame of belt and braces.
+    /// </summary>
+    static MenuOverlay? BuildMenu(SessionState state, int visibleRows, int top)
+    {
+        if (state.Menu is not { } menu)
+        {
+            return null;
+        }
+
+        var anchor = menu.Row - top;
+        if (anchor < 0 ||
+            anchor >= visibleRows)
+        {
+            return null;
+        }
+
+        return new(anchor, menu.Items.Select(_ => _.Label).ToList());
     }
 
     static Pane BuildPane(string header, IReadOnlyList<Row> rows, int scrollTop, int body)
@@ -53,15 +76,16 @@ static class ScreenBuilder
         return new(header, visible, scrollTop, rows.Count);
     }
 
-    static IReadOnlyList<QueueItem> BuildQueue(SessionState state, int body)
+    static IReadOnlyList<QueueItem> BuildQueue(SessionState state, int body, out int top)
     {
         // File mode is one window per invocation, so it has no queue to show.
         if (state.Mode == ViewerMode.File)
         {
+            top = 0;
             return [];
         }
 
-        return QueueProjection.Visible(state, body);
+        return QueueProjection.Visible(state, body, out top);
     }
 
     static IReadOnlyList<Button> BuildButtons(SessionState state)

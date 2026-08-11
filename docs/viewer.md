@@ -97,6 +97,23 @@ Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is
 case the tray still has it and can reopen a window on it.
 
 
+## Context menus
+
+Every row of the pending column answers a right-click:
+
+ * An inline snapshot offers **Accept**, **Discard** and **Open source file**, plus
+   **Show next variant** when frameworks disagree about it.
+ * A move offers **Accept move**, **Discard** and **Open target directory**; a delete offers
+   **Accept delete**, **Discard** and **Open directory**.
+ * A solution header offers **Accept all in ...** and **Discard all in ...** for that solution
+   only, and a test sub-header the same for that test's changes. Bulk accepts skip conflicted
+   snapshots, the way accept-all does.
+
+Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file
+manager is always local — the files are on this machine, wherever the queue lives. Any other
+click or key closes the menu.
+
+
 ## Grouping
 
 When the pending items span more than one solution, the list groups them under solution headers

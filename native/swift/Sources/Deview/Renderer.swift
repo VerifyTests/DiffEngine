@@ -49,6 +49,7 @@ final class Renderer {
     struct Layout {
         var buttons: [CGRect] = []
         var queueItems: [CGRect] = []
+        var menuItems: [CGRect] = []
 
         /// The grab zone around the rule between the queue and the panes, empty when there is no
         /// queue to divide off.
@@ -176,7 +177,53 @@ final class Renderer {
         columnRule(left: panesLeft + half - Renderer.gap / 2, top: bodyTop, bottom: bodyBottom, in: context, size)
 
         layout.buttons = footer(frame, size: size, height: footerHeight, line: line, in: context)
+        menu(frame, into: &layout, in: context)
         return layout
+    }
+
+    /// The context menu, floated one row under its queue row, last so it draws over whatever it
+    /// overlaps. The managed side owns opening and closing; this draws what the frame carries and
+    /// the view reports which recorded rectangle was clicked.
+    private func menu(_ frame: Frame, into layout: inout Layout, in context: CGContext) {
+        guard !frame.menu.isEmpty,
+              frame.menuRow >= 0,
+              Int(frame.menuRow) < layout.queueItems.count
+        else {
+            return
+        }
+
+        let anchor = layout.queueItems[Int(frame.menuRow)]
+        let widest = frame.menu.map { $0.count }.max() ?? 0
+        let panelWidth = CGFloat(widest + 2) * cell.width
+        let height = CGFloat(frame.menu.count) * cell.height + Renderer.padding * 2
+        // Not flipped, so "one row below" is a lower y.
+        let panel = CGRect(
+            x: anchor.minX + cell.width,
+            y: anchor.minY - height,
+            width: panelWidth,
+            height: height)
+        context.setFillColor(Palette.filler)
+        context.fill(panel)
+        context.setStrokeColor(Palette.rule)
+        context.stroke(panel, width: 1)
+
+        for (index, label) in frame.menu.enumerated() {
+            let item = CGRect(
+                x: panel.minX,
+                y: panel.maxY - Renderer.padding - CGFloat(index + 1) * cell.height,
+                width: panel.width,
+                height: cell.height)
+            layout.menuItems.append(item)
+            text(
+                label,
+                in: CGRect(
+                    x: item.minX + cell.width,
+                    y: item.minY,
+                    width: item.width - cell.width,
+                    height: item.height),
+                Palette.text,
+                context)
+        }
     }
 
     private func footer(_ frame: Frame, size: CGSize, height: CGFloat, line: CGFloat, in context: CGContext) -> [CGRect] {

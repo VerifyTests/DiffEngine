@@ -111,7 +111,11 @@ static class QueueProjection
             var header = showSolutions && bucket is not null;
             if (header)
             {
-                rows.Add(new($"{bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header));
+                rows.Add(new($"{bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
+                {
+                    GroupName = bucket,
+                    GroupMembers = Enumerable.Range(index, bucketEnd - index).ToList()
+                });
             }
 
             var indent = header ? " " : "";
@@ -128,7 +132,11 @@ static class QueueProjection
 
                 if (groupEnd - index >= 2)
                 {
-                    rows.Add(new($"{indent}{entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header));
+                    rows.Add(new($"{indent}{entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
+                    {
+                        GroupName = entries[index].TestName,
+                        GroupMembers = Enumerable.Range(index, groupEnd - index).ToList()
+                    });
                     for (; index < groupEnd; index++)
                     {
                         // Under a test header the test name would repeat, so the entry falls back
@@ -150,11 +158,13 @@ static class QueueProjection
     /// <summary>
     /// The slice of <see cref="Rows"/> that fits the body: top anchored, so the leading headers
     /// stay visible, until the selection walks below the fold, then shifted to keep the selected
-    /// row second from the bottom.
+    /// row second from the bottom. <paramref name="top"/> is where the slice starts in the full
+    /// projection, which is what maps a full-row anchor — the open menu's — into the slice.
     /// </summary>
-    public static IReadOnlyList<QueueItem> Visible(SessionState state, int body)
+    public static IReadOnlyList<QueueItem> Visible(SessionState state, int body, out int top)
     {
         var rows = Rows(state);
+        top = 0;
         if (rows.Count <= body)
         {
             return rows;
@@ -170,7 +180,7 @@ static class QueueProjection
             }
         }
 
-        var top = selected < body
+        top = selected < body
             ? 0
             : Math.Min(selected - (body - 2), rows.Count - body);
         var slice = new List<QueueItem>(body);

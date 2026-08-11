@@ -85,6 +85,14 @@ public class WindowsPixelTests
     public Task GroupedConflictedQueue() =>
         Capture(Fixtures.GroupedConflicted());
 
+    /// <summary>
+    /// The context menu floated over the grouped queue, opened on the conflicted entry. Mirrored
+    /// in the native suite, as ever.
+    /// </summary>
+    [Test]
+    public Task ContextMenu() =>
+        Capture(ViewerSession.OpenMenu(Fixtures.GroupedConflicted(), 5));
+
     [Test]
     public Task InlineAccepted()
     {

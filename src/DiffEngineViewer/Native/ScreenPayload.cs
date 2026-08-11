@@ -8,6 +8,7 @@ sealed class ScreenPayload
     readonly List<DeviewRow> rows = [];
     readonly List<DeviewButton> buttons = [];
     readonly List<DeviewQueueItem> queue = [];
+    readonly List<DeviewMenuItem> menu = [];
     readonly DeviewPane[] panes = new DeviewPane[2];
     int titleOffset;
     int titleLength;
@@ -15,6 +16,7 @@ sealed class ScreenPayload
     int subtitleLength;
     int statusOffset;
     int statusLength;
+    int menuRow;
 
     public void Build(Screen screen)
     {
@@ -22,6 +24,8 @@ sealed class ScreenPayload
         rows.Clear();
         buttons.Clear();
         queue.Clear();
+        menu.Clear();
+        menuRow = -1;
 
         (titleOffset, titleLength) = Add(screen.Title);
         (subtitleOffset, subtitleLength) = Add(screen.Subtitle);
@@ -69,6 +73,21 @@ sealed class ScreenPayload
                     Flags = (int) flags
                 });
         }
+
+        if (screen.Menu is { } overlay)
+        {
+            menuRow = overlay.Row;
+            foreach (var label in overlay.Labels)
+            {
+                var (offset, length) = Add(label);
+                menu.Add(
+                    new()
+                    {
+                        LabelOffset = offset,
+                        LabelLength = length
+                    });
+            }
+        }
     }
 
     public unsafe int Present()
@@ -77,9 +96,10 @@ sealed class ScreenPayload
         fixed (DeviewRow* rowsPtr = CollectionsMarshal.AsSpan(rows))
         fixed (DeviewButton* buttonsPtr = CollectionsMarshal.AsSpan(buttons))
         fixed (DeviewQueueItem* queuePtr = CollectionsMarshal.AsSpan(queue))
+        fixed (DeviewMenuItem* menuPtr = CollectionsMarshal.AsSpan(menu))
         fixed (DeviewPane* panesPtr = panes)
         {
-            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr);
+            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr, menuPtr);
             return Deview.Present(&native);
         }
     }
@@ -90,9 +110,10 @@ sealed class ScreenPayload
         fixed (DeviewRow* rowsPtr = CollectionsMarshal.AsSpan(rows))
         fixed (DeviewButton* buttonsPtr = CollectionsMarshal.AsSpan(buttons))
         fixed (DeviewQueueItem* queuePtr = CollectionsMarshal.AsSpan(queue))
+        fixed (DeviewMenuItem* menuPtr = CollectionsMarshal.AsSpan(menu))
         fixed (DeviewPane* panesPtr = panes)
         {
-            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr);
+            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr, menuPtr);
             return Deview.Capture(&native, width, height, pngPath);
         }
     }
@@ -102,7 +123,8 @@ sealed class ScreenPayload
         DeviewPane* panesPtr,
         DeviewRow* rowsPtr,
         DeviewButton* buttonsPtr,
-        DeviewQueueItem* queuePtr) =>
+        DeviewQueueItem* queuePtr,
+        DeviewMenuItem* menuPtr) =>
         new()
         {
             Strings = stringsPtr,
@@ -120,7 +142,10 @@ sealed class ScreenPayload
             SubtitleOffset = subtitleOffset,
             SubtitleLength = subtitleLength,
             StatusOffset = statusOffset,
-            StatusLength = statusLength
+            StatusLength = statusLength,
+            Menu = menuPtr,
+            MenuCount = menu.Count,
+            MenuRow = menuRow
         };
 
     DeviewPane AddPane(Pane pane)

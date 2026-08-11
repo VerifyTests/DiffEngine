@@ -442,6 +442,8 @@ public class ViewerSessionTests
                 return InlineApplyResult.Applied;
             }, static (_, _) =>
             {
+            }, static _ =>
+            {
             }));
 
         await Assert.That(applied.Single().NewContent).IsEqualTo("nine");
@@ -530,6 +532,154 @@ public class ViewerSessionTests
 
         await Assert.That(state.Exit).IsFalse();
         await Assert.That(state.Queue).HasSingleItem();
+    }
+
+    [Test]
+    public async Task RightClickOnAnEntrySelectsAndOpensItsMenu()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch(),
+            Fixtures.Patch("OtherTests.cs", 7));
+
+        var open = ViewerSession.OpenMenu(state, 1);
+
+        await Assert.That(open.Current!.Name).IsEqualTo("OtherTests.cs:7");
+        await Assert.That(open.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept", "Discard", "Open source file"]);
+    }
+
+    [Test]
+    public async Task AConflictedEntryMenuOffersTheVariant()
+    {
+        var open = ViewerSession.OpenMenu(Conflicted(), 0);
+
+        await Assert.That(open.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept", "Show next variant", "Discard", "Open source file"]);
+    }
+
+    [Test]
+    public async Task MoveAndDeleteMenusNameTheActs()
+    {
+        var state = Fixtures.Attached(InlineQueue.Empty, Fixtures.Move(), Fixtures.Delete());
+
+        var move = ViewerSession.OpenMenu(state, 0);
+        await Assert.That(move.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept move", "Discard", "Open target directory"]);
+
+        var delete = ViewerSession.OpenMenu(state, 1);
+        await Assert.That(delete.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept delete", "Discard", "Open directory"]);
+    }
+
+    static SessionState TwoSolutions() =>
+        Fixtures.Inline(
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 1),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "OtherTests.cs"), 2, "\"a\"", "b"),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 3, "\"x\"", "y"));
+
+    /// <summary>
+    /// A solution header's menu sweeps that solution and nothing else.
+    /// </summary>
+    [Test]
+    public async Task ASolutionHeaderMenuSweepsItsGroup()
+    {
+        var open = ViewerSession.OpenMenu(TwoSolutions(), 0);
+        await Assert.That(open.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept all in SolutionA", "Discard all in SolutionA"]);
+
+        var accepted = ViewerSession.Apply(open, CommandKind.AcceptGroup, Fixtures.Applied);
+
+        await Assert.That(accepted.Queue.Select(_ => _.Name)).IsEquivalentTo(["BTests.cs:3"]);
+        await Assert.That(accepted.Message).IsEqualTo("Accepted 2");
+        await Assert.That(accepted.Menu).IsNull();
+    }
+
+    [Test]
+    public async Task ATestHeaderMenuSweepsItsTest()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch("SampleTests.cs", 10, testName: "Compare handles nulls"),
+            Fixtures.Patch("SampleTests.cs", 30, "\"a\"", "b", testName: "Compare handles nulls"),
+            Fixtures.Patch("OtherTests.cs", 7));
+
+        var open = ViewerSession.OpenMenu(state, 0);
+        await Assert.That(open.Menu!.Items.Select(_ => _.Label))
+            .IsEquivalentTo(["Accept all for Compare handles nulls", "Discard all for Compare handles nulls"]);
+
+        var discarded = ViewerSession.Apply(open, CommandKind.DiscardGroup, Fixtures.Applied);
+
+        await Assert.That(discarded.Queue.Select(_ => _.Name)).IsEquivalentTo(["OtherTests.cs:7"]);
+        await Assert.That(discarded.Message).IsEqualTo("Discarded 2");
+    }
+
+    [Test]
+    public async Task AcceptGroupSkipsConflictedMembers()
+    {
+        var state = ViewerSession.EnqueueInline(
+            ViewerSession.EnqueueInline(Conflicted(), Fixtures.Patch("OtherTests.cs", 7)),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 1));
+        // Row 0 is the headerless trailing group's first row only when a named solution exists;
+        // open on the ungrouped entries via their rows.
+        var rows = QueueProjection.Rows(state);
+        var conflictedRow = rows.ToList().FindIndex(_ => _.Label.Contains('*'));
+        var header = ViewerSession.OpenMenu(state, 0);
+        await Assert.That(header.Menu!.Items[0].Label).IsEqualTo("Accept all in SolutionA");
+        await Assert.That(conflictedRow).IsGreaterThanOrEqualTo(0);
+
+        // Sweep the ungrouped section instead: build a menu over all entries via accept-all is
+        // covered elsewhere; here the conflicted member must survive a group sweep.
+        var all = header with
+        {
+            Menu = new(0, ContextMenu.ForSolution("everything"), [.. Enumerable.Range(0, state.Queue.Count)])
+        };
+        var accepted = ViewerSession.Apply(all, CommandKind.AcceptGroup, Fixtures.Applied);
+
+        await Assert.That(accepted.Message).IsEqualTo("Accepted 2, 1 conflict needs review");
+        await Assert.That(accepted.Queue.Single().Conflicted).IsTrue();
+    }
+
+    [Test]
+    public async Task RevealActsOnTheCurrentEntry()
+    {
+        var revealed = new List<string>();
+        var actions = new ViewerActions(
+            _ => InlineApplyResult.Applied,
+            static (_, _) =>
+            {
+            },
+            revealed.Add);
+        var state = Fixtures.Attached(Fixtures.Pending(Fixtures.Patch()), Fixtures.Move());
+
+        ViewerSession.Apply(state, CommandKind.RevealSource, actions);
+        var onMove = ViewerSession.Apply(state, CommandKind.NextItem);
+        ViewerSession.Apply(onMove, CommandKind.RevealSource, actions);
+
+        await Assert.That(revealed).IsEquivalentTo(["SampleTests.cs", "code/sample.verified.txt"]);
+    }
+
+    [Test]
+    public async Task AnyOtherCommandClosesTheMenu()
+    {
+        var open = ViewerSession.OpenMenu(Fixtures.Inline(Fixtures.Patch()), 0);
+        await Assert.That(open.Menu).IsNotNull();
+
+        var scrolled = ViewerSession.Apply(open, CommandKind.ScrollDown);
+
+        await Assert.That(scrolled.Menu).IsNull();
+    }
+
+    [Test]
+    public async Task AQueueChangeClosesTheMenu()
+    {
+        var open = ViewerSession.OpenMenu(Fixtures.Inline(Fixtures.Patch()), 0);
+
+        var synced = ViewerSession.Sync(
+            open,
+            Fixtures.Pending(Fixtures.Patch(), Fixtures.Patch("OtherTests.cs", 7)),
+            [],
+            null);
+
+        await Assert.That(synced.Menu).IsNull();
     }
 
     /// <summary>

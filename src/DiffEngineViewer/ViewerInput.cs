@@ -8,4 +8,8 @@ readonly record struct ViewerInput(
     int ScrollDelta,
     bool CloseRequested,
     int Columns,
-    int Rows);
+    int Rows,
+    // A right-click on a visible queue row, or -1. Opens the context menu.
+    int RightClickedQueueItem = -1,
+    // A click on an item of the open context menu, or -1.
+    int ClickedMenuItem = -1);

@@ -23,7 +23,8 @@ sealed class ServerFixture : IDisposable
                 Applied.Add(patch);
                 return InlineApplyResult.Applied;
             },
-            (_, _) => { });
+            (_, _) => { },
+            _ => { });
         var handler = new MessageHandler(Host, actions, Windows.Add);
         listening = server.Listen(handler.Handle, cancel.Token);
     }

@@ -41,7 +41,9 @@ static class ViewerSession
             // The text under the reader just changed, so start it at the top again. Only when it
             // is the item on screen; folding into one further down the list should not move
             // anything.
-            ScrollTop = replacedCurrent ? 0 : state.ScrollTop
+            ScrollTop = replacedCurrent ? 0 : state.ScrollTop,
+            // The open menu indexes the queue it was opened over, which just changed.
+            Menu = null
         });
     }
 
@@ -105,7 +107,9 @@ static class ViewerSession
             ScrollTop = selected < 0 ? 0 : state.ScrollTop,
             Message = message ?? state.Message,
             // Nothing left to show, and this window is not what is holding the queue.
-            Exit = queue.Count == 0
+            Exit = queue.Count == 0,
+            // The open menu indexes the queue it was opened over, which was just replaced.
+            Menu = null
         });
     }
 
@@ -127,12 +131,70 @@ static class ViewerSession
     public static SessionState Apply(SessionState state, Command command) =>
         Apply(state, command, ViewerActions.None);
 
+    /// <summary>
+    /// Opens the context menu for a visible queue row. Opening on an entry selects it first, the
+    /// way every menu-driven UI reads a right-click, so the menu's commands act on what is
+    /// highlighted.
+    /// </summary>
+    public static SessionState OpenMenu(SessionState state, int visibleRow)
+    {
+        var body = ScreenBuilder.BodyRows(state);
+        var visible = QueueProjection.Visible(state, body, out var top);
+        if (visibleRow < 0 ||
+            visibleRow >= visible.Count)
+        {
+            return state with { Menu = null };
+        }
+
+        var row = visible[visibleRow];
+        var fullRow = top + visibleRow;
+        if (row.Kind == QueueRowKind.Header)
+        {
+            if (row.GroupName is null ||
+                row.GroupMembers is null)
+            {
+                return state with { Menu = null };
+            }
+
+            // Solution headers carry entries of every kind; a test header only ever spans inline
+            // entries from one file.
+            var items = state.Queue[row.GroupMembers[0]].TestName == row.GroupName
+                ? ContextMenu.ForTest(row.GroupName)
+                : ContextMenu.ForSolution(row.GroupName);
+            return state with
+            {
+                Menu = new(fullRow, items, row.GroupMembers)
+            };
+        }
+
+        var selected = Select(state, row.EntryIndex);
+        return selected with
+        {
+            Menu = new(fullRow, ContextMenu.ForEntry(selected.Queue[row.EntryIndex]), [row.EntryIndex])
+        };
+    }
+
     public static SessionState Apply(SessionState state, Command command, ViewerActions actions)
     {
+        // Any command closes the menu: acting is what its own items do, and everything else —
+        // a scroll, a click, a key — is the user moving on. The group commands still need what
+        // the menu described, so it is captured before it goes.
+        var menu = state.Menu;
+        if (menu is not null)
+        {
+            state = state with { Menu = null };
+        }
+
         var inline = state.Mode == ViewerMode.Inline;
         var body = ScreenBuilder.BodyRows(state);
         switch (command.Kind)
         {
+            case CommandKind.AcceptGroup:
+                return menu is null || !inline ? state : AcceptGroup(state, menu, actions);
+            case CommandKind.DiscardGroup:
+                return menu is null || !inline ? state : DiscardGroup(state, menu);
+            case CommandKind.RevealSource:
+                return Reveal(state, actions);
             case CommandKind.ScrollUp:
                 return Scroll(state, state.ScrollTop - 1);
             case CommandKind.ScrollDown:
@@ -213,6 +275,107 @@ static class ViewerSession
             Queue = queue,
             Message = message
         };
+    }
+
+    /// <summary>
+    /// Accepts every inline member of the group a header's menu described, skipping conflicted
+    /// entries the way accept-all does. By key rather than index, because each accept rebuilds
+    /// the queue underneath the next.
+    /// </summary>
+    static SessionState AcceptGroup(SessionState state, MenuState menu, ViewerActions actions)
+    {
+        var members = menu.Members
+            .Where(_ => _ >= 0 && _ < state.Queue.Count)
+            .Select(_ => state.Queue[_])
+            .Where(_ => _.Kind == QueueEntryKind.Inline)
+            .ToList();
+        var queue = Pending(state);
+        var accepted = 0;
+        var failed = 0;
+        var conflicted = 0;
+        string? failure = null;
+        foreach (var member in members)
+        {
+            if (member.Conflicted)
+            {
+                conflicted++;
+                continue;
+            }
+
+            var before = queue.Count;
+            queue = queue.Accept(member.Key, actions.ApplyInline, out var outcome);
+            if (queue.Count < before)
+            {
+                accepted++;
+                continue;
+            }
+
+            if (outcome is not null)
+            {
+                failed++;
+                failure = outcome;
+            }
+        }
+
+        // The same wording accept-all uses, so a group sweep and a full sweep read alike.
+        var builder = new StringBuilder($"Accepted {accepted}");
+        if (failed > 0)
+        {
+            builder.Append($", {failed} failed");
+        }
+
+        if (conflicted > 0)
+        {
+            builder.Append(conflicted == 1
+                ? ", 1 conflict needs review"
+                : $", {conflicted} conflicts need review");
+        }
+
+        if (failure is not null)
+        {
+            builder.Append($". {failure}");
+        }
+
+        return Remove(state, Project(state, queue), builder.ToString());
+    }
+
+    static SessionState DiscardGroup(SessionState state, MenuState menu)
+    {
+        var keys = menu.Members
+            .Where(_ => _ >= 0 && _ < state.Queue.Count)
+            .Select(_ => state.Queue[_])
+            .Where(_ => _.Kind == QueueEntryKind.Inline)
+            .Select(_ => _.Key)
+            .ToList();
+        var queue = Pending(state);
+        foreach (var key in keys)
+        {
+            queue = queue.Discard(key, out _);
+        }
+
+        return Remove(state, Project(state, queue), $"Discarded {keys.Count}");
+    }
+
+    /// <summary>
+    /// Shows the current entry's file in the platform's file manager: the source for an inline
+    /// entry, the target for a move, the doomed file for a delete, the left file in file mode.
+    /// </summary>
+    static SessionState Reveal(SessionState state, ViewerActions actions)
+    {
+        var current = state.Current;
+        var path = current?.Kind switch
+        {
+            QueueEntryKind.Inline => current.Patch?.SourceFile,
+            QueueEntryKind.Move => current.TargetFile,
+            QueueEntryKind.Delete or QueueEntryKind.File => current.LeftFile,
+            _ => null
+        };
+        if (path is not null)
+        {
+            actions.Reveal(path);
+        }
+
+        return state;
     }
 
     /// <summary>
@@ -426,7 +589,8 @@ static class ViewerSession
             ScrollTop = 0,
             Message = message,
             // Nothing left to manage, so the window has no reason to stay open.
-            Exit = queue.Count == 0
+            Exit = queue.Count == 0,
+            Menu = null
         });
 
     static SessionState Select(SessionState state, int index)

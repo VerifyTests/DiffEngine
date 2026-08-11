@@ -20,4 +20,6 @@ record Screen(
     int Rows,
     // Entries only. Queue.Count stopped meaning this once the column gained header rows and a
     // selection-anchored slice.
-    int PendingCount);
+    int PendingCount,
+    // The open context menu, or null. Sliced to the visible rows like everything else.
+    MenuOverlay? Menu = null);

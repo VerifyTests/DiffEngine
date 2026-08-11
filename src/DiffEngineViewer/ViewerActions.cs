@@ -4,11 +4,13 @@
 /// </summary>
 record ViewerActions(
     Func<InlinePatch, InlineApplyResult> ApplyInline,
-    Action<string, string> CopyFile)
+    Action<string, string> CopyFile,
+    Action<string> Reveal)
 {
     public static readonly ViewerActions Real = new(
         InlineApplier.Apply,
-        static (source, destination) => File.Copy(source, destination, true));
+        static (source, destination) => File.Copy(source, destination, true),
+        RevealFile.Show);
 
     /// <summary>
     /// Refuses everything. Held by the view only <c>Apply</c> overload, so a command that turns
@@ -16,5 +18,6 @@ record ViewerActions(
     /// </summary>
     public static readonly ViewerActions None = new(
         static _ => throw new("This command was applied as view only, but needs real actions."),
-        static (_, _) => throw new("This command was applied as view only, but needs real actions."));
+        static (_, _) => throw new("This command was applied as view only, but needs real actions."),
+        static _ => throw new("This command was applied as view only, but needs real actions."));
 }

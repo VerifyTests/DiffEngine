@@ -74,6 +74,12 @@ typedef struct DeviewQueueItem {
     int32_t flags;
 } DeviewQueueItem;
 
+/* One item of the open context menu. */
+typedef struct DeviewMenuItem {
+    int32_t labelOffset;
+    int32_t labelLength;
+} DeviewMenuItem;
+
 typedef struct DeviewScreen {
     const uint8_t* strings;
     int32_t stringsLength;
@@ -96,6 +102,15 @@ typedef struct DeviewScreen {
     int32_t subtitleLength;
     int32_t statusOffset;
     int32_t statusLength;
+
+    /*
+     * The open context menu, floated one row under queue row menuRow. menuCount is 0 when no menu
+     * is open, which is almost every frame. The managed side owns opening and closing; this side
+     * only draws it and reports which item was clicked.
+     */
+    const DeviewMenuItem* menu;
+    int32_t menuCount;
+    int32_t menuRow;
 } DeviewScreen;
 
 /* Keep in sync with CommandKind.cs */
@@ -124,6 +139,10 @@ typedef struct DeviewInput {
     int32_t clickedButton;
     /* Index into DeviewScreen.queue, or -1. */
     int32_t clickedQueueItem;
+    /* A right-click on a queue row, or -1. The managed side answers with a menu to draw. */
+    int32_t rightClickedQueueItem;
+    /* Index into DeviewScreen.menu, or -1. */
+    int32_t clickedMenuItem;
     int32_t scrollDelta;
     /* Set when the user asked to close the window; the managed side decides hide versus exit. */
     int32_t closeRequested;
@@ -143,8 +162,10 @@ typedef struct DeviewInput {
  * 2: DeviewInput.columns and rows carry character cells rather than pixels.
  * 3: deview_init's fontSize is an em size on both implementations. The ImGui one took it as a
  *    pixel height, so the same number rendered a quarter smaller there than on macOS.
+ * 4: DeviewScreen carries the open context menu, and DeviewInput reports right-clicks on queue
+ *    rows and clicks on menu items.
  */
-#define DEVIEW_VERSION 3
+#define DEVIEW_VERSION 4
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

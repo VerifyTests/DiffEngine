@@ -35,7 +35,51 @@ static class AsciiRenderer
         builder.Append(Separator(widths)).Append('\n');
         builder.Append(Full(Justify(Buttons(screen), screen.Status, columns - 4), columns)).Append('\n');
         builder.Append('+').Append('-', columns - 2).Append('+');
-        return builder.ToString();
+        return Overlay(builder.ToString(), screen);
+    }
+
+    /// <summary>
+    /// The open context menu, drawn over the finished grid the way the pixel heads float theirs
+    /// over the frame. Anchored one line under its queue row, inset into the queue column.
+    /// </summary>
+    static string Overlay(string text, Screen screen)
+    {
+        if (screen.Menu is not { } menu ||
+            menu.Labels.Count == 0)
+        {
+            return text;
+        }
+
+        var lines = text.Split('\n').Select(_ => _.ToCharArray()).ToList();
+        var width = menu.Labels.Max(_ => _.Length) + 2;
+        // Border, title, separator, headers, separator: five lines sit above the first body row.
+        var top = 5 + menu.Row + 1;
+        var left = 3;
+
+        void Write(int line, string content)
+        {
+            if (line < 0 ||
+                line >= lines.Count)
+            {
+                return;
+            }
+
+            var row = lines[line];
+            for (var index = 0; index < content.Length && left + index < row.Length; index++)
+            {
+                row[left + index] = content[index];
+            }
+        }
+
+        var border = $"+{new string('-', width)}+";
+        Write(top, border);
+        for (var index = 0; index < menu.Labels.Count; index++)
+        {
+            Write(top + 1 + index, $"| {menu.Labels[index].PadRight(width - 2)} |");
+        }
+
+        Write(top + 1 + menu.Labels.Count, border);
+        return string.Join("\n", lines.Select(_ => new string(_)));
     }
 
     static (int left, int right) SplitPanes(int columns, int queue)
