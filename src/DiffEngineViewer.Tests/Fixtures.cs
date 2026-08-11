@@ -112,17 +112,19 @@ static class Fixtures
     /// A move entry built from in-memory text, the way <see cref="Applying"/> keeps accepting off
     /// disk.
     /// </summary>
+    // Forward slashes, deliberately: GetFileName splits on them on every platform, while a
+    // Windows-style path renders whole on Linux and macOS and fails their snapshot runs.
     public static QueueEntry Move(
         string name = "Sample.Test (txt)",
         string? solution = null,
         string left = Received,
         string right = Expected) =>
         QueueEntry.ForMove(
-            $@"move:c:\temp\{name}",
+            $"move:temp/{name}",
             name,
             solution,
-            @"c:\temp\sample.received.txt",
-            @"c:\code\sample.verified.txt",
+            "temp/sample.received.txt",
+            "code/sample.verified.txt",
             new(left, null, null),
             new(right, null, null));
 
@@ -131,10 +133,10 @@ static class Fixtures
         string? solution = null,
         string content = Expected) =>
         QueueEntry.ForDelete(
-            $@"delete:c:\code\{name}",
+            $"delete:code/{name}",
             name,
             solution,
-            $@"c:\code\{name}",
+            $"code/{name}",
             new(content, null, null));
 
     /// <summary>
