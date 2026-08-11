@@ -29,6 +29,7 @@ struct Frame {
         var label = ""
         var selected = false
         var failed = false
+        var header = false
     }
 
     struct Button {
@@ -50,7 +51,8 @@ struct Frame {
                     QueueItem(
                         label: string(screen, item.labelOffset, item.labelLength),
                         selected: item.flags & DEVIEW_QUEUE_SELECTED.value != 0,
-                        failed: item.flags & DEVIEW_QUEUE_FAILED.value != 0))
+                        failed: item.flags & DEVIEW_QUEUE_FAILED.value != 0,
+                        header: item.flags & DEVIEW_QUEUE_HEADER.value != 0))
             }
         }
 

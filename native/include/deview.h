@@ -40,7 +40,9 @@ enum DeviewButtonFlags {
 
 enum DeviewQueueFlags {
     DEVIEW_QUEUE_SELECTED = 1 << 0,
-    DEVIEW_QUEUE_FAILED = 1 << 1
+    DEVIEW_QUEUE_FAILED = 1 << 1,
+    /* A group heading: drawn dimmed, flush left, and never hoverable or selectable. */
+    DEVIEW_QUEUE_HEADER = 1 << 2
 };
 
 typedef struct DeviewRow {
@@ -112,7 +114,8 @@ enum DeviewKey {
     DEVIEW_KEY_ACCEPT = 11,
     DEVIEW_KEY_DISCARD = 12,
     DEVIEW_KEY_ACCEPT_ALL = 13,
-    DEVIEW_KEY_QUIT = 14
+    DEVIEW_KEY_QUIT = 14,
+    DEVIEW_KEY_NEXT_VARIANT = 15
 };
 
 typedef struct DeviewInput {

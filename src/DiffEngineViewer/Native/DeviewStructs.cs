@@ -91,7 +91,13 @@ enum DeviewQueueFlags
 {
     None = 0,
     Selected = 1,
-    Failed = 2
+    Failed = 2,
+
+    /// <summary>
+    /// A group heading: drawn dimmed, flush left, and never hoverable or selectable. A shim built
+    /// before the flag existed ignores it and draws a plain row, which still reads.
+    /// </summary>
+    Header = 4
 }
 
 /// <summary>
@@ -114,5 +120,6 @@ enum DeviewKey
     Accept = 11,
     Discard = 12,
     AcceptAll = 13,
-    Quit = 14
+    Quit = 14,
+    NextVariant = 15
 }

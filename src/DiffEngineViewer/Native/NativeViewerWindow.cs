@@ -114,6 +114,7 @@ sealed class NativeViewerWindow : IViewerWindow
             DeviewKey.Discard => CommandKind.Discard,
             DeviewKey.AcceptAll => CommandKind.AcceptAll,
             DeviewKey.Quit => CommandKind.Quit,
+            DeviewKey.NextVariant => CommandKind.NextVariant,
             _ => CommandKind.None
         };
 

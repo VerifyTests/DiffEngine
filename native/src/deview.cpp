@@ -359,6 +359,7 @@ int ReadKey()
         ? DEVIEW_KEY_ACCEPT_ALL
         : DEVIEW_KEY_ACCEPT;
     if (IsKeyPressed(KEY_D)) return DEVIEW_KEY_DISCARD;
+    if (IsKeyPressed(KEY_V)) return DEVIEW_KEY_NEXT_VARIANT;
     if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
     return DEVIEW_KEY_NONE;
 }
@@ -497,22 +498,31 @@ void BuildFrame(const DeviewScreen* screen)
                 {
                     const DeviewQueueItem& item = screen->queue[index];
                     const std::string label = Copy(screen, item.labelOffset, item.labelLength);
-                    const bool selected = (item.flags & DEVIEW_QUEUE_SELECTED) != 0;
-                    if (item.flags & DEVIEW_QUEUE_FAILED)
+                    if (item.flags & DEVIEW_QUEUE_HEADER)
                     {
-                        ImGui::PushStyleColor(ImGuiCol_Text, RowColour(DEVIEW_ROW_REMOVED));
+                        /* A heading, not a row: dimmed like the subtitle, and plain text rather
+                         * than a Selectable so it neither hovers nor clicks. */
+                        ImGui::TextDisabled("%s", label.c_str());
                     }
-
-                    ImGui::PushID(index);
-                    if (ImGui::Selectable(label.c_str(), selected))
+                    else
                     {
-                        state.input.clickedQueueItem = index;
-                    }
+                        const bool selected = (item.flags & DEVIEW_QUEUE_SELECTED) != 0;
+                        if (item.flags & DEVIEW_QUEUE_FAILED)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_Text, RowColour(DEVIEW_ROW_REMOVED));
+                        }
 
-                    ImGui::PopID();
-                    if (item.flags & DEVIEW_QUEUE_FAILED)
-                    {
-                        ImGui::PopStyleColor();
+                        ImGui::PushID(index);
+                        if (ImGui::Selectable(label.c_str(), selected))
+                        {
+                            state.input.clickedQueueItem = index;
+                        }
+
+                        ImGui::PopID();
+                        if (item.flags & DEVIEW_QUEUE_FAILED)
+                        {
+                            ImGui::PopStyleColor();
+                        }
                     }
                 }
             }

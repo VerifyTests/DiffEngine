@@ -56,6 +56,11 @@ sealed class ScreenPayload
                 flags |= DeviewQueueFlags.Failed;
             }
 
+            if (item.Kind == QueueRowKind.Header)
+            {
+                flags |= DeviewQueueFlags.Header;
+            }
+
             queue.Add(
                 new()
                 {

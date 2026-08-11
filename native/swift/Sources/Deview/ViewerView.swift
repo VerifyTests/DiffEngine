@@ -138,6 +138,8 @@ final class ViewerView: NSView {
             return shift ? DEVIEW_KEY_ACCEPT_ALL.value : DEVIEW_KEY_ACCEPT.value
         case "d":
             return DEVIEW_KEY_DISCARD.value
+        case "v":
+            return DEVIEW_KEY_NEXT_VARIANT.value
         case "q":
             return DEVIEW_KEY_QUIT.value
         default:

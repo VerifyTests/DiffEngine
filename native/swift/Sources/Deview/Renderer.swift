@@ -210,6 +210,12 @@ final class Renderer {
         }
 
         let item = frame.queue[index]
+        if item.header {
+            // A heading, not a row: dimmed like the subtitle, flush left, no selection fill.
+            text(item.label, in: bounds, Palette.dim, context)
+            return
+        }
+
         if item.selected {
             context.setFillColor(Palette.selected)
             context.fill(bounds)
