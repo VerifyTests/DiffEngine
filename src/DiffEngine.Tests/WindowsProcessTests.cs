@@ -171,12 +171,13 @@ public class WindowsProcessTests
         }
 
         // Start FakeDiffTool - a console process without a main window
-        var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = FakeDiffTool.Exe,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        });
+        var process = Process.Start(
+            new ProcessStartInfo
+            {
+                FileName = FakeDiffTool.Exe,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
 
         await Assert.That(process).IsNotNull();
 
