@@ -395,17 +395,30 @@ void BuildFrame(const DeviewScreen* screen)
 
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
+    /* Resizable is what makes the border between the queue and the panes draggable. ImGui keeps the
+     * dragged width in its own table state for the life of the context, which is the whole run, and
+     * IniFilename is null so nothing of it reaches disk. */
     if (screen->paneCount >= 2 &&
-        ImGui::BeginTable("##panes", columns, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame))
+        ImGui::BeginTable(
+            "##panes",
+            columns,
+            ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable))
     {
         const DeviewPane& left = screen->panes[0];
         const DeviewPane& right = screen->panes[1];
         if (hasQueue)
         {
-            ImGui::TableSetupColumn("Pending", ImGuiTableColumnFlags_WidthFixed, 220.0f);
+            /* Counted in character cells rather than pixels, so a scaled display gets a column
+             * holding the same number of characters rather than a narrower one. Only the initial
+             * width: from the second frame on, the table reports whatever it was dragged to. */
+            ImGui::TableSetupColumn("Pending", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("M").x * 34.0f);
         }
 
-        ImGui::TableSetupColumn(Copy(screen, left.headerOffset, left.headerLength).c_str());
+        /* NoResize on the received column pins the border to its right, which is the one between
+         * the two panes. Only the queue divider moves, matching the other two heads. */
+        ImGui::TableSetupColumn(
+            Copy(screen, left.headerOffset, left.headerLength).c_str(),
+            ImGuiTableColumnFlags_NoResize);
         ImGui::TableSetupColumn(Copy(screen, right.headerOffset, right.headerLength).c_str());
         ImGui::TableHeadersRow();
 

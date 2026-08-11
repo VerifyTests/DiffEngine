@@ -15,7 +15,25 @@
 [DesignerCategory("")]
 sealed class ViewerCanvas : Control
 {
-    const int queueWidth = 220;
+    /// <summary>
+    /// Queue column widths, counted in character cells rather than pixels so a scaled display gets
+    /// a column that holds the same number of characters rather than a narrower one.
+    /// </summary>
+    const int defaultQueueCells = 34;
+
+    const int minQueueCells = 8;
+
+    /// <summary>
+    /// What the drag leaves each of the two panes, so the splitter cannot be pushed far enough
+    /// right to squeeze them out of existence.
+    /// </summary>
+    const int minPaneCells = 12;
+
+    /// <summary>
+    /// How far either side of the rule counts as grabbing it. The rule is a single pixel, which is
+    /// not something a mouse can be asked to hit.
+    /// </summary>
+    const int grab = 4;
 
     /// <summary>
     /// Marker, space, four digit line number, two spaces. Matches AsciiRenderer's gutter, so a
@@ -28,6 +46,14 @@ sealed class ViewerCanvas : Control
 
     readonly Font font = MonoFont.Create();
     Screen? screen;
+
+    /// <summary>
+    /// Zero until first asked for, because the default is counted in cells and a cell can only be
+    /// measured once a Graphics exists.
+    /// </summary>
+    int queueWidth;
+
+    bool dragging;
 
     public ViewerCanvas()
     {
@@ -78,6 +104,41 @@ sealed class ViewerCanvas : Control
     int BodyTop =>
         padding + (Cell.Height + gap) * 2 + gap * 2;
 
+    /// <summary>
+    /// Clamped on every read rather than only when dragged, so shrinking the window narrows the
+    /// column instead of leaving the panes with nothing.
+    /// </summary>
+    int QueueWidth
+    {
+        get
+        {
+            if (queueWidth == 0)
+            {
+                queueWidth = Cell.Width * defaultQueueCells;
+            }
+
+            return Clamp(queueWidth);
+        }
+    }
+
+    int Clamp(int value)
+    {
+        var min = Cell.Width * minQueueCells;
+        var max = Math.Max(min, Width - padding * 2 - gap - Cell.Width * minPaneCells * 2);
+        return Math.Min(Math.Max(value, min), max);
+    }
+
+    /// <summary>
+    /// Where the rule between the queue and the panes is drawn, which is also what the drag moves.
+    /// </summary>
+    int SplitterX =>
+        padding + QueueWidth + gap / 2;
+
+    bool OverSplitter(int x) =>
+        screen is not null &&
+        screen.Queue.Count > 0 &&
+        Math.Abs(x - SplitterX) <= grab;
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var graphics = e.Graphics;
@@ -90,7 +151,8 @@ sealed class ViewerCanvas : Control
         Painter.Prepare(graphics);
         var lineHeight = Cell.Height;
         var hasQueue = screen.Queue.Count > 0;
-        var panesLeft = hasQueue ? padding + queueWidth + gap : padding;
+        var queue = hasQueue ? QueueWidth : 0;
+        var panesLeft = hasQueue ? padding + queue + gap : padding;
         var panesWidth = Math.Max(2 * Cell.Width, Width - padding - panesLeft);
         var half = panesWidth / 2;
 
@@ -102,7 +164,7 @@ sealed class ViewerCanvas : Control
         var headerTop = firstRule + gap;
         if (hasQueue)
         {
-            Painter.Draw(graphics, $"Pending ({screen.Queue.Count})", font, Palette.Text, Cellular(padding, headerTop, queueWidth, lineHeight));
+            Painter.Draw(graphics, $"Pending ({screen.Queue.Count})", font, Palette.Text, Cellular(padding, headerTop, queue, lineHeight));
         }
 
         Painter.Draw(graphics, screen.Left.Header, font, Palette.Text, Cellular(panesLeft, headerTop, half, lineHeight));
@@ -117,7 +179,7 @@ sealed class ViewerCanvas : Control
             var top = bodyTop + index * lineHeight;
             if (hasQueue)
             {
-                DrawQueueItem(graphics, index, new(padding, top, queueWidth, lineHeight));
+                DrawQueueItem(graphics, index, new(padding, top, queue, lineHeight));
             }
 
             DrawRow(graphics, screen.Left, index, new(panesLeft, top, half, lineHeight));
@@ -217,9 +279,22 @@ sealed class ViewerCanvas : Control
     {
         base.OnMouseDown(e);
         if (screen is null ||
-            screen.Queue.Count == 0 ||
-            e.X < padding ||
-            e.X >= padding + queueWidth)
+            screen.Queue.Count == 0)
+        {
+            return;
+        }
+
+        // Checked before the queue hit test, because the grab zone overlaps the right edge of the
+        // column and a drag that started there would otherwise also select whatever it began over.
+        if (OverSplitter(e.X))
+        {
+            dragging = true;
+            Capture = true;
+            return;
+        }
+
+        if (e.X < padding ||
+            e.X >= padding + QueueWidth)
         {
             return;
         }
@@ -229,6 +304,54 @@ sealed class ViewerCanvas : Control
             index < screen.Queue.Count)
         {
             QueueItemClicked?.Invoke(index);
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (dragging)
+        {
+            var width = Clamp(e.X - padding - gap / 2);
+            if (width != queueWidth)
+            {
+                queueWidth = width;
+                Invalidate();
+            }
+
+            return;
+        }
+
+        // Assigned only on a change: setting Cursor is a window message, and this runs on every
+        // pixel the mouse moves over the canvas.
+        var wanted = OverSplitter(e.X) ? Cursors.VSplit : Cursors.Default;
+        if (Cursor != wanted)
+        {
+            Cursor = wanted;
+        }
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (dragging)
+        {
+            dragging = false;
+            Capture = false;
+        }
+    }
+
+    /// <summary>
+    /// The resize cursor is set while hovering the rule, so it has to be given back on the way out
+    /// rather than left on whatever the pointer moves onto next.
+    /// </summary>
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (!dragging &&
+            Cursor != Cursors.Default)
+        {
+            Cursor = Cursors.Default;
         }
     }
 

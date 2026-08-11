@@ -12,7 +12,19 @@ import Foundation
 /// Nothing is flipped. Core Graphics puts the origin bottom left, and layout here is expressed top
 /// down and converted once in `rect`, which avoids having to fight the text matrix.
 final class Renderer {
-    private static let queueWidth: CGFloat = 220
+    /// Queue column widths, counted in character cells rather than points so a scaled display gets
+    /// a column that holds the same number of characters rather than a narrower one.
+    private static let defaultQueueCells: CGFloat = 34
+    private static let minQueueCells: CGFloat = 8
+
+    /// What the drag leaves each of the two panes, so the splitter cannot be pushed far enough
+    /// right to squeeze them out of existence.
+    private static let minPaneCells: CGFloat = 12
+
+    /// How far either side of the rule counts as grabbing it. The rule is a single point, which is
+    /// not something a mouse can be asked to hit.
+    private static let grab: CGFloat = 4
+
     private static let padding: CGFloat = 6
     private static let gap: CGFloat = 4
 
@@ -24,6 +36,10 @@ final class Renderer {
     private let ascent: CGFloat
     private let descent: CGFloat
 
+    /// Moved by dragging the rule between the queue and the panes. Kept here rather than in the
+    /// view because this is what lays the rule out, and the drag has to land where it was drawn.
+    private var queueWidth: CGFloat = 0
+
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
     /// reports back so the managed side can slice a pane to rows that fit.
     let cell: CGSize
@@ -33,6 +49,10 @@ final class Renderer {
     struct Layout {
         var buttons: [CGRect] = []
         var queueItems: [CGRect] = []
+
+        /// The grab zone around the rule between the queue and the panes, empty when there is no
+        /// queue to divide off.
+        var splitter: CGRect = .zero
     }
 
     init(fontData: Data?, size: CGFloat) {
@@ -50,6 +70,22 @@ final class Renderer {
         cell = CGSize(
             width: max(1, advance.width.rounded()),
             height: max(1, (ascent + descent + CTFontGetLeading(font)).rounded(.up)))
+        queueWidth = cell.width * Renderer.defaultQueueCells
+    }
+
+    /// Clamped on every use rather than only when dragged, so shrinking the window narrows the
+    /// column instead of leaving the panes with nothing.
+    private func clamp(_ value: CGFloat, _ width: CGFloat) -> CGFloat {
+        let low = cell.width * Renderer.minQueueCells
+        let high = max(
+            low,
+            width - Renderer.padding * 2 - Renderer.gap - cell.width * Renderer.minPaneCells * 2)
+        return min(max(value, low), high)
+    }
+
+    /// Puts the rule under the cursor. Called by the view while the splitter is being dragged.
+    func dragQueueWidth(to x: CGFloat, in width: CGFloat) {
+        queueWidth = clamp(x - Renderer.padding - Renderer.gap / 2, width)
     }
 
     private static func load(_ data: Data?, _ size: CGFloat) -> CTFont {
@@ -83,7 +119,8 @@ final class Renderer {
 
         let line = cell.height
         let hasQueue = !frame.queue.isEmpty
-        let panesLeft = hasQueue ? Renderer.padding + Renderer.queueWidth + Renderer.gap : Renderer.padding
+        let queue = hasQueue ? clamp(queueWidth, size.width) : 0
+        let panesLeft = hasQueue ? Renderer.padding + queue + Renderer.gap : Renderer.padding
         let panesWidth = max(cell.width * 2, size.width - Renderer.padding - panesLeft)
         let half = (panesWidth / 2).rounded(.down)
 
@@ -98,7 +135,7 @@ final class Renderer {
 
         let headerTop = firstRule + Renderer.gap
         if hasQueue {
-            text("Pending (\(frame.queue.count))", in: rect(top: headerTop, left: Renderer.padding, width: Renderer.queueWidth, height: line, size), Palette.text, context)
+            text("Pending (\(frame.queue.count))", in: rect(top: headerTop, left: Renderer.padding, width: queue, height: line, size), Palette.text, context)
         }
 
         text(frame.left.header, in: rect(top: headerTop, left: panesLeft, width: half, height: line, size), Palette.text, context)
@@ -113,7 +150,7 @@ final class Renderer {
         for index in 0 ..< rows {
             let top = bodyTop + CGFloat(index) * line
             if hasQueue {
-                let bounds = rect(top: top, left: Renderer.padding, width: Renderer.queueWidth, height: line, size)
+                let bounds = rect(top: top, left: Renderer.padding, width: queue, height: line, size)
                 layout.queueItems.append(bounds)
                 queueItem(frame, index, bounds, context)
             }
@@ -124,7 +161,14 @@ final class Renderer {
 
         let bodyBottom = bodyTop + CGFloat(capacity) * line
         if hasQueue {
-            columnRule(left: panesLeft - Renderer.gap / 2, top: bodyTop, bottom: bodyBottom, in: context, size)
+            let ruleLeft = panesLeft - Renderer.gap / 2
+            columnRule(left: ruleLeft, top: bodyTop, bottom: bodyBottom, in: context, size)
+            layout.splitter = rect(
+                top: bodyTop,
+                left: ruleLeft - Renderer.grab,
+                width: Renderer.grab * 2 + 1,
+                height: bodyBottom - bodyTop,
+                size)
         }
 
         columnRule(left: panesLeft + half - Renderer.gap / 2, top: bodyTop, bottom: bodyBottom, in: context, size)
@@ -173,7 +217,17 @@ final class Renderer {
 
         let label = item.failed ? "\(item.label) !" : item.label
         let colour = item.failed ? Palette.foreground(DEVIEW_ROW_REMOVED.value) : Palette.text
-        text(label, in: bounds.offsetBy(dx: cell.width, dy: 0), colour, context)
+        // Indented rather than offset: offsetBy keeps the width, which would let a long name clip
+        // one cell past the column instead of at it.
+        text(
+            label,
+            in: CGRect(
+                x: bounds.minX + cell.width,
+                y: bounds.minY,
+                width: bounds.width - cell.width,
+                height: bounds.height),
+            colour,
+            context)
     }
 
     private func row(_ pane: Frame.Pane, _ index: Int, _ bounds: CGRect, _ context: CGContext) {

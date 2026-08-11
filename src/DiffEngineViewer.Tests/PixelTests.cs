@@ -84,6 +84,18 @@ public class PixelTests
                 Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two"),
                 Fixtures.Patch("OtherTests.cs", 12, null, "brand new")));
 
+    /// <summary>
+    /// A file name wider than the queue column, which has to stop at the divider rather than paint
+    /// over the pane beside it. The WinForms head has the same case, so all three are described.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    public Task LongQueueLabel() =>
+        Capture(
+            Fixtures.Inline(
+                Fixtures.Patch("HeaderPropagationExtensionsTests.cs", 130),
+                Fixtures.Patch()));
+
     [Test]
     [PixelTest]
     public Task InlineAccepted()
