@@ -21,6 +21,11 @@ static class Painter
     {
         var format = (StringFormat) StringFormat.GenericTypographic.Clone();
         format.FormatFlags |= StringFormatFlags.NoWrap;
+        // GenericTypographic arrives with NoClip and LineLimit set, and both have to go. NoClip is
+        // what let a long file name in the queue paint straight over the pane beside it. LineLimit
+        // then matters, because once clipping is on it turns a rect a pixel short of the measured
+        // line height into nothing drawn at all rather than a line clipped at the bottom.
+        format.FormatFlags &= ~(StringFormatFlags.NoClip | StringFormatFlags.LineLimit);
         format.Trimming = StringTrimming.None;
         return format;
     }

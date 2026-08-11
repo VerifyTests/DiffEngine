@@ -81,6 +81,9 @@ A test run that fails several inline snapshots produces one window, not several.
 binds the loopback port holds the queue; everything else hands its patch to that one. The window
 lists everything pending and offers **Accept all**.
 
+The list sits in a column on the left. Drag the divider beside it to widen the column when the file
+names are longer than it is.
+
 Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
 case the tray still has it and can reopen a window on it.
 

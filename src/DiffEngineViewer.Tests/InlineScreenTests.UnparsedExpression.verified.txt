@@ -20,5 +20,5 @@
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 +----------------------+-----------------------------------+-----------------------------------+
-| [Accept] [Discard] (Accept all) Existing expected argument is not a plain string literal. S> |
+| [Accept] [Discard] [Accept all] Existing expected argument is not a plain string literal. S> |
 +----------------------------------------------------------------------------------------------+

@@ -49,6 +49,8 @@ sealed class NativeViewerWindow : IViewerWindow
     {
         fixed (byte* bytes = font)
         {
+            // An em size, which is what the ABI takes and what the WinForms head's 11pt works out
+            // as, so all three heads draw the same size text.
             return Deview.Init(width, height, title, bytes, font.Length, 15f, hidden ? 1 : 0) == 1;
         }
     }

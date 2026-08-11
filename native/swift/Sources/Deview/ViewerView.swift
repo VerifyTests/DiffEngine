@@ -6,6 +6,7 @@ import CDeview
 final class ViewerView: NSView {
     private let renderer: Renderer
     private var layout = Renderer.Layout()
+    private var draggingSplitter = false
 
     var model = Frame()
 
@@ -30,7 +31,19 @@ final class ViewerView: NSView {
             return
         }
 
+        let previous = layout.splitter
         layout = renderer.draw(model, in: context, size: bounds.size)
+        if layout.splitter != previous {
+            window?.invalidateCursorRects(for: self)
+        }
+    }
+
+    /// The resize cursor over the splitter, which is the only hint that it can be dragged.
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        if !layout.splitter.isEmpty {
+            addCursorRect(layout.splitter, cursor: .resizeLeftRight)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -40,10 +53,36 @@ final class ViewerView: NSView {
             return
         }
 
+        // Before the queue hit test, because the grab zone overlaps the right edge of the column
+        // and a drag that started there would otherwise also select whatever it began over.
+        if layout.splitter.contains(point) {
+            draggingSplitter = true
+            return
+        }
+
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
             Runtime.shared.input.clickedQueueItem = Int32(index)
         }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard draggingSplitter else {
+            super.mouseDragged(with: event)
+            return
+        }
+
+        renderer.dragQueueWidth(to: convert(event.locationInWindow, from: nil).x, in: bounds.width)
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if draggingSplitter {
+            draggingSplitter = false
+            return
+        }
+
+        super.mouseUp(with: event)
     }
 
     /// Accumulated, because a trackpad delivers many small deltas between two polls and the

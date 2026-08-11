@@ -138,8 +138,10 @@ typedef struct DeviewInput {
  * library is detected not crashed.
  *
  * 2: DeviewInput.columns and rows carry character cells rather than pixels.
+ * 3: deview_init's fontSize is an em size on both implementations. The ImGui one took it as a
+ *    pixel height, so the same number rendered a quarter smaller there than on macOS.
  */
-#define DEVIEW_VERSION 2
+#define DEVIEW_VERSION 3
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -150,6 +152,10 @@ typedef struct DeviewInput {
 
 /*
  * Returns 1 on success. fontTtf may be NULL, in which case a built in font is used.
+ *
+ * fontSize is an em size, which is the unit Core Text and GDI+ take and therefore the one all
+ * three heads have to agree on. An implementation whose rasteriser scales by something else, as
+ * ImGui's does by pixel height, converts.
  *
  * hidden starts without a visible window, which the pixel snapshot tests rely on. An
  * implementation may defer creating the window entirely until deview_set_hidden asks for one:

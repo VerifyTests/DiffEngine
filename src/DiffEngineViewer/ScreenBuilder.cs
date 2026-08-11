@@ -86,7 +86,9 @@ static class ScreenBuilder
         [
             new("Accept", enabled, CommandKind.Accept),
             new("Discard", enabled, CommandKind.Discard),
-            new("Accept all", state.Queue.Count > 1, CommandKind.AcceptAll)
+            // Enabled from one, not two. Shift+A has always accepted a queue of one, and a button
+            // that refuses what the key it names does reads as a bug rather than a nicety.
+            new("Accept all", state.Queue.Count > 0, CommandKind.AcceptAll)
         ];
     }
 

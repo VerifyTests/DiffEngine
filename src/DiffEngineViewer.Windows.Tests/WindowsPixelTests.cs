@@ -51,6 +51,17 @@ public class WindowsPixelTests
                 Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two"),
                 Fixtures.Patch("OtherTests.cs", 12, null, "brand new")));
 
+    /// <summary>
+    /// A file name wider than the queue column. It has to stop at the rule rather than paint over
+    /// the pane beside it, which is what GenericTypographic's NoClip used to let it do.
+    /// </summary>
+    [Test]
+    public Task LongQueueLabel() =>
+        Capture(
+            Fixtures.Inline(
+                Fixtures.Patch("HeaderPropagationExtensionsTests.cs", 130),
+                Fixtures.Patch()));
+
     [Test]
     public Task InlineAccepted()
     {
