@@ -12,6 +12,7 @@
 #include "raylib.h"
 #include "rlgl.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -35,15 +36,56 @@ void ClearCloseFlag()
     }
 }
 
+/*
+ * Queue column widths, counted in character cells rather than pixels so a scaled display gets a
+ * column that holds the same number of characters rather than a narrower one.
+ */
+constexpr float queueCells = 34.0f;
+constexpr float minQueueCells = 8.0f;
+
+/*
+ * What the drag leaves each of the two panes, so the splitter cannot be pushed far enough right to
+ * squeeze them out of existence.
+ */
+constexpr float minPaneCells = 12.0f;
+
+/*
+ * How far either side of the divider counts as grabbing it. The border is a single pixel, which is
+ * not something a mouse can be asked to hit.
+ */
+constexpr float grabWidth = 4.0f;
+
 struct State
 {
     bool initialised = false;
     bool windowOpen = false;
     ImGuiContext* context = nullptr;
     DeviewInput input{};
+
+    /*
+     * The queue column, owned here rather than by the table.
+     *
+     * ImGuiTableFlags_Resizable would give the drag for free, but it also hands the width to
+     * ImGui's own table state, which initialises once and then auto-fits or restores from saved
+     * settings. A column that is fixed and not resizable takes InitStretchWeightOrWidth on every
+     * frame instead, which is a width this side decides and can therefore reproduce: the pixel
+     * captures share one context and one table id and draw a single frame each, so anything
+     * carried between them shows up as a snapshot that depends on the test order.
+     */
+    float queueWidth = 0.0f;
+
+    /* What was last handed to raylib, so an idle frame is not a window system call. */
+    int cursor = MOUSE_CURSOR_DEFAULT;
 };
 
 State state;
+
+float ClampQueueWidth(float value, float available, float cell)
+{
+    const float low = cell * minQueueCells;
+    const float high = std::max(low, available - cell * minPaneCells * 2.0f);
+    return std::min(std::max(value, low), high);
+}
 
 void ResetInput()
 {
@@ -395,30 +437,32 @@ void BuildFrame(const DeviewScreen* screen)
 
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
-    /* Resizable is what makes the border between the queue and the panes draggable. ImGui keeps the
-     * dragged width in its own table state for the life of the context, which is the whole run, and
-     * IniFilename is null so nothing of it reaches disk. */
+    const float cell = ImGui::CalcTextSize("M").x;
+    if (state.queueWidth <= 0.0f)
+    {
+        state.queueWidth = cell * queueCells;
+    }
+
+    /* The body, measured before the table so the drag zone can span all of it rather than only the
+     * rows the table happens to have. */
+    const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
+    const ImVec2 bodyAvail = ImGui::GetContentRegionAvail();
+    const float queueWidth = ClampQueueWidth(state.queueWidth, bodyAvail.x, cell);
+
+    /* Where the border between the queue and the panes ended up, read back from the table rather
+     * than recomputed, and -1 until a row has been laid out. */
+    float dividerX = -1.0f;
     if (screen->paneCount >= 2 &&
-        ImGui::BeginTable(
-            "##panes",
-            columns,
-            ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable))
+        ImGui::BeginTable("##panes", columns, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame))
     {
         const DeviewPane& left = screen->panes[0];
         const DeviewPane& right = screen->panes[1];
         if (hasQueue)
         {
-            /* Counted in character cells rather than pixels, so a scaled display gets a column
-             * holding the same number of characters rather than a narrower one. Only the initial
-             * width: from the second frame on, the table reports whatever it was dragged to. */
-            ImGui::TableSetupColumn("Pending", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("M").x * 34.0f);
+            ImGui::TableSetupColumn("Pending", ImGuiTableColumnFlags_WidthFixed, queueWidth);
         }
 
-        /* NoResize on the received column pins the border to its right, which is the one between
-         * the two panes. Only the queue divider moves, matching the other two heads. */
-        ImGui::TableSetupColumn(
-            Copy(screen, left.headerOffset, left.headerLength).c_str(),
-            ImGuiTableColumnFlags_NoResize);
+        ImGui::TableSetupColumn(Copy(screen, left.headerOffset, left.headerLength).c_str());
         ImGui::TableSetupColumn(Copy(screen, right.headerOffset, right.headerLength).c_str());
         ImGui::TableHeadersRow();
 
@@ -460,12 +504,48 @@ void BuildFrame(const DeviewScreen* screen)
             }
 
             ImGui::TableSetColumnIndex(column);
+            if (hasQueue && dividerX < 0.0f)
+            {
+                dividerX = ImGui::GetCursorScreenPos().x - ImGui::GetStyle().CellPadding.x;
+            }
+
             DrawRow(screen, left, index, column);
             ImGui::TableSetColumnIndex(column + 1);
             DrawRow(screen, right, index, column + 1);
         }
 
         ImGui::EndTable();
+    }
+
+    /*
+     * The drag, submitted after the table so it wins the overlap: within a window the last item to
+     * claim a position is the one that hovers. Inert in a capture, which never feeds a mouse
+     * button, so the width stays whatever this side decided.
+     */
+    if (dividerX >= 0.0f)
+    {
+        const ImVec2 resume = ImGui::GetCursorScreenPos();
+        ImGui::SetCursorScreenPos(ImVec2(dividerX - grabWidth, bodyMin.y));
+        ImGui::InvisibleButton(
+            "##queue-splitter",
+            ImVec2(grabWidth * 2.0f + 1.0f, std::max(1.0f, bodyAvail.y)));
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
+
+        if (ImGui::IsItemActive())
+        {
+            /* Moved by the distance between the cursor and the border it is dragging, rather than
+             * set from the cursor: a column's width is its inner width, and the border sits a
+             * padding and a spacing further right. A delta needs to know neither. */
+            state.queueWidth = ClampQueueWidth(
+                queueWidth + ImGui::GetIO().MousePos.x - dividerX,
+                bodyAvail.x,
+                cell);
+        }
+
+        ImGui::SetCursorScreenPos(resume);
     }
 
     ImGui::EndChild();
@@ -617,6 +697,17 @@ int32_t deview_present(const DeviewScreen* screen)
     ImGui::NewFrame();
     BuildFrame(screen);
     ImGui::Render();
+
+    /* ImGui only records the cursor it wants. Showing it is the backend's job, and the splitter is
+     * the one thing here that asks for anything but an arrow. */
+    const int cursor = ImGui::GetMouseCursor() == ImGuiMouseCursor_ResizeEW
+        ? MOUSE_CURSOR_RESIZE_EW
+        : MOUSE_CURSOR_DEFAULT;
+    if (cursor != state.cursor)
+    {
+        state.cursor = cursor;
+        SetMouseCursor(cursor);
+    }
 
     BeginDrawing();
     ClearBackground(Color{24, 24, 24, 255});
