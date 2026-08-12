@@ -73,12 +73,16 @@ typedef struct DeviewQueueItem {
     int32_t labelLength;
     int32_t flags;
     /*
-     * The failure text behind DEVIEW_QUEUE_FAILED, empty when the row has none. Carried as well as
-     * the flag rather than instead of it: the flag is what colours the row, and a head is free to
-     * colour without having anywhere to put the text.
+     * What the row cannot say for itself — the whole path behind a file name, the test behind a
+     * call site, the failure behind the ! — already composed, and empty when there is nothing. A
+     * head shows it or does not; it never builds one, so the three of them cannot drift and an
+     * empty length means no tip rather than an empty one.
+     *
+     * Not the failure text alone: DEVIEW_QUEUE_FAILED still says whether to colour the row, and
+     * the text is only one of the things worth reading here.
      */
-    int32_t statusOffset;
-    int32_t statusLength;
+    int32_t tooltipOffset;
+    int32_t tooltipLength;
 } DeviewQueueItem;
 
 /* One item of the open context menu. */
@@ -183,10 +187,10 @@ typedef struct DeviewInput {
  *    pixel height, so the same number rendered a quarter smaller there than on macOS.
  * 4: DeviewScreen carries the open context menu, and DeviewInput reports right-clicks on queue
  *    rows and clicks on menu items.
- * 5: DeviewQueueItem carries the failure text behind its flag, and DeviewInput reports an absolute
- *    scroll target and a context menu dismissed without a choice. Between them these are what a
- *    head needs to draw the queue tip, the pane scrollbar and the menu with the platform's own
- *    controls rather than its own rectangles.
+ * 5: DeviewQueueItem carries a composed tooltip, and DeviewInput reports an absolute scroll target
+ *    and a context menu dismissed without a choice. Between them these are what a head needs to
+ *    draw the queue tip, the pane scrollbar and the menu with the platform's own controls rather
+ *    than its own rectangles.
  */
 #define DEVIEW_VERSION 5
 

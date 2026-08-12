@@ -41,9 +41,8 @@ struct Frame {
         var failed = false
         var header = false
 
-        /// The failure behind `failed`, empty when there is none. Read in the tooltip, which is
-        /// the only place it fits.
-        var status = ""
+        /// What the row cannot say for itself, already composed, empty when there is nothing.
+        var tooltip = ""
     }
 
     struct Button {
@@ -67,7 +66,7 @@ struct Frame {
                         selected: item.flags & DEVIEW_QUEUE_SELECTED.value != 0,
                         failed: item.flags & DEVIEW_QUEUE_FAILED.value != 0,
                         header: item.flags & DEVIEW_QUEUE_HEADER.value != 0,
-                        status: string(screen, item.statusOffset, item.statusLength)))
+                        tooltip: string(screen, item.tooltipOffset, item.tooltipLength)))
             }
         }
 

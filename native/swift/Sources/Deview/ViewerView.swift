@@ -41,21 +41,26 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         }
     }
 
-    /// One tip region per queue row, rebuilt with the frame because anything that scrolls the
-    /// column renumbers the rows. Driven from `Runtime` rather than from `draw`, since these are
-    /// tracking rectangles and rebuilding them while AppKit is drawing invites re-entrancy.
+    /// One tip region per queue row that has something to say, rebuilt with the frame because
+    /// anything that scrolls the column renumbers the rows. Driven from `Runtime` rather than from
+    /// `draw`, since these are tracking rectangles and rebuilding them while AppKit is drawing
+    /// invites re-entrancy.
+    ///
+    /// A row with an empty tooltip gets no region at all, rather than a region answering with an
+    /// empty string: the second would still open a popup, and a popup that says nothing is worse
+    /// than none.
     ///
     /// The text is answered on demand below rather than stored here, so a row whose label changed
     /// under a resting cursor still reads correctly.
     func refreshToolTips() {
         removeAllToolTips()
-        for (index, bounds) in layout.queueItems.enumerated() where index < model.queue.count {
+        for (index, bounds) in layout.queueItems.enumerated()
+        where index < model.queue.count && !model.queue[index].tooltip.isEmpty {
             _ = addToolTip(bounds, owner: self, userData: nil)
         }
     }
 
-    /// The full name and the failure behind the `!`. Matches the WinForms head: the indent is
-    /// layout and goes, the conflict marker means something and stays.
+    /// Composed by the managed side, so this only finds the row under the cursor.
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
         guard let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
               index < model.queue.count
@@ -63,9 +68,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return ""
         }
 
-        let item = model.queue[index]
-        let label = item.label.trimmingCharacters(in: .whitespaces)
-        return item.status.isEmpty ? label : "\(label)\n\(item.status)"
+        return model.queue[index].tooltip
     }
 
     /// The resize cursor over the splitter, which is the only hint that it can be dragged.

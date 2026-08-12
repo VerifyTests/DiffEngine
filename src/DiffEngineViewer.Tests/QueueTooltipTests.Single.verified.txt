@@ -1,0 +1,2 @@
+﻿[Compare handles nulls]
+  SampleTests.cs:42

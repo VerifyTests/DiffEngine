@@ -303,7 +303,8 @@ public class ViewerLaunchTests
                 "On Linux the viewer draws the menu, and any other click or key closes it",
                 "On Windows and macOS it is the real OS one: arrows and Enter drive it, Escape closes it WITHOUT closing the window, and it flips rather than clips near the edge of a screen",
                 "On macOS there is a menu bar, Quit hides rather than kills when the tray is running, and Close and Minimize work",
-                "Hovering a queue row shows its full name, and its failure text when marked !",
+                "Hovering an entry shows its full path, and the frameworks when marked *",
+                "Hovering a header, or a row whose label already says everything, shows no tooltip",
                 "Accepting the conflicted entry writes the variant on screen",
                 "Accept all skips the conflict and says 1 conflict needs review");
 

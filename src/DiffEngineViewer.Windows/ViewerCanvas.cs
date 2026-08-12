@@ -399,16 +399,16 @@ sealed class ViewerCanvas : Control
         }
 
         tooltipRow = row;
-        if (row < 0)
+        // No row, or a row with nothing to add. Composed by QueueProjection, so what counts as
+        // nothing is decided once for all three heads rather than three times.
+        if (row < 0 ||
+            screen!.Queue[row].Tooltip is not { } text)
         {
             tooltip.Hide(this);
             return;
         }
 
-        var item = screen!.Queue[row];
-        // The indent is layout and goes; the leading conflict marker means something and stays.
-        var label = item.Label.Trim();
-        tooltip.SetToolTip(this, item.Status is null ? label : $"{label}\n{item.Status}");
+        tooltip.SetToolTip(this, text);
     }
 
     protected override void OnMouseUp(MouseEventArgs e)

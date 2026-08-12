@@ -24,6 +24,17 @@ record QueueItem(
 
     public IReadOnlyList<int>? GroupMembers { get; init; }
 
+    /// <summary>
+    /// What the row cannot say for itself, or null when there is nothing.
+    /// <para>
+    /// <see cref="Label"/> is deliberately the shortest form that tells one entry from another, so
+    /// the full path, the test behind a call site and the failure text are all missing from it.
+    /// Those are what this carries. Null rather than a copy of the label, because a tip that
+    /// repeats the row it is over has told the reader nothing and cost them a popup.
+    /// </para>
+    /// </summary>
+    public string? Tooltip { get; init; }
+
     // By value, because the members list is rebuilt every frame and reference equality would
     // defeat the WinForms head's idle repaint check the moment a header is on screen.
     public virtual bool Equals(QueueItem? other) =>
@@ -34,10 +45,11 @@ record QueueItem(
         Kind == other.Kind &&
         EntryIndex == other.EntryIndex &&
         GroupName == other.GroupName &&
+        Tooltip == other.Tooltip &&
         (GroupMembers is null
             ? other.GroupMembers is null
             : other.GroupMembers is not null && GroupMembers.SequenceEqual(other.GroupMembers));
 
     public override int GetHashCode() =>
-        HashCode.Combine(Label, Selected, Status, Kind, EntryIndex, GroupName);
+        HashCode.Combine(Label, Selected, Status, Kind, EntryIndex, GroupName, Tooltip);
 }

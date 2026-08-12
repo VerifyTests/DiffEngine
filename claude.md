@@ -114,6 +114,10 @@ keeps offering a snapshot that is already in the source.
 - Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
   the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
   `ViewerSession`'s clamp.
+- Queue tooltips are composed once in `QueueProjection`, not per head, and are **null when they
+  would only repeat the row**. Labels are already the shortest distinguishing form, so the tip is
+  what the label left off — path, test, frameworks, failure text. `QueueTooltipTests` snapshots the
+  rule; the heads only display the string.
 - Does **not** reference DiffEngine. It links `Inline/*.cs`, `Protocol/*.cs` and
   `Tray/TrayDetector.cs` as source, because DiffEngine publishes and embeds the heads and a
   reference back would be a cycle.

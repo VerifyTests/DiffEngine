@@ -48,13 +48,12 @@ struct DeviewQueueItem
     public int Flags;
 
     /// <summary>
-    /// The failure text behind <see cref="DeviewQueueFlags.Failed"/>, empty when the row has none.
-    /// Carried as well as the flag rather than instead of it: the flag is what colours the row,
-    /// and a head is free to colour without having anywhere to put the text.
+    /// <see cref="QueueItem.Tooltip"/>, already composed, empty when the row has nothing to add.
+    /// A head shows it or does not; it never builds one.
     /// </summary>
-    public int StatusOffset;
+    public int TooltipOffset;
 
-    public int StatusLength;
+    public int TooltipLength;
 }
 
 [StructLayout(LayoutKind.Sequential)]

@@ -1,0 +1,2 @@
+﻿[ATests.cs:10]
+  {TempPath}deview-fixtures/SolutionA/Tests/ATests.cs:10

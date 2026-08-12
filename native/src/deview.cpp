@@ -168,18 +168,6 @@ std::string Copy(const DeviewScreen* screen, int offset, int length)
     return {begin, static_cast<size_t>(end - begin)};
 }
 
-/* Spaces only. A queue label's indent is the grouping drawn as layout, and a tip is not laid out. */
-std::string Trim(const std::string& value)
-{
-    const size_t first = value.find_first_not_of(' ');
-    if (first == std::string::npos)
-    {
-        return {};
-    }
-
-    return value.substr(first, value.find_last_not_of(' ') - first + 1);
-}
-
 ImU32 RowColour(int kind)
 {
     switch (kind)
@@ -571,19 +559,13 @@ void BuildFrame(const DeviewScreen* screen)
                         state.input.rightClickedQueueItem = index;
                     }
 
-                    /* The full name and the failure behind the `!`, which is the only place either
-                     * is readable: the column clips a long label, and the status text has nowhere
-                     * else to go. Matches the WinForms head's tip, indent trimmed because that is
-                     * layout, conflict marker kept because it means something. */
-                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                    /* What the row cannot say for itself, composed by the managed side so the
+                     * three heads cannot drift on it. An empty one means no tip at all rather than
+                     * an empty popup: a tip that repeats its row has told the reader nothing. */
+                    if (item.tooltipLength > 0 &&
+                        ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
                     {
-                        std::string tip = Trim(label);
-                        const std::string status = Copy(screen, item.statusOffset, item.statusLength);
-                        if (!status.empty())
-                        {
-                            tip += "\n" + status;
-                        }
-
+                        const std::string tip = Copy(screen, item.tooltipOffset, item.tooltipLength);
                         if (!tip.empty())
                         {
                             ImGui::SetTooltip("%s", tip.c_str());

@@ -140,8 +140,8 @@ static class QueueProjection
                     for (; index < groupEnd; index++)
                     {
                         // Under a test header the test name would repeat, so the entry falls back
-                        // to its call site.
-                        rows.Add(EntryRow(entries[index], index, $"{indent} ", entries[index].Name, state));
+                        // to its call site — and its tip leaves the name out for the same reason.
+                        rows.Add(EntryRow(entries[index], index, $"{indent} ", entries[index].Name, state, true));
                     }
 
                     continue;
@@ -194,13 +194,81 @@ static class QueueProjection
 
     // The conflict marker leads rather than trails, because trailing decorations are the first
     // thing a narrow column truncates away — exactly when the label is long enough to need it.
-    static QueueItem EntryRow(QueueEntry entry, int index, string indent, string text, SessionState state) =>
+    static QueueItem EntryRow(
+        QueueEntry entry,
+        int index,
+        string indent,
+        string text,
+        SessionState state,
+        bool underTestHeader = false) =>
         new(
             entry.Conflicted ? $"{indent}* {text}" : $"{indent}{text}",
             index == state.Selected,
             entry.Status,
             QueueRowKind.Entry,
-            index);
+            index)
+        {
+            Tooltip = Tooltip(entry, text, underTestHeader)
+        };
+
+    /// <summary>
+    /// What the row cannot say for itself: the whole path behind a bare file name, the test behind
+    /// a call site, every framework behind one variant, and the failure behind a <c>!</c>.
+    /// <para>
+    /// Null when all of that is already on the row. A tip that repeats its label has told the
+    /// reader nothing, so on those rows there is no tip at all rather than an empty one.
+    /// </para>
+    /// <para>
+    /// Composed here rather than in each head, so the three of them cannot drift and so the rule
+    /// about repeating is decided once. Headers get none: their group is the rows underneath, and
+    /// each of those answers for itself. <paramref name="underTestHeader"/> is that rule one row
+    /// further out — a header naming the test sits directly above, so the tip does not name it
+    /// again.
+    /// </para>
+    /// </summary>
+    static string? Tooltip(QueueEntry entry, string label, bool underTestHeader)
+    {
+        var lines = new List<string>();
+        switch (entry.Kind)
+        {
+            case QueueEntryKind.Inline when entry.Patch is { } patch:
+                lines.Add($"{patch.SourceFile}:{patch.LineHint}");
+                if (!underTestHeader &&
+                    entry.TestName is { } test)
+                {
+                    lines.Add(test);
+                }
+
+                if (entry.Conflicted)
+                {
+                    // Every framework in play. The Variant button names only the one on screen, so
+                    // which others disagree is otherwise found by cycling through them.
+                    lines.Add(string.Join(", ", entry.Variants.SelectMany(_ => _.Origins).Distinct()));
+                }
+
+                break;
+            case QueueEntryKind.Move when entry.LeftFile is not null && entry.TargetFile is not null:
+                lines.Add(entry.LeftFile);
+                lines.Add($"to {entry.TargetFile}");
+                break;
+            case QueueEntryKind.Delete when entry.LeftFile is not null:
+                lines.Add(entry.LeftFile);
+                break;
+        }
+
+        if (entry.Warning is not null)
+        {
+            lines.Add(entry.Warning);
+        }
+
+        if (entry.Status is not null)
+        {
+            lines.Add(entry.Status);
+        }
+
+        lines.RemoveAll(_ => _.Length == 0 || _ == label);
+        return lines.Count == 0 ? null : string.Join("\n", lines);
+    }
 
     /// <summary>
     /// One test is one group only within one file: two tests that merely share a name in

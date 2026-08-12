@@ -84,7 +84,11 @@ lists everything pending and offers **Accept all**.
 
 The list sits in a column on the left. Drag the divider beside it to widen the column when the file
 names are longer than it is. When the list outgrows the window it follows the selection, keeping
-the selected row visible. Hover a row to read its full name, and the failure behind a `!`.
+the selected row visible.
+
+Row labels are the shortest thing that tells one entry from another, so hovering one fills in what
+it left out: the whole path, the test behind a call site, every framework behind a conflict, and the
+failure behind a `!`. A row with nothing to add shows no tooltip at all.
 
 The panes carry a scrollbar, which moves with the keys and the wheel.
 

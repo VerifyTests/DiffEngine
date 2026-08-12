@@ -49,9 +49,9 @@ sealed class ScreenPayload
         foreach (var item in screen.Queue)
         {
             var (offset, length) = Add(item.Label);
-            // Empty rather than absent when there is no failure: the shim reads a length, and the
-            // Failed flag below already says whether there is anything to read.
-            var (itemStatus, itemStatusLength) = Add(item.Status ?? "");
+            // Empty rather than absent when the row has nothing to add: the shim reads a length,
+            // and a zero one is what tells it to show no tip at all.
+            var (tooltip, tooltipLength) = Add(item.Tooltip ?? "");
             var flags = DeviewQueueFlags.None;
             if (item.Selected)
             {
@@ -74,8 +74,8 @@ sealed class ScreenPayload
                     LabelOffset = offset,
                     LabelLength = length,
                     Flags = (int) flags,
-                    StatusOffset = itemStatus,
-                    StatusLength = itemStatusLength
+                    TooltipOffset = tooltip,
+                    TooltipLength = tooltipLength
                 });
         }
 
