@@ -50,13 +50,27 @@ static class ManualViewer
     /// <summary>
     /// A test run counts as disabled, and these are the one case that wants a window. Per class
     /// rather than process wide, so an ordinary run cannot pop one open.
+    /// <para>
+    /// Any viewer still running is ended first. The head itself is always current: DiffEngine
+    /// references all three heads to order the build, and this project references DiffEngine, so
+    /// the command that runs one of these tests rebuilds the head on the way. A leftover process
+    /// is the only way to end up reviewing an older build, and it is not one the binary can be
+    /// checked for.
+    /// </para>
     /// </summary>
     public static void Enable()
     {
-        if (!File.Exists(Executable()))
+        var executable = Executable();
+        if (!File.Exists(executable))
         {
-            throw new($"Build the viewer head first. Not found: {Executable()}");
+            throw new($"Build the viewer head first. Not found: {executable}");
         }
+
+        // A leftover from a run that was killed before it could clean up, or one started by hand.
+        // Nothing else runs this executable, so whatever is up is spent, and being single instance
+        // it would answer this run rather than let it start its own — showing its own window, from
+        // whenever it was built.
+        Close();
 
         EngineRunner.Disabled = false;
     }
@@ -78,6 +92,7 @@ static class ManualViewer
         var thisBin = new DirectoryInfo(AppContext.BaseDirectory);
         var tfm = thisBin.Name;
         var configuration = thisBin.Parent!.Name;
+
         var source = thisBin.Parent!.Parent!.Parent!.Parent!;
 
         return Path.Combine(source.FullName, head, "bin", configuration, tfm, name);
