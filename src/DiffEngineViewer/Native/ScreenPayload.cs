@@ -49,6 +49,9 @@ sealed class ScreenPayload
         foreach (var item in screen.Queue)
         {
             var (offset, length) = Add(item.Label);
+            // Empty rather than absent when there is no failure: the shim reads a length, and the
+            // Failed flag below already says whether there is anything to read.
+            var (itemStatus, itemStatusLength) = Add(item.Status ?? "");
             var flags = DeviewQueueFlags.None;
             if (item.Selected)
             {
@@ -70,7 +73,9 @@ sealed class ScreenPayload
                 {
                     LabelOffset = offset,
                     LabelLength = length,
-                    Flags = (int) flags
+                    Flags = (int) flags,
+                    StatusOffset = itemStatus,
+                    StatusLength = itemStatusLength
                 });
         }
 

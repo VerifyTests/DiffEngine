@@ -86,7 +86,9 @@ sealed class NativeViewerWindow : IViewerWindow
             Columns: Math.Max(40, input.Columns),
             Rows: Math.Max(10, input.Rows),
             RightClickedQueueItem: input.RightClickedQueueItem,
-            ClickedMenuItem: input.ClickedMenuItem);
+            ClickedMenuItem: input.ClickedMenuItem,
+            MenuClosed: input.MenuClosed != 0,
+            ScrollTo: input.ScrollTo);
     }
 
     public void SetHidden(bool hidden) =>

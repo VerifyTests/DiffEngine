@@ -2,7 +2,9 @@
 /// Mirrors of the structs in native/include/deview.h. Every string is a byte offset and length
 /// into one UTF-8 blob, so a frame costs one buffer rather than per string marshalling.
 /// <para>
-/// Field order and types must match the header exactly. DeviewStructTests guards the sizes.
+/// Field order and types must match the header exactly. DeviewStructTests reads the header and
+/// holds these against it, so a field added to one side and not the other fails on any machine
+/// rather than only on one that can load the library.
 /// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
@@ -44,6 +46,15 @@ struct DeviewQueueItem
     public int LabelOffset;
     public int LabelLength;
     public int Flags;
+
+    /// <summary>
+    /// The failure text behind <see cref="DeviewQueueFlags.Failed"/>, empty when the row has none.
+    /// Carried as well as the flag rather than instead of it: the flag is what colours the row,
+    /// and a head is free to colour without having anywhere to put the text.
+    /// </summary>
+    public int StatusOffset;
+
+    public int StatusLength;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -85,7 +96,9 @@ struct DeviewInput
     public int ClickedQueueItem;
     public int RightClickedQueueItem;
     public int ClickedMenuItem;
+    public int MenuClosed;
     public int ScrollDelta;
+    public int ScrollTo;
     public int CloseRequested;
     public int Columns;
     public int Rows;

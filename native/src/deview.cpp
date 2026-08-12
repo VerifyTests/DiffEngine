@@ -109,7 +109,13 @@ void ResetInput()
     state.input.clickedQueueItem = -1;
     state.input.rightClickedQueueItem = -1;
     state.input.clickedMenuItem = -1;
+    /* This head draws its own menu, so a click outside it is an ordinary click the managed side
+     * already reads as a dismissal. Cleared anyway so the field never carries a stale 1. */
+    state.input.menuClosed = 0;
     state.input.scrollDelta = 0;
+    /* -1, not 0: zero is a legitimate scroll target, so a cleared field has to mean "no target"
+     * rather than "go to the top". */
+    state.input.scrollTo = -1;
     state.input.closeRequested = 0;
 }
 

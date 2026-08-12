@@ -72,6 +72,13 @@ typedef struct DeviewQueueItem {
     int32_t labelOffset;
     int32_t labelLength;
     int32_t flags;
+    /*
+     * The failure text behind DEVIEW_QUEUE_FAILED, empty when the row has none. Carried as well as
+     * the flag rather than instead of it: the flag is what colours the row, and a head is free to
+     * colour without having anywhere to put the text.
+     */
+    int32_t statusOffset;
+    int32_t statusLength;
 } DeviewQueueItem;
 
 /* One item of the open context menu. */
@@ -143,7 +150,19 @@ typedef struct DeviewInput {
     int32_t rightClickedQueueItem;
     /* Index into DeviewScreen.menu, or -1. */
     int32_t clickedMenuItem;
+    /*
+     * The open menu was dismissed without choosing anything, so the managed side should drop it.
+     * A head whose menu is drawn by the platform cannot report this any other way: the tracking
+     * loop swallows the click that closed it, and without this the menu would be offered again on
+     * the very next frame.
+     */
+    int32_t menuClosed;
     int32_t scrollDelta;
+    /*
+     * An absolute first visible row, from a scrollbar, or -1. Applied after scrollDelta, so a
+     * dragged thumb wins over wheel notches that arrived in the same frame.
+     */
+    int32_t scrollTo;
     /* Set when the user asked to close the window; the managed side decides hide versus exit. */
     int32_t closeRequested;
     /*
@@ -164,8 +183,12 @@ typedef struct DeviewInput {
  *    pixel height, so the same number rendered a quarter smaller there than on macOS.
  * 4: DeviewScreen carries the open context menu, and DeviewInput reports right-clicks on queue
  *    rows and clicks on menu items.
+ * 5: DeviewQueueItem carries the failure text behind its flag, and DeviewInput reports an absolute
+ *    scroll target and a context menu dismissed without a choice. Between them these are what a
+ *    head needs to draw the queue tip, the pane scrollbar and the menu with the platform's own
+ *    controls rather than its own rectangles.
  */
-#define DEVIEW_VERSION 4
+#define DEVIEW_VERSION 5
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

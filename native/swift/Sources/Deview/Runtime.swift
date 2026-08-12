@@ -145,7 +145,11 @@ final class Runtime {
         input.clickedQueueItem = -1
         input.rightClickedQueueItem = -1
         input.clickedMenuItem = -1
+        input.menuClosed = 0
         input.scrollDelta = 0
+        // -1, not 0: zero is a legitimate scroll target, so a cleared field has to mean "no
+        // target" rather than "go to the top".
+        input.scrollTo = -1
         input.closeRequested = 0
     }
 }
