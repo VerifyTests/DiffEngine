@@ -19,8 +19,11 @@ using EngineLaunch = engine::DiffEngine.LaunchResult;
 /// </para>
 /// <para>
 /// Explicit, so an ordinary run never opens a window. Run one at a time, because the viewer is
-/// single instance:
+/// single instance, and rebuild first — a lingering instance would otherwise answer instead, which
+/// <see cref="ManualViewer"/> explains:
 /// <code>
+/// Get-Process DiffEngineViewer -ErrorAction SilentlyContinue | Stop-Process -Force
+/// dotnet build src
 /// dotnet test --project src/DiffEngineViewer.Tests -- --treenode-filter "/*/*/ViewerLaunchTests/InlineQueueFromSeparateLaunches"
 /// </code>
 /// </para>

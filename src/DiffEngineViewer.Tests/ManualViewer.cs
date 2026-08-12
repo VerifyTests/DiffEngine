@@ -4,6 +4,17 @@ using EngineRunner = engine::DiffEngine.DiffRunner;
 
 /// <summary>
 /// Points DiffEngine at the head built from this repo, and waits for the person driving it.
+/// <para>
+/// Kill any running DiffEngineViewer before starting one of these, or you will be reviewing a
+/// stale build without knowing it. The viewer is single instance, and with DiffEngineTray running
+/// it hides rather than exits when its window closes — so an instance from an earlier build stays
+/// alive in the background, and the next launch hands its patches to that one and gets out of the
+/// way. The window that appears is then the old binary, showing none of the changes just made.
+/// It is a quiet failure: everything looks like it worked.
+/// </para>
+/// <code>
+/// Get-Process DiffEngineViewer -ErrorAction SilentlyContinue | Stop-Process -Force
+/// </code>
 /// </summary>
 static class ManualViewer
 {
