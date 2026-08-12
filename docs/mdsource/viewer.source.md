@@ -131,6 +131,12 @@ test name. Test names come from the caller (Verify) and are optional; without th
 labeled by call site. Two items that would read identically — the same file name and line in two
 projects — grow the shortest distinguishing directory prefix.
 
+Every header carries a marker: `-` when open, `+` when folded. Clicking a header folds its group,
+and the header's right-click menu offers the same. A fold is only a view — what it hides is still
+pending, still counted by the header hiding it, and still taken by **Accept all**. `Tab` steps over
+folded items rather than into them, and anything that selects an item from outside the window
+unfolds whatever was hiding it.
+
 
 ## Conflicting snapshots
 

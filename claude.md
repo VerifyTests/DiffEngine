@@ -114,6 +114,11 @@ keeps offering a snapshot that is already in the source.
 - Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
   the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
   `ViewerSession`'s clamp.
+- Group headers fold. `SessionState.Collapsed` holds `QueueItem.GroupKey`s and `QueueProjection`
+  skips their members, so the marker rides in the label and no head or ABI field knows about it.
+  Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
+  rules about when a header exists at all live in one place and must stay there. A fold is a view:
+  `AcceptAll` still sweeps what it hides, which `CollapseTests` pins.
 - Queue tooltips are composed once in `QueueProjection`, not per head, and are **null when they
   would only repeat the row**. Labels are already the shortest distinguishing form, so the tip is
   what the label left off — path, test, frameworks, failure text. `QueueTooltipTests` snapshots the
