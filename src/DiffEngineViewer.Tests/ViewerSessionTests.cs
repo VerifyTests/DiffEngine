@@ -620,7 +620,7 @@ public class ViewerSessionTests
     {
         var open = ViewerSession.OpenMenu(TwoSolutions(), 0);
         await Assert.That(open.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept all in SolutionA", "Discard all in SolutionA"]);
+            .IsEquivalentTo(["Collapse", "Accept all in SolutionA", "Discard all in SolutionA"]);
 
         var accepted = ViewerSession.Apply(open, CommandKind.AcceptGroup, Fixtures.Applied);
 
@@ -639,7 +639,7 @@ public class ViewerSessionTests
 
         var open = ViewerSession.OpenMenu(state, 0);
         await Assert.That(open.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept all for Compare handles nulls", "Discard all for Compare handles nulls"]);
+            .IsEquivalentTo(["Collapse", "Accept all for Compare handles nulls", "Discard all for Compare handles nulls"]);
 
         var discarded = ViewerSession.Apply(open, CommandKind.DiscardGroup, Fixtures.Applied);
 
@@ -658,14 +658,15 @@ public class ViewerSessionTests
         var rows = QueueProjection.Rows(state);
         var conflictedRow = rows.ToList().FindIndex(_ => _.Label.Contains('*'));
         var header = ViewerSession.OpenMenu(state, 0);
-        await Assert.That(header.Menu!.Items[0].Label).IsEqualTo("Accept all in SolutionA");
+        // Second, because folding leads a header's menu.
+        await Assert.That(header.Menu!.Items[1].Label).IsEqualTo("Accept all in SolutionA");
         await Assert.That(conflictedRow).IsGreaterThanOrEqualTo(0);
 
         // Sweep the ungrouped section instead: build a menu over all entries via accept-all is
         // covered elsewhere; here the conflicted member must survive a group sweep.
         var all = header with
         {
-            Menu = new(0, ContextMenu.ForSolution("everything"), [.. Enumerable.Range(0, state.Queue.Count)])
+            Menu = new(0, ContextMenu.ForSolution("everything", false), [.. Enumerable.Range(0, state.Queue.Count)])
         };
         var accepted = ViewerSession.Apply(all, CommandKind.AcceptGroup, Fixtures.Applied);
 

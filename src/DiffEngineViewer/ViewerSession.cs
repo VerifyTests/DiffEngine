@@ -118,11 +118,23 @@ static class ViewerSession
     /// one on screen. A key that is not here leaves the selection alone, because a listing and the
     /// command that came with it can disagree by one refresh.
     /// </summary>
+    /// <summary>
+    /// Something outside the window asked for an entry — the tray, or a second process handing one
+    /// over. It is unfolded on the way, because a selection nobody can see is not a selection.
+    /// </summary>
     public static SessionState SelectKey(SessionState state, string key)
     {
         var index = IndexOf(state.Queue, key);
-        return index < 0 ? state : Select(state, index);
+        return index < 0 ? state : Select(Reveal(state, index), index);
     }
+
+    /// <summary>
+    /// Folds or unfolds a group, for a head reporting a click on a header row. The context menu
+    /// reaches the same place through <see cref="CommandKind.ToggleGroup"/>.
+    /// </summary>
+    public static SessionState ToggleGroup(SessionState state, string key) =>
+        // Menu cleared as every other command does, since this is the user moving on.
+        Toggle(state with { Menu = null }, key);
 
     /// <summary>
     /// For commands that only move the view. Accept and accept all reach disk, so they go through
@@ -158,12 +170,16 @@ static class ViewerSession
 
             // Solution headers carry entries of every kind; a test header only ever spans inline
             // entries from one file.
+            var collapsed = row.GroupKey is not null && state.Collapsed.Contains(row.GroupKey);
             var items = state.Queue[row.GroupMembers[0]].TestName == row.GroupName
-                ? ContextMenu.ForTest(row.GroupName)
-                : ContextMenu.ForSolution(row.GroupName);
+                ? ContextMenu.ForTest(row.GroupName, collapsed)
+                : ContextMenu.ForSolution(row.GroupName, collapsed);
             return state with
             {
                 Menu = new(fullRow, items, row.GroupMembers)
+                {
+                    GroupKey = row.GroupKey
+                }
             };
         }
 
@@ -193,6 +209,8 @@ static class ViewerSession
                 return menu is null || !inline ? state : AcceptGroup(state, menu, actions);
             case CommandKind.DiscardGroup:
                 return menu is null || !inline ? state : DiscardGroup(state, menu);
+            case CommandKind.ToggleGroup:
+                return menu?.GroupKey is not { } key ? state : Toggle(state, key);
             case CommandKind.RevealSource:
                 return Reveal(state, actions);
             case CommandKind.ScrollUp:
@@ -214,9 +232,9 @@ static class ViewerSession
             case CommandKind.PreviousChange:
                 return Scroll(state, PreviousChange(Rows(state), state.ScrollTop));
             case CommandKind.NextItem:
-                return Select(state, state.Selected + 1);
+                return Step(state, 1);
             case CommandKind.PreviousItem:
-                return Select(state, state.Selected - 1);
+                return Step(state, -1);
             case CommandKind.SelectItem:
                 return Select(state, command.Index);
             case CommandKind.Accept:
@@ -609,6 +627,104 @@ static class ViewerSession
             Selected = index,
             ScrollTop = 0
         });
+    }
+
+    /// <summary>
+    /// Folds or unfolds one group, then keeps the selection somewhere it can be seen.
+    /// </summary>
+    static SessionState Toggle(SessionState state, string key)
+    {
+        var collapsed = new HashSet<string>(state.Collapsed);
+        if (!collapsed.Add(key))
+        {
+            collapsed.Remove(key);
+        }
+
+        var folded = state with { Collapsed = collapsed };
+        var visible = QueueProjection.VisibleEntries(folded);
+        if (visible.Count == 0 ||
+            visible.Contains(folded.Selected))
+        {
+            return Clamp(folded);
+        }
+
+        // The selection went under the fold. The column follows the selection, so leaving it there
+        // would leave the whole list with nothing highlighted. Forward first, because folding a
+        // group is usually done on the way down the queue.
+        var before = -1;
+        var after = -1;
+        foreach (var index in visible)
+        {
+            if (index < folded.Selected)
+            {
+                before = index;
+            }
+            else if (after < 0)
+            {
+                after = index;
+            }
+        }
+
+        return Select(folded, after >= 0 ? after : before);
+    }
+
+    /// <summary>
+    /// Tab traversal, over the entries actually on screen. Stepping into a folded group would move
+    /// the selection somewhere the user cannot see it, and stepping over it is what every list
+    /// with folds does.
+    /// <para>
+    /// Display order is queue order — <see cref="QueueProjection.Order"/> guarantees it — so with
+    /// nothing folded this walks exactly what it always did.
+    /// </para>
+    /// </summary>
+    static SessionState Step(SessionState state, int delta)
+    {
+        var visible = QueueProjection.VisibleEntries(state);
+        if (visible.Count == 0)
+        {
+            return state;
+        }
+
+        var at = visible.IndexOf(state.Selected);
+        if (at < 0)
+        {
+            // Selected but folded away, which only a reveal-less path could have produced. Step to
+            // something visible rather than nowhere.
+            return Select(state, visible[0]);
+        }
+
+        var next = at + delta;
+        // No wrap, which is what stepping past either end has always done.
+        return next < 0 || next >= visible.Count ? state : Select(state, visible[next]);
+    }
+
+    /// <summary>
+    /// Unfolds whatever hides an entry, and nothing else.
+    /// <para>
+    /// Each folded group is probed on its own rather than the entry's groups being deduced: that
+    /// deduction would have to repeat the rules about when a header exists at all, and two copies
+    /// of those would drift. A folded set is a handful of strings, so probing is cheap.
+    /// </para>
+    /// </summary>
+    static SessionState Reveal(SessionState state, int index)
+    {
+        if (state.Collapsed.Count == 0 ||
+            QueueProjection.VisibleEntries(state).Contains(index))
+        {
+            return state;
+        }
+
+        var kept = new HashSet<string>();
+        foreach (var candidate in state.Collapsed)
+        {
+            var alone = state with { Collapsed = new HashSet<string> { candidate } };
+            if (QueueProjection.VisibleEntries(alone).Contains(index))
+            {
+                kept.Add(candidate);
+            }
+        }
+
+        return state with { Collapsed = kept };
     }
 
     static SessionState Scroll(SessionState state, int top) =>

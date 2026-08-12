@@ -1,13 +1,13 @@
-﻿[SolutionA (2)]
+﻿[- SolutionA (2)]
   (no tip)
-[ Compare handles nulls (2)]
+[  - Compare handles nulls (2)]
   (no tip)
-[  ATests.cs:10]
+[    ATests.cs:10]
   {TempPath}deview-fixtures/SolutionA/Tests/ATests.cs:10
-[  ATests.cs:30]
+[    ATests.cs:30]
   {TempPath}deview-fixtures/SolutionA/Tests/ATests.cs:30
-[SolutionB (1)]
+[- SolutionB (1)]
   (no tip)
-[ * BTests.cs:42]
+[  * BTests.cs:42]
   {TempPath}deview-fixtures/SolutionB/Tests/BTests.cs:42
   net8.0, net9.0

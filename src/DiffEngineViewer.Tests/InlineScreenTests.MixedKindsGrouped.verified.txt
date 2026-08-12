@@ -3,12 +3,12 @@
 +----------------------+-----------------------------------+-----------------------------------+
 | Pending (4)          | received                          | expected                          |
 +----------------------+-----------------------------------+-----------------------------------+
-| SolutionA (2)        |      1  the quick                 |      1  the quick                 |
-| >  ATests.cs:10      | ~    2  brown dog                 | ~    2  brown fox                 |
-|    OtherTests.cs:20  |      3  jumps over                |      3  jumps over                |
-| SolutionB (2)        |      4  the lazy                  |      4  the lazy                  |
-|    Sample.Test (txt) |      5  dog                       |      5  dog                       |
-|    extra.verified.t> |                                   |                                   |
+| - SolutionA (2)      |      1  the quick                 |      1  the quick                 |
+| >   ATests.cs:10     | ~    2  brown dog                 | ~    2  brown fox                 |
+|     OtherTests.cs:20 |      3  jumps over                |      3  jumps over                |
+| - SolutionB (2)      |      4  the lazy                  |      4  the lazy                  |
+|     Sample.Test (tx> |      5  dog                       |      5  dog                       |
+|     extra.verified.> |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |

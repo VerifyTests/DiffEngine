@@ -38,6 +38,12 @@ enum CommandKind
     DiscardGroup,
 
     /// <summary>
+    /// Fold or unfold the group whose header the context menu was opened on. View only: what is
+    /// folded away is still queued and still swept by <see cref="AcceptAll"/>.
+    /// </summary>
+    ToggleGroup,
+
+    /// <summary>
     /// Show the current entry's file in the platform's file manager. Local IO even when the queue
     /// belongs to someone else, because the protocol never leaves the machine.
     /// </summary>

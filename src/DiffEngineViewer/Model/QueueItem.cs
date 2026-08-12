@@ -25,6 +25,15 @@ record QueueItem(
     public IReadOnlyList<int>? GroupMembers { get; init; }
 
     /// <summary>
+    /// What <see cref="SessionState.Collapsed"/> holds for this header, null on entry rows.
+    /// <para>
+    /// Not <see cref="GroupName"/>: two tests sharing a name in different files are two groups, and
+    /// folding one by name would fold both. This carries the identity the grouping was built on.
+    /// </para>
+    /// </summary>
+    public string? GroupKey { get; init; }
+
+    /// <summary>
     /// What the row cannot say for itself, or null when there is nothing.
     /// <para>
     /// <see cref="Label"/> is deliberately the shortest form that tells one entry from another, so
@@ -45,6 +54,7 @@ record QueueItem(
         Kind == other.Kind &&
         EntryIndex == other.EntryIndex &&
         GroupName == other.GroupName &&
+        GroupKey == other.GroupKey &&
         Tooltip == other.Tooltip &&
         (GroupMembers is null
             ? other.GroupMembers is null

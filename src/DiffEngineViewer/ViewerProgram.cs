@@ -256,14 +256,19 @@ static class ViewerProgram
         }
         else if (input.ClickedQueueItem >= 0)
         {
-            // The head reports a row in the drawn column, which the projection maps back to an
-            // entry; a header row maps to nothing, so its clicks go nowhere. Rebuilt the same way
-            // the button lookup below rebuilds. Either way a left click closes an open menu.
+            // The head reports a row in the drawn column, which the projection maps back to either
+            // an entry or a group. Rebuilt the same way the button lookup below rebuilds. Either
+            // way a left click closes an open menu.
             var rows = ScreenBuilder.Build(state).Queue;
-            if (input.ClickedQueueItem < rows.Count &&
-                rows[input.ClickedQueueItem].EntryIndex >= 0)
+            var row = input.ClickedQueueItem < rows.Count ? rows[input.ClickedQueueItem] : null;
+            if (row?.EntryIndex >= 0)
             {
-                state = ViewerSession.Apply(state, Command.Select(rows[input.ClickedQueueItem].EntryIndex));
+                state = ViewerSession.Apply(state, Command.Select(row.EntryIndex));
+            }
+            else if (row?.GroupKey is { } group)
+            {
+                // A header is the fold control, which is why clicking one is no longer inert.
+                state = ViewerSession.ToggleGroup(state, group);
             }
             else if (state.Menu is not null)
             {

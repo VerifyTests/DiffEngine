@@ -201,6 +201,31 @@ public class InlineScreenTests
             Fixtures.Attached(InlineQueue.Empty, Fixtures.Move(), Fixtures.Delete()), 0)));
 
     /// <summary>
+    /// A folded solution: the header keeps its count and its members go. The selection was inside
+    /// it, so it has moved to the first entry still on screen.
+    /// </summary>
+    [Test]
+    public Task CollapsedSolution() =>
+        Verify(Fixtures.Render(
+            ViewerSession.ToggleGroup(
+                ViewerSession.Apply(Fixtures.GroupedConflicted(), Command.Select(0)),
+                "solution|SolutionA")));
+
+    /// <summary>
+    /// A folded test sub-group inside an expanded solution, which is the case that shows both
+    /// markers and both indent levels at once.
+    /// </summary>
+    [Test]
+    public Task CollapsedTestGroup()
+    {
+        var state = Fixtures.GroupedConflicted();
+        var key = QueueProjection.Rows(state)
+            .Single(_ => _.GroupName == "Compare handles nulls")
+            .GroupKey!;
+        return Verify(Fixtures.Render(ViewerSession.ToggleGroup(state, key)));
+    }
+
+    /// <summary>
     /// More rows than fit: the column slices to keep the selection visible, second from the
     /// bottom once it walks below the fold.
     /// </summary>

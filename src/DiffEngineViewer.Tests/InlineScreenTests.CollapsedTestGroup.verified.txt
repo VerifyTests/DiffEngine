@@ -1,14 +1,14 @@
 ﻿+----------------------------------------------------------------------------------------------+
-| ATests.cs:10                                                                 inline   1 of 3 |
+| BTests.cs:42                                                                 inline   3 of 3 |
 +----------------------+-----------------------------------+-----------------------------------+
-| Pending (3)          | received                          | expected                          |
+| Pending (3)          | received (net8.0)                 | expected                          |
 +----------------------+-----------------------------------+-----------------------------------+
-| - SolutionA (2)      |      1  the quick                 |      1  the quick                 |
-| >+--------------------------+  brown dog                 | ~    2  brown fox                 |
-|  | Collapse                 |  jumps over                |      3  jumps over                |
-| -| Accept all in SolutionA  |  the lazy                  |      4  the lazy                  |
-|  | Discard all in SolutionA |  dog                       |      5  dog                       |
-|  +--------------------------+                            |                                   |
+| - SolutionA (2)      | ~    1  eight                     | ~    1  the quick                 |
+|   + Compare handles> |                                   | -    2  brown fox                 |
+| - SolutionB (1)      |                                   | -    3  jumps over                |
+| >   * BTests.cs:42   |                                   | -    4  the lazy                  |
+|                      |                                   | -    5  dog                       |
+|                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
@@ -20,5 +20,5 @@
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 +----------------------+-----------------------------------+-----------------------------------+
-| [Accept] [Discard] [Accept all]                                               lines 1-5 of 5 |
+| [Accept] [Discard] [Accept all] [Variant 1/2: net8.0]                         lines 1-5 of 5 |
 +----------------------------------------------------------------------------------------------+

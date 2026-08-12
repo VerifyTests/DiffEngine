@@ -109,16 +109,26 @@ static class QueueProjection
             }
 
             var header = showSolutions && bucket is not null;
+            var bucketKey = $"solution|{bucket}";
             if (header)
             {
-                rows.Add(new($"{bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
+                var folded = state.Collapsed.Contains(bucketKey);
+                rows.Add(new($"{Marker(folded)} {bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
                 {
                     GroupName = bucket,
+                    GroupKey = bucketKey,
                     GroupMembers = Enumerable.Range(index, bucketEnd - index).ToList()
                 });
+
+                if (folded)
+                {
+                    index = bucketEnd;
+                    continue;
+                }
             }
 
-            var indent = header ? " " : "";
+            // Two, so an entry sits under its header's text rather than under the header's marker.
+            var indent = header ? "  " : "";
             while (index < bucketEnd)
             {
                 var group = TestGroup(entries[index]);
@@ -132,16 +142,25 @@ static class QueueProjection
 
                 if (groupEnd - index >= 2)
                 {
-                    rows.Add(new($"{indent}{entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
+                    var groupKey = $"test|{group}";
+                    var folded = state.Collapsed.Contains(groupKey);
+                    rows.Add(new($"{indent}{Marker(folded)} {entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
                     {
                         GroupName = entries[index].TestName,
+                        GroupKey = groupKey,
                         GroupMembers = Enumerable.Range(index, groupEnd - index).ToList()
                     });
+                    if (folded)
+                    {
+                        index = groupEnd;
+                        continue;
+                    }
+
                     for (; index < groupEnd; index++)
                     {
                         // Under a test header the test name would repeat, so the entry falls back
                         // to its call site — and its tip leaves the name out for the same reason.
-                        rows.Add(EntryRow(entries[index], index, $"{indent} ", entries[index].Name, state, true));
+                        rows.Add(EntryRow(entries[index], index, $"{indent}  ", entries[index].Name, state, true));
                     }
 
                     continue;
@@ -153,6 +172,36 @@ static class QueueProjection
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// A disclosure marker, in both states. One that appeared only when folded would leave nothing
+    /// on screen saying a group can be folded at all.
+    /// </summary>
+    static string Marker(bool collapsed) =>
+        collapsed ? "+" : "-";
+
+    /// <summary>
+    /// The entries <see cref="Rows"/> actually emitted, in the order it emitted them.
+    /// <para>
+    /// Derived from the projection rather than by asking whether each entry's group is folded,
+    /// because that second question would have to know that a test group needs two members before
+    /// it gets a header and that solution headers only appear once two solutions are in play. Two
+    /// implementations of that would drift the first time either rule moved.
+    /// </para>
+    /// </summary>
+    public static List<int> VisibleEntries(SessionState state)
+    {
+        var visible = new List<int>();
+        foreach (var row in Rows(state))
+        {
+            if (row.EntryIndex >= 0)
+            {
+                visible.Add(row.EntryIndex);
+            }
+        }
+
+        return visible;
     }
 
     /// <summary>

@@ -10,7 +10,15 @@ record MenuItem(string Label, CommandKind Kind);
 /// input, and by anything that changes the queue, because the indexes describe the queue the menu
 /// was opened over.
 /// </summary>
-record MenuState(int Row, IReadOnlyList<MenuItem> Items, IReadOnlyList<int> Members);
+record MenuState(int Row, IReadOnlyList<MenuItem> Items, IReadOnlyList<int> Members)
+{
+    /// <summary>
+    /// The group this menu can fold, null on an entry menu. Read the way
+    /// <see cref="Members"/> is: captured when the menu opens, so the command still knows what it
+    /// was opened over after the menu has closed.
+    /// </summary>
+    public string? GroupKey { get; init; }
+}
 
 /// <summary>
 /// What a right-click on each kind of row offers. Content only — where menus open and close is
@@ -48,15 +56,25 @@ static class ContextMenu
         return items;
     }
 
-    public static IReadOnlyList<MenuItem> ForSolution(string name) =>
+    /// <summary>
+    /// Folding leads, above the two bulk commands. It is the only item here that changes nothing
+    /// but the view, and it is the one reached most often, so it takes the position nearest the
+    /// pointer and pushes "discard all" away from it.
+    /// </summary>
+    public static IReadOnlyList<MenuItem> ForSolution(string name, bool collapsed) =>
     [
+        Fold(collapsed),
         new($"Accept all in {name}", CommandKind.AcceptGroup),
         new($"Discard all in {name}", CommandKind.DiscardGroup)
     ];
 
-    public static IReadOnlyList<MenuItem> ForTest(string name) =>
+    public static IReadOnlyList<MenuItem> ForTest(string name, bool collapsed) =>
     [
+        Fold(collapsed),
         new($"Accept all for {name}", CommandKind.AcceptGroup),
         new($"Discard all for {name}", CommandKind.DiscardGroup)
     ];
+
+    static MenuItem Fold(bool collapsed) =>
+        new(collapsed ? "Expand" : "Collapse", CommandKind.ToggleGroup);
 }

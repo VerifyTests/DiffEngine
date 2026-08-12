@@ -15,6 +15,19 @@ record SessionState(
     // because its members index the queue it was opened over.
     MenuState? Menu = null)
 {
+    /// <summary>
+    /// The group headers that are folded, by <see cref="QueueItem.GroupKey"/>.
+    /// <para>
+    /// Keyed by name rather than by position, so a fold survives its members being accepted out
+    /// from under it, and a group that empties and comes back comes back folded.
+    /// </para>
+    /// <para>
+    /// A view, never a filter: what is folded away is still queued, still accepted by "accept all",
+    /// and still counted by the header that hides it.
+    /// </para>
+    /// </summary>
+    public IReadOnlySet<string> Collapsed { get; init; } = new HashSet<string>();
+
     public QueueEntry? Current =>
         Selected >= 0 && Selected < Queue.Count ? Queue[Selected] : null;
 
