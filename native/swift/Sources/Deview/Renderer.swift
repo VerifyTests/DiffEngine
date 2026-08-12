@@ -9,6 +9,12 @@ import Foundation
 /// Draws a `Frame` with Core Text. Used both for the window and for the offscreen capture, so the
 /// baselines describe what a user sees rather than a second code path.
 ///
+/// What is drawn here is the grid and its chrome. The context menu, the tooltips and the scroller
+/// are AppKit's, because a hand drawn menu has no keyboard, no Escape and nothing for VoiceOver to
+/// read. The cost is that none of the three exists in a capture, which never makes a window: the
+/// scroller answers for that by taking no width without one, and the menu by no longer having a
+/// baseline at all on this platform.
+///
 /// Nothing is flipped. Core Graphics puts the origin bottom left, and layout here is expressed top
 /// down and converted once in `rect`, which avoids having to fight the text matrix.
 final class Renderer {
@@ -44,16 +50,23 @@ final class Renderer {
     /// reports back so the managed side can slice a pane to rows that fit.
     let cell: CGSize
 
+    /// How much of the right edge belongs to something other than this renderer. Set by `Runtime`
+    /// only when there is a window and the platform draws scrollers that take space; a capture has
+    /// neither, so it stays zero and the baselines are unaffected by the scroller existing.
+    var rightInset: CGFloat = 0
+
     /// Where the clickable things ended up, for the view's hit testing. Returned from `draw`
     /// rather than stored, so an offscreen capture cannot overwrite the window's copy.
     struct Layout {
         var buttons: [CGRect] = []
         var queueItems: [CGRect] = []
-        var menuItems: [CGRect] = []
 
         /// The grab zone around the rule between the queue and the panes, empty when there is no
         /// queue to divide off.
         var splitter: CGRect = .zero
+
+        /// The rows region, which is what a scroller spans and what the tooltips sit inside.
+        var body: CGRect = .zero
     }
 
     init(fontData: Data?, size: CGFloat) {
@@ -107,9 +120,10 @@ final class Renderer {
         return CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
     }
 
-    /// The window size in character cells, which is what version 2 of the ABI reports.
+    /// The window size in character cells, which is what version 2 of the ABI reports. Net of the
+    /// scroller, because a column the scroller is sitting on is not a column the diff can use.
     func grid(for size: CGSize) -> (columns: Int32, rows: Int32) {
-        (Int32(size.width / cell.width), Int32(size.height / cell.height))
+        (Int32(max(0, size.width - rightInset) / cell.width), Int32(size.height / cell.height))
     }
 
     @discardableResult
@@ -120,9 +134,12 @@ final class Renderer {
 
         let line = cell.height
         let hasQueue = !frame.queue.isEmpty
-        let queue = hasQueue ? clamp(queueWidth, size.width) : 0
+        // The scroller's strip comes off the panes before anything is measured, so widening it
+        // narrows the diff rather than overlapping it.
+        let content = size.width - rightInset
+        let queue = hasQueue ? clamp(queueWidth, content) : 0
         let panesLeft = hasQueue ? Renderer.padding + queue + Renderer.gap : Renderer.padding
-        let panesWidth = max(cell.width * 2, size.width - Renderer.padding - panesLeft)
+        let panesWidth = max(cell.width * 2, content - Renderer.padding - panesLeft)
         let half = (panesWidth / 2).rounded(.down)
 
         text(frame.title, in: rect(top: Renderer.padding, left: Renderer.padding, width: size.width - Renderer.padding * 2, height: line, size), Palette.text, context)
@@ -176,54 +193,14 @@ final class Renderer {
 
         columnRule(left: panesLeft + half - Renderer.gap / 2, top: bodyTop, bottom: bodyBottom, in: context, size)
 
+        layout.body = rect(
+            top: bodyTop,
+            left: Renderer.padding,
+            width: content - Renderer.padding * 2,
+            height: bodyBottom - bodyTop,
+            size)
         layout.buttons = footer(frame, size: size, height: footerHeight, line: line, in: context)
-        menu(frame, into: &layout, in: context)
         return layout
-    }
-
-    /// The context menu, floated one row under its queue row, last so it draws over whatever it
-    /// overlaps. The managed side owns opening and closing; this draws what the frame carries and
-    /// the view reports which recorded rectangle was clicked.
-    private func menu(_ frame: Frame, into layout: inout Layout, in context: CGContext) {
-        guard !frame.menu.isEmpty,
-              frame.menuRow >= 0,
-              Int(frame.menuRow) < layout.queueItems.count
-        else {
-            return
-        }
-
-        let anchor = layout.queueItems[Int(frame.menuRow)]
-        let widest = frame.menu.map { $0.count }.max() ?? 0
-        let panelWidth = CGFloat(widest + 2) * cell.width
-        let height = CGFloat(frame.menu.count) * cell.height + Renderer.padding * 2
-        // Not flipped, so "one row below" is a lower y.
-        let panel = CGRect(
-            x: anchor.minX + cell.width,
-            y: anchor.minY - height,
-            width: panelWidth,
-            height: height)
-        context.setFillColor(Palette.filler)
-        context.fill(panel)
-        context.setStrokeColor(Palette.rule)
-        context.stroke(panel, width: 1)
-
-        for (index, label) in frame.menu.enumerated() {
-            let item = CGRect(
-                x: panel.minX,
-                y: panel.maxY - Renderer.padding - CGFloat(index + 1) * cell.height,
-                width: panel.width,
-                height: cell.height)
-            layout.menuItems.append(item)
-            text(
-                label,
-                in: CGRect(
-                    x: item.minX + cell.width,
-                    y: item.minY,
-                    width: item.width - cell.width,
-                    height: item.height),
-                Palette.text,
-                context)
-        }
     }
 
     private func footer(_ frame: Frame, size: CGSize, height: CGFloat, line: CGFloat, in context: CGContext) -> [CGRect] {

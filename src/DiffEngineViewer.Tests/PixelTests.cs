@@ -106,11 +106,18 @@ public class PixelTests
         Capture(Fixtures.GroupedConflicted());
 
     /// <summary>
-    /// The context menu floated over the grouped queue, opened on the conflicted entry. Mirrored
-    /// in WindowsPixelTests, as ever.
+    /// The context menu floated over the grouped queue, opened on the conflicted entry.
+    /// <para>
+    /// Linux only. That head draws the menu itself, so a capture has it; the macOS head pops a
+    /// real <c>NSMenu</c>, which buys the keyboard, Escape and VoiceOver and costs this baseline —
+    /// a capture makes no window, and a menu cannot be shown without one. The WinForms head made
+    /// the same trade, and covers its <c>ContextMenuStrip</c> in ContextMenuTests instead. There
+    /// is no equivalent here: the menu is behind the C ABI, so nothing managed can reach it.
+    /// </para>
     /// </summary>
     [Test]
     [PixelTest]
+    [SkipOnMac("The macOS head pops a real NSMenu, which a capture has no window to show.")]
     public Task ContextMenu() =>
         Capture(ViewerSession.OpenMenu(Fixtures.GroupedConflicted(), 5));
 

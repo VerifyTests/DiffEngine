@@ -28,6 +28,11 @@ struct Frame {
     struct Pane {
         var header = ""
         var rows: [Row] = []
+
+        /// Where `rows` sits in the whole document, which is what the scroller needs and the rows
+        /// themselves cannot say.
+        var scrollTop: Int32 = 0
+        var totalRows: Int32 = 0
     }
 
     struct QueueItem {
@@ -35,6 +40,10 @@ struct Frame {
         var selected = false
         var failed = false
         var header = false
+
+        /// The failure behind `failed`, empty when there is none. Read in the tooltip, which is
+        /// the only place it fits.
+        var status = ""
     }
 
     struct Button {
@@ -57,7 +66,8 @@ struct Frame {
                         label: string(screen, item.labelOffset, item.labelLength),
                         selected: item.flags & DEVIEW_QUEUE_SELECTED.value != 0,
                         failed: item.flags & DEVIEW_QUEUE_FAILED.value != 0,
-                        header: item.flags & DEVIEW_QUEUE_HEADER.value != 0))
+                        header: item.flags & DEVIEW_QUEUE_HEADER.value != 0,
+                        status: string(screen, item.statusOffset, item.statusLength)))
             }
         }
 
@@ -90,6 +100,8 @@ struct Frame {
     private static func pane(_ screen: DeviewScreen, _ source: DeviewPane) -> Pane {
         var pane = Pane()
         pane.header = string(screen, source.headerOffset, source.headerLength)
+        pane.scrollTop = source.scrollTop
+        pane.totalRows = source.totalRows
         guard let rows = screen.rows else {
             return pane
         }

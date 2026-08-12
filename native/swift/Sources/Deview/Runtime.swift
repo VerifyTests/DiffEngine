@@ -14,6 +14,18 @@ final class Runtime {
     private var size = CGSize(width: 1100, height: 700)
     private var title = "DiffEngineViewer"
 
+    /// What every AppKit control here sends to. Held for the process, because a menu item's target
+    /// is a weak reference and an autoreleased one would leave the menu inert.
+    private let target = ControlTarget()
+
+    private var scroller: NSScroller?
+    private var scrollerWidth: CGFloat = 0
+
+    /// Whether the menu the current frame carries has already been popped. The managed side takes
+    /// a frame to notice it was dismissed, and without this the popup would come straight back up
+    /// in the meantime.
+    private var menuShown = false
+
     var window: NSWindow?
     var view: ViewerView?
     var renderer: Renderer?
@@ -56,6 +68,14 @@ final class Runtime {
         // without this being an app bundle. finishLaunching is the part of run() that has to
         // happen before events are pumped by hand.
         application.setActivationPolicy(.regular)
+
+        // Everything the renderer draws is dark, and everything AppKit draws here — the menus, the
+        // tooltips, the scroller, the title bar — would otherwise follow the machine's setting and
+        // come up light against it. The WinForms head says the same thing with SetColorMode.
+        application.appearance = NSAppearance(named: .darkAqua)
+
+        // Before finishLaunching, which is when the bar is first read.
+        application.mainMenu = MainMenu.build(target)
         application.finishLaunching()
 
         let bounds = NSRect(origin: .zero, size: size)
@@ -76,6 +96,32 @@ final class Runtime {
         self.view = view
         self.window = window
         self.delegate = delegate
+        makeScroller(in: view, renderer)
+    }
+
+    /// The pane scrollbar.
+    ///
+    /// Legacy rather than overlay, whatever the machine prefers. An overlay scroller only fades in
+    /// and out as part of an `NSScrollView`, and there is none here — the managed side owns the
+    /// scroll position and hands over one screenful of rows at a time. Placed by hand it would
+    /// simply sit over the right hand pane forever. Legacy takes a strip of its own instead, which
+    /// is also what the WinForms head does and for the same reason: a bar that comes and goes
+    /// moves the pane split about.
+    ///
+    /// The strip comes off the renderer rather than out of the window, so the offscreen capture —
+    /// which has no window and so no scroller — is not left with a gap where one would be.
+    private func makeScroller(in view: ViewerView, _ renderer: Renderer) {
+        let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+        let scroller = NSScroller(frame: NSRect(x: 0, y: 0, width: width, height: view.bounds.height))
+        scroller.scrollerStyle = .legacy
+        scroller.knobStyle = .light
+        scroller.target = target
+        scroller.action = #selector(ControlTarget.scrolled(_:))
+        view.addSubview(scroller)
+
+        self.scroller = scroller
+        scrollerWidth = width
+        renderer.rightInset = width
     }
 
     func present(_ frame: Frame) {
@@ -88,8 +134,104 @@ final class Runtime {
         view.model = frame
         view.needsDisplay = true
         view.displayIfNeeded()
+        // After drawing, because both read where the last frame put the queue rows.
+        view.refreshToolTips()
+        position(frame)
         pump()
+        // Last, because it blocks: a popped menu runs its own tracking loop and does not return
+        // until the user has chosen or dismissed. That is the platform's behaviour and it is what
+        // buys the keyboard, Escape and VoiceOver; the managed loop simply waits.
+        popMenu(frame)
         measureGrid()
+    }
+
+    /// Puts the scroller beside the body and tells it where in the document that body sits.
+    ///
+    /// Counted in rows, so its travel is exactly the clamp the managed side applies. The rows on
+    /// screen come from the slice it sent: that is shorter than the viewport only when the scroll
+    /// top is past the clamp, which never happens, so it is the viewport in every reachable state
+    /// and is the whole document when the document fits.
+    private func position(_ frame: Frame) {
+        guard let view, let scroller else {
+            return
+        }
+
+        let body = view.layout.body
+        scroller.frame = NSRect(
+            x: view.bounds.maxX - scrollerWidth,
+            y: body.minY,
+            width: scrollerWidth,
+            height: max(1, body.height))
+
+        // Assigned rather than guarded against a drag in progress, because there cannot be one:
+        // a legacy scroller tracks in a loop of its own, inside the pump this runs before.
+        let visible = max(1, frame.left.rows.count)
+        let total = max(Int(frame.left.totalRows), visible)
+        let maximum = total - visible
+        scroller.knobProportion = CGFloat(visible) / CGFloat(total)
+        scroller.doubleValue = maximum <= 0 ? 0 : Double(frame.left.scrollTop) / Double(maximum)
+    }
+
+    /// Translates wherever the scroller was grabbed into a first visible row.
+    func scrolled(_ scroller: NSScroller) {
+        guard let frame = view?.model else {
+            return
+        }
+
+        let visible = max(1, frame.left.rows.count)
+        let maximum = max(0, Int(frame.left.totalRows) - visible)
+        switch scroller.hitPart {
+        case .decrementPage:
+            input.scrollTo = Int32(max(0, Int(frame.left.scrollTop) - visible))
+        case .incrementPage:
+            input.scrollTo = Int32(min(maximum, Int(frame.left.scrollTop) + visible))
+        case .decrementLine:
+            input.scrollTo = Int32(max(0, Int(frame.left.scrollTop) - 1))
+        case .incrementLine:
+            input.scrollTo = Int32(min(maximum, Int(frame.left.scrollTop) + 1))
+        default:
+            input.scrollTo = Int32((scroller.doubleValue * Double(maximum)).rounded())
+        }
+    }
+
+    /// The context menu, as a real one. The managed side still owns opening and closing; this pops
+    /// what the frame carries and reports what came back.
+    private func popMenu(_ frame: Frame) {
+        guard !frame.menu.isEmpty else {
+            // Dropped by the managed side, so the next one may be shown.
+            menuShown = false
+            return
+        }
+
+        guard !menuShown,
+              let view,
+              frame.menuRow >= 0,
+              Int(frame.menuRow) < view.layout.queueItems.count
+        else {
+            return
+        }
+
+        menuShown = true
+        let menu = NSMenu()
+        for (index, label) in frame.menu.enumerated() {
+            let item = NSMenuItem(
+                title: label,
+                action: #selector(ControlTarget.contextItem(_:)),
+                keyEquivalent: "")
+            item.target = target
+            item.tag = index
+            menu.addItem(item)
+        }
+
+        // Nothing is flipped, so a row's minY is its bottom edge and a menu placed there hangs
+        // below it. AppKit flips the whole thing near an edge of the screen, which is the drawn
+        // one's other failing.
+        let anchor = view.layout.queueItems[Int(frame.menuRow)]
+        if !menu.popUp(positioning: nil, at: CGPoint(x: anchor.minX, y: anchor.minY), in: view) {
+            // Escape, a click elsewhere, or focus lost. The click that did it was swallowed by the
+            // tracking loop, so this is the only way the managed side can hear about it.
+            input.menuClosed = 1
+        }
     }
 
     /// Drains what is queued and then blocks until the deadline, which is both the pump and the
@@ -134,6 +276,8 @@ final class Runtime {
         view = nil
         renderer = nil
         delegate = nil
+        scroller = nil
+        menuShown = false
         initialised = false
     }
 

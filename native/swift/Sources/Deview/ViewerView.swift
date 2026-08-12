@@ -3,10 +3,13 @@ import CDeview
 
 /// The window's content. Drawing goes through the same `Renderer` the capture uses; this only adds
 /// input, which it records into `Runtime` for the next `deview_poll_input` to drain.
-final class ViewerView: NSView {
+final class ViewerView: NSView, NSViewToolTipOwner {
     private let renderer: Renderer
-    private var layout = Renderer.Layout()
     private var draggingSplitter = false
+
+    /// Where the last frame put things. Read by `Runtime` to anchor the context menu, which is a
+    /// real `NSMenu` and so is popped from outside the drawing code.
+    private(set) var layout = Renderer.Layout()
 
     var model = Frame()
 
@@ -38,6 +41,33 @@ final class ViewerView: NSView {
         }
     }
 
+    /// One tip region per queue row, rebuilt with the frame because anything that scrolls the
+    /// column renumbers the rows. Driven from `Runtime` rather than from `draw`, since these are
+    /// tracking rectangles and rebuilding them while AppKit is drawing invites re-entrancy.
+    ///
+    /// The text is answered on demand below rather than stored here, so a row whose label changed
+    /// under a resting cursor still reads correctly.
+    func refreshToolTips() {
+        removeAllToolTips()
+        for (index, bounds) in layout.queueItems.enumerated() where index < model.queue.count {
+            _ = addToolTip(bounds, owner: self, userData: nil)
+        }
+    }
+
+    /// The full name and the failure behind the `!`. Matches the WinForms head: the indent is
+    /// layout and goes, the conflict marker means something and stays.
+    func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
+        guard let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
+              index < model.queue.count
+        else {
+            return ""
+        }
+
+        let item = model.queue[index]
+        let label = item.label.trimmingCharacters(in: .whitespaces)
+        return item.status.isEmpty ? label : "\(label)\n\(item.status)"
+    }
+
     /// The resize cursor over the splitter, which is the only hint that it can be dragged.
     override func resetCursorRects() {
         super.resetCursorRects()
@@ -47,14 +77,10 @@ final class ViewerView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        // No menu hit test: the menu is an NSMenu, and while one is open it owns the mouse. A
+        // click that dismisses it never reaches here, which is the platform's behaviour and the
+        // reason the first click after a menu no longer also selects a row.
         let point = convert(event.locationInWindow, from: nil)
-        // The open menu floats over everything, so it hit-tests first: an item click chooses it,
-        // and any click beside it falls through and closes it on the way.
-        if let item = layout.menuItems.firstIndex(where: { $0.contains(point) }) {
-            Runtime.shared.input.clickedMenuItem = Int32(item)
-            return
-        }
-
         if let index = layout.buttons.firstIndex(where: { $0.contains(point) }) {
             Runtime.shared.input.clickedButton = Int32(index)
             return
