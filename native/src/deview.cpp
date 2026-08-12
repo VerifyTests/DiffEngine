@@ -9,6 +9,11 @@
 #include "deview.h"
 
 #include "imgui.h"
+/* For ScrollbarEx and ImRect. Internal, but it is the only way to put ImGui's own scrollbar
+ * somewhere other than the edge of a window it is itself scrolling, and this one scrolls a model
+ * that lives in another process. imgui is pinned by tag in CMakeLists.txt, so the coupling moves
+ * only when someone moves it. */
+#include "imgui_internal.h"
 #include "raylib.h"
 #include "rlgl.h"
 
@@ -161,6 +166,18 @@ std::string Copy(const DeviewScreen* screen, int offset, int length)
     }
 
     return {begin, static_cast<size_t>(end - begin)};
+}
+
+/* Spaces only. A queue label's indent is the grouping drawn as layout, and a tip is not laid out. */
+std::string Trim(const std::string& value)
+{
+    const size_t first = value.find_first_not_of(' ');
+    if (first == std::string::npos)
+    {
+        return {};
+    }
+
+    return value.substr(first, value.find_last_not_of(' ') - first + 1);
 }
 
 ImU32 RowColour(int kind)
@@ -457,7 +474,19 @@ void BuildFrame(const DeviewScreen* screen)
     ImGui::Separator();
 
     const float footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
-    ImGui::BeginChild("##body", ImVec2(0, -footer), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
+
+    /*
+     * The strip the pane scrollbar gets, taken off the body before anything is laid out in it.
+     * Always reserved rather than appearing once a document outgrows the window: a strip that came
+     * and went would shift the pane split every time the selection changed.
+     */
+    const float scrollbarWidth = ImGui::GetStyle().ScrollbarSize;
+    ImGui::BeginChild("##body", ImVec2(-scrollbarWidth, -footer), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
+
+    /* Read back rather than recomputed, so the scrollbar lands against the body whatever the
+     * negative sizes above worked out as. */
+    const ImVec2 bodyOrigin = ImGui::GetWindowPos();
+    const ImVec2 bodyExtent = ImGui::GetWindowSize();
 
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
@@ -542,6 +571,25 @@ void BuildFrame(const DeviewScreen* screen)
                         state.input.rightClickedQueueItem = index;
                     }
 
+                    /* The full name and the failure behind the `!`, which is the only place either
+                     * is readable: the column clips a long label, and the status text has nowhere
+                     * else to go. Matches the WinForms head's tip, indent trimmed because that is
+                     * layout, conflict marker kept because it means something. */
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
+                    {
+                        std::string tip = Trim(label);
+                        const std::string status = Copy(screen, item.statusOffset, item.statusLength);
+                        if (!status.empty())
+                        {
+                            tip += "\n" + status;
+                        }
+
+                        if (!tip.empty())
+                        {
+                            ImGui::SetTooltip("%s", tip.c_str());
+                        }
+                    }
+
                     if (index == screen->menuRow &&
                         screen->menuCount > 0)
                     {
@@ -597,6 +645,37 @@ void BuildFrame(const DeviewScreen* screen)
     }
 
     ImGui::EndChild();
+
+    /*
+     * The pane scrollbar, in the strip reserved above. Counted in rows rather than pixels: the
+     * managed side clamps a scroll top to totalRows minus the rows on screen, and giving ImGui the
+     * same two numbers makes the furthest the thumb can travel exactly that. Off by one here and
+     * every drag to the bottom would land a row short and spring back.
+     *
+     * rowCount is the rows on screen: the slice is only shorter than the viewport when the scroll
+     * top is past the clamp, which the managed side does not allow, so it equals the viewport in
+     * every state that can be reached and equals totalRows when the whole document fits.
+     */
+    if (screen->paneCount >= 1)
+    {
+        const DeviewPane& scrolled = screen->panes[0];
+        ImS64 scroll = scrolled.scrollTop;
+        const ImRect bounds(
+            ImVec2(bodyOrigin.x + bodyExtent.x, bodyOrigin.y),
+            ImVec2(bodyOrigin.x + bodyExtent.x + scrollbarWidth, bodyOrigin.y + bodyExtent.y));
+        if (ImGui::ScrollbarEx(
+                bounds,
+                ImGui::GetID("##panescroll"),
+                ImGuiAxis_Y,
+                &scroll,
+                scrolled.rowCount > 0 ? scrolled.rowCount : 1,
+                scrolled.totalRows,
+                ImDrawFlags_None))
+        {
+            state.input.scrollTo = static_cast<int32_t>(scroll);
+        }
+    }
+
     ImGui::Separator();
 
     /*
