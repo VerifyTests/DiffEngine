@@ -106,6 +106,14 @@ keeps offering a snapshot that is already in the source.
   still projected from the same `Screen.Menu` the other heads draw.
 - macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
   ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
+- macOS took the same treatment as Windows: a real menu bar, an `NSMenu` context menu, `NSView`
+  tooltips and an `NSScroller`, with `NSApp.appearance` set to `darkAqua` so they match the drawn
+  grid. The cost is that none of them exists in `deview_capture`, which makes no window — hence
+  `PixelTests.ContextMenu` being skipped there, and the scroller taking its strip out of the
+  renderer only when a window exists.
+- Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
+  the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
+  `ViewerSession`'s clamp.
 - Does **not** reference DiffEngine. It links `Inline/*.cs`, `Protocol/*.cs` and
   `Tray/TrayDetector.cs` as source, because DiffEngine publishes and embeds the heads and a
   reference back would be a cycle.

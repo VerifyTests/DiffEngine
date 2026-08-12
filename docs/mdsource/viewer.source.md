@@ -86,7 +86,7 @@ The list sits in a column on the left. Drag the divider beside it to widen the c
 names are longer than it is. When the list outgrows the window it follows the selection, keeping
 the selected row visible. Hover a row to read its full name, and the failure behind a `!`.
 
-On Windows the panes also carry a scrollbar, which moves with the keys and the wheel.
+The panes carry a scrollbar, which moves with the keys and the wheel.
 
 Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
 case the tray still has it and can reopen a window on it.
@@ -105,12 +105,15 @@ Every row of the pending column answers a right-click:
    snapshots, the way accept-all does.
 
 Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file
-manager is always local — the files are on this machine, wherever the queue lives. Any other
-click or key closes the menu.
+manager is always local — the files are on this machine, wherever the queue lives.
 
-On Windows this is the real OS menu, so it also takes the arrow keys, Enter, Escape and
-type-to-select, and is readable by a screen reader. A click that dismisses it is consumed doing
-so, which is why right-clicking a different row while a menu is open takes two clicks.
+On Windows and macOS this is the real OS menu, so it also takes the arrow keys, Enter, Escape and
+type-to-select, flips rather than clips near the edge of a screen, and is readable by a screen
+reader. A click that dismisses it is consumed doing so, which is why right-clicking a different row
+while a menu is open takes two clicks. On Linux it is drawn by the viewer, and any other click or
+key closes it.
+
+macOS also carries a menu bar, listing the same commands as the keys below.
 
 
 ## Grouping
