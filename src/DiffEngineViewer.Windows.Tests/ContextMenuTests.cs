@@ -35,6 +35,20 @@ public class ContextMenuTests
     public Task MoveEntry() =>
         Verify(Build(Fixtures.Attached(InlineQueue.Empty, Fixtures.Move(), Fixtures.Delete()), 0));
 
+    /// <summary>
+    /// The strip has to keep its own renderer, or it falls back to the manager's and lands light
+    /// on the dark grid. Asserted rather than left to the images, because a capture of a strip
+    /// drawn as a child does not prove what a real popup does.
+    /// </summary>
+    [Test]
+    public async Task TheStripKeepsItsOwnRenderer()
+    {
+        using var strip = ViewerMenu.Create();
+
+        await Assert.That(strip.RenderMode).IsEqualTo(ToolStripRenderMode.Custom);
+        await Assert.That(strip.Renderer).IsTypeOf<MenuRenderer>();
+    }
+
     static ContextMenuStrip Build(SessionState state, int row)
     {
         var opened = ViewerSession.Resize(ViewerSession.OpenMenu(state, row), columns, rows);
