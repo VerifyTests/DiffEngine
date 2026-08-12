@@ -207,6 +207,8 @@ static class ViewerSession
                 return Scroll(state, 0);
             case CommandKind.ScrollEnd:
                 return Scroll(state, int.MaxValue);
+            case CommandKind.ScrollTo:
+                return Scroll(state, command.Index);
             case CommandKind.NextChange:
                 return Scroll(state, NextChange(Rows(state), state.ScrollTop));
             case CommandKind.PreviousChange:

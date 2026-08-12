@@ -7,6 +7,12 @@ enum CommandKind
     PageDown,
     ScrollHome,
     ScrollEnd,
+
+    /// <summary>
+    /// Scroll to an absolute row, carried in <see cref="Command.Index"/>. What a scrollbar thumb
+    /// reports, as opposed to the notches a wheel does. Clamped like every other scroll.
+    /// </summary>
+    ScrollTo,
     NextChange,
     PreviousChange,
     NextItem,

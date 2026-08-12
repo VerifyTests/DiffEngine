@@ -208,6 +208,41 @@ public class ViewerSessionTests
         await Assert.That(up.ScrollTop).IsEqualTo(0);
     }
 
+    /// <summary>
+    /// What a scrollbar thumb reports: an absolute row rather than a delta, clamped exactly like
+    /// every other scroll so the bar can never offer a position the session then refuses.
+    /// </summary>
+    [Test]
+    public async Task ScrollToClampsToTheLastPage()
+    {
+        var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
+
+        var scrolled = ViewerSession.Apply(state, Command.Scroll(int.MaxValue));
+
+        var body = ScreenBuilder.BodyRows(state);
+        await Assert.That(scrolled.ScrollTop).IsEqualTo(state.Queue[0].TotalRows - body);
+    }
+
+    [Test]
+    public async Task ScrollToDoesNotGoNegative()
+    {
+        var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
+
+        var scrolled = ViewerSession.Apply(state, Command.Scroll(-5));
+
+        await Assert.That(scrolled.ScrollTop).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ScrollToTakesAnAbsoluteRow()
+    {
+        var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
+
+        var scrolled = ViewerSession.Apply(state, Command.Scroll(7));
+
+        await Assert.That(scrolled.ScrollTop).IsEqualTo(7);
+    }
+
     [Test]
     public async Task ShortContentDoesNotScroll()
     {
@@ -664,6 +699,19 @@ public class ViewerSessionTests
         await Assert.That(open.Menu).IsNotNull();
 
         var scrolled = ViewerSession.Apply(open, CommandKind.ScrollDown);
+
+        await Assert.That(scrolled.Menu).IsNull();
+    }
+
+    /// <summary>
+    /// Including dragging the scrollbar, which is a command like any other.
+    /// </summary>
+    [Test]
+    public async Task ScrollToClosesTheMenu()
+    {
+        var open = ViewerSession.OpenMenu(Fixtures.Inline(Fixtures.Patch()), 0);
+
+        var scrolled = ViewerSession.Apply(open, Command.Scroll(3));
 
         await Assert.That(scrolled.Menu).IsNull();
     }

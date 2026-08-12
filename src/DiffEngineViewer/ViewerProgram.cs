@@ -271,6 +271,23 @@ static class ViewerProgram
             }
         }
 
+        // After the click chain above, deliberately: that branch needs the menu still open to
+        // resolve which item was chosen, so clearing first would swallow the command. And not when
+        // a right-click opened another menu in the same frame, which is the dismissal's successor
+        // rather than something to undo.
+        if (input.MenuClosed &&
+            input.RightClickedQueueItem < 0 &&
+            state.Menu is not null)
+        {
+            state = state with { Menu = null };
+        }
+
+        if (input.ScrollTo >= 0)
+        {
+            // After the wheel notches, so an absolute target wins over a delta in the same frame.
+            state = ViewerSession.Apply(state, Command.Scroll(input.ScrollTo));
+        }
+
         if (input.ClickedButton >= 0)
         {
             var buttons = ScreenBuilder.Build(state).Buttons;
