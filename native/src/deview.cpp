@@ -528,10 +528,19 @@ void BuildFrame(const DeviewScreen* screen)
                     const std::string label = Copy(screen, item.labelOffset, item.labelLength);
                     if (item.flags & DEVIEW_QUEUE_HEADER)
                     {
-                        /* A heading, not a row: dimmed like the subtitle, and plain text rather
-                         * than a Selectable so it neither hovers nor left-clicks. Right-clicks
-                         * still count: a heading's menu is how a whole group is swept. */
-                        ImGui::TextDisabled("%s", label.c_str());
+                        /* A heading is dimmed like the subtitle, and never carries the selection.
+                         * It is still a Selectable rather than plain text, because a left click on
+                         * one folds its group: the hover it gains is the only thing on screen
+                         * saying the marker can be clicked. */
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                        ImGui::PushID(index);
+                        if (ImGui::Selectable(label.c_str(), false))
+                        {
+                            state.input.clickedQueueItem = index;
+                        }
+
+                        ImGui::PopID();
+                        ImGui::PopStyleColor();
                     }
                     else
                     {
