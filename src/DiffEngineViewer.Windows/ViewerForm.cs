@@ -203,7 +203,10 @@ sealed class ViewerForm : Form
             {
                 AutoSize = true,
                 Margin = new(0, 0, 6, 0),
-                FlatStyle = FlatStyle.System
+                // Standard rather than System: WinForms draws these itself, including in dark
+                // mode, so their pixels are pinned to the .NET version rather than to whatever
+                // the OS build's theme renderer does with a Win32 button.
+                FlatStyle = FlatStyle.Standard
             };
             button.Click += (_, _) => clickedButton = index;
             pool.Add(button);

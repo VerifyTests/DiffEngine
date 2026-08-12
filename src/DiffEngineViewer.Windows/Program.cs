@@ -7,11 +7,7 @@ static class Program
     [STAThread]
     static int Main(string[] args)
     {
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        // The reason this head exists rather than a sixth copy of the shim: the native renderer
-        // has no DPI handling at all and converts pixels to cells by dividing by a constant.
-        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        ViewerApp.Configure();
         return ViewerProgram.Run(args, FormsViewerWindow.Open);
     }
 }

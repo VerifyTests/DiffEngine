@@ -9,10 +9,10 @@ public static class ModuleInitializer
         // of body text still scores about 0.998 and would pass. This head renders identically off
         // CI, so the remaining slack is for float dust and PNG encoder differences only.
         VerifierSettings.UseSsimForPng(0.9999);
-        // Program.Main does this for the app, and a test host never runs Main. Without visual
-        // styles the buttons render as the classic control, which would be a baseline that does
-        // not describe what a user sees.
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
+        // Program.Main does this for the app, and a test host never runs Main. Without it the
+        // buttons render as the classic light control, which would be a baseline that does not
+        // describe what a user sees. Unscaled, so the captures describe the app rather than the
+        // display of whoever captured them.
+        ViewerApp.ConfigureUnscaled();
     }
 }
