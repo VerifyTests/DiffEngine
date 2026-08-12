@@ -228,7 +228,8 @@ public class ViewerLaunchTests
             "Inline with a long snapshot",
             "Forty rows on the left, scrollable",
             "The status line ends in of 40",
-            "On Windows a scrollbar on the right, draggable, that follows the keys and the wheel",
+            "A scrollbar on the right, draggable, that follows the keys and the wheel",
+            "Dragging it to the bottom lands on the last page and stays there, no spring back",
             "Accept writes the whole thing as a raw string literal");
 
         var result = await EngineRunner.AddInlineAsync(
@@ -299,8 +300,9 @@ public class ViewerLaunchTests
                 "The Variant 1/2: net8.0 button (or v) flips to net9.0 and back",
                 "Right-clicking BTests.cs selects it and offers Accept, Show next variant, Discard, Open source file",
                 "Right-clicking the SolutionA header offers Accept all in SolutionA and Discard all in SolutionA, sweeping only that solution",
-                "Any other click or key closes the menu",
-                "On Windows the menu is the real OS one: arrows and Enter drive it, and Escape closes it WITHOUT closing the window",
+                "On Linux the viewer draws the menu, and any other click or key closes it",
+                "On Windows and macOS it is the real OS one: arrows and Enter drive it, Escape closes it WITHOUT closing the window, and it flips rather than clips near the edge of a screen",
+                "On macOS there is a menu bar, Quit hides rather than kills when the tray is running, and Close and Minimize work",
                 "Hovering a queue row shows its full name, and its failure text when marked !",
                 "Accepting the conflicted entry writes the variant on screen",
                 "Accept all skips the conflict and says 1 conflict needs review");
