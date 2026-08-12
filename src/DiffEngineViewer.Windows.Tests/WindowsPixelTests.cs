@@ -85,13 +85,8 @@ public class WindowsPixelTests
     public Task GroupedConflictedQueue() =>
         Capture(Fixtures.GroupedConflicted());
 
-    /// <summary>
-    /// The context menu floated over the grouped queue, opened on the conflicted entry. Mirrored
-    /// in the native suite, as ever.
-    /// </summary>
-    [Test]
-    public Task ContextMenu() =>
-        Capture(ViewerSession.OpenMenu(Fixtures.GroupedConflicted(), 5));
+    // No menu case here: this head shows a real popup, which is a top level window and so cannot
+    // appear in a capture of the client area. ContextMenuTests renders the strip itself instead.
 
     [Test]
     public Task InlineAccepted()

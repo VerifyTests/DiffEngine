@@ -56,12 +56,27 @@ sealed class ViewerForm : Form
     /// </summary>
     static readonly Icon? icon = EmbeddedIcon.Load();
 
+    /// <summary>
+    /// The context menu as a real popup rather than pixels in the canvas, so it gets the OS's
+    /// keyboard handling, its screen reader support and its flipping at the screen edge.
+    /// <see cref="Screen.Menu" /> stays the one source of truth: this only opens and closes to
+    /// agree with it.
+    /// </summary>
+    readonly ContextMenuStrip contextMenu = ViewerMenu.Create();
+
+    /// <summary>What the popup is currently showing, compared structurally rather than by
+    /// reference, and where the right click that asked for it landed.</summary>
+    MenuOverlay? shownMenu;
+
+    Point? menuPoint;
+
     Screen? last;
     CommandKind key;
     int clickedButton = -1;
     int clickedQueueItem = -1;
     int rightClickedQueueItem = -1;
     int clickedMenuItem = -1;
+    bool menuClosed;
     int scrollDelta;
     bool closeRequested;
     bool closingForReal;
@@ -91,9 +106,26 @@ sealed class ViewerForm : Form
         Controls.Add(Surface);
 
         canvas.QueueItemClicked += _ => clickedQueueItem = _;
-        canvas.QueueItemRightClicked += _ => rightClickedQueueItem = _;
-        canvas.MenuItemClicked += _ => clickedMenuItem = _;
+        canvas.QueueItemRightClicked += (row, point) =>
+        {
+            rightClickedQueueItem = row;
+            menuPoint = point;
+        };
         canvas.Scrolled += _ => scrollDelta += _;
+
+        contextMenu.Closed += (_, e) =>
+        {
+            shownMenu = null;
+            // A chosen item is already reported by its own Click, and the model has to keep the
+            // menu open long enough for that index to be resolved against it. Every other reason —
+            // Escape, a click outside, losing focus, and this class closing it to match a screen
+            // that no longer has a menu — means the model and the popup have drifted apart, and
+            // this is the only thing that brings them back.
+            if (e.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
+            {
+                menuClosed = true;
+            }
+        };
     }
 
     /// <summary>
@@ -128,6 +160,38 @@ sealed class ViewerForm : Form
         status.Text = screen.Status;
         ApplyButtons(screen);
         canvas.Draw(screen);
+        ApplyMenu(screen);
+    }
+
+    void ApplyMenu(Screen screen)
+    {
+        // No point means no right click has happened, which is also the state a capture runs in:
+        // FormsViewerWindow parks the form off screen and calls Apply, and without this guard a
+        // captured screen carrying a menu would leave a real popup out there for the rest of the
+        // run.
+        if (screen.Menu is not { Labels.Count: > 0 } menu ||
+            menuPoint is not { } point)
+        {
+            if (shownMenu is not null)
+            {
+                shownMenu = null;
+                contextMenu.Close(ToolStripDropDownCloseReason.CloseCalled);
+            }
+
+            return;
+        }
+
+        // Structurally, not by reference: ScreenBuilder rebuilds the label list every frame, so
+        // record equality would come back false and re-show the popup on every frame in which
+        // anything else changed.
+        if (Same(shownMenu, menu))
+        {
+            return;
+        }
+
+        shownMenu = menu;
+        ViewerMenu.Fill(contextMenu, menu, _ => clickedMenuItem = _);
+        contextMenu.Show(canvas, point);
     }
 
     void ApplyButtons(Screen screen)
@@ -175,13 +239,15 @@ sealed class ViewerForm : Form
             // the rows the canvas can draw rather than a guess from a fixed cell height.
             Rows: canvas.BodyCapacity + ScreenBuilder.Chrome,
             RightClickedQueueItem: rightClickedQueueItem,
-            ClickedMenuItem: clickedMenuItem);
+            ClickedMenuItem: clickedMenuItem,
+            MenuClosed: menuClosed);
 
         key = CommandKind.None;
         clickedButton = -1;
         clickedQueueItem = -1;
         rightClickedQueueItem = -1;
         clickedMenuItem = -1;
+        menuClosed = false;
         scrollDelta = 0;
         closeRequested = false;
         return input;
@@ -212,6 +278,14 @@ sealed class ViewerForm : Form
     /// </summary>
     protected override bool ProcessCmdKey(ref Message message, Keys keyData)
     {
+        // With the popup open the keyboard belongs to it: Escape dismisses the menu and the arrows
+        // walk it. Mapping them here would quit the viewer with a menu on screen, because Escape
+        // is mapped to Quit and swallowed.
+        if (contextMenu.Visible)
+        {
+            return base.ProcessCmdKey(ref message, keyData);
+        }
+
         var command = Map(keyData);
         if (command == CommandKind.None)
         {
@@ -258,6 +332,19 @@ sealed class ViewerForm : Form
         Same(left.Menu, right.Menu) &&
         Same(left.Left, right.Left) &&
         Same(left.Right, right.Right);
+
+    /// <summary>
+    /// A field initializer rather than a component, so it is not in the container Dispose walks.
+    /// </summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            contextMenu.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
 
     static bool Same(MenuOverlay? left, MenuOverlay? right) =>
         left is null
