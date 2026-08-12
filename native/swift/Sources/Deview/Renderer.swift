@@ -31,7 +31,7 @@ final class Renderer {
     /// not something a mouse can be asked to hit.
     private static let grab: CGFloat = 4
 
-    private static let padding: CGFloat = 6
+    private static let padding: CGFloat = 14
     private static let gap: CGFloat = 4
 
     /// Marker, space, four digit line number, two spaces. Matches AsciiRenderer's gutter, so a
