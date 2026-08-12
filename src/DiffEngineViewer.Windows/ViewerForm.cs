@@ -29,6 +29,21 @@ sealed class ViewerForm : Form
     readonly List<FormsButton> pool = [];
 
     /// <summary>
+    /// One bar, not two: both panes are sliced from the same ScrollTop, so they scroll together.
+    /// Docked on the surface rather than parented to the canvas, which leaves every one of the
+    /// canvas's own measurements alone — it is simply a little narrower.
+    /// </summary>
+    readonly VScrollBar scrollBar = new()
+    {
+        Dock = DockStyle.Right,
+        Minimum = 0,
+        SmallChange = 1,
+        // Tab is mapped to the next queue item, so focus never reaches this anyway, and a focused
+        // scrollbar eating the arrow keys would be two scroll models fighting.
+        TabStop = false
+    };
+
+    /// <summary>
     /// The client area as one control, so it can be rendered to a bitmap without the window frame.
     /// </summary>
     public Panel Surface { get; } = new()
@@ -77,6 +92,7 @@ sealed class ViewerForm : Form
     int rightClickedQueueItem = -1;
     int clickedMenuItem = -1;
     bool menuClosed;
+    int scrollTo = -1;
     int scrollDelta;
     bool closeRequested;
     bool closingForReal;
@@ -101,9 +117,16 @@ sealed class ViewerForm : Form
         // Everything lives in one filling panel so a capture can take the client area alone. Going
         // through the form would include the title bar, which is themed by the OS and would make a
         // committed baseline a picture of the machine that produced it.
+        // Docking is resolved in reverse: the footer takes the bottom, then the bar takes the right
+        // of what is left, and the canvas fills the rest.
         Surface.Controls.Add(canvas);
+        Surface.Controls.Add(scrollBar);
         Surface.Controls.Add(footer);
         Controls.Add(Surface);
+
+        // Scroll rather than ValueChanged, which also fires for this class's own model driven
+        // assignment and would turn every wheel notch into a round trip fighting the clamp.
+        scrollBar.Scroll += (_, e) => scrollTo = e.NewValue;
 
         canvas.QueueItemClicked += _ => clickedQueueItem = _;
         canvas.QueueItemRightClicked += (row, point) =>
@@ -135,17 +158,20 @@ sealed class ViewerForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        ScaleFooter();
+        ScaleChrome();
     }
 
     protected override void OnDpiChanged(DpiChangedEventArgs e)
     {
         base.OnDpiChanged(e);
-        ScaleFooter();
+        ScaleChrome();
     }
 
-    void ScaleFooter() =>
+    void ScaleChrome()
+    {
         footer.Height = LogicalToDeviceUnits(40);
+        scrollBar.Width = SystemInformation.GetVerticalScrollBarWidthForDpi(DeviceDpi);
+    }
 
     public void Apply(Screen screen)
     {
@@ -160,7 +186,27 @@ sealed class ViewerForm : Form
         status.Text = screen.Status;
         ApplyButtons(screen);
         canvas.Draw(screen);
+        ApplyScroll(screen);
         ApplyMenu(screen);
+    }
+
+    /// <summary>
+    /// The bar follows the model rather than owning the position, so it agrees with the keyboard
+    /// and the wheel. The left pane, because that is the row count the session clamps against.
+    /// </summary>
+    void ApplyScroll(Screen screen)
+    {
+        var visible = Math.Max(1, screen.Rows - ScreenBuilder.Chrome);
+        var range = PaneScroll.For(screen.Left.TotalRows, visible, screen.Left.ScrollTop);
+        // Maximum first: lowering it clamps Value, and LargeChange is itself clamped to the range.
+        scrollBar.Maximum = range.Maximum;
+        scrollBar.LargeChange = range.LargeChange;
+        if (scrollBar.Value != range.Value)
+        {
+            // Only when it actually disagrees, so dragging the thumb is not fought by an
+            // assignment on every frame of the drag.
+            scrollBar.Value = range.Value;
+        }
     }
 
     void ApplyMenu(Screen screen)
@@ -243,7 +289,8 @@ sealed class ViewerForm : Form
             Rows: canvas.BodyCapacity + ScreenBuilder.Chrome,
             RightClickedQueueItem: rightClickedQueueItem,
             ClickedMenuItem: clickedMenuItem,
-            MenuClosed: menuClosed);
+            MenuClosed: menuClosed,
+            ScrollTo: scrollTo);
 
         key = CommandKind.None;
         clickedButton = -1;
@@ -251,6 +298,7 @@ sealed class ViewerForm : Form
         rightClickedQueueItem = -1;
         clickedMenuItem = -1;
         menuClosed = false;
+        scrollTo = -1;
         scrollDelta = 0;
         closeRequested = false;
         return input;
@@ -327,6 +375,10 @@ sealed class ViewerForm : Form
     /// </summary>
     static bool Same(Screen? left, Screen right) =>
         left is not null &&
+        // The grid, because a resize that changes nothing else still changes how much of a pane
+        // fits, which is the scrollbar's LargeChange.
+        left.Columns == right.Columns &&
+        left.Rows == right.Rows &&
         left.Title == right.Title &&
         left.Subtitle == right.Subtitle &&
         left.Status == right.Status &&

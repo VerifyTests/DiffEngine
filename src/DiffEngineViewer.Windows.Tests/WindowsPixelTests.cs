@@ -27,7 +27,12 @@ public class WindowsPixelTests
     /// canvas draws <c>Math.Min(capacity, rows)</c>.
     /// </para>
     /// </summary>
-    const int columns = 122;
+    /// <summary>
+    /// 120 rather than the 122 the full width would give, because the scrollbar takes a column's
+    /// worth off the canvas. Only AsciiRenderer consumes Screen.Columns, so this does not reach a
+    /// pixel here; it is pinned so the fixtures describe the grid this head actually reports.
+    /// </summary>
+    const int columns = 120;
 
     const int rows = 37;
 
@@ -53,6 +58,14 @@ public class WindowsPixelTests
     [Test]
     public Task FileDiff() =>
         Capture(Fixtures.File());
+
+    /// <summary>
+    /// Content taller than the viewport, which is the only state in which the scrollbar has a
+    /// thumb to draw rather than a full track.
+    /// </summary>
+    [Test]
+    public Task LongPane() =>
+        Capture(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)));
 
     [Test]
     public Task InlineSingle() =>
