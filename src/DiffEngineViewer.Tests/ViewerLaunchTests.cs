@@ -38,6 +38,14 @@ public class ViewerLaunchTests
     public static void Enable() =>
         ManualViewer.Enable();
 
+    /// <summary>
+    /// The belt to WaitForClose's braces: a case that throws before it gets there would otherwise
+    /// leave a hidden viewer to answer the next run.
+    /// </summary>
+    [After(Class)]
+    public static void Cleanup() =>
+        ManualViewer.Close();
+
     const string received =
         """
         the quick

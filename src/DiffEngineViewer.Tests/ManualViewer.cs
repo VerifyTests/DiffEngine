@@ -1,16 +1,20 @@
 extern alias engine;
 
+using System.ComponentModel;
 using EngineRunner = engine::DiffEngine.DiffRunner;
 
 /// <summary>
 /// Points DiffEngine at the head built from this repo, and waits for the person driving it.
 /// <para>
-/// Kill any running DiffEngineViewer before starting one of these, or you will be reviewing a
-/// stale build without knowing it. The viewer is single instance, and with DiffEngineTray running
-/// it hides rather than exits when its window closes — so an instance from an earlier build stays
-/// alive in the background, and the next launch hands its patches to that one and gets out of the
-/// way. The window that appears is then the old binary, showing none of the changes just made.
-/// It is a quiet failure: everything looks like it worked.
+/// <see cref="Close"/> ends the process afterwards, because a dismissed window is not an exited
+/// one: with DiffEngineTray running the viewer hides so the tray can reopen it. A survivor would
+/// answer the next run — the viewer is single instance — and the person driving would review the
+/// build before last with nothing saying so.
+/// </para>
+/// <para>
+/// If a run is killed before it can clean up, or a viewer was started by hand, end it before
+/// launching another. Only the head from this working tree counts; a viewer open on other work is
+/// left alone.
 /// </para>
 /// <code>
 /// Get-Process DiffEngineViewer -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -125,17 +129,43 @@ static class ManualViewer
             throw new("The viewer never showed a window within 30 seconds.");
         }
 
-        if (await Until(() => !Showing(), DateTime.UtcNow + patience))
+        var dismissed = await Until(() => !Showing(), DateTime.UtcNow + patience);
+        Close();
+        if (!dismissed)
         {
-            return;
+            throw new($"The viewer was not dismissed within {patience.TotalMinutes} minutes.");
         }
+    }
 
+    /// <summary>
+    /// Ends the process this run started.
+    /// <para>
+    /// A dismissed window is not an exited process: with DiffEngineTray running the viewer hides so
+    /// the tray can reopen it, which is right for a user and wrong for a test. The viewer is single
+    /// instance, so a survivor answers the next run — it takes that run's patches, shows its own
+    /// already running window, and the person driving reviews the build before last without
+    /// anything saying so.
+    /// </para>
+    /// </summary>
+    public static void Close()
+    {
         foreach (var process in Running())
         {
-            process.Kill();
+            try
+            {
+                process.Kill();
+                process.WaitForExit(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception exception)
+                when (exception is Win32Exception or InvalidOperationException)
+            {
+                // Already gone, which is the goal state.
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
-
-        throw new($"The viewer was not dismissed within {patience.TotalMinutes} minutes.");
     }
 
     static async Task<bool> Until(Func<bool> condition, DateTime deadline)
@@ -168,6 +198,42 @@ static class ManualViewer
         return false;
     }
 
-    static Process[] Running() =>
-        Process.GetProcessesByName("DiffEngineViewer");
+    /// <summary>
+    /// Only the head built from this working tree, matched by the executable it is running. A
+    /// viewer the user has open on their own work is then neither mistaken for this test's window
+    /// nor killed when the test finishes.
+    /// </summary>
+    static List<Process> Running()
+    {
+        var executable = Executable();
+        var ours = new List<Process>();
+        foreach (var process in Process.GetProcessesByName("DiffEngineViewer"))
+        {
+            if (IsOurs(process, executable))
+            {
+                ours.Add(process);
+            }
+            else
+            {
+                process.Dispose();
+            }
+        }
+
+        return ours;
+    }
+
+    static bool IsOurs(Process process, string executable)
+    {
+        try
+        {
+            return string.Equals(process.MainModule?.FileName, executable, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+            when (exception is Win32Exception or InvalidOperationException)
+        {
+            // Exited between listing and asking, or running as something this process cannot open.
+            // Either way it is not one this test launched.
+            return false;
+        }
+    }
 }
