@@ -45,6 +45,25 @@ sealed class ViewerCanvas : Control
     const int gap = 4;
 
     readonly Font font = MonoFont.Create();
+
+    /// <summary>
+    /// Queue labels are clipped at the column edge with no ellipsis, and a failed entry says only
+    /// "!". This is the only way to read either in full.
+    /// </summary>
+    readonly ToolTip tooltip = new()
+    {
+        InitialDelay = 500,
+        ReshowDelay = 200,
+        AutoPopDelay = 10000
+    };
+
+    /// <summary>
+    /// The row the tip currently describes. Tracked because SetToolTip is a window message and
+    /// OnMouseMove runs for every pixel crossed, the same reason Cursor is only assigned on a
+    /// change.
+    /// </summary>
+    int tooltipRow = -1;
+
     Screen? screen;
 
     /// <summary>
@@ -90,6 +109,8 @@ sealed class ViewerCanvas : Control
     public void Draw(Screen value)
     {
         screen = value;
+        // A new screen renumbers the rows, so a kept index would describe a different entry.
+        tooltipRow = -1;
         Invalidate();
     }
 
@@ -365,6 +386,29 @@ sealed class ViewerCanvas : Control
         {
             Cursor = wanted;
         }
+
+        ApplyTooltip(e.Location);
+    }
+
+    void ApplyTooltip(Point point)
+    {
+        var row = QueueRowAt(point);
+        if (row == tooltipRow)
+        {
+            return;
+        }
+
+        tooltipRow = row;
+        if (row < 0)
+        {
+            tooltip.Hide(this);
+            return;
+        }
+
+        var item = screen!.Queue[row];
+        // The indent is layout and goes; the leading conflict marker means something and stays.
+        var label = item.Label.Trim();
+        tooltip.SetToolTip(this, item.Status is null ? label : $"{label}\n{item.Status}");
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
@@ -389,6 +433,8 @@ sealed class ViewerCanvas : Control
         {
             Cursor = Cursors.Default;
         }
+
+        tooltipRow = -1;
     }
 
     protected override void OnMouseWheel(MouseEventArgs e)
@@ -406,6 +452,7 @@ sealed class ViewerCanvas : Control
         if (disposing)
         {
             font.Dispose();
+            tooltip.Dispose();
         }
 
         base.Dispose(disposing);
