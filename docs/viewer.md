@@ -91,7 +91,9 @@ lists everything pending and offers **Accept all**.
 
 The list sits in a column on the left. Drag the divider beside it to widen the column when the file
 names are longer than it is. When the list outgrows the window it follows the selection, keeping
-the selected row visible.
+the selected row visible. Hover a row to read its full name, and the failure behind a `!`.
+
+On Windows the panes also carry a scrollbar, which moves with the keys and the wheel.
 
 Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
 case the tray still has it and can reopen a window on it.
@@ -112,6 +114,10 @@ Every row of the pending column answers a right-click:
 Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file
 manager is always local — the files are on this machine, wherever the queue lives. Any other
 click or key closes the menu.
+
+On Windows this is the real OS menu, so it also takes the arrow keys, Enter, Escape and
+type-to-select, and is readable by a screen reader. A click that dismisses it is consumed doing
+so, which is why right-clicking a different row while a menu is open takes two clicks.
 
 
 ## Grouping

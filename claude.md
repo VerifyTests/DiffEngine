@@ -100,7 +100,10 @@ keeps offering a snapshot that is already in the source.
 - `ViewerProgram.Run(args, OpenWindow)` owns the loop for all heads. A head is a `Main` that
   chooses a renderer; nothing else about the app is per platform.
 - Windows renders with **WinForms** and loads no native library. It is pumped through
-  `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared.
+  `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared. Only the
+  grid is owner drawn: the footer, the context menu, the pane scrollbar and the tooltips are real
+  controls, so they get the OS's keyboard handling, theming and screen reader support. The menu is
+  still projected from the same `Screen.Menu` the other heads draw.
 - macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
   ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
 - Does **not** reference DiffEngine. It links `Inline/*.cs`, `Protocol/*.cs` and
