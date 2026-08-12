@@ -109,6 +109,25 @@ jobs:
           mkdir -p src/DiffEngineViewer.Linux/runtimes/linux-x64/native
           cp native/build/linux-x64/libdiffengine_viewer.so src/DiffEngineViewer.Linux/runtimes/linux-x64/native/
 
+      # Same reason as the Linux build above, and the same trade. Before it, a change to
+      # native/swift did not reach this job at all until build-native had run and its binaries PR
+      # had been merged, so the macOS baselines described the previous rebuild and a Swift change
+      # could not go red here however wrong it was.
+      #
+      # Only this runner's own architecture, because this is the only thing that loads it. The
+      # committed universal binary is still loaded and still checked, by the native job below —
+      # which is the job that exists to prove what actually ships.
+      #
+      # Not cached: this is six Swift files against system frameworks, twenty-odd seconds, and a
+      # stale cache here would reintroduce exactly the staleness the step removes.
+      - name: Build native renderer
+        if: runner.os == 'macOS'
+        run: |
+          swift build -c release --package-path native/swift
+          mkdir -p src/DiffEngineViewer.Mac/runtimes/osx-arm64/native
+          cp "$(swift build -c release --package-path native/swift --show-bin-path)/libdiffengine_viewer.dylib" \
+            src/DiffEngineViewer.Mac/runtimes/osx-arm64/native/
+
       # Release-NotWindows drops the WinForms tray and its tests from the solution.
       - name: Build
         run: dotnet build src --configuration Release-NotWindows
@@ -152,10 +171,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # The jobs above only ever load the x64 natives, and the Linux one rebuilds its own from source.
-  # This job exists so the arm64 binaries are actually loaded somewhere, which is what catches a
-  # wrong architecture, a file corrupted by a text mode checkout, or an unsatisfied runtime
-  # dependency.
+  # Neither job above loads a committed binary any more: both build the shim from source so their
+  # pixel baselines track it. That leaves nothing testing what actually ships, which is this job.
+  # It loads the committed binaries as they are, which is what catches a wrong architecture, a file
+  # corrupted by a text mode checkout, an unsatisfied runtime dependency, or simply a rebuild that
+  # was never merged.
   #
   # It runs DiffEngineViewer.Tests rather than the whole suite: that is where the native smoke test
   # lives, it takes seconds, and it gives the screen and IPC tests some cross architecture coverage
