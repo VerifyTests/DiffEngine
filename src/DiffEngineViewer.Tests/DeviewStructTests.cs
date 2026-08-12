@@ -1,6 +1,3 @@
-using System.Reflection;
-using System.Text.RegularExpressions;
-
 /// <summary>
 /// Holds the managed mirrors in <c>DeviewStructs.cs</c> against native/include/deview.h, which is
 /// the thing they mirror.

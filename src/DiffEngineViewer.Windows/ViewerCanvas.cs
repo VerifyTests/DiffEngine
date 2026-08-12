@@ -46,23 +46,7 @@ sealed class ViewerCanvas : Control
 
     readonly Font font = MonoFont.Create();
 
-    /// <summary>
-    /// Queue labels are clipped at the column edge with no ellipsis, and a failed entry says only
-    /// "!". This is the only way to read either in full.
-    /// </summary>
-    readonly ToolTip tooltip = new()
-    {
-        InitialDelay = 500,
-        ReshowDelay = 200,
-        AutoPopDelay = 10000
-    };
-
-    /// <summary>
-    /// The row the tip currently describes. Tracked because SetToolTip is a window message and
-    /// OnMouseMove runs for every pixel crossed, the same reason Cursor is only assigned on a
-    /// change.
-    /// </summary>
-    int tooltipRow = -1;
+    readonly QueueTips tips = new();
 
     Screen? screen;
 
@@ -110,7 +94,7 @@ sealed class ViewerCanvas : Control
     {
         screen = value;
         // A new screen renumbers the rows, so a kept index would describe a different entry.
-        tooltipRow = -1;
+        tips.Forget();
         Invalidate();
     }
 
@@ -392,23 +376,10 @@ sealed class ViewerCanvas : Control
 
     void ApplyTooltip(Point point)
     {
+        // Composed by QueueProjection, so what a row has to add — and whether it has anything at
+        // all — is decided once for all three heads rather than three times here.
         var row = QueueRowAt(point);
-        if (row == tooltipRow)
-        {
-            return;
-        }
-
-        tooltipRow = row;
-        // No row, or a row with nothing to add. Composed by QueueProjection, so what counts as
-        // nothing is decided once for all three heads rather than three times.
-        if (row < 0 ||
-            screen!.Queue[row].Tooltip is not { } text)
-        {
-            tooltip.Hide(this);
-            return;
-        }
-
-        tooltip.SetToolTip(this, text);
+        tips.Apply(this, row, row < 0 ? null : screen!.Queue[row].Tooltip);
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
@@ -434,7 +405,7 @@ sealed class ViewerCanvas : Control
             Cursor = Cursors.Default;
         }
 
-        tooltipRow = -1;
+        tips.Forget();
     }
 
     protected override void OnMouseWheel(MouseEventArgs e)
@@ -452,7 +423,7 @@ sealed class ViewerCanvas : Control
         if (disposing)
         {
             font.Dispose();
-            tooltip.Dispose();
+            tips.Dispose();
         }
 
         base.Dispose(disposing);
