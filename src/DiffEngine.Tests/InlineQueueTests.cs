@@ -440,7 +440,7 @@ public class InlineQueueTests
     [Test]
     public async Task AcceptAllComposesFailuresAndConflicts()
     {
-        var queue = InlineQueue.Empty
+        InlineQueue.Empty
             .Enqueue(Patch("A.cs", 1))
             .Enqueue(Patch("B.cs", 2, content: "eight", framework: "net8.0"))
             .Enqueue(Patch("B.cs", 2, content: "nine", framework: "net9.0"))

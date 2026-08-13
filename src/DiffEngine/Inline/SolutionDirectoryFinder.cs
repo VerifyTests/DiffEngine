@@ -1,7 +1,3 @@
-using System.Collections.Concurrent;
-
-namespace DiffEngine;
-
 static class SolutionDirectoryFinder
 {
     class Result(string directory, string name)
