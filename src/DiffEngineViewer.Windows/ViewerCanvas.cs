@@ -44,9 +44,17 @@ sealed class ViewerCanvas : Control
     const int padding = 6;
     const int gap = 4;
 
+    /// <summary>
+    /// The side of a checker square behind a picture, so an image with transparency reads as
+    /// transparent rather than as whatever colour the pane happens to be.
+    /// </summary>
+    const int checker = 8;
+
     readonly Font font = MonoFont.Create();
 
     readonly QueueTips tips = new();
+
+    readonly ImageCache images = new();
 
     Screen? screen;
 
@@ -198,12 +206,97 @@ sealed class ViewerCanvas : Control
         }
 
         var bodyBottom = bodyTop + capacity * lineHeight;
+
+        // Under the rows rather than instead of them. The rows are what every head draws — format,
+        // size and byte count, coloured against the other side — and this head can afford to also
+        // show the thing they describe.
+        DrawImage(graphics, screen.Left, panesLeft, half, bodyTop, bodyBottom, lineHeight);
+        DrawImage(graphics, screen.Right, panesLeft + half, panesWidth - half, bodyTop, bodyBottom, lineHeight);
+
         if (hasQueue)
         {
             DrawColumnRule(graphics, panesLeft - gap / 2, bodyTop, bodyBottom);
         }
 
         DrawColumnRule(graphics, panesLeft + half - gap / 2, bodyTop, bodyBottom);
+    }
+
+    void DrawImage(Graphics graphics, Pane pane, int left, int width, int bodyTop, int bodyBottom, int lineHeight)
+    {
+        if (pane.Image is not { } image)
+        {
+            return;
+        }
+
+        var picture = images.Get(image.Path);
+        if (picture is null)
+        {
+            return;
+        }
+
+        var top = bodyTop + pane.Rows.Count * lineHeight + lineHeight;
+        var available = new Rectangle(left, top, width - gap, bodyBottom - top);
+        if (available.Width <= 0 ||
+            available.Height <= 0)
+        {
+            return;
+        }
+
+        // Fitted, and never enlarged past its own size: a snapshot is judged against the pixels it
+        // has, and an eight pixel icon stretched across a pane is an interpolation of them rather
+        // than a look at them.
+        //
+        // Scaled from the size the model carries rather than from the decoded bitmap, so all three
+        // heads place a picture identically even where their decoders would not agree.
+        var scale = Math.Min(
+            Math.Min(
+                available.Width / (double) image.Width,
+                available.Height / (double) image.Height),
+            1);
+        var drawn = new Size(
+            Math.Max(1, (int) (image.Width * scale)),
+            Math.Max(1, (int) (image.Height * scale)));
+        var bounds = new Rectangle(
+            available.X + (available.Width - drawn.Width) / 2,
+            available.Y + (available.Height - drawn.Height) / 2,
+            drawn.Width,
+            drawn.Height);
+
+        DrawChecker(graphics, bounds);
+
+        var interpolation = graphics.InterpolationMode;
+        var offset = graphics.PixelOffsetMode;
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        graphics.DrawImage(picture, bounds);
+        // Put back, because the text drawing this shares a Graphics with is set up once by Painter
+        // and would otherwise inherit whichever picture was drawn last.
+        graphics.InterpolationMode = interpolation;
+        graphics.PixelOffsetMode = offset;
+
+        // An outline, so a picture whose edges are the colour of the pane still has visible extent.
+        using var pen = new Pen(Palette.Rule);
+        graphics.DrawRectangle(pen, bounds.X - 1, bounds.Y - 1, bounds.Width + 1, bounds.Height + 1);
+    }
+
+    static void DrawChecker(Graphics graphics, Rectangle bounds)
+    {
+        graphics.FillRectangle(Painter.Brush(Palette.CheckerLight), bounds);
+        var dark = Painter.Brush(Palette.CheckerDark);
+        for (var y = bounds.Y; y < bounds.Bottom; y += checker)
+        {
+            for (var x = bounds.X; x < bounds.Right; x += checker)
+            {
+                if ((x - bounds.X) / checker % 2 == (y - bounds.Y) / checker % 2)
+                {
+                    continue;
+                }
+
+                graphics.FillRectangle(
+                    dark,
+                    Rectangle.Intersect(new(x, y, checker, checker), bounds));
+            }
+        }
     }
 
     void DrawTitle(Graphics graphics, int lineHeight)
@@ -424,6 +517,7 @@ sealed class ViewerCanvas : Control
         {
             font.Dispose();
             tips.Dispose();
+            images.Dispose();
         }
 
         base.Dispose(disposing);

@@ -98,6 +98,14 @@ public class WindowsPixelTests
     public Task GroupedConflictedQueue() =>
         Capture(Fixtures.GroupedConflicted());
 
+    /// <summary>
+    /// An image comparison: the pictures drawn under the rows every head draws. Mirrored in the
+    /// native suite, as ever, which is what holds the three heads to one placement rule.
+    /// </summary>
+    [Test]
+    public Task Images() =>
+        Capture(Fixtures.Images());
+
     // No menu case here: this head shows a real popup, which is a top level window and so cannot
     // appear in a capture of the client area. ContextMenuTests renders the strip itself instead.
 

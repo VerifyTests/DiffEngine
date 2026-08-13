@@ -35,6 +35,14 @@ build.
 **Nothing is flipped.** Core Graphics has a bottom left origin; layout is written top down and
 converted once, which avoids having to fight the text matrix to keep glyphs upright.
 
+**Pictures come from ImageIO**, not `NSImage`, which would hand back a representation sized for a
+screen when what the pane wants is the file's own pixels. They are cached and invalidated by write
+time and length, the same freshness test the managed queue poller uses, because AppKit redraws for
+a great many reasons and decoding per redraw would make an idle window a busy one. A file ImageIO
+cannot read is remembered as a failure and draws nothing; the property rows above it still carry
+the comparison, which is why those rows are the description and the picture is an addition to it.
+This head is the only one of the three whose decoder reads every format the viewer compares.
+
 **A hidden start creates no window.** `NSWindow` may only be instantiated on the main thread, and a
 test host runs `[Before(Class)]` on whatever thread it likes, so `deview_init(hidden: 1)` builds
 only the renderer and defers the window until `deview_set_hidden(0)` asks for one. The app always

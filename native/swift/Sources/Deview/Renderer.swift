@@ -5,6 +5,7 @@ import CDeview
 import CoreGraphics
 import CoreText
 import Foundation
+import ImageIO
 
 /// Draws a `Frame` with Core Text. Used both for the window and for the offscreen capture, so the
 /// baselines describe what a user sees rather than a second code path.
@@ -34,6 +35,10 @@ final class Renderer {
     private static let padding: CGFloat = 6
     private static let gap: CGFloat = 4
 
+    /// The side of a checker square behind a picture, so an image with transparency reads as
+    /// transparent rather than as whatever colour the pane happens to be.
+    private static let checkerSize: CGFloat = 8
+
     /// Marker, space, four digit line number, two spaces. Matches AsciiRenderer's gutter, so a
     /// line lands in the same column in both.
     private static let gutterCells: CGFloat = 8
@@ -45,6 +50,20 @@ final class Renderer {
     /// Moved by dragging the rule between the queue and the panes. Kept here rather than in the
     /// view because this is what lays the rule out, and the drag has to land where it was drawn.
     private var queueWidth: CGFloat = 0
+
+    /// Decoded pictures, keyed by the path the screen model handed over and invalidated by the
+    /// file's write time and length — the same freshness test the queue poller uses, so a re-run
+    /// that rewrites a received image refreshes the pane rather than leaving the previous one up.
+    ///
+    /// A nil `image` is a remembered failure, so something ImageIO cannot read is attempted once
+    /// rather than on every redraw, and AppKit redraws for a great many reasons.
+    private var pictures: [String: Picture] = [:]
+
+    private struct Picture {
+        var image: CGImage?
+        var modified: Date
+        var length: UInt64
+    }
 
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
     /// reports back so the managed side can slice a pane to rows that fit.
@@ -180,6 +199,13 @@ final class Renderer {
         }
 
         let bodyBottom = bodyTop + CGFloat(capacity) * line
+
+        // Under the rows rather than instead of them. The rows are what every head draws — format,
+        // size and byte count, coloured against the other side — and this one can afford to also
+        // show the thing they describe.
+        image(frame.left, left: panesLeft, width: half, top: bodyTop, bottom: bodyBottom, line: line, in: context, size)
+        image(frame.right, left: panesLeft + half, width: panesWidth - half, top: bodyTop, bottom: bodyBottom, line: line, in: context, size)
+
         if hasQueue {
             let ruleLeft = panesLeft - Renderer.gap / 2
             columnRule(left: ruleLeft, top: bodyTop, bottom: bodyBottom, in: context, size)
@@ -286,6 +312,120 @@ final class Renderer {
             in: CGRect(x: bounds.minX + width, y: bounds.minY, width: bounds.width - width, height: bounds.height),
             Palette.foreground(row.kind),
             context)
+    }
+
+    /// The picture a pane is, one blank line under its rows — the same placement the other two
+    /// heads use.
+    ///
+    /// Fitted, and never enlarged past its own size: a snapshot is judged against the pixels it
+    /// has, and an eight point icon stretched across a pane is an interpolation of them rather than
+    /// a look at them. Scaled from the size the model carries rather than from the decoded image,
+    /// so all three heads place a picture identically.
+    private func image(
+        _ pane: Frame.Pane,
+        left: CGFloat,
+        width: CGFloat,
+        top: CGFloat,
+        bottom: CGFloat,
+        line: CGFloat,
+        in context: CGContext,
+        _ size: CGSize
+    ) {
+        guard !pane.imagePath.isEmpty,
+              pane.imageWidth > 0,
+              pane.imageHeight > 0,
+              let picture = self.picture(pane.imagePath)
+        else {
+            return
+        }
+
+        let imageTop = top + CGFloat(pane.rows.count + 1) * line
+        let available = CGSize(width: width - Renderer.gap, height: bottom - imageTop)
+        guard available.width > 0, available.height > 0 else {
+            return
+        }
+
+        let scale = min(
+            min(
+                available.width / CGFloat(pane.imageWidth),
+                available.height / CGFloat(pane.imageHeight)),
+            1)
+        let drawn = CGSize(
+            width: max(1, (CGFloat(pane.imageWidth) * scale).rounded(.down)),
+            height: max(1, (CGFloat(pane.imageHeight) * scale).rounded(.down)))
+        let bounds = rect(
+            top: imageTop + ((available.height - drawn.height) / 2).rounded(.down),
+            left: left + ((available.width - drawn.width) / 2).rounded(.down),
+            width: drawn.width,
+            height: drawn.height,
+            size)
+
+        checker(bounds, in: context)
+
+        context.saveGState()
+        context.interpolationQuality = .high
+        context.draw(picture, in: bounds)
+        context.restoreGState()
+
+        // An outline, so a picture whose edges are the colour of the pane still has visible extent.
+        context.setStrokeColor(Palette.rule)
+        context.setLineWidth(1)
+        context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+    }
+
+    private func checker(_ bounds: CGRect, in context: CGContext) {
+        context.setFillColor(Palette.checkerLight)
+        context.fill(bounds)
+        context.setFillColor(Palette.checkerDark)
+
+        var row = 0
+        var y = bounds.minY
+        while y < bounds.maxY {
+            var column = 0
+            var x = bounds.minX
+            while x < bounds.maxX {
+                if row % 2 != column % 2 {
+                    let square = CGRect(x: x, y: y, width: Renderer.checkerSize, height: Renderer.checkerSize)
+                    context.fill(square.intersection(bounds))
+                }
+
+                x += Renderer.checkerSize
+                column += 1
+            }
+
+            y += Renderer.checkerSize
+            row += 1
+        }
+    }
+
+    private func picture(_ path: String) -> CGImage? {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attributes[.modificationDate] as? Date,
+              let length = attributes[.size] as? UInt64
+        else {
+            pictures.removeValue(forKey: path)
+            return nil
+        }
+
+        if let cached = pictures[path], cached.modified == modified, cached.length == length {
+            return cached.image
+        }
+
+        let image = Renderer.decode(path)
+        pictures[path] = Picture(image: image, modified: modified, length: length)
+        return image
+    }
+
+    /// ImageIO rather than NSImage, which would hand back a representation sized for a screen when
+    /// what this wants is the file's own pixels. It reads every format the viewer compares.
+    private static func decode(_ path: String) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+              CGImageSourceGetCount(source) > 0
+        else {
+            return nil
+        }
+
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
     /// Clipped to its own rect, so a long line stops at its column instead of running into the

@@ -33,6 +33,13 @@ struct Frame {
         /// themselves cannot say.
         var scrollTop: Int32 = 0
         var totalRows: Int32 = 0
+
+        /// The picture this side is, drawn under the rows. Empty for a text side, and for an image
+        /// side whose bytes could not be read or recognized — the managed side has already decided,
+        /// so the renderer never has to. The size is the file header's, not a decoder's.
+        var imagePath = ""
+        var imageWidth: Int32 = 0
+        var imageHeight: Int32 = 0
     }
 
     struct QueueItem {
@@ -101,6 +108,9 @@ struct Frame {
         pane.header = string(screen, source.headerOffset, source.headerLength)
         pane.scrollTop = source.scrollTop
         pane.totalRows = source.totalRows
+        pane.imagePath = string(screen, source.imagePathOffset, source.imagePathLength)
+        pane.imageWidth = source.imageWidth
+        pane.imageHeight = source.imageHeight
         guard let rows = screen.rows else {
             return pane
         }

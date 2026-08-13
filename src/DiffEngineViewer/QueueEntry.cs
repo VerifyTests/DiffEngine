@@ -27,6 +27,10 @@ enum QueueEntryKind
 /// source file; file entries are accepted by copying left over right; move and delete entries
 /// belong to the tray and are accepted by forwarding their keys.
 /// </summary>
+/// <param name="LeftImage">
+/// Set when this side is a picture rather than text, which makes the whole entry an image
+/// comparison. Null on the side of an image comparison that has no file yet.
+/// </param>
 record QueueEntry(
     string Key,
     string Name,
@@ -45,16 +49,29 @@ record QueueEntry(
     IReadOnlyList<InlineVariant> Variants,
     int SelectedVariant,
     FileStamp? LeftStamp,
-    FileStamp? RightStamp)
+    FileStamp? RightStamp,
+    ImageFile? LeftImage = null,
+    ImageFile? RightImage = null)
 {
-    // Computed once, because the diff is a pure function of the two texts and a new entry only
+    // Computed once, because the diff is a pure function of the two sides and a new entry only
     // arrives on stdin or the socket. A `with` expression copies this field rather than
-    // recomputing, so change the text by building a fresh entry, never by `with`.
-    readonly (IReadOnlyList<Row> Left, IReadOnlyList<Row> Right) rows = DiffRows.Build(LeftText, RightText);
+    // recomputing, so change the content by building a fresh entry, never by `with`.
+    readonly (IReadOnlyList<Row> Left, IReadOnlyList<Row> Right) rows =
+        LeftImage is null && RightImage is null
+            ? DiffRows.Build(LeftText, RightText)
+            : ImageRows.Build(LeftImage, RightImage);
 
     public IReadOnlyList<Row> LeftRows => rows.Left;
     public IReadOnlyList<Row> RightRows => rows.Right;
     public int TotalRows => rows.Left.Count;
+
+    /// <summary>
+    /// A picture on either side makes the whole entry one, because the two sides of a comparison
+    /// are the same file under two names and cannot be a picture and a text file at once.
+    /// </summary>
+    public bool IsImage =>
+        LeftImage is not null ||
+        RightImage is not null;
 
     public bool Conflicted => Variants.Count > 1;
 
@@ -90,26 +107,28 @@ record QueueEntry(
             RightStamp: null);
     }
 
-    public static QueueEntry ForFiles(string leftFile, string rightFile, string leftText, string rightText) =>
+    public static QueueEntry ForFiles(string leftFile, string rightFile, FileSide left, FileSide right) =>
         new(
             Key: $"{leftFile.ToLowerInvariant()}|{rightFile.ToLowerInvariant()}",
             Name: $"{Path.GetFileName(leftFile)} <> {Path.GetFileName(rightFile)}",
             LeftHeader: Path.GetFileName(leftFile),
             RightHeader: Path.GetFileName(rightFile),
-            LeftText: CsStringLiteral.NormalizeNewlines(leftText),
-            RightText: CsStringLiteral.NormalizeNewlines(rightText),
+            LeftText: CsStringLiteral.NormalizeNewlines(left.Text),
+            RightText: CsStringLiteral.NormalizeNewlines(right.Text),
             Kind: QueueEntryKind.File,
             Patch: null,
             LeftFile: leftFile,
             TargetFile: rightFile,
-            Warning: null,
+            Warning: left.Warning ?? right.Warning,
             Status: null,
             Solution: null,
             TestName: null,
             Variants: [],
             SelectedVariant: 0,
-            LeftStamp: null,
-            RightStamp: null);
+            LeftStamp: left.Stamp,
+            RightStamp: right.Stamp,
+            LeftImage: left.Image,
+            RightImage: right.Image);
 
     public static QueueEntry ForMove(
         string key,
@@ -117,8 +136,8 @@ record QueueEntry(
         string? group,
         string temp,
         string target,
-        FileText tempText,
-        FileText targetText) =>
+        FileSide tempSide,
+        FileSide targetSide) =>
         new(
             Key: key,
             Name: name,
@@ -126,27 +145,29 @@ record QueueEntry(
             RightHeader: Path.GetFileName(target),
             // Left is what the test produced, right is what is committed — the same sides an
             // inline entry uses for received and expected.
-            LeftText: CsStringLiteral.NormalizeNewlines(tempText.Text),
-            RightText: CsStringLiteral.NormalizeNewlines(targetText.Text),
+            LeftText: CsStringLiteral.NormalizeNewlines(tempSide.Text),
+            RightText: CsStringLiteral.NormalizeNewlines(targetSide.Text),
             Kind: QueueEntryKind.Move,
             Patch: null,
             LeftFile: temp,
             TargetFile: target,
-            Warning: tempText.Warning ?? targetText.Warning,
+            Warning: tempSide.Warning ?? targetSide.Warning,
             Status: null,
             Solution: group,
             TestName: null,
             Variants: [],
             SelectedVariant: 0,
-            LeftStamp: tempText.Stamp,
-            RightStamp: targetText.Stamp);
+            LeftStamp: tempSide.Stamp,
+            RightStamp: targetSide.Stamp,
+            LeftImage: tempSide.Image,
+            RightImage: targetSide.Image);
 
     public static QueueEntry ForDelete(
         string key,
         string name,
         string? group,
         string file,
-        FileText current) =>
+        FileSide current) =>
         new(
             Key: key,
             Name: name,
@@ -168,7 +189,10 @@ record QueueEntry(
             Variants: [],
             SelectedVariant: 0,
             LeftStamp: current.Stamp,
-            RightStamp: null);
+            RightStamp: null,
+            // The file on the right is the one that goes, so a picture being deleted is the right
+            // side's picture. Nothing is on the left, which is the point of the entry.
+            RightImage: current.Image);
 
     static (string header, string text, string? warning) Expected(InlinePatch patch)
     {

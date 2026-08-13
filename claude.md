@@ -119,6 +119,19 @@ keeps offering a snapshot that is already in the source.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
   rules about when a header exists at all live in one place and must stay there. A fold is a view:
   `AcceptAll` still sweeps what it hides, which `CollapseTests` pins.
+- Images (`Images/`, extensions in `DiffEngine/Viewer/ImageExtensions.cs`, linked into the viewer so
+  the tool registration and the renderer cannot disagree) are a side, not a mode. `FileSide.Read`
+  decides text or picture **by extension**, because the expected side of a new snapshot has no bytes
+  to sniff, and `ImageRows` produces the same aligned `Row` lists `DiffRows` does — one per property,
+  coloured against the other side. So every head compares images today with no ABI change. Whether
+  the two are the same file belongs to the pair rather than to a side, so it is the status line.
+  `Pane.Image` is an **enrichment**: all three heads paint the picture under those rows, each with
+  its toolkit's own decoder (GDI+, ImageIO, raylib), so *which formats draw* is per platform while
+  *what the comparison says* is not. Nothing about a comparison may become expressible only through
+  the picture, or the text snapshots stop describing what a head without that decoder shows. All
+  three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
+  line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
+  (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
 - Queue tooltips are composed once in `QueueProjection`, not per head, and are **null when they
   would only repeat the row**. Labels are already the shortest distinguishing form, so the tip is
   what the label left off — path, test, frameworks, failure text. `QueueTooltipTests` snapshots the
@@ -149,7 +162,11 @@ keeps offering a snapshot that is already in the source.
   any of that, because the binaries are committed.
 - `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: eight exports
   taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
-  `DEVIEW_VERSION` whenever the structs change **or a field changes meaning**.
+  `DEVIEW_VERSION` whenever the structs change **or a field changes meaning**. The managed side
+  refuses a library whose version is not an exact match, so a bump and a binaries rebuild land
+  together: change `native/`, run `build-native`, merge the PR it opens. Between the two, the
+  `native` CI job — the one that loads the committed binaries — reports the mismatch, which is the
+  check working.
 - Built binaries are **committed** to `src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native/`, so a plain
   `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
   with the `build-native` GitHub workflow, which opens a PR.

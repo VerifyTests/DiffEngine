@@ -60,6 +60,26 @@ typedef struct DeviewPane {
     int32_t rowCount;
     int32_t scrollTop;
     int32_t totalRows;
+
+    /*
+     * The picture this side is, to be drawn under its rows: a path on this machine, carried in the
+     * same string blob as everything else.
+     *
+     * The rows remain the description of an image comparison — format, dimensions and byte count,
+     * coloured against the other side — and every head draws those. This is an addition on top for
+     * a head that has a decoder, so a format the platform cannot decode draws nothing and still
+     * reads correctly. Nothing about a comparison may become expressible only through this.
+     *
+     * imagePathLength is 0 for a text side, and for an image side whose bytes could not be read or
+     * recognized. The managed side has already made that judgement, so a renderer never repeats it.
+     *
+     * The size is the one the file's own header gave, not whatever a decoder reports, so all three
+     * heads fit a picture into a pane from identical numbers.
+     */
+    int32_t imagePathOffset;
+    int32_t imagePathLength;
+    int32_t imageWidth;
+    int32_t imageHeight;
 } DeviewPane;
 
 typedef struct DeviewButton {
@@ -191,8 +211,11 @@ typedef struct DeviewInput {
  *    and a context menu dismissed without a choice. Between them these are what a head needs to
  *    draw the queue tip, the pane scrollbar and the menu with the platform's own controls rather
  *    than its own rectangles.
+ * 6: DeviewPane carries the picture the side is, so an image comparison is drawn rather than only
+ *    described. A widened array element, so an older library reads every pane after the first at
+ *    the wrong offset — this is the bump that matters most to honour.
  */
-#define DEVIEW_VERSION 5
+#define DEVIEW_VERSION 6
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

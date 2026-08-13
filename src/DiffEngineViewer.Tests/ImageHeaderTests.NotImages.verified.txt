@@ -1,0 +1,5 @@
+﻿{
+  Empty: not an image,
+  Text: not an image,
+  AlmostPng: not an image
+}

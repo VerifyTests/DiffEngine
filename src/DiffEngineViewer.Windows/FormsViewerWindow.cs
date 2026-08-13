@@ -123,7 +123,7 @@ sealed class FormsViewerWindow : IViewerWindow
 
             using var bitmap = new Bitmap(width, height);
             form.Surface.DrawToBitmap(bitmap, new(0, 0, width, height));
-            bitmap.Save(pngPath, ImageFormat.Png);
+            bitmap.Save(pngPath, DrawingImageFormat.Png);
         }
         finally
         {

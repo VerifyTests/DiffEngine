@@ -20,12 +20,14 @@ static class ScreenBuilder
             current?.LeftHeader ?? "received",
             current?.LeftRows ?? [],
             state.ScrollTop,
-            body);
+            body,
+            current?.LeftImage);
         var right = BuildPane(
             current?.RightHeader ?? "expected",
             current?.RightRows ?? [],
             state.ScrollTop,
-            body);
+            body,
+            current?.RightImage);
 
         var queue = BuildQueue(state, body, out var top);
         return new(
@@ -64,7 +66,12 @@ static class ScreenBuilder
         return new(anchor, menu.Items.Select(_ => _.Label).ToList());
     }
 
-    static Pane BuildPane(string header, IReadOnlyList<Row> rows, int scrollTop, int body)
+    static Pane BuildPane(
+        string header,
+        IReadOnlyList<Row> rows,
+        int scrollTop,
+        int body,
+        ImageFile? image)
     {
         var end = Math.Min(scrollTop + body, rows.Count);
         var visible = new List<Row>(Math.Max(0, end - scrollTop));
@@ -73,7 +80,22 @@ static class ScreenBuilder
             visible.Add(rows[index]);
         }
 
-        return new(header, visible, scrollTop, rows.Count);
+        return new(header, visible, scrollTop, rows.Count, BuildImage(image));
+    }
+
+    /// <summary>
+    /// Offered to a head only once the bytes have been read and recognized. A file that could not
+    /// be read, or is not a format the viewer knows, has already said so in its rows, and asking a
+    /// head to try anyway would put the answer to that in each renderer rather than here.
+    /// </summary>
+    static ImagePane? BuildImage(ImageFile? image)
+    {
+        if (image is not { Header: { HasSize: true } header } file)
+        {
+            return null;
+        }
+
+        return new(file.Path, header.Width, header.Height);
     }
 
     static IReadOnlyList<QueueItem> BuildQueue(SessionState state, int body, out int top)
@@ -162,9 +184,39 @@ static class ScreenBuilder
             return current.Warning;
         }
 
+        // A line count says nothing about a picture, and whether the two are the same file is the
+        // one thing the rows cannot say: it belongs to the pair rather than to either side.
+        if (current.IsImage)
+        {
+            return ImageStatus(current);
+        }
+
         var total = current.TotalRows;
         var from = total == 0 ? 0 : state.ScrollTop + 1;
         var to = Math.Min(state.ScrollTop + body, total);
         return $"lines {from}-{to} of {total}";
+    }
+
+    static string ImageStatus(QueueEntry entry)
+    {
+        if (entry.LeftImage is not { } left)
+        {
+            return $"only {entry.RightHeader} exists";
+        }
+
+        if (entry.RightImage is not { } right)
+        {
+            return $"only {entry.LeftHeader} exists";
+        }
+
+        // A hash is missing when the bytes never arrived, which is not the same answer as "these
+        // are not the same picture" and must not be reported as one.
+        if (left.Hash is null ||
+            right.Hash is null)
+        {
+            return "images could not be compared";
+        }
+
+        return left.Hash == right.Hash ? "images are identical" : "images differ";
     }
 }

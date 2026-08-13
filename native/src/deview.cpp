@@ -18,8 +18,12 @@
 #include "rlgl.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <map>
 #include <string>
+#include <system_error>
 #include <vector>
 
 /*
@@ -75,6 +79,30 @@ constexpr float grabWidth = 4.0f;
  */
 constexpr float emScale = 1.32f;
 
+/*
+ * The side of a checker square behind a picture, so an image with transparency reads as transparent
+ * rather than as whatever colour the pane happens to be. Matches the WinForms head.
+ */
+constexpr float checkerSize = 8.0f;
+
+/*
+ * One decoded picture, kept because BuildFrame runs sixty times a second and decoding an image per
+ * frame is what turns a window that is merely showing something into one that is busy.
+ *
+ * A false `loaded` is a remembered failure. raylib is built here with decoders for PNG, JPEG, BMP
+ * and GIF and has none for WebP or ICO, so a pane can legitimately carry a path this build cannot
+ * read; remembering that means attempting it once rather than once a frame. Nothing is lost when it
+ * happens — the rows already say what the file is, and they are the description an image comparison
+ * is made of.
+ */
+struct CachedTexture
+{
+    Texture2D texture{};
+    bool loaded = false;
+    std::uintmax_t length = 0;
+    std::filesystem::file_time_type written{};
+};
+
 struct State
 {
     bool initialised = false;
@@ -96,6 +124,10 @@ struct State
 
     /* What was last handed to raylib, so an idle frame is not a window system call. */
     int cursor = MOUSE_CURSOR_DEFAULT;
+
+    /* Keyed by the path the screen model handed over. std::map rather than unordered, because the
+     * entries are handed out as pointers and this one does not move them. */
+    std::map<std::string, CachedTexture> pictures;
 };
 
 State state;
@@ -211,6 +243,96 @@ char RowMarker(int kind)
         default:
             return ' ';
     }
+}
+
+/* ---- pictures ---- */
+
+void ForgetPicture(const std::string& path)
+{
+    const auto found = state.pictures.find(path);
+    if (found == state.pictures.end())
+    {
+        return;
+    }
+
+    if (found->second.loaded)
+    {
+        UnloadTexture(found->second.texture);
+    }
+
+    state.pictures.erase(found);
+}
+
+/*
+ * The decoded picture for a path, or null when this build cannot read it.
+ *
+ * Invalidated by the file's write time and length, which is the same freshness test the managed
+ * queue poller uses: a re-run that rewrites a received image has to refresh the pane rather than
+ * leave the previous one up.
+ */
+const Texture2D* Picture(const std::string& path)
+{
+    if (path.empty())
+    {
+        return nullptr;
+    }
+
+    const std::filesystem::path file(path);
+    std::error_code error;
+    const auto written = std::filesystem::last_write_time(file, error);
+    if (error)
+    {
+        ForgetPicture(path);
+        return nullptr;
+    }
+
+    const auto length = std::filesystem::file_size(file, error);
+    if (error)
+    {
+        ForgetPicture(path);
+        return nullptr;
+    }
+
+    const auto found = state.pictures.find(path);
+    if (found != state.pictures.end())
+    {
+        if (found->second.written == written &&
+            found->second.length == length)
+        {
+            return found->second.loaded ? &found->second.texture : nullptr;
+        }
+
+        ForgetPicture(path);
+    }
+
+    CachedTexture entry;
+    entry.written = written;
+    entry.length = length;
+    const Texture2D texture = LoadTexture(path.c_str());
+    if (IsTextureValid(texture))
+    {
+        entry.texture = texture;
+        entry.loaded = true;
+        /* A picture is only ever scaled down here, so bilinear is the whole of what the filter has
+         * to do. */
+        SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+    }
+
+    const auto inserted = state.pictures.emplace(path, entry).first;
+    return inserted->second.loaded ? &inserted->second.texture : nullptr;
+}
+
+void UnloadPictures()
+{
+    for (auto& entry : state.pictures)
+    {
+        if (entry.second.loaded)
+        {
+            UnloadTexture(entry.second.texture);
+        }
+    }
+
+    state.pictures.clear();
 }
 
 /* ---- texture protocol (ImGuiBackendFlags_RendererHasTextures) ---- */
@@ -438,6 +560,132 @@ void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int 
     ImGui::PopStyleColor();
 }
 
+/*
+ * Where a pane's picture goes, gathered from the table that drew the rows rather than recomputed.
+ * The table owns the pane split, so asking it is the only way to place something under a column
+ * that agrees with the column.
+ */
+struct PaneImage
+{
+    float left = 0.0f;
+    float width = 0.0f;
+
+    /*
+     * The top of row zero and the pitch between rows. Together they put a picture one blank line
+     * under the pane's own rows, which is the rule all three heads follow — and they are readable
+     * from the first two rows rather than from a row past the pane's, which the table does not
+     * always have.
+     */
+    float first = -1.0f;
+    float pitch = 0.0f;
+};
+
+/* Called from inside the cell, which is the only place these are knowable. */
+void RecordPaneImage(PaneImage& bounds, const DeviewPane& pane, int index)
+{
+    if (pane.imagePathLength <= 0 ||
+        index > 1)
+    {
+        return;
+    }
+
+    const ImVec2 cursor = ImGui::GetCursorScreenPos();
+    if (index == 0)
+    {
+        bounds.left = cursor.x;
+        bounds.width = ImGui::GetContentRegionAvail().x;
+        bounds.first = cursor.y;
+        return;
+    }
+
+    bounds.pitch = cursor.y - bounds.first;
+}
+
+void DrawChecker(ImDrawList* list, const ImVec2& min, const ImVec2& max)
+{
+    list->AddRectFilled(min, max, IM_COL32(64, 64, 64, 255));
+    const ImU32 dark = IM_COL32(48, 48, 48, 255);
+    int row = 0;
+    for (float y = min.y; y < max.y; y += checkerSize, row++)
+    {
+        int column = 0;
+        for (float x = min.x; x < max.x; x += checkerSize, column++)
+        {
+            if ((row & 1) == (column & 1))
+            {
+                continue;
+            }
+
+            list->AddRectFilled(
+                ImVec2(x, y),
+                ImVec2(std::min(x + checkerSize, max.x), std::min(y + checkerSize, max.y)),
+                dark);
+        }
+    }
+}
+
+/*
+ * The picture under a pane's rows. Absolutely positioned over the table rather than submitted as a
+ * table row, because the rows a pane has and the rows the table has are different numbers: the
+ * queue column is usually the tallest, and the space this fills is the pane's share of what the
+ * queue is using.
+ */
+void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const PaneImage& bounds, float bottom)
+{
+    if (pane.imagePathLength <= 0 ||
+        pane.imageWidth <= 0 ||
+        pane.imageHeight <= 0 ||
+        bounds.width <= 0.0f ||
+        bounds.first < 0.0f ||
+        bounds.pitch <= 0.0f)
+    {
+        return;
+    }
+
+    const float top = bounds.first + static_cast<float>(pane.rowCount + 1) * bounds.pitch;
+    const float available = bottom - top;
+    if (available <= 0.0f)
+    {
+        return;
+    }
+
+    const Texture2D* texture = Picture(Copy(screen, pane.imagePathOffset, pane.imagePathLength));
+    if (texture == nullptr)
+    {
+        return;
+    }
+
+    /*
+     * Fitted, and never enlarged past its own size: a snapshot is judged against the pixels it has,
+     * and an eight pixel icon stretched across a pane is an interpolation of them rather than a
+     * look at them.
+     *
+     * Scaled from the size the model carries rather than from the decoded texture, so all three
+     * heads place a picture identically even where their decoders would not agree.
+     */
+    const float scale = std::min(
+        std::min(
+            bounds.width / static_cast<float>(pane.imageWidth),
+            available / static_cast<float>(pane.imageHeight)),
+        1.0f);
+    const ImVec2 size(
+        std::max(1.0f, static_cast<float>(pane.imageWidth) * scale),
+        std::max(1.0f, static_cast<float>(pane.imageHeight) * scale));
+    const ImVec2 min(
+        bounds.left + (bounds.width - size.x) * 0.5f,
+        top + (available - size.y) * 0.5f);
+    const ImVec2 max(min.x + size.x, min.y + size.y);
+
+    ImDrawList* list = ImGui::GetWindowDrawList();
+    DrawChecker(list, min, max);
+    list->AddImage(static_cast<ImTextureID>(texture->id), min, max);
+    /* An outline, so a picture whose edges are the colour of the pane still has visible extent. */
+    list->AddRect(
+        ImVec2(min.x - 1.0f, min.y - 1.0f),
+        ImVec2(max.x + 1.0f, max.y + 1.0f),
+        IM_COL32(70, 70, 70, 255));
+}
+
 void BuildFrame(const DeviewScreen* screen)
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -495,6 +743,11 @@ void BuildFrame(const DeviewScreen* screen)
     /* Where the border between the queue and the panes ended up, read back from the table rather
      * than recomputed, and -1 until a row has been laid out. */
     float dividerX = -1.0f;
+
+    /* Gathered from the table, and used after it closes. Both stay empty on the overwhelmingly
+     * common frame, where neither side is a picture. */
+    PaneImage leftImage;
+    PaneImage rightImage;
     if (screen->paneCount >= 2 &&
         ImGui::BeginTable("##panes", columns, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame))
     {
@@ -596,12 +849,21 @@ void BuildFrame(const DeviewScreen* screen)
                 dividerX = ImGui::GetCursorScreenPos().x - ImGui::GetStyle().CellPadding.x;
             }
 
+            RecordPaneImage(leftImage, left, index);
             DrawRow(screen, left, index, column);
             ImGui::TableSetColumnIndex(column + 1);
+            RecordPaneImage(rightImage, right, index);
             DrawRow(screen, right, index, column + 1);
         }
 
         ImGui::EndTable();
+    }
+
+    if (screen->paneCount >= 2)
+    {
+        const float bottom = bodyMin.y + bodyAvail.y;
+        DrawPaneImage(screen, screen->panes[0], leftImage, bottom);
+        DrawPaneImage(screen, screen->panes[1], rightImage, bottom);
     }
 
     /*
@@ -974,6 +1236,9 @@ void deview_shutdown(void)
     {
         return;
     }
+
+    /* Before CloseWindow, which takes the GL context these live in with it. */
+    UnloadPictures();
 
     if (state.context != nullptr)
     {

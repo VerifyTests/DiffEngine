@@ -172,8 +172,8 @@ sealed class OwnerLink(SessionHost host, int port)
             if (existing.TryGetValue(move.Key, out var entry) &&
                 entry.LeftFile == move.Temp &&
                 entry.TargetFile == move.Target &&
-                entry.LeftStamp == FileText.StampOf(move.Temp) &&
-                entry.RightStamp == FileText.StampOf(move.Target))
+                entry.LeftStamp == FileSide.StampOf(move.Temp) &&
+                entry.RightStamp == FileSide.StampOf(move.Target))
             {
                 changes.Add(entry);
                 continue;
@@ -185,15 +185,15 @@ sealed class OwnerLink(SessionHost host, int port)
                 move.Group,
                 move.Temp,
                 move.Target,
-                FileText.Read(move.Temp),
-                FileText.Read(move.Target)));
+                FileSide.Read(move.Temp),
+                FileSide.Read(move.Target)));
         }
 
         foreach (var delete in response.Deletes)
         {
             if (existing.TryGetValue(delete.Key, out var entry) &&
                 entry.LeftFile == delete.File &&
-                entry.LeftStamp == FileText.StampOf(delete.File))
+                entry.LeftStamp == FileSide.StampOf(delete.File))
             {
                 changes.Add(entry);
                 continue;
@@ -204,7 +204,7 @@ sealed class OwnerLink(SessionHost host, int port)
                 delete.Name,
                 delete.Group,
                 delete.File,
-                FileText.Read(delete.File)));
+                FileSide.Read(delete.File)));
         }
 
         return changes;

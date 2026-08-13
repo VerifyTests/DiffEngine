@@ -23,6 +23,11 @@
     <Compile Include="..\DiffEngine\Inline\*.cs" LinkBase="Inline" />
     <Compile Include="..\DiffEngine\Protocol\*.cs" LinkBase="Protocol" />
     <Compile Include="..\DiffEngine\Tray\TrayDetector.cs" LinkBase="Tray" />
+    <!--
+    Which extensions are pictures has to be the same answer on both sides: DiffEngine registers the
+    viewer as the diff tool for them, and the viewer decides how to render them.
+    -->
+    <Compile Include="..\DiffEngine\Viewer\ImageExtensions.cs" LinkBase="Images" />
     <Using Include="DiffEngine" />
     <!-- What the linked Protocol files expect, declared the same way DiffEngine declares them. -->
     <Using Include="System.Net" />

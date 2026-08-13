@@ -40,6 +40,12 @@ enum Palette {
     static let buttonFace = grey(52)
     static let buttonDisabled = grey(34)
 
+    /// The two squares behind a picture. Dark enough not to compete with the image, and different
+    /// enough from each other that a transparent region is obviously transparent rather than just
+    /// flat.
+    static let checkerLight = grey(64)
+    static let checkerDark = grey(48)
+
     static func foreground(_ kind: Int32) -> CGColor {
         switch kind {
         case DEVIEW_ROW_ADDED.value:

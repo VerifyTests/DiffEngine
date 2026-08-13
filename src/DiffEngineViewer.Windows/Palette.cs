@@ -17,6 +17,15 @@ static class Palette
     public static readonly Color Rule = Color.FromArgb(70, 70, 70);
 
     /// <summary>
+    /// The two squares behind a picture. Dark enough not to compete with the image, and different
+    /// enough from each other that a transparent region is obviously transparent rather than
+    /// just flat.
+    /// </summary>
+    public static readonly Color CheckerLight = Color.FromArgb(64, 64, 64);
+
+    public static readonly Color CheckerDark = Color.FromArgb(48, 48, 48);
+
+    /// <summary>
     /// ImGui draws a selected Selectable as its accent at 31% over the window background. This is
     /// that composite, so the queue highlight matches without carrying an alpha channel around.
     /// </summary>
