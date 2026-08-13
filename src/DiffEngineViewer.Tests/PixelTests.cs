@@ -106,6 +106,21 @@ public class PixelTests
         Capture(Fixtures.GroupedConflicted());
 
     /// <summary>
+    /// An image comparison: the pictures drawn under the rows every head draws. Mirrored in
+    /// WindowsPixelTests over the same fixture, which is what holds the three heads to one
+    /// placement rule — one blank line under the pane's own rows, fitted, never enlarged.
+    /// <para>
+    /// PNG, which every head decodes. Where they differ is which other formats they can read at
+    /// all, and that difference is not visible in a picture: a format a head has no decoder for
+    /// draws nothing and the rows carry the comparison, which the ASCII screens already describe.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    public Task Images() =>
+        Capture(Fixtures.Images());
+
+    /// <summary>
     /// The context menu floated over the grouped queue, opened on the conflicted entry.
     /// <para>
     /// Linux only. That head draws the menu itself, so a capture has it; the macOS head pops a

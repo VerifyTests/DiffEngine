@@ -170,6 +170,9 @@ sealed class ScreenPayload
                 });
         }
 
+        // Empty rather than absent when the side is text or its picture was unreadable: the shim
+        // reads a length, and a zero one is what tells it there is nothing to draw.
+        var (imagePath, imagePathLength) = Add(pane.Image?.Path ?? "");
         return new()
         {
             HeaderOffset = headerOffset,
@@ -177,7 +180,11 @@ sealed class ScreenPayload
             RowOffset = rowOffset,
             RowCount = pane.Rows.Count,
             ScrollTop = pane.ScrollTop,
-            TotalRows = pane.TotalRows
+            TotalRows = pane.TotalRows,
+            ImagePathOffset = imagePath,
+            ImagePathLength = imagePathLength,
+            ImageWidth = pane.Image?.Width ?? 0,
+            ImageHeight = pane.Image?.Height ?? 0
         };
     }
 

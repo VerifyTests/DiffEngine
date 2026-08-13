@@ -61,6 +61,8 @@
     ones a using brings in, so unqualified Button is the model's and the control needs a name.
     -->
     <Using Include="System.Windows.Forms.Button" Alias="FormsButton" />
+    <!-- And an ImageFormat, so the GDI+ one needs a name for the same reason. -->
+    <Using Include="System.Drawing.Imaging.ImageFormat" Alias="DrawingImageFormat" />
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Include="..\DiffEngineViewer\Assets\JetBrainsMono-OFL.txt" Pack="true" PackagePath="\" />

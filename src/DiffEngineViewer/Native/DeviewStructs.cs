@@ -30,6 +30,17 @@ struct DeviewPane
     public int RowCount;
     public int ScrollTop;
     public int TotalRows;
+
+    /// <summary>
+    /// <see cref="ImagePane"/>, flattened. Zero length for a text side and for an image side whose
+    /// bytes could not be read or recognized, so a shim never decides whether a path is worth
+    /// trying.
+    /// </summary>
+    public int ImagePathOffset;
+
+    public int ImagePathLength;
+    public int ImageWidth;
+    public int ImageHeight;
 }
 
 [StructLayout(LayoutKind.Sequential)]

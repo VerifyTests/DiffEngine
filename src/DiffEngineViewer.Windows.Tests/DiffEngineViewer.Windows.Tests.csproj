@@ -25,5 +25,6 @@
     so the WinForms baselines describe the same screens the text ones do.
     -->
     <Compile Include="..\DiffEngineViewer.Tests\Fixtures.cs" Link="Fixtures.cs" />
+    <Compile Include="..\DiffEngineViewer.Tests\SamplePng.cs" Link="SamplePng.cs" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 # DiffEngineViewer
 
-DiffEngineViewer is a cross platform diff tool for text files and inline snapshots. It is the
-reviewer for [inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md):
+DiffEngineViewer is a cross platform diff tool for text files, images and inline snapshots. It is
+the reviewer for [inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md):
 it shows the received text against the expected text, and accepting rewrites the literal in the
 source file.
 
@@ -166,6 +166,43 @@ snapshots, with conflicted snapshots skipped and anything locked kept pending an
 
 A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends
 them to a running tray.
+
+
+## Images
+
+`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp` and `.ico` are compared as pictures rather than as
+text, wherever they turn up: a pair passed on the command line, or a move or delete the tray is
+holding.
+
+Each pane lists what its own side is — format, pixel dimensions and byte count — with a property
+that matches the other side reading as unchanged and one that does not reading as modified, the same
+colouring a line of text gets. Whether the two are the same picture belongs to the pair rather than
+to either side, so it is stated in the status line: **images are identical**, **images differ**, or
+**only \<file\> exists** when one side has nothing yet, which is the normal state of a brand new
+image snapshot.
+
+The extension decides, not the content. A `.png` holding something that is not one is still an
+image side, and says its format was not recognized instead of rendering the bytes as text.
+
+Each pane also draws the picture itself, one blank line under those rows: fitted to the space,
+never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three
+heads place it identically, from the size the file's own header gave rather than from whatever
+their decoder reported.
+
+Which formats can be drawn is the platform's answer rather than the viewer's, because each head
+uses the decoder its toolkit ships with:
+
+| Head | Drawn |
+| --- | --- |
+| Windows (GDI+) | `.png` `.jpg` `.jpeg` `.gif` `.bmp` `.ico` |
+| macOS (ImageIO) | all seven |
+| Linux (raylib) | `.png` `.jpg` `.jpeg` `.gif` `.bmp` |
+
+A format a head cannot decode draws nothing, and the comparison is still there in the rows above
+it. That is why those rows are the description and the picture is an addition to it.
+
+Accepting is the same act it is for text — copy the received file over the expected one, or forward
+the move to the tray — so nothing about reviewing an image changes what accepting one does.
 
 
 ## With DiffEngineTray

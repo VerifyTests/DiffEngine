@@ -272,6 +272,7 @@ DiffTools.UseOrder(DiffTool.DeltaWalker);
   * Use shell execute: False
   * Create no window: True
   * Environment variable for custom install location: `DiffEngine_DiffEngineViewer`
+  * Supported binaries: .bmp, .gif, .ico, .jpeg, .jpg, .png, .webp
 
 #### Tool order:
 
@@ -287,6 +288,8 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
  * Also available standalone as `DiffEngineViewer.Windows`, `.Mac` or `.Linux`
  * Renders natively per platform: WinForms on Windows, AppKit and Core Text on
    macOS, Dear ImGui through raylib on Linux
+ * Compares images by format, dimensions and content, and draws them, with
+   whichever formats each platform's own decoder reads
 
 #### Windows settings:
 

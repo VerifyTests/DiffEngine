@@ -1,0 +1,14 @@
+﻿{
+  TruncatedJpeg: {
+    Format: Jpeg,
+    HasSize: false
+  },
+  UnknownWebpChunk: {
+    Format: Webp,
+    HasSize: false
+  },
+  BmpMissingItsSize: {
+    Format: Bmp,
+    HasSize: false
+  }
+}

@@ -1,0 +1,49 @@
+﻿{
+  Png: {
+    Width: 800,
+    Height: 600,
+    HasSize: true
+  },
+  Jpeg: {
+    Format: Jpeg,
+    Width: 1920,
+    Height: 1080,
+    HasSize: true
+  },
+  Gif: {
+    Format: Gif,
+    Width: 320,
+    Height: 240,
+    HasSize: true
+  },
+  Bmp: {
+    Format: Bmp,
+    Width: 64,
+    Height: 48,
+    HasSize: true
+  },
+  WebpLossy: {
+    Format: Webp,
+    Width: 500,
+    Height: 400,
+    HasSize: true
+  },
+  WebpLossless: {
+    Format: Webp,
+    Width: 500,
+    Height: 400,
+    HasSize: true
+  },
+  Ico: {
+    Format: Ico,
+    Width: 32,
+    Height: 32,
+    HasSize: true
+  },
+  LargeIco: {
+    Format: Ico,
+    Width: 256,
+    Height: 256,
+    HasSize: true
+  }
+}

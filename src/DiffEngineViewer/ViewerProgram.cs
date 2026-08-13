@@ -114,15 +114,12 @@ static class ViewerProgram
             return 2;
         }
 
-        var entry = QueueEntry.ForFiles(left, right, Read(left), Read(right));
+        // A missing target is normal: DiffEngine creates an empty one for tools that need it, and a
+        // brand new snapshot has nothing on the right yet.
+        var entry = QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right));
         var start = ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry);
         return Run(new(start), null, null, open);
     }
-
-    // A missing target is normal: DiffEngine creates an empty one for tools that need it, and a
-    // brand new snapshot has nothing on the right yet.
-    static string Read(string path) =>
-        File.Exists(path) ? File.ReadAllText(path) : "";
 
     /// <summary>
     /// A non null <paramref name="link"/> means this window is displaying someone else's queue, so

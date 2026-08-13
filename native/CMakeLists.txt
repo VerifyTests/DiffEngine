@@ -32,7 +32,13 @@ set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RMODELS OFF CACHE BOOL "" FORCE)
+# The formats the viewer compares as pictures and raylib can decode. WebP and ICO are also
+# compared, and raylib has no decoder for either, so on this platform they draw as their property
+# rows alone — which is what those rows are for.
 set(SUPPORT_FILEFORMAT_PNG ON CACHE BOOL "" FORCE)
+set(SUPPORT_FILEFORMAT_JPG ON CACHE BOOL "" FORCE)
+set(SUPPORT_FILEFORMAT_BMP ON CACHE BOOL "" FORCE)
+set(SUPPORT_FILEFORMAT_GIF ON CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
   raylib

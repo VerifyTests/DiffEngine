@@ -53,7 +53,11 @@ static class Fixtures
     public static SessionState File(string left = Received, string right = Expected) =>
         ViewerSession.EnqueueFile(
             SessionState.Start(ViewerMode.File, Columns, Rows),
-            QueueEntry.ForFiles("Sample.received.txt", "Sample.verified.txt", left, right));
+            QueueEntry.ForFiles(
+            "Sample.received.txt",
+            "Sample.verified.txt",
+            FileSide.OfText(left),
+            FileSide.OfText(right)));
 
     public static SessionState Inline(params InlinePatch[] patches)
     {
@@ -125,8 +129,8 @@ static class Fixtures
             solution,
             "temp/sample.received.txt",
             "code/sample.verified.txt",
-            new(left, null, null),
-            new(right, null, null));
+            FileSide.OfText(left),
+            FileSide.OfText(right));
 
     public static QueueEntry Delete(
         string name = "extra.verified.txt",
@@ -137,7 +141,7 @@ static class Fixtures
             name,
             solution,
             $"code/{name}",
-            new(content, null, null));
+            FileSide.OfText(content));
 
     /// <summary>
     /// A state displaying someone else's queue, without a socket: what an attached viewer holds
@@ -182,6 +186,35 @@ static class Fixtures
 
     public static string Render(SessionState state) =>
         AsciiRenderer.Render(ScreenBuilder.Build(state));
+
+    /// <summary>
+    /// Two real images on disk, which is what an image pane needs: a head draws from the path the
+    /// model carries, so this is the one scene that cannot be built from numbers alone.
+    /// <para>
+    /// Different sizes, so the fit is visible, and both fade to transparent on the right, so the
+    /// checkerboard behind them is too. Built byte by byte rather than encoded, so the byte counts
+    /// these panes print are the same numbers on every platform that captures them.
+    /// </para>
+    /// </summary>
+    public static SessionState Images()
+    {
+        var left = WriteImage("sample.received.png", SamplePng.Build(120, 90, 198, 64, 64));
+        var right = WriteImage("sample.verified.png", SamplePng.Build(80, 60, 64, 150, 198));
+        return ViewerSession.EnqueueFile(
+            SessionState.Start(ViewerMode.File, Columns, Rows),
+            QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right)));
+    }
+
+    static string WriteImage(string name, byte[] content)
+    {
+        // A fixed directory and a fixed name: only the file name reaches a pane header, and a
+        // per-run temp path would put a different one there on every capture.
+        var directory = Path.Combine(Path.GetTempPath(), "deview-fixture-images");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, name);
+        System.IO.File.WriteAllBytes(path, content);
+        return path;
+    }
 
     /// <summary>
     /// The one grouped-and-conflicted scene the pixel suites mirror: two solutions, a test
