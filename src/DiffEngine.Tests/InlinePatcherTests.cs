@@ -375,6 +375,65 @@ public class InlinePatcherTests
         await Assert.That(reason).Contains("Could not find a Verify call");
     }
 
+    // A project helper named Verify is not the entry point, and a stale hint must not drift onto one
+    [Test]
+    public async Task AppendSkipsAVerifyOnAnotherReceiver()
+    {
+        var source = Method("        Assert.Empty(ContentValidation.Verify(value));");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Verify call");
+    }
+
+    [Test]
+    public async Task AppendSkipsAVerifyOnAnInstance()
+    {
+        var source = Method("        mock.VerifyAll();");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Verify call");
+    }
+
+    // The entry point wrapping a helper of the same name: the outer call is the one to append to
+    [Test]
+    public async Task AppendPrefersTheEntryPointOverANestedHelper()
+    {
+        var source = Method("        await Verify(ContentValidation.Verify(value));");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(ContentValidation.Verify(value))\n" +
+            "            .Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task AppendToAVerifierQualifiedCall()
+    {
+        var source = Method("        await Verifier.Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Verifier.Verify(value)\n            .Snapshot(\"\"\"");
+    }
+
+    [Test]
+    public async Task AppendToAThisQualifiedCall()
+    {
+        var source = Method("        await this.Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await this.Verify(value)\n            .Snapshot(\"\"\"");
+    }
+
     [Test]
     public async Task RemoveTakesTheWholeLine()
     {

@@ -28,6 +28,12 @@ static class InlinePatcher
     /// </summary>
     const string verifyPrefix = "Verify";
 
+    /// <summary>
+    /// The only receiver a verify entry point is reached through. Every adapter exposes the entry
+    /// points unqualified (a static using, or inherited from VerifyBase) or on this one class.
+    /// </summary>
+    const string verifierType = "Verifier";
+
     public static PatchStatus TryApply(
         string source,
         int lineHint,
@@ -494,6 +500,7 @@ static class InlinePatcher
                     if (scan.IsCode(index) &&
                         StartsToken(source, index) &&
                         !scan.IsDeclaration(index) &&
+                        !(byPrefix && IsForeignReceiver(source, scan, index)) &&
                         TrySkipToParen(source, scan, identifierEnd, out var paren))
                     {
                         yield return (index, paren);
@@ -508,6 +515,53 @@ static class InlinePatcher
     static bool StartsToken(string source, int index) =>
         index == 0 ||
         !CsScan.IsIdentifierChar(source[index - 1]);
+
+    /// <summary>
+    /// True when the name is reached through a member access on anything other than the verify
+    /// entry point class. Only used for the prefix search, where the name is a guess at a verify
+    /// entry point rather than something already known to be one.
+    /// <para>
+    /// Verify is an ordinary enough name that a project has its own: ContentValidation.Verify,
+    /// validator.Verify, mock.VerifyAll. Those read exactly like an entry point to a token scan,
+    /// and appending a Snapshot call to one splices the snapshot into a call that never produced
+    /// it, in a test that may not even be the one the patch came from.
+    /// </para>
+    /// </summary>
+    static bool IsForeignReceiver(string source, CsScan scan, int nameStart)
+    {
+        var dot = scan.PreviousSignificant(nameStart);
+        if (dot < 0 ||
+            source[dot] != '.')
+        {
+            // Unqualified: a static using, or inherited from VerifyBase
+            return false;
+        }
+
+        var end = scan.PreviousSignificant(dot);
+        if (end >= 0 &&
+            source[end] == '?')
+        {
+            end = scan.PreviousSignificant(end);
+        }
+
+        if (end < 0 ||
+            !CsScan.IsIdentifierChar(source[end]))
+        {
+            // Not a plain receiver, so a literal, an indexer or a call result
+            return true;
+        }
+
+        var start = end;
+        while (start > 0 &&
+               CsScan.IsIdentifierChar(source[start - 1]))
+        {
+            start--;
+        }
+
+        var receiver = source.Substring(start, end - start + 1);
+        return receiver != verifierType &&
+               receiver != "this";
+    }
 
     static bool TrySkipToParen(string source, CsScan scan, int index, out int paren)
     {

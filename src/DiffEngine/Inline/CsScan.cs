@@ -188,7 +188,7 @@ sealed class CsScan
     /// The offset of the last character before <paramref name="index"/> that is neither
     /// whitespace nor inside a comment, or -1 when there is none.
     /// </summary>
-    int PreviousSignificant(int index)
+    public int PreviousSignificant(int index)
     {
         index--;
         while (index >= 0 &&
