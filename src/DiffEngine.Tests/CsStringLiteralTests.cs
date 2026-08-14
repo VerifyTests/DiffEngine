@@ -1,4 +1,4 @@
-﻿public class CsStringLiteralTests
+public class CsStringLiteralTests
 {
     static readonly string[] renderRoundTripCases =
     [
@@ -97,6 +97,54 @@
                 foreach (var indent in new[] { "", "    ", "\t\t" })
                 {
                     var rendered = CsStringLiteral.RenderRaw(content, indent, eol);
+                    var parsed = CsStringLiteral.TryParse(rendered, out var value);
+                    await Assert.That(parsed).IsTrue();
+                    await Assert.That(value).IsEqualTo(content);
+                }
+            }
+        }
+    }
+
+    // A single line snapshot says nothing a raw string can say, and costs three lines to say it
+    [Test]
+    [Arguments("abc", "\"abc\"")]
+    [Arguments("", "\"\"")]
+    [Arguments(" ", "\" \"")]
+    [Arguments("has \"quotes\"", "\"has \\\"quotes\\\"\"")]
+    [Arguments("back\\slash", "\"back\\\\slash\"")]
+    [Arguments("tab\there", "\"tab\\there\"")]
+    [Arguments("bell\a", "\"bell\\a\"")]
+    [Arguments("esc\u001b", "\"esc\\u001b\"")]
+    [Arguments("emoji 🎈 and unicode ☂", "\"emoji 🎈 and unicode ☂\"")]
+    [Arguments("$ {value} {{x}}", "\"$ {value} {{x}}\"")]
+    public async Task RenderSingleLineIsRegular(string content, string expected)
+    {
+        var rendered = CsStringLiteral.Render(content, "    ", "\n");
+        await Assert.That(rendered).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("a\nb")]
+    [Arguments("a\rb")]
+    [Arguments("a\r\nb")]
+    [Arguments("\nabc")]
+    [Arguments("abc\n")]
+    public async Task RenderMultiLineIsRaw(string content)
+    {
+        var rendered = CsStringLiteral.Render(content, "    ", "\n");
+        await Assert.That(rendered).IsEqualTo(CsStringLiteral.RenderRaw(content, "    ", "\n"));
+    }
+
+    [Test]
+    public async Task RenderRoundTripsWhicheverFormItPicks()
+    {
+        foreach (var content in renderRoundTripCases)
+        {
+            foreach (var eol in new[] { "\n", "\r\n" })
+            {
+                foreach (var indent in new[] { "", "    ", "\t\t" })
+                {
+                    var rendered = CsStringLiteral.Render(content, indent, eol);
                     var parsed = CsStringLiteral.TryParse(rendered, out var value);
                     await Assert.That(parsed).IsTrue();
                     await Assert.That(value).IsEqualTo(content);

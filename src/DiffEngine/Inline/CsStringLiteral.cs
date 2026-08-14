@@ -1,4 +1,4 @@
-﻿namespace DiffEngine;
+namespace DiffEngine;
 
 /// <summary>
 /// Renders snapshot text as a C# raw string literal, and parses C# string literal
@@ -6,6 +6,73 @@
 /// </summary>
 public static class CsStringLiteral
 {
+    /// <summary>
+    /// Renders <paramref name="content"/> (\n newlines) as a C# string literal expression: a
+    /// regular literal when it is a single line, since a raw string spends three lines and an
+    /// indentation rule to say the same thing, and a multi-line raw literal otherwise.
+    /// </summary>
+    /// <param name="content">Snapshot text with \n newlines.</param>
+    /// <param name="indent">Whitespace prefix for content lines and the closing delimiter.</param>
+    /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
+    public static string Render(string content, string indent, string eol) =>
+        content.IndexOf('\n') == -1 &&
+        content.IndexOf('\r') == -1
+            ? RenderRegular(content)
+            : RenderRaw(content, indent, eol);
+
+    /// <summary>
+    /// Renders single line content as a regular literal, escaping what the form cannot hold
+    /// verbatim.
+    /// </summary>
+    static string RenderRegular(string content)
+    {
+        var builder = new StringBuilder(content.Length + 2);
+        builder.Append('"');
+        foreach (var ch in content)
+        {
+            switch (ch)
+            {
+                case '\\':
+                    builder.Append("\\\\");
+                    continue;
+                case '"':
+                    builder.Append("\\\"");
+                    continue;
+                case '\0':
+                    builder.Append("\\0");
+                    continue;
+                case '\a':
+                    builder.Append("\\a");
+                    continue;
+                case '\b':
+                    builder.Append("\\b");
+                    continue;
+                case '\f':
+                    builder.Append("\\f");
+                    continue;
+                case '\t':
+                    builder.Append("\\t");
+                    continue;
+                case '\v':
+                    builder.Append("\\v");
+                    continue;
+            }
+
+            // Everything else a literal cannot carry as itself
+            if (ch < ' ' || ch == '\u007f')
+            {
+                builder.Append("\\u");
+                builder.Append(((int) ch).ToString("x4"));
+                continue;
+            }
+
+            builder.Append(ch);
+        }
+
+        builder.Append('"');
+        return builder.ToString();
+    }
+
     /// <summary>
     /// Renders <paramref name="content"/> (\n newlines) as a multi-line raw string literal.
     /// The returned text starts with the opening quotes (no leading indent on the first line)
