@@ -744,11 +744,12 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Puts the literal on its own line rather than trailing the open paren, so a raw string's
-    /// opening delimiter sits with its content and its closing one.
+    /// Puts a raw literal on its own line rather than trailing the open paren, so its opening
+    /// delimiter sits with its content and its closing one. A regular literal stays where it is,
+    /// since it has nothing to line up with.
     /// </summary>
     static string OnOwnLine(string rendered, string indent, string eol) =>
-        $"{eol}{indent}{rendered}";
+        rendered.IndexOf('\n') == -1 ? rendered : $"{eol}{indent}{rendered}";
 
     /// <summary>
     /// True when only whitespace precedes the offset on its line.
