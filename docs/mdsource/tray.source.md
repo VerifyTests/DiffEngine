@@ -46,18 +46,11 @@ Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop do
 
 ### Pending snapshots
 
-[Inline snapshots](/docs/viewer.md) are reviewed in DiffEngineViewer rather than in a diff tool.
-The queue of them lives in whichever process claims the loopback port first, and stays there for as
-long as that process runs. With no tray, that is the viewer. With one, it is normally the tray,
-because the tray starts at login and the viewer only starts when a snapshot fails.
+[Inline snapshots](/docs/viewer.md) are reviewed in DiffEngineViewer rather than in a diff tool. The queue of them lives in whichever process claims the loopback port first, and stays there for as long as that process runs. With no tray, that is the viewer. With one, it is normally the tray, because the tray starts at login and the viewer only starts when a snapshot fails.
 
-When the tray holds it, the window becomes disposable. A viewer that is closed, killed or crashes
-takes nothing pending with it, and the tray opens a new one on the same queue. A snapshot arriving
-with no window open starts one.
+When the tray holds it, the window becomes disposable. A viewer that is closed, killed or crashes takes nothing pending with it, and the tray opens a new one on the same queue. A snapshot arriving with no window open starts one.
 
-"Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers
-discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is
-marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
+"Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
 
 A tray restart loses the queue, as it loses pending moves and deletes. Re-run the tests.
 
@@ -81,9 +74,7 @@ If accepting a move fails because the files are locked by another process (for e
 
 ### Discard
 
-Discard will clear all currently tracked items. It is the same discard as the per item menu and as
-the one in [DiffEngineViewer](/docs/viewer.md): a move loses its received file, a pending delete
-keeps its file and is untracked, and every pending inline snapshot is dropped.
+Discard will clear all currently tracked items. It is the same discard as the per item menu and as the one in [DiffEngineViewer](/docs/viewer.md): a move loses its received file, a pending delete keeps its file and is untracked, and every pending inline snapshot is dropped.
 
 
 ### Purge verified files

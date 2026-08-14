@@ -542,6 +542,251 @@ public class InlinePatcherTests
         await Assert.That(newSource).Contains("Snapshot(\n\t\t\t\"\"\"\n\t\t\ta\n\t\t\tb\n\t\t\t\"\"\");");
     }
 
+    static string TabMethod(string body) =>
+        $"class Tests\n{{\n\tasync Task Test()\n\t{{\n{body}\n\t}}\n}}";
+
+    // Append works out its own indent unit, separately from the replace path
+    [Test]
+    public async Task AppendToATabIndentedFile()
+    {
+        var source = TabMethod("\t\tawait Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            TabMethod(
+                "\t\tawait Verify(value)\n" +
+                "\t\t\t.Snapshot(\n" +
+                "\t\t\t\t\"\"\"\n" +
+                "\t\t\t\ta\n" +
+                "\t\t\t\tb\n" +
+                "\t\t\t\t\"\"\");"));
+    }
+
+    // The chain already sets the call indent, so only the content level comes from the unit
+    [Test]
+    public async Task AppendToATabIndentedChain()
+    {
+        var source = TabMethod(
+            "\t\tawait Verify(value)\n" +
+            "\t\t\t.UseDirectory(\"snapshots\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            TabMethod(
+                "\t\tawait Verify(value)\n" +
+                "\t\t\t.UseDirectory(\"snapshots\")\n" +
+                "\t\t\t.Snapshot(\n" +
+                "\t\t\t\t\"\"\"\n" +
+                "\t\t\t\ta\n" +
+                "\t\t\t\tb\n" +
+                "\t\t\t\t\"\"\");"));
+    }
+
+    [Test]
+    public async Task RemoveFromATabIndentedChain()
+    {
+        var source = TabMethod(
+            "\t\tawait Verify(value)\n" +
+            "\t\t\t.Snapshot(\"\"\"\n" +
+            "\t\t\t\told\n" +
+            "\t\t\t\t\"\"\");");
+
+        var status = InlinePatcher.TryApply(source, 6, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(TabMethod("\t\tawait Verify(value);"));
+    }
+
+    static string MixedIndentSites() =>
+        string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    async Task Spaces()",
+            "    {",
+            "        await Verify(a).Snapshot(\"a\");",
+            "    }",
+            "",
+            "\tasync Task Tabs()",
+            "\t{",
+            "\t\tawait Verify(b).Snapshot(\"b\");",
+            "\t}",
+            "}");
+
+    // The unit comes from the call site's own line, not from the file, so a file that
+    // indents inconsistently keeps each site consistent with itself
+    [Test]
+    public async Task MixedIndentFileUsesTheSiteIndent()
+    {
+        var source = MixedIndentSites();
+
+        var spaces = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"a\"", "a1\na2", out var afterSpaces, out _);
+        // The first patch turned one line into five, so the second site has moved down four
+        var tabs = InlinePatcher.TryApply(afterSpaces, 14, InlinePatchMode.Set, "\"b\"", "b1\nb2", out var afterTabs, out _);
+
+        await Assert.That(spaces).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(tabs).IsEqualTo(PatchStatus.Applied);
+        // Neither site picked up the other's whitespace
+        await Assert.That(afterTabs).IsEqualTo(
+            string.Join(
+                "\n",
+                "class Tests",
+                "{",
+                "    async Task Spaces()",
+                "    {",
+                "        await Verify(a).Snapshot(",
+                "            \"\"\"",
+                "            a1",
+                "            a2",
+                "            \"\"\");",
+                "    }",
+                "",
+                "\tasync Task Tabs()",
+                "\t{",
+                "\t\tawait Verify(b).Snapshot(",
+                "\t\t\t\"\"\"",
+                "\t\t\tb1",
+                "\t\t\tb2",
+                "\t\t\t\"\"\");",
+                "\t}",
+                "}"));
+    }
+
+    // Tabs for indentation, spaces for alignment. The site's indentation ends in spaces, so
+    // the level added continues in spaces: a tab would advance to the next tab stop from
+    // wherever the alignment left off, a different width in every editor
+    [Test]
+    public async Task LineIndentedWithTabsThenSpaces()
+    {
+        var source = "class Tests\n{\n\tasync Task Test() =>\n\t    Verify(value).Snapshot(\"old\");\n}";
+
+        var status = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "Snapshot(\n" +
+            "\t        \"\"\"\n" +
+            "\t        a\n" +
+            "\t        b\n" +
+            "\t        \"\"\");");
+    }
+
+    static string TwoSpaceMethod(string body) =>
+        $"class Tests\n{{\n  async Task Test()\n  {{\n{body}\n  }}\n}}";
+
+    // A level is whatever the file makes it, not four spaces
+    [Test]
+    public async Task TwoSpaceFileUsesATwoSpaceUnit()
+    {
+        var source = TwoSpaceMethod("    await Snapshot(\"old\");");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            TwoSpaceMethod(
+                "    await Snapshot(\n" +
+                "      \"\"\"\n" +
+                "      a\n" +
+                "      b\n" +
+                "      \"\"\");"));
+    }
+
+    [Test]
+    public async Task AppendToATwoSpaceFile()
+    {
+        var source = TwoSpaceMethod("    await Verify(value);");
+
+        var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            TwoSpaceMethod(
+                "    await Verify(value)\n" +
+                "      .Snapshot(\n" +
+                "        \"\"\"\n" +
+                "        a\n" +
+                "        b\n" +
+                "        \"\"\");"));
+    }
+
+    // The snapshot's own content lines are text, not indentation. Here they step by four and
+    // outnumber the one real step of two, so counting them would measure the snapshot
+    [Test]
+    public async Task LiteralContentDoesNotSetTheUnit()
+    {
+        var expression = string.Join(
+            "\n",
+            "\"\"\"",
+            "      a",
+            "          b",
+            "              c",
+            "      \"\"\"");
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            $"  Task T() => Snapshot({expression});",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 3, InlinePatchMode.Set, expression, "x\ny", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            string.Join(
+                "\n",
+                "class Tests",
+                "{",
+                "  Task T() => Snapshot(",
+                "    \"\"\"",
+                "    x",
+                "    y",
+                "    \"\"\");",
+                "}"));
+    }
+
+    // Nothing in the file indents, so there is no step to read and the default stands
+    [Test]
+    public async Task FileWithNoIndentationFallsBackToFourSpaces()
+    {
+        var source = "class Tests\n{\nasync Task Test() =>\nSnapshot(\"old\");\n}";
+
+        var status = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "Snapshot(\n" +
+            "    \"\"\"\n" +
+            "    a\n" +
+            "    b\n" +
+            "    \"\"\");");
+    }
+
+    // A literal whose content lines and closing delimiter disagree on tabs versus spaces
+    // is not something the parser can strip an indent from, so it is left alone
+    [Test]
+    public async Task LiteralWithMismatchedIndentCharactersIsNotPatched()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    async Task Test() =>",
+            "        Snapshot(\"\"\"",
+            "\t        old",
+            "            \"\"\");",
+            "}");
+
+        var status = InlinePatcher.TryApply(source, 4, InlinePatchMode.Set, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("is not a string literal");
+    }
+
     [Test]
     public async Task HintBeyondEndOfFile()
     {

@@ -7,13 +7,9 @@ To change this file edit the source file and then run MarkdownSnippets.
 
 # DiffEngineViewer
 
-DiffEngineViewer is a cross platform diff tool for text files, images and inline snapshots. It is
-the reviewer for [inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md):
-it shows the received text against the expected text, and accepting rewrites the literal in the
-source file.
+DiffEngineViewer is a cross platform diff tool for text files, images and inline snapshots. It is the reviewer for [inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md): it shows the received text against the expected text, and accepting rewrites the literal in the source file.
 
-Unlike every other entry in the [tool list](/docs/diff-tool.md), it does not need to be installed.
-A copy ships inside the DiffEngine package, so it is always present.
+Unlike every other entry in the [tool list](/docs/diff-tool.md), it does not need to be installed. A copy ships inside the DiffEngine package, so it is always present.
 
 The renderer is native to each platform:
 
@@ -23,8 +19,7 @@ The renderer is native to each platform:
 | macOS | AppKit and Core Text |
 | Linux | [Dear ImGui](https://github.com/ocornut/imgui) through [raylib](https://github.com/raysan5/raylib) |
 
-All three draw the same screen model, and the layout, scrolling and keyboard handling are shared,
-so the only difference is how the pixels get there.
+All three draw the same screen model, and the layout, scrolling and keyboard handling are shared, so the only difference is how the pixels get there.
 
 
 ## NuGet
@@ -33,16 +28,13 @@ so the only difference is how the pixels get there.
  * https://www.nuget.org/packages/DiffEngineViewer.Mac
  * https://www.nuget.org/packages/DiffEngineViewer.Linux
 
-Only needed to use the viewer outside a project that references DiffEngine, since DiffEngine
-already bundles it.
+Only needed to use the viewer outside a project that references DiffEngine, since DiffEngine already bundles it.
 
 ```
 dotnet tool install -g DiffEngineViewer.Windows
 ```
 
-One package per operating system rather than one for all of them, because WinForms has to be named
-as a framework dependency and a package that names it cannot start anywhere else. The copy bundled
-in DiffEngine is unaffected: it is published per RID and resolved by directory.
+One package per operating system rather than one for all of them, because WinForms has to be named as a framework dependency and a package that names it cannot start anywhere else. The copy bundled in DiffEngine is unaffected: it is published per RID and resolved by directory.
 
 
 ## Usage
@@ -71,8 +63,7 @@ Displaying a queue held by another process, which is how [DiffEngineTray](/docs/
 DiffEngineViewer --attach
 ```
 
-Nothing is written to disk for inline review. The patch travels over stdin, or over a loopback
-socket when something is already holding the queue.
+Nothing is written to disk for inline review. The patch travels over stdin, or over a loopback socket when something is already holding the queue.
 
 
 ## Keys
@@ -91,119 +82,68 @@ socket when something is already holding the queue.
 
 ## Multiple pending snapshots
 
-A test run that fails several inline snapshots produces one window, not several. Whichever process
-binds the loopback port holds the queue; everything else hands its patch to that one. The window
-lists everything pending and offers **Accept all**.
+A test run that fails several inline snapshots produces one window, not several. Whichever process binds the loopback port holds the queue; everything else hands its patch to that one. The window lists everything pending and offers **Accept all**.
 
-The list sits in a column on the left. Drag the divider beside it to widen the column when the file
-names are longer than it is. When the list outgrows the window it follows the selection, keeping
-the selected row visible.
+The list sits in a column on the left. Drag the divider beside it to widen the column when the file names are longer than it is. When the list outgrows the window it follows the selection, keeping the selected row visible.
 
-Row labels are the shortest thing that tells one entry from another, so hovering one fills in what
-it left out: the whole path, the test behind a call site, every framework behind a conflict, and the
-failure behind a `!`. A row with nothing to add shows no tooltip at all.
+Row labels are the shortest thing that tells one entry from another, so hovering one fills in what it left out: the whole path, the test behind a call site, every framework behind a conflict, and the failure behind a `!`. A row with nothing to add shows no tooltip at all.
 
 The panes carry a scrollbar, which moves with the keys and the wheel.
 
-Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which
-case the tray still has it and can reopen a window on it.
+Closing the window discards the queue, unless [DiffEngineTray](/docs/tray.md) is running, in which case the tray still has it and can reopen a window on it.
 
 
 ## Context menus
 
 Every row of the pending column answers a right-click:
 
- * An inline snapshot offers **Accept**, **Discard** and **Open source file**, plus
-   **Show next variant** when frameworks disagree about it.
- * A move offers **Accept move**, **Discard** and **Open target directory**; a delete offers
-   **Accept delete**, **Discard** and **Open directory**.
- * A solution header offers **Accept all in ...** and **Discard all in ...** for that solution
-   only, and a test sub-header the same for that test's changes. Bulk accepts skip conflicted
-   snapshots, the way accept-all does.
+ * An inline snapshot offers **Accept**, **Discard** and **Open source file**, plus **Show next variant** when frameworks disagree about it.
+ * A move offers **Accept move**, **Discard** and **Open target directory**; a delete offers **Accept delete**, **Discard** and **Open directory**.
+ * A solution header offers **Accept all in ...** and **Discard all in ...** for that solution only, and a test sub-header the same for that test's changes. Bulk accepts skip conflicted snapshots, the way accept-all does.
 
-Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file
-manager is always local — the files are on this machine, wherever the queue lives.
+Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file manager is always local — the files are on this machine, wherever the queue lives.
 
-On Windows and macOS this is the real OS menu, so it also takes the arrow keys, Enter, Escape and
-type-to-select, flips rather than clips near the edge of a screen, and is readable by a screen
-reader. A click that dismisses it is consumed doing so, which is why right-clicking a different row
-while a menu is open takes two clicks. On Linux it is drawn by the viewer, and any other click or
-key closes it.
+On Windows and macOS this is the real OS menu, so it also takes the arrow keys, Enter, Escape and type-to-select, flips rather than clips near the edge of a screen, and is readable by a screen reader. A click that dismisses it is consumed doing so, which is why right-clicking a different row while a menu is open takes two clicks. On Linux it is drawn by the viewer, and any other click or key closes it.
 
 macOS also carries a menu bar, listing the same commands as the keys below.
 
 
 ## Grouping
 
-When the pending items span more than one solution, the list groups them under solution headers
-with counts. The solution is found by walking up from each source file; items with no discoverable
-solution trail at the end, ungrouped. A queue from one solution stays flat.
+When the pending items span more than one solution, the list groups them under solution headers with counts. The solution is found by walking up from each source file; items with no discoverable solution trail at the end, ungrouped. A queue from one solution stays flat.
 
-When one test produced more than one change, those changes gather under a sub-header carrying the
-test name. Test names come from the caller (Verify) and are optional; without them, items are
-labeled by call site. Two items that would read identically — the same file name and line in two
-projects — grow the shortest distinguishing directory prefix.
+When one test produced more than one change, those changes gather under a sub-header carrying the test name. Test names come from the caller (Verify) and are optional; without them, items are labeled by call site. Two items that would read identically — the same file name and line in two projects — grow the shortest distinguishing directory prefix.
 
-Every header carries a marker: `-` when open, `+` when folded. Clicking a header folds its group,
-and the header's right-click menu offers the same. A fold is only a view — what it hides is still
-pending, still counted by the header hiding it, and still taken by **Accept all**. `Tab` steps over
-folded items rather than into them, and anything that selects an item from outside the window
-unfolds whatever was hiding it.
+Every header carries a marker: `-` when open, `+` when folded. Clicking a header folds its group, and the header's right-click menu offers the same. A fold is only a view — what it hides is still pending, still counted by the header hiding it, and still taken by **Accept all**. `Tab` steps over folded items rather than into them, and anything that selects an item from outside the window unfolds whatever was hiding it.
 
 
 ## Conflicting snapshots
 
-A test run under several target frameworks can produce different content for the same call site.
-The queue keeps each distinct content as a labeled variant of one entry — `net8.0`, `net9.0` —
-rather than letting the last writer win. Identical content from several frameworks merges into one
-variant carrying all their labels.
+A test run under several target frameworks can produce different content for the same call site. The queue keeps each distinct content as a labeled variant of one entry — `net8.0`, `net9.0` — rather than letting the last writer win. Identical content from several frameworks merges into one variant carrying all their labels.
 
-A conflicted entry is marked `*` in the list, the pane header names the framework on screen
-(`received (net8.0)`), and a **Variant** button (or `v`) cycles through the disagreeing contents.
-Accepting applies exactly the variant on screen and resolves the whole call site; a framework that
-still disagrees will re-report on its next run. **Accept all** never picks sides: it skips
-conflicted entries and says how many still need review. A framework whose test starts passing
-settles only its own variant, so the other framework's still-failing content stays reviewable.
+A conflicted entry is marked `*` in the list, the pane header names the framework on screen (`received (net8.0)`), and a **Variant** button (or `v`) cycles through the disagreeing contents. Accepting applies exactly the variant on screen and resolves the whole call site; a framework that still disagrees will re-report on its next run. **Accept all** never picks sides: it skips conflicted entries and says how many still need review. A framework whose test starts passing settles only its own variant, so the other framework's still-failing content stays reviewable.
 
 
 ## Moves and deletes
 
-When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the tray's pending file
-moves and deletes beside the snapshots, grouped by solution like everything else. A move shows the
-received file against the committed one; a delete shows the file's content against nothing. The
-files are read locally — the protocol never leaves the machine — and accept and discard are
-forwarded to the tray, which is why the buttons name the act: **Accept move**, **Accept delete**.
+When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the tray's pending file moves and deletes beside the snapshots, grouped by solution like everything else. A move shows the received file against the committed one; a delete shows the file's content against nothing. The files are read locally — the protocol never leaves the machine — and accept and discard are forwarded to the tray, which is why the buttons name the act: **Accept move**, **Accept delete**.
 
-**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and
-snapshots, with conflicted snapshots skipped and anything locked kept pending and counted.
+**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted.
 
-A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends
-them to a running tray.
+A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends them to a running tray.
 
 
 ## Images
 
-`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp` and `.ico` are compared as pictures rather than as
-text, wherever they turn up: a pair passed on the command line, or a move or delete the tray is
-holding.
+`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp` and `.ico` are compared as pictures rather than as text, wherever they turn up: a pair passed on the command line, or a move or delete the tray is holding.
 
-Each pane lists what its own side is — format, pixel dimensions and byte count — with a property
-that matches the other side reading as unchanged and one that does not reading as modified, the same
-colouring a line of text gets. Whether the two are the same picture belongs to the pair rather than
-to either side, so it is stated in the status line: **images are identical**, **images differ**, or
-**only \<file\> exists** when one side has nothing yet, which is the normal state of a brand new
-image snapshot.
+Each pane lists what its own side is — format, pixel dimensions and byte count — with a property that matches the other side reading as unchanged and one that does not reading as modified, the same colouring a line of text gets. Whether the two are the same picture belongs to the pair rather than to either side, so it is stated in the status line: **images are identical**, **images differ**, or **only \<file\> exists** when one side has nothing yet, which is the normal state of a brand new image snapshot.
 
-The extension decides, not the content. A `.png` holding something that is not one is still an
-image side, and says its format was not recognized instead of rendering the bytes as text.
+The extension decides, not the content. A `.png` holding something that is not one is still an image side, and says its format was not recognized instead of rendering the bytes as text.
 
-Each pane also draws the picture itself, one blank line under those rows: fitted to the space,
-never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three
-heads place it identically, from the size the file's own header gave rather than from whatever
-their decoder reported.
+Each pane also draws the picture itself, one blank line under those rows: fitted to the space, never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three heads place it identically, from the size the file's own header gave rather than from whatever their decoder reported.
 
-Which formats can be drawn is the platform's answer rather than the viewer's, because each head
-uses the decoder its toolkit ships with:
+Which formats can be drawn is the platform's answer rather than the viewer's, because each head uses the decoder its toolkit ships with:
 
 | Head | Drawn |
 | --- | --- |
@@ -211,58 +151,36 @@ uses the decoder its toolkit ships with:
 | macOS (ImageIO) | all seven |
 | Linux (raylib) | `.png` `.jpg` `.jpeg` `.gif` `.bmp` |
 
-A format a head cannot decode draws nothing, and the comparison is still there in the rows above
-it. That is why those rows are the description and the picture is an addition to it.
+A format a head cannot decode draws nothing, and the comparison is still there in the rows above it. That is why those rows are the description and the picture is an addition to it.
 
-Accepting is the same act it is for text — copy the received file over the expected one, or forward
-the move to the tray — so nothing about reviewing an image changes what accepting one does.
+Accepting is the same act it is for text — copy the received file over the expected one, or forward the move to the tray — so nothing about reviewing an image changes what accepting one does.
 
 
 ## With DiffEngineTray
 
-The tray starts at login, so it normally binds the port first and holds the queue. The viewer then
-displays it: it reads the pending snapshots back over the socket and forwards accept and discard
-rather than applying them. That is what `--attach` is for, and the tray starts one whenever a
-snapshot arrives with no window open.
+The tray starts at login, so it normally binds the port first and holds the queue. The viewer then displays it: it reads the pending snapshots back over the socket and forwards accept and discard rather than applying them. That is what `--attach` is for, and the tray starts one whenever a snapshot arrives with no window open.
 
-The point of that arrangement is that the queue outlives the window. A viewer that is closed,
-killed or crashes takes nothing with it, and there is no 52 MB process kept resident purely to hold
-a list.
+The point of that arrangement is that the queue outlives the window. A viewer that is closed, killed or crashes takes nothing with it, and there is no 52 MB process kept resident purely to hold a list.
 
-If a viewer was already running when the tray started, the viewer keeps the queue for as long as it
-lives and the tray drives it remotely instead. Ownership is decided once and never moves. Either
-way both surfaces run the same queue implementation, so they cannot disagree on what accepting or
-settling means, and the tray's **Pending Snapshots** group can accept, discard, open the viewer on
-a particular snapshot, and close the viewer.
+If a viewer was already running when the tray started, the viewer keeps the queue for as long as it lives and the tray drives it remotely instead. Ownership is decided once and never moves. Either way both surfaces run the same queue implementation, so they cannot disagree on what accepting or settling means, and the tray's **Pending Snapshots** group can accept, discard, open the viewer on a particular snapshot, and close the viewer.
 
 A tray restart loses the queue, as it loses pending file moves and deletes. Re-run the tests.
 
 
 ## With no tray
 
-Pending file moves and deletes go to the tray when one is running. When one is not, they go to the
-viewer, which holds and applies them itself — so a received file waiting to be promoted, or a
-verified file a passing test no longer produces, is reviewable rather than invisible.
+Pending file moves and deletes go to the tray when one is running. When one is not, they go to the viewer, which holds and applies them itself — so a received file waiting to be promoted, or a verified file a passing test no longer produces, is reviewable rather than invisible.
 
-A pending delete starts a viewer if none is running. It is the one change with no second file to
-compare against, so no diff tool ever opens for it, and a window is the only surface it can have. A pending move does not start one: DiffEngine has already opened a diff tool for that file
-pair, and a second window competing with it is not an improvement. A move joins a window that is
-already open.
+A pending delete starts a viewer if none is running. It is the one change with no second file to compare against, so no diff tool ever opens for it, and a window is the only surface it can have. A pending move does not start one: DiffEngine has already opened a diff tool for that file pair, and a second window competing with it is not an improvement. A move joins a window that is already open.
 
-Both look and behave exactly as they do when the tray owns them — same rows, same context menu,
-same **Accept all** — because which process is holding a pending file depends only on whether a
-tray happened to be running.
+Both look and behave exactly as they do when the tray owns them — same rows, same context menu, same **Accept all** — because which process is holding a pending file depends only on whether a tray happened to be running.
 
 
 ## Disabling
 
-Set `DiffEngine_InlineViewer` to `false` to stop inline snapshots opening a window. The viewer also
-never launches when [DiffEngine is disabled](/docs/#disabled), which covers build servers,
-continuous testing and AI CLIs.
+Set `DiffEngine_InlineViewer` to `false` to stop inline snapshots opening a window. The viewer also never launches when [DiffEngine is disabled](/docs/#disabled), which covers build servers, continuous testing and AI CLIs.
 
 
 ## Platforms
 
-Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`. On a
-platform with no matching build, resolution falls through to a globally installed
-DiffEngineViewer tool, and then to whatever other diff tool is available.
+Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`. On a platform with no matching build, resolution falls through to a globally installed DiffEngineViewer tool, and then to whatever other diff tool is available.

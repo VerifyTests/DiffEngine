@@ -1,12 +1,6 @@
 # <img src="/src/icon.png" height="30px"> DiffEngine
 
-[![Discussions](https://img.shields.io/badge/Verify-Discussions-yellow?svg=true&label=)](https://github.com/orgs/VerifyTests/discussions)
-[![Build status](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml)
-[![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg?label=DiffEngine)](https://www.nuget.org/packages/DiffEngine/)
-[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineTray.svg?label=DiffEngineTray)](https://www.nuget.org/packages/DiffEngineTray/)
-[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Windows.svg?label=DiffEngineViewer.Windows)](https://www.nuget.org/packages/DiffEngineViewer.Windows/)
-[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Mac.svg?label=DiffEngineViewer.Mac)](https://www.nuget.org/packages/DiffEngineViewer.Mac/)
-[![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Linux.svg?label=DiffEngineViewer.Linux)](https://www.nuget.org/packages/DiffEngineViewer.Linux/)
+[![Discussions](https://img.shields.io/badge/Verify-Discussions-yellow?svg=true&label=)](https://github.com/orgs/VerifyTests/discussions) [![Build status](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/VerifyTests/DiffEngine/actions/workflows/test.yml) [![NuGet Status](https://img.shields.io/nuget/v/DiffEngine.svg?label=DiffEngine)](https://www.nuget.org/packages/DiffEngine/) [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineTray.svg?label=DiffEngineTray)](https://www.nuget.org/packages/DiffEngineTray/) [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Windows.svg?label=DiffEngineViewer.Windows)](https://www.nuget.org/packages/DiffEngineViewer.Windows/) [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Mac.svg?label=DiffEngineViewer.Mac)](https://www.nuget.org/packages/DiffEngineViewer.Mac/) [![NuGet Status](https://img.shields.io/nuget/v/DiffEngineViewer.Linux.svg?label=DiffEngineViewer.Linux)](https://www.nuget.org/packages/DiffEngineViewer.Linux/)
 
 include: intro
 
