@@ -2,5 +2,6 @@
   Mode: Inline,
   Source: Tests.cs,
   Line: 42,
-  Attach: false
+  Attach: false,
+  Delete: false
 }

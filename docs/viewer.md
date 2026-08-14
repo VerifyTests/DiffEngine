@@ -59,6 +59,12 @@ Reviewing an inline snapshot, where the patch payload arrives on stdin:
 DiffEngineViewer --inline --source <file.cs> --line <number>
 ```
 
+Reviewing a file a passing test no longer produces, which DiffEngine sends when no tray is running:
+
+```
+DiffEngineViewer --delete <file>
+```
+
 Displaying a queue held by another process, which is how [DiffEngineTray](/docs/tray.md) opens one:
 
 ```
@@ -230,6 +236,22 @@ settling means, and the tray's **Pending Snapshots** group can accept, discard, 
 a particular snapshot, and close the viewer.
 
 A tray restart loses the queue, as it loses pending file moves and deletes. Re-run the tests.
+
+
+## With no tray
+
+Pending file moves and deletes go to the tray when one is running. When one is not, they go to the
+viewer, which holds and applies them itself — so a received file waiting to be promoted, or a
+verified file a passing test no longer produces, is reviewable rather than invisible.
+
+A pending delete starts a viewer if none is running. It is the one change with no second file to
+compare against, so no diff tool ever opens for it, and a window is the only surface it can have. A pending move does not start one: DiffEngine has already opened a diff tool for that file
+pair, and a second window competing with it is not an improvement. A move joins a window that is
+already open.
+
+Both look and behave exactly as they do when the tray owns them — same rows, same context menu,
+same **Accept all** — because which process is holding a pending file depends only on whether a
+tray happened to be running.
 
 
 ## Disabling

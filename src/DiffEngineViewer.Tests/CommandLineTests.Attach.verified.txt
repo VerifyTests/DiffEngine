@@ -1,4 +1,5 @@
 ﻿{
   Mode: Inline,
-  Attach: true
+  Attach: true,
+  Delete: false
 }

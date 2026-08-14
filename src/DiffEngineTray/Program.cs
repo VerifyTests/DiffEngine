@@ -155,12 +155,12 @@ static class Program
 
         if (settings.AcceptAllHotKey is { } acceptAll)
         {
-            yield return new(KeyBindingIds.AcceptAll, acceptAll, tracker.AcceptAll);
+            yield return new(KeyBindingIds.AcceptAll, acceptAll, () => tracker.AcceptAll());
         }
 
         if (settings.AcceptOpenHotKey is { } acceptOpen)
         {
-            yield return new(KeyBindingIds.AcceptOpen, acceptOpen, tracker.AcceptOpen);
+            yield return new(KeyBindingIds.AcceptOpen, acceptOpen, () => tracker.AcceptOpen());
         }
     }
 

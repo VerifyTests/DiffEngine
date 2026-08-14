@@ -20,9 +20,24 @@ interface IQueueOwner
     void Settle(string key, string? origin);
 
     /// <summary>
-    /// The whole listing response rather than just its items, because the tray answers with the
-    /// window command it has stashed plus its tracked moves and deletes, and the viewer has
-    /// nothing to add to the items.
+    /// Track a pending file move, replacing the entry for the same received file — a re-run
+    /// produces the same pair, and a second entry for it is a duplicate rather than news.
+    /// <para>
+    /// Only reaches an owner when no tray was running in the sending process, so it is normally
+    /// the viewer that answers this. A tray owner routes it into the same tracked moves the piper
+    /// port fills, which is what a tray started after the test process needs: that process's
+    /// tray check is cached, so its moves come here for the rest of its life.
+    /// </para>
+    /// </summary>
+    void TrackMove(string temp, string target);
+
+    /// <inheritdoc cref="TrackMove"/>
+    void TrackDelete(string file);
+
+    /// <summary>
+    /// The whole listing response rather than just its items, because an owner answers with its
+    /// tracked moves and deletes beside the queue, and a tray adds the window command it has
+    /// stashed.
     /// </summary>
     ViewerResponse Listing(bool withPatches);
 

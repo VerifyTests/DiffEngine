@@ -374,6 +374,42 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// A pending file with no tray running. The paths ride key and body rather than an encoded
+    /// payload, because that is all a tracked move or delete is.
+    /// </summary>
+    [Test]
+    public async Task MoveAndDeleteReachTheOwner()
+    {
+        var owner = new FakeOwner((true, null));
+
+        var move = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Move, @"c:\temp\a.received.txt", @"c:\code\a.verified.txt"));
+        var delete = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Delete, @"c:\code\b.verified.txt"));
+
+        await Assert.That(move.Ok).IsTrue();
+        await Assert.That(delete.Ok).IsTrue();
+        await Assert.That(owner.Tracked).IsEquivalentTo(
+        [
+            @"move c:\temp\a.received.txt > c:\code\a.verified.txt",
+            @"delete c:\code\b.verified.txt"
+        ]);
+    }
+
+    [Test]
+    public async Task AMoveWithoutBothPathsIsRefused()
+    {
+        var owner = new FakeOwner((true, null));
+
+        var noTarget = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Move, @"c:\temp\a.received.txt"));
+        var noFile = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Delete));
+
+        await Assert.That(noTarget.Ok).IsFalse();
+        await Assert.That(noTarget.Message).IsEqualTo("Move requires a key and a body");
+        await Assert.That(noFile.Ok).IsFalse();
+        await Assert.That(noFile.Message).IsEqualTo("Delete requires a key");
+        await Assert.That(owner.Tracked).IsEmpty();
+    }
+
+    /// <summary>
     /// The accept body is the variant origin a reviewer picked, and it has to reach the owner.
     /// </summary>
     [Test]
@@ -395,6 +431,14 @@ public class ViewerProtocolTests
         public void Settle(string key, string? origin)
         {
         }
+
+        public List<string> Tracked { get; } = [];
+
+        public void TrackMove(string temp, string target) =>
+            Tracked.Add($"move {temp} > {target}");
+
+        public void TrackDelete(string file) =>
+            Tracked.Add($"delete {file}");
 
         public ViewerResponse Listing(bool withPatches) => ViewerResponse.Listing([]);
 

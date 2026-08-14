@@ -13,4 +13,12 @@ record ViewerRequest(
     string? Source,
     int Line,
     string? Error,
-    bool Attach = false);
+    bool Attach = false)
+{
+    /// <summary>
+    /// Own the queue seeded with one pending delete, whose file is <see cref="Left"/>. From
+    /// DiffEngine when no tray is running: a delete has no diff tool to open, so a viewer is the
+    /// only surface it can have.
+    /// </summary>
+    public bool Delete { get; init; }
+}

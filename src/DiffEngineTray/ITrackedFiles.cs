@@ -30,5 +30,15 @@ interface ITrackedFiles
     /// </summary>
     (int accepted, int kept) AcceptAll();
 
+    /// <summary>
+    /// Track a pending move or delete that arrived over the viewer port rather than the piper one.
+    /// That happens when the sending process saw no tray at startup and this tray started after
+    /// it: that check is cached for the life of the sender, so its files come the other way for
+    /// good, and dropping them would lose them.
+    /// </summary>
+    void AddMove(string temp, string target);
+
+    void AddDelete(string file);
+
     int DiscardAll();
 }

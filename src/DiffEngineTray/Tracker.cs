@@ -615,25 +615,34 @@ class Tracker :
         move.Process.KillAndDispose();
     }
 
+    /// <summary>
+    /// The menu's "Discard (n)". Everything pending goes, on every surface.
+    /// <para>
+    /// Through the same discard the wire uses, so the two surfaces cannot mean different things by
+    /// it. Discarding a move throws its received file away — <see cref="Discard(TrackedMove)"/> has
+    /// always done that, and so does a discard arriving from the viewer — and sweeping the
+    /// dictionary directly left the temps behind for a button that said it had discarded them.
+    /// </para>
+    /// <para>
+    /// The snapshots go too: the menu counts them in "Discard (n)". Clearing only the cache used to
+    /// make the button lie twice over — it discarded fewer things than it said, and the ones it
+    /// skipped came back on the next scan two seconds later.
+    /// </para>
+    /// </summary>
     public void Clear()
     {
-        deletes.Clear();
+        ((ITrackedFiles) this).DiscardAll();
 
-        foreach (var move in moves.Values)
-        {
-            KillProcesses(move);
-        }
-
-        moves.Clear();
-
-        // The menu counts snapshots in "Discard (n)", so discarding has to include them. Clearing
-        // only the cache used to make the button lie twice over: it discarded fewer things than it
-        // said, and the ones it skipped came back on the next scan two seconds later.
         inline.DiscardAll();
         snapshots = [];
     }
 
-    public void AcceptOpen()
+    /// <summary>
+    /// The returned task covers the snapshot half, which runs on a worker for the reason
+    /// <see cref="Accept(PendingSnapshot)"/> gives. The menu and the hot keys discard it; tests
+    /// await it so what the other surface should now be showing is settled rather than in flight.
+    /// </summary>
+    public Task AcceptOpen()
     {
         AcceptAllDeletes();
 
@@ -644,16 +653,17 @@ class Tracker :
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
         // has something to show.
-        AcceptAllSnapshots();
+        return AcceptAllSnapshots();
     }
 
-    public void AcceptAll()
+    /// <inheritdoc cref="AcceptOpen"/>
+    public Task AcceptAll()
     {
         AcceptAllDeletes();
 
         AcceptMoves(moves.Values);
 
-        AcceptAllSnapshots();
+        return AcceptAllSnapshots();
     }
 
     void AcceptAllDeletes()
@@ -688,6 +698,20 @@ class Tracker :
                 _.Group,
                 _.File))
             .ToList();
+
+    void ITrackedFiles.AddMove(string temp, string target)
+    {
+        // No exe, arguments or process: the sender's diff tool details do not cross the viewer
+        // port, so this is resolved from the extension exactly as a piper move with no exe is.
+        AddMove(temp, target, null, null, false, null);
+        Refresh();
+    }
+
+    void ITrackedFiles.AddDelete(string file)
+    {
+        AddDelete(file);
+        Refresh();
+    }
 
     bool ITrackedFiles.Has(string key)
     {
@@ -854,9 +878,22 @@ class Tracker :
         }
     }
 
+    /// <summary>
+    /// Deliberately not <see cref="Clear"/>: exiting is not discarding. The diff tools this tray
+    /// started are killed, and everything pending stays where it is — the received files on disk
+    /// for the next tray to re-track, and the inline queue with whoever owns it, which outlives
+    /// this process whenever that is a viewer.
+    /// </summary>
     public ValueTask DisposeAsync()
     {
-        Clear();
+        foreach (var move in moves.Values)
+        {
+            KillProcesses(move);
+        }
+
+        moves.Clear();
+        deletes.Clear();
+        snapshots = [];
         return timer.DisposeAsync();
     }
 }

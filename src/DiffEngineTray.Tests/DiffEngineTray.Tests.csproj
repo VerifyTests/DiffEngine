@@ -16,6 +16,12 @@
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <!--
+    Aliased. DiffEngineViewer links DiffEngine's Inline and Protocol sources rather than referencing
+    them, so both assemblies declare a DiffEngine namespace. Everything here except
+    TrayViewerSyncTest wants the engine's copies, so the viewer is the one behind the alias.
+    -->
+    <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" Aliases="viewer" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>

@@ -111,7 +111,7 @@ static class MenuBuilder
         }
 
         yield return new MenuButton($"Discard ({count})", tracker.Clear, Images.Discard);
-        yield return new MenuButton($"Accept all ({count})", tracker.AcceptAll, Images.AcceptAll);
+        yield return new MenuButton($"Accept all ({count})", () => tracker.AcceptAll(), Images.AcceptAll);
     }
 
     static IEnumerable<ToolStripItem> BuildGroupedMenuItems(

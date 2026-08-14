@@ -7,17 +7,73 @@ record ViewerActions(
     Action<string, string> CopyFile,
     Action<string> Reveal)
 {
+    /// <summary>
+    /// Accepting a tracked move: the received file over the target.
+    /// <para>
+    /// Init rather than positional, and throwing by default, because only a viewer that owns the
+    /// queue ever reaches it — one displaying someone else's forwards the key instead, and file
+    /// mode has no tracked entries at all. A caller that turns out to need it and did not supply
+    /// one fails loudly, the same bargain <see cref="None"/> makes for the rest.
+    /// </para>
+    /// </summary>
+    public Action<string, string> MoveFile { get; init; } = Missing;
+
+    /// <summary>
+    /// Accepting a tracked delete, and discarding a tracked move — the two cases where a pending
+    /// file is the thing that goes.
+    /// </summary>
+    public Action<string> DeleteFile { get; init; } = Missing;
+
     public static readonly ViewerActions Real = new(
         InlineApplier.Apply,
         static (source, destination) => File.Copy(source, destination, true),
-        RevealFile.Show);
+        RevealFile.Show)
+    {
+        MoveFile = Move,
+        DeleteFile = File.Delete
+    };
 
     /// <summary>
     /// Refuses everything. Held by the view only <c>Apply</c> overload, so a command that turns
     /// out to need IO fails loudly rather than quietly doing nothing.
     /// </summary>
     public static readonly ViewerActions None = new(
-        static _ => throw new("This command was applied as view only, but needs real actions."),
-        static (_, _) => throw new("This command was applied as view only, but needs real actions."),
-        static _ => throw new("This command was applied as view only, but needs real actions."));
+        static _ => throw new(missing),
+        static (_, _) => throw new(missing),
+        static _ => throw new(missing));
+
+    const string missing = "This command was applied as view only, but needs real actions.";
+
+    static void Missing(string file) =>
+        throw new(missing);
+
+    static void Missing(string temp, string target) =>
+        throw new(missing);
+
+    /// <summary>
+    /// Then the directory the received file sat in, when nothing is left in it. DiffEngine stages
+    /// received files in their own directory for some flows, and the tray has always swept it, so
+    /// accepting here leaves behind what accepting there leaves behind.
+    /// </summary>
+    static void Move(string temp, string target)
+    {
+        File.Move(temp, target, true);
+
+        var directory = Path.GetDirectoryName(temp);
+        if (directory is null ||
+            Directory.EnumerateFileSystemEntries(directory).Any())
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(directory);
+        }
+        catch (IOException)
+        {
+            // Raced by something writing into it. The move itself succeeded, which is what the
+            // caller is reporting on.
+        }
+    }
 }

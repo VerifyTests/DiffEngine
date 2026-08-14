@@ -6,22 +6,6 @@
 /// </summary>
 public class OwnedInlineHostTest
 {
-    sealed class FakeLauncher : IViewerLauncher
-    {
-        public int Launches { get; private set; }
-
-        public bool Running { get; set; }
-
-        public bool Succeed { get; set; } = true;
-
-        public bool Launch()
-        {
-            Launches++;
-            Running = Succeed;
-            return Succeed;
-        }
-    }
-
     sealed class Owner : IDisposable
     {
         public Owner(Func<InlinePatch, InlineApplyResult>? applier = null)
@@ -490,6 +474,14 @@ public class OwnedInlineHostTest
         public (int accepted, int kept) AcceptAll() => SweepResult;
 
         public int DiscardAll() => 0;
+
+        public List<string> Added { get; } = [];
+
+        public void AddMove(string temp, string target) =>
+            Added.Add($"move {temp} > {target}");
+
+        public void AddDelete(string file) =>
+            Added.Add($"delete {file}");
     }
 
     [Test]

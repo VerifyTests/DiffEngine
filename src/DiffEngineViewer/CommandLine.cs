@@ -3,9 +3,11 @@ static class CommandLine
     public const string Usage = """
         DiffEngineViewer <left> <right>
         DiffEngineViewer --inline --source <file.cs> --line <number>
+        DiffEngineViewer --delete <file>
         DiffEngineViewer --attach
 
         Inline mode reads the patch payload from stdin.
+        Delete mode takes a file that a passing test no longer produces.
         Attach mode reads nothing, and displays the queue of whoever owns the port.
         """;
 
@@ -29,6 +31,21 @@ static class CommandLine
         if (args[0] == "--inline")
         {
             return ParseInline(args);
+        }
+
+        if (args[0] == "--delete")
+        {
+            if (args.Count != 2)
+            {
+                return Error("--delete takes one file.");
+            }
+
+            // Queue mode, not file mode: a delete owns the port and more can arrive after it,
+            // which is the whole difference between the two modes.
+            return new(ViewerMode.Inline, args[1], null, null, 0, null)
+            {
+                Delete = true
+            };
         }
 
         if (args.Count != 2)
