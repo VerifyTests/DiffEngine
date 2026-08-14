@@ -88,7 +88,9 @@ If accepting a move fails because the files are locked by another process (for e
 
 ### Discard
 
-Discard will clear all currently tracked items.
+Discard will clear all currently tracked items. It is the same discard as the per item menu and as
+the one in [DiffEngineViewer](/docs/viewer.md): a move loses its received file, a pending delete
+keeps its file and is untracked, and every pending inline snapshot is dropped.
 
 
 ### Purge verified files

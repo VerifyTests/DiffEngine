@@ -17,6 +17,10 @@ static class ViewerMessageHandler
                 return Inline(owner, message.Body);
             case ViewerVerb.Settle:
                 return Settle(owner, message.Key, message.Body);
+            case ViewerVerb.Move:
+                return Move(owner, message.Key, message.Body);
+            case ViewerVerb.Delete:
+                return Delete(owner, message.Key);
             case ViewerVerb.List:
                 return owner.Listing(false);
             case ViewerVerb.ListFull:
@@ -78,6 +82,35 @@ static class ViewerMessageHandler
         }
 
         owner.Settle(key, origin);
+        return ViewerResponse.Success();
+    }
+
+    /// <summary>
+    /// The paths ride key and body rather than an encoded payload, because that is all a tracked
+    /// move is. What DiffEngine knows beside them — the diff tool it launched and that tool's
+    /// process id — is the tray's kill machinery and means nothing to an owner that does not have
+    /// any, so it is not sent.
+    /// </summary>
+    static ViewerResponse Move(IQueueOwner owner, string? temp, string? target)
+    {
+        if (temp is null ||
+            target is null)
+        {
+            return ViewerResponse.Error("Move requires a key and a body");
+        }
+
+        owner.TrackMove(temp, target);
+        return ViewerResponse.Success();
+    }
+
+    static ViewerResponse Delete(IQueueOwner owner, string? file)
+    {
+        if (file is null)
+        {
+            return ViewerResponse.Error("Delete requires a key");
+        }
+
+        owner.TrackDelete(file);
         return ViewerResponse.Success();
     }
 

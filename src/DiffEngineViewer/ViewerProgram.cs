@@ -21,6 +21,11 @@ static class ViewerProgram
                 return RunAttached(open);
             }
 
+            if (request.Delete)
+            {
+                return RunDelete(request.Left!, open);
+            }
+
             if (request.Mode == ViewerMode.Inline)
             {
                 return RunInline(open);
@@ -74,6 +79,38 @@ static class ViewerProgram
         using (server)
         {
             var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
+            return Run(new(start), server, null, open);
+        }
+    }
+
+    /// <summary>
+    /// One pending delete, owning the queue so more can join it.
+    /// <para>
+    /// Launched by DiffEngine when no tray is running and nothing answered on the port. Two
+    /// deletes racing both launch, and the loser hands its file to the winner and exits, which is
+    /// the same resolution <see cref="RunInline"/> reaches for a second patch.
+    /// </para>
+    /// </summary>
+    static int RunDelete(string file, OpenWindow open)
+    {
+        var port = ViewerClient.Port;
+        if (!ViewerServer.TryBind(port, out var server))
+        {
+            if (!ViewerClient.TrySend(new(ViewerVerb.Delete, file), out var response, port) ||
+                !response.Ok)
+            {
+                Console.Error.WriteLine("A viewer holds the port but did not accept the delete.");
+                return 1;
+            }
+
+            return 0;
+        }
+
+        using (server)
+        {
+            var start = ViewerSession.EnqueueTracked(
+                SessionState.Start(ViewerMode.Inline),
+                TrackedEntry.ForDelete(file));
             return Run(new(start), server, null, open);
         }
     }

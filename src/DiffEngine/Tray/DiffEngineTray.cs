@@ -21,15 +21,10 @@ public static class DiffEngineTray
 
     public static bool IsRunning { get; internal set; }
 
-    public static void AddDelete(string file)
-    {
-        if (!IsRunning)
-        {
-            return;
-        }
-
-        PiperClient.SendDelete(file);
-    }
+    // No IsRunning gate any more. PendingFiles is the router: the piper port when a tray is
+    // running, and the inline queue's owner when one is not, rather than nothing at all.
+    public static void AddDelete(string file) =>
+        PendingFiles.AddDelete(file);
 
     public static void AddMove(
         string tempFile,
@@ -37,25 +32,11 @@ public static class DiffEngineTray
         string? exe,
         string? arguments,
         bool canKill,
-        int? processId)
-    {
-        if (!IsRunning)
-        {
-            return;
-        }
+        int? processId) =>
+        PendingFiles.AddMove(tempFile, targetFile, exe, arguments, canKill, processId);
 
-        PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId);
-    }
-
-    public static Task AddDeleteAsync(string file, Cancel cancel = default)
-    {
-        if (!IsRunning)
-        {
-            return Task.CompletedTask;
-        }
-
-        return PiperClient.SendDeleteAsync(file, cancel);
-    }
+    public static Task AddDeleteAsync(string file, Cancel cancel = default) =>
+        PendingFiles.AddDeleteAsync(file, cancel);
 
     public static Task AddMoveAsync(
         string tempFile,
@@ -64,13 +45,6 @@ public static class DiffEngineTray
         string? arguments,
         bool canKill,
         int? processId,
-        Cancel cancel = default)
-    {
-        if (!IsRunning)
-        {
-            return Task.CompletedTask;
-        }
-
-        return PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel);
-    }
+        Cancel cancel = default) =>
+        PendingFiles.AddMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel);
 }

@@ -17,19 +17,48 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
         host.Mutate(_ => ViewerSession.Settle(_, key, origin));
 
     /// <summary>
+    /// The files are read here, on the listener thread, so the session stays IO free — the same
+    /// seam <see cref="OwnerLink"/> materializes the tray's tracked files through.
+    /// </summary>
+    void IQueueOwner.TrackMove(string temp, string target) =>
+        host.Mutate(_ => ViewerSession.EnqueueTracked(_, TrackedEntry.ForMove(temp, target)));
+
+    void IQueueOwner.TrackDelete(string file) =>
+        host.Mutate(_ => ViewerSession.EnqueueTracked(_, TrackedEntry.ForDelete(file)));
+
+    /// <summary>
     /// With patches, each item carries the payloads it was queued from — every variant of it —
     /// so a viewer showing someone else's queue can rebuild every pane locally and no diff has
     /// to cross the wire. Through the shared projection, so a conflicted entry lists identically
     /// whichever process owns the queue.
+    /// <para>
+    /// The tracked moves and deletes ride a full listing only, matching a tray owner: the plain
+    /// listing drives the tray menu, which reads its own tracker rather than the wire for those.
+    /// </para>
     /// </summary>
     ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
+        var queue = host.State.Queue;
         var items = ViewerListing.Items(
-            host.State.Queue
+            queue
                 .Where(_ => _.Kind == QueueEntryKind.Inline)
                 .Select(_ => new PendingInline(_.Variants, _.Status)),
             withPatches);
-        return ViewerResponse.Listing(items);
+        if (!withPatches)
+        {
+            return ViewerResponse.Listing(items);
+        }
+
+        return ViewerResponse.Listing(
+            items,
+            moves: queue
+                .Where(_ => _.Kind == QueueEntryKind.Move)
+                .Select(_ => new ViewerResponseMove(_.Key, _.Name, _.Solution, _.LeftFile!, _.TargetFile!))
+                .ToList(),
+            deletes: queue
+                .Where(_ => _.Kind == QueueEntryKind.Delete)
+                .Select(_ => new ViewerResponseDelete(_.Key, _.Name, _.Solution, _.LeftFile!))
+                .ToList());
     }
 
     bool IQueueOwner.Has(string key) =>

@@ -47,6 +47,22 @@ static class ViewerLauncher
     public static Process? LaunchAttached() =>
         Start("--attach");
 
+    /// <summary>
+    /// Starts a viewer holding one pending delete, for when no tray is running and nothing owns
+    /// the queue.
+    /// <para>
+    /// On the command line rather than on stdin, which is what an inline patch needs: a path fits
+    /// inside the length limit where snapshot content does not. It also keeps each launch
+    /// distinguishable, which is what ProcessCleanup matches on.
+    /// </para>
+    /// <para>
+    /// Two deletes racing both launch. Only one binds the port; the other forwards its delete to
+    /// the winner and exits, which is the same resolution a second inline viewer reaches.
+    /// </para>
+    /// </summary>
+    public static bool LaunchDelete(string file) =>
+        Start($"--delete \"{file}\"") is not null;
+
     static Process? Start(InlinePatch patch) =>
         // The source and line go on the command line, not just in the payload, so each launch is
         // distinguishable: ProcessCleanup matches on command line, and it makes the process

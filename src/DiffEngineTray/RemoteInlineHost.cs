@@ -31,20 +31,46 @@ class RemoteInlineHost : IInlineHost
         null;
 
     /// <summary>
-    /// Applied or failed only. The wire carries <c>ok</c> and a message, not an apply status, so a
-    /// stale patch reads as applied here. It costs nothing: the owner is a viewer, and it is
-    /// showing that message in its own footer.
+    /// Applied or failed, decided by whether the entry is still there afterwards rather than by
+    /// <c>ok</c>.
+    /// <para>
+    /// The wire carries <c>ok</c> and a message, not an apply status, and every owner keeps a
+    /// failed entry pending so it can be retried — an accept that could not write the file is
+    /// still an accept that was attempted. Taking <c>ok</c> at face value reported that snapshot
+    /// as applied while the viewer was still showing it, and the menu offered it again on the next
+    /// scan. A tray that owns the queue has never had that problem, because it reads the outcome
+    /// out of its own <see cref="InlineQueue"/>, so the two arrangements disagreed about the same
+    /// click.
+    /// </para>
+    /// <para>
+    /// A stale patch still reads as applied: it is dropped rather than kept, and from here that is
+    /// indistinguishable. It costs nothing, because the owner is a viewer and it is showing that
+    /// message in its own footer.
+    /// </para>
     /// </summary>
-    public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message) =>
-        Send(ViewerVerb.Accept, snapshot.Key, out message)
-            ? AcceptOutcome.Applied
-            : AcceptOutcome.Failed;
+    public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message)
+    {
+        if (!Send(ViewerVerb.Accept, snapshot.Key, out message))
+        {
+            return AcceptOutcome.Failed;
+        }
+
+        return List().Any(_ => _.Key == snapshot.Key)
+            ? AcceptOutcome.Failed
+            : AcceptOutcome.Applied;
+    }
 
     public bool Discard(PendingSnapshot snapshot, out string? message) =>
         Send(ViewerVerb.Discard, snapshot.Key, out message);
 
+    /// <summary>
+    /// True only when the queue is empty afterwards, for the reason <see cref="Accept"/> gives —
+    /// and matching what an owning tray reports, which is also "is anything still pending". A
+    /// conflict counts as not accepted, which is right: it is what a reviewer still has to resolve.
+    /// </summary>
     public bool AcceptAll(out string? message) =>
-        Send(ViewerVerb.AcceptAll, null, out message);
+        Send(ViewerVerb.AcceptAll, null, out message) &&
+        List().Count == 0;
 
     public void DiscardAll() =>
         Send(ViewerVerb.DiscardAll, null, out _);

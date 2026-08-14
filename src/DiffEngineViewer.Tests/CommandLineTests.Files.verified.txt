@@ -1,5 +1,6 @@
 ﻿{
   Left: left.txt,
   Right: right.txt,
-  Attach: false
+  Attach: false,
+  Delete: false
 }

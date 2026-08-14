@@ -53,9 +53,9 @@ flowchart LR
     Owner{{"inline queue owner: whoever bound 3493<br/>first — the tray at login, else a viewer"}}
     Files[("source files and<br/>staged patch files")]
 
-    Engine -->|"3492 moves, deletes (one way)"| Tray
-    Engine -->|"3493 inline, settle"| Owner
-    Engine -.->|"launch with patch on stdin,<br/>when nothing owns 3493"| Window
+    Engine -->|"3492 moves, deletes (one way),<br/>when a tray is running"| Tray
+    Engine -->|"3493 inline, settle, and<br/>moves and deletes with no tray"| Owner
+    Engine -.->|"launch with patch on stdin, or<br/>with a delete, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
     Window <-->|"3493 listfull, accept, discard"| Owner
     Plugin -->|"3493 settle, after accepting"| Owner
@@ -139,6 +139,11 @@ keeps offering a snapshot that is already in the source.
 - Does **not** reference DiffEngine. It links `Inline/*.cs`, `Protocol/*.cs` and
   `Tray/TrayDetector.cs` as source, because DiffEngine publishes and embeds the heads and a
   reference back would be a cycle.
+- Holds pending moves and deletes itself when it owns the queue, which is what happens with no
+  tray installed. They are ordinary `QueueEntryKind.Move`/`Delete` entries — the same ones an
+  attached viewer draws for the tray's — so nothing about how they look or what their menu offers
+  is per arrangement. Only who applies them differs: `ViewerActions.MoveFile`/`DeleteFile` here,
+  a forwarded key there.
 - Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the queue,
   and a process that fails to bind talks to the owner instead. A viewer that does not own one runs
   with `--attach`: it polls `listfull`, derives every pane from the patches that come back, and
@@ -187,6 +192,29 @@ keeps offering a snapshot that is already in the source.
 - Either host runs the same `InlineQueue` from DiffEngine, so the two cannot differ on what
   accepting or settling means. Owning it means accepting runs on a listener thread rather than on
   a render loop, which is where `InlineApplier`'s ten second mutex wait used to sit.
+- Which arrangement is live decides *which process applies an accept*, so both are pinned by
+  `TrayViewerSyncTest` — a real tray and a real `SessionState` over a real socket, asserting that
+  an accept, discard, sweep or settle from either surface leaves the other showing the same thing.
+  It sits in DiffEngineTray.Tests because that is the only project that can reference both halves
+  (the viewer aliased, since it links DiffEngine's sources and so declares the same type names).
+  The wire carries `ok` and a message, not an apply status, so `RemoteInlineHost` decides applied
+  versus failed by re-reading the listing: an owner keeps a failed entry pending, and taking `ok`
+  at face value used to report it as accepted while the viewer was still showing it.
+- A viewer that owns the queue answers about the tray's snapshots and about its **own** pending
+  files. Moves and deletes go to the tray when one is running and to the queue owner when one is
+  not (`PendingFiles`), because the alternative was that with no tray they went nowhere at all —
+  the send was skipped and the file was pending in nothing. A tray that owns the queue answers
+  those verbs too, routing them into the same tracked files the piper port fills, which is
+  load bearing rather than defensive: `DiffEngineTray.IsRunning` is cached at type init, so a test
+  process that started before the tray addresses the queue owner for the rest of its life.
+- A delete starts a viewer when nothing owns the queue; a move does not. A move already has a
+  window — the diff tool DiffRunner just launched for that pair — and a delete has no second file
+  to compare against, so no tool ever opens for it. `--delete <file>` is the launch, on the command
+  line rather than stdin because a path fits where snapshot content does not.
+- The catch that shape creates: every inline transition rebuilds its half of the queue from
+  `InlineQueue`, so `ViewerSession.Rebuild` carries the tracked entries across it. Without that,
+  accepting one snapshot silently drops the files pending beside it. `Sync` is the one caller that
+  must not, since it is replacing them with what the owner just reported.
 - `DebugReport` / `DebugForm` - the menu's "Debug view": every field of every tracked move, delete
   and snapshot as text, plus the queued patches when this tray owns the queue. The report is a
   string so it can be copied into an issue and snapshot tested without rendering a window.

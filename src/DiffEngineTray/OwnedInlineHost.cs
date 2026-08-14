@@ -185,6 +185,23 @@ sealed class OwnedInlineHost :
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Straight into the tracked files, which is where a piper move would have landed. Reaches
+    /// this tray when the sending process saw no tray as it started and so addressed the queue
+    /// owner instead — and this tray is the queue owner.
+    /// </summary>
+    void IQueueOwner.TrackMove(string temp, string target)
+    {
+        TrackedFiles?.AddMove(temp, target);
+        Changed?.Invoke();
+    }
+
+    void IQueueOwner.TrackDelete(string file)
+    {
+        TrackedFiles?.AddDelete(file);
+        Changed?.Invoke();
+    }
+
     ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
         // Read outside the gate: the tracked collections are concurrent, and only the full

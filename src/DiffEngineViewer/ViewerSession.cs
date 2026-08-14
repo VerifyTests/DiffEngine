@@ -30,7 +30,7 @@ static class ViewerSession
     {
         var key = InlineKey.For(patch.SourceFile, patch.LineHint);
         var replacedCurrent = state.Current?.Key == key;
-        var queue = Project(state, Pending(state).Enqueue(patch));
+        var queue = Rebuild(state, Pending(state).Enqueue(patch));
         // Grouping can reorder the list, so the selection follows its key rather than its index.
         var currentKey = state.Current?.Key;
         var selected = currentKey is null ? 0 : IndexOf(queue, currentKey);
@@ -79,7 +79,32 @@ static class ViewerSession
             return state;
         }
 
-        return Remove(state, Project(state, settled), null);
+        return Remove(state, Rebuild(state, settled), null);
+    }
+
+    /// <summary>
+    /// Adds a pending move or delete, or replaces the entry for the same file: a re-run stages the
+    /// same received file again, and a second entry for it would be a duplicate rather than news.
+    /// <para>
+    /// Takes a built entry rather than paths, because building one reads both files.
+    /// <see cref="TrackedEntry"/> does that on the listener thread, which is the same seam
+    /// <see cref="Sync"/> takes the tray's through.
+    /// </para>
+    /// </summary>
+    public static SessionState EnqueueTracked(SessionState state, QueueEntry entry)
+    {
+        var replacedCurrent = state.Current?.Key == entry.Key;
+        var kept = state.Queue.Where(_ => _.Key != entry.Key);
+        var queue = QueueProjection.Order([..kept, entry]);
+        var currentKey = state.Current?.Key;
+        var selected = currentKey is null ? 0 : IndexOf(queue, currentKey);
+        return Clamp(state with
+        {
+            Queue = queue,
+            Selected = selected < 0 ? 0 : selected,
+            ScrollTop = replacedCurrent ? 0 : state.ScrollTop,
+            Menu = null
+        });
     }
 
     /// <summary>
@@ -208,7 +233,7 @@ static class ViewerSession
             case CommandKind.AcceptGroup:
                 return menu is null || !inline ? state : AcceptGroup(state, menu, actions);
             case CommandKind.DiscardGroup:
-                return menu is null || !inline ? state : DiscardGroup(state, menu);
+                return menu is null || !inline ? state : DiscardGroup(state, menu, actions);
             case CommandKind.ToggleGroup:
                 return menu?.GroupKey is not { } key ? state : Toggle(state, key);
             case CommandKind.RevealSource:
@@ -238,18 +263,33 @@ static class ViewerSession
             case CommandKind.SelectItem:
                 return Select(state, command.Index);
             case CommandKind.Accept:
-                return inline ? AcceptInline(state, actions) : AcceptFile(state, actions);
+                if (!inline)
+                {
+                    return AcceptFile(state, actions);
+                }
+
+                // A move or a delete is applied by whoever holds it, and in queue mode that is
+                // either this process or the owner this one forwards to. Reaching here means the
+                // former, because forwarding never gets this far.
+                return state.Current is { Kind: QueueEntryKind.Move or QueueEntryKind.Delete } accepting
+                    ? AcceptTracked(state, accepting, actions)
+                    : AcceptInline(state, actions);
             case CommandKind.AcceptAll:
                 // File mode shows one comparison and cannot grow, so accepting all of it is
                 // accepting it. Reachable through shift+A even though the button is disabled for
                 // a single item, so it behaves rather than being a hole.
                 return inline ? AcceptAllInline(state, actions) : AcceptFile(state, actions);
             case CommandKind.Discard:
-                return inline ? DiscardInline(state) : DiscardFile(state);
+                if (!inline)
+                {
+                    return DiscardFile(state);
+                }
+
+                return state.Current is { Kind: QueueEntryKind.Move or QueueEntryKind.Delete } discarding
+                    ? DiscardTracked(state, discarding, actions)
+                    : DiscardInline(state);
             case CommandKind.DiscardAll:
-                return inline
-                    ? Remove(state, Project(state, Pending(state).DiscardAll(out var summary)), summary)
-                    : DiscardFile(state);
+                return inline ? DiscardAllInline(state, actions) : DiscardFile(state);
             case CommandKind.NextVariant:
                 return NextVariant(state);
             case CommandKind.Quit:
@@ -283,7 +323,7 @@ static class ViewerSession
             accepted = pending.Accept(current.Key, actions.ApplyInline, out message);
         }
 
-        var queue = Project(state, accepted);
+        var queue = Rebuild(state, accepted);
         if (accepted.Count < pending.Count)
         {
             return Remove(state, queue, message);
@@ -298,15 +338,19 @@ static class ViewerSession
     }
 
     /// <summary>
-    /// Accepts every inline member of the group a header's menu described, skipping conflicted
-    /// entries the way accept-all does. By key rather than index, because each accept rebuilds
-    /// the queue underneath the next.
+    /// Accepts every member of the group a header's menu described, skipping conflicted entries
+    /// the way accept-all does. By key rather than index, because each accept rebuilds the queue
+    /// underneath the next.
+    /// <para>
+    /// A solution header spans tracked moves and deletes as well as snapshots, so the sweep does
+    /// too. Skipping them would make "Accept all in ..." quietly mean "accept the snapshots in
+    /// ...", which is the divergence the unqualified accept-all already avoids.
+    /// </para>
     /// </summary>
     static SessionState AcceptGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
-        var members = menu.Members
-            .Where(_ => _ >= 0 && _ < state.Queue.Count)
-            .Select(_ => state.Queue[_])
+        var all = Members(state, menu);
+        var members = all
             .Where(_ => _.Kind == QueueEntryKind.Inline)
             .ToList();
         var queue = Pending(state);
@@ -356,14 +400,19 @@ static class ViewerSession
             builder.Append($". {failure}");
         }
 
-        return Remove(state, Project(state, queue), builder.ToString());
+        return SweepTracked(
+            state,
+            Rebuild(state, queue),
+            builder.ToString(),
+            actions,
+            discarding: false,
+            TrackedKeysOf(all));
     }
 
-    static SessionState DiscardGroup(SessionState state, MenuState menu)
+    static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
-        var keys = menu.Members
-            .Where(_ => _ >= 0 && _ < state.Queue.Count)
-            .Select(_ => state.Queue[_])
+        var all = Members(state, menu);
+        var keys = all
             .Where(_ => _.Kind == QueueEntryKind.Inline)
             .Select(_ => _.Key)
             .ToList();
@@ -373,8 +422,26 @@ static class ViewerSession
             queue = queue.Discard(key, out _);
         }
 
-        return Remove(state, Project(state, queue), $"Discarded {keys.Count}");
+        return SweepTracked(
+            state,
+            Rebuild(state, queue),
+            $"Discarded {keys.Count}",
+            actions,
+            discarding: true,
+            TrackedKeysOf(all));
     }
+
+    static List<QueueEntry> Members(SessionState state, MenuState menu) =>
+        menu.Members
+            .Where(_ => _ >= 0 && _ < state.Queue.Count)
+            .Select(_ => state.Queue[_])
+            .ToList();
+
+    static List<string> TrackedKeysOf(IEnumerable<QueueEntry> entries) =>
+        entries
+            .Where(_ => _.Kind is QueueEntryKind.Move or QueueEntryKind.Delete)
+            .Select(_ => _.Key)
+            .ToList();
 
     /// <summary>
     /// Shows the current entry's file in the platform's file manager: the source for an inline
@@ -462,7 +529,132 @@ static class ViewerSession
     static SessionState AcceptAllInline(SessionState state, ViewerActions actions)
     {
         var accepted = Pending(state).AcceptAll(actions.ApplyInline, out var message);
-        return Remove(state, Project(state, accepted), message);
+        return SweepTracked(state, Rebuild(state, accepted), message, actions, discarding: false);
+    }
+
+    static SessionState DiscardAllInline(SessionState state, ViewerActions actions)
+    {
+        var discarded = Pending(state).DiscardAll(out var message);
+        return SweepTracked(state, Rebuild(state, discarded), message, actions, discarding: true);
+    }
+
+    /// <summary>
+    /// The tracked half of a bulk command, worded the way an owning tray words its own: the inline
+    /// summary, then ", plus n files" with what stayed pending counted rather than hidden. Both
+    /// sweeps say the same thing about the same files, whichever process is holding them.
+    /// </summary>
+    /// <param name="only">
+    /// The keys to sweep, for a group header acting on its own members. Null sweeps every tracked
+    /// entry, which is what the unqualified bulk commands mean.
+    /// </param>
+    static SessionState SweepTracked(
+        SessionState state,
+        IReadOnlyList<QueueEntry> queue,
+        string message,
+        ViewerActions actions,
+        bool discarding,
+        IReadOnlyCollection<string>? only = null)
+    {
+        var remaining = new List<QueueEntry>(queue.Count);
+        var swept = 0;
+        var kept = 0;
+        foreach (var entry in queue)
+        {
+            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
+                (only is not null && !only.Contains(entry.Key)))
+            {
+                remaining.Add(entry);
+                continue;
+            }
+
+            if (TryApplyTracked(entry, actions, discarding) is not { } failure)
+            {
+                swept++;
+                continue;
+            }
+
+            kept++;
+            remaining.Add(entry with { Status = failure });
+        }
+
+        if (swept == 0 &&
+            kept == 0)
+        {
+            return Remove(state, remaining, message);
+        }
+
+        var clause = kept == 0 ? $"{swept} files" : $"{swept} files ({kept} kept)";
+        return Remove(state, remaining, $"{message}, plus {clause}");
+    }
+
+    /// <summary>
+    /// Accepting a tracked entry is the file operation it describes; discarding one is throwing
+    /// the received file away, or, for a delete, leaving the file alone and only untracking it —
+    /// which is what discarding a pending delete has always meant.
+    /// <para>
+    /// Returns null when it went, and the failure otherwise. A failed entry stays pending carrying
+    /// the reason, so it can be retried once whatever holds the file is gone, exactly as a failed
+    /// inline apply does.
+    /// </para>
+    /// </summary>
+    static string? TryApplyTracked(QueueEntry entry, ViewerActions actions, bool discarding)
+    {
+        try
+        {
+            if (discarding)
+            {
+                if (entry.Kind == QueueEntryKind.Move)
+                {
+                    actions.DeleteFile(entry.LeftFile!);
+                }
+
+                return null;
+            }
+
+            if (entry.Kind == QueueEntryKind.Move)
+            {
+                actions.MoveFile(entry.LeftFile!, entry.TargetFile!);
+            }
+            else
+            {
+                actions.DeleteFile(entry.LeftFile!);
+            }
+
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception.Message;
+        }
+    }
+
+    static SessionState AcceptTracked(SessionState state, QueueEntry entry, ViewerActions actions) =>
+        ApplyTracked(state, entry, actions, discarding: false, $"Accepted {entry.Name}");
+
+    static SessionState DiscardTracked(SessionState state, QueueEntry entry, ViewerActions actions) =>
+        ApplyTracked(state, entry, actions, discarding: true, $"Discarded {entry.Name}");
+
+    static SessionState ApplyTracked(
+        SessionState state,
+        QueueEntry entry,
+        ViewerActions actions,
+        bool discarding,
+        string done)
+    {
+        if (TryApplyTracked(entry, actions, discarding) is { } failure)
+        {
+            var queue = state.Queue
+                .Select(_ => _.Key == entry.Key ? _ with { Status = failure } : _)
+                .ToList();
+            return Clamp(state with
+            {
+                Queue = queue,
+                Message = failure,
+                Menu = null
+            });
+        }
+
+        return Remove(state, state.Queue.Where(_ => _.Key != entry.Key).ToList(), done);
     }
 
     static SessionState DiscardInline(SessionState state)
@@ -474,7 +666,7 @@ static class ViewerSession
         }
 
         var discarded = Pending(state).Discard(current.Key, out var message);
-        return Remove(state, Project(state, discarded), message);
+        return Remove(state, Rebuild(state, discarded), message);
     }
 
     /// <summary>
@@ -531,6 +723,26 @@ static class ViewerSession
         InlineQueue.From(state.Queue
             .Where(_ => _.Kind == QueueEntryKind.Inline)
             .Select(_ => new PendingInline(_.Variants, _.Status)));
+
+    /// <summary>
+    /// The display list after an inline transition: the queue projected back, plus the tracked
+    /// moves and deletes carried over untouched.
+    /// <para>
+    /// Every inline command rebuilds its half of the list from <see cref="InlineQueue"/>, which is
+    /// what keeps the two from disagreeing. The tracked half has to survive that. An owning viewer
+    /// holds both — a delete arrives with no tray running and sits beside the snapshots — so
+    /// accepting a snapshot must not take the files pending next to it with it.
+    /// </para>
+    /// <para>
+    /// <see cref="Sync"/> is the one caller that does not use this: it is replacing the tracked
+    /// entries with what the owner just reported, so carrying the old ones over would double them.
+    /// </para>
+    /// </summary>
+    static IReadOnlyList<QueueEntry> Rebuild(SessionState state, InlineQueue queue) =>
+        QueueProjection.Order([..Project(state, queue), ..Tracked(state)]);
+
+    static IEnumerable<QueueEntry> Tracked(SessionState state) =>
+        state.Queue.Where(_ => _.Kind is QueueEntryKind.Move or QueueEntryKind.Delete);
 
     /// <summary>
     /// And back onto the display list, in display order. Building an entry runs the diff, so an

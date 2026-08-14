@@ -30,11 +30,11 @@ flowchart LR
     Owner{{"inline queue owner: whoever bound 3493<br/>first — the tray at login, else a viewer"}}
     Files[("source files and<br/>staged patch files")]
 
-    Engine -->|"3492 moves, deletes (one way)"| Tray
-    Engine -->|"3493 inline, settle"| Owner
-    Engine -.->|"launch with patch on stdin,<br/>when nothing owns 3493"| Window
+    Engine -->|"3492 moves, deletes (one way),<br/>when a tray is running"| Tray
+    Engine -->|"3493 inline, settle, and<br/>moves and deletes with no tray"| Owner
+    Engine -.->|"launch with patch on stdin, or with<br/>a delete, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
-    Window <-->|"3493 listfull (with the tray's moves<br/>and deletes), accept, discard"| Owner
+    Window <-->|"3493 listfull (with the owner's moves<br/>and deletes), accept, discard"| Owner
     Plugin -->|"3493 settle, after accepting"| Owner
     Owner -->|"InlineApplier"| Files
     Plugin -->|"InlineApplier"| Files
@@ -46,6 +46,12 @@ above are in-process calls; when a viewer owns it, the tray drives that viewer o
 verbs. Either way both hosts run the same `InlineQueue` implementation, so they cannot disagree
 on what accepting or settling means. [DiffEngineViewer](/docs/viewer.md) and
 [DiffEngineTray](/docs/tray.md) cover the two arrangements in detail.
+
+Pending file moves and deletes follow the same rule. They go to the tray when one is running,
+over the port they have always used, and to the queue owner when one is not — so with no tray
+installed they are reviewed in the viewer rather than going nowhere. A delete starts a viewer if
+nothing owns the queue, because it has no second file to compare against and so no diff tool ever
+opens for it. A move does not: DiffEngine has already opened a diff tool for that file pair.
 
 
 ## When a test fails

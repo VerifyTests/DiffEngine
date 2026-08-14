@@ -38,7 +38,7 @@ public class TrackerMoveTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
-        tracker.AcceptAll();
+        await tracker.AcceptAll();
         await tracker.AssertEmpty();
     }
 
@@ -48,7 +48,7 @@ public class TrackerMoveTest :
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
-        tracker.AcceptAll();
+        await tracker.AcceptAll();
         await tracker.AssertEmpty();
     }
 

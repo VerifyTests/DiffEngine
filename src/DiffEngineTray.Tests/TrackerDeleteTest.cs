@@ -46,7 +46,7 @@ public class TrackerDeleteTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        tracker.AcceptAll();
+        await tracker.AcceptAll();
         await tracker.AssertEmpty();
     }
 
@@ -56,7 +56,7 @@ public class TrackerDeleteTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
-        tracker.AcceptAll();
+        await tracker.AcceptAll();
         await tracker.AssertEmpty();
     }
 
