@@ -54,9 +54,11 @@ static class InlinePatcher
             return TryRemove(source, scan, lineStarts, lineHint, ref newSource, ref failReason);
         }
 
+        var fileUnit = DetectIndentUnit(source, scan, lineStarts);
+
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, scan, lineStarts, lineHint, newContent, eol, ref newSource, ref failReason);
+            return TryAppend(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, ref newSource, ref failReason);
         }
 
         if (!string.IsNullOrEmpty(originalExpression))
@@ -83,16 +85,16 @@ static class InlinePatcher
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
+                var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
 
             // Expression gone: another process may have applied the same patch already
-            return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, alreadyOnly: true, ref newSource, ref failReason);
+            return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, alreadyOnly: true, ref newSource, ref failReason);
         }
 
-        return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, alreadyOnly: false, ref newSource, ref failReason);
+        return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, alreadyOnly: false, ref newSource, ref failReason);
     }
 
     static PatchStatus InsertOrCheck(
@@ -102,6 +104,7 @@ static class InlinePatcher
         int lineHint,
         string newContent,
         string eol,
+        string fileUnit,
         bool alreadyOnly,
         ref string newSource,
         ref string failReason)
@@ -127,7 +130,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var emptyRendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
+            var emptyRendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.Start, emptyRendered);
             return PatchStatus.Applied;
         }
@@ -142,7 +145,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart);
+            var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart, fileUnit);
             var namedRendered = CsStringLiteral.Render(newContent, namedIndent, eol);
             newSource = Splice(source, expected.ListStart, expected.ListStart, $"{parameterName}: {namedRendered}, ");
             return PatchStatus.Applied;
@@ -157,7 +160,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
+            var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.End, rendered);
             return PatchStatus.Applied;
         }
@@ -254,6 +257,7 @@ static class InlinePatcher
         int lineHint,
         string newContent,
         string eol,
+        string fileUnit,
         ref string newSource,
         ref string failReason)
     {
@@ -278,7 +282,7 @@ static class InlinePatcher
         }
 
         var statementIndent = LeadingWhitespace(source, lineStarts, nameStart);
-        var unit = statementIndent.Contains('\t') ? "\t" : "    ";
+        var unit = UnitFor(fileUnit, statementIndent);
         // Line up with the existing chain when there is one, otherwise start it one level in
         var callIndent = LineOf(lineStarts, insertAt - 1) == LineOf(lineStarts, nameStart)
             ? statementIndent + unit
@@ -731,9 +735,9 @@ static class InlinePatcher
     /// Renders the literal for a splice at <paramref name="spanStart"/>, indented to suit where it
     /// lands.
     /// </summary>
-    static string RenderArgument(string source, List<int> lineStarts, int spanStart, string newContent, string eol)
+    static string RenderArgument(string source, List<int> lineStarts, int spanStart, string newContent, string eol, string fileUnit)
     {
-        var indent = IndentForSpan(source, lineStarts, spanStart);
+        var indent = IndentForSpan(source, lineStarts, spanStart, fileUnit);
         var rendered = CsStringLiteral.Render(newContent, indent, eol);
         if (StartsLine(source, lineStarts, spanStart))
         {
@@ -809,6 +813,119 @@ static class InlinePatcher
         return Environment.NewLine;
     }
 
+    /// <summary>
+    /// What one level of indentation is made of in this file: the most common run of whitespace a
+    /// line adds to the one above it.
+    /// <para>
+    /// Read off the source rather than taken from a convention, because a splice has to match the
+    /// code it lands in, and files disagree with their repo's settings often enough - vendored,
+    /// generated, or last edited by someone configured differently - that following the convention
+    /// would make the patch look more out of place, not less. It answers the one question a single
+    /// call site cannot: a line shows which characters it is indented with, but not how wide a
+    /// level is, and hard coding four spaces is wrong in every two space repo.
+    /// </para>
+    /// Returns "" when the file is too small to show a step, which leaves the choice to
+    /// <see cref="UnitFor"/>.
+    /// </summary>
+    static string DetectIndentUnit(string source, CsScan scan, List<int> lineStarts)
+    {
+        Dictionary<string, int> counts = new(StringComparer.Ordinal);
+        var previous = "";
+        foreach (var lineStart in lineStarts)
+        {
+            // Inside a comment or a literal the leading whitespace is content, not indentation.
+            // A snapshot literal in particular is arbitrary text, and counting its lines would
+            // measure the snapshot rather than the file
+            if (!scan.IsCode(lineStart))
+            {
+                continue;
+            }
+
+            var index = lineStart;
+            while (index < source.Length &&
+                   (source[index] == ' ' || source[index] == '\t'))
+            {
+                index++;
+            }
+
+            // A blank line has no indentation of its own, and must not break the run either
+            if (index >= source.Length ||
+                source[index] == '\r' ||
+                source[index] == '\n')
+            {
+                continue;
+            }
+
+            var lead = source.Substring(lineStart, index - lineStart);
+            // Only a line that indents further than the one above, by adding to what it already
+            // had. Anything else is a dedent, or whitespace of a different kind, and neither
+            // measures a step
+            if (lead.Length > previous.Length &&
+                lead.StartsWith(previous, StringComparison.Ordinal))
+            {
+                var step = lead.Substring(previous.Length);
+                counts.TryGetValue(step, out var count);
+                counts[step] = count + 1;
+            }
+
+            previous = lead;
+        }
+
+        var best = "";
+        var bestCount = 0;
+        foreach (var pair in counts)
+        {
+            if (bestCount == 0 ||
+                pair.Value > bestCount ||
+                pair.Value == bestCount && Closer(pair.Key, best))
+            {
+                best = pair.Key;
+                bestCount = pair.Value;
+            }
+        }
+
+        return best;
+
+        // A tie goes to the shorter step, since a longer one is two levels taken at once, and
+        // then to ordinal order so the answer cannot depend on enumeration order
+        static bool Closer(string candidate, string current) =>
+            candidate.Length == current.Length
+                ? string.CompareOrdinal(candidate, current) < 0
+                : candidate.Length < current.Length;
+    }
+
+    /// <summary>
+    /// One level of indentation for a splice at a site indented with <paramref name="lead"/>.
+    /// <para>
+    /// The character comes from the site and the width from the file, so a file that indents
+    /// inconsistently still gets a splice consistent with its own surroundings, while a file that
+    /// indents by something other than four spaces gets that.
+    /// </para>
+    /// </summary>
+    static string UnitFor(string fileUnit, string lead)
+    {
+        var fileUsesTabs = fileUnit.Length > 0 && fileUnit[0] == '\t';
+        // The character the site's own indentation ends in decides, so tabs for depth followed by
+        // spaces for alignment continues in spaces: a tab there would advance to the next tab stop
+        // from wherever the alignment left off, which is a different width in every editor. With
+        // no indentation to read, follow the file
+        var tabs = lead.Length > 0 ? lead[lead.Length - 1] == '\t' : fileUsesTabs;
+        if (tabs)
+        {
+            return "\t";
+        }
+
+        // The file's step is tabs, or there was none to find, so it says nothing about how wide a
+        // space indent should be
+        if (fileUsesTabs ||
+            fileUnit.Length == 0)
+        {
+            return "    ";
+        }
+
+        return fileUnit;
+    }
+
     static string NormalizeTo(string value, string eol) =>
         value
             .Replace("\r\n", "\n")
@@ -849,7 +966,7 @@ static class InlinePatcher
         return low + 1;
     }
 
-    static string IndentForSpan(string source, List<int> lineStarts, int spanStart)
+    static string IndentForSpan(string source, List<int> lineStarts, int spanStart, string fileUnit)
     {
         var line = LineOf(lineStarts, spanStart);
         var lineStart = lineStarts[line - 1];
@@ -869,7 +986,6 @@ static class InlinePatcher
         }
 
         var leadText = lead.ToString();
-        var unit = leadText.Contains('\t') ? "\t" : "    ";
-        return leadText + unit;
+        return leadText + UnitFor(fileUnit, leadText);
     }
 }

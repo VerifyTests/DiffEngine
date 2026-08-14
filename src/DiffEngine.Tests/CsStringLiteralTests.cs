@@ -213,4 +213,16 @@ public class CsStringLiteralTests
         var parsed = CsStringLiteral.TryParse(expression, out _);
         await Assert.That(parsed).IsFalse();
     }
+
+    // The indent is stripped by ordinal prefix, so a tab and the spaces it displays as
+    // are not interchangeable, whichever side each is on
+    [Test]
+    [Arguments("\"\"\"\n\ta\n    \"\"\"")]
+    [Arguments("\"\"\"\n    a\n\t\"\"\"")]
+    [Arguments("\"\"\"\n\t    a\n    \t\"\"\"")]
+    public async Task ParseRejectsMixedIndentCharacters(string expression)
+    {
+        var parsed = CsStringLiteral.TryParse(expression, out _);
+        await Assert.That(parsed).IsFalse();
+    }
 }
