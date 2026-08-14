@@ -26,10 +26,10 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            """
-            await Snapshot(""
-            """ + "\"");
-        await Assert.That(newSource).Contains("            new");
+            "        await Snapshot(\n" +
+            "            \"\"\"\n" +
+            "            new\n" +
+            "            \"\"\");");
     }
 
     [Test]
@@ -225,7 +225,7 @@ public class InlinePatcherTests
         var source = Method("        await Snapshot();");
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await Snapshot(\"\"\"\n            new\n            \"\"\");");
+        await Assert.That(newSource).Contains("await Snapshot(\n            \"\"\"\n            new\n            \"\"\");");
     }
 
     [Test]
@@ -234,7 +234,7 @@ public class InlinePatcherTests
         var source = Method("        await Snapshot(null, file, line);");
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await Snapshot(\"\"\"\n            new\n            \"\"\", file, line);");
+        await Assert.That(newSource).Contains("await Snapshot(\n            \"\"\"\n            new\n            \"\"\", file, line);");
     }
 
     [Test]
@@ -290,7 +290,8 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             "        await Verify(value)\n" +
-            "            .Snapshot(\"\"\"\n" +
+            "            .Snapshot(\n" +
+            "                \"\"\"\n" +
             "                new\n" +
             "                \"\"\");");
     }
@@ -309,7 +310,8 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             "            .ScrubLinesContaining(\"x\")\n" +
-            "            .Snapshot(\"\"\"\n" +
+            "            .Snapshot(\n" +
+            "                \"\"\"\n" +
             "                new\n" +
             "                \"\"\");");
     }
@@ -322,7 +324,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await VerifyXml(value)\n            .Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await VerifyXml(value)\n            .Snapshot(\n                \"\"\"");
     }
 
     // The verify call spans lines, so the closing paren is nowhere near the hint
@@ -339,7 +341,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("            })\n            .Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("            })\n            .Snapshot(\n                \"\"\"");
     }
 
     [Test]
@@ -409,7 +411,8 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             "        await Verify(ContentValidation.Verify(value))\n" +
-            "            .Snapshot(\"\"\"");
+            "            .Snapshot(\n" +
+            "                \"\"\"");
     }
 
     [Test]
@@ -420,7 +423,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await Verifier.Verify(value)\n            .Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await Verifier.Verify(value)\n            .Snapshot(\n                \"\"\"");
     }
 
     [Test]
@@ -431,7 +434,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await this.Verify(value)\n            .Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await this.Verify(value)\n            .Snapshot(\n                \"\"\"");
     }
 
     [Test]
@@ -529,7 +532,7 @@ public class InlinePatcherTests
         var source = "class Tests\n{\n\tasync Task Test()\n\t{\n\t\tawait Snapshot();\n\t}\n}";
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(\"\"\"\n\t\t\tnew\n\t\t\t\"\"\");");
+        await Assert.That(newSource).Contains("Snapshot(\n\t\t\t\"\"\"\n\t\t\tnew\n\t\t\t\"\"\");");
     }
 
     [Test]
@@ -538,7 +541,8 @@ public class InlinePatcherTests
         var source = "await Snapshot();";
         var status = InlinePatcher.TryApply(source, 500, InlinePatchMode.Set, null, "new", out var newSource, out _);
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
+        // No newline in the file, so the splice falls back to the environment's
+        await Assert.That(newSource).Contains($"Snapshot({Environment.NewLine}    \"\"\"");
     }
 
     [Test]
@@ -721,7 +725,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, "\"same\"", "changed", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await Verify(\"same\").Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await Verify(\"same\").Snapshot(\n            \"\"\"");
         await Assert.That(newSource).Contains("changed");
     }
 
@@ -764,7 +768,7 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("    // await Verify(x).Snapshot(\"doc example\");\n");
-        await Assert.That(newSource).Contains("        await Verify(x).Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("        await Verify(x).Snapshot(\n            \"\"\"");
     }
 
     [Test]
@@ -778,7 +782,7 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("var text = \"await Snapshot(\\\"x\\\")\";\n");
-        await Assert.That(newSource).Contains("await Verify(x).Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await Verify(x).Snapshot(\n            \"\"\"");
     }
 
     // A declaration is a name followed by parens too, so it has to be told apart by what precedes it
@@ -814,7 +818,8 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             "    Task VerifyThing(string value) => Verify(value)\n" +
-            "        .Snapshot(\"\"\"");
+            "        .Snapshot(\n" +
+            "            \"\"\"");
     }
 
     // Snapshot terminates the chain, so a comment in the middle of one must not end the walk
@@ -830,7 +835,8 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
             "            .UseDirectory(\"snapshots\")\n" +
-            "            .Snapshot(\"\"\"");
+            "            .Snapshot(\n" +
+            "                \"\"\"");
     }
 
     [Test]
@@ -844,7 +850,7 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("// was \"old\"\n");
-        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("Snapshot(\n            \"\"\"");
     }
 
     [Test]
@@ -864,7 +870,7 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("void Helper() => Log(\"old\");");
-        await Assert.That(newSource).Contains("Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("Snapshot(\n            \"\"\"");
     }
 
     // The empty literal is two characters, and the opening of every raw literal holds a pair
@@ -888,7 +894,7 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("            content\n            \"\"\");");
-        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"\"\"\n            new\n            \"\"\");");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\n            \"\"\"\n            new\n            \"\"\");");
     }
 
     [Test]
@@ -899,7 +905,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains(".Snapshot<Thing>(\"\"\"");
+        await Assert.That(newSource).Contains(".Snapshot<Thing>(\n            \"\"\"");
     }
 
     [Test]
@@ -910,7 +916,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("await Verify<Thing>(value)\n            .Snapshot(\"\"\"");
+        await Assert.That(newSource).Contains("await Verify<Thing>(value)\n            .Snapshot(\n                \"\"\"");
     }
 
     [Test]
@@ -921,7 +927,7 @@ public class InlinePatcherTests
         var status = InlinePatcher.TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(/* keep */\"\"\"");
+        await Assert.That(newSource).Contains("Snapshot(/* keep */\n            \"\"\"");
     }
 
     [Test]

@@ -83,8 +83,7 @@ static class InlinePatcher
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var indent = IndentForSpan(source, lineStarts, expected.Start);
-                var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
+                var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
@@ -128,8 +127,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var emptyIndent = IndentForSpan(source, lineStarts, expected.Start);
-            var emptyRendered = CsStringLiteral.RenderRaw(newContent, emptyIndent, eol);
+            var emptyRendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
             newSource = Splice(source, expected.Start, expected.Start, emptyRendered);
             return PatchStatus.Applied;
         }
@@ -159,8 +157,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var indent = IndentForSpan(source, lineStarts, expected.Start);
-            var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
+            var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol);
             newSource = Splice(source, expected.Start, expected.End, rendered);
             return PatchStatus.Applied;
         }
@@ -286,8 +283,10 @@ static class InlinePatcher
         var callIndent = LineOf(lineStarts, insertAt - 1) == LineOf(lineStarts, nameStart)
             ? statementIndent + unit
             : LeadingWhitespace(source, lineStarts, insertAt - 1);
-        var rendered = CsStringLiteral.RenderRaw(newContent, callIndent + unit, eol);
-        newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({rendered})");
+        var contentIndent = callIndent + unit;
+        var rendered = CsStringLiteral.RenderRaw(newContent, contentIndent, eol);
+        var argument = OnOwnLine(rendered, contentIndent, eol);
+        newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
         return PatchStatus.Applied;
     }
 
@@ -726,6 +725,47 @@ static class InlinePatcher
 
             break;
         }
+    }
+
+    /// <summary>
+    /// Renders the literal for a splice at <paramref name="spanStart"/>, indented to suit where it
+    /// lands.
+    /// </summary>
+    static string RenderArgument(string source, List<int> lineStarts, int spanStart, string newContent, string eol)
+    {
+        var indent = IndentForSpan(source, lineStarts, spanStart);
+        var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
+        if (StartsLine(source, lineStarts, spanStart))
+        {
+            return rendered;
+        }
+
+        return OnOwnLine(rendered, indent, eol);
+    }
+
+    /// <summary>
+    /// Puts a multi-line literal on its own line, so the opening delimiter sits with the content
+    /// and the closing one rather than trailing the open paren. A single line literal (only the
+    /// empty snapshot renders as one) stays where it is, since there is nothing to line up with.
+    /// </summary>
+    static string OnOwnLine(string rendered, string indent, string eol) =>
+        rendered.IndexOf('\n') == -1 ? rendered : $"{eol}{indent}{rendered}";
+
+    /// <summary>
+    /// True when only whitespace precedes the offset on its line.
+    /// </summary>
+    static bool StartsLine(string source, List<int> lineStarts, int offset)
+    {
+        for (var index = lineStarts[LineOf(lineStarts, offset) - 1]; index < offset; index++)
+        {
+            if (source[index] != ' ' &&
+                source[index] != '\t')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static string Splice(string source, int start, int end, string replacement) =>
