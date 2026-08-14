@@ -221,8 +221,8 @@ public class AttachedViewerTests
     {
         var temp = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.received.txt");
         var target = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
-        File.WriteAllText(temp, "incoming");
-        File.WriteAllText(target, "committed");
+        await File.WriteAllTextAsync(temp, "incoming");
+        await File.WriteAllTextAsync(target, "committed");
         try
         {
             var (server, cancel) = Listing(() => ViewerResponse.Listing(
@@ -260,7 +260,7 @@ public class AttachedViewerTests
     public async Task AnUnreadableFileDegradesNotCrashes()
     {
         var file = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
-        File.WriteAllText(file, "locked away");
+        await File.WriteAllTextAsync(file, "locked away");
         try
         {
             using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
@@ -294,7 +294,7 @@ public class AttachedViewerTests
     public async Task UnchangedFilesAreNotReReadAndAChangeRefreshes()
     {
         var file = Path.Combine(Path.GetTempPath(), $"deview_{Guid.NewGuid():N}.verified.txt");
-        File.WriteAllText(file, "first");
+        await File.WriteAllTextAsync(file, "first");
         try
         {
             var (server, cancel) = Listing(() => ViewerResponse.Listing(
@@ -312,7 +312,7 @@ public class AttachedViewerTests
                 await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
 
                 // A stamp needs a distinct write time; length changing makes it deterministic.
-                File.WriteAllText(file, "second, longer");
+                await File.WriteAllTextAsync(file, "second, longer");
                 link.Pump();
                 await Assert.That(host.State.Queue.Single().RightText).IsEqualTo("second, longer");
                 await cancel.CancelAsync();

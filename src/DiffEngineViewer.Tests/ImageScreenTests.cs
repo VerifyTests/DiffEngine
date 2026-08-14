@@ -99,8 +99,8 @@ public class ImageScreenTests
     public async Task PanesCarryThePicture()
     {
         var screen = ScreenBuilder.Build(State(Received(), Expected()));
-        await Assert.That(screen.Left.Image).IsEqualTo(new ImagePane("temp/sample.received.png", 800, 600));
-        await Assert.That(screen.Right.Image).IsEqualTo(new ImagePane("code/sample.verified.png", 800, 600));
+        await Assert.That(screen.Left.Image).IsEqualTo(new("temp/sample.received.png", 800, 600));
+        await Assert.That(screen.Right.Image).IsEqualTo(new("code/sample.verified.png", 800, 600));
     }
 
     [Test]

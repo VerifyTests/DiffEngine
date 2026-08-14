@@ -1,5 +1,3 @@
-using System.Buffers.Binary;
-
 /// <summary>
 /// What the sniffer makes of each format's leading bytes.
 /// <para>

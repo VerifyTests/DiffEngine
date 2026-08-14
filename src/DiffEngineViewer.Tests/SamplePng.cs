@@ -1,7 +1,3 @@
-using System.Buffers.Binary;
-using System.IO.Compression;
-using System.Text;
-
 /// <summary>
 /// A real, decodable PNG built byte by byte.
 /// <para>

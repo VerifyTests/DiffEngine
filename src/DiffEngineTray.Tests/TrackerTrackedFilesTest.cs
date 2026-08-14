@@ -66,13 +66,13 @@ public class TrackerTrackedFilesTest :
     {
         await using var tracker = new RecordingTracker();
         ITrackedFiles tracked = tracker;
-        File.WriteAllText(temp, "content");
+        await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
         var (ok, _) = tracked.Accept(TrackedKeys.ForMove(temp));
 
         await Assert.That(ok).IsTrue();
-        await Assert.That(File.ReadAllText(target)).IsEqualTo("content");
+        await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("content");
         await Assert.That(tracker.Moves).IsEmpty();
     }
 
@@ -86,7 +86,7 @@ public class TrackerTrackedFilesTest :
         await using var tracker = new RecordingTracker(
             lockedFilesResolver: (_, _) => throw new("must not prompt"));
         ITrackedFiles tracked = tracker;
-        File.WriteAllText(temp, "content");
+        await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
         using (new FileStream(target, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
         {
@@ -115,7 +115,7 @@ public class TrackerTrackedFilesTest :
         await using var tracker = new RecordingTracker();
         ITrackedFiles tracked = tracker;
         tracker.AddDelete(file);
-        File.WriteAllText(temp, "content");
+        await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
         var (accepted, kept) = tracked.AcceptAll();
@@ -123,7 +123,7 @@ public class TrackerTrackedFilesTest :
         await Assert.That(accepted).IsEqualTo(2);
         await Assert.That(kept).IsEqualTo(0);
         await Assert.That(File.Exists(file)).IsFalse();
-        await Assert.That(File.ReadAllText(target)).IsEqualTo("content");
+        await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("content");
     }
 
     [Test]
@@ -132,7 +132,7 @@ public class TrackerTrackedFilesTest :
         await using var tracker = new RecordingTracker();
         ITrackedFiles tracked = tracker;
         tracker.AddDelete(file);
-        File.WriteAllText(temp, "content");
+        await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
         var count = tracked.DiscardAll();
