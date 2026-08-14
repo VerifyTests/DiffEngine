@@ -1,8 +1,7 @@
 # Inline snapshots
 
 The plumbing DiffEngine provides for reviewing
-[inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md):
-carrying a pending edit from the test process to a reviewer, showing it, and splicing it into
+[inline snapshots](https://github.com/VerifyTests/Verify/blob/main/docs/inline-snapshots.md): carrying a pending edit from the test process to a reviewer, showing it, and splicing it into
 the source file once accepted. Verify is the producing side; this page documents the DiffEngine
 half, for anyone integrating with it — a test library, an IDE plugin, or another review surface.
 
@@ -123,6 +122,33 @@ test run still patches, and one whose call site changed reports rather than corr
 yet), or `Remove` (delete the call, used when migrating a snapshot back to a file). `testName`
 and `framework` are optional provenance — who produced the patch and under which target
 framework — parsed tolerantly: absent means unknown, and unknown trailing lines are ignored.
+
+
+## How the literal is written
+
+`newContent` is the snapshot value, not source text. Turning it into C# is four decisions — which literal form, how long a delimiter, where the argument sits, and how far it is indented — plus the line endings, and every one of them is read off the file being patched rather than configured. `CsStringLiteral.Render` is public, so a surface that wants to produce the identical text can call it instead of reimplementing the rules below.
+
+**Form.** Single line content becomes a regular literal, escaping what that form cannot hold verbatim (`\` `"`, the control characters, `\uXXXX` for the rest). Multi-line content becomes a raw literal. A raw string spends three lines and an indentation rule to carry one line of content, so it is used only where it earns that. Empty content is `""`.
+
+**Delimiter.** Three quotes, or one more than the longest run of quotes in the content — so a snapshot containing `"""` is carried by `""""`.
+
+**Placement.** A raw literal goes on the line below the open paren, so its opening delimiter lines up with its content and its closing one. A regular literal has nothing to line up with and stays in the argument list. An argument that already starts its own line keeps that line.
+
+```csharp
+// single line content
+await Verify(value).Snapshot("the value");
+
+// multi-line content
+await Verify(value).Snapshot(
+    """
+    line one
+    line two
+    """);
+```
+
+**Indentation.** The call line's own leading whitespace, plus one level. What a level is comes from two places: the character from the call site, so a tab indented method inside a space indented file stays on tabs, and the width from the file, taken as the most common run of whitespace its lines add to the line above. A file that indents by two spaces gets two; four spaces is a fallback for a file with no indentation to read, not a default. Blank lines inside the content are emitted bare, so the literal carries no trailing whitespace.
+
+**Line endings.** The file's dominant ending, with the content normalised to it, so a patch produced on one platform applies cleanly on another. A file that mixes endings keeps every ending it already had: only the spliced span is written, and the rest of the file — encoding, BOM and all — is preserved byte for byte.
 
 
 ## Applying a patch from another surface
