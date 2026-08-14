@@ -31,10 +31,16 @@ public class OwnedInlineHostTest
             return response;
         }
 
-        public ViewerResponse Queue(string source = @"c:\repo\SampleTests.cs", int line = 42, string content = "new", string? framework = null) =>
+        public ViewerResponse Queue(
+            string source = @"c:\repo\SampleTests.cs",
+            int line = 42,
+            string content = "new",
+            string? framework = null,
+            string? testName = null) =>
             Send(new(ViewerVerb.Inline, Body: InlinePatchFile.Build(new(source, line, "\"old\"", content)
             {
-                Framework = framework
+                Framework = framework,
+                TestName = testName
             })));
 
         public void Dispose() =>

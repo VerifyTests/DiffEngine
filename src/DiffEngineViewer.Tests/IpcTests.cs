@@ -291,7 +291,7 @@ public class IpcTests
     {
         using var fixture = new ServerFixture();
 
-        var response = fixture.Send(Inline(new("Sample.cs", 1, "\"old\"", "", InlinePatchMode.Remove)));
+        var response = fixture.Send(Inline(new("Sample.cs", 1, "\"old\"", "", InlinePatchMode.Remove) { TestName = null }));
 
         await Assert.That(response.Ok).IsFalse();
         await Assert.That(fixture.Host.State.Queue).IsEmpty();

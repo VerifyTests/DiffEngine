@@ -25,13 +25,26 @@
 
     const string source = "class C\n{\n    void M() => Verify(value).Snapshot(\"old\");\n}";
 
+    // Nothing here queues a patch, so none of them has a reviewable identity. Stated once rather
+    // than at every call site below.
+    static InlinePatch Patch(
+        string sourceFile,
+        int lineHint,
+        string? originalExpression,
+        string newContent,
+        InlinePatchMode mode = InlinePatchMode.Set) =>
+        new(sourceFile, lineHint, originalExpression, newContent, mode)
+        {
+            TestName = null
+        };
+
     [Test]
     public async Task Utf8BomPreserved()
     {
         var path = WriteTemp(Utf8(source, bom: true));
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)0xEF);
@@ -51,7 +64,7 @@
         var path = WriteTemp(Utf8(source, bom: false));
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)'c');
@@ -69,7 +82,7 @@
         var path = WriteTemp([.. encoding.GetPreamble(), .. encoding.GetBytes(source)]);
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "new"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var bytes = await File.ReadAllBytesAsync(path);
             await Assert.That(bytes[0]).IsEqualTo((byte)0xFF);
@@ -96,7 +109,7 @@
         var path = WriteTemp(bytes);
         try
         {
-            var result = InlineApplier.Apply(new(path, 4, "\"old\"", "new"));
+            var result = InlineApplier.Apply(Patch(path, 4, "\"old\"", "new"));
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
             await Assert.That(result.Message!).Contains("Convert it to UTF-8");
@@ -115,7 +128,7 @@
         var path = WriteTemp(Utf8(text, bom: false));
         try
         {
-            var result = InlineApplier.Apply(new(path, 4, "\"old\"", "naïve ☕"));
+            var result = InlineApplier.Apply(Patch(path, 4, "\"old\"", "naïve ☕"));
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var after = await File.ReadAllTextAsync(path);
@@ -134,7 +147,7 @@
         var path = WriteTemp(Utf8(source.Replace("\n", "\r\n"), bom: false));
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "a\nb"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "a\nb"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var text = await File.ReadAllTextAsync(path);
             await Assert.That(text).DoesNotContain("a\nb");
@@ -163,7 +176,7 @@
         try
         {
             var content = "a" + contentEol + "b";
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", content));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", content));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
 
             var bytes = await File.ReadAllBytesAsync(path);
@@ -202,7 +215,7 @@
         var path = WriteTemp(Utf8(source, bom: false));
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "a\nb"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "a\nb"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("\r");
         }
@@ -217,7 +230,7 @@
     [Test]
     public async Task TryParseToleratesLeadingBom()
     {
-        var patch = new InlinePatch(@"C:\proj\Tests.cs", 7, "\"old\"", "new content");
+        var patch = Patch(@"C:\proj\Tests.cs", 7, "\"old\"", "new content");
         var payload = "﻿" + InlinePatchFile.Build(patch);
 
         var read = InlinePatchFile.TryParse(payload, out var result);
@@ -231,7 +244,7 @@
     [Test]
     public async Task MissingFileFails()
     {
-        var result = InlineApplier.Apply(new(Path.Combine(Path.GetTempPath(), "does-not-exist-inline.cs"), 1, null, "x"));
+        var result = InlineApplier.Apply(Patch(Path.Combine(Path.GetTempPath(), "does-not-exist-inline.cs"), 1, null, "x"));
         await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
     }
 
@@ -242,7 +255,7 @@
         try
         {
             var before = File.GetLastWriteTimeUtc(path);
-            var result = InlineApplier.Apply(new(path, 3, "\"old\"", "old"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "old"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.AlreadyApplied);
             await Assert.That(File.GetLastWriteTimeUtc(path)).IsEqualTo(before);
         }
@@ -259,8 +272,8 @@
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
-            var taskA = Task.Run(() => InlineApplier.Apply(new(path, 3, "\"oldA\"", "newA")));
-            var taskB = Task.Run(() => InlineApplier.Apply(new(path, 4, "\"oldB\"", "newB")));
+            var taskA = Task.Run(() => InlineApplier.Apply(Patch(path, 3, "\"oldA\"", "newA")));
+            var taskB = Task.Run(() => InlineApplier.Apply(Patch(path, 4, "\"oldB\"", "newB")));
             var results = await Task.WhenAll(taskA, taskB);
             await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(results[1].Status).IsEqualTo(InlineApplyStatus.Applied);
@@ -300,8 +313,8 @@
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
-            var taskA = Task.Run(() => InlineApplier.Apply(new(path, 3, "\"old\"", "same")));
-            var taskB = Task.Run(() => InlineApplier.Apply(new(path, 4, "\"old\"", "same")));
+            var taskA = Task.Run(() => InlineApplier.Apply(Patch(path, 3, "\"old\"", "same")));
+            var taskB = Task.Run(() => InlineApplier.Apply(Patch(path, 4, "\"old\"", "same")));
             var results = await Task.WhenAll(taskA, taskB);
 
             await Assert.That(results[0].Status).IsEqualTo(InlineApplyStatus.Applied);
@@ -324,8 +337,8 @@
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
-            var first = InlineApplier.Apply(new(path, 3, "\"old\"", "newA"));
-            var second = InlineApplier.Apply(new(path, 4, "\"old\"", "newB"));
+            var first = InlineApplier.Apply(Patch(path, 3, "\"old\"", "newA"));
+            var second = InlineApplier.Apply(Patch(path, 4, "\"old\"", "newB"));
 
             await Assert.That(first.Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(second.Status).IsEqualTo(InlineApplyStatus.Applied);
@@ -351,7 +364,7 @@
         var path = WriteTemp(Utf8(source, bom: false));
         try
         {
-            var result = InlineApplier.Apply(new(path, 3, "\"gone-expression\"", "new"));
+            var result = InlineApplier.Apply(Patch(path, 3, "\"gone-expression\"", "new"));
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.NotFound);
             await Assert.That(result.Message!).Contains("Re-run the test");
         }
@@ -367,7 +380,10 @@ public class InlinePatchFileTests
     [Test]
     public async Task RoundTrip()
     {
-        var patch = new InlinePatch(@"C:\proj\Tests.cs", 42, "\"\"\"\nold\n\"\"\"", "line1\nline2");
+        var patch = new InlinePatch(@"C:\proj\Tests.cs", 42, "\"\"\"\nold\n\"\"\"", "line1\nline2")
+        {
+            TestName = null
+        };
         var path = Path.Combine(Path.GetTempPath(), $"InlinePatchFileTests_{Guid.NewGuid():N}.inlinepatch");
         try
         {
@@ -388,7 +404,10 @@ public class InlinePatchFileTests
     [Test]
     public async Task RoundTripNullExpression()
     {
-        var patch = new InlinePatch("Tests.cs", 1, null, "content");
+        var patch = new InlinePatch("Tests.cs", 1, null, "content")
+        {
+            TestName = null
+        };
         var path = Path.Combine(Path.GetTempPath(), $"InlinePatchFileTests_{Guid.NewGuid():N}.inlinepatch");
         try
         {
@@ -409,7 +428,10 @@ public class InlinePatchFileTests
     [Arguments(InlinePatchMode.Remove)]
     public async Task RoundTripMode(InlinePatchMode mode)
     {
-        var patch = new InlinePatch("Tests.cs", 1, null, "content", mode);
+        var patch = new InlinePatch("Tests.cs", 1, null, "content", mode)
+        {
+            TestName = null
+        };
 
         var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
 
@@ -420,7 +442,7 @@ public class InlinePatchFileTests
     [Test]
     public async Task DefaultModeIsSet()
     {
-        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content")), out var result);
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content") { TestName = null }), out var result);
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.Mode).IsEqualTo(InlinePatchMode.Set);
@@ -481,7 +503,7 @@ public class InlinePatchFileTests
     [Test]
     public async Task NullMetadataRoundTripsAsNull()
     {
-        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content")), out var result);
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content") { TestName = null }), out var result);
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.TestName).IsNull();
@@ -533,7 +555,7 @@ public class InlinePatchFileTests
     [Test]
     public async Task UnknownTrailingLinesAreIgnored()
     {
-        var payload = InlinePatchFile.Build(new("Tests.cs", 1, null, "content")) + "future: value\n";
+        var payload = InlinePatchFile.Build(new("Tests.cs", 1, null, "content") { TestName = null }) + "future: value\n";
 
         var read = InlinePatchFile.TryParse(payload, out var result);
 
