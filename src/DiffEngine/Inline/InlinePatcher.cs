@@ -143,7 +143,7 @@ static class InlinePatcher
             }
 
             var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart);
-            var namedRendered = CsStringLiteral.RenderRaw(newContent, namedIndent, eol);
+            var namedRendered = CsStringLiteral.Render(newContent, namedIndent, eol);
             newSource = Splice(source, expected.ListStart, expected.ListStart, $"{parameterName}: {namedRendered}, ");
             return PatchStatus.Applied;
         }
@@ -284,7 +284,7 @@ static class InlinePatcher
             ? statementIndent + unit
             : LeadingWhitespace(source, lineStarts, insertAt - 1);
         var contentIndent = callIndent + unit;
-        var rendered = CsStringLiteral.RenderRaw(newContent, contentIndent, eol);
+        var rendered = CsStringLiteral.Render(newContent, contentIndent, eol);
         var argument = OnOwnLine(rendered, contentIndent, eol);
         newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
         return PatchStatus.Applied;
@@ -734,7 +734,7 @@ static class InlinePatcher
     static string RenderArgument(string source, List<int> lineStarts, int spanStart, string newContent, string eol)
     {
         var indent = IndentForSpan(source, lineStarts, spanStart);
-        var rendered = CsStringLiteral.RenderRaw(newContent, indent, eol);
+        var rendered = CsStringLiteral.Render(newContent, indent, eol);
         if (StartsLine(source, lineStarts, spanStart))
         {
             return rendered;
@@ -744,12 +744,11 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Puts a multi-line literal on its own line, so the opening delimiter sits with the content
-    /// and the closing one rather than trailing the open paren. A single line literal (only the
-    /// empty snapshot renders as one) stays where it is, since there is nothing to line up with.
+    /// Puts the literal on its own line rather than trailing the open paren, so a raw string's
+    /// opening delimiter sits with its content and its closing one.
     /// </summary>
     static string OnOwnLine(string rendered, string indent, string eol) =>
-        rendered.IndexOf('\n') == -1 ? rendered : $"{eol}{indent}{rendered}";
+        $"{eol}{indent}{rendered}";
 
     /// <summary>
     /// True when only whitespace precedes the offset on its line.
