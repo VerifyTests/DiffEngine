@@ -118,25 +118,7 @@ public class PixelTests
     [Test]
     [PixelTest]
     public Task Images() =>
-        Capture(Fixtures.Images(), imageSsim);
-
-    /// <summary>
-    /// Looser than the threshold <see cref="ModuleInitializer"/> sets, for the one screen that
-    /// paints a picture rather than text.
-    /// <para>
-    /// The determinism the other baselines rely on is glyph rasterisation: ImGui runs its own
-    /// stb_truetype, so text comes out identical on any rasteriser. A picture does not go through
-    /// that — it is sampled by the renderer — and the ubuntu-latest llvmpipe build scores 0.9979
-    /// on this frame on some runner images and matches on others. That has failed on main and on
-    /// branches alike, which is a threshold saying nothing about the change under test.
-    /// </para>
-    /// <para>
-    /// Still tight enough for what it has to catch. These fixtures are small against the window,
-    /// but a picture that fails to draw, draws the wrong file, or lands in the wrong place takes
-    /// its whole region to near zero local similarity, which scores well below this.
-    /// </para>
-    /// </summary>
-    const double imageSsim = 0.995;
+        Capture(Fixtures.Images());
 
     /// <summary>
     /// The context menu floated over the grouped queue, opened on the conflicted entry.
@@ -164,12 +146,7 @@ public class PixelTests
         return Capture(ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applied));
     }
 
-    /// <param name="ssim">
-    /// Overrides the suite threshold for a screen that needs its own. Null leaves
-    /// <see cref="ModuleInitializer"/>'s in place, so there is one default rather than a copy of it
-    /// per call.
-    /// </param>
-    static async Task Capture(SessionState state, double? ssim = null)
+    static async Task Capture(SessionState state)
     {
         var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
@@ -178,14 +155,8 @@ public class PixelTests
             await Assert.That(window!.Capture(screen, width, height, path)).IsTrue();
             // Linux and macOS run the same tests against different renderers, so the baselines
             // have to be told apart.
-            var verify = VerifyFile(path)
+            await VerifyFile(path)
                 .UniqueForOSPlatform();
-            if (ssim is not null)
-            {
-                verify = verify.UseSsimForPng(ssim.Value);
-            }
-
-            await verify;
         }
         finally
         {
