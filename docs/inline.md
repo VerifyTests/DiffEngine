@@ -67,7 +67,7 @@ sequenceDiagram
 Nothing touches disk on the happy path: a running owner receives the patch over the socket, a newly launched viewer receives it on stdin. Staging only happens in the fallback, where the test library writes three files (Verify: `*.received.txt`, `*.expected.txt`, `*.inlinepatch`) so the snapshot can still be reviewed by an IDE plugin, a plain text diff tool, or by hand:
 
 ```
-DiffEngineViewer --inline --source <file.cs> --line <number> < the.inlinepatch
+DiffEngineViewer --inline --source <source file> --line <number> < the.inlinepatch
 ```
 
 
@@ -126,11 +126,56 @@ await Verify(value).Snapshot(
 **Line endings.** The file's dominant ending, with the content normalised to it, so a patch produced on one platform applies cleanly on another. A file that mixes endings keeps every ending it already had: only the spliced span is written, and the rest of the file — encoding, BOM and all — is preserved byte for byte.
 
 
+## F#
+
+A patch says which file it edits, so nothing has to say which language that file is in: `.fs`, `.fsx` and `.fsi` are patched as F#, everything else as C#. The line ending, indentation and encoding rules above are the same either way, and so is everything else on this page — one applier, one queue, one protocol. `SourceLanguage.ForFile` returns the right one, and `FsStringLiteral` is the public peer of `CsStringLiteral`.
+
+What differs is the literal, because F# has no raw string. A triple-quoted string is verbatim from the character after the opening delimiter to the one before the closing one — no first line dropped, no common indentation stripped — so any indent written into it would be snapshot content. Multi-line content therefore starts on the delimiter's line and continues at the left margin, which is the only way a literal spanning lines reads back as the value it was rendered from. That much is checked by compiling patched source with `dotnet fsi` rather than by asserting what F# is believed to mean:
+
+```fsharp
+// single line content
+Verifier.Verify(value).Snapshot("the value").ToTask()
+
+// multi-line content
+Verifier.Verify(value).Snapshot("""line one
+line two""").ToTask()
+```
+
+Writing content at the left margin has a consequence: the content's last line decides the column of the closing delimiter, and so of the closing paren and anything chained after it. F#'s offside rule wants those at or right of the column the statement started in, and a snapshot ending in a newline — or in a short line, at a deeply indented call site — puts them left of it. That is not a formatting complaint; the file stops compiling. So the multi-line form is used only where its last line clears the call site's indentation, and everything else falls back to a regular literal on one source line, newlines escaped:
+
+```fsharp
+Verifier.Verify(value).Snapshot("line one\nline two\n").ToTask()
+```
+
+There is also no way to widen the delimiter, so content that would run into it — content containing `"""`, or starting or ending with a quote — takes the verbatim form instead (`@"..."`, quotes doubled). Single line content is always a regular literal, escaping what F# escapes (`\` `"` `\a` `\b` `\f` `\t` `\v` `\n` `\r`) and `\uXXXX` for the rest, since F# has no `\0` or `\e`.
+
+Two syntax differences show up in `Append` and in an argument list. F# does not apply the implicit conversion that lets a `SettingsTask` be awaited, so an F# test ends its chain with `ToTask`; `Snapshot` returns the `SettingsTask`, so an appended call goes in front of that rather than after it. And an argument binds to a parameter with `=`, so an inserted named argument is `expected = "..."`.
+
+```fsharp
+// before
+Verifier.Verify(value)
+    .UseMethodName("customName")
+    .ToTask()
+
+// after an Append
+Verifier.Verify(value)
+    .UseMethodName("customName")
+    .Snapshot("the value")
+    .ToTask()
+```
+
+One difference is not syntax at all. The F# compiler does not implement `CallerArgumentExpression` — it warns FS0202 and leaves the parameter at its default — so an F# patch never carries `originalExpression`, and the call is located by line hint and the search outward from it alone. Where a C# patch with no expression treats a differing literal as a conflict, an F# one has to take it as the snapshot that changed: the alternative is that an inline snapshot can be accepted once and never updated.
+
+Locating the call is otherwise the same scan, taught F#'s lexis: `(* *)` comments nest, a tick is a char literal only where it cannot be part of a name (`value'`) or a type parameter (`'T`), `(*)` is the multiplication operator rather than a comment, and a name is a declaration only where `let` or `member` says so. A call written without parentheses (`Verifier.Verify value`) is not found — the patch reports rather than corrupts, and the fix is to re-run after adding them.
+
+`FsStringLiteral.Render` takes the call site's indentation, like its C# peer, but means something else by it: not a prefix to write, since the content is verbatim, but the column the result has to clear. A surface rendering its own literal has to pass the indentation of the statement it is splicing into, or it will produce the form that does not compile there.
+
+
 ## Applying a patch from another surface
 
 The contract for a review surface of its own, which is what the ReSharper / Rider plugin is: read the staged patch with `InlinePatchFile.TryRead`, apply it with `InlineApplier.Apply`, and honour two rules.
 
-* **InlineApplier owns all locking.** A per file cross process mutex (up to a ten second wait) plus an in process gate serialise every writer, so applying beside a concurrently accepting tray or viewer is safe, and callers must not add locking of their own. The file's encoding, BOM and line endings are preserved.
+* **InlineApplier owns all locking.** A per file cross process mutex (up to a ten second wait) plus an in process gate serialise every writer, so applying beside a concurrently accepting tray or viewer is safe, and callers must not add locking of their own. The file's encoding, BOM and line endings are preserved, and its extension picks the language.
 * **Settle what was applied.** The same test run that staged the files may also have queued the patch with the port owner, and that queue outlives both the window and the run. After `Applied` or `AlreadyApplied`, call `DiffRunner.SettleInline(patch.SourceFile, patch.LineHint)` — otherwise the tray keeps offering a snapshot that is already in the source.
 
 `Apply` returns `Applied`, `AlreadyApplied` (the literal already matches), `NotFound` (the source changed since the test run — tell the user to re-run rather than retrying), or a failure with a message (locked file, unreadable source), which is retryable.

@@ -1,7 +1,7 @@
 namespace DiffEngine;
 
 /// <summary>
-/// Describes a pending inline-snapshot edit to a C# source file.
+/// Describes a pending inline-snapshot edit to a source file.
 /// <para>
 /// Settable properties so it round-trips through <see cref="InlinePatchFile"/>, but no
 /// parameterless constructor: a patch with no source file or no content is not a patch, and
@@ -25,7 +25,8 @@ public sealed class InlinePatch
     }
 
     /// <summary>
-    /// Full path to the .cs file.
+    /// Full path to the source file. Its extension decides the language the literal is written in
+    /// (<see cref="SourceLanguage.ForFile"/>).
     /// </summary>
     public string SourceFile { get; set; }
 

@@ -6,8 +6,14 @@ enum PatchStatus
 }
 
 /// <summary>
-/// Pure string in / string out engine that locates an inline snapshot call site in C# source
-/// and splices in a new raw string literal. No file IO.
+/// Pure string in / string out engine that locates an inline snapshot call site in source and
+/// splices in a new string literal. No file IO.
+/// <para>
+/// The structure it walks - a name, an argument list, a chain of calls hung off it - is the same
+/// in every language it patches, so only what a literal looks like, what a comment looks like, and
+/// what tells a declaration from a call is per language. All of that lives on
+/// <see cref="SourceLanguage"/>, reached through the scan.
+/// </para>
 /// </summary>
 static class InlinePatcher
 {
@@ -35,6 +41,7 @@ static class InlinePatcher
     const string verifierType = "Verifier";
 
     public static PatchStatus TryApply(
+        SourceLanguage language,
         string source,
         int lineHint,
         InlinePatchMode mode,
@@ -47,7 +54,7 @@ static class InlinePatcher
         failReason = "";
         var eol = DetectEol(source);
         var lineStarts = BuildLineStarts(source);
-        var scan = new CsScan(source);
+        var scan = language.Scan(source);
 
         if (mode == InlinePatchMode.Remove)
         {
@@ -79,13 +86,13 @@ static class InlinePatcher
                     continue;
                 }
 
-                if (CsStringLiteral.TryParse(needle, out var oldValue) &&
+                if (language.TryParse(needle, out var oldValue) &&
                     oldValue == newContent)
                 {
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                var rendered = RenderArgument(language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
@@ -99,7 +106,7 @@ static class InlinePatcher
 
     static PatchStatus InsertOrCheck(
         string source,
-        CsScan scan,
+        SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         string newContent,
@@ -130,7 +137,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var emptyRendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
+            var emptyRendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.Start, emptyRendered);
             return PatchStatus.Applied;
         }
@@ -146,8 +153,11 @@ static class InlinePatcher
             }
 
             var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart, fileUnit);
-            var namedRendered = CsStringLiteral.Render(newContent, namedIndent, eol);
-            newSource = Splice(source, expected.ListStart, expected.ListStart, $"{parameterName}: {namedRendered}, ");
+            var namedRendered = scan.Language.Render(
+                newContent,
+                scan.Language.IndentFor(LeadingWhitespace(source, lineStarts, expected.ListStart), namedIndent),
+                eol);
+            newSource = Splice(source, expected.ListStart, expected.ListStart, $"{scan.Language.NamePrefix(parameterName)}{namedRendered}, ");
             return PatchStatus.Applied;
         }
 
@@ -160,16 +170,27 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var rendered = RenderArgument(source, lineStarts, expected.Start, newContent, eol, fileUnit);
+            var rendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.End, rendered);
             return PatchStatus.Applied;
         }
 
-        if (CsStringLiteral.TryParse(argText, out var currentValue))
+        if (scan.Language.TryParse(argText, out var currentValue))
         {
             if (currentValue == newContent)
             {
                 return PatchStatus.AlreadyApplied;
+            }
+
+            if (!alreadyOnly &&
+                !scan.Language.SuppliesArgumentExpressions)
+            {
+                // A differing literal is a snapshot that changed, and this is the only shape a
+                // changed one arrives in from a language with no expression to anchor on. Refusing
+                // it there would mean an inline snapshot could be accepted once and never updated
+                var rendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                newSource = Splice(source, expected.Start, expected.End, rendered);
+                return PatchStatus.Applied;
             }
 
             failReason = alreadyOnly
@@ -225,7 +246,7 @@ static class InlinePatcher
             string.CompareOrdinal(source, Start, expression, 0, expression.Length) == 0;
     }
 
-    static bool TryReadArguments(string source, CsScan scan, int openParen, out ExpectedArgument expected)
+    static bool TryReadArguments(string source, SourceScan scan, int openParen, out ExpectedArgument expected)
     {
         expected = default;
         if (!TryScanArguments(source, scan, openParen, out var closeParen, out var topCommas))
@@ -239,7 +260,7 @@ static class InlinePatcher
         TrimSpan(source, scan, ref start, ref end);
         var listStart = start;
         var blockedByName = start != end &&
-                            TryStripArgumentName(source, ref start, out var argumentName) &&
+                            scan.Language.TryStripArgumentName(source, ref start, out var argumentName) &&
                             argumentName != parameterName;
         expected = new(start, end, listStart, blockedByName);
         return true;
@@ -248,11 +269,13 @@ static class InlinePatcher
     /// <summary>
     /// Appends a Snapshot call to the verify invocation, for a snapshot that has never been
     /// accepted. Snapshot terminates the chain, so the insertion point is the end of any calls
-    /// already chained onto the invocation rather than the invocation's own closing paren.
+    /// already chained onto the invocation rather than the invocation's own closing paren - except
+    /// where the language ends its chain with something Snapshot has to precede, which
+    /// <see cref="WalkChain"/> answers.
     /// </summary>
     static PatchStatus TryAppend(
         string source,
-        CsScan scan,
+        SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         string newContent,
@@ -288,8 +311,8 @@ static class InlinePatcher
             ? statementIndent + unit
             : LeadingWhitespace(source, lineStarts, insertAt - 1);
         var contentIndent = callIndent + unit;
-        var rendered = CsStringLiteral.Render(newContent, contentIndent, eol);
-        var argument = OnOwnLine(rendered, contentIndent, eol);
+        var rendered = scan.Language.Render(newContent, scan.Language.IndentFor(statementIndent, contentIndent), eol);
+        var argument = OnOwnLine(scan.Language, rendered, contentIndent, eol);
         newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
         return PatchStatus.Applied;
     }
@@ -300,7 +323,7 @@ static class InlinePatcher
     /// </summary>
     static PatchStatus TryRemove(
         string source,
-        CsScan scan,
+        SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         ref string newSource,
@@ -362,12 +385,18 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Walks the calls chained onto an invocation and returns the end of the chain.
+    /// Walks the calls chained onto an invocation and returns where a call should be appended:
+    /// the end of the chain, or the point in front of the language's
+    /// <see cref="SourceLanguage.ChainTerminator"/> when the chain ends in one.
     /// <paramref name="found"/> is set when one of them is a call to <paramref name="name"/>.
     /// </summary>
-    static int WalkChain(string source, CsScan scan, int index, string name, out bool found)
+    static int WalkChain(string source, SourceScan scan, int index, string name, out bool found)
     {
         found = false;
+        var terminator = scan.Language.ChainTerminator;
+        // Where the chain was before the terminating call, which is where an appended one goes:
+        // in front of the terminator, and behind the whitespace and line break that introduced it
+        var beforeTerminator = -1;
         while (true)
         {
             var cursor = index;
@@ -375,7 +404,7 @@ static class InlinePatcher
             if (cursor >= source.Length ||
                 source[cursor] != '.')
             {
-                return index;
+                break;
             }
 
             cursor++;
@@ -383,7 +412,7 @@ static class InlinePatcher
 
             var nameStart = cursor;
             while (cursor < source.Length &&
-                   CsScan.IsIdentifierChar(source[cursor]))
+                   scan.IsIdentifierChar(source[cursor]))
             {
                 cursor++;
             }
@@ -392,18 +421,30 @@ static class InlinePatcher
                 !TrySkipToParen(source, scan, cursor, out var paren) ||
                 !TryScanArguments(source, scan, paren, out var closeParen, out _))
             {
-                return index;
+                break;
             }
 
-            if (string.CompareOrdinal(source, nameStart, name, 0, name.Length) == 0 &&
-                cursor - nameStart == name.Length)
+            if (IsCall(source, nameStart, cursor, name))
             {
                 found = true;
             }
 
+            if (terminator != null &&
+                beforeTerminator < 0 &&
+                IsCall(source, nameStart, cursor, terminator))
+            {
+                beforeTerminator = index;
+            }
+
             index = closeParen + 1;
         }
+
+        return beforeTerminator < 0 ? index : beforeTerminator;
     }
+
+    static bool IsCall(string source, int nameStart, int nameEnd, string name) =>
+        nameEnd - nameStart == name.Length &&
+        string.CompareOrdinal(source, nameStart, name, 0, name.Length) == 0;
 
     static string LeadingWhitespace(string source, List<int> lineStarts, int offset)
     {
@@ -418,12 +459,12 @@ static class InlinePatcher
         return source.Substring(lineStart, index - lineStart);
     }
 
-    static bool TryFindCall(string source, CsScan scan, List<int> lineStarts, int lineHint, out int openParen) =>
+    static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, out int openParen) =>
         TryFindCall(source, scan, lineStarts, lineHint, methodName, false, out _, out openParen);
 
     static bool TryFindCall(
         string source,
-        CsScan scan,
+        SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         string name,
@@ -451,7 +492,7 @@ static class InlinePatcher
     /// </summary>
     static IEnumerable<(int nameStart, int openParen)> FindCalls(
         string source,
-        CsScan scan,
+        SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         string name,
@@ -486,13 +527,13 @@ static class InlinePatcher
                     if (byPrefix)
                     {
                         while (identifierEnd < source.Length &&
-                               CsScan.IsIdentifierChar(source[identifierEnd]))
+                               scan.IsIdentifierChar(source[identifierEnd]))
                         {
                             identifierEnd++;
                         }
                     }
                     else if (identifierEnd < source.Length &&
-                             CsScan.IsIdentifierChar(source[identifierEnd]))
+                             scan.IsIdentifierChar(source[identifierEnd]))
                     {
                         index += name.Length;
                         continue;
@@ -501,7 +542,7 @@ static class InlinePatcher
                     // In code, a whole token, an invocation rather than a declaration, and
                     // followed by an argument list. A commented out example passes none of these
                     if (scan.IsCode(index) &&
-                        StartsToken(source, index) &&
+                        StartsToken(source, scan, index) &&
                         !scan.IsDeclaration(index) &&
                         !(byPrefix && IsForeignReceiver(source, scan, index)) &&
                         TrySkipToParen(source, scan, identifierEnd, out var paren))
@@ -515,9 +556,9 @@ static class InlinePatcher
         }
     }
 
-    static bool StartsToken(string source, int index) =>
+    static bool StartsToken(string source, SourceScan scan, int index) =>
         index == 0 ||
-        !CsScan.IsIdentifierChar(source[index - 1]);
+        !scan.IsIdentifierChar(source[index - 1]);
 
     /// <summary>
     /// True when the name is reached through a member access on anything other than the verify
@@ -530,7 +571,7 @@ static class InlinePatcher
     /// it, in a test that may not even be the one the patch came from.
     /// </para>
     /// </summary>
-    static bool IsForeignReceiver(string source, CsScan scan, int nameStart)
+    static bool IsForeignReceiver(string source, SourceScan scan, int nameStart)
     {
         var dot = scan.PreviousSignificant(nameStart);
         if (dot < 0 ||
@@ -548,7 +589,7 @@ static class InlinePatcher
         }
 
         if (end < 0 ||
-            !CsScan.IsIdentifierChar(source[end]))
+            !scan.IsIdentifierChar(source[end]))
         {
             // Not a plain receiver, so a literal, an indexer or a call result
             return true;
@@ -556,7 +597,7 @@ static class InlinePatcher
 
         var start = end;
         while (start > 0 &&
-               CsScan.IsIdentifierChar(source[start - 1]))
+               scan.IsIdentifierChar(source[start - 1]))
         {
             start--;
         }
@@ -566,13 +607,13 @@ static class InlinePatcher
                receiver != "this";
     }
 
-    static bool TrySkipToParen(string source, CsScan scan, int index, out int paren)
+    static bool TrySkipToParen(string source, SourceScan scan, int index, out int paren)
     {
         paren = -1;
         scan.SkipTrivia(ref index);
         if (index < source.Length &&
             source[index] == '<' &&
-            CsScan.TrySkipTypeArguments(source, ref index))
+            scan.Language.TrySkipTypeArguments(source, ref index))
         {
             scan.SkipTrivia(ref index);
         }
@@ -589,7 +630,7 @@ static class InlinePatcher
 
     // Scans a balanced argument list starting at the open paren.
     // Records top level comma positions. Comments and literals are stepped over whole.
-    static bool TryScanArguments(string source, CsScan scan, int openParen, out int closeParen, out List<int> topCommas)
+    static bool TryScanArguments(string source, SourceScan scan, int openParen, out int closeParen, out List<int> topCommas)
     {
         closeParen = -1;
         topCommas = [];
@@ -648,50 +689,12 @@ static class InlinePatcher
         return false;
     }
 
-    static bool TryStripArgumentName(string source, ref int start, out string name)
-    {
-        name = "";
-        var index = start;
-        if (index >= source.Length || !char.IsLetter(source[index]) && source[index] != '_')
-        {
-            return false;
-        }
-
-        while (index < source.Length && CsScan.IsIdentifierChar(source[index]))
-        {
-            index++;
-        }
-
-        var nameEnd = index;
-        while (index < source.Length && char.IsWhiteSpace(source[index]))
-        {
-            index++;
-        }
-
-        if (index >= source.Length ||
-            source[index] != ':' ||
-            index + 1 < source.Length && source[index + 1] == ':')
-        {
-            return false;
-        }
-
-        name = source.Substring(start, nameEnd - start);
-        index++;
-        while (index < source.Length && char.IsWhiteSpace(source[index]))
-        {
-            index++;
-        }
-
-        start = index;
-        return true;
-    }
-
     /// <summary>
     /// Narrows a span to the expression in it: whitespace and comments are not part of the
     /// argument, and leaving a comment in makes the argument read as something other than the
     /// literal it is.
     /// </summary>
-    static void TrimSpan(string source, CsScan scan, ref int start, ref int end)
+    static void TrimSpan(string source, SourceScan scan, ref int start, ref int end)
     {
         while (start < end)
         {
@@ -701,8 +704,7 @@ static class InlinePatcher
                 continue;
             }
 
-            if (source[start] == '/' &&
-                scan.TryGetSkip(start, out var afterComment) &&
+            if (scan.TryGetCommentSkip(start, out var afterComment) &&
                 afterComment <= end)
             {
                 start = afterComment;
@@ -735,25 +737,28 @@ static class InlinePatcher
     /// Renders the literal for a splice at <paramref name="spanStart"/>, indented to suit where it
     /// lands.
     /// </summary>
-    static string RenderArgument(string source, List<int> lineStarts, int spanStart, string newContent, string eol, string fileUnit)
+    static string RenderArgument(SourceLanguage language, string source, List<int> lineStarts, int spanStart, string newContent, string eol, string fileUnit)
     {
         var indent = IndentForSpan(source, lineStarts, spanStart, fileUnit);
-        var rendered = CsStringLiteral.Render(newContent, indent, eol);
+        var rendered = language.Render(newContent, language.IndentFor(LeadingWhitespace(source, lineStarts, spanStart), indent), eol);
         if (StartsLine(source, lineStarts, spanStart))
         {
             return rendered;
         }
 
-        return OnOwnLine(rendered, indent, eol);
+        return OnOwnLine(language, rendered, indent, eol);
     }
 
     /// <summary>
     /// Puts a raw literal on its own line rather than trailing the open paren, so its opening
     /// delimiter sits with its content and its closing one. A regular literal stays where it is,
-    /// since it has nothing to line up with.
+    /// since it has nothing to line up with, and so does every literal in a language whose
+    /// multi-line form carries its first line of content on the delimiter's line.
     /// </summary>
-    static string OnOwnLine(string rendered, string indent, string eol) =>
-        rendered.IndexOf('\n') == -1 ? rendered : $"{eol}{indent}{rendered}";
+    static string OnOwnLine(SourceLanguage language, string rendered, string indent, string eol) =>
+        !language.LiteralOnOwnLine || rendered.IndexOf('\n') == -1
+            ? rendered
+            : $"{eol}{indent}{rendered}";
 
     /// <summary>
     /// True when only whitespace precedes the offset on its line.
@@ -827,7 +832,7 @@ static class InlinePatcher
     /// Returns "" when the file is too small to show a step, which leaves the choice to
     /// <see cref="UnitFor"/>.
     /// </summary>
-    static string DetectIndentUnit(string source, CsScan scan, List<int> lineStarts)
+    static string DetectIndentUnit(string source, SourceScan scan, List<int> lineStarts)
     {
         Dictionary<string, int> counts = new(StringComparer.Ordinal);
         var previous = "";
@@ -966,6 +971,10 @@ static class InlinePatcher
         return low + 1;
     }
 
+    /// <summary>
+    /// The indentation a literal taking a line of its own would sit at: one level in from the
+    /// span's line, or the span's own column when it already starts a line.
+    /// </summary>
     static string IndentForSpan(string source, List<int> lineStarts, int spanStart, string fileUnit)
     {
         var line = LineOf(lineStarts, spanStart);

@@ -1,8 +1,8 @@
 ﻿public class InlineApplierTests
 {
-    static string WriteTemp(byte[] bytes)
+    static string WriteTemp(byte[] bytes, string extension = ".cs")
     {
-        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}.cs");
+        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}{extension}");
         File.WriteAllBytes(path, bytes);
         return path;
     }
@@ -239,6 +239,30 @@
         await Assert.That(result!.SourceFile).IsEqualTo(patch.SourceFile);
         await Assert.That(result.LineHint).IsEqualTo(7);
         await Assert.That(result.NewContent).IsEqualTo("new content");
+    }
+
+    // The extension picks the language, so the same patch content is written as the literal that
+    // file's compiler reads. A C# raw string here would not even parse
+    [Test]
+    [Arguments(".fs")]
+    [Arguments(".fsx")]
+    [Arguments(".FS")]
+    public async Task FSharpFileGetsAnFSharpLiteral(string extension)
+    {
+        var fsharp = "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"old\").ToTask()\n";
+        var path = WriteTemp(Utf8(fsharp, bom: false), extension);
+        try
+        {
+            var result = InlineApplier.Apply(Patch(path, 4, "\"old\"", "a\nb"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(
+                "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\"\"a\nb\"\"\").ToTask()\n");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Test]

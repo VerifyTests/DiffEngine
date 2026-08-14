@@ -1,9 +1,13 @@
 namespace DiffEngine;
 
 /// <summary>
-/// Applies an <see cref="InlinePatch"/> to a C# source file, preserving the file's
+/// Applies an <see cref="InlinePatch"/> to a source file, preserving the file's
 /// encoding, BOM and line endings. Owns all locking (cross process and in process);
 /// callers must not add their own.
+/// <para>
+/// The language is read off the file's extension (see <see cref="SourceLanguage.ForFile"/>), so a
+/// patch says which file it edits and nothing has to say which language that file is in.
+/// </para>
 /// </summary>
 public static class InlineApplier
 {
@@ -36,7 +40,7 @@ public static class InlineApplier
             return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
         }
 
-        var newContent = CsStringLiteral.NormalizeNewlines(patch.NewContent);
+        var newContent = SourceLanguage.NormalizeNewlines(patch.NewContent);
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
@@ -100,6 +104,7 @@ public static class InlineApplier
         }
 
         var status = InlinePatcher.TryApply(
+            SourceLanguage.ForFile(fullPath),
             source,
             patch.LineHint,
             patch.Mode,

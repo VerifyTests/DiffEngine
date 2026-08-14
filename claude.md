@@ -73,6 +73,17 @@ becomes the review surface. Accepting anywhere runs `InlineApplier` against the 
 `SettleInline`, and any surface that applies a patch itself must settle too, or the queue owner
 keeps offering a snapshot that is already in the source.
 
+The source may be C# or F#, decided by the file's extension (`SourceLanguage.ForFile`) rather than
+stated on the patch. `InlinePatcher` walks the same structure either way — a name, an argument
+list, a chain hung off it — and everything per language sits on `SourceLanguage`: the lexing that
+fills a `SourceScan`, what tells a declaration from a call, and how a literal is written and read
+back. F# is the awkward one, because it has no raw string: triple-quoted content is verbatim, so a
+multi-line snapshot is written at the left margin, and its last line then decides the column of
+everything after the literal. Where that would land left of the statement, F#'s offside rule stops
+the file compiling, so the render falls back to a one-line escaped literal. That rule is asserted
+by compiling patched source with `dotnet fsi` (`FsCompilerRoundTripTests`), because a belief about
+F#'s lexis is exactly the kind of thing a second copy of the same belief cannot check.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**

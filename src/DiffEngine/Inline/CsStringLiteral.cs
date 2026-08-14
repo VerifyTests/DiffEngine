@@ -94,7 +94,7 @@ public static class CsStringLiteral
         {
             // Content is meant to arrive \n normalized. Be defensive: a stray \r would
             // otherwise be emitted into the literal as content, corrupting the snapshot
-            content = NormalizeNewlines(content);
+            content = SourceLanguage.NormalizeNewlines(content);
         }
 
         var delimiter = new string('"', Math.Max(3, LongestQuoteRun(content) + 1));
@@ -167,14 +167,9 @@ public static class CsStringLiteral
             return false;
         }
 
-        value = NormalizeNewlines(value!);
+        value = SourceLanguage.NormalizeNewlines(value!);
         return true;
     }
-
-    internal static string NormalizeNewlines(string value) =>
-        value
-            .Replace("\r\n", "\n")
-            .Replace('\r', '\n');
 
     /// <summary>
     /// Scans one string literal starting at <paramref name="start"/> (which must point at the
@@ -287,7 +282,7 @@ public static class CsStringLiteral
         // * first line (after the opening quotes) must be whitespace only and is dropped
         // * the last line holds the closing quotes; its leading whitespace is the indent
         //   stripped from every content line, and the line itself is dropped
-        var normalized = NormalizeNewlines(content);
+        var normalized = SourceLanguage.NormalizeNewlines(content);
         var lines = normalized.Split('\n');
         var first = lines[0];
         if (first.Trim().Length > 0)
