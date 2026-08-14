@@ -38,6 +38,21 @@ public class ViewerLaunchTests
     public static void Enable() =>
         ManualViewer.Enable();
 
+    // Unnamed, so the queue labels each of these by its call site — which is what the expectations
+    // below tell the reader to look for. The cases that are about naming set one themselves.
+    static engine::DiffEngine.InlinePatch Patch(
+        string source,
+        int line,
+        string? expression,
+        string content,
+        EnginePatchMode mode = EnginePatchMode.Set,
+        string? framework = null) =>
+        new(source, line, expression, content, mode)
+        {
+            TestName = null,
+            Framework = framework
+        };
+
     /// <summary>
     /// The belt to WaitForClose's braces: a case that throws before it gets there would otherwise
     /// leave a hidden viewer to answer the next run.
@@ -144,7 +159,7 @@ public class ViewerLaunchTests
             "Accept rewrites the literal in the source file");
 
         var result = await EngineRunner.AddInlineAsync(
-            new(source, 6, "\"old value\"", "new value"));
+            Patch(source, 6, "\"old value\"", "new value"));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -169,7 +184,7 @@ public class ViewerLaunchTests
             "Accept adds a .Snapshot(...) call after the verify call");
 
         var result = await EngineRunner.AddInlineAsync(
-            new(source, 6, null, "brand new", EnginePatchMode.Append));
+            Patch(source, 6, null, "brand new", EnginePatchMode.Append));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -205,7 +220,7 @@ public class ViewerLaunchTests
                  })
         {
             var mode = expression is null ? EnginePatchMode.Append : EnginePatchMode.Set;
-            var result = await EngineRunner.AddInlineAsync(new(source, 6, expression, content, mode));
+            var result = await EngineRunner.AddInlineAsync(Patch(source, 6, expression, content, mode));
             await Assert.That(result).IsEqualTo(EngineResult.Queued);
         }
 
@@ -233,7 +248,7 @@ public class ViewerLaunchTests
             "Accept writes the whole thing as a raw string literal");
 
         var result = await EngineRunner.AddInlineAsync(
-            new(source, 6, "\"old value\"", Long(changed: true)));
+            Patch(source, 6, "\"old value\"", Long(changed: true)));
 
         await Assert.That(result).IsEqualTo(EngineResult.Queued);
         await ManualViewer.WaitForClose();
@@ -257,7 +272,7 @@ public class ViewerLaunchTests
             "Press Discard, or d",
             "The window closes because the queue is empty");
 
-        await EngineRunner.AddInlineAsync(new(source, 6, "\"old value\"", "new value"));
+        await EngineRunner.AddInlineAsync(Patch(source, 6, "\"old value\"", "new value"));
         await ManualViewer.WaitForClose();
 
         await Assert.That(await File.ReadAllTextAsync(source)).IsEqualTo(before);
@@ -325,14 +340,8 @@ public class ViewerLaunchTests
                          {
                              TestName = "Order is stable"
                          },
-                         new(conflicted, 6, "\"framework value\"", "eight")
-                         {
-                             Framework = "net8.0"
-                         },
-                         new(conflicted, 6, "\"framework value\"", "nine")
-                         {
-                             Framework = "net9.0"
-                         }
+                         Patch(conflicted, 6, "\"framework value\"", "eight", framework: "net8.0"),
+                         Patch(conflicted, 6, "\"framework value\"", "nine", framework: "net9.0")
                      })
             {
                 var result = await EngineRunner.AddInlineAsync(patch);

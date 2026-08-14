@@ -10,10 +10,25 @@
 /// </summary>
 public class ViewerProtocolTests
 {
+    // These pin the wire shape rather than what a reviewer reads, so nothing here is named. The
+    // one test that is about the name says so itself.
+    static InlinePatch Patch(
+        string source,
+        int line,
+        string? expression,
+        string content,
+        InlinePatchMode mode = InlinePatchMode.Set,
+        string? framework = null) =>
+        new(source, line, expression, content, mode)
+        {
+            TestName = null,
+            Framework = framework
+        };
+
     [Test]
     public async Task InlineMessageRoundTrips()
     {
-        var patch = new InlinePatch("Tests.cs", 42, "\"old\"", "new content");
+        var patch = Patch("Tests.cs", 42, "\"old\"", "new content");
 
         var payload = new ViewerMessage(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch)).Build();
 
@@ -33,7 +48,7 @@ public class ViewerProtocolTests
     public async Task AwkwardSnapshotTextSurvivesTheRoundTrip()
     {
         var content = "line \"one\"\n\tbraces {} and | pipes\r\nversion: 1\nverb: quit\n";
-        var patch = new InlinePatch("Tests.cs", 1, null, content);
+        var patch = Patch("Tests.cs", 1, null, content);
 
         var payload = new ViewerMessage(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch)).Build();
 
@@ -53,7 +68,7 @@ public class ViewerProtocolTests
         foreach (var name in Enum.GetNames(typeof(InlinePatchMode)))
         {
             var mode = (InlinePatchMode) Enum.Parse(typeof(InlinePatchMode), name);
-            var patch = new InlinePatch("Tests.cs", 1, null, "content", mode);
+            var patch = Patch("Tests.cs", 1, null, "content", mode);
             var payload = new ViewerMessage(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch)).Build();
 
             await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
@@ -151,7 +166,7 @@ public class ViewerProtocolTests
     [Test]
     public async Task AFullListingRoundTripsThePatch()
     {
-        var patch = new InlinePatch("Tests.cs", 42, "\"old\"", "new content");
+        var patch = Patch("Tests.cs", 42, "\"old\"", "new content");
         var listing = ViewerResponse.Listing(
         [
             new("tests.cs|42", "Tests.cs:42", "locked", InlinePatchFile.Build(patch))
@@ -174,7 +189,7 @@ public class ViewerProtocolTests
     [Test]
     public async Task AFullListingHasNoItemLines()
     {
-        var patch = InlinePatchFile.Build(new("Tests.cs", 1, null, "content"));
+        var patch = InlinePatchFile.Build(Patch("Tests.cs", 1, null, "content"));
         var text = ViewerResponse.Listing([new("key", "Tests.cs:1", null, patch)]).Build();
 
         await Assert.That(Fields(text, "item: ")).IsEmpty();
@@ -214,7 +229,7 @@ public class ViewerProtocolTests
     [Test]
     public async Task AFullListingCarriesThePrimaryOrigins()
     {
-        var patch = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "new content"));
+        var patch = InlinePatchFile.Build(Patch("Tests.cs", 42, "\"old\"", "new content"));
         var listing = ViewerResponse.Listing(
         [
             new("tests.cs|42", "Tests.cs:42", null, patch)
@@ -236,8 +251,8 @@ public class ViewerProtocolTests
     [Test]
     public async Task AVariantLineRoundTrips()
     {
-        var primary = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "eight"));
-        var other = InlinePatchFile.Build(new("Tests.cs", 42, "\"old\"", "nine"));
+        var primary = InlinePatchFile.Build(Patch("Tests.cs", 42, "\"old\"", "eight"));
+        var other = InlinePatchFile.Build(Patch("Tests.cs", 42, "\"old\"", "nine"));
         var listing = ViewerResponse.Listing(
         [
             new("tests.cs|42", "Tests.cs:42", null, primary)
@@ -338,8 +353,8 @@ public class ViewerProtocolTests
     [Test]
     public async Task AConflictedEntryListsItsStatus()
     {
-        var eight = new InlinePatch("Tests.cs", 42, "\"old\"", "eight") { Framework = "net8.0" };
-        var nine = new InlinePatch("Tests.cs", 42, "\"old\"", "nine") { Framework = "net9.0" };
+        var eight = Patch("Tests.cs", 42, "\"old\"", "eight", framework: "net8.0");
+        var nine = Patch("Tests.cs", 42, "\"old\"", "nine", framework: "net9.0");
         var entry = new PendingInline([new(eight, ["net8.0"]), new(nine, ["net9.0"])]);
 
         var listed = ViewerListing.Items([entry], withPatches: false).Single();

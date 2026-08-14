@@ -648,7 +648,8 @@ public class TrayViewerSyncTest
         InlinePatchFile.Build(
             new(source, line, "\"old\"", content)
             {
-                Framework = framework
+                Framework = framework,
+                TestName = null
             });
 
     /// <summary>

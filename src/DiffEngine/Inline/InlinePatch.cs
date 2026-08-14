@@ -49,10 +49,18 @@ public sealed class InlinePatch
     public InlinePatchMode Mode { get; set; }
 
     /// <summary>
-    /// Display name of the test that produced this patch. Optional; supplied by the caller
-    /// (Verify). Null when the caller did not provide one.
+    /// Display name of the test that produced this patch, supplied by the caller (Verify). The
+    /// viewer labels and groups queue entries by it, falling back to the call site without one.
+    /// <para>
+    /// Required, though still nullable: a patch that never reaches a queue — an
+    /// <see cref="InlinePatchMode.Remove"/>, or an apply straight through
+    /// <see cref="InlineApplier"/> — has no reviewable identity and says so with an explicit null.
+    /// Omission and decision were previously indistinguishable, and a producer that simply never
+    /// set it went unnoticed for as long as it did because the viewer's fallback reads as an
+    /// unnamed test rather than as a missing field.
+    /// </para>
     /// </summary>
-    public string? TestName { get; set; }
+    public required string? TestName { get; set; }
 
     /// <summary>
     /// Short target framework of the test process that produced this patch ("net9.0", "net48").

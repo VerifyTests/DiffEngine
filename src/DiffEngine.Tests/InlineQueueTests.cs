@@ -5,10 +5,16 @@
 /// </summary>
 public class InlineQueueTests
 {
-    static InlinePatch Patch(string source = "Sample.cs", int line = 42, string content = "new", string? framework = null) =>
+    static InlinePatch Patch(
+        string source = "Sample.cs",
+        int line = 42,
+        string content = "new",
+        string? framework = null,
+        string? testName = null) =>
         new(source, line, "\"old\"", content)
         {
-            Framework = framework
+            Framework = framework,
+            TestName = testName
         };
 
     static InlineApplyResult Fails(InlinePatch patch) =>
