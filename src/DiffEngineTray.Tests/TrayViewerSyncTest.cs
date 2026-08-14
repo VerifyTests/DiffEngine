@@ -1,7 +1,5 @@
 extern alias viewer;
 
-using System.Collections.Concurrent;
-
 // The viewer's own copies of the protocol types. DiffEngineViewer links DiffEngine's Inline and
 // Protocol sources rather than referencing them, so the same names exist in both assemblies and
 // only the alias tells them apart. That duplication is the point of these tests: the two halves
@@ -130,7 +128,7 @@ public class TrayViewerSyncTest
         pair.Tracker.Accept(pair.Tracker.Moves.Single());
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(sample, 1)]);
-        await Assert.That(File.ReadAllText(move.Target)).IsEqualTo("received");
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
     }
 
     [Test]
@@ -186,7 +184,7 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Tracker.Snapshots).IsEmpty();
         await Assert.That(pair.Tracker.Moves).IsEmpty();
         await Assert.That(pair.Tracker.Deletes).IsEmpty();
-        await Assert.That(File.ReadAllText(move.Target)).IsEqualTo("received");
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
         await Assert.That(File.Exists(delete.File)).IsFalse();
     }
 
@@ -250,7 +248,7 @@ public class TrayViewerSyncTest
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(sample, 1)]);
         await Assert.That(pair.Tracker.Moves).IsEmpty();
-        await Assert.That(File.ReadAllText(move.Target)).IsEqualTo("received");
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
     }
 
     /// <summary>
@@ -493,7 +491,7 @@ public class TrayViewerSyncTest
         using var noTray = new NoTray();
         var file = pair.StageStaleFile();
 
-        DiffRunner.AddDelete(file);
+        await DiffRunner.AddDeleteAsync(file);
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([TrackedKeys.ForDelete(file)]);
 
@@ -535,7 +533,7 @@ public class TrayViewerSyncTest
 
         pair.Act(CommandKind.Accept, move.Key);
 
-        await Assert.That(File.ReadAllText(move.Target)).IsEqualTo("received");
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
         await Assert.That(File.Exists(move.Temp)).IsFalse();
     }
 
@@ -564,7 +562,7 @@ public class TrayViewerSyncTest
         var move = pair.StageMove();
         PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
 
-        File.WriteAllText(move.Temp, "second run");
+        await File.WriteAllTextAsync(move.Temp, "second run");
         PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
 
         await Assert.That(pair.Viewer.Queue).HasSingleItem();
@@ -581,7 +579,7 @@ public class TrayViewerSyncTest
         await using var pair = new ViewerOwned();
         using var noTray = new NoTray();
         var file = pair.StageStaleFile();
-        DiffRunner.AddDelete(file);
+        await DiffRunner.AddDeleteAsync(file);
 
         var full = pair.Send(new(ViewerVerb.ListFull));
         var plain = pair.Send(new(ViewerVerb.List));
@@ -801,7 +799,7 @@ public class TrayViewerSyncTest
             previousPort = Environment.GetEnvironmentVariable(ViewerClient.PortVariable);
             Environment.SetEnvironmentVariable(ViewerClient.PortVariable, server.Port.ToString());
             Window = new(SessionState.Start(ViewerMode.Inline));
-            actions = new ViewerActions(
+            actions = new(
                 patch =>
                 {
                     Applied.Add(patch);

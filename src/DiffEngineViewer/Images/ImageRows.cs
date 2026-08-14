@@ -59,7 +59,7 @@ static class ImageRows
             kind = value == other ? RowKind.Unchanged : RowKind.Modified;
         }
 
-        return new(number, kind, $"{label.PadRight(labelWidth)}{value}");
+        return new(number, kind, $"{label,-labelWidth}{value}");
     }
 
     static string? Format(ImageFile? image)

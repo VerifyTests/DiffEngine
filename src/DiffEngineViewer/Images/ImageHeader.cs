@@ -83,8 +83,7 @@ readonly record struct ImageHeader(ImageFormat Format, int Width, int Height)
                 continue;
             }
 
-            if (marker == 0x01 ||
-                marker is >= 0xD0 and <= 0xD9)
+            if (marker is 0x01 or >= 0xD0 and <= 0xD9)
             {
                 continue;
             }

@@ -27,6 +27,7 @@ static class RuntimeMoniker
             return null;
         }
 
+        // ReSharper disable once RedundantSuppressNullableWarningExpression
         var parts = frameworkName!.Split(',');
         var identifier = parts[0].Trim();
         string? versionText = null;
@@ -35,7 +36,7 @@ static class RuntimeMoniker
             var part = parts[index].Trim();
             if (part.StartsWith("Version=v", StringComparison.Ordinal))
             {
-                versionText = part.Substring("Version=v".Length);
+                versionText = part["Version=v".Length..];
                 break;
             }
         }
@@ -52,6 +53,7 @@ static class RuntimeMoniker
             ".NETCoreApp" when version.Major >= 5 => $"net{version.Major}.{minor}",
             ".NETCoreApp" => $"netcoreapp{version.Major}.{minor}",
             // "4.6.2" reads as net462, matching how TFMs are written.
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
             ".NETFramework" => "net" + versionText!.Replace(".", ""),
             ".NETStandard" => $"netstandard{version.Major}.{minor}",
             _ => null
