@@ -29,7 +29,7 @@ public class DiffRunnerTests
         }
     }
 
-    static ResolvedTool tool;
+    static ResolvedTool? tool;
     string file2;
     string file1;
     string command;
@@ -240,7 +240,7 @@ public class DiffRunnerTests
     {
         file1 = CopyFixture("DiffRunner.file1.txt");
         file2 = CopyFixture("DiffRunner.file2.txt");
-        command = tool.BuildCommand(file1, file2);
+        command = Tool.BuildCommand(file1, file2);
     }
 
     // Per test rather than per class: a discard deletes the temp file and its directory, so the
@@ -253,8 +253,11 @@ public class DiffRunnerTests
         return target;
     }
 
-    static DiffRunnerTests() =>
-        tool = DiffTools.AddTool(
+    // Resolved on first use rather than in a type initializer. [After(Class)] runs even when every
+    // test here is skipped for the OS, so initializing the type has to be safe everywhere, and this
+    // reaches FakeDiffTool, which is only built for Windows and macOS.
+    static ResolvedTool Tool =>
+        tool ??= DiffTools.AddTool(
             name: "FakeDiffTool",
             autoRefresh: true,
             isMdi: false,
