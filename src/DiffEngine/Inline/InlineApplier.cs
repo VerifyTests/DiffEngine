@@ -109,6 +109,8 @@ public static class InlineApplier
             patch.LineHint,
             patch.Mode,
             patch.OriginalExpression,
+            patch.OriginalValue,
+            patch.MemberName,
             newContent,
             out var newSource,
             out var failReason);

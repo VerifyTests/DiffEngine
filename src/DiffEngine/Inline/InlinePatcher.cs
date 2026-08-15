@@ -46,6 +46,8 @@ static class InlinePatcher
         int lineHint,
         InlinePatchMode mode,
         string? originalExpression,
+        string? originalValue,
+        string? memberName,
         string newContent,
         out string newSource,
         out string failReason)
@@ -55,17 +57,18 @@ static class InlinePatcher
         var eol = DetectEol(source);
         var lineStarts = BuildLineStarts(source);
         var scan = language.Scan(source);
+        var memberLine = MemberLine(source, scan, lineStarts, lineHint, memberName);
 
         if (mode == InlinePatchMode.Remove)
         {
-            return TryRemove(source, scan, lineStarts, lineHint, ref newSource, ref failReason);
+            return TryRemove(source, scan, lineStarts, lineHint, memberLine, ref newSource, ref failReason);
         }
 
         var fileUnit = DetectIndentUnit(source, scan, lineStarts);
 
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, ref newSource, ref failReason);
+            return TryAppend(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, ref newSource, ref failReason);
         }
 
         if (!string.IsNullOrEmpty(originalExpression))
@@ -78,7 +81,7 @@ static class InlinePatcher
             // still unaccepted.
             // ReSharper disable once RedundantSuppressNullableWarningExpression
             var needle = NormalizeTo(originalExpression!, eol);
-            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, methodName, false))
+            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, methodName, false))
             {
                 if (!TryReadArguments(source, scan, openParen, out var expected) ||
                     !expected.Matches(source, needle))
@@ -98,10 +101,46 @@ static class InlinePatcher
             }
 
             // Expression gone: another process may have applied the same patch already
-            return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, alreadyOnly: true, ref newSource, ref failReason);
+            return InsertOrCheck(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, alreadyOnly: true, ref newSource, ref failReason);
         }
 
-        return InsertOrCheck(source, scan, lineStarts, lineHint, newContent, eol, fileUnit, alreadyOnly: false, ref newSource, ref failReason);
+        if (originalValue != null)
+        {
+            // Located by content again, but by what the argument means rather than by what it
+            // says. The same anchor for a producer whose language withholds the expression, and
+            // the same outcome when nothing matches: report, rather than rewrite whichever call
+            // the hint happens to land on.
+            var previous = SourceLanguage.NormalizeNewlines(originalValue);
+            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, methodName, false))
+            {
+                if (!TryReadArguments(source, scan, openParen, out var expected) ||
+                    expected.IsAbsent ||
+                    expected.BlockedByName)
+                {
+                    continue;
+                }
+
+                var argument = source.Substring(expected.Start, expected.End - expected.Start);
+                if (!language.TryParse(argument, out var value) ||
+                    value != previous)
+                {
+                    continue;
+                }
+
+                if (previous == newContent)
+                {
+                    return PatchStatus.AlreadyApplied;
+                }
+
+                var rendered = RenderArgument(language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                newSource = Splice(source, expected.Start, expected.End, rendered);
+                return PatchStatus.Applied;
+            }
+
+            return InsertOrCheck(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, alreadyOnly: true, ref newSource, ref failReason);
+        }
+
+        return InsertOrCheck(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, alreadyOnly: false, ref newSource, ref failReason);
     }
 
     static PatchStatus InsertOrCheck(
@@ -109,6 +148,7 @@ static class InlinePatcher
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
+        int? memberLine,
         string newContent,
         string eol,
         string fileUnit,
@@ -116,7 +156,7 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
@@ -278,13 +318,14 @@ static class InlinePatcher
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
+        int? memberLine,
         string newContent,
         string eol,
         string fileUnit,
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, verifyPrefix, true, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, verifyPrefix, true, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {verifyPrefix} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
@@ -326,10 +367,11 @@ static class InlinePatcher
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
+        int? memberLine,
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, methodName, false, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, methodName, false, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
@@ -459,20 +501,21 @@ static class InlinePatcher
         return source.Substring(lineStart, index - lineStart);
     }
 
-    static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, out int openParen) =>
-        TryFindCall(source, scan, lineStarts, lineHint, methodName, false, out _, out openParen);
+    static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, out int openParen) =>
+        TryFindCall(source, scan, lineStarts, lineHint, memberLine, methodName, false, out _, out openParen);
 
     static bool TryFindCall(
         string source,
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
+        int? memberLine,
         string name,
         bool byPrefix,
         out int nameStart,
         out int openParen)
     {
-        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, name, byPrefix))
+        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, memberLine, name, byPrefix))
         {
             (nameStart, openParen) = call;
             return true;
@@ -484,9 +527,21 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Locates calls by name, searching outward from the hint: hint, hint+1, hint-1, hint+2 and so
-    /// on. A tie goes to the line at or after the hint, because a file that moved under a pending
+    /// Locates calls by name: the recorded line first, then outward - line, line+1, line-1, line+2
+    /// and so on. A tie goes to the line at or after, because a file that moved under a pending
     /// patch usually grew above the call rather than below it.
+    /// <para>
+    /// <paramref name="memberLine"/>, where the patch named a member the file still declares, does
+    /// two things. It bounds the search: a call above that declaration cannot be inside the member
+    /// the patch came from, whatever else recommends it, so an identical snapshot in the test
+    /// above is no longer reachable at all. And it becomes the origin of the outward walk, so a
+    /// hint gone stale fans out from the right test rather than from a line that now belongs to
+    /// another one.
+    /// </para>
+    /// <para>
+    /// The recorded line is still tried first, since a hint that lands on a call is the whole
+    /// point of having one, and it is what keeps two snapshots in the same method apart.
+    /// </para>
     /// <paramref name="byPrefix"/> matches any identifier starting with <paramref name="name"/>,
     /// which is how the several Verify overloads are found with one search.
     /// </summary>
@@ -495,65 +550,148 @@ static class InlinePatcher
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
+        int? memberLine,
         string name,
         bool byPrefix)
     {
         var lineCount = lineStarts.Count;
-        lineHint = Math.Min(Math.Max(lineHint, 1), lineCount);
+        lineHint = Clamp(lineHint, lineCount);
+        var floor = memberLine is null ? 1 : Clamp(memberLine.Value, lineCount);
+        var origin = memberLine is null ? lineHint : floor;
+        if (lineHint >= floor)
+        {
+            foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, name, byPrefix))
+            {
+                yield return call;
+            }
+        }
+
         for (var distance = 0; distance < lineCount; distance++)
         {
             var candidates = distance == 0
-                ? new[] { lineHint }
-                : new[] { lineHint + distance, lineHint - distance };
+                ? new[] { origin }
+                : new[] { origin + distance, origin - distance };
             foreach (var line in candidates)
             {
-                if (line < 1 || line > lineCount)
+                if (line < floor ||
+                    line > lineCount ||
+                    // Already tried, and yielding it twice would have a caller that rejects the
+                    // first reject it again rather than move on
+                    line == lineHint)
                 {
                     continue;
                 }
 
-                var start = lineStarts[line - 1];
-                var end = line < lineCount ? lineStarts[line] : source.Length;
-                var index = start;
-                while (true)
+                foreach (var call in CallsOnLine(source, scan, lineStarts, line, name, byPrefix))
                 {
-                    index = source.IndexOf(name, index, StringComparison.Ordinal);
-                    if (index < 0 || index >= end)
-                    {
-                        break;
-                    }
-
-                    var identifierEnd = index + name.Length;
-                    if (byPrefix)
-                    {
-                        while (identifierEnd < source.Length &&
-                               scan.IsIdentifierChar(source[identifierEnd]))
-                        {
-                            identifierEnd++;
-                        }
-                    }
-                    else if (identifierEnd < source.Length &&
-                             scan.IsIdentifierChar(source[identifierEnd]))
-                    {
-                        index += name.Length;
-                        continue;
-                    }
-
-                    // In code, a whole token, an invocation rather than a declaration, and
-                    // followed by an argument list. A commented out example passes none of these
-                    if (scan.IsCode(index) &&
-                        StartsToken(source, scan, index) &&
-                        !scan.IsDeclaration(index) &&
-                        !(byPrefix && IsForeignReceiver(source, scan, index)) &&
-                        TrySkipToParen(source, scan, identifierEnd, out var paren))
-                    {
-                        yield return (index, paren);
-                    }
-
-                    index += name.Length;
+                    yield return call;
                 }
             }
         }
+    }
+
+    static int Clamp(int line, int lineCount) =>
+        Math.Min(Math.Max(line, 1), lineCount);
+
+    static IEnumerable<(int nameStart, int openParen)> CallsOnLine(
+        string source,
+        SourceScan scan,
+        List<int> lineStarts,
+        int line,
+        string name,
+        bool byPrefix)
+    {
+        var lineCount = lineStarts.Count;
+        var start = lineStarts[line - 1];
+        var end = line < lineCount ? lineStarts[line] : source.Length;
+        var index = start;
+        while (true)
+        {
+            index = source.IndexOf(name, index, StringComparison.Ordinal);
+            if (index < 0 || index >= end)
+            {
+                break;
+            }
+
+            var identifierEnd = index + name.Length;
+            if (byPrefix)
+            {
+                while (identifierEnd < source.Length &&
+                       scan.IsIdentifierChar(source[identifierEnd]))
+                {
+                    identifierEnd++;
+                }
+            }
+            else if (identifierEnd < source.Length &&
+                     scan.IsIdentifierChar(source[identifierEnd]))
+            {
+                index += name.Length;
+                continue;
+            }
+
+            // In code, a whole token, an invocation rather than a declaration, and
+            // followed by an argument list. A commented out example passes none of these
+            if (scan.IsCode(index) &&
+                StartsToken(source, scan, index) &&
+                !scan.IsDeclaration(index) &&
+                !(byPrefix && IsForeignReceiver(source, scan, index)) &&
+                TrySkipToParen(source, scan, identifierEnd, out var paren))
+            {
+                yield return (index, paren);
+            }
+
+            index += name.Length;
+        }
+    }
+
+    /// <summary>
+    /// Where the member a patch came from is declared, or null when it named none or the file no
+    /// longer declares it - a test renamed since the run, which leaves the hint as all there is.
+    /// <para>
+    /// A member is not an identity, since it holds any number of snapshots, but it is a region: a
+    /// call above the declaration is not in it, and that is what bounds the search in
+    /// <see cref="FindCalls"/>.
+    /// </para>
+    /// <para>
+    /// The declaration nearest the hint wins, so overloads and partials pick the plausible one.
+    /// </para>
+    /// </summary>
+    static int? MemberLine(string source, SourceScan scan, List<int> lineStarts, int lineHint, string? memberName)
+    {
+        if (string.IsNullOrEmpty(memberName))
+        {
+            return null;
+        }
+
+        var best = -1;
+        var index = 0;
+        while (true)
+        {
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
+            index = source.IndexOf(memberName!, index, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                break;
+            }
+
+            var end = index + memberName!.Length;
+            if (scan.IsCode(index) &&
+                StartsToken(source, scan, index) &&
+                (end >= source.Length || !scan.IsIdentifierChar(source[end])) &&
+                scan.IsDeclaration(index))
+            {
+                var line = LineOf(lineStarts, index);
+                if (best < 0 ||
+                    Math.Abs(line - lineHint) < Math.Abs(best - lineHint))
+                {
+                    best = line;
+                }
+            }
+
+            index = end;
+        }
+
+        return best < 0 ? null : best;
     }
 
     static bool StartsToken(string source, SourceScan scan, int index) =>

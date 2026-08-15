@@ -137,7 +137,7 @@ public class FsCompilerRoundTripTests
 
     static string Patch(string snippet, int lineHint, InlinePatchMode mode, string content)
     {
-        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, content, out var patched, out var reason);
+        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, null, null, content, out var patched, out var reason);
         if (status != PatchStatus.Applied)
         {
             throw new($"{mode} patch was not applied: {reason}");

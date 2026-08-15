@@ -107,11 +107,12 @@ public abstract class SourceLanguage
     /// Whether a patch from this language carries the source text of the expected argument, which
     /// is to say whether the compiler honours <see cref="CallerArgumentExpressionAttribute"/>.
     /// <para>
-    /// That expression is what a patch is anchored to: the call whose argument is still the text
-    /// the test run saw is the call to rewrite, whatever moved around it. Without one, all a patch
-    /// has is a line hint and the search outward from it, and a literal that differs has to be
-    /// taken as the snapshot that changed rather than as a conflict - the alternative being that
-    /// an inline snapshot can be accepted once and never updated.
+    /// An expression is what a patch is anchored to: the call whose argument is still what the
+    /// test run saw is the call to rewrite, whatever moved around it. A producer in a language
+    /// without one should send <see cref="InlinePatch.OriginalValue"/> instead, which anchors just
+    /// as well. This flag is for the case where neither arrived: with no anchor at all, a literal
+    /// that differs has to be taken as the snapshot that changed rather than as a conflict, or an
+    /// inline snapshot could be accepted once and never updated.
     /// </para>
     /// </summary>
     internal virtual bool SuppliesArgumentExpressions => true;

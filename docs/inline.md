@@ -78,6 +78,7 @@ For the producing side — a test library with a failing inline snapshot:
 * `DiffRunner.AddInlineAsync(patch)` queues a patch with whatever owns the port, launching the bundled viewer when nothing does. Returns `Queued`, `Disabled` (build servers, continuous testing and AI CLIs included), or `NoViewerFound` — the caller's cue to stage files and fall back to a text diff.
 * `DiffRunner.SettleInline(sourceFile, line)` drops the pending entry for a call site, for when a previously failing test passes. Unknown entries and an absent owner are no-ops, so call it freely. The settle carries the running framework, so a multi-targeted run only settles its own variant of a conflicted entry.
 * `AddInlineAsync` stamps `patch.Framework` with the running process's target framework ("net9.0", "net48") unless the caller already set it, which is what lets the owner tell a re-run from another framework disagreeing. Callers may also set `patch.TestName`, which the viewer uses to group and label the queue; without it, items are labeled by call site.
+* Set `patch.OriginalExpression` from `CallerArgumentExpression` where the language supplies one, and `patch.OriginalValue` — the previous expected argument's value — where it does not. One of the two is what stops a patch rewriting the wrong call site when the file has moved since the run. `patch.MemberName` from `CallerMemberName` narrows it further, and is supported everywhere including F#.
 * Setting `DiffEngine_InlineViewer` to `false` reports `NoViewerFound` without probing, which is how a user opts into reviewing in their IDE instead of a window.
 
 
@@ -94,9 +95,17 @@ originalExpression: {base64}
 newContent: {base64}
 testName: {base64}
 framework: net9.0
+originalValue: {base64}
+memberName: {base64}
 ```
 
 `lineHint` is a hint: locating the call is content anchored, so a file that shifted since the test run still patches, and one whose call site changed reports rather than corrupts. `mode` is `Set` (replace or insert the expected argument), `Append` (add a Snapshot call where none exists yet), or `Remove` (delete the call, used when migrating a snapshot back to a file). `testName` and `framework` are optional provenance — who produced the patch and under which target framework — parsed tolerantly: absent means unknown, and unknown trailing lines are ignored.
+
+The anchor is `originalExpression`, the source text of the argument the test run saw. A producer whose language does not implement `CallerArgumentExpression` sends `originalValue` instead — the argument's *value* — and the call whose literal parses to it is the one rewritten. Either identifies the call; the expression is used where both arrived, being what the source actually says. With neither, all a patch has is the hint, and a literal that differs is taken as the snapshot that changed rather than as a conflict — otherwise an inline snapshot could be accepted once and never updated.
+
+`memberName` is `CallerMemberName`, and it narrows rather than identifies, since a member holds any number of snapshots. A call above that member's declaration cannot be inside it, so the search will not reach one however well it matches, and the outward walk starts from the declaration rather than from a line that may since have become another test's. What it protects against is two tests in one file with identical snapshots and a hint that has drifted between them; the recorded line is still tried first, which is what keeps two snapshots in the *same* member apart. A member the file no longer declares — a renamed test — is ignored, leaving the hint as it was.
+
+All three are optional, and everything past the six fixed lines is order agnostic, so they were added without moving the version: a reader that predates one skips the line.
 
 
 ## How the literal is written
@@ -164,7 +173,7 @@ Verifier.Verify(value)
     .ToTask()
 ```
 
-One difference is not syntax at all. The F# compiler does not implement `CallerArgumentExpression` — it warns FS0202 and leaves the parameter at its default — so an F# patch never carries `originalExpression`, and the call is located by line hint and the search outward from it alone. Where a C# patch with no expression treats a differing literal as a conflict, an F# one has to take it as the snapshot that changed: the alternative is that an inline snapshot can be accepted once and never updated.
+One difference is not syntax at all. The F# compiler does not implement `CallerArgumentExpression` — it warns FS0202 and leaves the parameter at its default — so an F# patch never carries `originalExpression`. `CallerFilePath` and `CallerLineNumber` work, so the call site is known; what is missing is the anchor that says which call the patch came from when the file has moved under it. An F# producer should send `originalValue` instead, which anchors on what the argument means rather than on what it says, and is what F# does supply — along with `memberName`, since `CallerMemberName` is supported and holds up inside `task` and `async` expressions. Without either anchor, the patch falls back to the line hint alone and rewrites the literal it finds there.
 
 Locating the call is otherwise the same scan, taught F#'s lexis: `(* *)` comments nest, a tick is a char literal only where it cannot be part of a name (`value'`) or a type parameter (`'T`), `(*)` is the multiplication operator rather than a comment, and a name is a declaration only where `let` or `member` says so. A call written without parentheses (`Verifier.Verify value`) is not found — the patch reports rather than corrupts, and the fix is to re-run after adding them.
 

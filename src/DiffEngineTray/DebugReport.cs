@@ -112,6 +112,8 @@ static class DebugReport
         AppendField(builder, "LineHint", patch.LineHint);
         AppendField(builder, "Mode", patch.Mode);
         AppendField(builder, "OriginalExpression", patch.OriginalExpression);
+        AppendField(builder, "OriginalValue", patch.OriginalValue);
+        AppendField(builder, "MemberName", patch.MemberName);
         AppendField(builder, "NewContent", patch.NewContent);
     }
 

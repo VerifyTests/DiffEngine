@@ -25,6 +25,34 @@ public sealed class InlinePatch
     }
 
     /// <summary>
+    /// The runtime value of the previous expected argument, for a producer whose language does not
+    /// supply <see cref="OriginalExpression"/>. Null when there was no previous argument.
+    /// <para>
+    /// Both are anchors for the same purpose - identify the call whose expected argument is still
+    /// what the test run saw, so a file that shifted still patches and one whose call site changed
+    /// reports rather than corrupts. The expression is used where it exists, being what the source
+    /// actually says; the value is a parse away from it, and is what F# leaves as the only option,
+    /// since its compiler does not implement <see cref="CallerArgumentExpressionAttribute"/>.
+    /// </para>
+    /// </summary>
+    public string? OriginalValue { get; set; }
+
+    /// <summary>
+    /// The member the verify call sits in, from <see cref="CallerMemberNameAttribute"/>. Null when
+    /// the producer does not supply one.
+    /// <para>
+    /// Not an identity - a member holds any number of snapshots - but a locality. Where the
+    /// recorded line no longer lands on a call, the search moves to this member's declaration
+    /// rather than fanning out from a line that has since become someone else's, which is what
+    /// keeps a stale hint from finding an identical snapshot in the test next door. Unlike
+    /// <see cref="TestName"/> this is the name in the source, not a display name: a test renamed
+    /// through UseMethodName, or named by a framework that takes a string, still declares itself
+    /// here as whatever the compiler saw.
+    /// </para>
+    /// </summary>
+    public string? MemberName { get; set; }
+
+    /// <summary>
     /// Full path to the source file. Its extension decides the language the literal is written in
     /// (<see cref="SourceLanguage.ForFile"/>).
     /// </summary>
@@ -85,6 +113,8 @@ public sealed class InlinePatch
         SourceFile == other.SourceFile &&
         LineHint == other.LineHint &&
         OriginalExpression == other.OriginalExpression &&
+        OriginalValue == other.OriginalValue &&
+        MemberName == other.MemberName &&
         NewContent == other.NewContent &&
         Mode == other.Mode;
 }

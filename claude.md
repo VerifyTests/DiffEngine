@@ -84,6 +84,17 @@ the file compiling, so the render falls back to a one-line escaped literal. That
 by compiling patched source with `dotnet fsi` (`FsCompilerRoundTripTests`), because a belief about
 F#'s lexis is exactly the kind of thing a second copy of the same belief cannot check.
 
+A patch is anchored to the call by `OriginalExpression`, the argument's source text from
+`CallerArgumentExpression`, so a file that moved since the run still patches the right call. F#
+does not implement that attribute (FS0202), so a producer sends `OriginalValue` — the argument's
+value — and the patcher matches on what a literal parses to instead of on what it says. Same
+anchor, one parse apart. With neither, the hint is all there is and a differing literal is taken
+as the snapshot that changed, or a snapshot could be accepted once and never updated.
+`MemberName` (`CallerMemberName`, which F# does implement) narrows on top of either: a call above
+that member's declaration is not in it, so an identical snapshot in the test next door is not a
+candidate at all, while the recorded line is still tried first so two snapshots in one member stay
+apart.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**

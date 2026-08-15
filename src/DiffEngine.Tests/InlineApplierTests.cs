@@ -447,6 +447,59 @@ public class InlinePatchFileTests
     }
 
     [Test]
+    public async Task RoundTripOriginalValue()
+    {
+        var patch = new InlinePatch("Tests.fs", 4, null, "new")
+        {
+            TestName = null,
+            OriginalValue = "old line1\nold line2"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsEqualTo(patch.OriginalValue);
+    }
+
+    [Test]
+    public async Task RoundTripMemberName()
+    {
+        var patch = new InlinePatch("Tests.fs", 4, null, "new")
+        {
+            TestName = null,
+            MemberName = "MyTest"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.MemberName).IsEqualTo("MyTest");
+    }
+
+    [Test]
+    public async Task RoundTripNullOriginalValue()
+    {
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content") { TestName = null }), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsNull();
+    }
+
+    // The field sits past the six fixed lines, so a payload written before it existed still parses
+    [Test]
+    public async Task PayloadWithoutOriginalValue()
+    {
+        var read = InlinePatchFile.TryParse(
+            "version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\ntestName:\nframework: net9.0\n",
+            out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsNull();
+        await Assert.That(result.MemberName).IsNull();
+        await Assert.That(result.Framework).IsEqualTo("net9.0");
+    }
+
+    [Test]
     [Arguments(InlinePatchMode.Set)]
     [Arguments(InlinePatchMode.Append)]
     [Arguments(InlinePatchMode.Remove)]

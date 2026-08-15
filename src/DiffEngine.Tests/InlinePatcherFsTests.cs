@@ -11,8 +11,10 @@ public class InlinePatcherFsTests
         string? originalExpression,
         string newContent,
         out string newSource,
-        out string failReason) =>
-        InlinePatcher.TryApply(SourceLanguage.FSharp, source, lineHint, mode, originalExpression, newContent, out newSource, out failReason);
+        out string failReason,
+        string? originalValue = null,
+        string? memberName = null) =>
+        InlinePatcher.TryApply(SourceLanguage.FSharp, source, lineHint, mode, originalExpression, originalValue, memberName, newContent, out newSource, out failReason);
 
     [Test]
     public async Task ReplaceRegularLiteral()
@@ -116,22 +118,23 @@ public class InlinePatcherFsTests
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
-    // F# does not implement CallerArgumentExpression (FS0202), so an F# patch never carries the
-    // previous expression and a changed snapshot arrives looking exactly like a conflict. Taking
-    // it as the conflict would mean a snapshot could be accepted once and never updated
+    // F# does not implement CallerArgumentExpression (FS0202), so an F# patch is anchored by the
+    // previous value instead: the call whose literal still means what the test run saw
     [Test]
-    public async Task ChangedSnapshotIsReplacedWithNoExpressionToAnchorOn()
+    public async Task ValueAnchorFindsTheCall()
     {
         var source = Test("    Verifier.Verify(15).Snapshot(\"old\").ToTask()");
 
-        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "old");
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask()"));
     }
 
+    // The hint is stale by two lines and lands on another test's snapshot. The value is what says
+    // which call this patch came from, so the wrong one is left alone
     [Test]
-    public async Task ChangedSnapshotPicksTheSiteNearestTheHint()
+    public async Task ValueAnchorBeatsAStaleHint()
     {
         var source = string.Join(
             "\n",
@@ -143,11 +146,97 @@ public class InlinePatcherFsTests
             "let TestB () =",
             "    Verifier.Verify(b).Snapshot(\"b\").ToTask()");
 
-        var status = TryApply(source, 7, InlinePatchMode.Set, null, "new", out var newSource, out _);
+        var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "b");
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("Verify(a).Snapshot(\"a\")");
         await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
+
+    // The literal that value described is gone, so the patch is stale. Reporting is the whole
+    // point of having an anchor: the call at the hint is not known to be the right one
+    [Test]
+    public async Task ValueAnchorThatMatchesNothingIsNotFound()
+    {
+        var source = Test("    Verifier.Verify(15).Snapshot(\"something else\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out var reason, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Re-run the test");
+    }
+
+    // Another process accepted it between the run and this apply
+    [Test]
+    public async Task ValueAnchorGoneAndContentAlreadyThereIsAlreadyApplied()
+    {
+        var source = Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out _, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    [Test]
+    public async Task ValueAnchorAcrossAMultiLineLiteral()
+    {
+        var source = Test("    Verifier.Verify(15).Snapshot(\"\"\"old1\nold2\"\"\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "old1\nold2");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+    }
+
+    static string TwoTests(string literalA, string literalB) =>
+        string.Join(
+            "\n",
+            "module Tests",
+            "",
+            "let TestA () =",
+            $"    Verifier.Verify(a).Snapshot({literalA}).ToTask()",
+            "",
+            "let TestB () =",
+            $"    Verifier.Verify(b).Snapshot({literalB}).ToTask()");
+
+    // A call above TestB's declaration is not inside TestB, whatever the hint says, so the
+    // identical snapshot in the test above is not even a candidate
+    [Test]
+    public async Task MemberNameBoundsTheSearch()
+    {
+        var source = TwoTests("\"dup\"", "\"dup\"");
+
+        var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "dup", memberName: "TestB");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Verify(a).Snapshot(\"dup\")");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
+
+    // With neither anchor the member is all that keeps an overwrite in the right test
+    [Test]
+    public async Task MemberNameScopesAnAnchorlessOverwrite()
+    {
+        var source = TwoTests("\"a\"", "\"b\"");
+
+        var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, memberName: "TestB");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Verify(a).Snapshot(\"a\")");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
+
+    // With neither anchor - a producer that predates the value field - the literal at the hint is
+    // all there is, and taking it as the changed snapshot is better than never updating one
+    [Test]
+    public async Task ChangedSnapshotIsReplacedWithNothingToAnchorOn()
+    {
+        var source = Test("    Verifier.Verify(15).Snapshot(\"old\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask()"));
     }
 
     [Test]
