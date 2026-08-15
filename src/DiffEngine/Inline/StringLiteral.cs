@@ -59,8 +59,12 @@ static class StringLiteral
                     continue;
             }
 
-            // Everything else a literal cannot carry as itself
-            if (ch < ' ' || ch == '\u007f')
+            // Everything else a literal cannot carry as itself. Past the C0 range that is the
+            // three line terminators recognised beyond \n and \r: left as themselves they end the
+            // literal rather than sit in it
+            if (ch < ' ' ||
+                ch == '\u007f' ||
+                IsLineTerminator(ch))
             {
                 builder.Append("\\u");
                 builder.Append(((int) ch).ToString("x4"));
@@ -72,6 +76,37 @@ static class StringLiteral
 
         builder.Append('"');
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// The line terminators a lexer recognises beyond <c>\n</c> and <c>\r</c>: next line, line
+    /// separator and paragraph separator.
+    /// <para>
+    /// A C# literal cannot hold one as itself. In a regular literal it ends the literal (CS1010),
+    /// and in a raw one it reads as a line break, so the line after it no longer starts with the
+    /// whitespace the closing delimiter defines (CS8999). Only an escape carries one, and only a
+    /// regular literal has escapes, which is why content holding one is written as a regular
+    /// literal whatever else it holds.
+    /// </para>
+    /// </summary>
+    public static bool IsLineTerminator(char ch) =>
+        ch is (char) 0x85 or (char) 0x2028 or (char) 0x2029;
+
+    /// <summary>
+    /// True when the content holds a terminator <see cref="IsLineTerminator" /> describes, which is
+    /// what sends content that would otherwise be written multi-line to a regular literal instead.
+    /// </summary>
+    public static bool HasLineTerminator(string content)
+    {
+        foreach (var ch in content)
+        {
+            if (IsLineTerminator(ch))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

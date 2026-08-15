@@ -14,7 +14,8 @@ public static class CsStringLiteral
     /// <summary>
     /// Renders <paramref name="content"/> (\n newlines) as a C# string literal expression: a
     /// regular literal when it is a single line, since a raw string spends three lines and an
-    /// indentation rule to say the same thing, and a multi-line raw literal otherwise.
+    /// indentation rule to say the same thing, and a multi-line raw literal otherwise - except
+    /// where the raw form cannot hold the content at all, which <see cref="RenderRaw"/> answers.
     /// </summary>
     /// <param name="content">Snapshot text with \n newlines.</param>
     /// <param name="indent">Whitespace prefix for content lines and the closing delimiter.</param>
@@ -42,8 +43,17 @@ public static class CsStringLiteral
             return "\"\"";
         }
 
+        if (StringLiteral.HasLineTerminator(content))
+        {
+            // No delimiter can hold one of these, however wide: the compiler reads it as a line
+            // break, and the line it starts does not carry the closing delimiter's indentation
+            // (CS8999). Only a regular literal can say it, as an escape
+            return StringLiteral.RenderRegular(content);
+        }
+
         // Three quotes, or one more than the longest run in the content, which is the widening
-        // F# does not have and the reason it needs a fallback where C# does not
+        // F# does not have and the reason a quote run sends it to a regular literal where C# stays
+        // raw
         var delimiter = new string('"', Math.Max(3, StringLiteral.LongestQuoteRun(content) + 1));
         return StringLiteral.RenderMultiLine(content, indent, eol, delimiter);
     }

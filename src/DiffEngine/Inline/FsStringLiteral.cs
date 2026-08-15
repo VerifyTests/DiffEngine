@@ -38,9 +38,10 @@ public static class FsStringLiteral
 
         if (!CanTripleQuote(content))
         {
-            // F# cannot widen a delimiter the way C# can (FS1232), so content that runs into one
-            // has no multi-line form at all. A regular literal on one source line always works,
-            // whatever it costs in escapes
+            // Content the multi-line form cannot hold: a quote run, which F# cannot widen a
+            // delimiter past the way C# can (FS1232), or a line terminator, which no delimiter
+            // helps with. A regular literal on one source line always works, whatever it costs in
+            // escapes
             return StringLiteral.RenderRegular(SourceLanguage.NormalizeNewlines(content));
         }
 
@@ -51,11 +52,19 @@ public static class FsStringLiteral
     /// Whether a triple-quoted literal can hold this content. A quote at either end would sit
     /// against the delimiter and be read as part of it, and a run of three anywhere would close
     /// the literal early.
+    /// <para>
+    /// A line terminator rules it out as well, for the reason
+    /// <see cref="StringLiteral.IsLineTerminator" /> gives. F# is stricter here than it has to be:
+    /// what sends C# to a regular literal is its own lexer reading one as a line break, and
+    /// nothing says F# does. It keeps the two languages writing the one shape, which is what
+    /// everything downstream of a render is written against.
+    /// </para>
     /// </summary>
     static bool CanTripleQuote(string content) =>
         content[0] != '"' &&
         content[content.Length - 1] != '"' &&
-        content.IndexOf("\"\"\"", StringComparison.Ordinal) == -1;
+        content.IndexOf("\"\"\"", StringComparison.Ordinal) == -1 &&
+        !StringLiteral.HasLineTerminator(content);
 
     /// <summary>
     /// The snapshot a triple-quoted literal was written to hold: the value F# produced for it,
