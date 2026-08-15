@@ -150,11 +150,16 @@ Verifier.Verify(value).Snapshot("""line one
 line two""").ToTask()
 ```
 
-Writing content at the left margin has a consequence: the content's last line decides the column of the closing delimiter, and so of the closing paren and anything chained after it. F#'s offside rule wants those at or right of the column the statement started in, and a snapshot ending in a newline — or in a short line, at a deeply indented call site — puts them left of it. That is not a formatting complaint; the file stops compiling. So the multi-line form is used only where its last line clears the call site's indentation, and everything else falls back to a regular literal on one source line, newlines escaped:
+Writing content at the left margin has a consequence: the content's last line decides the column of the closing delimiter, and so of the closing paren and anything chained after it. F#'s offside rule wants those at or right of the column the statement started in, and a snapshot ending in a newline — or in a short line, at a deeply indented call site — puts them left of it. That is not a formatting complaint; the file stops compiling.
+
+So the verbatim form is used where its last line clears the call site's indentation, and everything else takes the other form F# offers: a regular literal broken across lines with backslash continuations, which drop the line break and the indentation after them. One line of snapshot per line of source, every line indented, and nothing at the margin for the layout to trip over:
 
 ```fsharp
-Verifier.Verify(value).Snapshot("line one\nline two\n").ToTask()
+Verifier.Verify(value).Snapshot("line one\n\
+    line two\n").ToTask()
 ```
+
+The cost is escaping — quotes, backslashes, control characters — and one more thing: a continuation eats the whitespace after it and cannot tell the indentation it was written with from a space the snapshot itself starts with. So a content line beginning with a space starts with `\x20`, which is where the skipping stops; every space after it is content.
 
 There is also no way to widen the delimiter, so content that would run into it — content containing `"""`, or starting or ending with a quote — takes the verbatim form instead (`@"..."`, quotes doubled). Single line content is always a regular literal, escaping what F# escapes (`\` `"` `\a` `\b` `\f` `\t` `\v` `\n` `\r`) and `\uXXXX` for the rest, since F# has no `\0` or `\e`.
 
