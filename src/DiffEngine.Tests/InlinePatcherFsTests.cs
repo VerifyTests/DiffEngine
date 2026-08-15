@@ -43,10 +43,9 @@ public class InlinePatcherFsTests
     }
 
     // The closing delimiter would land at column 0..2, left of the statement, and F# reads that as
-    // the end of the statement rather than as part of it. Continuations instead, which keep a line
-    // of snapshot per line of source without putting anything at the margin
+    // the end of the statement rather than as part of it. One source line instead
     [Test]
-    public async Task ContentEndingInANewlineTakesTheContinuedForm()
+    public async Task ContentEndingInANewlineTakesTheEscapedForm()
     {
         var source = Test("    Verifier.Verify(15).Snapshot().ToTask() |> Async.AwaitTask");
 
@@ -54,14 +53,12 @@ public class InlinePatcherFsTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
-            Test(
-                "    Verifier.Verify(15).Snapshot(\"a\\n\\\n" +
-                "    b\\n\").ToTask() |> Async.AwaitTask"));
+            Test("    Verifier.Verify(15).Snapshot(\"a\\nb\\n\").ToTask() |> Async.AwaitTask"));
     }
 
     // Same content, deeper call site: the last line no longer reaches the statement's column
     [Test]
-    public async Task DeepCallSiteTakesTheContinuedForm()
+    public async Task DeepCallSiteTakesTheEscapedForm()
     {
         var source = Test(
             "    let inner () =\n" +
@@ -71,28 +68,7 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 6, InlinePatchMode.Set, null, "a\nb", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains(
-            "        Verifier.Verify(15).Snapshot(\"a\\n\\\n" +
-            "        b\").ToTask()");
-    }
-
-    // The continued lines line up with the statement, so an indented snapshot keeps its own
-    // indentation as content and the source stays a block
-    [Test]
-    public async Task ContinuedFormKeepsContentIndentation()
-    {
-        var source = Test(
-            "    let inner () =\n" +
-            "        Verifier.Verify(15).Snapshot().ToTask()\n" +
-            "    inner ()");
-
-        var status = TryApply(source, 6, InlinePatchMode.Set, null, "{\n  \"name\": \"value\"\n}", out var newSource, out _);
-
-        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains(
-            "        Verifier.Verify(15).Snapshot(\"{\\n\\\n" +
-            "        \\x20 \\\"name\\\": \\\"value\\\"\\n\\\n" +
-            "        }\").ToTask()");
+        await Assert.That(newSource).Contains("Snapshot(\"a\\nb\").ToTask()");
     }
 
     [Test]

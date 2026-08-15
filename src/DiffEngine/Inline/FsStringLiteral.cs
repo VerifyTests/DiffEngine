@@ -39,7 +39,8 @@ public static class FsStringLiteral
             return multiLine;
         }
 
-        return RenderContinued(content, indent, eol);
+        // No layout to break: one source line, whatever it costs in escapes
+        return RenderRegular(SourceLanguage.NormalizeNewlines(content));
     }
 
     /// <summary>
@@ -63,73 +64,14 @@ public static class FsStringLiteral
         rendered.Length - (rendered.LastIndexOf('\n') + 1) >= indent.Length;
 
     /// <summary>
-    /// Renders <paramref name="content"/> (\n newlines) as a regular literal spread over one
-    /// source line per snapshot line, each break carrying an escaped newline and a continuation.
-    /// <para>
-    /// The form for content the verbatim one cannot hold at this indentation. A backslash before
-    /// a line break drops the break and the indentation after it, so the literal reads a line at
-    /// a time while its value stays exactly the content - and, since every line is indented, it
-    /// has no way to break the layout it sits in. The cost is escaping: quotes, backslashes and
-    /// control characters, and a leading space per line, which the continuation would otherwise
-    /// eat along with the indentation it cannot tell that space from.
-    /// </para>
-    /// </summary>
-    /// <param name="content">Snapshot text with \n newlines.</param>
-    /// <param name="indent">Whitespace prefix for the continued lines. Layout only: F# drops it.</param>
-    /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
-    public static string RenderContinued(string content, string indent, string eol)
-    {
-        var lines = SourceLanguage.NormalizeNewlines(content).Split('\n');
-        var sourceLines = new List<string>(lines.Length);
-        for (var index = 0; index < lines.Length; index++)
-        {
-            var builder = new StringBuilder();
-            // The first line follows the opening quote, so nothing has been dropped in front of it
-            AppendEscaped(builder, lines[index], escapeLeadingSpace: index > 0);
-            if (index < lines.Length - 1)
-            {
-                builder.Append("\\n");
-            }
-
-            sourceLines.Add(builder.ToString());
-        }
-
-        // Content ending in a newline leaves an empty last line, and its break is already on the
-        // line above. Continuing to it would put the closing quote alone on a line of its own
-        if (sourceLines[sourceLines.Count - 1].Length == 0)
-        {
-            sourceLines.RemoveAt(sourceLines.Count - 1);
-        }
-
-        return $"\"{string.Join($"\\{eol}{indent}", sourceLines)}\"";
-    }
-
-    /// <summary>
     /// Renders content as a regular literal on one source line, escaping what the form cannot hold
-    /// verbatim - newlines included.
+    /// verbatim - newlines included, which is what makes this the form that cannot break the
+    /// layout around it.
     /// </summary>
     static string RenderRegular(string content)
     {
         var builder = new StringBuilder(content.Length + 2);
         builder.Append('"');
-        AppendEscaped(builder, content, escapeLeadingSpace: false);
-        builder.Append('"');
-        return builder.ToString();
-    }
-
-    static void AppendEscaped(StringBuilder builder, string content, bool escapeLeadingSpace)
-    {
-        if (escapeLeadingSpace &&
-            content.Length > 0 &&
-            content[0] == ' ')
-        {
-            // Written as an escape so the continuation's whitespace skipping stops on it. Only the
-            // first one has to be: the skip ends at the backslash, and every space after it is
-            // content. \x takes exactly two digits in F#, so nothing that follows extends it
-            builder.Append("\\x20");
-            content = content.Substring(1);
-        }
-
         foreach (var ch in content)
         {
             switch (ch)
@@ -174,6 +116,9 @@ public static class FsStringLiteral
 
             builder.Append(ch);
         }
+
+        builder.Append('"');
+        return builder.ToString();
     }
 
     /// <summary>

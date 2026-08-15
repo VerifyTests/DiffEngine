@@ -142,73 +142,15 @@ public class FsStringLiteralTests
     }
 
     // The closing delimiter lands left of the column the statement started in, which F# reads as
-    // the end of the statement rather than as part of it. Continuations instead: a line at a time,
-    // and every line indented, so there is nothing for the layout to trip over
+    // the end of the statement rather than as part of it. One source line instead
     [Test]
-    [Arguments("a\nb", "\"a\\n\\\n        b\"")]
-    [Arguments("has \"quotes\" and a \\\nx", "\"has \\\"quotes\\\" and a \\\\\\n\\\n        x\"")]
-    // A trailing newline leaves nothing to continue to, so its break stays on the line above
     [Arguments("abc\n", "\"abc\\n\"")]
+    [Arguments("a\nb", "\"a\\nb\"")]
+    [Arguments("has \"quotes\" and a \\\nx", "\"has \\\"quotes\\\" and a \\\\\\nx\"")]
     public async Task RenderMultiLineFallsBackWhenItWouldBreakTheLayout(string content, string expected)
     {
         var rendered = FsStringLiteral.Render(content, "        ", "\n");
         await Assert.That(rendered).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async Task RenderContinued()
-    {
-        var rendered = FsStringLiteral.RenderContinued("line one\nline two", "    ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"line one\\n\\\n    line two\"");
-    }
-
-    // The continuation drops the newline and the whitespace after it, and cannot tell the
-    // indentation it was written with from a space the snapshot starts with. So the first one is
-    // an escape, which is where the skipping stops, and the rest are content
-    [Test]
-    public async Task RenderContinuedEscapesALeadingSpace()
-    {
-        var rendered = FsStringLiteral.RenderContinued("a\n    indented\nb", "    ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"a\\n\\\n    \\x20   indented\\n\\\n    b\"");
-    }
-
-    [Test]
-    public async Task RenderContinuedBlankLine()
-    {
-        var rendered = FsStringLiteral.RenderContinued("a\n\nb", "    ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"a\\n\\\n    \\n\\\n    b\"");
-    }
-
-    [Test]
-    public async Task RenderContinuedTrailingNewline()
-    {
-        var rendered = FsStringLiteral.RenderContinued("a\nb\n", "    ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"a\\n\\\n    b\\n\"");
-    }
-
-    [Test]
-    public async Task RenderContinuedCrlf()
-    {
-        var rendered = FsStringLiteral.RenderContinued("a\nb", "\t", "\r\n");
-        await Assert.That(rendered).IsEqualTo("\"a\\n\\\r\n\tb\"");
-    }
-
-    [Test]
-    public async Task RenderContinuedRoundTrips()
-    {
-        foreach (var content in renderRoundTripCases)
-        {
-            foreach (var eol in new[] { "\n", "\r\n" })
-            {
-                foreach (var indent in new[] { "", "    ", "        " })
-                {
-                    var rendered = FsStringLiteral.RenderContinued(content, indent, eol);
-                    var parsed = FsStringLiteral.TryParse(rendered, out var value);
-                    await Assert.That(parsed).IsTrue();
-                    await Assert.That(value).IsEqualTo(SourceLanguage.NormalizeNewlines(content));
-                }
-            }
-        }
     }
 
     // The last line reaches the splice column, so the verbatim form stands
