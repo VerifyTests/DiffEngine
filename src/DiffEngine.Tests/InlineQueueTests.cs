@@ -45,9 +45,11 @@ public class InlineQueueTests
     }
 
     /// <summary>
-    /// The same path can reach here with different casing, and it is still one call site.
+    /// The same path can reach here with different casing, and where the file system says those
+    /// are one file it is still one call site.
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task EnqueueMatchesRegardlessOfPathCase()
     {
         var queue = InlineQueue.Empty
@@ -55,6 +57,21 @@ public class InlineQueueTests
             .Enqueue(Patch("SAMPLE.CS"));
 
         await Assert.That(queue.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// And where it says they are two files, two call sites. Matching them everywhere gave both
+    /// one entry: the second patch replaced the first, and settling either settled both.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Linux)]
+    public async Task EnqueueKeepsPathCaseApartWhereTheFilesDo()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("Sample.cs"))
+            .Enqueue(Patch("SAMPLE.CS"));
+
+        await Assert.That(queue.Count).IsEqualTo(2);
     }
 
     [Test]
