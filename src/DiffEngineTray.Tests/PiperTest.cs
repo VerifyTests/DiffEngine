@@ -130,6 +130,32 @@ public class PiperTest :
         await Assert.That(received!.File).IsEqualTo("Foo");
     }
 
+    /// <summary>
+    /// A client that connects and never finishes sending — a test process wedged mid write — used
+    /// to hold the one accept loop for as long as it stayed that way, so every move and delete
+    /// from every other process on the machine went nowhere and nothing timed the wait out.
+    /// </summary>
+    [Test]
+    public async Task AClientThatStopsSendingDoesNotBlockTheNextOne()
+    {
+        DeletePayload? received = null;
+        using var source = new CancelSource();
+        var task = PiperServer.Start(_ => { }, _ => received = _, source.Token);
+
+        // Connected, wrote nothing, and holds the stream open for the rest of the test
+        using var wedged = new TcpClient();
+        await wedged.ConnectAsync(IPAddress.Loopback, PiperClient.Port, source.Token);
+        await using var held = wedged.GetStream();
+
+        await PiperClient.SendDeleteAsync("Foo", source.Token);
+        await Task.Delay(1000, source.Token);
+        await source.CancelAsync();
+        await task;
+
+        await Assert.That(received).IsNotNull();
+        await Assert.That(received!.File).IsEqualTo("Foo");
+    }
+
     [Test]
     public async Task SendOnly()
     {
