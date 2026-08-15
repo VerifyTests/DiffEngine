@@ -90,7 +90,11 @@ static class Program
             owned.Start();
         }
 
-        using var task = StartServer(tracker, cancel);
+        // Not a using. Anything throwing between here and the await below would dispose a task
+        // that is still running, and Task.Dispose throws for one that has not completed - which
+        // would replace whatever actually went wrong with an InvalidOperationException. A task
+        // needs no disposal anyway; cancelling it is what ends it
+        var task = StartServer(tracker, cancel);
 
         using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker);

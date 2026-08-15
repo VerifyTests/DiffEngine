@@ -22,7 +22,12 @@ sealed class ProcessViewerLauncher : IViewerLauncher
 
     public bool Launch()
     {
+        // The one it replaces has exited - Launch is only reached when Running said so - but the
+        // handle it was read through has not gone anywhere. The tray runs for weeks, and every
+        // relaunch over that time used to leave one behind for a finaliser to get to eventually
+        var previous = viewer;
         viewer = ViewerLauncher.LaunchAttached();
+        previous?.Dispose();
         return viewer is not null;
     }
 }

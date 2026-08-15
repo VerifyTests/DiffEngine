@@ -88,6 +88,27 @@ sealed class OwnerLink(SessionHost host, int port)
 
     public void Run(Cancel cancel)
     {
+        try
+        {
+            Pump(cancel);
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException)
+        {
+            // This runs on a task nothing awaits until shutdown, so a throw here used to fault it
+            // unobserved and leave a live window showing a queue that had stopped being read -
+            // the worst of the available outcomes, since it looks exactly like a quiet queue. Said
+            // out loud instead, through the same channel an owner that went away uses
+            host.Mutate(_ => _ with
+            {
+                Message = $"The queue owner could not be read: {exception.Message}",
+                Exit = true
+            });
+        }
+    }
+
+    void Pump(Cancel cancel)
+    {
         while (!cancel.IsCancellationRequested)
         {
             if (!Pump(out var sent))
