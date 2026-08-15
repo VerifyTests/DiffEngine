@@ -103,6 +103,69 @@ public class InlineApplierTests
         }
     }
 
+    /// <summary>
+    /// DetectEncoding has a branch for this and nothing exercised it. The BOM is four bytes and
+    /// its first two are UTF-16's, so a reader that stopped at two would decode the whole file as
+    /// the wrong encoding and write it back that way.
+    /// </summary>
+    [Test]
+    public async Task Utf32Preserved()
+    {
+        var encoding = new UTF32Encoding(false, true);
+        var path = WriteTemp([.. encoding.GetPreamble(), .. encoding.GetBytes(source)]);
+        try
+        {
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            var bytes = await File.ReadAllBytesAsync(path);
+            await Assert.That(bytes[0]).IsEqualTo((byte) 0xFF);
+            await Assert.That(bytes[1]).IsEqualTo((byte) 0xFE);
+            await Assert.That(bytes[2]).IsEqualTo((byte) 0x00);
+            await Assert.That(bytes[3]).IsEqualTo((byte) 0x00);
+            await Assert.That(await File.ReadAllTextAsync(path, encoding)).Contains("new");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// The whole way through, rather than at the renderer: content holding a line terminator
+    /// reaches the file as an escape. Written in as itself it ends the literal and the file stops
+    /// compiling, which is a thing no test that stops at the rendered string can see.
+    /// </summary>
+    [Test]
+    [Arguments(0x85)]
+    [Arguments(0x2028)]
+    [Arguments(0x2029)]
+    public async Task LineTerminatorContentIsEscapedIntoTheFile(int codePoint)
+    {
+        var terminator = (char) codePoint;
+        var content = $"a{terminator}b";
+        var path = WriteTemp(Utf8(source, bom: false));
+        try
+        {
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", content));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            var patched = await File.ReadAllTextAsync(path);
+            await Assert.That(patched).Contains($"\\u{codePoint:x4}");
+            await Assert.That(patched).DoesNotContain(terminator.ToString());
+
+            // And reads back as the content it came from. AlreadyApplied is only reachable by
+            // parsing the literal just written and finding the same value, so it says the round
+            // trip closed without this test having to take the literal apart itself
+            var again = InlineApplier.Apply(Patch(path, 3, null, content));
+            await Assert.That(again.Status).IsEqualTo(InlineApplyStatus.AlreadyApplied);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     // The swap goes through a sibling temporary. It is gone by the time the patch is applied,
     // whatever else is true, because a stray file in a source directory is the caller's problem
     [Test]
