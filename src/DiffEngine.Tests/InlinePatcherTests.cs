@@ -31,6 +31,52 @@ public class InlinePatcherTests
         await Assert.That(newSource.EndsWith(");\n    }\n}")).IsTrue();
     }
 
+    /// <summary>
+    /// An interpolated raw string whose hole holds a literal of its own. Skipping holes as content
+    /// ended the outer string at the inner delimiter, after which the rest of the line lexed as
+    /// code and a stray delimiter opened a string that ran on and swallowed the real call.
+    /// </summary>
+    [Test]
+    public async Task ARawInterpolatedStringWithALiteralInItsHoleIsSteppedOverWhole()
+    {
+        var source = Method($"{rawInterpolated}\n        await Snapshot(\"old\");");
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+        // And the literal it stepped over is untouched
+        await Assert.That(newSource).Contains(rawInterpolated);
+    }
+
+    /// <summary>
+    /// The same shape with the call before it, so the scan has to get past the literal rather than
+    /// stop short of it.
+    /// </summary>
+    [Test]
+    public async Task ASnapshotBeforeARawInterpolatedStringIsStillFound()
+    {
+        var source = Method($"        await Snapshot(\"old\");\n{rawInterpolated}");
+        var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+    }
+
+    // Written by concatenation because it holds runs of three and four quotes, which no raw string
+    // in this file can carry without a wider delimiter than the thing being described.
+    //
+    // The literal in the hole is four-quoted and holds a run of three, so the runs no longer pair
+    // up evenly. That matters: with a hole skipped as content, the blind scan ends the outer
+    // string at the first run of three or more and then re-pairs the rest, which for evenly
+    // matched runs lands back on its feet and hides the bug. Here the last run opens a string that
+    // runs to the end of the file, taking the Snapshot call with it
+    const string rawInterpolated =
+        "        var text = $" + q3 + "{Render(" + q4 + "has " + q3 + " inside" + q4 + ")}" + q3 + ";";
+
+    const string q3 = "\"\"\"";
+    const string q4 = "\"\"\"\"";
+
     [Test]
     public async Task ReplaceRegularLiteral()
     {
