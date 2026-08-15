@@ -30,9 +30,9 @@ flowchart LR
     Engine -.->|"launch with patch on stdin, or with<br/>a delete, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
     Window <-->|"3493 listfull (with the owner's moves<br/>and deletes), accept, discard"| Owner
-    Plugin -->|"3493 settle, after accepting"| Owner
+    Plugin <-->|"3493 listfull, accept, discard,<br/>focus, via InlineQueueClient"| Owner
     Owner -->|"InlineApplier"| Files
-    Plugin -->|"InlineApplier"| Files
+    Plugin -.->|"InlineApplier, for a staged<br/>patch with no owner to ask"| Files
 ```
 
 The queue of pending snapshots has exactly one owner per session: whichever process bound port 3493 first, decided once and never transferred. When the tray owns it, its edges to the owner above are in-process calls; when a viewer owns it, the tray drives that viewer over the same verbs. Either way both hosts run the same `InlineQueue` implementation, so they cannot disagree on what accepting or settling means. [DiffEngineViewer](/docs/viewer.md) and [DiffEngineTray](/docs/tray.md) cover the two arrangements in detail.
@@ -189,9 +189,22 @@ Locating the call is otherwise the same scan, taught F#'s lexis: `(* *)` comment
 `FsStringLiteral.Render` takes the call site's indentation, like its C# peer, but means something else by it: not a prefix to write, since the content is verbatim, but the column the result has to clear. A surface rendering its own literal has to pass the indentation of the statement it is splicing into, or it will produce the form that does not compile there.
 
 
+## Reviewing from another surface
+
+A review surface that is neither the viewer nor the tray — the ReSharper / Rider plugin, or any other tool — reaches the pending snapshots through `InlineQueueClient`, and is then a peer of the tray rather than a fallback for when no viewer could be found. Same queue, same entries, one writer.
+
+* `TryList` returns every pending entry with the patch that produced it, so the snapshot and the text it replaces can be rendered without reading anything from disk. False means no owner answered, which is not the same as an empty queue: a surface that falls back to staged files has to tell those apart. `Find` is that listing narrowed to one call site, keyed by `InlineKey.For(sourceFile, line)`, and `TryListKeys` is the cheap half — which call sites are pending, for deciding whether to offer an action without the payload of every patch crossing the wire.
+* `Accept` asks the owner to apply the patch and drop the entry. Applying happens there rather than here, which is what keeps one writer per source file and leaves every display agreeing about what is still pending — and why there is no local apply to settle afterwards.
+* `Discard` drops an entry without applying it. `Focus` hands one to the viewer window instead of accepting it, starting a window when the owner has none.
+
+`Accept` returns `Accepted` (the entry has gone), `Failed` (still pending and retryable — a locked file, or a conflicted entry that has to be resolved in the viewer), or `Unknown` (nobody owns the queue, or it holds nothing for that call site). It hands back the owner's own message, which is what tells an applied patch from a stale one that was dropped: the wire carries whether the verb was carried out rather than an apply status, so from a client those are the same observation, and only the words separate them.
+
+Listing waits half a second, since an owner that cannot answer one in that time is wedged rather than slow, and a refused connection is immediate either way. Accepting waits fifteen seconds, because the owner applies through `InlineApplier` and that can sit on its cross process mutex for ten.
+
+
 ## Applying a patch from another surface
 
-The contract for a review surface of its own, which is what the ReSharper / Rider plugin is: read the staged patch with `InlinePatchFile.TryRead`, apply it with `InlineApplier.Apply`, and honour two rules.
+For the staging fallback, where no viewer could be resolved and the patch is a file on disk rather than an entry in a queue: read it with `InlinePatchFile.TryRead`, apply it with `InlineApplier.Apply`, and honour two rules.
 
 * **InlineApplier owns all locking.** A per file cross process mutex (up to a ten second wait) plus an in process gate serialise every writer, so applying beside a concurrently accepting tray or viewer is safe, and callers must not add locking of their own. The file's encoding, BOM and line endings are preserved, and its extension picks the language.
 * **Settle what was applied.** The same test run that staged the files may also have queued the patch with the port owner, and that queue outlives both the window and the run. After `Applied` or `AlreadyApplied`, call `DiffRunner.SettleInline(patch.SourceFile, patch.LineHint)` — otherwise the tray keeps offering a snapshot that is already in the source.
@@ -208,4 +221,4 @@ The contract for a review surface of its own, which is what the ReSharper / Ride
 | 3492 | a tray is here | one way payloads: moves and deletes ([tray](/docs/tray.md#payloads)) |
 | 3493 | the inline queue owner is here | request/response verbs, internal |
 
-Two ports because they answer different questions: the owner of 3493 is sometimes a viewer, and a late starting tray still receives every move on 3492 while it is. `DiffEngine_ViewerPort` overrides 3493, which test suites use to keep out of the way of a live tray. The 3493 protocol is internal and versioned; integrate through `DiffRunner` and `InlineApplier` rather than speaking it directly.
+Two ports because they answer different questions: the owner of 3493 is sometimes a viewer, and a late starting tray still receives every move on 3492 while it is. `DiffEngine_ViewerPort` overrides 3493, which test suites use to keep out of the way of a live tray. The 3493 protocol itself is internal and versioned; integrate through `DiffRunner` to produce, `InlineQueueClient` to review, and `InlineApplier` to write, rather than speaking it directly.
