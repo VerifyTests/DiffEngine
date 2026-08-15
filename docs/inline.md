@@ -105,7 +105,7 @@ The anchor is `originalExpression`, the source text of the argument the test run
 
 `memberName` is `CallerMemberName`, and it narrows rather than identifies, since a member holds any number of snapshots. A call above that member's declaration cannot be inside it, so the search will not reach one however well it matches, and the outward walk starts from the declaration rather than from a line that may since have become another test's. What it protects against is two tests in one file with identical snapshots and a hint that has drifted between them; the recorded line is still tried first, which is what keeps two snapshots in the *same* member apart. A member the file no longer declares — a renamed test — is ignored, leaving the hint as it was.
 
-All three are optional, and everything past the six fixed lines is order agnostic, so they were added without moving the version: a reader that predates one skips the line.
+All four of those trailing fields are optional, and everything past the six fixed lines is order agnostic, so they were added without moving the version: a reader that predates one skips the line.
 
 
 ## How the literal is written
