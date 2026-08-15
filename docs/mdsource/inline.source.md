@@ -132,7 +132,9 @@ await Verify(value).Snapshot(
 
 A patch says which file it edits, so nothing has to say which language that file is in: `.fs`, `.fsx` and `.fsi` are patched as F#, everything else as C#. The line ending, indentation and encoding rules above are the same either way, and so is everything else on this page — one applier, one queue, one protocol. `SourceLanguage.ForFile` returns the right one, and `FsStringLiteral` is the public peer of `CsStringLiteral`.
 
-What differs is the literal, because F# has no raw string. A triple-quoted string is verbatim from the character after the opening delimiter to the one before the closing one — no first line dropped, no common indentation stripped — so any indent written into it would be snapshot content. Multi-line content therefore starts on the delimiter's line and continues at the left margin, which is the only way a literal spanning lines reads back as the value it was rendered from. That much is checked by compiling patched source with `dotnet fsi` rather than by asserting what F# is believed to mean:
+What differs is who takes the layout off. C# has raw strings, so its compiler drops the line break after the opening delimiter and the indentation the closing one sits at, and hands the caller the snapshot. F# has no such form: a triple-quoted literal is verbatim, so what F# hands over still carries that break and the indentation of every line.
+
+So the same shape is written either way, and for F# the trimming is a convention between whoever writes the literal and whoever reads it back. `FsStringLiteral.Render` writes it and `SourceLanguage.SnapshotValue` takes it off - the identity for C#, since its compiler already did. A test library comparing an F# expected argument has to go through that, or every snapshot differs from itself by an indent and never passes.
 
 ```fsharp
 // single line content
@@ -143,31 +145,20 @@ Verifier.Verify(value)
 // multi-line content
 Verifier.Verify(value)
     .Snapshot(
-"""line one
-line two""")
+        """
+        line one
+        line two
+        """)
     .ToTask()
 ```
 
-Writing content at the left margin has a consequence: the content's last line decides the column of the closing delimiter, and so of the closing paren and anything chained after it. F#'s offside rule wants those at or right of the column the statement started in, and a snapshot ending in a newline — or in a short line, at a deeply indented call site — puts them left of it. That is not a formatting complaint; the file stops compiling. So the multi-line form is used only where its last line clears the call site's indentation, and everything else falls back to a regular literal on one source line, newlines escaped:
+Content ending in a newline is a blank line before the closing delimiter, exactly as in C#, which is what keeps it distinguishable from content that does not.
 
-```fsharp
-Verifier.Verify(value).Snapshot("line one\nline two\n").ToTask()
-```
+The convention is checked by compiling patched source with `dotnet fsi` and applying the trim there, written out in F# rather than called back into DiffEngine - which is what makes it a test of the agreement rather than of one side of it twice.
 
-That measurement is about what follows the literal *on its line*. A call split across lines leaves nothing there — the closing paren is below it, at a column the file already chose — and then the verbatim form stands however short the content's last line is. This is the shape Fantomas writes whenever a snapshot spans lines, so a formatted file keeps `"""` in the cases a single-line call would have escaped, and the patched result is already canonical: running the formatter over it changes nothing.
+The alternative, writing content at the left margin so the literal means itself, was tried and abandoned: F# then ends the statement at the closing delimiter, and any snapshot ending in a newline stops the file compiling.
 
-```fsharp
-Verifier
-    .Verify(value)
-    .Snapshot(
-        """line one
-line two
-"""
-    )
-    .ToTask()
-```
-
-There is also no way to widen the delimiter, so content that would run into it — content containing `"""`, or starting or ending with a quote — takes the verbatim form instead (`@"..."`, quotes doubled). Single line content is always a regular literal, escaping what F# escapes (`\` `"` `\a` `\b` `\f` `\t` `\v` `\n` `\r`) and `\uXXXX` for the rest, since F# has no `\0` or `\e`.
+One thing C# can do that F# cannot is widen a delimiter (FS1232), so content containing `"""`, or starting or ending with a quote, has no multi-line form at all and takes a regular literal on one source line. Single line content is always a regular literal, escaping what both languages escape (`\` `"` `\a` `\b` `\f` `\t` `\v` `\n` `\r`) and `\uXXXX` for the rest, since F# has no `\0` or `\e`.
 
 Two syntax differences show up in `Append` and in an argument list. F# does not apply the implicit conversion that lets a `SettingsTask` be awaited, so an F# test ends its chain with `ToTask`; `Snapshot` returns the `SettingsTask`, so an appended call goes in front of that rather than after it. And an argument binds to a parameter with `=`, so an inserted named argument is `expected = "..."`.
 

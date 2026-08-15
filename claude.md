@@ -77,14 +77,17 @@ The source may be C# or F#, decided by the file's extension (`SourceLanguage.For
 stated on the patch. `InlinePatcher` walks the same structure either way — a name, an argument
 list, a chain hung off it — and everything per language sits on `SourceLanguage`: the lexing that
 fills a `SourceScan`, what tells a declaration from a call, and how a literal is written and read
-back. F# is the awkward one, because it has no raw string: triple-quoted content is verbatim, so a
-multi-line snapshot is written at the left margin, and its last line then decides the column of
-everything after the literal. Where that would land left of the statement, F#'s offside rule stops
-the file compiling, so the render falls back to a one-line escaped literal — unless nothing follows
-the literal on its line, which is the shape a formatter writes and where the rule cannot bite. That
-rule is asserted
-by compiling patched source with `dotnet fsi` (`FsCompilerRoundTripTests`), because a belief about
-F#'s lexis is exactly the kind of thing a second copy of the same belief cannot check.
+back. F# is the awkward one, because it has no raw string: its compiler hands over a triple-quoted
+literal verbatim, line break after the opening delimiter and every line's indentation included. So
+the same shape C# writes is written for F# too and the trimming is a convention -
+`SourceLanguage.SnapshotValue` is the reader's half, and a test library that skips it fails every
+F# snapshot against itself. Writing content at the left margin instead was tried and abandoned:
+F#'s offside rule then rejects anything ending in a newline. The agreement is asserted by compiling
+patched source with `dotnet fsi` and applying the trim there in F# (`FsCompilerRoundTripTests`),
+because a belief about F#'s lexis is exactly the kind of thing a second copy of the same belief
+cannot check. With both languages on the same shapes, the rendering and most of the parsing is one
+implementation in `StringLiteral`; what is left per language is delimiter widening, which F# lacks
+(FS1232), and the escapes a regular literal carries.
 
 A patch is anchored to the call by `OriginalExpression`, the argument's source text from
 `CallerArgumentExpression`, so a file that moved since the run still patches the right call. F#
