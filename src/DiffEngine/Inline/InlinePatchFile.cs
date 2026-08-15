@@ -19,6 +19,14 @@ public static class InlinePatchFile
 
     public static string Build(InlinePatch patch)
     {
+        // The two fields that ride the payload as themselves rather than base64, so a line break
+        // in either would end its line and the rest would be read as more of the payload -
+        // shifting the fixed lines, or forging one of the trailing ones. Both are public settable
+        // properties, and a path may legally hold a line break off Windows. Refused rather than
+        // written, because there is no shape of this format that can carry one
+        AgainstLineBreak(patch.SourceFile, nameof(InlinePatch.SourceFile));
+        AgainstLineBreak(patch.Framework, nameof(InlinePatch.Framework));
+
         var expression = patch.OriginalExpression is null
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.OriginalExpression));
@@ -78,7 +86,11 @@ public static class InlinePatchFile
             !TryValue(lines[2], "lineHint", out var lineText) ||
             !int.TryParse(lineText, out var lineHint) ||
             !TryValue(lines[3], "mode", out var modeText) ||
+            // IsDefined as well, because TryParse takes a number as readily as a name: "mode: 7"
+            // parsed to an InlinePatchMode that is none of them, and then fell through every mode
+            // check in the patcher to behave as a Set
             !Enum.TryParse<InlinePatchMode>(modeText, out var mode) ||
+            !Enum.IsDefined(typeof(InlinePatchMode), mode) ||
             !TryValue(lines[4], "originalExpression", out var expressionBase64) ||
             !TryValue(lines[5], "newContent", out var contentBase64))
         {
@@ -145,6 +157,15 @@ public static class InlinePatchFile
             MemberName = memberName
         };
         return true;
+    }
+
+    static void AgainstLineBreak(string? value, string name)
+    {
+        if (value is not null &&
+            (value.IndexOf('\n') != -1 || value.IndexOf('\r') != -1))
+        {
+            throw new ArgumentException($"InlinePatch.{name} cannot contain a line break. Value: {value}");
+        }
     }
 
     static bool TryValue(string line, string key, out string value)

@@ -688,6 +688,50 @@ public class InlinePatchFileTests
         await Assert.That(read).IsFalse();
     }
 
+    // A number parses as an enum as readily as a name, so this used to arrive as an
+    // InlinePatchMode that is none of them and behave as a Set
+    [Test]
+    [Arguments("7")]
+    [Arguments("-1")]
+    [Arguments("99")]
+    public async Task UndefinedNumericModeFails(string mode)
+    {
+        var read = InlinePatchFile.TryParse($"version: 2\nsourceFile: x\nlineHint: 1\nmode: {mode}\noriginalExpression:\nnewContent: YQ==\n", out _);
+        await Assert.That(read).IsFalse();
+    }
+
+    // The numbers that do name a mode still read, since that is how the enum has always been
+    // written on the wire
+    [Test]
+    public async Task DefinedNumericModeReads()
+    {
+        var read = InlinePatchFile.TryParse($"version: 2\nsourceFile: x\nlineHint: 1\nmode: {(int) InlinePatchMode.Append}\noriginalExpression:\nnewContent: YQ==\n", out var patch);
+        await Assert.That(read).IsTrue();
+        await Assert.That(patch!.Mode).IsEqualTo(InlinePatchMode.Append);
+    }
+
+    // Both ride the payload as themselves, so a line break in either ends the line and the rest
+    // is read as more of the payload: the fixed lines shift, or a trailing field is forged
+    [Test]
+    public async Task ALineBreakInAFieldThatIsNotEncodedIsRefused()
+    {
+        await Assert.That(
+                () => InlinePatchFile.Build(
+                    new("a\nb.cs", 1, null, "new", InlinePatchMode.Set)
+                    {
+                        TestName = null
+                    }))
+            .Throws<ArgumentException>();
+        await Assert.That(
+                () => InlinePatchFile.Build(
+                    new("a.cs", 1, null, "new", InlinePatchMode.Set)
+                    {
+                        TestName = null,
+                        Framework = "net8.0\noriginalValue: forged"
+                    }))
+            .Throws<ArgumentException>();
+    }
+
     [Test]
     public async Task MissingFileFails()
     {
