@@ -291,6 +291,21 @@ public class InlinePatcherTests
         await Assert.That(newSource).Contains("await Snapshot(\"new\", file, line);");
     }
 
+    /// <summary>
+    /// The other way of writing an absent snapshot. A producer sends no expression for it, for the
+    /// same reason it sends none for null - a bare token is too common in a file to search for -
+    /// so the insertion path is all there is, and it used to read `default` as an argument that
+    /// was not a string literal and refuse the patch.
+    /// </summary>
+    [Test]
+    public async Task InsertReplacesDefaultArgument()
+    {
+        var source = Method("        await Snapshot(default);");
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Snapshot(\"new\");");
+    }
+
     [Test]
     public async Task InsertBeforeAnotherNamedArgument()
     {

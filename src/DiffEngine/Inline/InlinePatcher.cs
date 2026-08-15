@@ -199,7 +199,10 @@ static class InlinePatcher
         }
 
         var argText = source.Substring(expected.Start, expected.End - expected.Start);
-        if (argText == "null")
+        // Both ways of writing "no snapshot here yet". They are placeholders rather than content,
+        // and a producer sends no expression for either: a bare token is far too common in a file
+        // for a content search to land anywhere meaningful
+        if (argText is "null" or "default")
         {
             if (alreadyOnly)
             {
