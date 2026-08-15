@@ -138,12 +138,14 @@ public class IpcTests
         using var fixture = new ServerFixture();
         fixture.Send(Inline(Fixtures.Patch()));
         fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
-        await Assert.That(fixture.Host.State.Selected).IsEqualTo(0);
+        // A patch that arrives is selected, so the newest is what is in view
+        await Assert.That(fixture.Host.State.Selected).IsEqualTo(1);
 
-        fixture.Send(new(ViewerVerb.Accept, QueueEntry.KeyForInline("OtherTests.cs", 7)));
+        // The one that is not
+        fixture.Send(new(ViewerVerb.Accept, QueueEntry.KeyForInline("SampleTests.cs", 42)));
 
         await Assert.That(fixture.Host.State.Queue.Count).IsEqualTo(1);
-        await Assert.That(fixture.Host.State.Queue[0].Name).IsEqualTo("SampleTests.cs:42");
+        await Assert.That(fixture.Host.State.Queue[0].Name).IsEqualTo("OtherTests.cs:7");
     }
 
     [Test]
@@ -197,13 +199,15 @@ public class IpcTests
     public async Task FocusSelectsAndRaises()
     {
         using var fixture = new ServerFixture();
-        fixture.Send(Inline(Fixtures.Patch()));
         fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+        fixture.Send(Inline(Fixtures.Patch()));
+        // Each of those asked for the window as well, and this is about what the verb does
+        fixture.Windows.Clear();
 
         var response = fixture.Send(new(ViewerVerb.Focus, QueueEntry.KeyForInline("OtherTests.cs", 7)));
 
         await Assert.That(response.Ok).IsTrue();
-        await Assert.That(fixture.Host.State.Selected).IsEqualTo(1);
+        await Assert.That(fixture.Host.State.Selected).IsEqualTo(0);
         await Assert.That(fixture.Windows).IsEquivalentTo([WindowCommand.Focus]);
     }
 
@@ -228,6 +232,8 @@ public class IpcTests
     {
         using var fixture = new ServerFixture();
         fixture.Send(Inline(Fixtures.Patch()));
+        // The patch asked for the window on its way in
+        fixture.Windows.Clear();
 
         fixture.Send(new(ViewerVerb.Quit));
 
