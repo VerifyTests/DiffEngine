@@ -252,6 +252,28 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// The tray menu is built from the last scan, so an item can outlive its entry: the test
+    /// re-ran and passed, or the viewer accepted it first. Clicking it accepts nothing, and there
+    /// is nothing to tell the user — a failure balloon there names a snapshot that is already in
+    /// the source. Accepting a group has always skipped these; accepting one of them said the
+    /// accept had failed.
+    /// </summary>
+    [Test]
+    public async Task AcceptingASnapshotThatIsAlreadyGoneSaysNothing()
+    {
+        await using var pair = new TrayOwned();
+        var snapshot = pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+        pair.Tracker.Discard(snapshot);
+
+        await pair.Tracker.Accept(snapshot);
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Applied).IsEmpty();
+        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+    }
+
+    /// <summary>
     /// A failed apply keeps its entry so it can be retried, and both surfaces have to say the same
     /// thing about it — the tray in a balloon, the viewer in the entry's status.
     /// </summary>
