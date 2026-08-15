@@ -16,6 +16,6 @@
             return;
         }
 
-        throw new();
+        throw new($"FakeDiffTool is only built for Windows and macOS. OS: {RuntimeInformation.OSDescription}");
     }
 }

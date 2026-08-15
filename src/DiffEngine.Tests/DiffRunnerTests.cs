@@ -7,7 +7,29 @@ public class DiffRunnerTests
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
     static string GetSourceFile([CallerFilePath] string path = "") => path;
 
-    static ResolvedTool tool;
+    // Launching registers a real pending move of file1 over file2 with whatever owns the queue on
+    // this machine, usually the developer's tray. Accepting it moves file1, and discarding it
+    // deletes file1 and then its directory. Run against the source directory that quietly destroys
+    // the checked in fixtures, so the tests get copies instead.
+    // One directory for the whole class, because IsRunning matches the exact command string and
+    // WaitForRunning is also used at test start to wait out the previous test's kill, both of which
+    // want the same paths across tests. Fresh per run, so a FakeDiffTool left behind by a crashed
+    // earlier run cannot match this run's command.
+    static string TempDirectory { get; } = Path.Combine(
+        Path.GetTempPath(),
+        "DiffEngine.DiffRunnerTests",
+        Guid.NewGuid().ToString("N"));
+
+    [After(Class)]
+    public static void DeleteTempDirectory()
+    {
+        if (Directory.Exists(TempDirectory))
+        {
+            Directory.Delete(TempDirectory, true);
+        }
+    }
+
+    static ResolvedTool? tool;
     string file2;
     string file1;
     string command;
@@ -216,13 +238,26 @@ public class DiffRunnerTests
 
     public DiffRunnerTests()
     {
-        file1 = Path.Combine(SourceDirectory, "DiffRunner.file1.txt");
-        file2 = Path.Combine(SourceDirectory, "DiffRunner.file2.txt");
-        command = tool.BuildCommand(file1, file2);
+        file1 = CopyFixture("DiffRunner.file1.txt");
+        file2 = CopyFixture("DiffRunner.file2.txt");
+        command = Tool.BuildCommand(file1, file2);
     }
 
-    static DiffRunnerTests() =>
-        tool = DiffTools.AddTool(
+    // Per test rather than per class: a discard deletes the temp file and its directory, so the
+    // copies have to be put back for the test that follows.
+    static string CopyFixture(string name)
+    {
+        Directory.CreateDirectory(TempDirectory);
+        var target = Path.Combine(TempDirectory, name);
+        File.Copy(Path.Combine(SourceDirectory, name), target, true);
+        return target;
+    }
+
+    // Resolved on first use rather than in a type initializer. [After(Class)] runs even when every
+    // test here is skipped for the OS, so initializing the type has to be safe everywhere, and this
+    // reaches FakeDiffTool, which is only built for Windows and macOS.
+    static ResolvedTool Tool =>
+        tool ??= DiffTools.AddTool(
             name: "FakeDiffTool",
             autoRefresh: true,
             isMdi: false,

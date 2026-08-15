@@ -505,6 +505,15 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// The client's three second default is what a real caller uses to decide the owner has died.
+    /// The tests below are about what the owner answers rather than how fast, and CI starts six
+    /// test assemblies at once on a two core runner, where an answer arriving on a scheduled task
+    /// has twice missed that deadline. <see cref="ASlowExchangeDoesNotBlockTheNext"/> keeps the
+    /// default, because being answered inside it while another exchange is held is the point there.
+    /// </summary>
+    static readonly TimeSpan underLoad = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Bind, serve and exchange for real. The one test here that is not pure string work, because
     /// the async socket calls take a different path on the frameworks without a token overload.
     /// </summary>
@@ -516,7 +525,7 @@ public class ViewerProtocolTests
         using var cancel = new CancelSource();
         var listening = server.Listen(_ => ViewerResponse.Success($"heard {_.Verb}"), cancel.Token);
 
-        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
+        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port, underLoad);
 
         await Assert.That(sent).IsTrue();
         await Assert.That(response!.Ok).IsTrue();
@@ -590,7 +599,7 @@ public class ViewerProtocolTests
         using var cancel = new CancelSource();
         var listening = server.Listen(_ => throw new("the handler is broken"), cancel.Token);
 
-        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
+        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port, underLoad);
 
         await Assert.That(sent).IsTrue();
         await Assert.That(response!.Ok).IsFalse();
