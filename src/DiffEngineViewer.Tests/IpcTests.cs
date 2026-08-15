@@ -72,12 +72,17 @@ public class IpcTests
         await Assert.That(fixture.Host.State.Queue.Count).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// Lower case paths, so the key is the same text on every platform: it folds case only where
+    /// the file system does, and what this is pinning is the shape of a listing rather than which
+    /// of those the runner is. InlineKey has a test per platform of its own.
+    /// </summary>
     [Test]
     public Task List()
     {
         using var fixture = new ServerFixture();
-        fixture.Send(Inline(Fixtures.Patch()));
-        fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+        fixture.Send(Inline(Fixtures.Patch("sampletests.cs")));
+        fixture.Send(Inline(Fixtures.Patch("othertests.cs", 7, null, "new")));
 
         return Verify(fixture.Send(new(ViewerVerb.List)));
     }
