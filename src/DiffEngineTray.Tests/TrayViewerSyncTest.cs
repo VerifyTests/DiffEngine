@@ -456,6 +456,52 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
     }
 
+    /// <summary>
+    /// An owning viewer applies inside its session, and InlineApplier waits up to ten seconds on
+    /// its cross process mutex, so an accept legitimately outlasts the wait the listing verbs use.
+    /// The tray has to wait for the answer: reporting the viewer as gone while it is in the middle
+    /// of writing the source file is wrong twice over, since the snapshot then leaves the menu a
+    /// scan later and contradicts the balloon.
+    /// </summary>
+    [Test]
+    public async Task ASlowAcceptIsWaitedForRatherThanCalledAMissingViewer()
+    {
+        await using var pair = new ViewerOwned(
+            _ =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(1.5));
+                return ViewerSideApplyResult.Applied;
+            });
+        var snapshot = pair.Snapshot(sample, 1);
+
+        await pair.Tracker.Accept(snapshot);
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Viewer.Queue).IsEmpty();
+        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+    }
+
+    /// <inheritdoc cref="ASlowAcceptIsWaitedForRatherThanCalledAMissingViewer"/>
+    [Test]
+    public async Task ASlowAcceptAllIsWaitedFor()
+    {
+        // Every entry applied inside the one exchange, so this outlasts a lone accept
+        await using var pair = new ViewerOwned(
+            _ =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(0.8));
+                return ViewerSideApplyResult.Applied;
+            });
+        pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+
+        await pair.Tracker.AcceptAll();
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Viewer.Queue).IsEmpty();
+        await Assert.That(pair.Applied.Count).IsEqualTo(2);
+    }
+
     [Test]
     public async Task AConflictIsRefusedTheSameWayFromTheTray()
     {
