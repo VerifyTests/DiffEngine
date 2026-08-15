@@ -1,34 +1,30 @@
 /// <summary>
-/// A one pass lexical map of a C# file: where the comments, strings and char literals are, and
-/// therefore which offsets are code.
-/// <para>
-/// The patcher finds its call sites by scanning text, and a text scan that cannot see a comment
-/// or a string patches a commented out example, or the middle of another test's snapshot content,
-/// as readily as the real call. Lexing once and asking the map is cheaper than lexing per search,
-/// and it is one implementation: every search agrees on what a string is because there is only
-/// one answer to ask.
-/// </para>
+/// C#: the lexing that fills a <see cref="SourceScan"/>, and the syntax the patcher has to write.
 /// </summary>
-sealed class CsScan
+sealed class CsLanguage : SourceLanguage
 {
-    readonly string source;
-    readonly bool[] code;
+    public override string Render(string content, string indent, string eol) =>
+        CsStringLiteral.Render(content, indent, eol);
 
     /// <summary>
-    /// Start of a comment or literal to the offset just past it.
+    /// The compiler already did it: a raw string arrives with its first line and its closing
+    /// indentation gone.
     /// </summary>
-    readonly Dictionary<int, int> skips = new();
+    public override string SnapshotValue(string literalValue) => literalValue;
 
-    /// <summary>
-    /// The same spans keyed the other way round, for a scan working backwards. Ends are unique
-    /// because the spans cannot overlap.
-    /// </summary>
-    readonly Dictionary<int, int> skipEnds = new();
+    public override bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
+        CsStringLiteral.TryParse(expression, out value);
 
-    public CsScan(string source)
+    internal override string NamePrefix(string name) => $"{name}: ";
+
+    internal override char NameSeparator => ':';
+
+    internal override bool IsIdentifierChar(char ch) =>
+        char.IsLetterOrDigit(ch) || ch == '_';
+
+    internal override SourceScan Scan(string source)
     {
-        this.source = source;
-        code = new bool[source.Length];
+        var scan = new SourceScan(this, source);
         var index = 0;
         while (index < source.Length)
         {
@@ -38,7 +34,7 @@ sealed class CsScan
                 case '/':
                     if (TrySkipComment(source, ref index))
                     {
-                        AddSkip(start, index);
+                        scan.AddSkip(start, index, comment: true);
                         continue;
                     }
 
@@ -46,7 +42,7 @@ sealed class CsScan
                 case '\'':
                     if (TrySkipCharLiteral(source, ref index))
                     {
-                        AddSkip(start, index);
+                        scan.AddSkip(start, index, comment: false);
                         continue;
                     }
 
@@ -67,81 +63,28 @@ sealed class CsScan
                             index++;
                         }
 
-                        AddSkip(start, index);
+                        scan.AddSkip(start, index, comment: false);
                         continue;
                     }
 
                     break;
             }
 
-            code[index] = true;
+            scan.MarkCode(index);
             index++;
         }
-    }
 
-    void AddSkip(int start, int end)
-    {
-        skips.Add(start, end);
-        skipEnds[end] = start;
+        return scan;
     }
 
     /// <summary>
-    /// True when the offset is outside every comment, string and char literal.
+    /// A declaration is preceded by its return type, a call by a dot, an operator, or one of the
+    /// keywords that can introduce an expression.
     /// </summary>
-    public bool IsCode(int index) =>
-        index >= 0 &&
-        index < code.Length &&
-        code[index];
-
-    /// <summary>
-    /// When a comment or literal starts at <paramref name="index"/>, <paramref name="end"/> is the
-    /// offset just past it. Lets a structural scan step over trivia without lexing it again.
-    /// </summary>
-    public bool TryGetSkip(int index, out int end) =>
-        skips.TryGetValue(index, out end);
-
-    /// <summary>
-    /// True when a comment ends at <paramref name="end"/>, with <paramref name="start"/> set to
-    /// where it began. Only comments: a literal is content, and trimming one off a span would be
-    /// trimming off the value.
-    /// </summary>
-    public bool TryGetCommentEndingAt(int end, out int start) =>
-        skipEnds.TryGetValue(end, out start) &&
-        source[start] == '/';
-
-    /// <summary>
-    /// Advances past whitespace and comments.
-    /// </summary>
-    public void SkipTrivia(ref int index)
+    internal override bool IsDeclaration(SourceScan scan, int nameStart)
     {
-        while (index < source.Length)
-        {
-            if (char.IsWhiteSpace(source[index]))
-            {
-                index++;
-                continue;
-            }
-
-            if (source[index] == '/' &&
-                skips.TryGetValue(index, out var end))
-            {
-                index = end;
-                continue;
-            }
-
-            return;
-        }
-    }
-
-    /// <summary>
-    /// True when the identifier at <paramref name="nameStart"/> is being declared rather than
-    /// called. The two are otherwise identical - name, parens, body - so the tell is the token in
-    /// front: a declaration is preceded by its return type, a call by a dot, an operator, or one
-    /// of the keywords that can introduce an expression.
-    /// </summary>
-    public bool IsDeclaration(int nameStart)
-    {
-        var index = PreviousSignificant(nameStart);
+        var source = scan.Source;
+        var index = scan.PreviousSignificant(nameStart);
         if (index < 0)
         {
             return false;
@@ -160,14 +103,7 @@ sealed class CsScan
             return false;
         }
 
-        var start = index;
-        while (start > 0 &&
-               IsIdentifierChar(source[start - 1]))
-        {
-            start--;
-        }
-
-        return !callablePredecessors.Contains(source.Substring(start, index - start + 1));
+        return !callablePredecessors.Contains(scan.WordEndingAt(index));
     }
 
     /// <summary>
@@ -183,77 +119,6 @@ sealed class CsScan
         "return", "select", "stackalloc", "switch", "throw", "unchecked", "using", "when",
         "where", "while", "with", "yield"
     ];
-
-    /// <summary>
-    /// The offset of the last character before <paramref name="index"/> that is neither
-    /// whitespace nor inside a comment, or -1 when there is none.
-    /// </summary>
-    public int PreviousSignificant(int index)
-    {
-        index--;
-        while (index >= 0 &&
-               (char.IsWhiteSpace(source[index]) || !code[index]))
-        {
-            index--;
-        }
-
-        return index;
-    }
-
-    /// <summary>
-    /// Advances past a type argument list, so Foo&lt;Bar&gt;(...) is located as readily as
-    /// Foo(...). Only the characters a type argument list can hold are accepted, and the caller
-    /// still has to find a '(' after it, so a comparison cannot be mistaken for one.
-    /// </summary>
-    public static bool TrySkipTypeArguments(string source, ref int index)
-    {
-        var cursor = index;
-        if (cursor >= source.Length ||
-            source[cursor] != '<')
-        {
-            return false;
-        }
-
-        cursor++;
-        var depth = 1;
-        while (cursor < source.Length)
-        {
-            var ch = source[cursor];
-            if (ch == '<')
-            {
-                depth++;
-                cursor++;
-                continue;
-            }
-
-            if (ch == '>')
-            {
-                depth--;
-                cursor++;
-                if (depth == 0)
-                {
-                    index = cursor;
-                    return true;
-                }
-
-                continue;
-            }
-
-            if (IsIdentifierChar(ch) ||
-                ch is ',' or '.' or '?' or '[' or ']' or ':' or ' ' or '\t')
-            {
-                cursor++;
-                continue;
-            }
-
-            return false;
-        }
-
-        return false;
-    }
-
-    public static bool IsIdentifierChar(char ch) =>
-        char.IsLetterOrDigit(ch) || ch == '_';
 
     static bool TrySkipComment(string source, ref int index)
     {

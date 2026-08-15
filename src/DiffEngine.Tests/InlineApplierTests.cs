@@ -1,8 +1,8 @@
 ﻿public class InlineApplierTests
 {
-    static string WriteTemp(byte[] bytes)
+    static string WriteTemp(byte[] bytes, string extension = ".cs")
     {
-        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}.cs");
+        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}{extension}");
         File.WriteAllBytes(path, bytes);
         return path;
     }
@@ -241,6 +241,30 @@
         await Assert.That(result.NewContent).IsEqualTo("new content");
     }
 
+    // The extension picks the language, so the same patch content is written as the literal that
+    // file's compiler reads. A C# raw string here would not even parse
+    [Test]
+    [Arguments(".fs")]
+    [Arguments(".fsx")]
+    [Arguments(".FS")]
+    public async Task FSharpFileGetsAnFSharpLiteral(string extension)
+    {
+        var fsharp = "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"old\").ToTask()\n";
+        var path = WriteTemp(Utf8(fsharp, bom: false), extension);
+        try
+        {
+            var result = InlineApplier.Apply(Patch(path, 4, "\"old\"", "a\nb"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(
+                "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\n        \"\"\"\n        a\n        b\n        \"\"\").ToTask()\n");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public async Task MissingFileFails()
     {
@@ -420,6 +444,59 @@ public class InlinePatchFileTests
         {
             File.Delete(path);
         }
+    }
+
+    [Test]
+    public async Task RoundTripOriginalValue()
+    {
+        var patch = new InlinePatch("Tests.fs", 4, null, "new")
+        {
+            TestName = null,
+            OriginalValue = "old line1\nold line2"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsEqualTo(patch.OriginalValue);
+    }
+
+    [Test]
+    public async Task RoundTripMemberName()
+    {
+        var patch = new InlinePatch("Tests.fs", 4, null, "new")
+        {
+            TestName = null,
+            MemberName = "MyTest"
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.MemberName).IsEqualTo("MyTest");
+    }
+
+    [Test]
+    public async Task RoundTripNullOriginalValue()
+    {
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(new("Tests.cs", 1, null, "content") { TestName = null }), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsNull();
+    }
+
+    // The field sits past the six fixed lines, so a payload written before it existed still parses
+    [Test]
+    public async Task PayloadWithoutOriginalValue()
+    {
+        var read = InlinePatchFile.TryParse(
+            "version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\ntestName:\nframework: net9.0\n",
+            out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsNull();
+        await Assert.That(result.MemberName).IsNull();
+        await Assert.That(result.Framework).IsEqualTo("net9.0");
     }
 
     [Test]

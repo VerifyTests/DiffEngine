@@ -35,4 +35,45 @@ static class ViewerListing
 
         return items;
     }
+
+    /// <summary>
+    /// The reverse of <see cref="Items"/>: a full listing read back into the entries it was
+    /// projected from, for a process that displays or reviews a queue it does not own.
+    /// <para>
+    /// Here beside the projection rather than beside either reader, because the two are one format
+    /// and a change to how an entry is written is a change to how it is read.
+    /// </para>
+    /// </summary>
+    public static List<PendingInline> Pending(IEnumerable<ViewerResponseItem> items) =>
+        items
+            .Select(Read)
+            .OfType<PendingInline>()
+            .ToList();
+
+    /// <summary>
+    /// An item with no patch, or whose payload does not parse, is dropped rather than surfaced as
+    /// an entry with nothing in it.
+    /// </summary>
+    static PendingInline? Read(ViewerResponseItem item)
+    {
+        if (item.Patch is null ||
+            !InlinePatchFile.TryParse(item.Patch, out var patch))
+        {
+            return null;
+        }
+
+        var variants = new List<InlineVariant>
+        {
+            new(patch, item.Origins)
+        };
+        foreach (var variant in item.Variants)
+        {
+            if (InlinePatchFile.TryParse(variant.Patch, out var extra))
+            {
+                variants.Add(new(extra, variant.Origins));
+            }
+        }
+
+        return new(variants, item.Status);
+    }
 }

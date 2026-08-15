@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 /// <summary>
 /// Shows a file in the platform's file manager. Best effort: revealing is a convenience beside
 /// the review, so a missing file manager or a deleted file degrades to nothing rather than an

@@ -326,7 +326,7 @@ public class ViewerLaunchTests
                 "Accepting the conflicted entry writes the variant on screen",
                 "Accept all skips the conflict and says 1 conflict needs review");
 
-            foreach (var patch in new engine::DiffEngine.InlinePatch[]
+            foreach (var patch in new[]
                      {
                          new(grouped, 6, "\"old value\"", "first new")
                          {

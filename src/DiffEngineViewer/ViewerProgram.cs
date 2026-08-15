@@ -314,8 +314,7 @@ static class ViewerProgram
         // resolve which item was chosen, so clearing first would swallow the command. And not when
         // a right-click opened another menu in the same frame, which is the dismissal's successor
         // rather than something to undo.
-        if (input.MenuClosed &&
-            input.RightClickedQueueItem < 0 &&
+        if (input is {MenuClosed: true, RightClickedQueueItem: < 0} &&
             state.Menu is not null)
         {
             state = state with { Menu = null };

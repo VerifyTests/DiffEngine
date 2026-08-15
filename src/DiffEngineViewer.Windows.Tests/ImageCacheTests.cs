@@ -50,7 +50,7 @@ public class ImageCacheTests
 
         // A different size, so the change is visible whatever the file system's timestamp
         // resolution turns out to be.
-        File.WriteAllBytes(path, SamplePng.Build(4, 4, 40, 200, 40));
+        await File.WriteAllBytesAsync(path, SamplePng.Build(4, 4, 40, 200, 40));
         await Assert.That(cache.Get(path)!.Width).IsEqualTo(4);
     }
 

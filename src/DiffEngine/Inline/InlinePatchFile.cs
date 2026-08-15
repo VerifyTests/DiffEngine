@@ -28,7 +28,16 @@ public static class InlinePatchFile
         var testName = patch.TestName is null
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.TestName));
-        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {patch.Framework}\n";
+        // Past the six fixed lines, so a reader that predates them skips them rather than
+        // rejecting the payload. That tolerance is why the version does not move for an added
+        // field. Member names are identifiers, but base64 like the rest of the added fields
+        var value = patch.OriginalValue is null
+            ? ""
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.OriginalValue));
+        var memberName = patch.MemberName is null
+            ? ""
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.MemberName));
+        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {patch.Framework}\noriginalValue: {value}\nmemberName: {memberName}\n";
     }
 
     public static bool TryRead(string path, [NotNullWhen(true)] out InlinePatch? patch)
@@ -80,6 +89,8 @@ public static class InlinePatchFile
         string content;
         string? testName = null;
         string? framework = null;
+        string? originalValue = null;
+        string? memberName = null;
         try
         {
             expression = expressionBase64.Length == 0
@@ -102,6 +113,22 @@ public static class InlinePatchFile
                 if (TryValue(lines[index], "framework", out var frameworkValue))
                 {
                     framework = frameworkValue.Length == 0 ? null : frameworkValue;
+                    continue;
+                }
+
+                if (TryValue(lines[index], "originalValue", out var valueBase64))
+                {
+                    originalValue = valueBase64.Length == 0
+                        ? null
+                        : Encoding.UTF8.GetString(Convert.FromBase64String(valueBase64));
+                    continue;
+                }
+
+                if (TryValue(lines[index], "memberName", out var memberNameBase64))
+                {
+                    memberName = memberNameBase64.Length == 0
+                        ? null
+                        : Encoding.UTF8.GetString(Convert.FromBase64String(memberNameBase64));
                 }
             }
         }
@@ -113,7 +140,9 @@ public static class InlinePatchFile
         patch = new(sourceFile, lineHint, expression, content, mode)
         {
             TestName = testName,
-            Framework = framework
+            Framework = framework,
+            OriginalValue = originalValue,
+            MemberName = memberName
         };
         return true;
     }

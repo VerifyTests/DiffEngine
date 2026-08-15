@@ -26,7 +26,7 @@ static class ImageExtensions
         ".webp"
     ];
 
-    static readonly HashSet<string> lookup = new(All, StringComparer.OrdinalIgnoreCase);
+    static readonly HashSet<string> lookup = [with(All, StringComparer.OrdinalIgnoreCase)];
 
     public static bool Is(string path) =>
         lookup.Contains(Path.GetExtension(path));
