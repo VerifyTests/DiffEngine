@@ -22,7 +22,13 @@ public class ViewerSessionTests
         await Assert.That(state.Queue[0].LeftText).IsEqualTo("second");
     }
 
+    /// <summary>
+    /// Two paths differing only in case are one file here, so they are one entry. macOS runs this
+    /// one too — RunOn takes a single platform, and the folding itself has a test per platform in
+    /// ViewerProtocolTests.
+    /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task EnqueueKeyIgnoresPathCase()
     {
         var state = Fixtures.Inline(
@@ -30,6 +36,21 @@ public class ViewerSessionTests
             Fixtures.Patch("a.CS", 1, "\"a\"", "second"));
 
         await Assert.That(state.Queue.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// And two files where the file system says so, so two entries. One key for both meant the
+    /// second patch took over the first's entry and settling either settled both.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Linux)]
+    public async Task EnqueueKeyKeepsPathCaseWhereTheFilesDo()
+    {
+        var state = Fixtures.Inline(
+            Fixtures.Patch("A.cs", 1, "\"a\"", "first"),
+            Fixtures.Patch("a.CS", 1, "\"a\"", "second"));
+
+        await Assert.That(state.Queue.Count).IsEqualTo(2);
     }
 
     [Test]
