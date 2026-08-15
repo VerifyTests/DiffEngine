@@ -6,8 +6,14 @@ namespace DiffEngine;
 public enum InlineAcceptOutcome
 {
     /// <summary>
-    /// Nothing happened: no owner answered, or the one that did holds no entry for that key —
-    /// it settled, or another surface got to it first.
+    /// There is nothing to report. No owner answered, or the one that did holds no entry for that
+    /// key — it settled, or another surface got to it first.
+    /// <para>
+    /// Also the answer when an owner took the accept and then could not be asked what became of
+    /// it. That is rare and it is not nothing, but the two outcomes it sits between are worse
+    /// guesses: <see cref="Accepted"/> stops a caller offering a snapshot that may still be
+    /// pending, and <see cref="Failed"/> invites a retry of one that is probably already applied.
+    /// </para>
     /// </summary>
     Unknown,
 
@@ -74,7 +80,10 @@ public static class InlineQueueClient
     /// </summary>
     public static bool TryList(out IReadOnlyList<PendingInline> pending)
     {
-        if (!Exchange(new(ViewerVerb.ListFull), ViewerClient.ShortTimeout, out var response))
+        // An owner that answered with an error has not told us what it holds, and an empty item
+        // list on an error is not the same statement as an empty queue
+        if (!Exchange(new(ViewerVerb.ListFull), ViewerClient.ShortTimeout, out var response) ||
+            !response.Ok)
         {
             pending = [];
             return false;
@@ -95,7 +104,8 @@ public static class InlineQueueClient
     /// </summary>
     public static bool TryListKeys(out IReadOnlyList<string> keys)
     {
-        if (!Exchange(new(ViewerVerb.List), ViewerClient.ShortTimeout, out var response))
+        if (!Exchange(new(ViewerVerb.List), ViewerClient.ShortTimeout, out var response) ||
+            !response.Ok)
         {
             keys = [];
             return false;
@@ -117,8 +127,8 @@ public static class InlineQueueClient
     /// <summary>
     /// Asks the owner to apply the patch for a call site and drop it from the queue.
     /// <paramref name="message" /> is the owner's own account of what happened, suitable to show a
-    /// user as it stands, and null when it had nothing to say — always so for
-    /// <see cref="InlineAcceptOutcome.Unknown" />, where nothing happened.
+    /// user as it stands, and null when it had nothing to say — which is most of the time for
+    /// <see cref="InlineAcceptOutcome.Unknown" />, since nothing usually happened.
     /// </summary>
     public static InlineAcceptOutcome Accept(string key, out string? message)
     {
@@ -133,7 +143,7 @@ public static class InlineQueueClient
         {
             // One error shape covers both "no entry for that key" and a refusal on a live one — a
             // conflicted entry — so which it was is asked rather than read out of the text.
-            if (StillPending(key))
+            if (StillPending(key) == true)
             {
                 return InlineAcceptOutcome.Failed;
             }
@@ -147,9 +157,15 @@ public static class InlineQueueClient
         // Attempted, but attempted is not applied: an owner keeps an entry that failed to write so
         // it can be retried. Whether the entry survived is the answer, and it has to be asked for
         // rather than read off `ok`.
-        return StillPending(key)
-            ? InlineAcceptOutcome.Failed
-            : InlineAcceptOutcome.Accepted;
+        return StillPending(key) switch
+        {
+            true => InlineAcceptOutcome.Failed,
+            false => InlineAcceptOutcome.Accepted,
+            // The owner took the accept and then could not be asked what became of it. Reading
+            // that as applied is a guess, and the one that loses a snapshot: a caller told it was
+            // accepted stops offering it
+            null => InlineAcceptOutcome.Unknown
+        };
     }
 
     /// <summary>
@@ -177,9 +193,15 @@ public static class InlineQueueClient
         Exchange(new(ViewerVerb.Focus, key), ViewerClient.ShortTimeout, out var response) &&
         response.Ok;
 
-    static bool StillPending(string key) =>
-        TryListKeys(out var keys) &&
-        keys.Contains(key);
+    /// <summary>
+    /// Whether the owner still holds the entry, or null when it could not be asked - it went away,
+    /// or answered with an error. Three answers rather than two because "it is not pending" and
+    /// "there is no telling" lead to opposite reports, and a failed listing used to give the first.
+    /// </summary>
+    static bool? StillPending(string key) =>
+        TryListKeys(out var keys)
+            ? keys.Contains(key)
+            : null;
 
     static string? Text(string? message) =>
         message is { Length: > 0 } ? message : null;

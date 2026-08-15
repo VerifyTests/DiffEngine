@@ -39,6 +39,12 @@ sealed class FakeViewer : IDisposable
 
     public string? FailureMessage { get; set; } = "the file is locked";
 
+    /// <summary>
+    /// When true, listings come back as an error, which stands in for an owner that took a verb
+    /// and then could not be asked what it holds.
+    /// </summary>
+    public bool ListingFails { get; set; }
+
     async Task Listen()
     {
         while (!cancel.IsCancellationRequested)
@@ -68,6 +74,14 @@ sealed class FakeViewer : IDisposable
         Verbs.Add(key == null ? verb : $"{verb}:{key}");
 
         var builder = new StringBuilder("version: 1\n");
+        if (verb == "list" &&
+            ListingFails)
+        {
+            builder.Append("status: error\n");
+            Append(builder, "message", "the owner is going away");
+            return builder.ToString();
+        }
+
         if (verb is "accept" or "discard" or "acceptall" or "discardall" &&
             !Succeed)
         {

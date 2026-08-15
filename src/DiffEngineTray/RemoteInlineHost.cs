@@ -33,17 +33,27 @@ class RemoteInlineHost : IInlineHost
 
     public string Description => $"owned by another process on port {ViewerClient.Port}";
 
-    public IReadOnlyList<PendingSnapshot> List()
+    public IReadOnlyList<PendingSnapshot> List() =>
+        TryList(out var pending) ? pending : [];
+
+    /// <summary>
+    /// False when the owner could not be asked, which <see cref="List"/> flattens to nothing
+    /// pending — right for a menu, and wrong for anything reading the answer as a statement about
+    /// a particular entry.
+    /// </summary>
+    static bool TryList(out IReadOnlyList<PendingSnapshot> pending)
     {
         if (!Exchange(new(ViewerVerb.List), ViewerClient.ShortTimeout, out var response) ||
             !response.Ok)
         {
-            return [];
+            pending = [];
+            return false;
         }
 
-        return response.Items
+        pending = response.Items
             .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
             .ToList();
+        return true;
     }
 
     public IReadOnlyList<PendingInline>? Queued() =>
@@ -74,7 +84,14 @@ class RemoteInlineHost : IInlineHost
             return AcceptOutcome.Failed;
         }
 
-        return List().Any(_ => _.Key == snapshot.Key)
+        if (!TryList(out var pending))
+        {
+            // The owner took the accept and then could not be asked what became of it. Applied is
+            // a guess, and the one that tells the user a snapshot landed that may not have
+            return AcceptOutcome.Unknown;
+        }
+
+        return pending.Any(_ => _.Key == snapshot.Key)
             ? AcceptOutcome.Failed
             : AcceptOutcome.Applied;
     }
