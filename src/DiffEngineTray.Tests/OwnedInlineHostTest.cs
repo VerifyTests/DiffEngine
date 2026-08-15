@@ -318,18 +318,57 @@ public class OwnedInlineHostTest
         });
         try
         {
-            owner.Queue();
+            owner.Queue(content: "first");
             var snapshot = owner.Host.List().Single();
             var accepting = Task.Run(() => owner.Send(new(ViewerVerb.Accept, snapshot.Key)));
             applying.Wait(TimeSpan.FromSeconds(5));
 
-            // The same call site again, mid apply, as a re-run of the test would send it.
-            owner.Queue();
+            // The same call site again, mid apply, saying something else: a re-run of a test
+            // whose result moved on. What was applied is the old content, so the outcome
+            // describes nothing that is pending now
+            owner.Queue(content: "second");
             release.Set();
             var accepted = await accepting;
 
             await Assert.That(accepted.Ok).IsFalse();
             await Assert.That(owner.Host.List()).HasSingleItem();
+        }
+        finally
+        {
+            release.Set();
+        }
+    }
+
+    /// <summary>
+    /// The same window, and the far more common arrival in it: a still failing test re-running and
+    /// producing what it produced before. Nothing was replaced, so the accept completes and the
+    /// entry goes - rather than the patch reaching the file while the entry stays pending with
+    /// nothing said about it.
+    /// </summary>
+    [Test]
+    public async Task AnIdenticalReRunDoesNotInterruptTheAcceptItLandsIn()
+    {
+        using var applying = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var owner = new Owner(_ =>
+        {
+            applying.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+            return InlineApplyResult.Applied;
+        });
+        try
+        {
+            owner.Queue(content: "same");
+            var snapshot = owner.Host.List().Single();
+            var accepting = Task.Run(() => owner.Send(new(ViewerVerb.Accept, snapshot.Key)));
+            applying.Wait(TimeSpan.FromSeconds(5));
+
+            owner.Queue(content: "same");
+            release.Set();
+            var accepted = await accepting;
+
+            await Assert.That(accepted.Ok).IsTrue();
+            await Assert.That(owner.Host.List()).IsEmpty();
         }
         finally
         {

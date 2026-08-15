@@ -42,6 +42,35 @@ public class SolutionDirectoryFinderTests
     public async Task UnusablePathIsNotFound() =>
         await Assert.That(SolutionDirectoryFinder.Find("no\0such\\Sample.verified.txt")).IsNull();
 
+    /// <summary>
+    /// A solution inside another one owns the files under it. Reuse used to be a scan of every
+    /// resolved directory for one the file sat under, so once the outer solution was cached it
+    /// answered for the inner one too — the outer directory encloses those files, and nothing had
+    /// looked between the file and it. Whichever was resolved first decided, which made the bug
+    /// depend on the order patches happened to arrive in.
+    /// </summary>
+    [Test]
+    public async Task NestedSolutionOwnsItsOwnFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "DiffEngineSlnFinder", Guid.NewGuid().ToString("N"));
+        var nested = Path.Combine(root, "submodule", "Tests");
+        Directory.CreateDirectory(nested);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "Outer.sln"), "");
+            await File.WriteAllTextAsync(Path.Combine(root, "submodule", "Inner.slnx"), "");
+
+            // The outer one first, so its directory is the cached one
+            await Assert.That(SolutionDirectoryFinder.Find(Path.Combine(root, "Class.cs"))).IsEqualTo("Outer");
+
+            await Assert.That(SolutionDirectoryFinder.Find(Path.Combine(nested, "Tests.cs"))).IsEqualTo("Inner");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Test]
     public async Task SiblingWithSharedPrefixIsNotMatched()
     {

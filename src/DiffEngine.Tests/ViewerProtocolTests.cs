@@ -97,7 +97,8 @@ public class ViewerProtocolTests
     [Test]
     public async Task SettleCarriesTheKey()
     {
-        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("Tests.cs", 42)).Build();
+        // Already lower case, so what the key survives is the round trip rather than the folding
+        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("tests.cs", 42)).Build();
 
         await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
         await Assert.That(message!.Verb).IsEqualTo(ViewerVerb.Settle);
@@ -108,13 +109,38 @@ public class ViewerProtocolTests
     /// Settling only works if the sender and the queue owner derive the same key from the same
     /// call site, so the format is pinned rather than left to whatever ToLower happens to do.
     /// </summary>
+    /// These are already lower case, so they say the same thing wherever they run.
     [Test]
-    [Arguments("Tests.cs", 42, "tests.cs|42")]
-    [Arguments(@"C:\Repo\Some.Tests\Sample.cs", 1, @"c:\repo\some.tests\sample.cs|1")]
-    [Arguments("/home/user/Sample.cs", 9999, "/home/user/sample.cs|9999")]
-    [Arguments("MiXeDCase.CS", 7, "mixedcase.cs|7")]
+    [Arguments("tests.cs", 42, "tests.cs|42")]
+    [Arguments(@"c:\repo\some.tests\sample.cs", 1, @"c:\repo\some.tests\sample.cs|1")]
+    [Arguments("/home/user/sample.cs", 9999, "/home/user/sample.cs|9999")]
     public async Task KeyFormat(string sourceFile, int line, string expected) =>
         await Assert.That(InlineKey.For(sourceFile, line)).IsEqualTo(expected);
+
+    /// <summary>
+    /// A Windows path reaches here from several sources with several casings, and every one of
+    /// them is the same call site.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    [Arguments("Tests.cs", 42, "tests.cs|42")]
+    [Arguments(@"C:\Repo\Some.Tests\Sample.cs", 1, @"c:\repo\some.tests\sample.cs|1")]
+    [Arguments("MiXeDCase.CS", 7, "mixedcase.cs|7")]
+    public async Task KeyIsFoldedWhereThePathsAre(string sourceFile, int line, string expected) =>
+        await Assert.That(InlineKey.For(sourceFile, line)).IsEqualTo(expected);
+
+    /// <summary>
+    /// And not where they are not. On Linux these are two files, and one key for both meant the
+    /// second patch took over the first's entry and settling either settled both.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Linux)]
+    public async Task KeysDifferingOnlyInCaseStayApartWhereTheFilesDo()
+    {
+        await Assert.That(InlineKey.For("/home/user/Sample.cs", 1)).IsEqualTo("/home/user/Sample.cs|1");
+        await Assert.That(InlineKey.For("/home/user/sample.cs", 1))
+            .IsNotEqualTo(InlineKey.For("/home/user/Sample.cs", 1));
+    }
 
     /// <summary>
     /// A newer sender can add a field without breaking an older owner.
@@ -219,7 +245,7 @@ public class ViewerProtocolTests
     [Test]
     public async Task SettleCarriesTheOriginInTheBody()
     {
-        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("Tests.cs", 42), "net9.0").Build();
+        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("tests.cs", 42), "net9.0").Build();
 
         await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
         await Assert.That(message!.Key).IsEqualTo("tests.cs|42");

@@ -30,6 +30,9 @@ static class PiperServer
         {
             listener = new(IPAddress.Loopback, PiperClient.Port);
             listener.Start();
+            // Kept from when the accept lived inside the per-connection method: cancelling stops
+            // the listener, which is what brings a pending accept down with it
+            await using var registration = cancel.Register(listener.Stop);
 
             while (true)
             {
@@ -40,7 +43,13 @@ static class PiperServer
 
                 try
                 {
-                    await Handle(listener, move, delete, cancel);
+                    var client = await listener.AcceptTcpClientAsync(cancel);
+                    // On its own task, the way ViewerServer takes its connections. Handled in
+                    // turn, one client that connected and never closed its stream held up every
+                    // move and delete from every other process for as long as it stayed that way,
+                    // with nothing to end the wait. The callbacks are the tracker's concurrent
+                    // collections, which the viewer port already writes to off this thread
+                    _ = Handle(client, move, delete, cancel);
                 }
                 catch (TaskCanceledException)
                 {
@@ -73,39 +82,82 @@ static class PiperServer
         }
     }
 
-    static async Task Handle(TcpListener listener, Action<MovePayload> move, Action<DeletePayload> delete, Cancel cancel)
+    /// <summary>
+    /// How long one client gets to send its payload and close. A client is expected to write and
+    /// go, so anything near this is one that has stopped rather than one that is slow, and the
+    /// read has to end by itself: nothing else here will end it.
+    /// </summary>
+    static readonly TimeSpan readTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Nothing awaits this, so it reports rather than throws — an unobserved throw on the
+    /// finaliser thread is not a way to hear about a dropped move.
+    /// </summary>
+    static async Task Handle(TcpClient client, Action<MovePayload> move, Action<DeletePayload> delete, Cancel cancel)
     {
-        await using (cancel.Register(listener.Stop))
+        try
         {
-            using var client = await listener.AcceptTcpClientAsync(cancel);
-            using var reader = new StreamReader(client.GetStream());
+            using (client)
+            {
+                using var reader = new StreamReader(client.GetStream());
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                deadline.CancelAfter(readTimeout);
 
-            var payload = await reader.ReadToEndAsync(cancel);
-
-            if (payload.Contains("\"Type\":\"Move\"") ||
-                payload.Contains("\"Type\": \"Move\""))
-            {
-                move(Serializer.Deserialize<MovePayload>(payload));
-            }
-            else if (payload.Contains("\"Type\":\"Delete\"") ||
-                     payload.Contains("\"Type\": \"Delete\""))
-            {
-                delete(Serializer.Deserialize<DeletePayload>(payload));
-            }
-            else
-            {
-                if (payload.Length > 0)
+                string payload;
+                try
                 {
-                    // Tolerate payloads from newer clients so future additions dont
-                    // surface an error dialog on this tray version
-                    Log.Error("Received unknown payload type. Ignoring. Payload: {payload}", payload);
+                    payload = await reader.ReadToEndAsync(deadline.Token);
                 }
-            }
+                catch (OperationCanceledException)
+                    when (!cancel.IsCancellationRequested)
+                {
+                    Log.Error("A client connected and did not finish sending within {timeout}. Ignoring it.", readTimeout);
+                    return;
+                }
 
-            if (client.Connected)
-            {
-                client.Close();
+                Dispatch(payload, move, delete);
             }
+        }
+        catch (Exception exception)
+            when (exception is OperationCanceledException or ObjectDisposedException)
+        {
+            // Shutting down, or the socket went with it
+        }
+        catch (IOException exception)
+            when (exception.InnerException is SocketException {SocketErrorCode: SocketError.ConnectionReset})
+        {
+            //client disconnected abruptly, e.g. test was canceled
+        }
+        catch (Exception exception)
+        {
+            if (!cancel.IsCancellationRequested)
+            {
+                ExceptionHandler.Handle("Failed to receive payload", exception);
+            }
+        }
+    }
+
+    static void Dispatch(string payload, Action<MovePayload> move, Action<DeletePayload> delete)
+    {
+        if (payload.Contains("\"Type\":\"Move\"") ||
+            payload.Contains("\"Type\": \"Move\""))
+        {
+            move(Serializer.Deserialize<MovePayload>(payload));
+            return;
+        }
+
+        if (payload.Contains("\"Type\":\"Delete\"") ||
+            payload.Contains("\"Type\": \"Delete\""))
+        {
+            delete(Serializer.Deserialize<DeletePayload>(payload));
+            return;
+        }
+
+        if (payload.Length > 0)
+        {
+            // Tolerate payloads from newer clients so future additions dont
+            // surface an error dialog on this tray version
+            Log.Error("Received unknown payload type. Ignoring. Payload: {payload}", payload);
         }
     }
 }

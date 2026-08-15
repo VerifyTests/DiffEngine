@@ -181,6 +181,60 @@ public class InlineQueueTests
         await Assert.That(after.Items[0].Patch.NewContent).IsEqualTo("second");
     }
 
+    /// <summary>
+    /// The other side of <see cref="CompletingAfterAReplaceLeavesTheNewEntry"/>. Applying takes up
+    /// to ten seconds on the cross process mutex, and a test that is still failing re-runs and
+    /// re-sends the identical patch inside that window. That is not a replace: the entry says what
+    /// it said before, so the accept it is in the middle of still completes.
+    /// <para>
+    /// Rebuilding the entry regardless made every one of those look like a change, so the patch
+    /// reached the file and the entry stayed pending with nothing said about it.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task CompletingAfterAnIdenticalReRunStillApplies()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "same"));
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Enqueue(Patch(content: "same"));
+
+        var after = queue.Accept(entry, InlineApplyResult.Applied, out var message);
+
+        await Assert.That(message).IsEqualTo("Applied Sample.cs:42");
+        await Assert.That(after.Items).IsEmpty();
+    }
+
+    /// <inheritdoc cref="CompletingAfterAnIdenticalReRunStillApplies"/>
+    [Test]
+    public async Task CompletingAfterAnIdenticalReRunFromTheSameFrameworkStillApplies()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "same", framework: "net8.0"));
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Enqueue(Patch(content: "same", framework: "net8.0"));
+
+        var after = queue.Accept(entry, InlineApplyResult.Applied, out var message);
+
+        await Assert.That(message).IsEqualTo("Applied Sample.cs:42");
+        await Assert.That(after.Items).IsEmpty();
+    }
+
+    /// <summary>
+    /// A re-run still drops what the last attempt failed with, which is what rebuilding the entry
+    /// did: the content has arrived again and nothing has retried it.
+    /// </summary>
+    [Test]
+    public async Task AnIdenticalReRunClearsTheFailureStatus()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "same"));
+        var entry = queue.Find(InlineKey.For("Sample.cs", 42))!;
+        queue = queue.Accept(entry, InlineApplyResult.Failed("the file is locked"), out _);
+        await Assert.That(queue.Items.Single().Status).IsEqualTo("the file is locked");
+
+        queue = queue.Enqueue(Patch(content: "same"));
+
+        await Assert.That(queue.Items.Single().Status).IsNull();
+    }
+
     [Test]
     public async Task CompletingAfterASettleDoesNothing()
     {

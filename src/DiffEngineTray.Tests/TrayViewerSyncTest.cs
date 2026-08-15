@@ -252,6 +252,28 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// The tray menu is built from the last scan, so an item can outlive its entry: the test
+    /// re-ran and passed, or the viewer accepted it first. Clicking it accepts nothing, and there
+    /// is nothing to tell the user — a failure balloon there names a snapshot that is already in
+    /// the source. Accepting a group has always skipped these; accepting one of them said the
+    /// accept had failed.
+    /// </summary>
+    [Test]
+    public async Task AcceptingASnapshotThatIsAlreadyGoneSaysNothing()
+    {
+        await using var pair = new TrayOwned();
+        var snapshot = pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+        pair.Tracker.Discard(snapshot);
+
+        await pair.Tracker.Accept(snapshot);
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Applied).IsEmpty();
+        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+    }
+
+    /// <summary>
     /// A failed apply keeps its entry so it can be retried, and both surfaces have to say the same
     /// thing about it — the tray in a balloon, the viewer in the entry's status.
     /// </summary>
@@ -337,6 +359,24 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Viewer.Queue).IsEmpty();
         await Assert.That(pair.Tracker.Snapshots).IsEmpty();
         await Assert.That(pair.Applied.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// A tray owner asks for the window on every patch that arrives, and an owning viewer has to
+    /// do the same. Its window is hidden whenever a tray is running and the queue last emptied, so
+    /// without this a newly failing test landed in a window nobody could see and showed up only as
+    /// a tray icon on the next scan.
+    /// </summary>
+    [Test]
+    public async Task AQueuedPatchBringsTheOwningViewerForward()
+    {
+        await using var pair = new ViewerOwned();
+
+        pair.Queue(sample, 1);
+
+        await Assert.That(pair.Windows).Contains(ViewerSideWindowCommand.Focus);
+        // On the entry that arrived, the same as a focus verb lands
+        await Assert.That(pair.Viewer.Queue[pair.Viewer.Selected].Key).IsEqualTo(Key(sample, 1));
     }
 
     [Test]
@@ -454,6 +494,72 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Viewer.Queue.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Tracker.Snapshots.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
+    }
+
+    /// <summary>
+    /// An owning viewer applies inside its session, and InlineApplier waits up to ten seconds on
+    /// its cross process mutex, so an accept legitimately outlasts the wait the listing verbs use.
+    /// The tray has to wait for the answer: reporting the viewer as gone while it is in the middle
+    /// of writing the source file is wrong twice over, since the snapshot then leaves the menu a
+    /// scan later and contradicts the balloon.
+    /// </summary>
+    [Test]
+    public async Task ASlowAcceptIsWaitedForRatherThanCalledAMissingViewer()
+    {
+        await using var pair = new ViewerOwned(
+            _ =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(1.5));
+                return ViewerSideApplyResult.Applied;
+            });
+        var snapshot = pair.Snapshot(sample, 1);
+
+        await pair.Tracker.Accept(snapshot);
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Viewer.Queue).IsEmpty();
+        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+    }
+
+    /// <inheritdoc cref="ASlowAcceptIsWaitedForRatherThanCalledAMissingViewer"/>
+    [Test]
+    public async Task ASlowAcceptAllIsWaitedFor()
+    {
+        // Every entry applied inside the one exchange, so this outlasts a lone accept
+        await using var pair = new ViewerOwned(
+            _ =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(0.8));
+                return ViewerSideApplyResult.Applied;
+            });
+        pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+
+        await pair.Tracker.AcceptAll();
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Viewer.Queue).IsEmpty();
+        await Assert.That(pair.Applied.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// "Close snapshot viewer" closes a window. Against an owning viewer it used to quit the
+    /// process, and the queue is in that process's memory, so the same menu item threw away every
+    /// pending snapshot without asking - and they were simply absent from the menu afterwards,
+    /// since a refused connection lists the same as nothing pending.
+    /// </summary>
+    [Test]
+    public async Task ClosingAnOwningViewerLeavesItsQueue()
+    {
+        await using var pair = new ViewerOwned();
+        pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+
+        new RemoteInlineHost().Close();
+
+        await Assert.That(pair.Windows).Contains(ViewerSideWindowCommand.Hide);
+        await Assert.That(pair.Windows).DoesNotContain(ViewerSideWindowCommand.Close);
+        await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(sample, 1), Key(other, 7)]);
     }
 
     [Test]

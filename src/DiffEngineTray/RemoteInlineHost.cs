@@ -2,8 +2,12 @@
 /// The queue belongs to a viewer that bound the port before this tray started, so every call is a
 /// short loopback round trip and the tray is a remote control.
 /// <para>
-/// All of them use ViewerClient.ShortTimeout. These run from the 2 second scan timer and from the
-/// menu opening, so a slow exchange must not outlast the timer period or block the UI.
+/// The listing and the menu verbs use ViewerClient.ShortTimeout. Those run from the 2 second scan
+/// timer and from the menu opening, so a slow exchange must not outlast the timer period or block
+/// the UI.
+/// </para>
+/// <para>
+/// Accepting does not, for the reason <see cref="acceptWait"/> gives.
 /// </para>
 /// <para>
 /// A refused connection means the viewer has gone, which is the same as nothing pending. The queue
@@ -12,19 +16,44 @@
 /// </summary>
 class RemoteInlineHost : IInlineHost
 {
+    /// <summary>
+    /// The one verb that can legitimately take this long: the owner applies through
+    /// <see cref="InlineApplier"/>, which waits up to ten seconds on its cross process mutex, and
+    /// an owning viewer does that inside its session. The short wait read a busy owner as an
+    /// absent one and told the user the viewer was not running while it was in the middle of
+    /// writing their source file - and then the snapshot left the menu a scan later, contradicting
+    /// the balloon.
+    /// <para>
+    /// The same wait <see cref="InlineQueueClient"/> and OwnerLink use, and safe here for the same
+    /// reason it is there: accepts run on a worker rather than the timer or the UI thread, which
+    /// is what <see cref="Tracker.Accept(PendingSnapshot)"/> exists to arrange.
+    /// </para>
+    /// </summary>
+    static readonly TimeSpan acceptWait = TimeSpan.FromSeconds(15);
+
     public string Description => $"owned by another process on port {ViewerClient.Port}";
 
-    public IReadOnlyList<PendingSnapshot> List()
+    public IReadOnlyList<PendingSnapshot> List() =>
+        TryList(out var pending) ? pending : [];
+
+    /// <summary>
+    /// False when the owner could not be asked, which <see cref="List"/> flattens to nothing
+    /// pending — right for a menu, and wrong for anything reading the answer as a statement about
+    /// a particular entry.
+    /// </summary>
+    static bool TryList(out IReadOnlyList<PendingSnapshot> pending)
     {
-        if (!Exchange(new(ViewerVerb.List), out var response) ||
+        if (!Exchange(new(ViewerVerb.List), ViewerClient.ShortTimeout, out var response) ||
             !response.Ok)
         {
-            return [];
+            pending = [];
+            return false;
         }
 
-        return response.Items
+        pending = response.Items
             .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
             .ToList();
+        return true;
     }
 
     public IReadOnlyList<PendingInline>? Queued() =>
@@ -50,41 +79,62 @@ class RemoteInlineHost : IInlineHost
     /// </summary>
     public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message)
     {
-        if (!Send(ViewerVerb.Accept, snapshot.Key, out message))
+        if (!Send(ViewerVerb.Accept, snapshot.Key, acceptWait, out message))
         {
             return AcceptOutcome.Failed;
         }
 
-        return List().Any(_ => _.Key == snapshot.Key)
+        if (!TryList(out var pending))
+        {
+            // The owner took the accept and then could not be asked what became of it. Applied is
+            // a guess, and the one that tells the user a snapshot landed that may not have
+            return AcceptOutcome.Unknown;
+        }
+
+        return pending.Any(_ => _.Key == snapshot.Key)
             ? AcceptOutcome.Failed
             : AcceptOutcome.Applied;
     }
 
     public bool Discard(PendingSnapshot snapshot, out string? message) =>
-        Send(ViewerVerb.Discard, snapshot.Key, out message);
+        Send(ViewerVerb.Discard, snapshot.Key, ViewerClient.ShortTimeout, out message);
 
     /// <summary>
     /// True only when the queue is empty afterwards, for the reason <see cref="Accept"/> gives —
     /// and matching what an owning tray reports, which is also "is anything still pending". A
     /// conflict counts as not accepted, which is right: it is what a reviewer still has to resolve.
     /// </summary>
+    // One accept per entry inside a single exchange, so this outlasts a lone accept rather than
+    // matching it
     public bool AcceptAll(out string? message) =>
-        Send(ViewerVerb.AcceptAll, null, out message) &&
+        Send(ViewerVerb.AcceptAll, null, acceptWait, out message) &&
         List().Count == 0;
 
     public void DiscardAll() =>
-        Send(ViewerVerb.DiscardAll, null, out _);
+        Send(ViewerVerb.DiscardAll, null, ViewerClient.ShortTimeout, out _);
 
     public void Focus(PendingSnapshot snapshot) =>
-        Send(ViewerVerb.Focus, snapshot.Key, out _);
+        Send(ViewerVerb.Focus, snapshot.Key, ViewerClient.ShortTimeout, out _);
 
+    /// <summary>
+    /// Hidden rather than quit, because this owner is holding the queue. Quit exits the process,
+    /// and the queue is in its memory, so one menu item meant "close the window" in the arrangement
+    /// where the tray owns the queue and "throw away every pending snapshot, without asking" in
+    /// this one - after which they were simply gone from the menu, a refused connection being
+    /// indistinguishable from nothing pending.
+    /// <para>
+    /// Hiding leaves the process serving, which it has to be for the queue to survive at all, and
+    /// leaves the user where the other arrangement leaves them: no window, and everything still
+    /// pending. Focus brings it back.
+    /// </para>
+    /// </summary>
     public void Close() =>
-        Send(ViewerVerb.Quit, null, out _);
+        Send(ViewerVerb.Hide, null, ViewerClient.ShortTimeout, out _);
 
-    static bool Send(ViewerVerb verb, string? key, out string? message)
+    static bool Send(ViewerVerb verb, string? key, TimeSpan wait, out string? message)
     {
         message = null;
-        if (!Exchange(new(verb, key), out var response))
+        if (!Exchange(new(verb, key), wait, out var response))
         {
             message = "The snapshot viewer is not running.";
             return false;
@@ -94,6 +144,6 @@ class RemoteInlineHost : IInlineHost
         return response.Ok;
     }
 
-    static bool Exchange(ViewerMessage message, [NotNullWhen(true)] out ViewerResponse? response) =>
-        ViewerClient.TrySend(message, out response, wait: ViewerClient.ShortTimeout);
+    static bool Exchange(ViewerMessage message, TimeSpan wait, [NotNullWhen(true)] out ViewerResponse? response) =>
+        ViewerClient.TrySend(message, out response, wait: wait);
 }

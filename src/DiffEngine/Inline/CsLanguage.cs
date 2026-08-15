@@ -210,8 +210,11 @@ sealed class CsLanguage : SourceLanguage
         var quotes = QuoteRun(source, cursor);
         if (quotes >= 3)
         {
-            // Raw string (interpolated or not): skip blindly to a closing run of >= quotes.
-            // Interpolation holes are skipped as part of the content.
+            // Raw string: scan to a closing run of >= quotes, stepping over any interpolation
+            // hole whole. Skipping holes as content read the quotes of a literal inside one -
+            // $"""{Render("""x""")}""" - as the end of the outer string, after which the rest of
+            // the line lexed as code and a stray delimiter opened a string that could swallow a
+            // real call
             var search = cursor + quotes;
             while (true)
             {
@@ -221,7 +224,28 @@ sealed class CsLanguage : SourceLanguage
                     return true;
                 }
 
-                if (source[search] != '"')
+                var ch = source[search];
+                if (dollars > 0 && ch == '{')
+                {
+                    // A run of fewer than one brace per dollar is content, which is how a raw
+                    // interpolated string carries a literal brace
+                    var braces = BraceRun(source, search);
+                    if (braces < dollars)
+                    {
+                        search += braces;
+                        continue;
+                    }
+
+                    if (!TrySkipHole(source, ref search))
+                    {
+                        index = source.Length;
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (ch != '"')
                 {
                     search++;
                     continue;
@@ -360,6 +384,18 @@ sealed class CsLanguage : SourceLanguage
         }
 
         return false;
+    }
+
+    static int BraceRun(string source, int index)
+    {
+        var count = 0;
+        while (index + count < source.Length &&
+               source[index + count] == '{')
+        {
+            count++;
+        }
+
+        return count;
     }
 
     static int QuoteRun(string source, int index)

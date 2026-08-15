@@ -58,6 +58,15 @@ public sealed class InlineQueue
         return new(items);
     }
 
+    /// <summary>
+    /// A fold that added nothing. The variants are handed back as they are, so an accept applying
+    /// against this entry still recognises it as the one it started on; only the status of the
+    /// last attempt goes, which is what rebuilding the entry used to do anyway - the content
+    /// arrived again, and what failed before has not been retried.
+    /// </summary>
+    static PendingInline Unchanged(PendingInline entry) =>
+        entry.Status is null ? entry : entry with { Status = null };
+
     static PendingInline Fold(PendingInline entry, InlinePatch patch)
     {
         var origin = patch.Framework;
@@ -67,6 +76,17 @@ public sealed class InlineQueue
         if (origin is null ||
             entry.Variants.All(_ => _.Origins.Count == 0))
         {
+            // A re-run that repeats itself has changed nothing, and saying so matters: Accept
+            // throws away the completion of an accept whose entry changed identity while the
+            // patch was applying, and a still failing test re-sending the same patch is exactly
+            // what happens during those ten seconds
+            if (entry.Variants is [var only] &&
+                only.Origins.Count == 0 &&
+                only.Patch.Matches(patch))
+            {
+                return Unchanged(entry);
+            }
+
             return new(patch);
         }
 
@@ -79,6 +99,9 @@ public sealed class InlineQueue
         if (matching >= 0)
         {
             var folded = new List<InlineVariant>();
+            // Nothing to say when this framework already held this content and no other variant
+            // gave a label up, which is the shape a re-run repeating itself arrives in
+            var changed = false;
             for (var index = 0; index < variants.Count; index++)
             {
                 var variant = variants[index];
@@ -86,24 +109,38 @@ public sealed class InlineQueue
                 {
                     // The existing patch instance, deliberately: the content is identical, and a
                     // reader caching per patch keeps its work.
-                    folded.Add(variant.Origins.Contains(origin)
-                        ? variant
-                        : variant with { Origins = [.. variant.Origins, origin] });
+                    if (variant.Origins.Contains(origin))
+                    {
+                        folded.Add(variant);
+                    }
+                    else
+                    {
+                        folded.Add(variant with { Origins = [.. variant.Origins, origin] });
+                        changed = true;
+                    }
+
                     continue;
                 }
 
                 var stripped = variant.Origins.Where(_ => _ != origin).ToList();
                 if (stripped.Count == 0)
                 {
+                    changed = true;
                     continue;
                 }
 
-                folded.Add(stripped.Count == variant.Origins.Count
-                    ? variant
-                    : variant with { Origins = stripped });
+                if (stripped.Count == variant.Origins.Count)
+                {
+                    folded.Add(variant);
+                }
+                else
+                {
+                    folded.Add(variant with { Origins = stripped });
+                    changed = true;
+                }
             }
 
-            return new(folded);
+            return changed ? new(folded) : Unchanged(entry);
         }
 
         // This framework previously produced different content: its variant updates in place when

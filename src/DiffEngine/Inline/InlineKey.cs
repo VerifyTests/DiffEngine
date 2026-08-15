@@ -12,9 +12,19 @@ namespace DiffEngine;
 public static class InlineKey
 {
     /// <summary>
-    /// Case folded, because Windows paths reach here from different sources with different casing
-    /// and the same call site must produce one entry.
+    /// Case folded where the file system is, because a Windows path reaches here from different
+    /// sources with different casing and the same call site has to produce one entry.
+    /// <para>
+    /// Not where it is not. On Linux two paths differing only in case are two files, and folding
+    /// them gave both one key: the second patch took over the first's entry, and settling either
+    /// settled both. Every process addressing a queue is on the one machine, so they agree about
+    /// which of these applies.
+    /// </para>
     /// </summary>
     public static string For(string sourceFile, int line) =>
-        $"{sourceFile.ToLowerInvariant()}|{line}";
+        $"{(caseInsensitivePaths ? sourceFile.ToLowerInvariant() : sourceFile)}|{line}";
+
+    static readonly bool caseInsensitivePaths =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
+        RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 }

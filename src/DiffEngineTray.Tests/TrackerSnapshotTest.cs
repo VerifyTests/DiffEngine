@@ -40,6 +40,26 @@ public class TrackerSnapshotTest
         await Assert.That(tracker.Snapshots[0].Name).IsEqualTo("Other.cs:1");
     }
 
+    /// <summary>
+    /// Whether the entry survived is what tells an accept from a failure here, and that is a
+    /// second round trip. An owner that took the accept and then could not answer used to come
+    /// back as applied, because a listing that failed returned no items and no items read as an
+    /// empty queue.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptThatCannotBeConfirmedIsNotCalledApplied()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1");
+        var host = new RemoteInlineHost();
+        var snapshot = host.List().Single();
+        viewer.ListingFails = true;
+
+        var outcome = host.Accept(snapshot, out _);
+
+        await Assert.That(outcome).IsEqualTo(AcceptOutcome.Unknown);
+        await Assert.That(viewer.Verbs).Contains($"accept:{snapshot.Key}");
+    }
+
     [Test]
     public async Task DiscardForwardsTheKey()
     {

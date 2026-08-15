@@ -245,11 +245,18 @@ class Tracker :
                         // Gone, but not accepted. Told rather than logged, because the snapshot
                         // vanishing from the menu otherwise reads as success.
                         Log.Warning("Inline snapshot stale for `{Name}`: {Message}", snapshot.Name, message);
-                        inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                        inlineFailed?.Invoke(CouldNotAccept(snapshot.Name, message));
+                        break;
+                    case AcceptOutcome.Unknown:
+                        // No entry left to accept: it settled, or another surface got to it first.
+                        // The menu is built from the last scan, so an item outliving its entry is
+                        // ordinary rather than a failure, and a balloon here names a snapshot that
+                        // is already in the source. The bulk path has always skipped these
+                        Log.Information("Inline snapshot for `{Name}` was no longer pending.", snapshot.Name);
                         break;
                     default:
                         Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
-                        inlineFailed?.Invoke($"Could not accept the snapshot for '{snapshot.Name}'. {message}");
+                        inlineFailed?.Invoke(CouldNotAccept(snapshot.Name, message));
                         break;
                 }
 
@@ -260,6 +267,13 @@ class Tracker :
                 ExceptionHandler.Handle($"Failed to accept the snapshot for '{snapshot.Name}'", exception);
             }
         });
+
+    // The owner does not always have something to add, and a balloon ending in a bare full stop
+    // and a space reads as a message that went missing
+    static string CouldNotAccept(string name, string? message) =>
+        message is { Length: > 0 }
+            ? $"Could not accept the snapshot for '{name}'. {message}"
+            : $"Could not accept the snapshot for '{name}'.";
 
     public void Discard(PendingSnapshot snapshot)
     {

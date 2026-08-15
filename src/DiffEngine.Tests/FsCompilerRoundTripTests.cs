@@ -45,7 +45,14 @@ public class FsCompilerRoundTripTests
         "has \"\"\" inside\nsecond",
         "(* not a comment *)\nsecond",
         "// not a comment\nsecond",
-        "'ticked'\nsecond"
+        "'ticked'\nsecond",
+        // Line terminators, which are rendered as escapes rather than written into a
+        // triple-quoted literal. What is being asked of fsi is that it reads the escape back as
+        // the one character, since nothing on this side can tell whether it did
+        "next line" + (char) 0x85 + "inside",
+        "separator" + (char) 0x2028 + "inside",
+        "paragraph" + (char) 0x2029 + "inside",
+        "a\nb" + (char) 0x2028 + "c"
     ];
 
     [Test]

@@ -25,8 +25,16 @@ public class FsStringLiteralTests
         "line1\n    indented\nline3",
         "back\\slash\nsecond",
         "tab\there\nsecond",
-        "{\n  \"name\": \"value\"\n}"
+        "{\n  \"name\": \"value\"\n}",
+        "x" + lineSeparator + "y",
+        "a\nb" + lineSeparator + "c",
+        "a\nb" + nextLine + "c",
+        "a\nb" + paragraphSeparator + "c"
     ];
+
+    const char nextLine = (char) 0x85;
+    const char lineSeparator = (char) 0x2028;
+    const char paragraphSeparator = (char) 0x2029;
 
     // The same shape C# writes: the content indented under the call, with the first line and the
     // closing delimiter's indentation there to be taken back off
@@ -54,6 +62,24 @@ public class FsStringLiteralTests
             var csharp = CsStringLiteral.Render(content, "    ", "\n");
             await Assert.That(fsharp).IsEqualTo(csharp);
         }
+    }
+
+    [Test]
+    [Arguments(0x85)]
+    [Arguments(0x2028)]
+    [Arguments(0x2029)]
+    public async Task RenderFallsBackToRegularWhenContentHoldsLineTerminator(int codePoint)
+    {
+        var terminator = (char) codePoint;
+        var content = $"a\nb{terminator}c";
+        var rendered = FsStringLiteral.Render(content, "    ", "\n");
+
+        // Kept off the triple-quoted form for the reason C# is: the two write the one shape, and
+        // that is what RenderMultiLineMatchesCSharp is asserting over these same cases
+        await Assert.That(rendered.StartsWith("\"\"\"", StringComparison.Ordinal)).IsFalse();
+        await Assert.That(rendered).DoesNotContain(terminator.ToString());
+        await Assert.That(FsStringLiteral.TryParse(rendered, out var value)).IsTrue();
+        await Assert.That(value).IsEqualTo(content);
     }
 
     [Test]
@@ -211,6 +237,19 @@ public class FsStringLiteralTests
         var parsed = FsStringLiteral.TryParse(expression, out var value);
         await Assert.That(parsed).IsTrue();
         await Assert.That(value).IsEqualTo(expected);
+    }
+
+    // Half a surrogate pair, and a code point past the Unicode range. ConvertFromUtf32 throws on
+    // both, and a throw here reaches the process applying the patch
+    [Test]
+    [Arguments("\"\\U0000D800\"")]
+    [Arguments("\"\\U0000DFFF\"")]
+    [Arguments("\"\\U00110000\"")]
+    [Arguments("\"\\UFFFFFFFF\"")]
+    public async Task ParseRejectsUnreadableCodePoint(string expression)
+    {
+        var parsed = FsStringLiteral.TryParse(expression, out _);
+        await Assert.That(parsed).IsFalse();
     }
 
     [Test]

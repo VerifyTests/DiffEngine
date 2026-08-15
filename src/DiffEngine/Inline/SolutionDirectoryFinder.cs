@@ -6,7 +6,13 @@ static class SolutionDirectoryFinder
         public string Name { get; } = name;
     }
 
-    static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
+    static readonly ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Directories already known to hold a solution, which is what lets the walk stop early
+    /// without asking the disk again.
+    /// </summary>
+    static readonly ConcurrentDictionary<string, Result> directories = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The solution a file belongs to, or null when it has none.
@@ -37,29 +43,6 @@ static class SolutionDirectoryFinder
 
     static Result? Walk(string file)
     {
-        // Reuse an already resolved solution when the file sits inside its directory.
-        // Prefer the nearest (longest) enclosing directory so nested solutions resolve correctly.
-        Result? nearest = null;
-        foreach (var result in cache.Values)
-        {
-            if (result == null ||
-                !IsInDirectory(file, result.Directory))
-            {
-                continue;
-            }
-
-            if (nearest == null ||
-                result.Directory.Length > nearest.Directory.Length)
-            {
-                nearest = result;
-            }
-        }
-
-        if (nearest != null)
-        {
-            return nearest;
-        }
-
         var currentDirectory = Path.GetDirectoryName(file);
         if (string.IsNullOrEmpty(currentDirectory))
         {
@@ -68,6 +51,16 @@ static class SolutionDirectoryFinder
 
         do
         {
+            // Asked level by level on the way up, so the nearest solution is always the one that
+            // answers. Reuse used to be a scan for any cached directory the file sat under, which
+            // took whichever had been resolved first: a file in a nested solution was given the
+            // one above it, because that directory encloses it too and nothing had yet looked
+            // between the two
+            if (directories.TryGetValue(currentDirectory, out var known))
+            {
+                return known;
+            }
+
             if (TryFind(currentDirectory, "*.slnx", out var result))
             {
                 return result;
@@ -86,25 +79,6 @@ static class SolutionDirectoryFinder
 
             currentDirectory = parent.FullName;
         } while (true);
-    }
-
-    // True when file is directory itself or sits below it, requiring a directory-separator
-    // boundary so that a sibling like "AppTests" is not treated as being inside "App".
-    static bool IsInDirectory(string file, string directory)
-    {
-        if (!file.StartsWith(directory, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (file.Length == directory.Length)
-        {
-            return true;
-        }
-
-        var boundary = file[directory.Length];
-        return boundary == Path.DirectorySeparatorChar ||
-               boundary == Path.AltDirectorySeparatorChar;
     }
 
     static bool TryFind(string directory, string searchPattern, [NotNullWhen(true)] out Result? result)
@@ -127,6 +101,7 @@ static class SolutionDirectoryFinder
         if (solutions.Length != 0)
         {
             result = new(directory, Path.GetFileNameWithoutExtension(solutions.First()));
+            directories[directory] = result;
             return true;
         }
 

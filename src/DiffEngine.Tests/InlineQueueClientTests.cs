@@ -183,6 +183,45 @@ public class InlineQueueClientTests
         await Assert.That(InlineQueueClient.Find(InlineKey.For("Sample.cs", 42))).IsNotNull();
     }
 
+    /// <summary>
+    /// Whether the entry survived is what says an accept applied, and that takes a second round
+    /// trip. When it cannot be made — the owner exited, or answered with an error — there is no
+    /// answer to give, and the one that used to be given was Accepted: an empty item list read as
+    /// an empty queue, so a surface stopped offering a snapshot nothing had confirmed.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptThatCannotBeConfirmedIsNotCalledAccepted()
+    {
+        using var owner = new Owner();
+        owner.Enqueue(Patch());
+        owner.ListingFails = true;
+
+        var outcome = InlineQueueClient.Accept(InlineKey.For("Sample.cs", 42), out _);
+
+        await Assert.That(outcome).IsEqualTo(InlineAcceptOutcome.Unknown);
+        // The owner did carry it out; only the confirmation was unavailable
+        await Assert.That(owner.Applied.Single().NewContent).IsEqualTo("new content");
+    }
+
+    /// <summary>
+    /// The same shape one level down: an error listing is not a statement that nothing is pending,
+    /// so a caller that falls back when no owner answered has to fall back here too.
+    /// </summary>
+    [Test]
+    public async Task AnErrorListingIsNotAnEmptyQueue()
+    {
+        using var owner = new Owner
+        {
+            ListingFails = true
+        };
+        owner.Enqueue(Patch());
+
+        await Assert.That(InlineQueueClient.TryList(out var pending)).IsFalse();
+        await Assert.That(pending).IsEmpty();
+        await Assert.That(InlineQueueClient.TryListKeys(out var keys)).IsFalse();
+        await Assert.That(keys).IsEmpty();
+    }
+
     [Test]
     public async Task DiscardDropsWithoutApplying()
     {
@@ -317,8 +356,19 @@ public class InlineQueueClientTests
         {
         }
 
+        /// <summary>
+        /// When set, every listing comes back as an error, which is how an owner that cannot say
+        /// what it holds is arranged without racing its own shutdown.
+        /// </summary>
+        public bool ListingFails { get; set; }
+
         ViewerResponse IQueueOwner.Listing(bool withPatches)
         {
+            if (ListingFails)
+            {
+                return ViewerResponse.Error("the owner is going away");
+            }
+
             lock (gate)
             {
                 return ViewerResponse.Listing(ViewerListing.Items(queue.Items, withPatches));

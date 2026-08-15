@@ -10,8 +10,16 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
     public ViewerResponse Handle(ViewerMessage message) =>
         ViewerMessageHandler.Handle(this, message);
 
-    int IQueueOwner.Enqueue(InlinePatch patch) =>
-        host.Mutate(_ => ViewerSession.EnqueueInline(_, patch)).Queue.Count;
+    int IQueueOwner.Enqueue(InlinePatch patch)
+    {
+        var count = host.Mutate(_ => ViewerSession.EnqueueInline(_, patch)).Queue.Count;
+        // Brought forward on the entry that arrived, which is what a tray owner does with one of
+        // these. Without it a patch landing in a window that is hidden - which this one is
+        // whenever a tray is running and the queue last emptied - showed up only as a tray icon
+        // on the next scan, and one landing in a window behind the editor showed up not at all
+        ((IQueueOwner) this).Window(WindowCommand.Focus, InlineKey.For(patch.SourceFile, patch.LineHint));
+        return count;
+    }
 
     void IQueueOwner.Settle(string key, string? origin) =>
         host.Mutate(_ => ViewerSession.Settle(_, key, origin));
