@@ -73,6 +73,33 @@ becomes the review surface. Accepting anywhere runs `InlineApplier` against the 
 `SettleInline`, and any surface that applies a patch itself must settle too, or the queue owner
 keeps offering a snapshot that is already in the source.
 
+The source may be C# or F#, decided by the file's extension (`SourceLanguage.ForFile`) rather than
+stated on the patch. `InlinePatcher` walks the same structure either way — a name, an argument
+list, a chain hung off it — and everything per language sits on `SourceLanguage`: the lexing that
+fills a `SourceScan`, what tells a declaration from a call, and how a literal is written and read
+back. F# is the awkward one, because it has no raw string: its compiler hands over a triple-quoted
+literal verbatim, line break after the opening delimiter and every line's indentation included. So
+the same shape C# writes is written for F# too and the trimming is a convention -
+`SourceLanguage.SnapshotValue` is the reader's half, and a test library that skips it fails every
+F# snapshot against itself. Writing content at the left margin instead was tried and abandoned:
+F#'s offside rule then rejects anything ending in a newline. The agreement is asserted by compiling
+patched source with `dotnet fsi` and applying the trim there in F# (`FsCompilerRoundTripTests`),
+because a belief about F#'s lexis is exactly the kind of thing a second copy of the same belief
+cannot check. With both languages on the same shapes, the rendering and most of the parsing is one
+implementation in `StringLiteral`; what is left per language is delimiter widening, which F# lacks
+(FS1232), and the escapes a regular literal carries.
+
+A patch is anchored to the call by `OriginalExpression`, the argument's source text from
+`CallerArgumentExpression`, so a file that moved since the run still patches the right call. F#
+does not implement that attribute (FS0202), so a producer sends `OriginalValue` — the argument's
+value — and the patcher matches on what a literal parses to instead of on what it says. Same
+anchor, one parse apart. With neither, the hint is all there is and a differing literal is taken
+as the snapshot that changed, or a snapshot could be accepted once and never updated.
+`MemberName` (`CallerMemberName`, which F# does implement) narrows on top of either: a call above
+that member's declaration is not in it, so an identical snapshot in the test next door is not a
+candidate at all, while the recorded line is still tried first so two snapshots in one member stay
+apart.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**

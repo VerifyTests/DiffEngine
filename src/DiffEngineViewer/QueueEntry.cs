@@ -91,7 +91,7 @@ record QueueEntry(
             // content is under the cursor; an unlabeled patch keeps the plain header.
             LeftHeader: variant.Label is null ? "received" : $"received ({variant.Label})",
             RightHeader: rightHeader,
-            LeftText: CsStringLiteral.NormalizeNewlines(patch.NewContent),
+            LeftText: SourceLanguage.NormalizeNewlines(patch.NewContent),
             RightText: rightText,
             Kind: QueueEntryKind.Inline,
             Patch: patch,
@@ -113,8 +113,8 @@ record QueueEntry(
             Name: $"{Path.GetFileName(leftFile)} <> {Path.GetFileName(rightFile)}",
             LeftHeader: Path.GetFileName(leftFile),
             RightHeader: Path.GetFileName(rightFile),
-            LeftText: CsStringLiteral.NormalizeNewlines(left.Text),
-            RightText: CsStringLiteral.NormalizeNewlines(right.Text),
+            LeftText: SourceLanguage.NormalizeNewlines(left.Text),
+            RightText: SourceLanguage.NormalizeNewlines(right.Text),
             Kind: QueueEntryKind.File,
             Patch: null,
             LeftFile: leftFile,
@@ -145,8 +145,8 @@ record QueueEntry(
             RightHeader: Path.GetFileName(target),
             // Left is what the test produced, right is what is committed — the same sides an
             // inline entry uses for received and expected.
-            LeftText: CsStringLiteral.NormalizeNewlines(tempSide.Text),
-            RightText: CsStringLiteral.NormalizeNewlines(targetSide.Text),
+            LeftText: SourceLanguage.NormalizeNewlines(tempSide.Text),
+            RightText: SourceLanguage.NormalizeNewlines(targetSide.Text),
             Kind: QueueEntryKind.Move,
             Patch: null,
             LeftFile: temp,
@@ -177,7 +177,7 @@ record QueueEntry(
             LeftHeader: "(deleted)",
             RightHeader: Path.GetFileName(file),
             LeftText: "",
-            RightText: CsStringLiteral.NormalizeNewlines(current.Text),
+            RightText: SourceLanguage.NormalizeNewlines(current.Text),
             Kind: QueueEntryKind.Delete,
             Patch: null,
             LeftFile: file,
@@ -201,7 +201,9 @@ record QueueEntry(
             return ("expected (new snapshot)", "", null);
         }
 
-        if (CsStringLiteral.TryParse(patch.OriginalExpression, out var value))
+        // Read as the language of the file it came out of: an F# literal is not a C# one, and a
+        // parse that guessed would show a snapshot's source text where it has a value to show
+        if (SourceLanguage.ForFile(patch.SourceFile).TryParse(patch.OriginalExpression, out var value))
         {
             return ("expected", value, null);
         }
@@ -210,7 +212,7 @@ record QueueEntry(
         // the change is still reviewable, and say so rather than pretending it is a parsed value.
         return (
             "expected (literal not parsed)",
-            CsStringLiteral.NormalizeNewlines(patch.OriginalExpression),
+            SourceLanguage.NormalizeNewlines(patch.OriginalExpression),
             "Existing expected argument is not a plain string literal. Showing its source text.");
     }
 }

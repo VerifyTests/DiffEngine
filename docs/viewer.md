@@ -48,7 +48,7 @@ DiffEngineViewer <left> <right>
 Reviewing an inline snapshot, where the patch payload arrives on stdin:
 
 ```
-DiffEngineViewer --inline --source <file.cs> --line <number>
+DiffEngineViewer --inline --source <source file> --line <number>
 ```
 
 Reviewing a file a passing test no longer produces, which DiffEngine sends when no tray is running:

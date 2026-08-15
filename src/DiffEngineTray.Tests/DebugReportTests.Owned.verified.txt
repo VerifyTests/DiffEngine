@@ -22,6 +22,8 @@ Snapshots (1)
     LineHint:           42
     Mode:               Set
     OriginalExpression: "old"
+    OriginalValue:      <null>
+    MemberName:         <null>
     NewContent:
         line one
         line two

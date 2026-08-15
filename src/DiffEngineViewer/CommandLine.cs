@@ -2,7 +2,7 @@ static class CommandLine
 {
     public const string Usage = """
         DiffEngineViewer <left> <right>
-        DiffEngineViewer --inline --source <file.cs> --line <number>
+        DiffEngineViewer --inline --source <source file> --line <number>
         DiffEngineViewer --delete <file>
         DiffEngineViewer --attach
 
