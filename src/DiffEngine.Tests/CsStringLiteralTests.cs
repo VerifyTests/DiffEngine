@@ -229,6 +229,32 @@ public class CsStringLiteralTests
         await Assert.That(value).IsEqualTo(expected);
     }
 
+    // A verbatim literal opening on an escaped quote. The quote run is not a delimiter here, and
+    // reading it as one rejected a literal the compiler accepts
+    [Test]
+    [Arguments("@\"\"\"x\"\"\"", "\"x\"")]
+    [Arguments("@\"\"\"\"", "\"")]
+    [Arguments("@\"\"\"a\"\"b\"\"\"", "\"a\"b\"")]
+    public async Task ParseVerbatimOpeningOnQuote(string expression, string expected)
+    {
+        var parsed = CsStringLiteral.TryParse(expression, out var value);
+        await Assert.That(parsed).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    // Half a surrogate pair, and a code point past the Unicode range. ConvertFromUtf32 throws on
+    // both, and a throw here reaches the process applying the patch
+    [Test]
+    [Arguments("\"\\U0000D800\"")]
+    [Arguments("\"\\U0000DFFF\"")]
+    [Arguments("\"\\U00110000\"")]
+    [Arguments("\"\\UFFFFFFFF\"")]
+    public async Task ParseRejectsUnreadableCodePoint(string expression)
+    {
+        var parsed = CsStringLiteral.TryParse(expression, out _);
+        await Assert.That(parsed).IsFalse();
+    }
+
     [Test]
     public async Task ParseMultiLineVerbatim()
     {

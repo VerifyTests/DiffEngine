@@ -239,6 +239,19 @@ public class FsStringLiteralTests
         await Assert.That(value).IsEqualTo(expected);
     }
 
+    // Half a surrogate pair, and a code point past the Unicode range. ConvertFromUtf32 throws on
+    // both, and a throw here reaches the process applying the patch
+    [Test]
+    [Arguments("\"\\U0000D800\"")]
+    [Arguments("\"\\U0000DFFF\"")]
+    [Arguments("\"\\U00110000\"")]
+    [Arguments("\"\\UFFFFFFFF\"")]
+    public async Task ParseRejectsUnreadableCodePoint(string expression)
+    {
+        var parsed = FsStringLiteral.TryParse(expression, out _);
+        await Assert.That(parsed).IsFalse();
+    }
+
     [Test]
     public async Task ParseMultiLineTakesTheLayoutOff()
     {

@@ -254,7 +254,7 @@ public static class FsStringLiteral
                         return false;
                     }
 
-                    if (codePoint > 0x10FFFF)
+                    if (!StringLiteral.IsScalarValue(codePoint))
                     {
                         return false;
                     }

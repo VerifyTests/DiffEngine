@@ -117,20 +117,19 @@ public static class CsStringLiteral
             return false;
         }
 
+        if (verbatim)
+        {
+            // Asked before the quote run is measured, because there is no verbatim raw form: a
+            // run of quotes after @" is an escaped quote and the start of the content, not a
+            // delimiter. Measuring first read @"""x""" as a raw string that happened to carry an
+            // @, and rejected a literal C# is perfectly happy with
+            return StringLiteral.TryScanVerbatim(text, index + 1, out value, out end);
+        }
+
         var quotes = StringLiteral.QuoteRunLength(text, index);
         if (quotes >= 3)
         {
-            if (verbatim)
-            {
-                return false;
-            }
-
             return StringLiteral.TryScanMultiLine(text, index, quotes, out value, out end);
-        }
-
-        if (verbatim)
-        {
-            return StringLiteral.TryScanVerbatim(text, index + 1, out value, out end);
         }
 
         if (quotes == 2)
@@ -241,7 +240,7 @@ public static class CsStringLiteral
                         return false;
                     }
 
-                    if (codePoint > 0x10FFFF)
+                    if (!StringLiteral.IsScalarValue(codePoint))
                     {
                         return false;
                     }

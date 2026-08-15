@@ -320,6 +320,20 @@ static class StringLiteral
         return false;
     }
 
+    /// <summary>
+    /// Whether a code point is one a string can hold: inside the Unicode range, and not half of a
+    /// surrogate pair written on its own.
+    /// <para>
+    /// Asked ahead of <see cref="char.ConvertFromUtf32(int)" />, which throws on either. A parse
+    /// that throws is not a parse that failed: callers handle false, and between here and the
+    /// process hosting the queue nothing catches. Source holding one of these does not compile, so
+    /// the answer being looked for is that this is not a literal that can be read.
+    /// </para>
+    /// </summary>
+    public static bool IsScalarValue(uint codePoint) =>
+        codePoint <= 0x10FFFF &&
+        codePoint is < 0xD800 or > 0xDFFF;
+
     public static bool TryReadHex(string text, ref int index, int min, int max, out uint result)
     {
         result = 0;
