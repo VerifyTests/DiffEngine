@@ -35,11 +35,6 @@ public static class InlineApplier
             return InlineApplyResult.Failed($"Invalid InlinePatch.SourceFile: {patch.SourceFile}", exception);
         }
 
-        if (!File.Exists(fullPath))
-        {
-            return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
-        }
-
         var newContent = SourceLanguage.NormalizeNewlines(patch.NewContent);
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
@@ -76,6 +71,15 @@ public static class InlineApplier
 
     static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent)
     {
+        // Asked here rather than before the lock, because the swap at the end of this method takes
+        // the path away for the instant it takes to rename over it. Asked outside, an applier
+        // waiting its turn on a file another one was finishing with saw the file as missing and
+        // reported it, which is neither true nor the sort of thing a retry was going to fix
+        if (!File.Exists(fullPath))
+        {
+            return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
+        }
+
         byte[] bytes;
         try
         {
@@ -139,7 +143,7 @@ public static class InlineApplier
                 output = content;
             }
 
-            File.WriteAllBytes(fullPath, output);
+            WriteThroughTemporary(fullPath, output);
         }
         catch (Exception exception)
         {
@@ -147,6 +151,53 @@ public static class InlineApplier
         }
 
         return InlineApplyResult.Applied;
+    }
+
+    /// <summary>
+    /// Writes the patched source through a temporary file beside it and swaps that in, so the file
+    /// on disk is either what it was or what the patch made it and never half of either.
+    /// <para>
+    /// Writing in place truncates the file first and fills it back in, which leaves a window where
+    /// a killed process or a full disk costs the caller the rest of their source file. The mutex
+    /// above keeps two appliers apart but says nothing about a process that stops partway. Every
+    /// other care taken here - strict decoders, the BOM round trip, refusing a file that will not
+    /// decode - is because the whole file is rewritten rather than the patched span, and the write
+    /// itself was the step that could still lose it.
+    /// </para>
+    /// <para>
+    /// The temporary is a sibling so the swap stays on one volume, where it is a rename rather
+    /// than a copy. Replace rather than a move that overwrites, because it keeps the attributes
+    /// the destination already had, and because the overwriting move does not exist on every
+    /// framework this targets.
+    /// </para>
+    /// </summary>
+    static void WriteThroughTemporary(string fullPath, byte[] output)
+    {
+        var directory = Path.GetDirectoryName(fullPath)!;
+        // Named after the file it replaces, so anything left by a process that died between the
+        // write and the swap says what it was for. The extension keeps it out of a *.cs glob
+        var temporary = Path.Combine(directory, $"{Path.GetFileName(fullPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllBytes(temporary, output);
+            File.Replace(temporary, fullPath, null);
+        }
+        finally
+        {
+            // Replace consumed it. Anything still there is this method's litter, and failing an
+            // applied patch over a temporary file that could not be deleted helps nobody
+            try
+            {
+                if (File.Exists(temporary))
+                {
+                    File.Delete(temporary);
+                }
+            }
+            catch (Exception exception)
+                when (exception is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     /// <summary>

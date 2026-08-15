@@ -1,9 +1,17 @@
-﻿public class InlineApplierTests
+public class InlineApplierTests
 {
     static string WriteTemp(byte[] bytes, string extension = ".cs")
     {
         var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}{extension}");
         File.WriteAllBytes(path, bytes);
+        return path;
+    }
+
+    // A directory of its own, for the tests that are about what is left in one
+    static string NewDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(path);
         return path;
     }
 
@@ -92,6 +100,146 @@
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    // The swap goes through a sibling temporary. It is gone by the time the patch is applied,
+    // whatever else is true, because a stray file in a source directory is the caller's problem
+    [Test]
+    public async Task LeavesNoTemporaryBehind()
+    {
+        var directory = NewDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "Sample.cs");
+            File.WriteAllBytes(path, Utf8(source, bom: false));
+
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([path]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    // Writing in place truncates first, so a reader - or a process that stops partway, which is
+    // the case this stands in for - could see a file with its tail missing. Reading alongside the
+    // apply can only fail when that window is real, so it never goes red on timing alone
+    [Test]
+    public async Task ContentIsNeverObservedHalfWritten()
+    {
+        var padding = string.Join("\n", Enumerable.Repeat("    // padding, to widen the window a truncating write would open", 30000));
+        var text = $"class C\n{{\n    void M() => Verify(value).Snapshot(\"old\");\n{padding}\n}}";
+        var directory = NewDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "Big.cs");
+            File.WriteAllBytes(path, Utf8(text, bom: false));
+            var before = new FileInfo(path).Length;
+
+            using var cancellation = new CancellationTokenSource();
+            var seen = new ConcurrentDictionary<long, byte>();
+            var reader = Task.Run(
+                () =>
+                {
+                    while (!cancellation.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            // Shared every way, so watching the file never blocks the write being
+                            // watched. Holding it any other way tests which of the two wins the
+                            // file rather than what a reader of it sees
+                            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                            seen.TryAdd(stream.Length, 0);
+                        }
+                        catch (Exception exception)
+                            when (exception is IOException or UnauthorizedAccessException)
+                        {
+                            // The swap is in flight. Not an observation of the content
+                        }
+                    }
+                });
+
+            // Long enough that the two whole files differ in length, which is what makes a
+            // half written one tell itself apart
+            var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "a replacement longer than what it replaces"));
+            cancellation.Cancel();
+            await reader;
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            var after = new FileInfo(path).Length;
+            await Assert.That(after).IsNotEqualTo(before);
+
+            var partial = seen.Keys.Where(_ => _ != before && _ != after).ToList();
+            await Assert.That(partial).IsEmpty();
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    // Swapping the file in takes the path away for the instant it takes to rename over it. An
+    // applier waiting its turn must not read that as a file that is not there, which is what
+    // asking before taking the lock did
+    [Test]
+    public async Task ConcurrentAppliesNeverReportAMissingFile()
+    {
+        const int writers = 4;
+        const int rounds = 60;
+        var directory = NewDirectory();
+        try
+        {
+            // A snapshot each, flipped back and forth, so every apply is a real write and the
+            // file is swapped out from under the others hundreds of times. The window this is
+            // about is microseconds wide and no arrangement here reproduces it on demand - it
+            // showed up as ParallelAppliesToSameFile going red under the load of the rest of this
+            // class. What is pinned is the contract: contended appliers all get their write, and
+            // none of them reports the file as gone
+            var methods = Enumerable.Range(0, writers)
+                .Select(_ => $"    void M{_}() => Verify(v).Snapshot(\"a{_}\");");
+            var path = Path.Combine(directory, "Contended.cs");
+            File.WriteAllBytes(path, Utf8($"class C\n{{\n{string.Join("\n", methods)}\n}}", bom: false));
+
+            var results = await Task.WhenAll(
+                Enumerable
+                    .Range(0, writers)
+                    .Select(
+                        index => Task.Run(
+                            () =>
+                            {
+                                var outcomes = new List<InlineApplyResult>();
+                                for (var round = 0; round < rounds; round++)
+                                {
+                                    var (from, to) = round % 2 == 0
+                                        ? ($"a{index}", $"b{index}")
+                                        : ($"b{index}", $"a{index}");
+                                    outcomes.Add(InlineApplier.Apply(Patch(path, index + 3, $"\"{from}\"", to)));
+                                }
+
+                                return outcomes;
+                            })));
+
+            var failures = results
+                .SelectMany(_ => _)
+                .Where(_ => _.Status == InlineApplyStatus.Failed)
+                .Select(_ => _.Message)
+                .ToList();
+            await Assert.That(failures).IsEmpty();
+
+            // And none of them lost another's line along the way
+            var text = await File.ReadAllTextAsync(path);
+            for (var index = 0; index < writers; index++)
+            {
+                await Assert.That(text).Contains($"void M{index}()");
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
         }
     }
 
