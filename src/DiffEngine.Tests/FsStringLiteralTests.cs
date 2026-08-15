@@ -24,56 +24,70 @@ public class FsStringLiteralTests
         "emoji 🎈 and unicode ☂",
         "line1\n    indented\nline3",
         "back\\slash\nsecond",
-        "tab\there\nsecond"
+        "tab\there\nsecond",
+        "{\n  \"name\": \"value\"\n}"
     ];
 
-    // Content is verbatim, so it starts on the delimiter's line and stays at the left margin
+    // The same shape C# writes: the content indented under the call, with the first line and the
+    // closing delimiter's indentation there to be taken back off
     [Test]
     public async Task RenderMultiLine()
     {
-        var rendered = FsStringLiteral.RenderMultiLine("a\nb", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"a\nb\"\"\"");
+        var rendered = FsStringLiteral.Render("line one\nline two", "    ", "\n");
+        await Assert.That(rendered).IsEqualTo("\"\"\"\n    line one\n    line two\n    \"\"\"");
     }
 
     [Test]
-    public async Task RenderMultiLineIndentIsContent()
+    public async Task RenderMultiLineMatchesCSharp()
     {
-        var rendered = FsStringLiteral.RenderMultiLine("a\n    indented\nb", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"a\n    indented\nb\"\"\"");
+        foreach (var content in renderRoundTripCases)
+        {
+            if (content.IndexOf('\n') == -1 ||
+                content.Contains("\"\"\"") ||
+                content.StartsWith('"') ||
+                content.EndsWith('"'))
+            {
+                continue;
+            }
+
+            var fsharp = FsStringLiteral.Render(content, "    ", "\n");
+            var csharp = CsStringLiteral.Render(content, "    ", "\n");
+            await Assert.That(fsharp).IsEqualTo(csharp);
+        }
     }
 
     [Test]
-    public async Task RenderEmpty()
+    public async Task RenderBlankLineHasNoTrailingWhitespace()
     {
-        var rendered = FsStringLiteral.RenderMultiLine("", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"");
+        var rendered = FsStringLiteral.Render("a\n\nb", "    ", "\n");
+        await Assert.That(rendered).IsEqualTo("\"\"\"\n    a\n\n    b\n    \"\"\"");
     }
 
     [Test]
     public async Task RenderCrlf()
     {
-        var rendered = FsStringLiteral.RenderMultiLine("a\nb", "\r\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"a\r\nb\"\"\"");
+        var rendered = FsStringLiteral.Render("a\nb", "\t", "\r\n");
+        await Assert.That(rendered).IsEqualTo("\"\"\"\r\n\ta\r\n\tb\r\n\t\"\"\"");
     }
 
-    // F# cannot widen a triple-quoted delimiter, so content that runs into one takes the
-    // verbatim form instead
+    // F# cannot widen a delimiter the way C# can, so content that runs into one has no multi-line
+    // form at all and takes a regular literal on one line
     [Test]
-    [Arguments("has \"\"\" inside\nsecond", "@\"has \"\"\"\"\"\" inside\nsecond\"")]
-    [Arguments("\"starts with a quote\nsecond", "@\"\"\"starts with a quote\nsecond\"")]
-    [Arguments("ends with a quote\nsecond\"", "@\"ends with a quote\nsecond\"\"\"")]
-    public async Task RenderMultiLineFallsBackToVerbatim(string content, string expected)
+    [Arguments("has \"\"\" inside\nsecond", "\"has \\\"\\\"\\\" inside\\nsecond\"")]
+    [Arguments("\"starts with a quote\nsecond", "\"\\\"starts with a quote\\nsecond\"")]
+    [Arguments("ends with a quote\nsecond\"", "\"ends with a quote\\nsecond\\\"\"")]
+    public async Task RenderFallsBackWhenTheDelimiterCannotHoldIt(string content, string expected)
     {
-        var rendered = FsStringLiteral.RenderMultiLine(content, "\n");
+        var rendered = FsStringLiteral.Render(content, "    ", "\n");
         await Assert.That(rendered).IsEqualTo(expected);
     }
 
     // A single quote in the middle is no problem for the triple-quoted form
     [Test]
-    public async Task RenderMultiLineKeepsQuotesInTheMiddle()
+    public async Task RenderKeepsQuotesInTheMiddle()
     {
-        var rendered = FsStringLiteral.RenderMultiLine("a \"quoted\" word\nsecond", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"a \"quoted\" word\nsecond\"\"\"");
+        var rendered = FsStringLiteral.Render("a \"quoted\" word\nsecond", "    ", "\n");
+        await Assert.That(rendered).IsEqualTo("\"\"\"\n    a \"quoted\" word\n    second\n    \"\"\"");
     }
 
     [Test]
@@ -86,27 +100,12 @@ public class FsStringLiteralTests
         var normalized = content.Replace("\r\n", "\n").Replace('\r', '\n');
         foreach (var eol in new[] { "\n", "\r\n" })
         {
-            var rendered = FsStringLiteral.RenderMultiLine(content, eol);
-            await Assert.That(rendered).IsEqualTo(FsStringLiteral.RenderMultiLine(normalized, eol));
+            var rendered = FsStringLiteral.Render(content, "    ", eol);
+            await Assert.That(rendered).IsEqualTo(FsStringLiteral.Render(normalized, "    ", eol));
 
             var parsed = FsStringLiteral.TryParse(rendered, out var value);
             await Assert.That(parsed).IsTrue();
             await Assert.That(value).IsEqualTo(normalized);
-        }
-    }
-
-    [Test]
-    public async Task RenderRoundTrips()
-    {
-        foreach (var content in renderRoundTripCases)
-        {
-            foreach (var eol in new[] { "\n", "\r\n" })
-            {
-                var rendered = FsStringLiteral.RenderMultiLine(content, eol);
-                var parsed = FsStringLiteral.TryParse(rendered, out var value);
-                await Assert.That(parsed).IsTrue();
-                await Assert.That(value).IsEqualTo(content);
-            }
         }
     }
 
@@ -130,57 +129,13 @@ public class FsStringLiteralTests
     }
 
     [Test]
-    [Arguments("a\nb")]
-    [Arguments("a\rb")]
-    [Arguments("a\r\nb")]
-    [Arguments("\nabc")]
-    [Arguments("abc\n")]
-    public async Task RenderMultiLineIsVerbatim(string content)
-    {
-        var rendered = FsStringLiteral.Render(content, "", "\n");
-        await Assert.That(rendered).IsEqualTo(FsStringLiteral.RenderMultiLine(content, "\n"));
-    }
-
-    // The closing delimiter lands left of the column the statement started in, which F# reads as
-    // the end of the statement rather than as part of it. One source line instead
-    [Test]
-    [Arguments("abc\n", "\"abc\\n\"")]
-    [Arguments("a\nb", "\"a\\nb\"")]
-    [Arguments("has \"quotes\" and a \\\nx", "\"has \\\"quotes\\\" and a \\\\\\nx\"")]
-    public async Task RenderMultiLineFallsBackWhenItWouldBreakTheLayout(string content, string expected)
-    {
-        var rendered = FsStringLiteral.Render(content, "        ", "\n");
-        await Assert.That(rendered).IsEqualTo(expected);
-    }
-
-    // The last line reaches the splice column, so the verbatim form stands
-    [Test]
-    public async Task RenderMultiLineKeptWhenTheLastLineIsLongEnough()
-    {
-        var rendered = FsStringLiteral.Render("first\nlong enough", "        ", "\n");
-        await Assert.That(rendered).IsEqualTo("\"\"\"first\nlong enough\"\"\"");
-    }
-
-    [Test]
-    [Arguments("first\nabcde", "        ", true)]
-    [Arguments("first\nabcd", "        ", false)]
-    [Arguments("first\na", "    ", true)]
-    [Arguments("first\n", "    ", false)]
-    [Arguments("first\n", "", true)]
-    public async Task ClearsOffsideLine(string content, string indent, bool expected)
-    {
-        var rendered = FsStringLiteral.RenderMultiLine(content, "\n");
-        await Assert.That(FsStringLiteral.ClearsOffsideLine(rendered, indent)).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async Task RenderRoundTripsWhicheverFormItPicks()
+    public async Task RenderRoundTrips()
     {
         foreach (var content in renderRoundTripCases)
         {
             foreach (var eol in new[] { "\n", "\r\n" })
             {
-                foreach (var indent in new[] { "", "    ", "            " })
+                foreach (var indent in new[] { "", "    ", "        " })
                 {
                     var rendered = FsStringLiteral.Render(content, indent, eol);
                     var parsed = FsStringLiteral.TryParse(rendered, out var value);
@@ -190,6 +145,47 @@ public class FsStringLiteralTests
             }
         }
     }
+
+    // What F# hands over for a rendered literal is the source text between the delimiters, so the
+    // convention has to give the content back
+    [Test]
+    public async Task StripLayoutIsTheInverseOfRender()
+    {
+        foreach (var content in renderRoundTripCases)
+        {
+            foreach (var indent in new[] { "", "    ", "        " })
+            {
+                var rendered = FsStringLiteral.Render(content, indent, "\n");
+                // What the F# compiler produces: everything between the delimiters, verbatim
+                if (!rendered.StartsWith("\"\"\""))
+                {
+                    continue;
+                }
+
+                var compilerValue = rendered.Substring(3, rendered.Length - 6);
+                await Assert.That(FsStringLiteral.StripLayout(compilerValue)).IsEqualTo(content);
+            }
+        }
+    }
+
+    [Test]
+    public async Task StripLayout() =>
+        await Assert.That(FsStringLiteral.StripLayout("\n    line one\n    line two\n    ")).IsEqualTo("line one\nline two");
+
+    // A blank line before the closing delimiter is how content ending in a newline is written
+    [Test]
+    public async Task StripLayoutTrailingNewline() =>
+        await Assert.That(FsStringLiteral.StripLayout("\n    line one\n\n    ")).IsEqualTo("line one\n");
+
+    // Anything not in that shape is its own value: a single line, or a literal written some other
+    // way, or a snapshot that only looks like layout
+    [Test]
+    [Arguments("the value")]
+    [Arguments("line one\nline two")]
+    [Arguments("\n    line one\n    not the indent")]
+    [Arguments("")]
+    public async Task StripLayoutLeavesOtherValuesAlone(string value) =>
+        await Assert.That(FsStringLiteral.StripLayout(value)).IsEqualTo(value);
 
     [Test]
     [Arguments("\"a\"", "a")]
@@ -206,6 +202,7 @@ public class FsStringLiteralTests
     [Arguments("@\"\"", "")]
     // Verbatim has no triple-quoted form: the run after @" is an escaped quote
     [Arguments("@\"\"\"abc\"\"\"", "\"abc\"")]
+    // Single line triple-quoted content is verbatim, with no layout to take off
     [Arguments("\"\"\"a\"b\"\"\"", "a\"b")]
     // Ordinary F# strings may span lines
     [Arguments("\"a\nb\"", "a\nb")]
@@ -214,6 +211,15 @@ public class FsStringLiteralTests
         var parsed = FsStringLiteral.TryParse(expression, out var value);
         await Assert.That(parsed).IsTrue();
         await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task ParseMultiLineTakesTheLayoutOff()
+    {
+        var expression = "\"\"\"\n      a\n\n      b\n      \"\"\"";
+        var parsed = FsStringLiteral.TryParse(expression, out var value);
+        await Assert.That(parsed).IsTrue();
+        await Assert.That(value).IsEqualTo("a\n\nb");
     }
 
     // A backslash before a line break drops the break and the indentation that follows it
@@ -231,17 +237,6 @@ public class FsStringLiteralTests
         var parsed = FsStringLiteral.TryParse("@\"a\r\nb\"", out var value);
         await Assert.That(parsed).IsTrue();
         await Assert.That(value).IsEqualTo("a\nb");
-    }
-
-    // Where C# would drop the first line and strip the closing delimiter's indent, F# keeps
-    // every character between the delimiters
-    [Test]
-    public async Task ParseTripleQuotedIsVerbatim()
-    {
-        var expression = "\"\"\"\n      a\n\n      b\n      \"\"\"";
-        var parsed = FsStringLiteral.TryParse(expression, out var value);
-        await Assert.That(parsed).IsTrue();
-        await Assert.That(value).IsEqualTo("\n      a\n\n      b\n      ");
     }
 
     [Test]
@@ -263,6 +258,15 @@ public class FsStringLiteralTests
     public async Task ParseRejects(string expression)
     {
         var parsed = FsStringLiteral.TryParse(expression, out _);
+        await Assert.That(parsed).IsFalse();
+    }
+
+    // The indent is stripped by ordinal prefix, so a content line less indented than the closing
+    // delimiter is not something this can read
+    [Test]
+    public async Task ParseRejectsMalformedIndent()
+    {
+        var parsed = FsStringLiteral.TryParse("\"\"\"\n  a\n      \"\"\"", out _);
         await Assert.That(parsed).IsFalse();
     }
 }

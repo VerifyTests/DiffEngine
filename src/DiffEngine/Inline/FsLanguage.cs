@@ -13,20 +13,15 @@ sealed class FsLanguage : SourceLanguage
     public override string Render(string content, string indent, string eol) =>
         FsStringLiteral.Render(content, indent, eol);
 
+    public override string SnapshotValue(string literalValue) =>
+        FsStringLiteral.StripLayout(literalValue);
+
     public override bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
         FsStringLiteral.TryParse(expression, out value);
 
     internal override string NamePrefix(string name) => $"{name} = ";
 
     internal override char NameSeparator => '=';
-
-    /// <summary>
-    /// The content of a multi-line literal is verbatim, so it starts hard against the opening
-    /// delimiter and there is nothing to be gained by giving that delimiter a line of its own.
-    /// Moving it down a line would also move the closing delimiter left, which is the one thing
-    /// <see cref="FsStringLiteral.ClearsOffsideLine"/> exists to stop.
-    /// </summary>
-    internal override bool LiteralOnOwnLine => false;
 
     /// <summary>
     /// F# does not apply the implicit conversion that lets a SettingsTask be awaited, so an F#

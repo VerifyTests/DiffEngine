@@ -6,6 +6,12 @@ sealed class CsLanguage : SourceLanguage
     public override string Render(string content, string indent, string eol) =>
         CsStringLiteral.Render(content, indent, eol);
 
+    /// <summary>
+    /// The compiler already did it: a raw string arrives with its first line and its closing
+    /// indentation gone.
+    /// </summary>
+    public override string SnapshotValue(string literalValue) => literalValue;
+
     public override bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
         CsStringLiteral.TryParse(expression, out value);
 

@@ -38,13 +38,20 @@ public abstract class SourceLanguage
     /// language.
     /// </summary>
     /// <param name="content">Snapshot text with \n newlines.</param>
-    /// <param name="indent">
-    /// The indentation of the line the literal will start on. A prefix for the content lines where
-    /// the multi-line form indents them (C#), and a floor the result has to clear where it cannot
-    /// (F#, whose content is verbatim - see <see cref="FsStringLiteral.ClearsOffsideLine"/>).
-    /// </param>
+    /// <param name="indent">Whitespace prefix for the content lines of a multi-line literal.</param>
     /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
     public abstract string Render(string content, string indent, string eol);
+
+    /// <summary>
+    /// The snapshot an expected argument holds, given the value the compiler produced for it.
+    /// <para>
+    /// The identity for C#, whose compiler has already taken the layout off a raw string, and the
+    /// place F# pays for not having one: see <see cref="FsStringLiteral"/>. A test library
+    /// comparing an expected argument goes through this rather than branching on the language
+    /// itself.
+    /// </para>
+    /// </summary>
+    public abstract string SnapshotValue(string literalValue);
 
     /// <summary>
     /// Parses a string literal expression back to its runtime value. Returns false for
@@ -77,25 +84,6 @@ public abstract class SourceLanguage
     /// The character that follows an argument name.
     /// </summary>
     internal abstract char NameSeparator { get; }
-
-    /// <summary>
-    /// Whether a multi-line literal goes on the line below the open paren. True where the literal's
-    /// opening delimiter has content to line up with, and false where the content is verbatim and
-    /// so has to start hard against the delimiter.
-    /// </summary>
-    internal virtual bool LiteralOnOwnLine => true;
-
-    /// <summary>
-    /// Which indentation <see cref="Render"/> is given, out of the two the call site has: the line
-    /// a literal of its own would sit on, or the statement the literal ends up inside.
-    /// <para>
-    /// A language that indents its literal is told where to indent it to. One that cannot is told
-    /// what its result has to clear, which is the statement's indentation rather than the line's,
-    /// because that is the column F#'s layout rule is measured from.
-    /// </para>
-    /// </summary>
-    internal string IndentFor(string statementIndent, string ownLineIndent) =>
-        LiteralOnOwnLine ? ownLineIndent : statementIndent;
 
     /// <summary>
     /// A chained call that a Snapshot call has to be appended in front of rather than after, or

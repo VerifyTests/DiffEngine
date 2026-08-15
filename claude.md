@@ -80,7 +80,9 @@ fills a `SourceScan`, what tells a declaration from a call, and how a literal is
 back. F# is the awkward one, because it has no raw string: triple-quoted content is verbatim, so a
 multi-line snapshot is written at the left margin, and its last line then decides the column of
 everything after the literal. Where that would land left of the statement, F#'s offside rule stops
-the file compiling, so the render falls back to a one-line escaped literal. That rule is asserted
+the file compiling, so the render falls back to a one-line escaped literal — unless nothing follows
+the literal on its line, which is the shape a formatter writes and where the rule cannot bite. That
+rule is asserted
 by compiling patched source with `dotnet fsi` (`FsCompilerRoundTripTests`), because a belief about
 F#'s lexis is exactly the kind of thing a second copy of the same belief cannot check.
 

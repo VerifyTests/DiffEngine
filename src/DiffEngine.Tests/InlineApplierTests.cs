@@ -257,7 +257,7 @@
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(
-                "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\"\"a\nb\"\"\").ToTask()\n");
+                "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\n        \"\"\"\n        a\n        b\n        \"\"\").ToTask()\n");
         }
         finally
         {

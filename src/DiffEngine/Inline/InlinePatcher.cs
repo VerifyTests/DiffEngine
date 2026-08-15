@@ -193,10 +193,7 @@ static class InlinePatcher
             }
 
             var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart, fileUnit);
-            var namedRendered = scan.Language.Render(
-                newContent,
-                scan.Language.IndentFor(LeadingWhitespace(source, lineStarts, expected.ListStart), namedIndent),
-                eol);
+            var namedRendered = scan.Language.Render(newContent, namedIndent, eol);
             newSource = Splice(source, expected.ListStart, expected.ListStart, $"{scan.Language.NamePrefix(parameterName)}{namedRendered}, ");
             return PatchStatus.Applied;
         }
@@ -352,8 +349,8 @@ static class InlinePatcher
             ? statementIndent + unit
             : LeadingWhitespace(source, lineStarts, insertAt - 1);
         var contentIndent = callIndent + unit;
-        var rendered = scan.Language.Render(newContent, scan.Language.IndentFor(statementIndent, contentIndent), eol);
-        var argument = OnOwnLine(scan.Language, rendered, contentIndent, eol);
+        var rendered = scan.Language.Render(newContent, contentIndent, eol);
+        var argument = OnOwnLine(rendered, contentIndent, eol);
         newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
         return PatchStatus.Applied;
     }
@@ -878,25 +875,22 @@ static class InlinePatcher
     static string RenderArgument(SourceLanguage language, string source, List<int> lineStarts, int spanStart, string newContent, string eol, string fileUnit)
     {
         var indent = IndentForSpan(source, lineStarts, spanStart, fileUnit);
-        var rendered = language.Render(newContent, language.IndentFor(LeadingWhitespace(source, lineStarts, spanStart), indent), eol);
+        var rendered = language.Render(newContent, indent, eol);
         if (StartsLine(source, lineStarts, spanStart))
         {
             return rendered;
         }
 
-        return OnOwnLine(language, rendered, indent, eol);
+        return OnOwnLine(rendered, indent, eol);
     }
 
     /// <summary>
-    /// Puts a raw literal on its own line rather than trailing the open paren, so its opening
-    /// delimiter sits with its content and its closing one. A regular literal stays where it is,
-    /// since it has nothing to line up with, and so does every literal in a language whose
-    /// multi-line form carries its first line of content on the delimiter's line.
+    /// Puts a multi-line literal on its own line rather than trailing the open paren, so its
+    /// opening delimiter sits with its content and its closing one. A regular literal stays where
+    /// it is, since it has nothing to line up with.
     /// </summary>
-    static string OnOwnLine(SourceLanguage language, string rendered, string indent, string eol) =>
-        !language.LiteralOnOwnLine || rendered.IndexOf('\n') == -1
-            ? rendered
-            : $"{eol}{indent}{rendered}";
+    static string OnOwnLine(string rendered, string indent, string eol) =>
+        rendered.IndexOf('\n') == -1 ? rendered : $"{eol}{indent}{rendered}";
 
     /// <summary>
     /// True when only whitespace precedes the offset on its line.

@@ -82,11 +82,36 @@ public class FsCompilerRoundTripTests
 
             let mutable failures = 0
 
-            let check (name: string) (actual: string) (expectedBase64: string) =
+            // The reader's half of the convention, written out in F# rather than called into
+            // DiffEngine: what a test library has to do with what the compiler handed it, and the
+            // only way this checks the agreement rather than one side of it twice
+            let strip (value: string) =
+                let normalized = value.Replace("\r\n", "\n")
+                let lines = normalized.Split('\n')
+                if lines.Length < 2 then
+                    normalized
+                else
+                    let closeIndent = lines.[lines.Length - 1]
+                    let middle = lines.[1 .. lines.Length - 2]
+                    let malformed =
+                        middle
+                        |> Array.exists (fun line ->
+                            line.Length > 0 && not (line.StartsWith closeIndent) && line.Trim().Length > 0)
+                    if lines.[0].Trim().Length > 0 || closeIndent.Trim().Length > 0 || malformed then
+                        normalized
+                    else
+                        middle
+                        |> Array.map (fun line ->
+                            if line.StartsWith closeIndent then line.Substring closeIndent.Length else "")
+                        |> String.concat "\n"
+
+            let check (name: string) (literal: string) (expectedBase64: string) =
                 let expected = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String expectedBase64)
+                let actual = strip literal
                 if actual <> expected then
                     failures <- failures + 1
                     printfn "FAIL %s" name
+                    printfn "  literal  %A" literal
                     printfn "  actual   %A" actual
                     printfn "  expected %A" expected
 
@@ -124,6 +149,16 @@ public class FsCompilerRoundTripTests
                     InlinePatchMode.Set,
                     content));
             builder.Append($"check \"chain{index}\" (chain{index} ()) \"{expected}\"\n\n");
+
+            // The shape an F# formatter writes: the literal on its own line with the closing paren
+            // below it, where the verbatim form is kept whatever the content's last line is
+            builder.Append(
+                Patch(
+                    $"let formatted{index} () =\n    Verify(\"x\")\n        .Snapshot(\n            \"\"\"placeholder\"\"\"\n        )\n        .ToTask()\n",
+                    4,
+                    InlinePatchMode.Set,
+                    content));
+            builder.Append($"check \"formatted{index}\" (formatted{index} ()) \"{expected}\"\n\n");
         }
 
         builder.Append(

@@ -28,10 +28,10 @@ public class InlinePatcherFsTests
             Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask() |> Async.AwaitTask"));
     }
 
-    // The content of a triple-quoted literal is verbatim, so it starts on the delimiter's line
-    // and every line after it sits at the left margin. An indent would be snapshot content
+    // The same shape C# writes: the content indented under the call, with the first line and the
+    // closing delimiter's indentation there for the reader to take back off
     [Test]
-    public async Task MultiLineContentIsNotIndented()
+    public async Task MultiLineContentIsIndented()
     {
         var source = Test("    Verifier.Verify(15).Snapshot().ToTask() |> Async.AwaitTask");
 
@@ -39,13 +39,18 @@ public class InlinePatcherFsTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
-            Test("    Verifier.Verify(15).Snapshot(\"\"\"a\nb\"\"\").ToTask() |> Async.AwaitTask"));
+            Test(
+                "    Verifier.Verify(15).Snapshot(\n" +
+                "        \"\"\"\n" +
+                "        a\n" +
+                "        b\n" +
+                "        \"\"\").ToTask() |> Async.AwaitTask"));
     }
 
-    // The closing delimiter would land at column 0..2, left of the statement, and F# reads that as
-    // the end of the statement rather than as part of it. One source line instead
+    // Content ending in a newline is a blank line before the closing delimiter, which is what
+    // stops the layout being ambiguous with content that does not
     [Test]
-    public async Task ContentEndingInANewlineTakesTheEscapedForm()
+    public async Task ContentEndingInANewline()
     {
         var source = Test("    Verifier.Verify(15).Snapshot().ToTask() |> Async.AwaitTask");
 
@@ -53,12 +58,19 @@ public class InlinePatcherFsTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
-            Test("    Verifier.Verify(15).Snapshot(\"a\\nb\\n\").ToTask() |> Async.AwaitTask"));
+            Test(
+                "    Verifier.Verify(15).Snapshot(\n" +
+                "        \"\"\"\n" +
+                "        a\n" +
+                "        b\n" +
+                "\n" +
+                "        \"\"\").ToTask() |> Async.AwaitTask"));
     }
 
-    // Same content, deeper call site: the last line no longer reaches the statement's column
+    // Nothing about the call site changes the form any more: the literal is indented wherever it
+    // lands, so a deeper one only indents further
     [Test]
-    public async Task DeepCallSiteTakesTheEscapedForm()
+    public async Task DeepCallSiteIndentsFurther()
     {
         var source = Test(
             "    let inner () =\n" +
@@ -68,19 +80,34 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 6, InlinePatchMode.Set, null, "a\nb", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(\"a\\nb\").ToTask()");
+        await Assert.That(newSource).Contains(
+            "        Verifier.Verify(15).Snapshot(\n" +
+            "            \"\"\"\n" +
+            "            a\n" +
+            "            b\n" +
+            "            \"\"\").ToTask()");
     }
 
     [Test]
     public async Task ReplaceTripleQuotedLiteral()
     {
-        var source = Test("    Verifier.Verify(15).Snapshot(\"\"\"old1\nold2\"\"\").ToTask() |> Async.AwaitTask");
+        var literal =
+            "\"\"\"\n" +
+            "        old1\n" +
+            "        old2\n" +
+            "        \"\"\"";
+        var source = Test("    Verifier.Verify(15).Snapshot(" + literal + ").ToTask() |> Async.AwaitTask");
 
-        var status = TryApply(source, 5, InlinePatchMode.Set, "\"\"\"old1\nold2\"\"\"", "new1\nnew2", out var newSource, out _);
+        var status = TryApply(source, 5, InlinePatchMode.Set, literal, "new1\nnew2", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
-            Test("    Verifier.Verify(15).Snapshot(\"\"\"new1\nnew2\"\"\").ToTask() |> Async.AwaitTask"));
+            Test(
+                "    Verifier.Verify(15).Snapshot(\n" +
+                "        \"\"\"\n" +
+                "        new1\n" +
+                "        new2\n" +
+                "        \"\"\").ToTask() |> Async.AwaitTask"));
     }
 
     [Test]
@@ -91,7 +118,7 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(\"\"\"a\r\nb\"\"\")");
+        await Assert.That(newSource).Contains("Snapshot(\r\n        \"\"\"\r\n        a\r\n        b\r\n        \"\"\")");
         await Assert.That(newSource).DoesNotContain("a\nb");
     }
 
@@ -180,12 +207,18 @@ public class InlinePatcherFsTests
     [Test]
     public async Task ValueAnchorAcrossAMultiLineLiteral()
     {
-        var source = Test("    Verifier.Verify(15).Snapshot(\"\"\"old1\nold2\"\"\").ToTask()");
+        var source = Test(
+            "    Verifier.Verify(15).Snapshot(\n" +
+            "        \"\"\"\n" +
+            "        old1\n" +
+            "        old2\n" +
+            "        \"\"\").ToTask()");
 
         var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "old1\nold2");
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
-        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+        // The old literal started its own line, so the new one keeps that line
+        await Assert.That(newSource).Contains("Snapshot(\n        \"new\").ToTask()");
     }
 
     static string TwoTests(string literalA, string literalB) =>
@@ -344,7 +377,11 @@ public class InlinePatcherFsTests
         await Assert.That(newSource).IsEqualTo(
             Test(
                 "    Verifier.Verify(15)\n" +
-                "        .Snapshot(\"\"\"a\nb\"\"\").ToTask()"));
+                "        .Snapshot(\n" +
+                "            \"\"\"\n" +
+                "            a\n" +
+                "            b\n" +
+                "            \"\"\").ToTask()"));
     }
 
     [Test]

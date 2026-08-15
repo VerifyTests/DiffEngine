@@ -149,7 +149,8 @@ Verifier.Verify(value)
 
 // multi-line content
 Verifier.Verify(value)
-    .Snapshot("""line one
+    .Snapshot(
+"""line one
 line two""")
     .ToTask()
 ```
@@ -158,6 +159,19 @@ Writing content at the left margin has a consequence: the content's last line de
 
 ```fsharp
 Verifier.Verify(value).Snapshot("line one\nline two\n").ToTask()
+```
+
+That measurement is about what follows the literal *on its line*. A call split across lines leaves nothing there — the closing paren is below it, at a column the file already chose — and then the verbatim form stands however short the content's last line is. This is the shape Fantomas writes whenever a snapshot spans lines, so a formatted file keeps `"""` in the cases a single-line call would have escaped, and the patched result is already canonical: running the formatter over it changes nothing.
+
+```fsharp
+Verifier
+    .Verify(value)
+    .Snapshot(
+        """line one
+line two
+"""
+    )
+    .ToTask()
 ```
 
 There is also no way to widen the delimiter, so content that would run into it — content containing `"""`, or starting or ending with a quote — takes the verbatim form instead (`@"..."`, quotes doubled). Single line content is always a regular literal, escaping what F# escapes (`\` `"` `\a` `\b` `\f` `\t` `\v` `\n` `\r`) and `\uXXXX` for the rest, since F# has no `\0` or `\e`.

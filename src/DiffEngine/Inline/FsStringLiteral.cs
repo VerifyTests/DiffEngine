@@ -1,164 +1,56 @@
 namespace DiffEngine;
 
 /// <summary>
-/// Renders snapshot text as an F# string literal, and parses F# string literal expressions back to
-/// their runtime values.
+/// Renders snapshot text as an F# string literal, and reads one back as the snapshot it holds.
 /// <para>
-/// The peer of <see cref="CsStringLiteral"/>, and its indent means something else entirely. F# has
-/// no raw string: a triple-quoted one is verbatim from the character after the opening delimiter
-/// to the one before the closing delimiter, with no first line dropped and no common indentation
-/// stripped, so an indent written into it would be snapshot content. Multi-line content is
-/// therefore written hard against the left margin, and the indent is a floor the result has to
-/// clear rather than a prefix to add.
+/// The peer of <see cref="CsStringLiteral"/>, and it writes the same shapes: one line for one
+/// line, and a triple-quoted literal with its content indented under the call otherwise. The
+/// difference is who takes the layout off. C# has raw strings, so its compiler drops the first
+/// line and the closing delimiter's indentation and hands the caller the snapshot. F# has no such
+/// form: a triple-quoted literal is verbatim, so what F# hands over still carries the line break
+/// after the opening delimiter and the indentation of every line.
+/// </para>
+/// <para>
+/// So that trimming is a convention between whoever writes the literal and whoever reads it, and
+/// this class is both ends of it: <see cref="Render"/> writes the shape and
+/// <see cref="SourceLanguage.SnapshotValue"/> takes it back off. A test library comparing an F#
+/// expected argument must go through that, or every F# snapshot differs from itself by an indent
+/// and never passes. The alternative was writing snapshots at the left margin, which F#'s offside
+/// rule then rejects for anything ending in a newline.
 /// </para>
 /// </summary>
 public static class FsStringLiteral
 {
     /// <summary>
     /// Renders <paramref name="content"/> (\n newlines) as an F# string literal expression: a
-    /// verbatim multi-line one where the layout allows it, and a regular literal - one source
-    /// line, newlines escaped - everywhere else.
+    /// regular literal when it is a single line, and an indented triple-quoted one otherwise.
     /// </summary>
     /// <param name="content">Snapshot text with \n newlines.</param>
-    /// <param name="indent">
-    /// The indentation the literal is being spliced at. Not a prefix: the column that whatever
-    /// follows the literal has to reach. See <see cref="ClearsOffsideLine"/>.
-    /// </param>
+    /// <param name="indent">Whitespace prefix for content lines and the closing delimiter.</param>
     /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
     public static string Render(string content, string indent, string eol)
     {
         if (content.IndexOf('\n') == -1 &&
             content.IndexOf('\r') == -1)
         {
-            return RenderRegular(content);
+            return StringLiteral.RenderRegular(content);
         }
 
-        var multiLine = RenderMultiLine(content, eol);
-        if (ClearsOffsideLine(multiLine, indent))
+        if (!CanTripleQuote(content))
         {
-            return multiLine;
+            // F# cannot widen a delimiter the way C# can (FS1232), so content that runs into one
+            // has no multi-line form at all. A regular literal on one source line always works,
+            // whatever it costs in escapes
+            return StringLiteral.RenderRegular(SourceLanguage.NormalizeNewlines(content));
         }
 
-        // No layout to break: one source line, whatever it costs in escapes
-        return RenderRegular(SourceLanguage.NormalizeNewlines(content));
+        return StringLiteral.RenderMultiLine(content, indent, eol, "\"\"\"");
     }
 
     /// <summary>
-    /// Whether a multi-line literal can be spliced at <paramref name="indent"/> without breaking
-    /// F#'s offside rule.
-    /// <para>
-    /// The content is verbatim, so its last line decides where the closing delimiter sits, and
-    /// therefore where the closing paren and any chained call after it sit. F# requires those to
-    /// be at or right of the column the statement started in, and a snapshot whose last line is
-    /// short - anything ending in a newline, for a start - puts them left of it. That is not a
-    /// formatting complaint: the file no longer compiles.
-    /// </para>
-    /// <para>
-    /// <paramref name="indent"/> is the splice site's indentation, which is at or right of the
-    /// statement's own, so measuring against it is the conservative side of the rule. Measured in
-    /// characters because F# rejects tabs in source outright (FS1161), which makes a column count
-    /// and a character count the same number.
-    /// </para>
-    /// </summary>
-    public static bool ClearsOffsideLine(string rendered, string indent) =>
-        rendered.Length - (rendered.LastIndexOf('\n') + 1) >= indent.Length;
-
-    /// <summary>
-    /// Renders content as a regular literal on one source line, escaping what the form cannot hold
-    /// verbatim - newlines included, which is what makes this the form that cannot break the
-    /// layout around it.
-    /// </summary>
-    static string RenderRegular(string content)
-    {
-        var builder = new StringBuilder(content.Length + 2);
-        builder.Append('"');
-        foreach (var ch in content)
-        {
-            switch (ch)
-            {
-                case '\\':
-                    builder.Append("\\\\");
-                    continue;
-                case '"':
-                    builder.Append("\\\"");
-                    continue;
-                case '\n':
-                    builder.Append("\\n");
-                    continue;
-                case '\r':
-                    builder.Append("\\r");
-                    continue;
-                case '\a':
-                    builder.Append("\\a");
-                    continue;
-                case '\b':
-                    builder.Append("\\b");
-                    continue;
-                case '\f':
-                    builder.Append("\\f");
-                    continue;
-                case '\t':
-                    builder.Append("\\t");
-                    continue;
-                case '\v':
-                    builder.Append("\\v");
-                    continue;
-            }
-
-            // Everything else a literal cannot carry as itself. F# has no \0 or \e escape, so the
-            // \u form covers every remaining control character rather than only the exotic ones
-            if (ch < ' ' || ch == '\u007f')
-            {
-                builder.Append("\\u");
-                builder.Append(((int) ch).ToString("x4"));
-                continue;
-            }
-
-            builder.Append(ch);
-        }
-
-        builder.Append('"');
-        return builder.ToString();
-    }
-
-    /// <summary>
-    /// Renders <paramref name="content"/> (\n newlines) as a multi-line literal. Triple-quoted
-    /// where it can be, since that form escapes nothing at all and so carries a snapshot as it
-    /// reads; verbatim where the content would collide with the delimiter.
-    /// <para>
-    /// The content lines are written as they are, with no indentation added: F# takes them
-    /// verbatim, so an indent would be snapshot content rather than layout.
-    /// </para>
-    /// </summary>
-    /// <param name="content">Snapshot text with \n newlines.</param>
-    /// <param name="eol">The target file's line ending ("\r\n" or "\n").</param>
-    public static string RenderMultiLine(string content, string eol)
-    {
-        if (content.Length == 0)
-        {
-            return "\"\"";
-        }
-
-        if (content.IndexOf('\r') != -1)
-        {
-            // Content is meant to arrive \n normalized. Be defensive: a stray \r would
-            // otherwise be emitted into the literal as content, corrupting the snapshot
-            content = SourceLanguage.NormalizeNewlines(content);
-        }
-
-        var body = content.Replace("\n", eol);
-        if (CanTripleQuote(content))
-        {
-            return $"\"\"\"{body}\"\"\"";
-        }
-
-        return $"@\"{body.Replace("\"", "\"\"")}\"";
-    }
-
-    /// <summary>
-    /// A triple-quoted literal has no way to escape its own delimiter and no way to widen it, so
-    /// content that runs into the delimiter has to take the verbatim form instead. A quote at
-    /// either end counts: it would sit against the delimiter and be read as part of it.
+    /// Whether a triple-quoted literal can hold this content. A quote at either end would sit
+    /// against the delimiter and be read as part of it, and a run of three anywhere would close
+    /// the literal early.
     /// </summary>
     static bool CanTripleQuote(string content) =>
         content[0] != '"' &&
@@ -166,10 +58,27 @@ public static class FsStringLiteral
         content.IndexOf("\"\"\"", StringComparison.Ordinal) == -1;
 
     /// <summary>
-    /// Parses an F# string literal expression back to its runtime value.
-    /// Supports triple-quoted ("""..."""), verbatim (@"...") and regular ("...") literals.
-    /// Returns false for interpolated strings, byte strings, concatenations, or any other
-    /// expression. Newlines in the returned value are normalized to \n.
+    /// The snapshot a triple-quoted literal was written to hold: the value F# produced for it,
+    /// with the line break after the opening delimiter and the closing delimiter's indentation
+    /// taken back off.
+    /// <para>
+    /// Applied to a value rather than to source text, because F# does not implement
+    /// <see cref="CallerArgumentExpressionAttribute"/> and a test library never sees the literal
+    /// it was handed. A value not in that shape is returned unchanged: a single line snapshot, a
+    /// literal written some other way, or a snapshot that genuinely looks like layout and is
+    /// therefore not one this ever wrote.
+    /// </para>
+    /// </summary>
+    public static string StripLayout(string value) =>
+        StringLiteral.TryStripLayout(SourceLanguage.NormalizeNewlines(value), out var stripped)
+            ? stripped
+            : value;
+
+    /// <summary>
+    /// Parses an F# string literal expression back to the snapshot it holds: triple-quoted
+    /// ("""..."""), with the layout taken off, verbatim (@"...") and regular ("..."), which carry
+    /// their value as it is. Returns false for interpolated strings, byte strings, concatenations,
+    /// or any other expression. Newlines in the returned value are normalized to \n.
     /// </summary>
     public static bool TryParse(string expression, [NotNullWhen(true)] out string? value)
     {
@@ -228,13 +137,15 @@ public static class FsStringLiteral
         {
             // There is no verbatim triple-quoted form, so a run of quotes after @" is an escaped
             // quote and the rest of the string, not a delimiter
-            return TryScanVerbatim(text, index + 1, out value, out end);
+            return StringLiteral.TryScanVerbatim(text, index + 1, out value, out end);
         }
 
-        var quotes = QuoteRunLength(text, index);
+        var quotes = StringLiteral.QuoteRunLength(text, index);
         if (quotes >= 3)
         {
-            return TryScanTripleQuoted(text, index, out value, out end);
+            // F# reads the closing delimiter as exactly three quotes, so a longer run is content
+            // it cannot hold and never something this wrote
+            return StringLiteral.TryScanMultiLine(text, index, 3, out value, out end);
         }
 
         if (quotes == 2)
@@ -246,75 +157,6 @@ public static class FsStringLiteral
         }
 
         return TryScanRegular(text, index + 1, out value, out end);
-    }
-
-    static int QuoteRunLength(string text, int index)
-    {
-        var count = 0;
-        while (index + count < text.Length &&
-               text[index + count] == '"')
-        {
-            count++;
-        }
-
-        return count;
-    }
-
-    /// <summary>
-    /// Content is whatever sits between the delimiters, exactly. Unlike a C# raw string there is
-    /// no first line to drop and no indent to strip.
-    /// </summary>
-    static bool TryScanTripleQuoted(string text, int start, out string? value, out int end)
-    {
-        value = null;
-        end = start;
-        var contentStart = start + 3;
-        var index = contentStart;
-        while (index < text.Length)
-        {
-            if (text[index] == '"' &&
-                QuoteRunLength(text, index) >= 3)
-            {
-                value = text.Substring(contentStart, index - contentStart);
-                end = index + 3;
-                return true;
-            }
-
-            index++;
-        }
-
-        return false;
-    }
-
-    static bool TryScanVerbatim(string text, int start, out string? value, out int end)
-    {
-        value = null;
-        end = start;
-        var builder = new StringBuilder();
-        var index = start;
-        while (index < text.Length)
-        {
-            var ch = text[index];
-            if (ch == '"')
-            {
-                if (index + 1 < text.Length &&
-                    text[index + 1] == '"')
-                {
-                    builder.Append('"');
-                    index += 2;
-                    continue;
-                }
-
-                value = builder.ToString();
-                end = index + 1;
-                return true;
-            }
-
-            builder.Append(ch);
-            index++;
-        }
-
-        return false;
     }
 
     static bool TryScanRegular(string text, int start, out string? value, out int end)
@@ -382,7 +224,7 @@ public static class FsStringLiteral
                     builder.Append('\v');
                     break;
                 case 'u':
-                    if (!TryReadHex(text, ref index, 4, out var utf16))
+                    if (!StringLiteral.TryReadHex(text, ref index, 4, 4, out var utf16))
                     {
                         return false;
                     }
@@ -390,7 +232,7 @@ public static class FsStringLiteral
                     builder.Append((char) utf16);
                     break;
                 case 'x':
-                    if (!TryReadHex(text, ref index, 2, out var byteValue))
+                    if (!StringLiteral.TryReadHex(text, ref index, 2, 2, out var byteValue))
                     {
                         return false;
                     }
@@ -398,7 +240,7 @@ public static class FsStringLiteral
                     builder.Append((char) byteValue);
                     break;
                 case 'U':
-                    if (!TryReadHex(text, ref index, 8, out var codePoint))
+                    if (!StringLiteral.TryReadHex(text, ref index, 8, 8, out var codePoint))
                     {
                         return false;
                     }
@@ -446,22 +288,6 @@ public static class FsStringLiteral
         }
 
         return false;
-    }
-
-    static bool TryReadHex(string text, ref int index, int count, out uint result)
-    {
-        result = 0;
-        var read = 0;
-        while (read < count &&
-               index < text.Length &&
-               Uri.IsHexDigit(text[index]))
-        {
-            result = (result << 4) + (uint) Uri.FromHex(text[index]);
-            index++;
-            read++;
-        }
-
-        return read == count;
     }
 
     static bool TryReadTrigraph(string text, ref int index, char first, out char result)
