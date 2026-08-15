@@ -67,7 +67,7 @@ sealed class OwnerLink(SessionHost host, int port)
             return false;
         }
 
-        var pending = InlineQueue.From(response.Items.Select(Read).OfType<PendingInline>());
+        var pending = InlineQueue.From(ViewerListing.Pending(response.Items));
         var changes = ReadChanges(response);
         host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message));
 
@@ -122,33 +122,6 @@ sealed class OwnerLink(SessionHost host, int port)
         }
 
         return response.Message ?? (response.Ok ? "" : $"{command.Verb} was refused.");
-    }
-
-    /// <summary>
-    /// An item with no patch, or whose payload does not parse, is dropped rather than shown as a
-    /// blank pane.
-    /// </summary>
-    static PendingInline? Read(ViewerResponseItem item)
-    {
-        if (item.Patch is null ||
-            !InlinePatchFile.TryParse(item.Patch, out var patch))
-        {
-            return null;
-        }
-
-        var variants = new List<InlineVariant>
-        {
-            new(patch, item.Origins)
-        };
-        foreach (var variant in item.Variants)
-        {
-            if (InlinePatchFile.TryParse(variant.Patch, out var extra))
-            {
-                variants.Add(new(extra, variant.Origins));
-            }
-        }
-
-        return new(variants, item.Status);
     }
 
     /// <summary>
