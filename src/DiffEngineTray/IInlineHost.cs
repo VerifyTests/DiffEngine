@@ -34,8 +34,9 @@ interface IInlineHost
     void Focus(PendingSnapshot snapshot);
 
     /// <summary>
-    /// Close the window. The queue is unaffected either way: an owning viewer exits with it, and a
-    /// tray owned queue simply loses its display until something reopens one.
+    /// Close the window. The queue is unaffected either way: a tray owned queue loses its display
+    /// until something reopens one, and an owning viewer is asked to hide rather than to quit,
+    /// since quitting would take the queue it holds with it.
     /// </summary>
     void Close();
 }

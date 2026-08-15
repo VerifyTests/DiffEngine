@@ -116,8 +116,20 @@ class RemoteInlineHost : IInlineHost
     public void Focus(PendingSnapshot snapshot) =>
         Send(ViewerVerb.Focus, snapshot.Key, ViewerClient.ShortTimeout, out _);
 
+    /// <summary>
+    /// Hidden rather than quit, because this owner is holding the queue. Quit exits the process,
+    /// and the queue is in its memory, so one menu item meant "close the window" in the arrangement
+    /// where the tray owns the queue and "throw away every pending snapshot, without asking" in
+    /// this one - after which they were simply gone from the menu, a refused connection being
+    /// indistinguishable from nothing pending.
+    /// <para>
+    /// Hiding leaves the process serving, which it has to be for the queue to survive at all, and
+    /// leaves the user where the other arrangement leaves them: no window, and everything still
+    /// pending. Focus brings it back.
+    /// </para>
+    /// </summary>
     public void Close() =>
-        Send(ViewerVerb.Quit, null, ViewerClient.ShortTimeout, out _);
+        Send(ViewerVerb.Hide, null, ViewerClient.ShortTimeout, out _);
 
     static bool Send(ViewerVerb verb, string? key, TimeSpan wait, out string? message)
     {

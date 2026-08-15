@@ -361,6 +361,24 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Applied.Count).IsEqualTo(2);
     }
 
+    /// <summary>
+    /// A tray owner asks for the window on every patch that arrives, and an owning viewer has to
+    /// do the same. Its window is hidden whenever a tray is running and the queue last emptied, so
+    /// without this a newly failing test landed in a window nobody could see and showed up only as
+    /// a tray icon on the next scan.
+    /// </summary>
+    [Test]
+    public async Task AQueuedPatchBringsTheOwningViewerForward()
+    {
+        await using var pair = new ViewerOwned();
+
+        pair.Queue(sample, 1);
+
+        await Assert.That(pair.Windows).Contains(ViewerSideWindowCommand.Focus);
+        // On the entry that arrived, the same as a focus verb lands
+        await Assert.That(pair.Viewer.Queue[pair.Viewer.Selected].Key).IsEqualTo(Key(sample, 1));
+    }
+
     [Test]
     public async Task TrayAcceptOfOneSnapshotLeavesTheRestInTheOwningViewer()
     {
@@ -522,6 +540,26 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Failures).IsEmpty();
         await Assert.That(pair.Viewer.Queue).IsEmpty();
         await Assert.That(pair.Applied.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// "Close snapshot viewer" closes a window. Against an owning viewer it used to quit the
+    /// process, and the queue is in that process's memory, so the same menu item threw away every
+    /// pending snapshot without asking - and they were simply absent from the menu afterwards,
+    /// since a refused connection lists the same as nothing pending.
+    /// </summary>
+    [Test]
+    public async Task ClosingAnOwningViewerLeavesItsQueue()
+    {
+        await using var pair = new ViewerOwned();
+        pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+
+        new RemoteInlineHost().Close();
+
+        await Assert.That(pair.Windows).Contains(ViewerSideWindowCommand.Hide);
+        await Assert.That(pair.Windows).DoesNotContain(ViewerSideWindowCommand.Close);
+        await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(sample, 1), Key(other, 7)]);
     }
 
     [Test]
