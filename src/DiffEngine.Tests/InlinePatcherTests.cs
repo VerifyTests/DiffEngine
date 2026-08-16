@@ -396,6 +396,58 @@ public class InlinePatcherTests
         await Assert.That(b).Contains("\"dup\"");
     }
 
+    // A helper that hides the Verify call without forwarding the caller-info attributes is not a
+    // supported layout: the helper's one call is shared by every test that uses it, so an inline
+    // snapshot spliced into it could only ever be right for one of them. The member floor makes
+    // the layout fail explicitly rather than patch the helper. A helper that wants to take part
+    // forwards the caller info and carries a Verify prefix, like any custom entry point
+    [Test]
+    public async Task AppendDoesNotReachAHelperDeclaredAboveTheMember()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    static Task Run(string value) =>",
+            "        Verify(value);",
+            "",
+            "    async Task Test() =>",
+            "        await Run(\"value\");",
+            "}");
+
+        var status = TryApply(source, 4, InlinePatchMode.Append, null, "new", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("No Verify or Throws call");
+    }
+
+    // When the member's own body has a Verify call, the floor confines the search to it even
+    // though the hint points above the declaration
+    [Test]
+    public async Task AppendPrefersACallInsideTheMemberOverAHelperAbove()
+    {
+        var source = string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    static Task Run(string value) =>",
+            "        Verify(value);",
+            "",
+            "    async Task Test()",
+            "    {",
+            "        await Verify(direct);",
+            "        await Run(\"value\");",
+            "    }",
+            "}");
+
+        var status = TryApply(source, 4, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(direct)\n" +
+            "            .Snapshot(\"new\");");
+    }
+
     [Test]
     public async Task ExpressionWinsOverValue()
     {
