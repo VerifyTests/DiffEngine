@@ -111,8 +111,15 @@ sealed class SourceScan(SourceLanguage language, string source)
     }
 
     /// <summary>
-    /// The offset of the last character before <paramref name="index"/> that is neither
-    /// whitespace nor inside a comment, or -1 when there is none.
+    /// The offset of the last character before <paramref name="index"/> that is code: not
+    /// whitespace, and not inside a comment or a literal. -1 when there is none.
+    /// <para>
+    /// Literals are stepped over as well as comments, which matters to the caller that reads what
+    /// it lands on. A literal receiver - <c>"text".Verify(...)</c> - is skipped whole rather than
+    /// reported, so what comes back is whatever precedes it. That still answers what
+    /// <see cref="SourceLanguage.IsDeclaration"/> and the foreign receiver check are asking, since
+    /// a literal receiver is not the verify entry point either way.
+    /// </para>
     /// </summary>
     public int PreviousSignificant(int index)
     {

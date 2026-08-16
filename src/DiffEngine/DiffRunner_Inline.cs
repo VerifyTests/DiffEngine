@@ -58,8 +58,9 @@ public static partial class DiffRunner
 
         // Stamped here and nowhere else: the one place both the socket and stdin-launch paths
         // share, and always the sending process, so a re-parsed patch keeps its birth framework.
-        patch.Framework ??= RuntimeMoniker.Current;
-        var payload = InlinePatchFile.Build(patch);
+        // Onto the payload rather than onto the patch, which belongs to the caller and may be
+        // held or sent again
+        var payload = InlinePatchFile.Build(patch, patch.Framework ?? RuntimeMoniker.Current);
         if (await ViewerClient.TrySendAsync(new(ViewerVerb.Inline, Body: payload), cancel))
         {
             return InlineResult.Queued;

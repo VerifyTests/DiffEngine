@@ -17,15 +17,26 @@ public static class InlinePatchFile
         File.WriteAllText(path, Build(patch), new UTF8Encoding(false));
     }
 
-    public static string Build(InlinePatch patch)
+    /// <summary>
+    /// The patch as a payload: the format <see cref="TryParse" /> reads back.
+    /// </summary>
+    /// <param name="patch">The patch to write.</param>
+    /// <param name="framework">
+    /// The framework to record, for a sender stamping its own. Defaults to whatever the patch
+    /// already carries. Taken here rather than written onto the patch, because the patch belongs
+    /// to the caller and a public entry point should not be editing it.
+    /// </param>
+    public static string Build(InlinePatch patch, string? framework = null)
     {
+        framework ??= patch.Framework;
+
         // The two fields that ride the payload as themselves rather than base64, so a line break
         // in either would end its line and the rest would be read as more of the payload -
         // shifting the fixed lines, or forging one of the trailing ones. Both are public settable
         // properties, and a path may legally hold a line break off Windows. Refused rather than
         // written, because there is no shape of this format that can carry one
         AgainstLineBreak(patch.SourceFile, nameof(InlinePatch.SourceFile));
-        AgainstLineBreak(patch.Framework, nameof(InlinePatch.Framework));
+        AgainstLineBreak(framework, nameof(InlinePatch.Framework));
 
         var expression = patch.OriginalExpression is null
             ? ""
@@ -45,7 +56,7 @@ public static class InlinePatchFile
         var memberName = patch.MemberName is null
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.MemberName));
-        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {patch.Framework}\noriginalValue: {value}\nmemberName: {memberName}\n";
+        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {framework}\noriginalValue: {value}\nmemberName: {memberName}\n";
     }
 
     public static bool TryRead(string path, [NotNullWhen(true)] out InlinePatch? patch)
