@@ -287,6 +287,160 @@ static class StringLiteral
     }
 
     /// <summary>
+    /// Scans one literal from <paramref name="start"/>, leaving <paramref name="end"/> one past
+    /// its closing quote.
+    /// </summary>
+    public delegate bool ScanLiteral(string text, int start, out string? value, out int end);
+
+    /// <summary>
+    /// Parses a whole expression as one string literal, or fails.
+    /// <para>
+    /// The scan has to consume all of it: what is left over is what tells a literal from an
+    /// expression that merely starts with one, which is how <c>"a" + "b"</c> and F#'s
+    /// <c>"abc"B</c> are refused rather than half read.
+    /// </para>
+    /// </summary>
+    public static bool TryParse(string expression, ScanLiteral scan, [NotNullWhen(true)] out string? value)
+    {
+        value = null;
+        var text = expression.Trim();
+        if (text.Length == 0)
+        {
+            return false;
+        }
+
+        if (!scan(text, 0, out value, out var end) ||
+            end != text.Length)
+        {
+            value = null;
+            return false;
+        }
+
+        value = SourceLanguage.NormalizeNewlines(value!);
+        return true;
+    }
+
+    /// <summary>
+    /// An escape only one of the languages has, or has its own rule for. Called with
+    /// <paramref name="index"/> just past the escape character, and free to move it: F#'s
+    /// trigraph and line continuation both read further. False means the escape is not one this
+    /// language knows, which makes the literal unreadable.
+    /// </summary>
+    public delegate bool TryLanguageEscape(string text, ref int index, char escape, StringBuilder builder);
+
+    /// <summary>
+    /// Scans a regular literal: the loop, and the escapes both languages spell the same way.
+    /// <para>
+    /// Written once because it was written twice, and the copies had to be kept in step by hand -
+    /// the guard against a lone surrogate in <c>\U</c> was a fix that had to be made in both, and
+    /// could as easily have been made in one. What genuinely differs is passed in: whether a
+    /// newline ends the literal (C# yes, F# no), and the escapes that are one language's own.
+    /// </para>
+    /// </summary>
+    public static bool TryScanRegular(
+        string text,
+        int start,
+        bool newlineEndsLiteral,
+        TryLanguageEscape tryLanguageEscape,
+        out string? value,
+        out int end)
+    {
+        value = null;
+        end = start;
+        var builder = new StringBuilder();
+        var index = start;
+        while (index < text.Length)
+        {
+            var ch = text[index];
+            if (ch == '"')
+            {
+                value = builder.ToString();
+                end = index + 1;
+                return true;
+            }
+
+            if (newlineEndsLiteral &&
+                ch is '\n' or '\r')
+            {
+                return false;
+            }
+
+            if (ch != '\\')
+            {
+                builder.Append(ch);
+                index++;
+                continue;
+            }
+
+            index++;
+            if (index >= text.Length)
+            {
+                return false;
+            }
+
+            var escape = text[index];
+            index++;
+            switch (escape)
+            {
+                case '\\':
+                    builder.Append('\\');
+                    continue;
+                case '"':
+                    builder.Append('"');
+                    continue;
+                case '\'':
+                    builder.Append('\'');
+                    continue;
+                case 'a':
+                    builder.Append('\a');
+                    continue;
+                case 'b':
+                    builder.Append('\b');
+                    continue;
+                case 'f':
+                    builder.Append('\f');
+                    continue;
+                case 'n':
+                    builder.Append('\n');
+                    continue;
+                case 'r':
+                    builder.Append('\r');
+                    continue;
+                case 't':
+                    builder.Append('\t');
+                    continue;
+                case 'v':
+                    builder.Append('\v');
+                    continue;
+                case 'u':
+                    if (!TryReadHex(text, ref index, 4, 4, out var utf16))
+                    {
+                        return false;
+                    }
+
+                    builder.Append((char) utf16);
+                    continue;
+                case 'U':
+                    if (!TryReadHex(text, ref index, 8, 8, out var codePoint) ||
+                        !IsScalarValue(codePoint))
+                    {
+                        return false;
+                    }
+
+                    builder.Append(char.ConvertFromUtf32((int) codePoint));
+                    continue;
+            }
+
+            if (!tryLanguageEscape(text, ref index, escape, builder))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Scans a verbatim literal, where the only escape is a doubled quote.
     /// </summary>
     public static bool TryScanVerbatim(string text, int start, out string? value, out int end)

@@ -381,29 +381,12 @@ static class ViewerSession
             }
         }
 
-        // The same wording accept-all uses, so a group sweep and a full sweep read alike.
-        var builder = new StringBuilder($"Accepted {accepted}");
-        if (failed > 0)
-        {
-            builder.Append($", {failed} failed");
-        }
-
-        if (conflicted > 0)
-        {
-            builder.Append(conflicted == 1
-                ? ", 1 conflict needs review"
-                : $", {conflicted} conflicts need review");
-        }
-
-        if (failure is not null)
-        {
-            builder.Append($". {failure}");
-        }
-
         return SweepTracked(
             state,
             Rebuild(state, queue),
-            builder.ToString(),
+            // The wording accept-all uses, from where accept-all gets it, so a group sweep and a
+            // full sweep cannot read differently
+            InlineQueue.AcceptAllMessage(accepted, failed, conflicted, failure),
             actions,
             discarding: false,
             TrackedKeysOf(all));

@@ -207,7 +207,7 @@ sealed class CsLanguage : SourceLanguage
             return false;
         }
 
-        var quotes = QuoteRun(source, cursor);
+        var quotes = StringLiteral.QuoteRunLength(source, cursor);
         if (quotes >= 3)
         {
             // Raw string: scan to a closing run of >= quotes, stepping over any interpolation
@@ -251,7 +251,7 @@ sealed class CsLanguage : SourceLanguage
                     continue;
                 }
 
-                var run = QuoteRun(source, search);
+                var run = StringLiteral.QuoteRunLength(source, search);
                 if (run >= quotes)
                 {
                     index = search + run;
@@ -398,15 +398,4 @@ sealed class CsLanguage : SourceLanguage
         return count;
     }
 
-    static int QuoteRun(string source, int index)
-    {
-        var count = 0;
-        while (index + count < source.Length &&
-               source[index + count] == '"')
-        {
-            count++;
-        }
-
-        return count;
-    }
 }

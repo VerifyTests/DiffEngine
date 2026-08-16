@@ -12,7 +12,13 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
 
     int IQueueOwner.Enqueue(InlinePatch patch)
     {
-        var count = host.Mutate(_ => ViewerSession.EnqueueInline(_, patch)).Queue.Count;
+        // Inline entries only, which is what a tray owner counts. This queue also holds tracked
+        // moves and deletes, so counting all of it had the two owners answering the same verb
+        // with different numbers
+        var count = host
+            .Mutate(_ => ViewerSession.EnqueueInline(_, patch))
+            .Queue
+            .Count(_ => _.Kind == QueueEntryKind.Inline);
         // Brought forward on the entry that arrived, which is what a tray owner does with one of
         // these. Without it a patch landing in a window that is hidden - which this one is
         // whenever a tray is running and the queue last emptied - showed up only as a tray icon

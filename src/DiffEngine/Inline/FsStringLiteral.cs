@@ -89,31 +89,8 @@ public static class FsStringLiteral
     /// their value as it is. Returns false for interpolated strings, byte strings, concatenations,
     /// or any other expression. Newlines in the returned value are normalized to \n.
     /// </summary>
-    public static bool TryParse(string expression, [NotNullWhen(true)] out string? value)
-    {
-        value = null;
-        var text = expression.Trim();
-        if (text.Length == 0)
-        {
-            return false;
-        }
-
-        if (!TryScanLiteral(text, 0, out value, out var end))
-        {
-            return false;
-        }
-
-        // The scan must consume the whole expression (rejects "a" + "b", "abc"B etc.)
-        if (end != text.Length)
-        {
-            value = null;
-            return false;
-        }
-
-        value = SourceLanguage.NormalizeNewlines(value!);
-        return true;
-    }
-
+    public static bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
+        StringLiteral.TryParse(expression, TryScanLiteral, out value);
     /// <summary>
     /// Scans one string literal starting at <paramref name="start"/> (which must point at the
     /// first character of the literal: '"' or '@'). On success <paramref name="end"/> is the
@@ -168,137 +145,61 @@ public static class FsStringLiteral
         return TryScanRegular(text, index + 1, out value, out end);
     }
 
-    static bool TryScanRegular(string text, int start, out string? value, out int end)
+    // An ordinary F# string may span lines, so a newline in one is content
+    static bool TryScanRegular(string text, int start, out string? value, out int end) =>
+        StringLiteral.TryScanRegular(text, start, false, TryEscape, out value, out end);
+
+    /// <summary>
+    /// What F# spells its own way: <c>\x</c> is exactly two hex digits, a backslash before a line
+    /// break continues the string, and a backslash before three digits is a trigraph. F# has no
+    /// <c>\0</c> or <c>\e</c>, so those fall through to being no escape at all.
+    /// </summary>
+    static bool TryEscape(string text, ref int index, char escape, StringBuilder builder)
     {
-        value = null;
-        end = start;
-        var builder = new StringBuilder();
-        var index = start;
-        while (index < text.Length)
+        switch (escape)
         {
-            var ch = text[index];
-            if (ch == '"')
-            {
-                value = builder.ToString();
-                end = index + 1;
+            case 'x':
+                if (!StringLiteral.TryReadHex(text, ref index, 2, 2, out var byteValue))
+                {
+                    return false;
+                }
+
+                builder.Append((char) byteValue);
                 return true;
-            }
+            case '\r':
+            case '\n':
+                // Line continuation: the newline and the indentation that follows it are layout,
+                // not content
+                if (escape == '\r' &&
+                    index < text.Length &&
+                    text[index] == '\n')
+                {
+                    index++;
+                }
 
-            if (ch != '\\')
-            {
-                // An ordinary F# string may span lines, so a newline here is content
-                builder.Append(ch);
-                index++;
-                continue;
-            }
+                while (index < text.Length &&
+                       (text[index] == ' ' || text[index] == '\t'))
+                {
+                    index++;
+                }
 
-            index++;
-            if (index >= text.Length)
-            {
-                return false;
-            }
+                return true;
+            default:
+                // Trigraph: \DDD, three decimal digits
+                if (!char.IsDigit(escape))
+                {
+                    return false;
+                }
 
-            var escape = text[index];
-            index++;
-            switch (escape)
-            {
-                case '\\':
-                    builder.Append('\\');
-                    break;
-                case '"':
-                    builder.Append('"');
-                    break;
-                case '\'':
-                    builder.Append('\'');
-                    break;
-                case 'a':
-                    builder.Append('\a');
-                    break;
-                case 'b':
-                    builder.Append('\b');
-                    break;
-                case 'f':
-                    builder.Append('\f');
-                    break;
-                case 'n':
-                    builder.Append('\n');
-                    break;
-                case 'r':
-                    builder.Append('\r');
-                    break;
-                case 't':
-                    builder.Append('\t');
-                    break;
-                case 'v':
-                    builder.Append('\v');
-                    break;
-                case 'u':
-                    if (!StringLiteral.TryReadHex(text, ref index, 4, 4, out var utf16))
-                    {
-                        return false;
-                    }
+                if (!TryReadTrigraph(text, ref index, escape, out var trigraph))
+                {
+                    return false;
+                }
 
-                    builder.Append((char) utf16);
-                    break;
-                case 'x':
-                    if (!StringLiteral.TryReadHex(text, ref index, 2, 2, out var byteValue))
-                    {
-                        return false;
-                    }
-
-                    builder.Append((char) byteValue);
-                    break;
-                case 'U':
-                    if (!StringLiteral.TryReadHex(text, ref index, 8, 8, out var codePoint))
-                    {
-                        return false;
-                    }
-
-                    if (!StringLiteral.IsScalarValue(codePoint))
-                    {
-                        return false;
-                    }
-
-                    builder.Append(char.ConvertFromUtf32((int) codePoint));
-                    break;
-                case '\r':
-                case '\n':
-                    // Line continuation: the newline and the indentation that follows it are
-                    // layout, not content
-                    if (escape == '\r' &&
-                        index < text.Length &&
-                        text[index] == '\n')
-                    {
-                        index++;
-                    }
-
-                    while (index < text.Length &&
-                           (text[index] == ' ' || text[index] == '\t'))
-                    {
-                        index++;
-                    }
-
-                    break;
-                default:
-                    // Trigraph: \DDD, three decimal digits
-                    if (!char.IsDigit(escape))
-                    {
-                        return false;
-                    }
-
-                    if (!TryReadTrigraph(text, ref index, escape, out var trigraph))
-                    {
-                        return false;
-                    }
-
-                    builder.Append(trigraph);
-                    break;
-            }
+                builder.Append(trigraph);
+                return true;
         }
-
-        return false;
     }
-
     static bool TryReadTrigraph(string text, ref int index, char first, out char result)
     {
         result = '\0';

@@ -360,7 +360,7 @@ sealed class FsLanguage : SourceLanguage
             return false;
         }
 
-        var quotes = QuoteRun(source, cursor);
+        var quotes = StringLiteral.QuoteRunLength(source, cursor);
         // There is no verbatim triple-quoted form, so a run of quotes after @" is an escaped quote
         // and the rest of the string, not a delimiter
         if (quotes >= 3 && !verbatim)
@@ -371,7 +371,7 @@ sealed class FsLanguage : SourceLanguage
             while (search < source.Length)
             {
                 if (source[search] == '"' &&
-                    QuoteRun(source, search) >= 3)
+                    StringLiteral.QuoteRunLength(source, search) >= 3)
                 {
                     index = search + 3;
                     return true;
@@ -488,15 +488,4 @@ sealed class FsLanguage : SourceLanguage
         return false;
     }
 
-    static int QuoteRun(string source, int index)
-    {
-        var count = 0;
-        while (index + count < source.Length &&
-               source[index + count] == '"')
-        {
-            count++;
-        }
-
-        return count;
-    }
 }

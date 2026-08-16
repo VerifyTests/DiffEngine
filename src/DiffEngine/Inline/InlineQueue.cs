@@ -59,6 +59,35 @@ public sealed class InlineQueue
     }
 
     /// <summary>
+    /// What a bulk accept reports. Both surfaces say this - the tray out of its own queue, the
+    /// viewer out of its session - and each used to build the sentence itself, so a change to the
+    /// wording of one left the other saying the old thing. The whole reason the queue was
+    /// extracted was to stop the two drifting, and this is part of what they agree on.
+    /// </summary>
+    internal static string AcceptAllMessage(int accepted, int failed, int conflicted, string? failure)
+    {
+        var builder = new StringBuilder($"Accepted {accepted}");
+        if (failed > 0)
+        {
+            builder.Append($", {failed} failed");
+        }
+
+        if (conflicted > 0)
+        {
+            builder.Append(conflicted == 1
+                ? ", 1 conflict needs review"
+                : $", {conflicted} conflicts need review");
+        }
+
+        if (failure is not null)
+        {
+            builder.Append($". {failure}");
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
     /// A fold that added nothing. The variants are handed back as they are, so an accept applying
     /// against this entry still recognises it as the one it started on; only the status of the
     /// last attempt goes, which is what rebuilding the entry used to do anyway - the content
@@ -386,25 +415,7 @@ public sealed class InlineQueue
             remaining.Add(entry with { Status = text });
         }
 
-        var builder = new StringBuilder($"Accepted {accepted}");
-        if (failed > 0)
-        {
-            builder.Append($", {failed} failed");
-        }
-
-        if (conflicted > 0)
-        {
-            builder.Append(conflicted == 1
-                ? ", 1 conflict needs review"
-                : $", {conflicted} conflicts need review");
-        }
-
-        if (failure is not null)
-        {
-            builder.Append($". {failure}");
-        }
-
-        message = builder.ToString();
+        message = AcceptAllMessage(accepted, failed, conflicted, failure);
         return new(remaining);
     }
 

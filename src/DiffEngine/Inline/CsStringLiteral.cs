@@ -64,31 +64,8 @@ public static class CsStringLiteral
     /// Returns false for interpolated strings, concatenations, or any other expression.
     /// Newlines in the returned value are normalized to \n.
     /// </summary>
-    public static bool TryParse(string expression, [NotNullWhen(true)] out string? value)
-    {
-        value = null;
-        var text = expression.Trim();
-        if (text.Length == 0)
-        {
-            return false;
-        }
-
-        if (!TryScanLiteral(text, 0, out value, out var end))
-        {
-            return false;
-        }
-
-        // The scan must consume the whole expression (rejects "a" + "b" etc.)
-        if (end != text.Length)
-        {
-            value = null;
-            return false;
-        }
-
-        value = SourceLanguage.NormalizeNewlines(value!);
-        return true;
-    }
-
+    public static bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
+        StringLiteral.TryParse(expression, TryScanLiteral, out value);
     /// <summary>
     /// Scans one string literal starting at <paramref name="start"/> (which must point at the
     /// first character of the literal: '"' or '@'). On success <paramref name="end"/> is the
@@ -143,115 +120,34 @@ public static class CsStringLiteral
         return TryScanRegular(text, index + 1, out value, out end);
     }
 
-    static bool TryScanRegular(string text, int start, out string? value, out int end)
+    // A regular literal cannot span lines
+    static bool TryScanRegular(string text, int start, out string? value, out int end) =>
+        StringLiteral.TryScanRegular(text, start, true, TryEscape, out value, out end);
+
+    /// <summary>
+    /// The escapes C# has that F# does not, plus <c>\x</c>, which both have and size differently:
+    /// one to four hex digits here, exactly two there.
+    /// </summary>
+    static bool TryEscape(string text, ref int index, char escape, StringBuilder builder)
     {
-        value = null;
-        end = start;
-        var builder = new StringBuilder();
-        var index = start;
-        while (index < text.Length)
+        switch (escape)
         {
-            var ch = text[index];
-            if (ch == '"')
-            {
-                value = builder.ToString();
-                end = index + 1;
+            case '0':
+                builder.Append('\0');
                 return true;
-            }
-
-            if (ch is '\n' or '\r')
-            {
-                // Regular strings cannot span lines
-                return false;
-            }
-
-            if (ch != '\\')
-            {
-                builder.Append(ch);
-                index++;
-                continue;
-            }
-
-            index++;
-            if (index >= text.Length)
-            {
-                return false;
-            }
-
-            var escape = text[index];
-            index++;
-            switch (escape)
-            {
-                case '\\':
-                    builder.Append('\\');
-                    break;
-                case '"':
-                    builder.Append('"');
-                    break;
-                case '\'':
-                    builder.Append('\'');
-                    break;
-                case '0':
-                    builder.Append('\0');
-                    break;
-                case 'a':
-                    builder.Append('\a');
-                    break;
-                case 'b':
-                    builder.Append('\b');
-                    break;
-                case 'e':
-                    builder.Append('');
-                    break;
-                case 'f':
-                    builder.Append('\f');
-                    break;
-                case 'n':
-                    builder.Append('\n');
-                    break;
-                case 'r':
-                    builder.Append('\r');
-                    break;
-                case 't':
-                    builder.Append('\t');
-                    break;
-                case 'v':
-                    builder.Append('\v');
-                    break;
-                case 'u':
-                    if (!StringLiteral.TryReadHex(text, ref index, 4, 4, out var utf16))
-                    {
-                        return false;
-                    }
-
-                    builder.Append((char) utf16);
-                    break;
-                case 'x':
-                    if (!StringLiteral.TryReadHex(text, ref index, 1, 4, out var variable))
-                    {
-                        return false;
-                    }
-
-                    builder.Append((char) variable);
-                    break;
-                case 'U':
-                    if (!StringLiteral.TryReadHex(text, ref index, 8, 8, out var codePoint))
-                    {
-                        return false;
-                    }
-
-                    if (!StringLiteral.IsScalarValue(codePoint))
-                    {
-                        return false;
-                    }
-
-                    builder.Append(char.ConvertFromUtf32((int) codePoint));
-                    break;
-                default:
+            case 'e':
+                builder.Append('\u001b');
+                return true;
+            case 'x':
+                if (!StringLiteral.TryReadHex(text, ref index, 1, 4, out var value))
+                {
                     return false;
-            }
-        }
+                }
 
-        return false;
+                builder.Append((char) value);
+                return true;
+            default:
+                return false;
+        }
     }
 }

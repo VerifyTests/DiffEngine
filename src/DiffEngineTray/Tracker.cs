@@ -235,29 +235,9 @@ class Tracker :
         {
             try
             {
-                var outcome = inline.Accept(snapshot, out var message);
-                switch (outcome)
+                if (!TryAcceptOne(snapshot, out var message))
                 {
-                    case AcceptOutcome.Applied:
-                        Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
-                        break;
-                    case AcceptOutcome.Stale:
-                        // Gone, but not accepted. Told rather than logged, because the snapshot
-                        // vanishing from the menu otherwise reads as success.
-                        Log.Warning("Inline snapshot stale for `{Name}`: {Message}", snapshot.Name, message);
-                        inlineFailed?.Invoke(CouldNotAccept(snapshot.Name, message));
-                        break;
-                    case AcceptOutcome.Unknown:
-                        // No entry left to accept: it settled, or another surface got to it first.
-                        // The menu is built from the last scan, so an item outliving its entry is
-                        // ordinary rather than a failure, and a balloon here names a snapshot that
-                        // is already in the source. The bulk path has always skipped these
-                        Log.Information("Inline snapshot for `{Name}` was no longer pending.", snapshot.Name);
-                        break;
-                    default:
-                        Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
-                        inlineFailed?.Invoke(CouldNotAccept(snapshot.Name, message));
-                        break;
+                    inlineFailed?.Invoke(CouldNotAccept(snapshot.Name, message));
                 }
 
                 Refresh();
@@ -267,6 +247,40 @@ class Tracker :
                 ExceptionHandler.Handle($"Failed to accept the snapshot for '{snapshot.Name}'", exception);
             }
         });
+
+    /// <summary>
+    /// One accept, and what it meant. Both the single and the bulk path have to agree on this, and
+    /// they used to reach it through a switch each - which is how they came to disagree about
+    /// Unknown, one skipping it and the other calling it a failed accept.
+    /// <para>
+    /// False is a failure the caller reports its own way: named, for a click on one snapshot, and
+    /// counted, for a click that swept a group.
+    /// </para>
+    /// </summary>
+    bool TryAcceptOne(PendingSnapshot snapshot, out string? message)
+    {
+        var outcome = inline.Accept(snapshot, out message);
+        switch (outcome)
+        {
+            case AcceptOutcome.Applied:
+                Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
+                return true;
+            case AcceptOutcome.Unknown:
+                // No entry left to accept: it settled, or another surface got to it first. The
+                // menu is built from the last scan, so an item outliving its entry is ordinary
+                // rather than a failure, and saying so names a snapshot already in the source
+                Log.Information("Inline snapshot for `{Name}` was no longer pending.", snapshot.Name);
+                return true;
+            case AcceptOutcome.Stale:
+                // Gone, but not accepted. Reported rather than logged, because the snapshot
+                // vanishing from the menu otherwise reads as success.
+                Log.Warning("Inline snapshot stale for `{Name}`: {Message}", snapshot.Name, message);
+                return false;
+            default:
+                Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
+                return false;
+        }
+    }
 
     // The owner does not always have something to add, and a balloon ending in a bare full stop
     // and a space reads as a message that went missing
@@ -324,20 +338,10 @@ class Tracker :
                 var failures = new List<string>();
                 foreach (var snapshot in toAccept)
                 {
-                    var outcome = inline.Accept(snapshot, out var message);
-                    if (outcome == AcceptOutcome.Applied)
+                    if (!TryAcceptOne(snapshot, out var message))
                     {
-                        Log.Information("Inline snapshot accepted for `{Name}`. {Message}", snapshot.Name, message);
-                        continue;
+                        failures.Add(message ?? snapshot.Name);
                     }
-
-                    if (outcome == AcceptOutcome.Unknown)
-                    {
-                        continue;
-                    }
-
-                    Log.Warning("Inline snapshot accept failed for `{Name}`: {Message}", snapshot.Name, message);
-                    failures.Add(message ?? snapshot.Name);
                 }
 
                 if (failures.Count > 0)
