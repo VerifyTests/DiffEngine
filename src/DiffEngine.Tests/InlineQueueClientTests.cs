@@ -222,6 +222,35 @@ public class InlineQueueClientTests
         await Assert.That(keys).IsEmpty();
     }
 
+    /// <summary>
+    /// The sending process stamps its framework onto the payload, and leaves the caller's patch
+    /// as it was. It is a public entry point taking an object the caller still holds and may send
+    /// again, so editing it is not the send's business.
+    /// </summary>
+    [Test]
+    public async Task AddInlineStampsThePayloadAndNotTheCallersPatch()
+    {
+        using var owner = new Owner();
+        var patch = Patch();
+        var wasDisabled = DiffRunner.Disabled;
+        DiffRunner.Disabled = false;
+        try
+        {
+            await Assert.That(await DiffRunner.AddInlineAsync(patch)).IsEqualTo(InlineResult.Queued);
+        }
+        finally
+        {
+            DiffRunner.Disabled = wasDisabled;
+        }
+
+        // It reached the queue stamped
+        await Assert.That(InlineQueueClient.TryList(out var pending)).IsTrue();
+        await Assert.That(pending.Single().Patch.Framework).IsEqualTo(RuntimeMoniker.Current);
+
+        // And the caller's own patch never acquired one
+        await Assert.That(patch.Framework).IsNull();
+    }
+
     [Test]
     public async Task DiscardDropsWithoutApplying()
     {

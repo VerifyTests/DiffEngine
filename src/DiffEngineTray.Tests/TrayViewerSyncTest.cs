@@ -607,6 +607,25 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Viewer.Queue).IsEmpty();
     }
 
+    /// <summary>
+    /// The count an enqueue answers with is inline entries, which is what a tray owner counts
+    /// (OwnedInlineHostTest asserts "Queued 1" for the same verb). This queue also holds the
+    /// tracked moves and deletes that reach a viewer when no tray is running, and counting those
+    /// too had the two owners giving different numbers for the same verb.
+    /// </summary>
+    [Test]
+    public async Task AnEnqueueCountsInlineEntriesOnly()
+    {
+        await using var pair = new ViewerOwned();
+        using var noTray = new NoTray();
+        var file = pair.StageStaleFile();
+        await DiffRunner.AddDeleteAsync(file);
+
+        var response = pair.Send(new(ViewerVerb.Inline, Body: Payload(sample, 1, "new", null)));
+
+        await Assert.That(response.Message).IsEqualTo("Queued 1");
+    }
+
     [Test]
     public async Task ADiscardedDeleteWithNoTrayLeavesTheFile()
     {

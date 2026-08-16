@@ -547,6 +547,22 @@ public class InlinePatcherTests
         await Assert.That(reason).Contains("Could not find a Verify call");
     }
 
+    /// <summary>
+    /// A receiver that is a literal rather than a name. The scan back from the call steps over the
+    /// literal whole - see SourceScan.PreviousSignificant - and lands on whatever precedes it,
+    /// which must still read as "not the entry point".
+    /// </summary>
+    [Test]
+    public async Task AppendSkipsAVerifyOnALiteralReceiver()
+    {
+        var source = Method("        Assert.Empty(\"some text\".Verify(value));");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Verify call");
+    }
+
     [Test]
     public async Task AppendSkipsAVerifyOnAnInstance()
     {

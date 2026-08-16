@@ -751,6 +751,34 @@ public class InlinePatchFileTests
         await Assert.That(read).IsFalse();
     }
 
+    /// <summary>
+    /// The sending process stamps its own framework, and does it onto the payload rather than onto
+    /// the caller's patch. The fallback keeps every other caller - a listing rebuilding a payload
+    /// from a queued patch - writing the framework the patch was born with.
+    /// </summary>
+    [Test]
+    public async Task BuildTakesTheFrameworkGiven()
+    {
+        var stamped = InlinePatchFile.Build(
+            new("Tests.cs", 1, null, "content")
+            {
+                TestName = null
+            },
+            "net9.0");
+        await Assert.That(InlinePatchFile.TryParse(stamped, out var read)).IsTrue();
+        await Assert.That(read!.Framework).IsEqualTo("net9.0");
+
+        // Nothing given, so the patch's own stands
+        var own = InlinePatchFile.Build(
+            new("Tests.cs", 1, null, "content")
+            {
+                TestName = null,
+                Framework = "net8.0"
+            });
+        await Assert.That(InlinePatchFile.TryParse(own, out var fallback)).IsTrue();
+        await Assert.That(fallback!.Framework).IsEqualTo("net8.0");
+    }
+
     // A number parses as an enum as readily as a name, so this used to arrive as an
     // InlinePatchMode that is none of them and behave as a Set
     [Test]
