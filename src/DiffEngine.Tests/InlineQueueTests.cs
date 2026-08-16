@@ -124,7 +124,7 @@ public class InlineQueueTests
             .Accept(InlineKey.For("Sample.cs", 42), _ => InlineApplyResult.NotFound("gone"), out var message);
 
         await Assert.That(queue.Count).IsEqualTo(0);
-        await Assert.That(message).IsEqualTo("Sample.cs:42 source changed, re-run the test");
+        await Assert.That(message).IsEqualTo("Sample.cs:42 not written. gone");
     }
 
     /// <summary>
@@ -177,6 +177,29 @@ public class InlineQueueTests
         await Assert.That(queue.Count).IsEqualTo(1);
         await Assert.That(queue.Items[0].Name).IsEqualTo("B.cs:2");
         await Assert.That(message).IsEqualTo("Accepted 1, 1 failed. locked");
+    }
+
+    /// <summary>
+    /// A batch parts company with a single accept here. Alone, a stale entry is dropped and the
+    /// reader is told; out of a batch of thirty, dropping it silently counted a snapshot written
+    /// nowhere among the accepts and left nothing behind to say otherwise. It stays, carrying what
+    /// the applier said, and a re-run clears the status when the patch arrives again.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllKeepsAStalePatchApartFromTheAccepts()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2))
+            .AcceptAll(
+                patch => patch.SourceFile == "A.cs"
+                    ? InlineApplyResult.Applied
+                    : InlineApplyResult.NotFound("no Verify or Throws call"),
+                out var message);
+
+        await Assert.That(queue.Count).IsEqualTo(1);
+        await Assert.That(queue.Items[0].Status).IsEqualTo("B.cs:2 not written. no Verify or Throws call");
+        await Assert.That(message).IsEqualTo("Accepted 1, 1 not written. B.cs:2 not written. no Verify or Throws call");
     }
 
     /// <summary>

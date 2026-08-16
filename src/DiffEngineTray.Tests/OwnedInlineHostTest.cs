@@ -208,7 +208,7 @@ public class OwnedInlineHostTest
         var accepted = owner.Host.Accept(snapshot, out var message);
 
         await Assert.That(accepted).IsEqualTo(AcceptOutcome.Stale);
-        await Assert.That(message).IsEqualTo("SampleTests.cs:42 source changed, re-run the test");
+        await Assert.That(message).IsEqualTo("SampleTests.cs:42 not written. the call site moved");
         await Assert.That(owner.Host.List()).IsEmpty();
     }
 

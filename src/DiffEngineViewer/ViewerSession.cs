@@ -355,6 +355,7 @@ static class ViewerSession
             .ToList();
         var queue = Pending(state);
         var accepted = 0;
+        var notWritten = 0;
         var failed = 0;
         var conflicted = 0;
         string? failure = null;
@@ -367,9 +368,21 @@ static class ViewerSession
             }
 
             var before = queue.Count;
-            queue = queue.Accept(member.Key, actions.ApplyInline, out var outcome);
+            // The applier's own answer, kept as it goes past. A group accept goes one entry at a
+            // time, so a stale one leaves the queue here the way a single accept does, and the
+            // count of accepts would otherwise include a snapshot written nowhere - which is
+            // exactly what the sweep below must not take as licence to delete anything.
+            InlineApplyResult? applied = null;
+            queue = queue.Accept(member.Key, patch => applied = actions.ApplyInline(patch), out var outcome);
             if (queue.Count < before)
             {
+                if (applied?.Status == InlineApplyStatus.NotFound)
+                {
+                    notWritten++;
+                    failure = outcome;
+                    continue;
+                }
+
                 accepted++;
                 continue;
             }
@@ -386,10 +399,13 @@ static class ViewerSession
             Rebuild(state, queue),
             // The wording accept-all uses, from where accept-all gets it, so a group sweep and a
             // full sweep cannot read differently
-            InlineQueue.AcceptAllMessage(accepted, failed, conflicted, failure),
+            InlineQueue.AcceptAllMessage(accepted, notWritten, failed, conflicted, failure),
             actions,
             discarding: false,
-            TrackedKeysOf(all));
+            TrackedKeysOf(all),
+            // A group accept drops its stale entries, so the queue it hands on cannot be read for
+            // them the way the full sweep's can
+            refused: notWritten > 0);
     }
 
     static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
@@ -536,17 +552,27 @@ static class ViewerSession
         string message,
         ViewerActions actions,
         bool discarding,
-        IReadOnlyCollection<string>? only = null)
+        IReadOnlyCollection<string>? only = null,
+        bool refused = false)
     {
         var remaining = new List<QueueEntry>(queue.Count);
         var swept = 0;
         var kept = 0;
+        refused = refused || InlineRefused(queue, discarding);
         foreach (var entry in queue)
         {
             if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
                 (only is not null && !only.Contains(entry.Key)))
             {
                 remaining.Add(entry);
+                continue;
+            }
+
+            if (refused &&
+                entry.Kind == QueueEntryKind.Delete)
+            {
+                kept++;
+                remaining.Add(entry with { Status = deleteHeld });
                 continue;
             }
 
@@ -568,6 +594,51 @@ static class ViewerSession
 
         var clause = kept == 0 ? $"{swept} files" : $"{swept} files ({kept} kept)";
         return Remove(state, remaining, $"{message}, plus {clause}");
+    }
+
+    const string deleteHeld = "Held: a snapshot in this batch could not be written inline, and this file may be the only copy of it left. Accept it on its own to delete it anyway.";
+
+    /// <summary>
+    /// Whether this sweep follows an inline accept that something refused.
+    /// <para>
+    /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
+    /// into the source, and a delete of the verified file it replaces. The sweep ran the delete
+    /// whether or not the patch landed, so a patch the applier would not take — a call site that
+    /// cannot host a Snapshot call, a source that moved since the run — cost the snapshot both
+    /// copies at once. The literal was never written and the file it was replacing was gone, which
+    /// no re-run recovers: every later run reports the same new snapshot and deletes nothing,
+    /// forever.
+    /// </para>
+    /// <para>
+    /// Nothing ties a delete to the patch it belongs to, so the whole sweep of deletes waits on the
+    /// whole batch of patches. Blunt, and deliberately so — the entries held are still queued,
+    /// still shown, and still acceptable one at a time by anyone who knows the file is redundant.
+    /// Moves are left alone: a received file promoted over a verified one is the snapshot arriving,
+    /// not the last copy of it leaving.
+    /// </para>
+    /// <para>
+    /// A status on an inline entry is the outcome of an attempt, so this reads failures only:
+    /// conflicted entries that a bulk accept skips are handed back untouched and carry none.
+    /// Discarding asks nothing of the patches, so it sweeps as it always did.
+    /// </para>
+    /// </summary>
+    static bool InlineRefused(IReadOnlyList<QueueEntry> queue, bool discarding)
+    {
+        if (discarding)
+        {
+            return false;
+        }
+
+        foreach (var entry in queue)
+        {
+            if (entry.Kind == QueueEntryKind.Inline &&
+                entry.Status is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

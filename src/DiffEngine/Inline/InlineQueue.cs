@@ -64,9 +64,14 @@ public sealed class InlineQueue
     /// wording of one left the other saying the old thing. The whole reason the queue was
     /// extracted was to stop the two drifting, and this is part of what they agree on.
     /// </summary>
-    internal static string AcceptAllMessage(int accepted, int failed, int conflicted, string? failure)
+    internal static string AcceptAllMessage(int accepted, int notWritten, int failed, int conflicted, string? failure)
     {
         var builder = new StringBuilder($"Accepted {accepted}");
+        if (notWritten > 0)
+        {
+            builder.Append($", {notWritten} not written");
+        }
+
         if (failed > 0)
         {
             builder.Append($", {failed} failed");
@@ -346,7 +351,7 @@ public sealed class InlineQueue
             return this;
         }
 
-        var (removed, outcome) = Outcome(current, result);
+        var (removed, _, outcome) = Outcome(current, result);
         message = outcome;
         var items = Items.ToList();
         var index = items.FindIndex(_ => _.Key == entry.Key);
@@ -386,6 +391,7 @@ public sealed class InlineQueue
     {
         var remaining = new List<PendingInline>();
         var accepted = 0;
+        var notWritten = 0;
         var failed = 0;
         var conflicted = 0;
         string? failure = null;
@@ -403,7 +409,20 @@ public sealed class InlineQueue
                 continue;
             }
 
-            var (removed, text) = Outcome(entry, outcome.Result);
+            var (removed, stale, text) = Outcome(entry, outcome.Result);
+            // Dropped on its own, an entry the reader was watching and got an answer about. Dropped
+            // out of a batch of thirty, an entry nobody saw go: no literal written, nothing left in
+            // the queue to say so, and a count of accepts that included it. So it stays, carrying
+            // what the applier said, the way every other unwritten snapshot in the batch does. A
+            // re-run brings the patch back and the arrival clears the status.
+            if (stale)
+            {
+                notWritten++;
+                failure = text;
+                remaining.Add(entry with { Status = text });
+                continue;
+            }
+
             if (removed)
             {
                 accepted++;
@@ -415,21 +434,32 @@ public sealed class InlineQueue
             remaining.Add(entry with { Status = text });
         }
 
-        message = AcceptAllMessage(accepted, failed, conflicted, failure);
+        message = AcceptAllMessage(accepted, notWritten, failed, conflicted, failure);
         return new(remaining);
     }
 
     public PendingInline? Find(string key) =>
         Items.FirstOrDefault(_ => _.Key == key);
 
-    static (bool removed, string message) Outcome(PendingInline entry, InlineApplyResult result) =>
+    /// <summary>
+    /// What the applier reported, rather than the cause it used to be read as. "Source changed" is
+    /// one reason a call site is not there and it was the only one stated, which left the reader of
+    /// a call site that never could host a snapshot - the entry point reached through a helper of
+    /// their own - re-running a test forever on the strength of it.
+    /// </summary>
+    static string StaleMessage(PendingInline entry, InlineApplyResult result) =>
+        result.Message is { } reason
+            ? $"{entry.Name} not written. {reason}"
+            : $"{entry.Name} source changed, re-run the test";
+
+    static (bool removed, bool stale, string message) Outcome(PendingInline entry, InlineApplyResult result) =>
         result.Status switch
         {
-            InlineApplyStatus.Applied => (true, $"Applied {entry.Name}"),
-            InlineApplyStatus.AlreadyApplied => (true, $"Already applied {entry.Name}"),
+            InlineApplyStatus.Applied => (true, false, $"Applied {entry.Name}"),
+            InlineApplyStatus.AlreadyApplied => (true, false, $"Already applied {entry.Name}"),
             // The patch is stale. A re-run regenerates a fresh one, so drop it rather than
             // leaving an item that can never succeed.
-            InlineApplyStatus.NotFound => (true, $"{entry.Name} source changed, re-run the test"),
-            _ => (false, result.Message ?? $"Failed to apply {entry.Name}")
+            InlineApplyStatus.NotFound => (true, true, StaleMessage(entry, result)),
+            _ => (false, false, result.Message ?? $"Failed to apply {entry.Name}")
         };
 }

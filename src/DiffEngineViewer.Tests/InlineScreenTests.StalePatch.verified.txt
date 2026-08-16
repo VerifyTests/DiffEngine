@@ -20,5 +20,5 @@
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 +----------------------+-----------------------------------+-----------------------------------+
-| [Accept] [Discard] [Accept all]            SampleTests.cs:42 source changed, re-run the test |
+| [Accept] [Discard] [Accept all] SampleTests.cs:42 not written. Could not locate the VerifyI> |
 +----------------------------------------------------------------------------------------------+

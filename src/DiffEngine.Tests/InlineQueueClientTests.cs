@@ -148,7 +148,7 @@ public class InlineQueueClientTests
         var outcome = InlineQueueClient.Accept(InlineKey.For("Sample.cs", 42), out var message);
 
         await Assert.That(outcome).IsEqualTo(InlineAcceptOutcome.Accepted);
-        await Assert.That(message).IsEqualTo("Sample.cs:42 source changed, re-run the test");
+        await Assert.That(message).IsEqualTo("Sample.cs:42 not written. no call site");
     }
 
     /// <summary>

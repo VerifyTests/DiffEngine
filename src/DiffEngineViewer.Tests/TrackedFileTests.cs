@@ -188,6 +188,70 @@ public class TrackedFileTests
         await Assert.That(accepted.Queue.Single().Kind).IsEqualTo(QueueEntryKind.Delete);
     }
 
+    /// <summary>
+    /// A snapshot moving inline arrives as two unrelated entries — the patch that writes the
+    /// literal, and a delete of the verified file it replaces — and the sweep used to run the
+    /// second whether or not the first landed. That is how a snapshot leaves a repository
+    /// altogether: nothing written into the source, nothing left beside it, and every later run
+    /// reporting the same new snapshot with nothing to delete.
+    /// </summary>
+    [Test]
+    public async Task ARefusedPatchHoldsTheDeleteThatWouldHaveReplacedIt()
+    {
+        var done = new List<string>();
+        var state = Owned(Fixtures.Delete());
+        state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
+
+        var accepted = ViewerSession.Apply(state, CommandKind.AcceptAll, Refusing(done, "no Verify call"));
+
+        await Assert.That(done).IsEmpty();
+        await Assert.That(accepted.Message).Contains("(1 kept)");
+        var held = accepted.Queue.Single(_ => _.Kind == QueueEntryKind.Delete);
+        await Assert.That(held.Status).Contains("Held");
+    }
+
+    /// <summary>
+    /// Only the deletes wait. A move is the snapshot arriving rather than the last copy of it
+    /// leaving, so holding those would strand accepted work for an unrelated failure.
+    /// </summary>
+    [Test]
+    public async Task ARefusedPatchStillLetsAMoveThrough()
+    {
+        var done = new List<string>();
+        var state = Owned(Fixtures.Move());
+        state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
+
+        ViewerSession.Apply(state, CommandKind.AcceptAll, Refusing(done, "no Verify call"));
+
+        await Assert.That(done).IsEquivalentTo(["move temp/sample.received.txt > code/sample.verified.txt"]);
+    }
+
+    /// <summary>
+    /// The same guard on the group sweep. It reaches it differently: a group accept takes its
+    /// entries one at a time, so a refused patch leaves the queue rather than staying in it with a
+    /// status, and the sweep cannot read the outcome off the queue it is handed.
+    /// </summary>
+    [Test]
+    public async Task ARefusedPatchHoldsTheDeleteInAGroupSweepToo()
+    {
+        var done = new List<string>();
+        // Two solutions, so the headers are solution headers - the only kind that spans a snapshot
+        // and a file together. A test header holds inline entries alone and sweeps nothing.
+        var state = Owned(
+            Fixtures.Delete(solution: "Alpha"),
+            Fixtures.Delete(name: "other.verified.txt", solution: "Beta"));
+        state = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(Fixtures.SolutionFile("Alpha", "Tests", "ATests.cs")));
+
+        var menu = ViewerSession.OpenMenu(state, 0);
+        var accepted = ViewerSession.Apply(menu, CommandKind.AcceptGroup, Refusing(done, "no Verify call"));
+
+        await Assert.That(done).IsEmpty();
+        var held = accepted.Queue.Single(_ => _.Name == "extra.verified.txt");
+        await Assert.That(held.Status).Contains("Held");
+    }
+
     static SessionState Owned(params QueueEntry[] tracked)
     {
         var state = SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows);
@@ -214,6 +278,16 @@ public class TrackedFileTests
         {
             MoveFile = (temp, target) => done.Add($"move {temp} > {target}"),
             DeleteFile = file => done.Add($"delete {file}")
+        };
+
+    /// <summary>
+    /// The files still record rather than perform, but the patches are refused - an accept-all
+    /// where the source could not take the literal.
+    /// </summary>
+    static ViewerActions Refusing(List<string> done, string reason) =>
+        Tracking(done) with
+        {
+            ApplyInline = _ => InlineApplyResult.NotFound(reason)
         };
 
     static ViewerActions Failing(string message) =>
