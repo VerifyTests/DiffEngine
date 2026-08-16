@@ -90,7 +90,7 @@ public class TrayViewerSyncTest
         pair.Queue(other, 7);
         pair.Pump();
 
-        pair.Tracker.Discard(snapshot);
+        await pair.Tracker.Discard(snapshot);
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(other, 7)]);
     }
@@ -264,7 +264,7 @@ public class TrayViewerSyncTest
         await using var pair = new TrayOwned();
         var snapshot = pair.Queue(sample, 1);
         pair.Queue(other, 7);
-        pair.Tracker.Discard(snapshot);
+        await pair.Tracker.Discard(snapshot);
 
         await pair.Tracker.Accept(snapshot);
 
@@ -399,7 +399,7 @@ public class TrayViewerSyncTest
         var snapshot = pair.Snapshot(sample, 1);
         pair.Queue(other, 7);
 
-        pair.Tracker.Discard(snapshot);
+        await pair.Tracker.Discard(snapshot);
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(other, 7)]);
         await Assert.That(pair.Applied).IsEmpty();

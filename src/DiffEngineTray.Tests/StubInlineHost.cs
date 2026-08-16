@@ -24,9 +24,22 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
         return AcceptOutcome.Applied;
     }
 
+    /// <summary>
+    /// Held for as long as a test wants a discard to be in flight, standing in for the socket round
+    /// trip a queue in another process makes of it.
+    /// </summary>
+    public ManualResetEventSlim? DiscardBlock { get; init; }
+
+    /// <summary>
+    /// Set once a discard is under way, so a test can act while one is.
+    /// </summary>
+    public ManualResetEventSlim DiscardStarted { get; } = new();
+
     public bool Discard(PendingSnapshot snapshot, out string? message)
     {
         message = null;
+        DiscardStarted.Set();
+        DiscardBlock?.Wait(TimeSpan.FromSeconds(10));
         return true;
     }
 

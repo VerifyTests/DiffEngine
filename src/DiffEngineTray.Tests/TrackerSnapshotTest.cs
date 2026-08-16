@@ -67,10 +67,34 @@ public class TrackerSnapshotTest
         await using var tracker = new RecordingTracker();
         var snapshot = tracker.Snapshots.Single();
 
-        tracker.Discard(snapshot);
+        await tracker.Discard(snapshot);
 
         await Assert.That(viewer.Verbs).Contains($"discard:{snapshot.Key}");
         await Assert.That(tracker.Snapshots).IsEmpty();
+    }
+
+    /// <summary>
+    /// The click returns before the queue has answered. Against a queue another process owns a
+    /// discard is two socket round trips - the discard itself, then the listing the refresh reads -
+    /// and both used to run on the thread that had just handled the menu click, which is the thread
+    /// drawing everything else.
+    /// </summary>
+    [Test]
+    public async Task DiscardDoesNotWaitOnTheQueue()
+    {
+        using var block = new ManualResetEventSlim();
+        var host = new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null))
+        {
+            DiscardBlock = block
+        };
+        await using var tracker = new RecordingTracker(inline: host);
+
+        var discarding = tracker.Discard(tracker.Snapshots.Single());
+
+        await Assert.That(host.DiscardStarted.Wait(TimeSpan.FromSeconds(5))).IsTrue();
+        await Assert.That(discarding.IsCompleted).IsFalse();
+        block.Set();
+        await discarding;
     }
 
     [Test]

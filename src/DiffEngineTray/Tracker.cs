@@ -289,15 +289,29 @@ class Tracker :
             ? $"Could not accept the snapshot for '{name}'. {message}"
             : $"Could not accept the snapshot for '{name}'.";
 
-    public void Discard(PendingSnapshot snapshot)
-    {
-        if (!inline.Discard(snapshot, out var message))
+    /// <summary>
+    /// On a worker, matching <see cref="Accept(PendingSnapshot)"/> and for the same reason. Against
+    /// a queue another process owns this is two socket round trips - the discard, then the listing
+    /// <see cref="Refresh"/> reads - and it was running both on the thread that had just handled
+    /// the menu click, which is the one drawing everything.
+    /// </summary>
+    public Task Discard(PendingSnapshot snapshot) =>
+        Task.Run(() =>
         {
-            inlineFailed?.Invoke($"Could not discard the snapshot for '{snapshot.Name}'. {message}");
-        }
+            try
+            {
+                if (!inline.Discard(snapshot, out var message))
+                {
+                    inlineFailed?.Invoke($"Could not discard the snapshot for '{snapshot.Name}'. {message}");
+                }
 
-        Refresh();
-    }
+                Refresh();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle($"Failed to discard the snapshot for '{snapshot.Name}'", exception);
+            }
+        });
 
     public Task AcceptAllSnapshots()
     {
