@@ -346,7 +346,10 @@ static class InlinePatcher
     {
         if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, entryPointPrefixes, true, out var nameStart, out var openParen))
         {
-            failReason = $"Could not find a {entryPointDescription} call near line {lineHint}. A call reached through a receiver of its own - SomeHelper.Verify(...) - is not one, because the snapshot has to chain onto the SettingsTask the entry point returns. Otherwise the source may have changed since the test run, in which case re-run the test.";
+            // Short, because every surface that shows it is one line: a status bar, a balloon, a
+            // menu tooltip. The receiver clause earns its place there because it is the one cause
+            // a reader cannot deduce from looking at the line the message names
+            failReason = $"No {entryPointDescription} call at line {lineHint}. One reached through a receiver of its own does not count.";
             return PatchStatus.NotFound;
         }
 

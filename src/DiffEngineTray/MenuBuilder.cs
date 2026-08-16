@@ -221,6 +221,20 @@ static class MenuBuilder
         {
             DropDownDirection = ToolStripDropDownDirection.Left
         };
+        if (snapshot.Status is { } status)
+        {
+            // The marker said something had gone wrong and the menu had nowhere to say what. An
+            // accept reporting "13 not written" over thirteen bare exclamation marks tells a
+            // reader only that they are on their own. On the item itself as well as in the tip,
+            // because a reason that has to be hovered for is a reason most people never see
+            menu.ToolTipText = status;
+            menu.DropDownItems.Add(new ToolStripLabel(Shorten(status))
+            {
+                Enabled = false,
+                ToolTipText = status
+            });
+        }
+
         menu.DropDownItems.Add(new MenuButton("Accept snapshot", accept));
         menu.DropDownItems.Add(new MenuButton("Discard", discard));
         // Replaces "Open diff tool": the viewer is the diff tool, so the useful action is to bring
@@ -229,6 +243,15 @@ static class MenuBuilder
         menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(snapshot.Source)));
         return menu;
     }
+
+    /// <summary>
+    /// Enough of the reason to act on, at a width a menu can hold. A tray menu grows to its widest
+    /// item, so the untrimmed text would drag the whole thing across the screen. The tip beside it
+    /// carries the rest, which is the right way round: the item says what happened, and hovering is
+    /// for the reader who wants the sentence finished.
+    /// </summary>
+    static string Shorten(string status) =>
+        status.Length <= 70 ? status : $"{status[..69].TrimEnd()}…";
 
     static ToolStripDropDownButton BuildDelete(TrackedDelete delete, Action accept)
     {

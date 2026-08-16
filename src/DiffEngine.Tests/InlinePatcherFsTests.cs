@@ -403,7 +403,7 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     [Test]

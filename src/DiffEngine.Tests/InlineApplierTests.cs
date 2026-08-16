@@ -349,7 +349,7 @@ public class InlineApplierTests
             var result = InlineApplier.CanApply(Patch(path, 3, null, "new", InlinePatchMode.Append));
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.NotFound);
-            await Assert.That(result.Message).Contains("Could not find a Verify or Throws call");
+            await Assert.That(result.Message).Contains("No Verify or Throws call at line");
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(throughHelper);
         }
         finally

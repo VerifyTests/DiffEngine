@@ -84,7 +84,13 @@ public sealed class InlineQueue
                 : $", {conflicted} conflicts need review");
         }
 
-        if (failure is not null)
+        // Only when it speaks for the whole batch. `failure` is whichever entry went wrong last,
+        // which is worth saying when it is the only one and misleading when it is one of thirteen -
+        // a summary that names a single file reads as the extent of the damage, and it arrives at
+        // the length of a paragraph in a bar one line high. Every entry carries its own reason, and
+        // that is where a reader with thirteen of them has to look anyway.
+        if (failure is not null &&
+            notWritten + failed == 1)
         {
             builder.Append($". {failure}");
         }

@@ -203,6 +203,31 @@ public class InlineQueueTests
     }
 
     /// <summary>
+    /// One reason speaks for a batch of one and for no batch larger. It is whichever entry went
+    /// wrong last, so naming a single file among thirteen reads as the extent of the damage, and it
+    /// arrives at the length of a paragraph in surfaces one line high - a status bar, a balloon, a
+    /// menu label. The entries keep their own reasons, which is where a reader with thirteen of
+    /// them has to look regardless.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllCountsABatchRatherThanNamingOneOfIt()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2))
+            .Enqueue(Patch("C.cs", 3))
+            .AcceptAll(_ => InlineApplyResult.NotFound("no Verify or Throws call"), out var message);
+
+        await Assert.That(message).IsEqualTo("Accepted 0, 3 not written");
+        await Assert.That(queue.Items.Select(_ => _.Status!)).IsEquivalentTo(
+        [
+            "A.cs:1 not written. no Verify or Throws call",
+            "B.cs:2 not written. no Verify or Throws call",
+            "C.cs:3 not written. no Verify or Throws call"
+        ]);
+    }
+
+    /// <summary>
     /// The two phase form: find, apply outside the host's lock, complete. A re-run that replaced
     /// the patch while it was applying keeps its new entry, because the outcome describes the old
     /// one.

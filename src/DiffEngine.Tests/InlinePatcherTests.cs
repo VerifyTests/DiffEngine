@@ -532,7 +532,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     // A project helper named Verify is not the entry point, and a stale hint must not drift onto one
@@ -544,7 +544,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     /// <summary>
@@ -560,7 +560,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     [Test]
@@ -571,7 +571,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     // The entry point wrapping a helper of the same name: the outer call is the one to append to
@@ -642,7 +642,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+        await Assert.That(reason).Contains("No Verify or Throws call at line");
     }
 
     /// <summary>

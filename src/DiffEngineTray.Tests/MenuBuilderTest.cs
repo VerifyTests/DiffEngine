@@ -57,6 +57,43 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
+    /// <summary>
+    /// A snapshot the applier would not write. The menu marked it with an exclamation and stopped
+    /// there, so a sweep reporting "13 not written" left thirteen items saying only that something
+    /// was wrong with them. The reason goes on the item, trimmed to a width a menu can hold,
+    /// because a tray menu grows to its widest entry.
+    /// </summary>
+    [Test]
+    public async Task SnapshotThatWasNotWrittenCarriesItsReason()
+    {
+        const string status = "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.";
+        // The host directly rather than through a FakeViewer: that one publishes its port in an
+        // environment variable, which the tests running beside it are free to overwrite
+        await using var tracker = new RecordingTracker(
+            inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
+
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        // The tracked items are built on Opening and exist only while the menu is up, so a test
+        // that reads Items without this one sees the six fixed entries and nothing else
+        menu.Show(0, 0);
+
+        var item = menu.Items
+            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
+            .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
+        await Assert.That(item.ToolTipText).IsEqualTo(status);
+
+        // On the item as well as in the tip, since a reason only a hover reveals is one most
+        // people never see. Trimmed, because a tray menu grows to its widest entry
+        var label = item.DropDownItems.OfType<System.Windows.Forms.ToolStripLabel>().Single();
+        await Assert.That(label.ToolTipText).IsEqualTo(status);
+        await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(70);
+        await Assert.That(label.Text).StartsWith("Sample.cs:12 not written. No Verify or Throws call");
+        menu.Close();
+    }
+
     [Test]
     public async Task DiffTempTarget()
     {
