@@ -228,7 +228,10 @@ static class MenuBuilder
             // reader only that they are on their own. On the item itself as well as in the tip,
             // because a reason that has to be hovered for is a reason most people never see
             menu.ToolTipText = status;
-            menu.DropDownItems.Add(new ToolStripLabel(Shorten(status))
+            // A menu item rather than a label: a label does not count towards the drop down's
+            // width, so its text was clipped to whatever the buttons below happened to make the
+            // menu - about twenty characters of a sentence
+            menu.DropDownItems.Add(new ToolStripMenuItem(ForMenu(snapshot.Name, status))
             {
                 Enabled = false,
                 ToolTipText = status
@@ -245,13 +248,25 @@ static class MenuBuilder
     }
 
     /// <summary>
-    /// Enough of the reason to act on, at a width a menu can hold. A tray menu grows to its widest
-    /// item, so the untrimmed text would drag the whole thing across the screen. The tip beside it
-    /// carries the rest, which is the right way round: the item says what happened, and hovering is
-    /// for the reader who wants the sentence finished.
+    /// One line of it, and the part worth the room. The status leads with the name of the snapshot,
+    /// which the item this hangs under has just said, so the prefix goes and the reason itself gets
+    /// the width.
+    /// <para>
+    /// One line rather than a wrapped block: a drop down gives every item the height of its tallest,
+    /// so a reason over three lines pushed Accept, Discard and the rest three lines apart each. The
+    /// tip carries the sentence whole for anyone who wants the end of it.
+    /// </para>
     /// </summary>
-    static string Shorten(string status) =>
-        status.Length <= 70 ? status : $"{status[..69].TrimEnd()}…";
+    static string ForMenu(string name, string status)
+    {
+        var prefix = $"{name} not written. ";
+        if (status.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            status = status[prefix.Length..];
+        }
+
+        return status.Length <= 60 ? status : $"{status[..59].TrimEnd()}…";
+    }
 
     static ToolStripDropDownButton BuildDelete(TrackedDelete delete, Action accept)
     {

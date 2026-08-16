@@ -86,12 +86,61 @@ public class MenuBuilderTest :
         await Assert.That(item.ToolTipText).IsEqualTo(status);
 
         // On the item as well as in the tip, since a reason only a hover reveals is one most
-        // people never see. Trimmed, because a tray menu grows to its widest entry
-        var label = item.DropDownItems.OfType<System.Windows.Forms.ToolStripLabel>().Single();
+        // people never see. The name goes, having just been said by the item this hangs under,
+        // and what is left is one line so the drop down does not give every entry its height
+        var label = item.DropDownItems
+            .OfType<System.Windows.Forms.ToolStripMenuItem>()
+            .Single(_ => !_.Enabled);
         await Assert.That(label.ToolTipText).IsEqualTo(status);
-        await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(70);
-        await Assert.That(label.Text).StartsWith("Sample.cs:12 not written. No Verify or Throws call");
+        await Assert.That(label.Text).DoesNotContain("Sample.cs:12");
+        await Assert.That(label.Text).StartsWith("No Verify or Throws call at line 12.");
+        await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(60);
+        await Assert.That(label.Text).DoesNotContain("\n");
         menu.Close();
+    }
+
+    /// <summary>
+    /// The same item with its drop down open, which is where the reason lives. The menu images
+    /// elsewhere in this file stop at the top level and show only the marker, so nothing here saw
+    /// how wide the reason made the menu - the thing that decides whether putting it on the item
+    /// was an improvement or a menu running off the side of the screen.
+    /// </summary>
+    [Test]
+    public async Task SnapshotThatWasNotWrittenDropDown()
+    {
+        await using var tracker = new RecordingTracker(
+            inline: new StubInlineHost(
+                new PendingSnapshot(
+                    "c:\\repo\\sample.cs|12",
+                    "Sample.cs:12",
+                    "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.")));
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        menu.Show(0, 0);
+
+        var item = menu.Items
+            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
+            .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
+        item.ShowDropDown();
+
+        await Verify(Draw(item.DropDown), "png", settings);
+        menu.Close();
+    }
+
+    /// <summary>
+    /// Drawn rather than handed to Verify.WinForms, which renders a control by parenting it to a
+    /// form of its own - something a drop down, being a top level window already, refuses.
+    /// </summary>
+    static MemoryStream Draw(System.Windows.Forms.Control control)
+    {
+        using var bitmap = new System.Drawing.Bitmap(control.Width, control.Height);
+        control.DrawToBitmap(bitmap, new(0, 0, bitmap.Width, bitmap.Height));
+        var stream = new MemoryStream();
+        bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+        stream.Position = 0;
+        return stream;
     }
 
     [Test]
