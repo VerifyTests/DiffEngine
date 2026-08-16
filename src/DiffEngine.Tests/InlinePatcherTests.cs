@@ -663,6 +663,35 @@ public class InlinePatcherTests
             "            .Snapshot(\"new\");");
     }
 
+    /// <summary>
+    /// The last line of a file with no newline after it, where the line's range ends at the end of
+    /// the source rather than at a line break. The per-line search is bounded by that range, so
+    /// this is the edge the bound is measured against.
+    /// </summary>
+    [Test]
+    public async Task AppendOnTheFinalLineWithNoTrailingNewline()
+    {
+        var source = "class Tests\n{\n    Task Test() => Verify(value);";
+
+        var status = TryApply(source, 3, InlinePatchMode.Append, null, "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains(".Snapshot(\"new\")");
+    }
+
+    // The name reaching the very last character, so the bounded search has no room to spare
+    [Test]
+    public async Task SetWhereTheLiteralEndsTheFile()
+    {
+        var source = "class Tests\n{\n    Task Test() => Verify(value).Snapshot(\"old\")";
+
+        var status = TryApply(source, 3, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).EndsWith(".Snapshot(\"new\")");
+    }
+
     [Test]
     public async Task RemoveTakesTheWholeLine()
     {

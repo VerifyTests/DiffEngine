@@ -593,11 +593,17 @@ static class InlinePatcher
 
         for (var distance = 0; distance < lineCount; distance++)
         {
-            var candidates = distance == 0
-                ? new[] { origin }
-                : new[] { origin + distance, origin - distance };
-            foreach (var line in candidates)
+            // Below the origin then above it, without building a pair of candidates per step. At
+            // distance zero the two sides are the same line, so only the first is taken
+            for (var side = 0; side < 2; side++)
             {
+                if (distance == 0 &&
+                    side == 1)
+                {
+                    break;
+                }
+
+                var line = side == 0 ? origin + distance : origin - distance;
                 if (line < floor ||
                     line > lineCount ||
                     // Already tried, and yielding it twice would have a caller that rejects the
@@ -635,18 +641,25 @@ static class InlinePatcher
         var lineCount = lineStarts.Count;
         var start = lineStarts[line - 1];
         var end = line < lineCount ? lineStarts[line] : source.Length;
-        List<(int nameStart, int openParen)>? found = null;
+        List<(int nameStart, int openParen)>? matches = null;
         foreach (var name in names)
         {
             var index = start;
-            while (true)
+            while (index < end)
             {
-                index = source.IndexOf(name, index, StringComparison.Ordinal);
-                if (index < 0 || index >= end)
+                // Bounded to the line. The unbounded overload searched to the end of the file and
+                // then discarded whatever it found for being past this line - work repeated for
+                // every line the outward walk probes, which on the miss path is all of them, so a
+                // search that found nothing cost the file size squared. A name cannot span the
+                // line break that ends the range, having no newline in it, so nothing that used to
+                // match stops matching.
+                var at = source.IndexOf(name, index, end - index, StringComparison.Ordinal);
+                if (at < 0)
                 {
                     break;
                 }
 
+                index = at;
                 var identifierEnd = index + name.Length;
                 if (byPrefix)
                 {
@@ -671,21 +684,21 @@ static class InlinePatcher
                     !(byPrefix && IsForeignReceiver(source, scan, index)) &&
                     TrySkipToParen(source, scan, identifierEnd, out var paren))
                 {
-                    found ??= [];
-                    found.Add((index, paren));
+                    matches ??= [];
+                    matches.Add((index, paren));
                 }
 
                 index += name.Length;
             }
         }
 
-        if (found is null)
+        if (matches is null)
         {
             yield break;
         }
 
-        found.Sort(static (left, right) => left.nameStart.CompareTo(right.nameStart));
-        foreach (var call in found)
+        matches.Sort(static (left, right) => left.nameStart.CompareTo(right.nameStart));
+        foreach (var call in matches)
         {
             yield return call;
         }
