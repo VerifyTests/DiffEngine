@@ -30,10 +30,18 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
         return true;
     }
 
+    /// <summary>
+    /// What a bulk accept reports. False is the shape that matters: everything still pending, and
+    /// the summary saying how much of it went unwritten.
+    /// </summary>
+    public bool AcceptAllSucceeds { get; init; } = true;
+
+    public string? AcceptAllMessage { get; init; }
+
     public bool AcceptAll(out string? message)
     {
-        message = null;
-        return true;
+        message = AcceptAllMessage;
+        return AcceptAllSucceeds;
     }
 
     public void DiscardAll()

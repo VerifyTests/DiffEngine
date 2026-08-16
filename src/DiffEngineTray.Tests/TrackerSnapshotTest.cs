@@ -85,6 +85,29 @@ public class TrackerSnapshotTest
         await Assert.That(tracker.Snapshots).IsEmpty();
     }
 
+    /// <summary>
+    /// A sweep that wrote nothing has to reach the balloon. It used to return true and be silent:
+    /// a refused patch counted as an accept and left the queue, so a click that wrote no snapshot
+    /// anywhere emptied the menu and said nothing at all.
+    /// </summary>
+    [Test]
+    public async Task ABulkAcceptThatWroteNothingIsReported()
+    {
+        var warnings = new List<string>();
+        await using var tracker = new RecordingTracker(
+            inlineFailed: warnings.Add,
+            inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null))
+            {
+                AcceptAllSucceeds = false,
+                AcceptAllMessage = "Accepted 0, 13 not written"
+            });
+
+        await tracker.AcceptAllSnapshots();
+
+        await Assert.That(warnings).IsEquivalentTo(
+            ["Could not accept the pending snapshots. Accepted 0, 13 not written"]);
+    }
+
     [Test]
     public async Task AcceptAllWithNothingPendingDoesNotCallTheViewer()
     {
