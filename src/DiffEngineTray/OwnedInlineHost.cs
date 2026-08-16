@@ -471,22 +471,46 @@ sealed class OwnedInlineHost :
 
     /// <summary>
     /// One viewer at a time. A second patch while one is up is a focus, not another window.
+    /// <para>
+    /// The start itself happens outside the gate. Starting a process takes long enough on its own,
+    /// and seconds of it with an antivirus between, and every listing the attached viewer polls for
+    /// and every patch a test run enqueues was queued behind it. The flag keeps the launcher to one
+    /// caller, which is all the gate was doing for it - nothing else reads or writes the launcher.
+    /// </para>
     /// </summary>
     void Launch()
     {
         lock (gate)
         {
-            if (launcher.Running)
+            if (launcher.Running ||
+                launching)
             {
                 return;
             }
 
-            if (!launcher.Launch())
+            launching = true;
+        }
+
+        bool started;
+        try
+        {
+            started = launcher.Launch();
+        }
+        finally
+        {
+            lock (gate)
             {
-                failed("Could not start DiffEngineViewer to show the pending snapshots.");
+                launching = false;
             }
         }
+
+        if (!started)
+        {
+            failed("Could not start DiffEngineViewer to show the pending snapshots.");
+        }
     }
+
+    bool launching;
 
     public async ValueTask DisposeAsync()
     {

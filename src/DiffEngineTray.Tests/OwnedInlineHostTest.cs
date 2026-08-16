@@ -212,6 +212,32 @@ public class OwnedInlineHostTest
         await Assert.That(owner.Host.List()).IsEmpty();
     }
 
+    /// <summary>
+    /// The queue stays answerable while a viewer is starting. The launch used to hold the gate, so
+    /// a process start - seconds of it with an antivirus in the way - queued behind it every
+    /// listing the attached viewer polls for and every patch a test run was sending.
+    /// </summary>
+    [Test]
+    public async Task AStartingViewerDoesNotHoldUpTheQueue()
+    {
+        using var owner = new Owner();
+        using var block = new ManualResetEventSlim();
+        owner.Launcher.Block = block;
+
+        // Enqueuing is what triggers the launch, and it goes on a worker because the launch it
+        // triggers is the thing being held open
+        var enqueue = Task.Run(() => owner.Queue());
+        await Assert.That(owner.Launcher.Started.Wait(TimeSpan.FromSeconds(5))).IsTrue();
+
+        // Mid launch, and the queue still answers
+        var listed = Task.Run(() => owner.Host.List());
+        await Assert.That(listed.Wait(TimeSpan.FromSeconds(5))).IsTrue();
+
+        block.Set();
+        await enqueue;
+        await Assert.That(owner.Launcher.Launches).IsEqualTo(1);
+    }
+
     [Test]
     public async Task AcceptingSomethingAlreadyGoneIsUnknown()
     {
