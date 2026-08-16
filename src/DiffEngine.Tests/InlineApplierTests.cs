@@ -309,6 +309,68 @@ public class InlineApplierTests
     // The same file with no Snapshot call yet, for the append case below
     const string appendable = "class C\n{\n    void M() => Verify(value);\n}";
 
+    // The shape that started all this: the entry point reached through the caller's own helper,
+    // so there is no SettingsTask for a Snapshot call to chain onto
+    const string throughHelper = "class C\n{\n    void M() => SnippetVerifier.Verify(value);\n}";
+
+    /// <summary>
+    /// A dry run answers for the append without performing it, so a producer can find out that a
+    /// call site cannot host a snapshot while it is still free to leave the verification on files.
+    /// </summary>
+    [Test]
+    public async Task CanApplyAnswersWithoutWriting()
+    {
+        var path = WriteTemp(Utf8(appendable, bom: false));
+        try
+        {
+            var patch = Patch(path, 3, null, "new", InlinePatchMode.Append);
+
+            var result = InlineApplier.CanApply(patch);
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(appendable);
+
+            // And the answer it gave was true: the same patch applied for real does land
+            await Assert.That(InlineApplier.Apply(patch).Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(await File.ReadAllTextAsync(path)).Contains(".Snapshot(\"new\")");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task CanApplyRefusesACallSiteThatCannotHostASnapshot()
+    {
+        var path = WriteTemp(Utf8(throughHelper, bom: false));
+        try
+        {
+            var result = InlineApplier.CanApply(Patch(path, 3, null, "new", InlinePatchMode.Append));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.NotFound);
+            await Assert.That(result.Message).Contains("Could not find a Verify or Throws call");
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(throughHelper);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    // The checks that come before the source is even read still answer, rather than reporting a
+    // file that cannot host anything because it is not there
+    [Test]
+    public async Task CanApplyRefusesAMissingFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_{Guid.NewGuid():N}.cs");
+
+        var result = InlineApplier.CanApply(Patch(path, 3, null, "new", InlinePatchMode.Append));
+
+        await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
+        await Assert.That(result.Message).Contains("does not exist");
+    }
+
     /// <summary>
     /// The file ends the way it began, whichever way that is. A final newline gained or lost is a
     /// line in the diff of every commit that touches the file afterwards, so it is worth saying out

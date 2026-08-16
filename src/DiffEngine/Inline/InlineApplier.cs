@@ -13,7 +13,28 @@ public static class InlineApplier
 {
     static readonly ConcurrentDictionary<string, object> gates = new(StringComparer.OrdinalIgnoreCase);
 
-    public static InlineApplyResult Apply(InlinePatch patch)
+    public static InlineApplyResult Apply(InlinePatch patch) =>
+        Run(patch, write: true);
+
+    /// <summary>
+    /// What <see cref="Apply"/> would report, with nothing written.
+    /// <para>
+    /// For a producer deciding whether a snapshot can live inline at all. Some call sites cannot
+    /// host one - the entry point is reached through a helper of the caller's own, so there is no
+    /// SettingsTask to chain onto - and a producer that goes ahead regardless declares the
+    /// verification inline, has the append refused at accept time, and by then has already had the
+    /// verified file deleted as redundant. Asking first keeps that verification on files.
+    /// </para>
+    /// <para>
+    /// An answer about the file as it is now. The source can still change between this and the
+    /// accept, so <see cref="Apply"/> is no less able to refuse; what this rules out is the case
+    /// that was never going to work rather than the one that stopped working.
+    /// </para>
+    /// </summary>
+    public static InlineApplyResult CanApply(InlinePatch patch) =>
+        Run(patch, write: false);
+
+    static InlineApplyResult Run(InlinePatch patch, bool write)
     {
         if (string.IsNullOrWhiteSpace(patch.SourceFile))
         {
@@ -57,7 +78,7 @@ public static class InlineApplier
                     return InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}");
                 }
 
-                return LockedApply(fullPath, patch, newContent);
+                return LockedApply(fullPath, patch, newContent, write);
             }
             finally
             {
@@ -69,7 +90,7 @@ public static class InlineApplier
         }
     }
 
-    static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent)
+    static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent, bool write)
     {
         // Asked here rather than before the lock, because the swap at the end of this method takes
         // the path away for the instant it takes to rename over it. Asked outside, an applier
@@ -125,6 +146,13 @@ public static class InlineApplier
                 return InlineApplyResult.AlreadyApplied;
             case PatchStatus.NotFound:
                 return InlineApplyResult.NotFound(failReason);
+        }
+
+        // Every reason a patch can be refused for has been asked by this point and none of them
+        // held. All that remains is the write, which is the one step a dry run may not take
+        if (!write)
+        {
+            return InlineApplyResult.Applied;
         }
 
         try
