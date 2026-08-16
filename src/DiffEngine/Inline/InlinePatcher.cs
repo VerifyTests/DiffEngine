@@ -30,9 +30,28 @@ static class InlinePatcher
 
     /// <summary>
     /// Append mode has no Snapshot call to find, so it locates the verify invocation instead.
-    /// Matched by prefix because every entry point is Verify, VerifyXml, VerifyJson and so on.
+    /// Matched by prefix because the entry points come in families: Verify, VerifyXml, VerifyJson,
+    /// and Throws, ThrowsTask, ThrowsValueTask.
+    /// <para>
+    /// The throwing ones are entry points like any other - they return a SettingsTask, so a
+    /// Snapshot call chains onto them exactly the same way - and a test whose whole subject is the
+    /// exception is the kind that most wants its snapshot inline. Searching for Verify alone left
+    /// every one of them unpatchable: the snapshot was declared inline, the append silently found
+    /// nothing, and the verified file was deleted out from under it.
+    /// </para>
+    /// <para>
+    /// A prefix this ordinary matches things that are not entry points at all - a local helper
+    /// named ThrowsOn, a mock's VerifyAll. Three things keep that in hand: the receiver check in
+    /// <see cref="IsForeignReceiver"/>, the member bound in <see cref="FindCalls"/>, and the line
+    /// hint, which points at the call that actually ran.
+    /// </para>
     /// </summary>
-    const string verifyPrefix = "Verify";
+    static readonly string[] entryPointPrefixes = ["Verify", "Throws"];
+
+    /// <summary>
+    /// How the entry points are named in a message, since there is no longer one of them.
+    /// </summary>
+    const string entryPointDescription = "Verify or Throws";
 
     /// <summary>
     /// The only receiver a verify entry point is reached through. Every adapter exposes the entry
@@ -81,7 +100,7 @@ static class InlinePatcher
             // still unaccepted.
             // ReSharper disable once RedundantSuppressNullableWarningExpression
             var needle = NormalizeTo(originalExpression!, eol);
-            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, methodName, false))
+            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
             {
                 if (!TryReadArguments(source, scan, openParen, out var expected) ||
                     !expected.Matches(source, needle))
@@ -111,7 +130,7 @@ static class InlinePatcher
             // the same outcome when nothing matches: report, rather than rewrite whichever call
             // the hint happens to land on.
             var previous = SourceLanguage.NormalizeNewlines(originalValue);
-            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, methodName, false))
+            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
             {
                 if (!TryReadArguments(source, scan, openParen, out var expected) ||
                     expected.IsAbsent ||
@@ -325,15 +344,15 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, verifyPrefix, true, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, entryPointPrefixes, true, out var nameStart, out var openParen))
         {
-            failReason = $"Could not find a {verifyPrefix} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+            failReason = $"Could not find a {entryPointDescription} call near line {lineHint}. A call reached through a receiver of its own - SomeHelper.Verify(...) - is not one, because the snapshot has to chain onto the SettingsTask the entry point returns. Otherwise the source may have changed since the test run, in which case re-run the test.";
             return PatchStatus.NotFound;
         }
 
         if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
         {
-            failReason = $"Could not parse the argument list of the {verifyPrefix} call near line {lineHint}.";
+            failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
             return PatchStatus.NotFound;
         }
 
@@ -371,7 +390,7 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, methodName, false, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
@@ -501,8 +520,10 @@ static class InlinePatcher
         return source.Substring(lineStart, index - lineStart);
     }
 
+    static readonly string[] snapshotName = [methodName];
+
     static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, out int openParen) =>
-        TryFindCall(source, scan, lineStarts, lineHint, memberLine, methodName, false, out _, out openParen);
+        TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out _, out openParen);
 
     static bool TryFindCall(
         string source,
@@ -510,12 +531,12 @@ static class InlinePatcher
         List<int> lineStarts,
         int lineHint,
         int? memberLine,
-        string name,
+        string[] names,
         bool byPrefix,
         out int nameStart,
         out int openParen)
     {
-        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, memberLine, name, byPrefix))
+        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, memberLine, names, byPrefix))
         {
             (nameStart, openParen) = call;
             return true;
@@ -542,8 +563,9 @@ static class InlinePatcher
     /// The recorded line is still tried first, since a hint that lands on a call is the whole
     /// point of having one, and it is what keeps two snapshots in the same method apart.
     /// </para>
-    /// <paramref name="byPrefix"/> matches any identifier starting with <paramref name="name"/>,
-    /// which is how the several Verify overloads are found with one search.
+    /// <paramref name="byPrefix"/> matches any identifier starting with one of
+    /// <paramref name="names"/>, which is how the several Verify overloads are found with one
+    /// search.
     /// </summary>
     static IEnumerable<(int nameStart, int openParen)> FindCalls(
         string source,
@@ -551,7 +573,7 @@ static class InlinePatcher
         List<int> lineStarts,
         int lineHint,
         int? memberLine,
-        string name,
+        string[] names,
         bool byPrefix)
     {
         var lineCount = lineStarts.Count;
@@ -560,7 +582,7 @@ static class InlinePatcher
         var origin = memberLine is null ? lineHint : floor;
         if (lineHint >= floor)
         {
-            foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, name, byPrefix))
+            foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, byPrefix))
             {
                 yield return call;
             }
@@ -582,7 +604,7 @@ static class InlinePatcher
                     continue;
                 }
 
-                foreach (var call in CallsOnLine(source, scan, lineStarts, line, name, byPrefix))
+                foreach (var call in CallsOnLine(source, scan, lineStarts, line, names, byPrefix))
                 {
                     yield return call;
                 }
@@ -593,54 +615,76 @@ static class InlinePatcher
     static int Clamp(int line, int lineCount) =>
         Math.Min(Math.Max(line, 1), lineCount);
 
+    /// <summary>
+    /// The calls on one line, in source order. Order matters across names as much as within one:
+    /// the outward walk in <see cref="FindCalls"/> is what makes the nearest call win, and taking
+    /// every Verify on a line ahead of a Throws that sits to the left of it would undo that for
+    /// the one line where being nearest counts most.
+    /// </summary>
     static IEnumerable<(int nameStart, int openParen)> CallsOnLine(
         string source,
         SourceScan scan,
         List<int> lineStarts,
         int line,
-        string name,
+        string[] names,
         bool byPrefix)
     {
         var lineCount = lineStarts.Count;
         var start = lineStarts[line - 1];
         var end = line < lineCount ? lineStarts[line] : source.Length;
-        var index = start;
-        while (true)
+        List<(int nameStart, int openParen)>? found = null;
+        foreach (var name in names)
         {
-            index = source.IndexOf(name, index, StringComparison.Ordinal);
-            if (index < 0 || index >= end)
+            var index = start;
+            while (true)
             {
-                break;
-            }
-
-            var identifierEnd = index + name.Length;
-            if (byPrefix)
-            {
-                while (identifierEnd < source.Length &&
-                       scan.IsIdentifierChar(source[identifierEnd]))
+                index = source.IndexOf(name, index, StringComparison.Ordinal);
+                if (index < 0 || index >= end)
                 {
-                    identifierEnd++;
+                    break;
                 }
-            }
-            else if (identifierEnd < source.Length &&
-                     scan.IsIdentifierChar(source[identifierEnd]))
-            {
+
+                var identifierEnd = index + name.Length;
+                if (byPrefix)
+                {
+                    while (identifierEnd < source.Length &&
+                           scan.IsIdentifierChar(source[identifierEnd]))
+                    {
+                        identifierEnd++;
+                    }
+                }
+                else if (identifierEnd < source.Length &&
+                         scan.IsIdentifierChar(source[identifierEnd]))
+                {
+                    index += name.Length;
+                    continue;
+                }
+
+                // In code, a whole token, an invocation rather than a declaration, and
+                // followed by an argument list. A commented out example passes none of these
+                if (scan.IsCode(index) &&
+                    StartsToken(source, scan, index) &&
+                    !scan.IsDeclaration(index) &&
+                    !(byPrefix && IsForeignReceiver(source, scan, index)) &&
+                    TrySkipToParen(source, scan, identifierEnd, out var paren))
+                {
+                    found ??= [];
+                    found.Add((index, paren));
+                }
+
                 index += name.Length;
-                continue;
             }
+        }
 
-            // In code, a whole token, an invocation rather than a declaration, and
-            // followed by an argument list. A commented out example passes none of these
-            if (scan.IsCode(index) &&
-                StartsToken(source, scan, index) &&
-                !scan.IsDeclaration(index) &&
-                !(byPrefix && IsForeignReceiver(source, scan, index)) &&
-                TrySkipToParen(source, scan, identifierEnd, out var paren))
-            {
-                yield return (index, paren);
-            }
+        if (found is null)
+        {
+            yield break;
+        }
 
-            index += name.Length;
+        found.Sort(static (left, right) => left.nameStart.CompareTo(right.nameStart));
+        foreach (var call in found)
+        {
+            yield return call;
         }
     }
 

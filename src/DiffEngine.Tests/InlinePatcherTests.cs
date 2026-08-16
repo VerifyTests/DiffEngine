@@ -532,7 +532,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify call");
+        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
     }
 
     // A project helper named Verify is not the entry point, and a stale hint must not drift onto one
@@ -544,7 +544,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify call");
+        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
     }
 
     /// <summary>
@@ -560,7 +560,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify call");
+        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
     }
 
     [Test]
@@ -571,7 +571,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("Could not find a Verify call");
+        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
     }
 
     // The entry point wrapping a helper of the same name: the outer call is the one to append to
@@ -608,6 +608,59 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("await this.Verify(value)\n            .Snapshot(\"new\");");
+    }
+
+    /// <summary>
+    /// The throwing entry points return a SettingsTask like every other one, so a snapshot chains
+    /// onto them identically. Searching for the Verify prefix alone left them all unpatchable, and
+    /// silently: the verification declared itself inline, the append found nothing, and the
+    /// verified file was deleted anyway - so the test could never go green again.
+    /// </summary>
+    [Test]
+    [Arguments("Throws")]
+    [Arguments("ThrowsTask")]
+    [Arguments("ThrowsValueTask")]
+    public async Task AppendToAThrowsCall(string entryPoint)
+    {
+        var source = Method($"        await {entryPoint}(() => Method(value));");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            $"        await {entryPoint}(() => Method(value))\n" +
+            "            .Snapshot(\"new\");");
+    }
+
+    // The receiver check covers the new prefix too, or every Assert.Throws in the file becomes a
+    // candidate the moment a hint goes stale
+    [Test]
+    public async Task AppendSkipsAThrowsOnAnotherReceiver()
+    {
+        var source = Method("        Assert.Throws<Exception>(() => Method(value));");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Could not find a Verify or Throws call");
+    }
+
+    /// <summary>
+    /// Two entry points from different families on one line, the nearer one to the left. Names are
+    /// searched one after another, so without a sort the Verify would win on being searched first
+    /// rather than on being nearest, and the snapshot would land on the wrong call.
+    /// </summary>
+    [Test]
+    public async Task AppendTakesTheLeftmostEntryPointOnALine()
+    {
+        var source = Method("        await Throws(() => Verify(value));");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Throws(() => Verify(value))\n" +
+            "            .Snapshot(\"new\");");
     }
 
     [Test]
