@@ -306,6 +306,55 @@ public class InlineApplierTests
         }
     }
 
+    // The same file with no Snapshot call yet, for the append case below
+    const string appendable = "class C\n{\n    void M() => Verify(value);\n}";
+
+    /// <summary>
+    /// The file ends the way it began, whichever way that is. A final newline gained or lost is a
+    /// line in the diff of every commit that touches the file afterwards, so it is worth saying out
+    /// loud rather than leaving to hold by construction, which is all it does today: splicing
+    /// builds prefix, replacement, suffix, so it never reaches the end of the file, and the write
+    /// appends nothing.
+    /// <para>
+    /// Two tests here would catch a blanket change incidentally, by comparing whole file text —
+    /// <see cref="EolAndBomCombinations"/> in the direction of gaining one,
+    /// <see cref="FSharpFileGetsAnFSharpLiteral"/> in the direction of losing one. Both patch in
+    /// <see cref="InlinePatchMode.Set"/>. Neither covers the modes that rewrite around a call
+    /// rather than inside a literal, and damage confined to those is caught by nothing else.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task TrailingNewlineIsLeftAsItWas(bool trailing)
+    {
+        var suffix = trailing ? "\n" : "";
+
+        // Replacing a literal, writing a Snapshot call where there was none, and taking one away
+        await Assert.That(EndsWithNewline(source + suffix, 3, "\"old\"", "new", InlinePatchMode.Set)).IsEqualTo(trailing);
+        await Assert.That(EndsWithNewline(appendable + suffix, 3, null, "new", InlinePatchMode.Append)).IsEqualTo(trailing);
+        await Assert.That(EndsWithNewline(source + suffix, 3, null, "", InlinePatchMode.Remove)).IsEqualTo(trailing);
+    }
+
+    static bool EndsWithNewline(string text, int line, string? expression, string content, InlinePatchMode mode)
+    {
+        var path = WriteTemp(Utf8(text, bom: false));
+        try
+        {
+            var result = InlineApplier.Apply(Patch(path, line, expression, content, mode));
+            if (result.Status != InlineApplyStatus.Applied)
+            {
+                throw new($"{mode} was not applied: {result.Message}");
+            }
+
+            return File.ReadAllText(path).EndsWith('\n');
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     // The whole file is rewritten, not just the patched span, so a byte that does not decode
     // would come back as a replacement character everywhere it appears
     [Test]
