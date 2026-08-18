@@ -31,4 +31,18 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <!--
+  The consuming project's own target framework, one stamp per multi-target leg. RuntimeMoniker
+  prefers this over anything the process can tell it: in a hosted test run the entry assembly is
+  the runner - testhost, ReSharperTestRunner - compiled for its own framework rather than the
+  project's, so every leg of a multi-targeted run would otherwise carry the same label. Not
+  mirrored into assembly metadata for .NET Framework the way the viewer path is: metadata lands
+  on every stamped assembly, class libraries included, so a reader could not tell the test
+  project's stamp from a dependency's.
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="DiffEngine.TargetFramework"
+                                    Value="$(TargetFramework)" />
+  </ItemGroup>
+
 </Project>

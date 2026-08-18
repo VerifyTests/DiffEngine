@@ -4,12 +4,35 @@
 /// </summary>
 static class RuntimeMoniker
 {
-    /// <summary>
-    /// Null when the framework cannot be determined, which downstream treats as an unlabeled
-    /// origin rather than guessing.
-    /// </summary>
-    public static string? Current { get; } = Map(FrameworkName());
+    public const string Key = "DiffEngine.TargetFramework";
 
+    /// <summary>
+    /// The consuming project's own $(TargetFramework) when buildTransitive/DiffEngine.targets
+    /// stamped it into the runtimeconfig, otherwise the version of the runtime actually
+    /// executing. Never AppContext.TargetFrameworkName: that is the entry assembly's
+    /// TargetFrameworkAttribute, and in a hosted test run the entry assembly is the runner -
+    /// testhost is net8.0, ReSharperTestRunner is netcoreapp3.0 - so every leg of a
+    /// multi-targeted run stamped the runner's one moniker, and the queue could neither keep the
+    /// legs' variants apart nor settle one without the other. The runtime fallback covers
+    /// consumers without the targets, such as linked-source builds: each leg launches on its own
+    /// runtime, so it still tells apart what the label exists to tell apart, at the cost of
+    /// naming the rolled-forward runtime rather than the target.
+    /// <para>
+    /// .NET Framework keeps the attribute path, and with it null when nothing can be determined:
+    /// it has no runtimeconfig to carry a stamp, its Environment.Version is the CLR's own
+    /// (4.0.30319) whatever the target, and every net4x moniker runs on that one CLR.
+    /// </para>
+    /// </summary>
+    public static string? Current { get; } =
+#if NETFRAMEWORK
+        Map(FrameworkName());
+#else
+        AppContext.GetData(Key) is string { Length: > 0 } configured
+            ? configured
+            : $"net{Environment.Version.Major}.{Environment.Version.Minor}";
+#endif
+
+#if NETFRAMEWORK
     static string? FrameworkName() =>
 #if NET462
         // AppContext.TargetFrameworkName arrived in 4.7.1; this is what it reads there anyway.
@@ -18,6 +41,7 @@ static class RuntimeMoniker
         AppContext.TargetFrameworkName ??
 #endif
         Assembly.GetEntryAssembly()?.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
+#endif
 
     // Internal seam for tests; the input shape is "{identifier},Version=v{version}[,Profile=...]".
     internal static string? Map(string? frameworkName)

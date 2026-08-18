@@ -13,6 +13,11 @@
     <PackageReference Include="Argon" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <!-- The stamp consumers get from buildTransitive/DiffEngine.targets, so the suite runs the
+         configured RuntimeMoniker path rather than only its fallback. -->
+    <RuntimeHostConfigurationOption Include="DiffEngine.TargetFramework" Value="$(TargetFramework)" />
+    <!-- For BuildTargetsTests, which ties the targets XML to the C# constants reading it. -->
+    <None Include="..\DiffEngine\buildTransitive\DiffEngine.targets" Link="DiffEngine.targets" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="DefinitionsTest.cs" Condition="'$(TargetFramework)' == 'net9.0'" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />

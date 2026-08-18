@@ -24,9 +24,23 @@ public class RuntimeMonikerTests
     public async Task UnknownIsNull(string? frameworkName) =>
         await Assert.That(RuntimeMoniker.Map(frameworkName)).IsNull();
 
+#if !NETFRAMEWORK
+    /// <summary>
+    /// The tests project stamps DiffEngine.TargetFramework the way the shipped targets stamp a
+    /// consumer, so this asserts the whole configured path: MSBuild item to runtimeconfig to
+    /// AppContext. Without the stamp the suite would only ever run the runtime-version fallback,
+    /// and a broken key would not fail anything.
+    /// </summary>
+    [Test]
+    public async Task StampReachesAppContext() =>
+        await Assert.That(AppContext.GetData(RuntimeMoniker.Key)).IsEqualTo("net10.0");
+#endif
+
     /// <summary>
     /// Runs on both test frameworks, so both socket-era families pin their own moniker. The
-    /// .NET Framework side only asserts the family: the exact minor is the test host's business.
+    /// .NET Core side takes the configured path, since the csproj stamps the key the way a
+    /// consumer's build does; the .NET Framework side only asserts the family, because the exact
+    /// minor is the test host's business.
     /// </summary>
     [Test]
     public async Task CurrentMatchesThisRuntime() =>
