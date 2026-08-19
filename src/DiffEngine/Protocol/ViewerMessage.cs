@@ -1,10 +1,15 @@
 namespace DiffEngine;
 
 /// <summary>
-/// A request to whoever owns the inline queue. <paramref name="Key"/> identifies a queue entry for
-/// the verbs that act on one; <paramref name="Body"/> carries an <see cref="InlinePatchFile"/>
-/// payload for <see cref="ViewerVerb.Inline"/>.
+/// A request to whoever owns the inline queue.
 /// </summary>
+/// <param name="Verb">What the owner is being asked to do.</param>
+/// <param name="Key">
+/// Identifies a queue entry, for the verbs that act on one.
+/// </param>
+/// <param name="Body">
+/// An <see cref="InlinePatchFile"/> payload, for <see cref="ViewerVerb.Inline"/>.
+/// </param>
 /// <param name="Member">
 /// The member the call site sits in, on a <see cref="ViewerVerb.Settle"/>. A fallback for the key,
 /// which names a line and so stops being true once an accept inserts a literal above it. Optional,

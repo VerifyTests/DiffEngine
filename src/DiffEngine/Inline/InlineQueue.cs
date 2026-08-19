@@ -224,6 +224,8 @@ public sealed class InlineQueue
     /// framework's still-failing content stays reviewable. A null origin, or an entry whose
     /// variants are all unlabeled, settles the whole entry.
     /// </summary>
+    /// <param name="key">The entry's key, naming its source file and recorded line.</param>
+    /// <param name="origin">The framework moniker of the run that started passing.</param>
     /// <param name="member">
     /// The member the settled call site sits in, used only when <paramref name="key" /> matches
     /// nothing. See <see cref="FindByMember" />.

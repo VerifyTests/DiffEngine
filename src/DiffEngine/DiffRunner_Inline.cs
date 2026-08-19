@@ -78,6 +78,8 @@ public static partial class DiffRunner
     /// conflicted entry; the other framework's differing content stays pending.
     /// </para>
     /// </summary>
+    /// <param name="sourceFile">The source file holding the call site.</param>
+    /// <param name="line">The line the snapshot was recorded at, which names the queue entry.</param>
     /// <param name="memberName">
     /// The member the call site sits in. Optional, and only used where the line no longer names
     /// the entry, which is what happens once an accept inserts a literal above it.
