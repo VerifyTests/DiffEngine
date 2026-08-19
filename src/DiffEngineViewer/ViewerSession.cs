@@ -293,7 +293,10 @@ static class ViewerSession
             case CommandKind.NextVariant:
                 return NextVariant(state);
             case CommandKind.Quit:
-                return state with { Exit = true };
+                // A request, not an exit: the loop folds it into the same close semantics as the
+                // window's close button, which is what lets a tray arrangement hide instead of
+                // exit and an owning viewer persist what it holds on the way out.
+                return state with { QuitRequested = true };
             default:
                 return state;
         }

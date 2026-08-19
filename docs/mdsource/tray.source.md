@@ -52,7 +52,7 @@ When the tray holds it, the window becomes disposable. A viewer that is closed, 
 
 "Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
 
-A tray restart loses the queue, as it loses pending moves and deletes. Re-run the tests.
+Exiting the tray writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. A kill or a crash skips that, and loses the queue as it loses pending moves and deletes; re-run the tests.
 
 
 ### Accept all

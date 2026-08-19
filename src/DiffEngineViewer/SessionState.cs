@@ -16,6 +16,15 @@ record SessionState(
     MenuState? Menu = null)
 {
     /// <summary>
+    /// The user asked to close the window: Q, Escape, or the Close menu item. Consumed by the
+    /// loop into the same decision as the window's own close button, so every way of closing
+    /// shares one meaning. Deliberately not <see cref="Exit"/>, which leaves unconditionally:
+    /// quit-as-exit made the keyboard mean "throw away every pending snapshot, without asking"
+    /// while the close button hid the window and kept the queue.
+    /// </summary>
+    public bool QuitRequested { get; init; }
+
+    /// <summary>
     /// The group headers that are folded, by <see cref="QueueItem.GroupKey"/>.
     /// <para>
     /// Keyed by name rather than by position, so a fold survives its members being accepted out

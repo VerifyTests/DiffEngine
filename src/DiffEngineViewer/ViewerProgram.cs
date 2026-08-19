@@ -197,7 +197,29 @@ static class ViewerProgram
             // Cancellation unwinds through both; nothing to report.
         }
 
+        // After the listener has stopped, so what is written is the final queue.
+        PersistOwned(host.State, link);
+
         return 0;
+    }
+
+    /// <summary>
+    /// An owning viewer's queue lives in this process's memory, so exiting with entries still
+    /// pending used to discard them silently. Staged instead, so accept tooling still finds them
+    /// on disk — the arrangement a run with no owner leaves. An attached viewer persists nothing:
+    /// the owner it displays is still holding everything.
+    /// </summary>
+    internal static int PersistOwned(SessionState state, OwnerLink? link)
+    {
+        if (link is not null)
+        {
+            return 0;
+        }
+
+        return InlineStaging.Persist(
+            state.Queue
+                .Where(_ => _.Kind == QueueEntryKind.Inline)
+                .Select(_ => new PendingInline(_.Variants, _.Status)));
     }
 
     static void Loop(
@@ -240,7 +262,18 @@ static class ViewerProgram
             var input = window.Poll();
             host.Mutate(_ => Apply(_, input, link));
 
-            if (!input.CloseRequested)
+            // Q, Escape and the Close menu item arrive as a state flag, consumed here into the
+            // same decision as the window's own close button. Routed rather than exited, because
+            // quit-as-exit skipped the tray check below: the keyboard threw away an owning
+            // viewer's queue in the arrangement where the close button hid the window and kept it.
+            var closeRequested = input.CloseRequested;
+            if (host.State.QuitRequested)
+            {
+                closeRequested = true;
+                host.Mutate(_ => _ with { QuitRequested = false });
+            }
+
+            if (!closeRequested)
             {
                 continue;
             }

@@ -164,7 +164,7 @@ The point of that arrangement is that the queue outlives the window. A viewer th
 
 If a viewer was already running when the tray started, the viewer keeps the queue for as long as it lives and the tray drives it remotely instead. Ownership is decided once and never moves. Either way both surfaces run the same queue implementation, so they cannot disagree on what accepting or settling means, and the tray's **Pending Snapshots** group can accept, discard, open the viewer on a particular snapshot, and close the viewer.
 
-A tray restart loses the queue, as it loses pending file moves and deletes. Re-run the tests.
+Exiting the queue's owner — closing an owning viewer with no tray running, or exiting the tray — writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. A kill or a crash skips that, and loses the queue as it loses pending file moves and deletes; re-run the tests.
 
 
 ## With no tray

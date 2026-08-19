@@ -380,13 +380,17 @@ public class ViewerSessionTests
         patches.Aggregate(InlineQueue.Empty, (queue, patch) => queue.Enqueue(patch));
 
     [Test]
-    public async Task QuitExitsWithoutTouchingTheQueue()
+    public async Task QuitRequestsCloseWithoutTouchingTheQueue()
     {
         var state = Fixtures.Inline(Fixtures.Patch());
 
         var quit = ViewerSession.Apply(state, CommandKind.Quit);
 
-        await Assert.That(quit.Exit).IsTrue();
+        // A request rather than an exit, so the loop can give the keyboard the same close
+        // semantics as the window's close button: hide when a tray is running, and persist an
+        // owning viewer's queue on the way out otherwise.
+        await Assert.That(quit.Exit).IsFalse();
+        await Assert.That(quit.QuitRequested).IsTrue();
         await Assert.That(quit.Queue.Count).IsEqualTo(1);
     }
 

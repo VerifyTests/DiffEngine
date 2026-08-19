@@ -47,6 +47,59 @@ public class OwnedInlineHostTest
             Host.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
     }
 
+    /// <summary>
+    /// The tray is the durable surface, but exiting it still takes the queue in its memory.
+    /// Disposal writes what is still pending back to the staging layout, so accept tooling finds
+    /// it on disk instead of finding nothing at all.
+    /// </summary>
+    [Test]
+    public async Task DisposalPersistsThePendingSnapshots()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"tray-persist-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, "Sample.csproj"), "<Project />");
+            var source = Path.Combine(directory, "SampleTests.cs");
+            File.WriteAllText(source, "// sample");
+
+            using (var owner = new Owner())
+            {
+                owner.Queue(source, framework: "net10.0");
+            }
+
+            var staging = Path.Combine(directory, "obj", InlineStaging.DirectoryName);
+            var staged = Directory.GetFiles(staging);
+            await Assert.That(staged.Length).IsEqualTo(3);
+            var patchFile = staged.Single(_ => _.EndsWith(".inlinepatch"));
+            await Assert.That(InlinePatchFile.TryRead(patchFile, out var read)).IsTrue();
+            await Assert.That(read!.SourceFile).IsEqualTo(source);
+            await Assert.That(read.NewContent).IsEqualTo("new");
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The fixture's default patches name a source that does not exist on this machine, which is
+    /// also true of a patch whose file has gone: there is nothing such a patch could ever apply
+    /// to, so disposal skips it rather than staging something unusable.
+    /// </summary>
+    [Test]
+    public async Task DisposalSkipsPatchesWhoseSourceIsGone()
+    {
+        using (var owner = new Owner())
+        {
+            owner.Queue();
+            await Assert.That(owner.Host.Queued().Count).IsEqualTo(1);
+        }
+
+        // Nothing to assert on disk: the fake path has no project to stage under. The absence of
+        // an exception out of Dispose is the point.
+    }
+
     [Test]
     public async Task AQueuedPatchIsHeldHereAndShown()
     {

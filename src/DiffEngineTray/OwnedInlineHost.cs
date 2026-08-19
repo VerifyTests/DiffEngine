@@ -14,8 +14,9 @@
 /// owner having died.
 /// </para>
 /// <para>
-/// A tray restart still loses the queue, exactly as it loses tracked moves and deletes. The
-/// recovery is the same: re-run the tests.
+/// A clean tray exit stages what is still pending back to disk (<see cref="InlineStaging"/>), so
+/// a restart no longer silently discards the queue. A kill or a crash still loses it, exactly as
+/// it loses tracked moves and deletes, and the recovery is the same: re-run the tests.
 /// </para>
 /// </summary>
 sealed class OwnedInlineHost :
@@ -519,6 +520,7 @@ sealed class OwnedInlineHost :
         if (listening is null)
         {
             cancel.Dispose();
+            Persist();
             return;
         }
 
@@ -533,5 +535,15 @@ sealed class OwnedInlineHost :
         }
 
         cancel.Dispose();
+        Persist();
     }
+
+    /// <summary>
+    /// The tray is the durable surface, but exiting it still takes the queue in its memory. What
+    /// is still pending goes back to disk in the staging layout, where accept tooling finds it —
+    /// the same degradation an exiting owning viewer performs. After the listener has stopped, so
+    /// what is written is the final queue.
+    /// </summary>
+    void Persist() =>
+        InlineStaging.Persist(queue.Items);
 }
