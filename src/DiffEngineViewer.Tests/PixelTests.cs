@@ -26,11 +26,12 @@
 /// pixel.
 /// </para>
 /// <para>
-/// Every capture is one frame drawn in the shared window's one ImGui context, so state that
-/// context carries between frames makes a capture depend on what rendered before it — the picture
-/// placement in <see cref="Images" /> moved by half a pixel with the test order, which itself
-/// moved with the test framework's own ordering. The order is pinned so each capture inherits the
-/// same state on every run, which is what keeps the baselines reproducible.
+/// Every capture is one frame drawn in the shared window. The ImGui layout state that used to
+/// carry between those frames once moved the picture placement in <see cref="Images" /> by half a
+/// pixel with the test order, which itself moved with the test framework's own ordering;
+/// deview_capture now draws each capture in a fresh ImGui context, so a capture is a function of
+/// the screen model alone. The order is pinned as well, so what the shared window still holds —
+/// the texture cache, the GL state — is inherited identically on every run.
 /// </para>
 /// </summary>
 public class PixelTests
