@@ -10,11 +10,13 @@ public class InlineQueueTests
         int line = 42,
         string content = "new",
         string? framework = null,
-        string? testName = null) =>
+        string? testName = null,
+        string? member = null) =>
         new(source, line, "\"old\"", content)
         {
             Framework = framework,
-            TestName = testName
+            TestName = testName,
+            MemberName = member
         };
 
     static InlineApplyResult Fails(InlinePatch patch) =>
@@ -93,6 +95,69 @@ public class InlineQueueTests
         var queue = InlineQueue.Empty.Enqueue(Patch());
 
         await Assert.That(queue.Settle("nothing")).IsSameReferenceAs(queue);
+    }
+
+    /// <summary>
+    /// Accepting a snapshot inserts several lines of source, so every later call site in that file
+    /// moves and the entries queued against them can never be named by their line again. The
+    /// member is what still points at them.
+    /// </summary>
+    [Test]
+    public async Task SettleFindsAnEntryWhoseLineHasMovedByMember()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 42, member: "MyTest"))
+            .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A member holding several inline snapshots cannot say which of them the settle was for, and
+    /// dropping the wrong one loses a pending snapshot outright.
+    /// </summary>
+    [Test]
+    public async Task SettleLeavesAnAmbiguousMemberAlone()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 42, member: "MyTest"))
+            .Enqueue(Patch(line: 48, member: "MyTest"));
+
+        await Assert.That(queue.Settle(InlineKey.For("Sample.cs", 807), null, "MyTest"))
+            .IsSameReferenceAs(queue);
+    }
+
+    [Test]
+    public async Task SettleDoesNotMatchTheSameMemberInAnotherFile()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(source: "Sample.cs", member: "MyTest"));
+
+        await Assert.That(queue.Settle(InlineKey.For("Other.cs", 807), null, "MyTest"))
+            .IsSameReferenceAs(queue);
+    }
+
+    [Test]
+    public async Task SettleWithoutAMemberStillOnlyMatchesTheKey()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(line: 42, member: "MyTest"));
+
+        await Assert.That(queue.Settle(InlineKey.For("Sample.cs", 807))).IsSameReferenceAs(queue);
+    }
+
+    /// <summary>
+    /// A call site that is no longer inline at all carries no framework, because the statement is
+    /// not "this framework now passes" but "there is no snapshot here for any of them". So it
+    /// takes the whole entry, not one variant of it.
+    /// </summary>
+    [Test]
+    public async Task SettleWithoutAnOriginTakesEveryVariant()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(content: "eight", framework: "net8.0", member: "MyTest"))
+            .Enqueue(Patch(content: "nine", framework: "net9.0", member: "MyTest"))
+            .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
     }
 
     [Test]

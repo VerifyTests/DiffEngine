@@ -215,16 +215,28 @@ public sealed class InlineQueue
     public InlineQueue Settle(string key) =>
         Settle(key, null);
 
+    public InlineQueue Settle(string key, string? origin) =>
+        Settle(key, origin, null);
+
     /// <summary>
     /// Origin-scoped settle. A framework that starts passing removes only its own label; a variant
     /// with no labels left is dropped, and the entry goes when its last variant does, so the other
     /// framework's still-failing content stays reviewable. A null origin, or an entry whose
     /// variants are all unlabeled, settles the whole entry.
     /// </summary>
-    public InlineQueue Settle(string key, string? origin)
+    /// <param name="member">
+    /// The member the settled call site sits in, used only when <paramref name="key" /> matches
+    /// nothing. See <see cref="FindByMember" />.
+    /// </param>
+    public InlineQueue Settle(string key, string? origin, string? member)
     {
         var items = Items.ToList();
         var index = items.FindIndex(_ => _.Key == key);
+        if (index < 0)
+        {
+            index = FindByMember(items, key, member);
+        }
+
         if (index < 0)
         {
             return this;
@@ -269,6 +281,62 @@ public sealed class InlineQueue
 
         items[index] = new(variants, entry.Status);
         return new(items);
+    }
+
+    /// <summary>
+    /// The entry a settle was for when its key names no entry, found by the member instead.
+    /// </summary>
+    /// <remarks>
+    /// A key names a line, and a line stops being true the moment an accept inserts a literal
+    /// above it — a snapshot is several lines of source, so accepting one call site moves every
+    /// later one in the file. The entries left behind could then never be settled by any later
+    /// run: the run reports the line as it is now, and the entry still holds the line it was
+    /// queued at. The member survives that, which is why a patch carries it and why the patcher
+    /// already locates call sites by it.
+    /// <para>
+    /// Only when the member names exactly one entry in that file. A member holding several inline
+    /// snapshots cannot say which of them a settle was for, and dropping the wrong one loses a
+    /// pending snapshot outright — so an ambiguous member settles nothing, leaving the entries as
+    /// they were.
+    /// </para>
+    /// </remarks>
+    static int FindByMember(List<PendingInline> items, string key, string? member)
+    {
+        if (string.IsNullOrEmpty(member))
+        {
+            return -1;
+        }
+
+        var file = FileOf(key);
+        var found = -1;
+        for (var index = 0; index < items.Count; index++)
+        {
+            var entry = items[index];
+            if (entry.Patch.MemberName != member ||
+                FileOf(entry.Key) != file)
+            {
+                continue;
+            }
+
+            if (found >= 0)
+            {
+                return -1;
+            }
+
+            found = index;
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// The file half of a key. Taken off the key rather than off the patch, so both sides are
+    /// case folded the way <see cref="InlineKey.For" /> folds them for this platform.
+    /// </summary>
+    static string FileOf(string key)
+    {
+        var separator = key.LastIndexOf('|');
+        return separator < 0 ? key : key[..separator];
     }
 
     public InlineQueue Discard(string key, out string? message)

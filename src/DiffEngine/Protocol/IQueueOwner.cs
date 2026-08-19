@@ -13,11 +13,12 @@ interface IQueueOwner
     int Enqueue(InlinePatch patch);
 
     /// <summary>
-    /// Drop the entry for a key whose test started passing — or, with an origin, just that
-    /// framework's variant of it. An unknown key is a no-op, because the entry being gone is the
+    /// Drop the entry for a key whose test started passing, or is no longer an inline snapshot at
+    /// all — or, with an origin, just that framework's variant of it. An unknown key falls back to
+    /// <paramref name="member" />, and is otherwise a no-op, because the entry being gone is the
     /// goal state.
     /// </summary>
-    void Settle(string key, string? origin);
+    void Settle(string key, string? origin, string? member);
 
     /// <summary>
     /// Track a pending file move, replacing the entry for the same received file — a re-run

@@ -78,14 +78,40 @@ public static partial class DiffRunner
     /// conflicted entry; the other framework's differing content stays pending.
     /// </para>
     /// </summary>
-    public static void SettleInline(string sourceFile, int line)
+    /// <param name="memberName">
+    /// The member the call site sits in. Optional, and only used where the line no longer names
+    /// the entry, which is what happens once an accept inserts a literal above it.
+    /// </param>
+    public static void SettleInline(string sourceFile, int line, string? memberName = null)
     {
         if (Disabled)
         {
             return;
         }
 
-        ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current));
+        ViewerClient.TrySend(
+            new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current, memberName));
+    }
+
+    /// <summary>
+    /// Drops a pending inline snapshot for a call site that is no longer an inline snapshot at
+    /// all: the verification opted out, the global switch declined it, or its literal outgrew the
+    /// size limit and moved to a file.
+    /// <para>
+    /// Unlike <see cref="SettleInline" /> this carries no framework, because the statement is not
+    /// "this framework now passes" but "there is no inline snapshot here for any of them". A
+    /// per-framework settle would strip one label and leave the entry standing on the others,
+    /// pending against a call site that can never produce a snapshot again.
+    /// </para>
+    /// </summary>
+    public static void RetireInline(string sourceFile, int line, string? memberName = null)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), null, memberName));
     }
 
     static InlineResult CheckInline()

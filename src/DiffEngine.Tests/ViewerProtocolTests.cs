@@ -253,6 +253,31 @@ public class ViewerProtocolTests
     }
 
     [Test]
+    public async Task SettleCarriesTheMember()
+    {
+        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("tests.cs", 42), "net9.0", "MyTest")
+            .Build();
+
+        await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
+        await Assert.That(message!.Key).IsEqualTo("tests.cs|42");
+        await Assert.That(message.Body).IsEqualTo("net9.0");
+        await Assert.That(message.Member).IsEqualTo("MyTest");
+    }
+
+    /// <summary>
+    /// The member is an added field, so a payload written before it existed still reads, which is
+    /// what lets a newer sender talk to an older owner.
+    /// </summary>
+    [Test]
+    public async Task SettleWithoutAMemberParses()
+    {
+        var payload = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("tests.cs", 42), "net9.0").Build();
+
+        await Assert.That(ViewerMessage.TryParse(payload, out var message)).IsTrue();
+        await Assert.That(message!.Member).IsNull();
+    }
+
+    [Test]
     public async Task AFullListingCarriesThePrimaryOrigins()
     {
         var patch = InlinePatchFile.Build(Patch("Tests.cs", 42, "\"old\"", "new content"));
@@ -469,7 +494,7 @@ public class ViewerProtocolTests
 
         public int Enqueue(InlinePatch patch) => 1;
 
-        public void Settle(string key, string? origin)
+        public void Settle(string key, string? origin, string? member)
         {
         }
 

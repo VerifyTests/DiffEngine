@@ -170,11 +170,11 @@ sealed class OwnedInlineHost :
         return count;
     }
 
-    void IQueueOwner.Settle(string key, string? origin)
+    void IQueueOwner.Settle(string key, string? origin, string? member)
     {
         lock (gate)
         {
-            var settled = queue.Settle(key, origin);
+            var settled = queue.Settle(key, origin, member);
             if (ReferenceEquals(settled, queue))
             {
                 return;
