@@ -116,9 +116,10 @@ struct State
      * ImGuiTableFlags_Resizable would give the drag for free, but it also hands the width to
      * ImGui's own table state, which initialises once and then auto-fits or restores from saved
      * settings. A column that is fixed and not resizable takes InitStretchWeightOrWidth on every
-     * frame instead, which is a width this side decides and can therefore reproduce: the pixel
-     * captures share one context and one table id and draw a single frame each, so anything
-     * carried between them shows up as a snapshot that depends on the test order.
+     * frame instead, which is a width this side decides and can therefore reproduce. The pixel
+     * captures take this further: each draws its one frame in a fresh context (see
+     * deview_capture), so nothing ImGui carries between frames can make a capture depend on the
+     * capture before it.
      */
     float queueWidth = 0.0f;
 
@@ -671,9 +672,15 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     const ImVec2 size(
         std::max(1.0f, static_cast<float>(pane.imageWidth) * scale),
         std::max(1.0f, static_cast<float>(pane.imageHeight) * scale));
-    const ImVec2 min(
+    /*
+     * Snapped to the pixel grid: centring halves a difference of arbitrary floats, which is the
+     * one place a half pixel can appear, and a picture drawn from a fractional origin rasterises
+     * a row short with fattened borders. An unenlarged picture drawn from a whole pixel is its
+     * own pixels, which is what the fit rule above is for.
+     */
+    const ImVec2 min = ImFloor(ImVec2(
         bounds.left + (bounds.width - size.x) * 0.5f,
-        top + (available - size.y) * 0.5f);
+        top + (available - size.y) * 0.5f));
     const ImVec2 max(min.x + size.x, min.y + size.y);
 
     ImDrawList* list = ImGui::GetWindowDrawList();
@@ -1173,14 +1180,30 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
         return 0;
     }
 
+    /*
+     * A fresh context per capture, sharing the live context's font atlas. ImGui carries layout
+     * state between frames — tables and windows remember their previous geometry — so a capture
+     * drawn in the live context inherits whatever the frame before it left there, and what that
+     * was depends on which capture ran before this one. A context that exists for exactly one
+     * frame has no previous frame, so a capture is a function of the screen model alone.
+     */
     ImGui::SetCurrentContext(state.context);
+    ImFontAtlas* atlas = ImGui::GetIO().Fonts;
+    ImGuiContext* capture = ImGui::CreateContext(atlas);
+    ImGui::SetCurrentContext(capture);
     ImGuiIO& io = ImGui::GetIO();
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+    io.IniFilename = nullptr;
+    io.LogFilename = nullptr;
+    ApplyStyle();
     io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
     io.DeltaTime = 1.0f / 60.0f;
 
     RenderTexture2D target = LoadRenderTexture(width, height);
     if (!IsRenderTextureValid(target))
     {
+        ImGui::DestroyContext(capture);
+        ImGui::SetCurrentContext(state.context);
         return 0;
     }
 
@@ -1199,6 +1222,8 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
     const bool exported = ExportImage(image, pngPath);
     UnloadImage(image);
     UnloadRenderTexture(target);
+    ImGui::DestroyContext(capture);
+    ImGui::SetCurrentContext(state.context);
     ResetInput();
     return exported ? 1 : 0;
 }

@@ -25,8 +25,15 @@
 /// Opting in on a developer machine will render correctly but may not match either set pixel for
 /// pixel.
 /// </para>
+/// <para>
+/// Every capture is one frame drawn in the shared window. The ImGui layout state that used to
+/// carry between those frames once moved the picture placement in <see cref="Images" /> by half a
+/// pixel with the test order, which itself moved with the test framework's own ordering;
+/// deview_capture now draws each capture in a fresh ImGui context, so a capture is a function of
+/// the screen model alone. The order is pinned as well, so what the shared window still holds —
+/// the texture cache, the GL state — is inherited identically on every run.
+/// </para>
 /// </summary>
-[NotInParallel]
 public class PixelTests
 {
     const int width = 1100;
@@ -67,16 +74,19 @@ public class PixelTests
 
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 1)]
     public Task FileDiff() =>
         Capture(Fixtures.File());
 
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 2)]
     public Task InlineSingle() =>
         Capture(Fixtures.Inline(Fixtures.Patch()));
 
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 3)]
     public Task InlineQueue() =>
         Capture(
             Fixtures.Inline(
@@ -90,6 +100,7 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 4)]
     public Task LongQueueLabel() =>
         Capture(
             Fixtures.Inline(
@@ -102,6 +113,7 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 5)]
     public Task GroupedConflictedQueue() =>
         Capture(Fixtures.GroupedConflicted());
 
@@ -117,6 +129,7 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 6)]
     public Task Images() =>
         Capture(Fixtures.Images());
 
@@ -132,12 +145,14 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 7)]
     [SkipOnMac("The macOS head pops a real NSMenu, which a capture has no window to show.")]
     public Task ContextMenu() =>
         Capture(ViewerSession.OpenMenu(Fixtures.GroupedConflicted(), 5));
 
     [Test]
     [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 8)]
     public Task InlineAccepted()
     {
         var state = Fixtures.Inline(
