@@ -61,7 +61,7 @@ public class FsCompilerRoundTripTests
     {
         var script = BuildScript();
         var path = Path.Combine(Path.GetTempPath(), $"DiffEngineFsRoundTrip_{Guid.NewGuid():N}.fsx");
-        File.WriteAllText(path, script, new UTF8Encoding(false));
+        await File.WriteAllTextAsync(path, script, new UTF8Encoding(false));
         try
         {
             var (exitCode, output) = RunFsi(path);

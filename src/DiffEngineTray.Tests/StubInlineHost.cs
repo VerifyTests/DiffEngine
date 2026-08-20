@@ -15,7 +15,9 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
     public IReadOnlyList<PendingSnapshot> List() =>
         snapshots;
 
+#pragma warning disable CA1822
     public IReadOnlyList<PendingInline>? Queued() =>
+#pragma warning restore CA1822
         null;
 
     public AcceptOutcome Accept(PendingSnapshot snapshot, out string? message)

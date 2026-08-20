@@ -35,6 +35,7 @@ public class TrackerAcceptRetryTest :
         await using var tracker = new RecordingTracker(acceptFailed: move => failed = move);
         var tracked = tracker.AddMove(temp, target, "theExe", "theArguments", false, null);
 
+        // ReSharper disable once UseAwaitUsing
         using (File.Open(target, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
             tracker.Accept(tracked);

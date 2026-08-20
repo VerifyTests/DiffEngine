@@ -53,6 +53,7 @@ sealed class ViewerServer : IDisposable
     {
         // Sync dispose: CancellationTokenRegistration is only IAsyncDisposable from net6, and
         // waiting for an in flight Stop callback buys nothing here.
+        // ReSharper disable once UseAwaitUsing
         using var registration = cancel.Register(listener.Stop);
         while (!cancel.IsCancellationRequested)
         {
@@ -106,6 +107,7 @@ sealed class ViewerServer : IDisposable
         {
             using (client)
             {
+                // ReSharper disable once UseAwaitUsing
                 using var stream = client.GetStream();
                 using var reader = new StreamReader(stream, Encoding.UTF8);
 #if NET7_0_OR_GREATER

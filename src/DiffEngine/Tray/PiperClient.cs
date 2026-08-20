@@ -141,7 +141,9 @@ static class PiperClient
         {
 #if NET6_0_OR_GREATER
             await client.ConnectAsync(endpoint.Address, endpoint.Port, cancel);
+            // ReSharper disable once UseAwaitUsing
             using var stream = client.GetStream();
+            // ReSharper disable once UseAwaitUsing
             using var writer = new StreamWriter(stream);
             await writer.WriteAsync(payload.AsMemory(), cancel);
 #else

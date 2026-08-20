@@ -175,7 +175,7 @@ public class InlineApplierTests
         try
         {
             var path = Path.Combine(directory, "Sample.cs");
-            File.WriteAllBytes(path, Utf8(source, bom: false));
+            await File.WriteAllBytesAsync(path, Utf8(source, bom: false));
 
             var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "new"));
 
@@ -200,10 +200,10 @@ public class InlineApplierTests
         try
         {
             var path = Path.Combine(directory, "Big.cs");
-            File.WriteAllBytes(path, Utf8(text, bom: false));
+            await File.WriteAllBytesAsync(path, Utf8(text, bom: false));
             var before = new FileInfo(path).Length;
 
-            using var cancellation = new CancellationTokenSource();
+            using var cancellation = new CancelSource();
             var seen = new ConcurrentDictionary<long, byte>();
             var reader = Task.Run(
                 () =>
@@ -229,7 +229,7 @@ public class InlineApplierTests
             // Long enough that the two whole files differ in length, which is what makes a
             // half written one tell itself apart
             var result = InlineApplier.Apply(Patch(path, 3, "\"old\"", "a replacement longer than what it replaces"));
-            cancellation.Cancel();
+            await cancellation.CancelAsync();
             await reader;
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
@@ -265,7 +265,7 @@ public class InlineApplierTests
             var methods = Enumerable.Range(0, writers)
                 .Select(_ => $"    void M{_}() => Verify(v).Snapshot(\"a{_}\");");
             var path = Path.Combine(directory, "Contended.cs");
-            File.WriteAllBytes(path, Utf8($"class C\n{{\n{string.Join("\n", methods)}\n}}", bom: false));
+            await File.WriteAllBytesAsync(path, Utf8($"class C\n{{\n{string.Join("\n", methods)}\n}}", bom: false));
 
             var results = await Task.WhenAll(
                 Enumerable

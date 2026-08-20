@@ -48,7 +48,7 @@ public class PackageTests
     [Arguments("DiffEngineViewer.Linux")]
     public async Task Contents(string id)
     {
-        using var archive = Packages.Open(id);
+        await using var archive = Packages.Open(id);
         await Verify(string.Join('\n', Packages.Entries(archive)))
             .UseFileName($"Package.{id}");
     }
@@ -66,7 +66,7 @@ public class PackageTests
     [Arguments("DiffEngineViewer.Linux")]
     public async Task EveryApphostHasItsAssembly(string id)
     {
-        using var archive = Packages.Open(id);
+        await using var archive = Packages.Open(id);
         var paths = Packages.Entries(archive).ToHashSet(StringComparer.Ordinal);
         var orphaned = paths
             .Where(_ => _.EndsWith(runtimeConfig, StringComparison.Ordinal))
@@ -91,7 +91,7 @@ public class PackageTests
             return;
         }
 
-        using var archive = Packages.Open("DiffEngine");
+        await using var archive = Packages.Open("DiffEngine");
         await Assert.That(Packages.HasSbom(archive)).IsTrue();
     }
 
@@ -109,7 +109,7 @@ public class PackageTests
     [PackageTest]
     public async Task TheTrayShipsAViewer()
     {
-        using var archive = Packages.Open("DiffEngineTray");
+        await using var archive = Packages.Open("DiffEngineTray");
         var stray = Packages.Entries(archive)
             .Where(_ => _.Contains("DiffEngineViewer", StringComparison.Ordinal) ||
                         _.Contains("diffengine_viewer", StringComparison.Ordinal))
@@ -132,7 +132,7 @@ public class PackageTests
     [Arguments("DiffEngineTray", trayBundled)]
     public async Task EveryBundledViewerIsComplete(string id, string root)
     {
-        using var archive = Packages.Open(id);
+        await using var archive = Packages.Open(id);
         var rids = Rids(archive, root);
 
         // Otherwise a package that bundled nothing at all would pass vacuously.

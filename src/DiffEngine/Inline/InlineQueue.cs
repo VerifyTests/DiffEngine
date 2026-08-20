@@ -120,8 +120,7 @@ public sealed class InlineQueue
             // throws away the completion of an accept whose entry changed identity while the
             // patch was applying, and a still failing test re-sending the same patch is exactly
             // what happens during those ten seconds
-            if (entry.Variants is [var only] &&
-                only.Origins.Count == 0 &&
+            if (entry.Variants is [{Origins.Count: 0} only] &&
                 only.Patch.Matches(patch))
             {
                 return Unchanged(entry);

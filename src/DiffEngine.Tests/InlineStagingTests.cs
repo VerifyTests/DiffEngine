@@ -12,7 +12,7 @@ public class InlineStagingTests
         var source = project.Source("SampleTests.cs");
 
         var patch = Patch(source, "line one\nline two", framework: "net10.0");
-        var written = InlineStaging.Persist([new PendingInline(patch)]);
+        var written = InlineStaging.Persist([new(patch)]);
 
         await Assert.That(written).IsEqualTo(1);
 
@@ -32,9 +32,9 @@ public class InlineStagingTests
         await Assert.That(read.OriginalValue).IsEqualTo(patch.OriginalValue);
         await Assert.That(read.Framework).IsEqualTo("net10.0");
 
-        await Assert.That(File.ReadAllText(files.Single(_ => _.EndsWith(".received.txt"))))
+        await Assert.That(await File.ReadAllTextAsync(files.Single(_ => _.EndsWith(".received.txt"))))
             .IsEqualTo("line one\nline two");
-        await Assert.That(File.ReadAllText(files.Single(_ => _.EndsWith(".expected.txt"))))
+        await Assert.That(await File.ReadAllTextAsync(files.Single(_ => _.EndsWith(".expected.txt"))))
             .IsEqualTo("old");
     }
 
@@ -44,12 +44,12 @@ public class InlineStagingTests
         using var project = new TempProject();
         var source = project.Source("SampleTests.cs");
 
-        InlineStaging.Persist([new PendingInline(Patch(source, "first", framework: "net10.0"))]);
-        InlineStaging.Persist([new PendingInline(Patch(source, "second", framework: "net10.0"))]);
+        InlineStaging.Persist([new(Patch(source, "first", framework: "net10.0"))]);
+        InlineStaging.Persist([new(Patch(source, "second", framework: "net10.0"))]);
 
         var files = project.StagedFiles();
         await Assert.That(files.Count).IsEqualTo(3);
-        await Assert.That(File.ReadAllText(files.Single(_ => _.EndsWith(".received.txt"))))
+        await Assert.That(await File.ReadAllTextAsync(files.Single(_ => _.EndsWith(".received.txt"))))
             .IsEqualTo("second");
     }
 
@@ -82,7 +82,7 @@ public class InlineStagingTests
         // stage, and skipped is better than a guess.
         var source = Path.Combine(Path.GetTempPath(), $"inline-staging-none-{Guid.NewGuid():N}", "SampleTests.cs");
 
-        var written = InlineStaging.Persist([new PendingInline(Patch(source, "content"))]);
+        var written = InlineStaging.Persist([new(Patch(source, "content"))]);
 
         await Assert.That(written).IsEqualTo(0);
     }
@@ -99,7 +99,7 @@ public class InlineStagingTests
             OriginalValue = "old"
         };
 
-        var written = InlineStaging.Persist([new PendingInline(remove)]);
+        var written = InlineStaging.Persist([new(remove)]);
 
         await Assert.That(written).IsEqualTo(0);
         await Assert.That(project.StagedFiles()).IsEmpty();
@@ -111,7 +111,7 @@ public class InlineStagingTests
         using var project = new TempProject();
         var source = project.Source("SampleTests.cs");
 
-        var written = InlineStaging.Persist([new PendingInline(Patch(source, "content"))]);
+        var written = InlineStaging.Persist([new(Patch(source, "content"))]);
 
         await Assert.That(written).IsEqualTo(1);
         var patchFile = project.StagedFiles().Single(_ => _.EndsWith(".inlinepatch"));

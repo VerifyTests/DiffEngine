@@ -159,6 +159,7 @@ public static class InlineStaging
             return null;
         }
 
+        // ReSharper disable once RedundantSuppressNullableWarningExpression
         var builder = new StringBuilder(value!.Length);
         foreach (var character in value)
         {

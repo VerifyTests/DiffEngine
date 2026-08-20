@@ -734,6 +734,7 @@ static class InlinePatcher
                 break;
             }
 
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
             var end = index + memberName!.Length;
             if (scan.IsCode(index) &&
                 StartsToken(source, scan, index) &&
@@ -1109,7 +1110,7 @@ static class InlinePatcher
         // spaces for alignment continues in spaces: a tab there would advance to the next tab stop
         // from wherever the alignment left off, which is a different width in every editor. With
         // no indentation to read, follow the file
-        var tabs = lead.Length > 0 ? lead[lead.Length - 1] == '\t' : fileUsesTabs;
+        var tabs = lead.Length > 0 ? lead[^1] == '\t' : fileUsesTabs;
         if (tabs)
         {
             return "\t";

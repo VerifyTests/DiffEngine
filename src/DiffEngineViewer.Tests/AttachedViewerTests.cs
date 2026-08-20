@@ -263,6 +263,7 @@ public class AttachedViewerTests
         await File.WriteAllTextAsync(file, "locked away");
         try
         {
+            // ReSharper disable once UseAwaitUsing
             using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
             var (server, cancel) = Listing(() => ViewerResponse.Listing(
                 [],

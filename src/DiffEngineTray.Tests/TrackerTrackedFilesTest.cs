@@ -88,6 +88,7 @@ public class TrackerTrackedFilesTest :
         ITrackedFiles tracked = tracker;
         await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
+        // ReSharper disable once UseAwaitUsing
         using (new FileStream(target, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
         {
             var (ok, message) = tracked.Accept(TrackedKeys.ForMove(temp));

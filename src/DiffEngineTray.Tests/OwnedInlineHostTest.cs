@@ -59,9 +59,9 @@ public class OwnedInlineHostTest
         Directory.CreateDirectory(directory);
         try
         {
-            File.WriteAllText(Path.Combine(directory, "Sample.csproj"), "<Project />");
+            await File.WriteAllTextAsync(Path.Combine(directory, "Sample.csproj"), "<Project />");
             var source = Path.Combine(directory, "SampleTests.cs");
-            File.WriteAllText(source, "// sample");
+            await File.WriteAllTextAsync(source, "// sample");
 
             using (var owner = new Owner())
             {

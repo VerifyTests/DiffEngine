@@ -100,7 +100,7 @@ static class PiperServer
             using (client)
             {
                 using var reader = new StreamReader(client.GetStream());
-                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                using var deadline = CancelSource.CreateLinkedTokenSource(cancel);
                 deadline.CancelAfter(readTimeout);
 
                 string payload;

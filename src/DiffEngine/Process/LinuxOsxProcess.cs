@@ -20,14 +20,15 @@
             return process.ExitCode == 0;
         }
 
-        var message = $"Process timed out. Command line: kill {processId}.";
-        throw new(message);
+        throw new($"Process timed out. Command line: kill {processId}.");
     }
 
     // candidateExeNames is accepted for signature parity with the Windows implementation but
     // ignored: a single `ps` invocation already returns every command line, so there is no
     // per-process syscall cost to avoid by filtering here.
+#pragma warning disable IDE0060
     public static List<ProcessCommand> FindAll(HashSet<string>? candidateExeNames = null)
+#pragma warning restore IDE0060
     {
         if (!TryRunPs(out var processList))
         {

@@ -247,7 +247,7 @@ static class StringLiteral
             return false;
         }
 
-        var closeIndent = lines[lines.Length - 1];
+        var closeIndent = lines[^1];
         if (closeIndent.Trim().Length > 0)
         {
             return false;
@@ -485,8 +485,7 @@ static class StringLiteral
     /// </para>
     /// </summary>
     public static bool IsScalarValue(uint codePoint) =>
-        codePoint <= 0x10FFFF &&
-        codePoint is < 0xD800 or > 0xDFFF;
+        codePoint is <= 0x10FFFF and (< 0xD800 or > 0xDFFF);
 
     public static bool TryReadHex(string text, ref int index, int min, int max, out uint result)
     {

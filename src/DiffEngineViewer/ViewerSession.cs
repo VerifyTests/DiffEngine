@@ -634,8 +634,7 @@ static class ViewerSession
 
         foreach (var entry in queue)
         {
-            if (entry.Kind == QueueEntryKind.Inline &&
-                entry.Status is not null)
+            if (entry is {Kind: QueueEntryKind.Inline, Status: not null})
             {
                 return true;
             }

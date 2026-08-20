@@ -17,6 +17,7 @@ public sealed class RequiresDotnetAttribute() :
         var root = Environment.GetEnvironmentVariable("DOTNET_ROOT");
         if (!string.IsNullOrEmpty(root))
         {
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
             var candidate = Path.Combine(root!, name);
             if (File.Exists(candidate))
             {

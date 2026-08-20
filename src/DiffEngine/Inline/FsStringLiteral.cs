@@ -62,7 +62,7 @@ public static class FsStringLiteral
     /// </summary>
     static bool CanTripleQuote(string content) =>
         content[0] != '"' &&
-        content[content.Length - 1] != '"' &&
+        content[^1] != '"' &&
         content.IndexOf("\"\"\"", StringComparison.Ordinal) == -1 &&
         !StringLiteral.HasLineTerminator(content);
 
