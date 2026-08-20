@@ -226,8 +226,8 @@ static class Fixtures
         var state = Inline(
             Patch(SolutionFile("SolutionA", "Tests", "ATests.cs"), 10, testName: "Compare handles nulls"),
             Patch(SolutionFile("SolutionA", "Tests", "ATests.cs"), 30, "\"a\"", "b", testName: "Compare handles nulls"),
-            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), 42, content: "eight", framework: "net8.0"),
-            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), 42, content: "nine", framework: "net9.0"));
+            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), content: "eight", framework: "net8.0"),
+            Patch(SolutionFile("SolutionB", "Tests", "BTests.cs"), content: "nine", framework: "net9.0"));
         state = ViewerSession.Apply(state, CommandKind.NextItem);
         return ViewerSession.Apply(state, CommandKind.NextItem);
     }

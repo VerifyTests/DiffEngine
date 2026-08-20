@@ -224,7 +224,7 @@ public class InlineApplierTests
                             // The swap is in flight. Not an observation of the content
                         }
                     }
-                });
+                }, cancellation.Token);
 
             // Long enough that the two whole files differ in length, which is what makes a
             // half written one tell itself apart
@@ -919,14 +919,14 @@ public class InlinePatchFileTests
     {
         await Assert.That(
                 () => InlinePatchFile.Build(
-                    new("a\nb.cs", 1, null, "new", InlinePatchMode.Set)
+                    new("a\nb.cs", 1, null, "new")
                     {
                         TestName = null
                     }))
             .Throws<ArgumentException>();
         await Assert.That(
                 () => InlinePatchFile.Build(
-                    new("a.cs", 1, null, "new", InlinePatchMode.Set)
+                    new("a.cs", 1, null, "new")
                     {
                         TestName = null,
                         Framework = "net8.0\noriginalValue: forged"

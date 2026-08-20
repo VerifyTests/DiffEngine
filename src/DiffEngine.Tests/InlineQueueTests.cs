@@ -55,7 +55,7 @@ public class InlineQueueTests
     public async Task EnqueueMatchesRegardlessOfPathCase()
     {
         var queue = InlineQueue.Empty
-            .Enqueue(Patch("Sample.cs"))
+            .Enqueue(Patch())
             .Enqueue(Patch("SAMPLE.CS"));
 
         await Assert.That(queue.Count).IsEqualTo(1);
@@ -70,7 +70,7 @@ public class InlineQueueTests
     public async Task EnqueueKeepsPathCaseApartWhereTheFilesDo()
     {
         var queue = InlineQueue.Empty
-            .Enqueue(Patch("Sample.cs"))
+            .Enqueue(Patch())
             .Enqueue(Patch("SAMPLE.CS"));
 
         await Assert.That(queue.Count).IsEqualTo(2);

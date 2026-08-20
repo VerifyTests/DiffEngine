@@ -8,22 +8,13 @@ namespace DiffEngine;
 /// letting one be built only moved the problem to a null check further along.
 /// </para>
 /// </summary>
-public sealed class InlinePatch
+public sealed class InlinePatch(
+    string sourceFile,
+    int lineHint,
+    string? originalExpression,
+    string newContent,
+    InlinePatchMode mode = InlinePatchMode.Set)
 {
-    public InlinePatch(
-        string sourceFile,
-        int lineHint,
-        string? originalExpression,
-        string newContent,
-        InlinePatchMode mode = InlinePatchMode.Set)
-    {
-        SourceFile = sourceFile;
-        LineHint = lineHint;
-        OriginalExpression = originalExpression;
-        NewContent = newContent;
-        Mode = mode;
-    }
-
     /// <summary>
     /// The runtime value of the previous expected argument, for a producer whose language does not
     /// supply <see cref="OriginalExpression"/>. Null when there was no previous argument.
@@ -56,26 +47,26 @@ public sealed class InlinePatch
     /// Full path to the source file. Its extension decides the language the literal is written in
     /// (<see cref="SourceLanguage.ForFile"/>).
     /// </summary>
-    public string SourceFile { get; set; }
+    public string SourceFile { get; set; } = sourceFile;
 
     /// <summary>
     /// 1 based line of the verify or Snapshot call. A hint only; content search is the locator.
     /// </summary>
-    public int LineHint { get; set; }
+    public int LineHint { get; set; } = lineHint;
 
     /// <summary>
     /// Verbatim source text of the previous expected argument.
     /// Null when the call had no expected argument (or a bare null argument).
     /// </summary>
-    public string? OriginalExpression { get; set; }
+    public string? OriginalExpression { get; set; } = originalExpression;
 
     /// <summary>
     /// The new snapshot text. Newlines are \n. Empty for
     /// <see cref="InlinePatchMode.Remove"/>, which deletes a call rather than writing one.
     /// </summary>
-    public string NewContent { get; set; }
+    public string NewContent { get; set; } = newContent;
 
-    public InlinePatchMode Mode { get; set; }
+    public InlinePatchMode Mode { get; set; } = mode;
 
     /// <summary>
     /// Display name of the test that produced this patch, supplied by the caller (Verify). The

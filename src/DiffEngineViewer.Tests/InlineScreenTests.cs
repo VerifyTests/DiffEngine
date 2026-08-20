@@ -83,7 +83,7 @@ public class InlineScreenTests
     [Test]
     public Task SolutionAndUngrouped() =>
         Verify(Fixtures.Render(Fixtures.Inline(
-            Fixtures.Patch("SampleTests.cs", 42),
+            Fixtures.Patch(),
             Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10, "\"a\"", "b"))));
 
     /// <summary>
@@ -103,7 +103,7 @@ public class InlineScreenTests
     [Test]
     public Task TestNameLabels() =>
         Verify(Fixtures.Render(Fixtures.Inline(
-            Fixtures.Patch("SampleTests.cs", 42, testName: "Compare handles nulls"),
+            Fixtures.Patch(testName: "Compare handles nulls"),
             Fixtures.Patch("OtherTests.cs", 12, "\"a\"", "b"))));
 
     /// <summary>
@@ -113,7 +113,7 @@ public class InlineScreenTests
     [Test]
     public Task CollidingNames() =>
         Verify(Fixtures.Render(Fixtures.Inline(
-            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "ProjA", "SampleTests.cs"), 42),
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "ProjA", "SampleTests.cs")),
             Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "ProjB", "SampleTests.cs"), 42, "\"a\"", "b"))));
 
     [Test]
