@@ -312,9 +312,16 @@ sealed class ViewerForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        // Always cancelled, because whether closing means hide or exit is ViewerProgram's rule and
-        // it needs a tray check to decide. CloseForReal is how the answer comes back.
-        if (!closingForReal)
+        // Cancelled for a close the user asked for, because whether that means hide or exit is
+        // ViewerProgram's rule and it needs a tray check to decide. CloseForReal is how the answer
+        // comes back.
+        //
+        // Never for a close the session is ending: WinForms answers WM_QUERYENDSESSION with
+        // !e.Cancel, so refusing made Windows report the viewer as preventing shutdown, and with a
+        // tray running the loop only hid the window - leaving the process blocking until the user
+        // chose "Shut down anyway". Letting it through is safe because the loop watches for a
+        // disposed form and returns, which runs the same shutdown it would have run anyway.
+        if (!closingForReal && !EndsTheSession(e.CloseReason))
         {
             closeRequested = true;
             e.Cancel = true;
@@ -322,6 +329,13 @@ sealed class ViewerForm : Form
 
         base.OnFormClosing(e);
     }
+
+    /// <summary>
+    /// The process is going away whatever this form says. Task Manager's End Task is here with
+    /// shutdown because refusing it buys the same nothing: the user has already decided.
+    /// </summary>
+    internal static bool EndsTheSession(CloseReason reason) =>
+        reason is CloseReason.WindowsShutDown or CloseReason.TaskManagerClosing;
 
     /// <summary>
     /// ProcessCmdKey rather than OnKeyDown, because Tab and Escape are consumed by focus
