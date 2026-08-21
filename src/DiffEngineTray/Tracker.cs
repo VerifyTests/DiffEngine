@@ -645,6 +645,12 @@ class Tracker :
         }
 
         move.Process.KillAndDispose();
+
+        // The move can come back: a locked target, the user picking Ignore, or the retries running
+        // out all re-add this same object. Leaving a disposed Process on it made the Accept-open
+        // hot key and "Open diff tool" throw "No process is associated with this object" on the UI
+        // thread, where nothing catches it
+        move.Process = null;
     }
 
     /// <summary>

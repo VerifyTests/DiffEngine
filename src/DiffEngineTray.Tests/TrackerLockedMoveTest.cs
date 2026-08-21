@@ -102,6 +102,36 @@ public class TrackerLockedMoveTest :
         await Assert.That(await File.ReadAllTextAsync(target1)).IsEqualTo("old");
     }
 
+    /// <summary>
+    /// A move that fails is re-added, so whatever KillProcesses did to it has to leave it usable.
+    /// It used to leave a disposed Process on the entry, and the Accept-open hot key and
+    /// "Open diff tool" both read that property - throwing "No process is associated with this
+    /// object" on the UI thread, where nothing catches it.
+    /// </summary>
+    [Test]
+    public async Task Ignore_DropsTheKilledProcessFromThePendingMove()
+    {
+        await using var tracker = new RecordingTracker(
+            (_, _) => LockedFilesResponse.Ignore);
+        var lockProcess = FileLockUtils.StartFileLockProcess(target1);
+        // Stands in for the diff tool: a killable process the move is tracking
+        var toolProcess = FileLockUtils.StartFileLockProcess(temp2);
+        try
+        {
+            var tracked = tracker.AddMove(temp1, target1, "theExe", "theArguments", true, toolProcess.Id);
+            tracker.Accept(tracked);
+
+            var pending = tracker.Moves.Single();
+            await Assert.That(pending.Process).IsNull();
+            // What the hot key and DiffToolLauncher do with it
+            await Assert.That(pending.Process is { HasExited: false }).IsFalse();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(toolProcess);
+            FileLockUtils.Cleanup(lockProcess);
+        }
+    }
     static string CreateFile(string content)
     {
         var path = Path.Combine(Path.GetTempPath(), $"TrackerLockedMoveTest_{Guid.NewGuid()}.txt");
