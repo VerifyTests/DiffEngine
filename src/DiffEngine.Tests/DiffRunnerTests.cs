@@ -175,10 +175,14 @@ public class DiffRunnerTests
         await WaitForRunning(true);
         await Assert.That(IsRunning()).IsTrue();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsTrue();
+
+        using var launched = OpenLaunched();
         DiffRunner.Kill(file1, file2);
+
         await WaitForRunning(false);
         await Assert.That(IsRunning()).IsFalse();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
+        await AssertTerminated(launched);
     }
 
     [Test]
@@ -192,27 +196,61 @@ public class DiffRunnerTests
         await WaitForRunning(true);
         await Assert.That(IsRunning()).IsTrue();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsTrue();
+
+        using var launched = OpenLaunched();
         DiffRunner.Kill(file1, file2);
+
         await WaitForRunning(false);
         await Assert.That(IsRunning()).IsFalse();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
+        await AssertTerminated(launched);
+    }
+
+    /// <summary>
+    /// Opens a handle on the process the launch just started, before anything can kill it.
+    /// <para>
+    /// Process.GetProcessById holds no OS handle of its own, and a handle opened after the process
+    /// has gone cannot report how it went. Touching Handle here is what makes the exit code
+    /// readable afterwards.
+    /// </para>
+    /// </summary>
+    Process OpenLaunched()
+    {
+        var match = ProcessCleanup.FindAll().Single(_ => _.Command == Expected);
+        var process = Process.GetProcessById(match.Process);
+        _ = process.Handle;
+        return process;
+    }
+
+    /// <summary>
+    /// That the process was killed, rather than that it is merely gone.
+    /// <para>
+    /// The distinction is the whole point of this assertion. FakeDiffTool sleeps for five seconds
+    /// and then exits on its own, and WaitForRunning polls for ten, so "no longer running" is
+    /// true whether the kill worked or did nothing at all - these tests passed with
+    /// ProcessCleanup.Kill short circuited to a bare return. The exit code tells them apart:
+    /// WindowsProcess.TryTerminateProcess passes -1 to TerminateProcess, and a FakeDiffTool that
+    /// ran out its sleep returns 0.
+    /// </para>
+    /// </summary>
+    static async Task AssertTerminated(Process process)
+    {
+        await Assert.That(process.WaitForExit(5000)).IsTrue();
+        await Assert.That(process.ExitCode).IsNotEqualTo(0);
     }
 
     // Match this test's exact command, not any FakeDiffTool: DiffEngineTray.Tests
     // runs concurrently in the same CI job and launches its own FakeDiffTool
     // instances, which a machine-wide substring scan would see.
-    bool IsRunning()
-    {
-        var expected = command;
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            expected = expected.Replace("\"", "");
-        }
+    string Expected =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? command
+            : command.Replace("\"", "");
 
-        return ProcessCleanup
+    bool IsRunning() =>
+        ProcessCleanup
             .FindAll()
-            .Any(_ => _.Command == expected);
-    }
+            .Any(_ => _.Command == Expected);
 
     // Process spawn and kill are asynchronous, so poll instead of guessing with a
     // fixed sleep. Also used at test start: the previous test's kill may still be
