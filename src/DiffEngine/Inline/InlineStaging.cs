@@ -364,11 +364,28 @@ public static class InlineStaging
     }
 
     /// <summary>
+    /// Answers for source files already asked about. <see cref="Clear" /> runs once per
+    /// verification, and the walk below is a directory enumeration per level of the path — paid
+    /// on every one of them, including the overwhelmingly common case where nothing is staged and
+    /// the answer is thrown away.
+    /// <para>
+    /// Only this half is cached. Which project a source file belongs to cannot change while a run
+    /// is going, whereas the staging directories under it can: a run that finds no queue owner
+    /// creates one as it goes, and a cached "nothing here" would then miss what it wrote.
+    /// </para>
+    /// </summary>
+    static readonly ConcurrentDictionary<string, string?> projectDirectories =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The nearest directory above the source file holding a project file, whose <c>obj</c> is
     /// where a test run for that source would stage. Null when there is none, which is a source
     /// path from another machine or a file that has gone along with its project.
     /// </summary>
-    static string? FindProjectDirectory(string sourceFile)
+    static string? FindProjectDirectory(string sourceFile) =>
+        projectDirectories.GetOrAdd(sourceFile, WalkToProjectDirectory);
+
+    static string? WalkToProjectDirectory(string sourceFile)
     {
         var directory = Path.GetDirectoryName(sourceFile);
         while (!string.IsNullOrEmpty(directory))

@@ -193,6 +193,26 @@ public class InlineStagingTests
         await Assert.That(project.StagedFiles().Count).IsEqualTo(6);
     }
 
+    /// <summary>
+    /// The project a source belongs to is cached, since it cannot move while a run is going. The
+    /// staging directories under it are not, and this is why: a run that finds no queue owner
+    /// creates one as it goes, so it can appear after an earlier clear already looked and found
+    /// nothing.
+    /// </summary>
+    [Test]
+    public async Task ClearFindsStagingCreatedAfterAnEarlierLook()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(0);
+
+        InlineStaging.Persist([new(Patch(source, "content"))]);
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
     [Test]
     public async Task ClearLeavesAnotherSourceFileAlone()
     {
