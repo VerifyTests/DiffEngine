@@ -716,11 +716,11 @@ DiffTools.UseOrder(DiffTool.P4Merge);
 
   * Example target on left arguments for text:
    ```
-   -C utf8-bom "tempFile.txt" "targetFile.txt"
+   -C utf8-bom "targetFile.txt" "tempFile.txt"
    ```
   * Example target on right arguments for text:
    ```
-   -C utf8-bom "targetFile.txt" "tempFile.txt"
+   -C utf8-bom "tempFile.txt" "targetFile.txt"
    ```
   * Example target on left arguments for binary:
    ```
@@ -740,11 +740,11 @@ DiffTools.UseOrder(DiffTool.P4Merge);
 
   * Example target on left arguments for text:
    ```
-   -C utf8-bom "tempFile.txt" "targetFile.txt"
+   -C utf8-bom "targetFile.txt" "tempFile.txt"
    ```
   * Example target on right arguments for text:
    ```
-   -C utf8-bom "targetFile.txt" "tempFile.txt"
+   -C utf8-bom "tempFile.txt" "targetFile.txt"
    ```
   * Example target on left arguments for binary:
    ```
@@ -762,11 +762,11 @@ DiffTools.UseOrder(DiffTool.P4Merge);
 
   * Example target on left arguments for text:
    ```
-   -C utf8-bom "tempFile.txt" "targetFile.txt"
+   -C utf8-bom "targetFile.txt" "tempFile.txt"
    ```
   * Example target on right arguments for text:
    ```
-   -C utf8-bom "targetFile.txt" "tempFile.txt"
+   -C utf8-bom "tempFile.txt" "targetFile.txt"
    ```
   * Example target on left arguments for binary:
    ```

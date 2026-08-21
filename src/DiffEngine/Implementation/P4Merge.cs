@@ -3,11 +3,14 @@ static partial class Implementation
     public static Definition P4Merge()
     {
         var launchArguments = new LaunchArguments(
+            // p4merge takes the two files positionally as `left right`, so the target leads for
+            // target-on-left and the temp file leads for target-on-right. Same order for text and
+            // binary; only the encoding switch differs.
             Left: (temp, target) =>
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"-C utf8-bom \"{temp}\" \"{target}\"";
+                    return $"-C utf8-bom \"{target}\" \"{temp}\"";
                 }
 
                 return $"\"{target}\" \"{temp}\"";
@@ -16,7 +19,7 @@ static partial class Implementation
             {
                 if (FileExtensions.IsTextFile(temp))
                 {
-                    return $"-C utf8-bom \"{target}\" \"{temp}\"";
+                    return $"-C utf8-bom \"{temp}\" \"{target}\"";
                 }
 
                 return $"\"{temp}\" \"{target}\"";
