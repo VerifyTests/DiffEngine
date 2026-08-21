@@ -50,8 +50,12 @@ final class Runtime {
         // touching AppKit at all in that case is what lets the pixel tests run: NSWindow may only
         // be instantiated on the main thread, and a test host runs them on whatever thread it
         // likes. The app itself always starts visible, from Main, which is the main thread.
+        // show() rather than makeWindow(), because a window that is built but never ordered
+        // front is a Dock icon with nothing under it: the app would then present at 60 fps into
+        // an invisible window until a second patch arrived over the socket and drove
+        // deview_set_hidden/deview_focus, which is the only other path to makeKeyAndOrderFront.
         if !hidden {
-            makeWindow()
+            show()
         }
 
         measureGrid()
@@ -255,9 +259,10 @@ final class Runtime {
         input.rows = grid.rows
     }
 
-    /// Builds the window if this runtime started headless, so a hidden start is still only a
-    /// deferral rather than a different contract from the other heads. Only reachable from the
-    /// managed loop's thread, which is the main one.
+    /// Presents the window, building it first if this runtime started headless, so a hidden start
+    /// is still only a deferral rather than a different contract from the other heads. Also how a
+    /// visible `open` presents, so ordering front happens in exactly one place. Only reachable
+    /// from the managed loop's thread, which is the main one.
     func show() {
         makeWindow()
         window?.makeKeyAndOrderFront(nil)
