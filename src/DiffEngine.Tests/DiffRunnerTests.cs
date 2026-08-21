@@ -181,6 +181,53 @@ public class DiffRunnerTests
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
     }
 
+    /// <summary>
+    /// A tool launched after the process list was filled has to be visible without anything
+    /// asking for a refresh first.
+    /// <para>
+    /// The list was filled once, by the static constructor, and nothing in the library ever
+    /// refreshed it. So within one process a tool launched after first use was invisible for the
+    /// rest of that process: Kill logged "No matching commands" and left it open, a relaunch
+    /// never saw the running instance and opened a second window while spending another
+    /// MaxInstance slot, and an AutoRefresh tool was relaunched rather than reused. Every test
+    /// here polls through WaitForRunning, which calls Refresh itself, so none of them could see
+    /// it - and FakeDiffTool exits on its own after five seconds, so even a kill that found
+    /// nothing looked like a kill that worked.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AToolLaunchedAfterTheListWasFilledIsVisible()
+    {
+        await WaitForRunning(false);
+        // The stale snapshot: taken while the tool is not running
+        ProcessCleanup.Refresh();
+        await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
+
+        var result = await DiffRunner.LaunchAsync(file1, file2);
+        await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
+
+        // Nothing calls Refresh from here. Bounded well inside FakeDiffTool's five second life,
+        // so a pass means the query saw it rather than that the process outlived the poll
+        await Assert.That(await PollCached()).IsTrue();
+
+        DiffRunner.Kill(file1, file2);
+        await WaitForRunning(false);
+    }
+
+    async Task<bool> PollCached()
+    {
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            if (ProcessCleanup.IsRunning(command))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
     [Test]
     public async Task LaunchAndKillAsync()
     {

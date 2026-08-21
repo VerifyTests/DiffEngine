@@ -27,6 +27,11 @@ public static class ProcessCleanup
         Refresh();
     }
 
+    /// <summary>
+    /// The processes as of the last <see cref="Refresh"/>. A snapshot, so callers that need to
+    /// know what is running now go through <see cref="IsRunning"/> or <see cref="Kill"/>, both of
+    /// which take their own.
+    /// </summary>
     public static IReadOnlyCollection<ProcessCommand> Commands => commands;
 
     [MemberNotNull(nameof(commands))]
@@ -60,6 +65,14 @@ public static class ProcessCleanup
             command = TrimCommand(command);
         }
 
+        // The list was filled once by the static constructor and nothing in the library refreshed
+        // it, so this matched against whatever was running the first time anything touched
+        // DiffEngine. In one process a Launch followed by a Kill for the same pair logged "No
+        // matching commands" and left the tool open. It also keeps the PID as fresh as this can
+        // make it: a process that has since exited may have had its id reused, and terminating
+        // from a stale snapshot kills whatever holds it now
+        Refresh();
+
         var matchingCommands = Commands
             .Where(_ => _.Command == command).ToList();
         Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
@@ -90,6 +103,11 @@ public static class ProcessCleanup
         {
             command = TrimCommand(command);
         }
+
+        // As for Kill: the question is what is running now. Against the startup snapshot a tool
+        // launched later was never seen again, so an AutoRefresh tool opened a second window
+        // instead of being reused and every relaunch spent another MaxInstance slot
+        Refresh();
 
         process = commands.FirstOrDefault(_ => _.Command == command);
         return !process.Equals(default(ProcessCommand));
