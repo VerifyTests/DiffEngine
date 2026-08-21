@@ -106,7 +106,7 @@ public static class CsStringLiteral
         var quotes = StringLiteral.QuoteRunLength(text, index);
         if (quotes >= 3)
         {
-            return StringLiteral.TryScanMultiLine(text, index, quotes, out value, out end);
+            return StringLiteral.TryScanMultiLine(text, index, quotes, true, out value, out end);
         }
 
         if (quotes == 2)

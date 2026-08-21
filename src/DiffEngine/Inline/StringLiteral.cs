@@ -184,8 +184,24 @@ static class StringLiteral
     /// <summary>
     /// Scans a multi-line literal opening at <paramref name="start"/> with a run of
     /// <paramref name="quotes"/>, and returns what it holds with the layout taken off.
+    /// <para>
+    /// <paramref name="layoutRequired"/> is what separates the two languages. A C# raw string not
+    /// in the layout shape does not compile, so content that fails the strip is a literal this
+    /// never wrote and rejecting it is right. F#'s triple-quoted literal is plain verbatim text
+    /// and the layout is only a convention, so a hand-written one - content starting on the
+    /// opening line, which is the idiomatic shape - is a perfectly good literal whose value is
+    /// simply what it says. Rejecting those made them unpatchable: TryParse said "not a string
+    /// literal" while StripLayout, which is what a test library runs the value through, returned
+    /// the same text unchanged, so the producer's OriginalValue could never match.
+    /// </para>
     /// </summary>
-    public static bool TryScanMultiLine(string text, int start, int quotes, out string? value, out int end)
+    public static bool TryScanMultiLine(
+        string text,
+        int start,
+        int quotes,
+        bool layoutRequired,
+        out string? value,
+        out int end)
     {
         value = null;
         end = start;
@@ -224,7 +240,21 @@ static class StringLiteral
             return true;
         }
 
-        return TryStripLayout(SourceLanguage.NormalizeNewlines(content), out value);
+        var normalized = SourceLanguage.NormalizeNewlines(content);
+        if (TryStripLayout(normalized, out value))
+        {
+            return true;
+        }
+
+        if (layoutRequired)
+        {
+            return false;
+        }
+
+        // Not in the layout shape, so there is no layout to take off and the content is the
+        // value. The same answer StripLayout gives for the same text
+        value = normalized;
+        return true;
     }
 
     /// <summary>
