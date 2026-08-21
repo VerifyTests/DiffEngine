@@ -594,6 +594,19 @@ public class ViewerProtocolTests
     [Test]
     public async Task ASlowExchangeDoesNotBlockTheNext()
     {
+        // These margins are about the thread pool rather than about the protocol. The handler
+        // blocks a pool thread for the whole hold, so answering the second exchange needs the pool
+        // to hand out another one - and when it is at its minimum and busy, which is a two core CI
+        // runner with tests running in parallel, injection is throttled to roughly one thread every
+        // half second. The second exchange used to run on the client's default three seconds, which
+        // is not reliably longer than that, and the test failed as though the server were serial.
+        //
+        // What is asserted does not change. The claim is that the second exchange is answered while
+        // the first is still held, so any client timeout shorter than the hold proves it: a server
+        // answering one at a time would not reply until the hold ended.
+        var hold = TimeSpan.FromSeconds(30);
+        var secondExchange = TimeSpan.FromSeconds(10);
+
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
         using var cancel = new CancelSource();
@@ -605,7 +618,7 @@ public class ViewerProtocolTests
                 if (_.Verb == ViewerVerb.Accept)
                 {
                     entered.Set();
-                    release.Wait(TimeSpan.FromSeconds(10));
+                    release.Wait(hold);
                 }
 
                 return ViewerResponse.Success($"heard {_.Verb}");
@@ -614,14 +627,19 @@ public class ViewerProtocolTests
 
         try
         {
+            // No token on Task.Run: it cancels the scheduling rather than the delegate, so a pool
+            // that had not picked this up before the cancel in the finally would leave the task
+            // Canceled and the await below throwing. TrySend is blocking and takes no token anyway
             var accepting = Task.Run(() =>
-                ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, TimeSpan.FromSeconds(15))
+                ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, hold)
                     ? slow
-                    : null, cancel.Token);
-            entered.Wait(TimeSpan.FromSeconds(5));
+                    : null);
 
-            // Default timeout, while the accept is still held open.
-            var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port);
+            // Asserted rather than assumed. If the accept is not actually being held then nothing
+            // below is a test of concurrency, and it would read as one
+            await Assert.That(entered.Wait(TimeSpan.FromSeconds(30))).IsTrue();
+
+            var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port, secondExchange);
 
             await Assert.That(sent).IsTrue();
             await Assert.That(response!.Message).IsEqualTo("heard List");
