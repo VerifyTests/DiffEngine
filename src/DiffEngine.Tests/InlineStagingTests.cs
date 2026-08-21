@@ -118,12 +118,129 @@ public class InlineStagingTests
         await Assert.That(Path.GetFileName(patchFile)).EndsWith(".unknown.inlinepatch");
     }
 
-    static InlinePatch Patch(string source, string content, string? framework = null) =>
-        new(source, 42, "\"old\"", content)
+    /// <summary>
+    /// A settle reaches the queue owner, and says nothing to a snapshot sitting on disk. Clearing
+    /// is what stops a staged snapshot outliving the run that made it stale.
+    /// </summary>
+    [Test]
+    public async Task ClearRemovesTheTrioForTheCallSite()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "content", framework: "net10.0"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, null);
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    /// <summary>
+    /// Every framework's trio goes, because the call site is what settled, not one framework's
+    /// reading of it.
+    /// </summary>
+    [Test]
+    public async Task ClearRemovesEveryFrameworksTrio()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist(
+        [
+            new(
+            [
+                new(Patch(source, "from net8", framework: "net8.0"), ["net8.0"]),
+                new(Patch(source, "from net10", framework: "net10.0"), ["net10.0"]),
+            ])
+        ]);
+
+        var cleared = InlineStaging.Clear(source, 42, null);
+
+        await Assert.That(cleared).IsEqualTo(2);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    [Test]
+    public async Task ClearFindsACallSiteWhoseLineHasMovedByMember()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "content", line: 42, member: "MyTest"))]);
+
+        var cleared = InlineStaging.Clear(source, 807, "MyTest");
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    /// <summary>
+    /// A member holding several inline snapshots cannot say which of them was settled, and
+    /// deleting the wrong one discards a snapshot that is still pending.
+    /// </summary>
+    [Test]
+    public async Task ClearLeavesAnAmbiguousMemberAlone()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist(
+        [
+            new(Patch(source, "first", line: 42, member: "MyTest")),
+            new(Patch(source, "second", line: 48, member: "MyTest")),
+        ]);
+
+        var cleared = InlineStaging.Clear(source, 807, "MyTest");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(6);
+    }
+
+    [Test]
+    public async Task ClearLeavesAnotherSourceFileAlone()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var other = project.Source("OtherTests.cs");
+        InlineStaging.Persist([new(Patch(other, "content", member: "MyTest"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, "MyTest");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// A test run stages under its own intermediate directory, which is normally inside the
+    /// project's obj and found anyway, but does not have to be.
+    /// </summary>
+    [Test]
+    public async Task ClearTakesAnExtraDirectory()
+    {
+        using var project = new TempProject();
+        using var elsewhere = new TempProject();
+        var source = project.Source("SampleTests.cs");
+
+        var staging = Path.Combine(elsewhere.Root, InlineStaging.DirectoryName);
+        Directory.CreateDirectory(staging);
+        var patchFile = Path.Combine(staging, "Staged.inlinepatch");
+        InlinePatchFile.Write(patchFile, Patch(source, "content"));
+
+        var cleared = InlineStaging.Clear(source, 42, null, elsewhere.Root);
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(File.Exists(patchFile)).IsFalse();
+    }
+
+    static InlinePatch Patch(
+        string source,
+        string content,
+        string? framework = null,
+        int line = 42,
+        string? member = null) =>
+        new(source, line, "\"old\"", content)
         {
             TestName = "SampleTests.Sample",
             OriginalValue = "old",
-            Framework = framework
+            Framework = framework,
+            MemberName = member
         };
 
     // The name embeds an fnv1a of the call site so re-persisting overwrites; recomputed here so
@@ -152,6 +269,9 @@ public class InlineStagingTests
             Directory.CreateDirectory(directory);
             File.WriteAllText(Path.Combine(directory, "Sample.csproj"), "<Project />");
         }
+
+        // Named Root rather than Directory or Path, both of which are types this class uses.
+        public string Root => directory;
 
         public string Source(string name)
         {

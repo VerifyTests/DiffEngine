@@ -49,6 +49,247 @@ public static class InlineStaging
         return written;
     }
 
+    /// <summary>
+    /// Deletes the staged files for a call site, for a run that has just settled or retired it.
+    /// Returns how many trios were cleared.
+    /// </summary>
+    /// <remarks>
+    /// Settling only ever spoke to the queue owner, which says nothing to a snapshot that is on
+    /// disk rather than in a queue — so a staged snapshot outlived the run that made it stale, and
+    /// accept tooling went on offering it for a test that now passes. Rare while staging was only
+    /// the no-owner fallback, and the ordinary case once <see cref="Persist" /> made every owner
+    /// exit write one.
+    /// <para>
+    /// <paramref name="memberName" /> is the same fallback the queue uses, for a call site whose
+    /// line has moved, under the same rule: only where the member names exactly one call site,
+    /// since dropping the wrong one discards a snapshot that is still pending. Several files can
+    /// share a line — one per framework — so it is call sites that are counted, not files.
+    /// </para>
+    /// </remarks>
+    /// <param name="extraDirectory">
+    /// A staging root to clear beside the source project's, for a producer that stages somewhere
+    /// of its own. Verify's own fallback writes under the project's intermediate directory, which
+    /// is normally inside that <c>obj</c> and found anyway, but does not have to be.
+    /// </param>
+    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory = null)
+    {
+        var cleared = 0;
+        foreach (var directory in StagingDirectories(sourceFile, extraDirectory))
+        {
+            cleared += ClearIn(directory, sourceFile, line, memberName);
+        }
+
+        return cleared;
+    }
+
+    static int ClearIn(string directory, string sourceFile, int line, string? memberName)
+    {
+        var staged = ReadStaged(directory)
+            .Where(_ => SamePath(_.Patch.SourceFile, sourceFile))
+            .ToList();
+        if (staged.Count == 0)
+        {
+            return 0;
+        }
+
+        var matching = staged
+            .Where(_ => _.Patch.LineHint == line)
+            .ToList();
+
+        if (matching.Count == 0 &&
+            !string.IsNullOrEmpty(memberName))
+        {
+            var byMember = staged
+                .Where(_ => _.Patch.MemberName == memberName)
+                .ToList();
+            if (IsOneCallSite(byMember))
+            {
+                matching = byMember;
+            }
+        }
+
+        var cleared = 0;
+        foreach (var entry in matching)
+        {
+            if (DeleteTrio(entry.PatchPath))
+            {
+                cleared++;
+            }
+        }
+
+        return cleared;
+    }
+
+    /// <summary>
+    /// Whether these all name one call site, which is what makes a member unambiguous: the member
+    /// holds a single inline snapshot, and the files are its frameworks. More than one line is
+    /// more than one snapshot in that member, and nothing here can say which of them settled.
+    /// </summary>
+    static bool IsOneCallSite(List<(string PatchPath, InlinePatch Patch)> staged)
+    {
+        if (staged.Count == 0)
+        {
+            return false;
+        }
+
+        var line = staged[0].Patch.LineHint;
+        return staged.All(_ => _.Patch.LineHint == line);
+    }
+
+    static List<(string PatchPath, InlinePatch Patch)> ReadStaged(string directory)
+    {
+        var result = new List<(string, InlinePatch)>();
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(directory, "*.inlinepatch");
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return result;
+        }
+
+        foreach (var file in files)
+        {
+            if (InlinePatchFile.TryRead(file, out var patch))
+            {
+                result.Add((file, patch));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The patch and the two texts beside it, which all share a name. A file that cannot be
+    /// deleted leaves the snapshot pending rather than half cleared, so the whole trio is judged
+    /// by the patch: with it gone nothing reads the other two.
+    /// </summary>
+    static bool DeleteTrio(string patchPath)
+    {
+        var directory = Path.GetDirectoryName(patchPath);
+        var stem = Path.GetFileNameWithoutExtension(patchPath);
+        if (directory is null)
+        {
+            return false;
+        }
+
+        if (!Delete(patchPath))
+        {
+            return false;
+        }
+
+        Delete(Path.Combine(directory, $"{stem}.received.txt"));
+        Delete(Path.Combine(directory, $"{stem}.expected.txt"));
+        return true;
+    }
+
+    static bool Delete(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return true;
+            }
+
+            File.Delete(path);
+            return true;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Everywhere a snapshot for this source could have been staged: whatever the caller names,
+    /// and every <c>VerifyInline</c> under the source project's <c>obj</c> — which covers both
+    /// where <see cref="Persist" /> writes and where a test run's own fallback does.
+    /// </summary>
+    static IEnumerable<string> StagingDirectories(string sourceFile, string? extraDirectory)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrEmpty(extraDirectory))
+        {
+            // ReSharper disable once RedundantSuppressNullableWarningExpression
+            var named = Path.Combine(extraDirectory!, DirectoryName);
+            if (Directory.Exists(named) &&
+                seen.Add(named))
+            {
+                yield return named;
+            }
+        }
+
+        var project = FindProjectDirectory(sourceFile);
+        if (project is null)
+        {
+            yield break;
+        }
+
+        var obj = Path.Combine(project, "obj");
+        if (!Directory.Exists(obj))
+        {
+            yield break;
+        }
+
+        foreach (var directory in FindStaging(obj, 0))
+        {
+            if (seen.Add(directory))
+            {
+                yield return directory;
+            }
+        }
+    }
+
+    // An intermediate directory sits a handful of levels below the project it belongs to, so the
+    // walk is bounded rather than open ended, the same way ReceivedMaps bounds its own.
+    const int maxDepth = 8;
+
+    static IEnumerable<string> FindStaging(string root, int depth)
+    {
+        if (depth > maxDepth)
+        {
+            yield break;
+        }
+
+        string[] children;
+        try
+        {
+            children = Directory.GetDirectories(root);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        foreach (var child in children)
+        {
+            if (string.Equals(Path.GetFileName(child), DirectoryName, StringComparison.OrdinalIgnoreCase))
+            {
+                // Staged files are flat inside, so there is no need to descend further.
+                yield return child;
+                continue;
+            }
+
+            foreach (var nested in FindStaging(child, depth + 1))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Through <see cref="InlineKey.For" />, so two spellings of one path are judged the same way
+    /// the queue judges them, and on the platforms where that matters.
+    /// </summary>
+    static bool SamePath(string left, string right) =>
+        InlineKey.For(left, 0) == InlineKey.For(right, 0);
+
     static bool TryPersist(InlinePatch patch, IReadOnlyList<string> origins)
     {
         // A Remove is applied by whoever produced it and is never reviewed, so there is nothing to
