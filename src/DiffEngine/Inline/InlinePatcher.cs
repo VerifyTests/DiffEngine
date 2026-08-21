@@ -80,7 +80,7 @@ static class InlinePatcher
 
         if (mode == InlinePatchMode.Remove)
         {
-            return TryRemove(source, scan, lineStarts, lineHint, memberLine, ref newSource, ref failReason);
+            return TryRemove(language, source, scan, lineStarts, lineHint, memberLine, originalExpression, originalValue, eol, ref newSource, ref failReason);
         }
 
         var fileUnit = DetectIndentUnit(source, scan, lineStarts);
@@ -385,17 +385,24 @@ static class InlinePatcher
     /// blank line is left behind.
     /// </summary>
     static PatchStatus TryRemove(
+        SourceLanguage language,
         string source,
         SourceScan scan,
         List<int> lineStarts,
         int lineHint,
         int? memberLine,
+        string? originalExpression,
+        string? originalValue,
+        string eol,
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out var nameStart, out var openParen))
+        var anchored = !string.IsNullOrEmpty(originalExpression) || originalValue != null;
+        if (!TryFindAnchoredCall(language, source, scan, lineStarts, lineHint, memberLine, originalExpression, originalValue, eol, out var nameStart, out var openParen))
         {
-            failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
+            failReason = anchored
+                ? $"Could not find a {methodName} call near line {lineHint} whose expected argument is still the one the test run saw. The source may have changed since the test run. Re-run the test."
+                : $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
         }
 
@@ -524,6 +531,83 @@ static class InlinePatcher
     }
 
     static readonly string[] snapshotName = [methodName];
+
+    /// <summary>
+    /// The call the anchor names, rather than whichever one sits nearest the hint.
+    /// <para>
+    /// Set and Append locate by content for a reason - the same literal is just as likely to be in
+    /// the test next door - and a Remove has exactly the same problem with none of the protection.
+    /// It deleted the nearest call to a line number that stops being true as soon as anything
+    /// above it is edited, so a stale hint retired somebody else's snapshot and reported Applied.
+    /// </para>
+    /// <para>
+    /// With no anchor there is nothing to match on and nearest-to-the-hint is all there is, which
+    /// is the case for a producer whose language withholds CallerArgumentExpression and sends no
+    /// value either.
+    /// </para>
+    /// </summary>
+    static bool TryFindAnchoredCall(
+        SourceLanguage language,
+        string source,
+        SourceScan scan,
+        List<int> lineStarts,
+        int lineHint,
+        int? memberLine,
+        string? originalExpression,
+        string? originalValue,
+        string eol,
+        out int nameStart,
+        out int openParen)
+    {
+        if (string.IsNullOrEmpty(originalExpression) &&
+            originalValue == null)
+        {
+            return TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out nameStart, out openParen);
+        }
+
+        // ReSharper disable once RedundantSuppressNullableWarningExpression
+        var needle = string.IsNullOrEmpty(originalExpression) ? null : NormalizeTo(originalExpression!, eol);
+        var previous = originalValue == null ? null : SourceLanguage.NormalizeNewlines(originalValue);
+
+        foreach (var (candidateName, candidateParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
+        {
+            if (!TryReadArguments(source, scan, candidateParen, out var expected))
+            {
+                continue;
+            }
+
+            if (needle != null)
+            {
+                if (!expected.Matches(source, needle))
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                if (expected.IsAbsent ||
+                    expected.BlockedByName)
+                {
+                    continue;
+                }
+
+                var argument = source.Substring(expected.Start, expected.End - expected.Start);
+                if (!language.TryParse(argument, out var value) ||
+                    value != previous)
+                {
+                    continue;
+                }
+            }
+
+            nameStart = candidateName;
+            openParen = candidateParen;
+            return true;
+        }
+
+        nameStart = -1;
+        openParen = -1;
+        return false;
+    }
 
     static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, out int openParen) =>
         TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out _, out openParen);

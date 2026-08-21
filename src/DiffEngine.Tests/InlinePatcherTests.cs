@@ -123,6 +123,40 @@ public class InlinePatcherTests
     const string q3 = "\"\"\"";
     const string q4 = "\"\"\"\"";
 
+    /// <summary>
+    /// A retire is anchored the same way a set is. It used to delete whichever call sat nearest
+    /// the recorded line, and that line stops being true the moment anything above it is edited -
+    /// so a stale hint retired the snapshot in the test next door and reported Applied.
+    /// </summary>
+    [Test]
+    public async Task RemoveTakesTheCallTheAnchorNamesRatherThanTheNearest()
+    {
+        var source = Method(
+            "        await A().Snapshot(\"one\");\n" +
+            "        await B().Snapshot(\"two\");");
+
+        // Hint on the second call, anchor on the first
+        var status = TryApply(source, 6, InlinePatchMode.Remove, "\"one\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).DoesNotContain("\"one\"");
+        // The other test's snapshot is left alone
+        await Assert.That(newSource).Contains("Snapshot(\"two\")");
+    }
+
+    /// <summary>
+    /// And an anchor that matches nothing is reported rather than resolved to the nearest call.
+    /// </summary>
+    [Test]
+    public async Task RemoveReportsWhenTheAnchorIsGone()
+    {
+        var source = Method("        await A().Snapshot(\"two\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"one\"", "", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("still the one the test run saw");
+    }
     [Test]
     public async Task ReplaceRegularLiteral()
     {
