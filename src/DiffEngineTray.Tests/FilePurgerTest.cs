@@ -1,5 +1,39 @@
 public class FilePurgerTest
 {
+    /// <summary>
+    /// The dialog lets the user pick a profile folder or a drive root, and both hold something
+    /// the scan cannot read. SearchOption.AllDirectories threw on the first one, out of a bare
+    /// Thread with nothing catching it, which took the whole tray down.
+    /// </summary>
+    [Test]
+    public async Task Find_SkipsInaccessibleDirectories()
+    {
+        var root = Directory.CreateDirectory(
+            Path.Combine(Path.GetTempPath(), $"FilePurgerTest_{Guid.NewGuid()}"));
+        var denied = root.CreateSubdirectory("denied");
+        await File.WriteAllTextAsync(Path.Combine(root.FullName, "a.verified.txt"), "content");
+
+        var security = denied.GetAccessControl();
+        var rule = new FileSystemAccessRule(
+            WindowsIdentity.GetCurrent().User!,
+            FileSystemRights.ListDirectory,
+            AccessControlType.Deny);
+        security.AddAccessRule(rule);
+        denied.SetAccessControl(security);
+        try
+        {
+            var found = FilePurger.Find(root.FullName);
+
+            await Assert.That(found).HasSingleItem();
+            await Assert.That(Path.GetFileName(found[0])).IsEqualTo("a.verified.txt");
+        }
+        finally
+        {
+            security.RemoveAccessRule(rule);
+            denied.SetAccessControl(security);
+            root.Delete(true);
+        }
+    }
     [Test]
     public async Task DeleteSucceeds_WhenFileNotLocked()
     {
