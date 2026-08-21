@@ -205,9 +205,19 @@ public class InlineApplierTests
 
             using var cancellation = new CancelSource();
             var seen = new ConcurrentDictionary<long, byte>();
+            // Signalled from inside the delegate, so the apply cannot run and finish before the
+            // reader is looking. Without it a reader that starts late observes nothing and the
+            // assertion below passes on an empty set, which is a pass that checked nothing
+            var reading = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // No token on Task.Run. It cancels the scheduling rather than the delegate, so a pool
+            // that had not yet picked this up when the cancel lands leaves the task Canceled and
+            // `await reader` throwing TaskCanceledException - which is what made this fail on CI,
+            // on all three OSes, while passing on any machine with a spare core. The loop already
+            // exits on the token, which is the only cancellation this ever wanted
             var reader = Task.Run(
                 () =>
                 {
+                    reading.SetResult(true);
                     while (!cancellation.IsCancellationRequested)
                     {
                         try
@@ -224,7 +234,9 @@ public class InlineApplierTests
                             // The swap is in flight. Not an observation of the content
                         }
                     }
-                }, cancellation.Token);
+                });
+
+            await reading.Task;
 
             // Long enough that the two whole files differ in length, which is what makes a
             // half written one tell itself apart
@@ -235,6 +247,10 @@ public class InlineApplierTests
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
             var after = new FileInfo(path).Length;
             await Assert.That(after).IsNotEqualTo(before);
+
+            // That the reader looked at all. Everything below is a statement about what it saw,
+            // and an empty set satisfies all of it
+            await Assert.That(seen.Keys).IsNotEmpty();
 
             var partial = seen.Keys.Where(_ => _ != before && _ != after).ToList();
             await Assert.That(partial).IsEmpty();
