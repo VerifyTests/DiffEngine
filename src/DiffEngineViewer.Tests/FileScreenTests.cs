@@ -16,6 +16,18 @@ public class FileScreenTests
     public Task RightEmpty() =>
         Verify(Fixtures.Render(Fixtures.File(right: "")));
 
+    /// <summary>
+    /// A snapshot that differs only in whitespace still has to render as a difference. DiffPlex
+    /// ignores whitespace by default, which turned this into three Unchanged rows.
+    /// </summary>
+    [Test]
+    public Task WhitespaceOnly() =>
+        Verify(
+            Fixtures.Render(
+                Fixtures.File(
+                    "the quick\n  brown fox\ndog ",
+                    "the quick\nbrown fox\ndog")));
+
     [Test]
     public Task LongLines()
     {

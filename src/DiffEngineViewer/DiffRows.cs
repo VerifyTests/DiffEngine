@@ -10,7 +10,15 @@ static class DiffRows
     public static (IReadOnlyList<Row> Left, IReadOnlyList<Row> Right) Build(string leftText, string rightText)
     {
         // DiffPlex is old/new oriented. Left is the received (new) side, right the expected (old).
-        var model = SideBySideDiffBuilder.Diff(rightText, leftText);
+        // ignoreWhiteSpace defaults to true, which is wrong for a snapshot: a test that fails only
+        // on indentation or a trailing space came back Unchanged on every row, so the panes drew no
+        // markers, NextChange found nothing, and the reviewer was shown a failure with no visible
+        // difference. Whitespace is exactly what the F# layout convention is about.
+        var model = SideBySideDiffBuilder.Diff(
+            rightText,
+            leftText,
+            ignoreWhiteSpace: false,
+            ignoreCase: false);
         return (Convert(model.NewText.Lines), Convert(model.OldText.Lines));
     }
 
