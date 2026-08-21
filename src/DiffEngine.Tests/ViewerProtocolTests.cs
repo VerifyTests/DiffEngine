@@ -673,6 +673,48 @@ public class ViewerProtocolTests
         await Assert.That(second).IsNull();
     }
 
+    /// <summary>
+    /// An owner that accepts the connection and then says nothing. There used to be no bound on
+    /// this at all: SendTimeout and ReceiveTimeout apply only to synchronous calls, and the token
+    /// the async path was handed is the caller's, which is default from DiffRunner.AddInlineAsync.
+    /// A failing test waited for the owner for the rest of its life.
+    /// </summary>
+    [Test]
+    public async Task AnUnresponsiveOwnerTimesOutRatherThanHanging()
+    {
+        // Stop rather than Dispose: TcpListener is only IDisposable on the modern frameworks, and
+        // this test compiles for net48 too
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var port = ((IPEndPoint) listener.LocalEndpoint).Port;
+
+            // Accepted and then held, which is what a viewer inside the applier mutex looks like.
+            // Kept in scope so the connection is not collected and closed under the client
+            var accepted = listener.AcceptTcpClientAsync();
+
+            var watch = Stopwatch.StartNew();
+            var sent = await ViewerClient.TrySendAsync(
+                new(ViewerVerb.List),
+                default,
+                port,
+                TimeSpan.FromSeconds(1));
+            watch.Stop();
+
+            await Assert.That(sent).IsFalse();
+            await Assert.That(watch.Elapsed).IsLessThan(TimeSpan.FromSeconds(15));
+
+            if (accepted.Status == TaskStatus.RanToCompletion)
+            {
+                accepted.Result.Close();
+            }
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
     [Test]
     public async Task AnAbsentOwnerIsNotAnError()
     {

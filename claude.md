@@ -12,19 +12,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build (from repo root). Also packs: ProjectDefaults sets GeneratePackageOnBuild in Release.
 dotnet build src --configuration Release
 
-# Run all tests
-dotnet test --project src/DiffEngine.Tests --configuration Release
-dotnet test --project src/DiffEngineTray.Tests --configuration Release
-dotnet test --project src/DiffEngineViewer.Tests --configuration Release
+# Run all tests, which is what CI runs
+dotnet test --solution src/DiffEngine.slnx --configuration Release --no-build --no-restore
 
-# Run a single test project with filter
-dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName~ClassName"
+# Run one test project
+dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Release --no-build --no-restore
 
-# Run a specific test
-dotnet test --project src/DiffEngine.Tests --configuration Release --filter "FullyQualifiedName=DiffEngine.Tests.ClassName.TestMethod"
+# Run one class, then one test
+dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Release --no-build --no-restore -- --treenode-filter "/*/*/ClassName/*"
+dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Release --no-build --no-restore -- --treenode-filter "/*/*/ClassName/MethodName"
+
+# Or run the test project directly, which is the fastest loop and takes the same filter
+src/DiffEngine.Tests/bin/Debug/net10.0/DiffEngine.Tests.exe --treenode-filter "/*/*/ClassName/*"
 ```
 
-**SDK Requirements:** .NET 10 SDK (see `src/global.json`). The project uses preview/prerelease SDK features.
+**Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest, which changes two things about the commands above. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5, so a filtered run that reports no failures may have run no tests. And `--nologo` makes any run report "Zero tests ran" and exit 5, whatever else is on the command line, so leave it off.
+
+**SDK Requirements:** .NET 10 SDK (see `global.json`, at the repository root rather than under `src`). It also carries `"test": { "runner": "Microsoft.Testing.Platform" }`, which is what puts `dotnet test` on the runner described above. The project uses preview/prerelease SDK features.
 
 **Target Frameworks:**
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
