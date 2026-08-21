@@ -37,6 +37,17 @@ static class ViewerClient
     static readonly TimeSpan timeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
+    /// The deadline for the async exchange. Longer than the synchronous one because the owner
+    /// answers on its listener thread, so a connection can sit behind an accept that is itself
+    /// waiting up to ten seconds on <see cref="InlineApplier"/>'s cross process mutex. Shorter
+    /// than forever because there was no bound at all: SendTimeout and ReceiveTimeout apply only
+    /// to synchronous calls, and the token every async call was given is the caller's, which is
+    /// default from DiffRunner.AddInlineAsync - Verify passes none. An owner that accepted the
+    /// connection and then stopped answering hung the failing test for good.
+    /// </summary>
+    static readonly TimeSpan asyncTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// For callers on a clock or an interactive path, such as the tray's scan timer and its menu.
     /// The exchange is loopback to a local process, so anything slower than this is a wedged owner
     /// rather than a slow one, and waiting the full timeout would let timer callbacks outlast
@@ -95,39 +106,70 @@ static class ViewerClient
     /// Fully async, including the read. A blocking read here would tie up a thread pool thread for
     /// the whole exchange, and a parallel test run calling this once per failing snapshot would
     /// starve the pool on a small machine.
+    /// <para>
+    /// <paramref name="port"/> and <paramref name="wait"/> override <see cref="Port"/> and
+    /// <see cref="asyncTimeout"/> for a single call, as they do on the synchronous overload. Tests
+    /// pass their own ephemeral port rather than mutating anything static, so they can run in
+    /// parallel.
+    /// </para>
     /// </summary>
-    public static async Task<bool> TrySendAsync(ViewerMessage message, Cancel cancel)
+    public static async Task<bool> TrySendAsync(
+        ViewerMessage message,
+        Cancel cancel,
+        int? port = null,
+        TimeSpan? wait = null)
     {
+        var endpointPort = port ?? Port;
+        var timeToWait = wait ?? asyncTimeout;
+        using var deadline = CancelSource.CreateLinkedTokenSource(cancel);
+        deadline.CancelAfter(timeToWait);
+        var token = deadline.Token;
         try
         {
             using var client = new TcpClient();
+            // Closing the socket is the only thing that unblocks every framework: the pre-net7
+            // ReadToEndAsync takes no token at all, and net462 has no cancellable connect or
+            // write either. Registered after the client and so disposed before it, which is what
+            // stops the callback firing on a disposed object
+            using var abort = token.Register(() => Abort(client));
 #if NET6_0_OR_GREATER
-            await client.ConnectAsync(IPAddress.Loopback, Port, cancel);
+            await client.ConnectAsync(IPAddress.Loopback, endpointPort, token);
 #else
-            cancel.ThrowIfCancellationRequested();
-            using (cancel.Register(client.Close))
-            {
-                await client.ConnectAsync(IPAddress.Loopback, Port);
-            }
+            token.ThrowIfCancellationRequested();
+            await client.ConnectAsync(IPAddress.Loopback, endpointPort);
 #endif
-            Configure(client, timeout);
+            Configure(client, timeToWait);
             var stream = client.GetStream();
             var bytes = Encoding.UTF8.GetBytes(message.Build());
 #if NET6_0_OR_GREATER
-            await stream.WriteAsync(bytes, cancel);
+            await stream.WriteAsync(bytes, token);
 #else
-            await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
+            await stream.WriteAsync(bytes, 0, bytes.Length, token);
 #endif
-            await stream.FlushAsync(cancel);
+            await stream.FlushAsync(token);
             HalfClose(client);
             using var reader = new StreamReader(stream, Encoding.UTF8);
 #if NET7_0_OR_GREATER
-            var text = await reader.ReadToEndAsync(cancel);
+            var text = await reader.ReadToEndAsync(token);
 #else
             var text = await reader.ReadToEndAsync();
 #endif
             return ViewerResponse.TryParse(text, out var response) &&
                    response.Ok;
+        }
+        // The deadline, rather than the caller cancelling. Whatever the abort surfaced as - a
+        // cancellation, a closed socket, a torn down stream - the owner is present but not
+        // answering. Reported as absence because that is the recoverable answer: the caller
+        // launches a viewer or stages the patch, rather than waiting on a process that has
+        // stopped listening. Logged so the two are still tellable apart afterwards
+        catch (Exception exception)
+            when (!cancel.IsCancellationRequested && token.IsCancellationRequested)
+        {
+            // Trace rather than Logging, because this file is linked into the viewer too
+            Trace.WriteLine(
+                $"Timed out after {timeToWait} waiting for the inline queue owner on port {endpointPort}. " +
+                $"Verb: {message.Verb}. The owner is present but unresponsive. {exception.GetType().Name}");
+            return false;
         }
         // Cancellation is the caller's business; a missing owner is not.
         catch (Exception exception)
@@ -137,6 +179,21 @@ static class ViewerClient
         }
     }
 
+    /// <summary>
+    /// Unblocks whatever the exchange is waiting on. Swallowing here rather than letting it out:
+    /// this runs on the timer that fired the deadline, where a throw has nowhere to go.
+    /// </summary>
+    static void Abort(TcpClient client)
+    {
+        try
+        {
+            client.Close();
+        }
+        catch (Exception exception)
+            when (Ignorable(exception))
+        {
+        }
+    }
     static void Configure(TcpClient client, TimeSpan wait)
     {
         client.SendTimeout = (int) wait.TotalMilliseconds;
