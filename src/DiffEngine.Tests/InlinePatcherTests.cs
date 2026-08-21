@@ -74,6 +74,52 @@ public class InlinePatcherTests
     const string rawInterpolated =
         "        var text = $" + q3 + "{Render(" + q4 + "has " + q3 + " inside" + q4 + ")}" + q3 + ";";
 
+    /// <summary>
+    /// A verbatim string that opens on an escaped quote. Measuring the quote run before asking
+    /// whether the literal is verbatim lexed this as a 3-quote raw string, which then ran to the
+    /// end of the file and hid every call after it. There is no verbatim raw form, so a run of
+    /// quotes after @" is content, not a delimiter.
+    /// </summary>
+    [Test]
+    public async Task AVerbatimStringOpeningOnAnEscapedQuoteIsSteppedOverWhole()
+    {
+        var source = Method($"{verbatimEscapedQuote}\n        await Snapshot(\"old\");");
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+        // And the literal it stepped over is untouched
+        await Assert.That(newSource).Contains(verbatimEscapedQuote);
+    }
+
+    /// <summary>
+    /// The same shape with the call before it, so the scan has to get past the literal rather
+    /// than stop short of it.
+    /// </summary>
+    [Test]
+    public async Task ASnapshotBeforeAVerbatimStringOpeningOnAnEscapedQuoteIsStillFound()
+    {
+        var source = Method($"        await Snapshot(\"old\");\n{verbatimEscapedQuote}");
+        var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Snapshot(\"new\")");
+        await Assert.That(newSource).Contains(verbatimEscapedQuote);
+    }
+
+    // A verbatim string whose first content character is an escaped quote:
+    //
+    //     var path = @"""C:\tools\run.exe"" --flag";
+    //
+    // By concatenation for the same reason rawInterpolated is: the quote runs cannot be written
+    // in a literal here without a delimiter wider than the thing being described.
+    const string verbatimEscapedQuote =
+        "        var path = @" + q3 + "C:" + slash + "tools" + slash + "run.exe" + q2 + " --flag" + q1 + ";";
+
+    const string q1 = "\"";
+    const string q2 = "\"\"";
+    const string slash = "\\";
     const string q3 = "\"\"\"";
     const string q4 = "\"\"\"\"";
 

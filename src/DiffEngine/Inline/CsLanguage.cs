@@ -208,7 +208,12 @@ sealed class CsLanguage : SourceLanguage
         }
 
         var quotes = StringLiteral.QuoteRunLength(source, cursor);
-        if (quotes >= 3)
+        // Asked before the run is treated as a delimiter, because there is no verbatim raw form:
+        // a run of quotes after @" is an escaped quote and the start of the content. Measuring
+        // alone lexed a verbatim string opening on an escaped quote as a 3-quote raw string,
+        // which then ran to the end of the file and hid every call after it. CsStringLiteral and
+        // FsLanguage already ask this, and for the same reason
+        if (quotes >= 3 && !verbatim)
         {
             // Raw string: scan to a closing run of >= quotes, stepping over any interpolation
             // hole whole. Skipping holes as content read the quotes of a literal inside one -
