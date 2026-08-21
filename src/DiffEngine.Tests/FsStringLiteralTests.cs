@@ -300,12 +300,21 @@ public class FsStringLiteralTests
         await Assert.That(parsed).IsFalse();
     }
 
-    // The indent is stripped by ordinal prefix, so a content line less indented than the closing
-    // delimiter is not something this can read
+    // A triple-quoted literal that is not written to the layout convention. F# has no raw string
+    // form, so this is a perfectly good literal and its value is simply what it says - which is
+    // also what StripLayout returns for the same text, and the two have to agree or an
+    // OriginalValue anchor can never match.
     [Test]
-    public async Task ParseRejectsMalformedIndent()
+    [Arguments("\"\"\"\n  a\n      \"\"\"", "\n  a\n      ")]
+    // The idiomatic hand-written shape: content starting on the opening line.
+    [Arguments("\"\"\"{\n  \"a\": 1\n}\"\"\"", "{\n  \"a\": 1\n}")]
+    public async Task ParseKeepsContentWithNoLayoutToStrip(string expression, string expected)
     {
-        var parsed = FsStringLiteral.TryParse("\"\"\"\n  a\n      \"\"\"", out _);
-        await Assert.That(parsed).IsFalse();
+        var parsed = FsStringLiteral.TryParse(expression, out var value);
+        await Assert.That(parsed).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+        // Whatever a producer sends as OriginalValue for this literal goes through StripLayout,
+        // so the two readers have to land in the same place
+        await Assert.That(FsStringLiteral.StripLayout(value!)).IsEqualTo(expected);
     }
 }

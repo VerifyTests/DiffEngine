@@ -28,6 +28,34 @@ public class InlinePatcherFsTests
             Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask() |> Async.AwaitTask"));
     }
 
+    /// <summary>
+    /// A hand-written triple-quoted literal, content starting on the opening line. F# has no raw
+    /// string, so the layout is only a convention and a literal not written to it still holds a
+    /// perfectly good value. Rejecting those made them unpatchable: the anchor an F# producer
+    /// sends is OriginalValue (FS0202 means there is no CallerArgumentExpression to send), and
+    /// what the parser read back had to be able to equal it.
+    /// </summary>
+    [Test]
+    public async Task ReplaceHandWrittenTripleQuotedLiteral()
+    {
+        var literal = "\"\"\"{\n  \"a\": 1\n}\"\"\"";
+        var source = Test($"    Verifier.Verify(15).Snapshot({literal}).ToTask() |> Async.AwaitTask");
+
+        var status = TryApply(
+            source,
+            5,
+            InlinePatchMode.Set,
+            null,
+            "new",
+            out var newSource,
+            out var reason,
+            originalValue: FsStringLiteral.StripLayout("{\n  \"a\": 1\n}"));
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).IsEqualTo(
+            Test("    Verifier.Verify(15).Snapshot(\"new\").ToTask() |> Async.AwaitTask"));
+    }
     // The same shape C# writes: the content indented under the call, with the first line and the
     // closing delimiter's indentation there for the reader to take back off
     [Test]

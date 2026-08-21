@@ -85,9 +85,10 @@ public static class FsStringLiteral
 
     /// <summary>
     /// Parses an F# string literal expression back to the snapshot it holds: triple-quoted
-    /// ("""..."""), with the layout taken off, verbatim (@"...") and regular ("..."), which carry
-    /// their value as it is. Returns false for interpolated strings, byte strings, concatenations,
-    /// or any other expression. Newlines in the returned value are normalized to \n.
+    /// ("""..."""), with the layout taken off when it is written to that convention and
+    /// verbatim when it is not; verbatim (@"...") and regular ("..."), which carry their value as
+    /// it is. Returns false for interpolated strings, byte strings, concatenations, or any other
+    /// expression. Newlines in the returned value are normalized to \n.
     /// </summary>
     public static bool TryParse(string expression, [NotNullWhen(true)] out string? value) =>
         StringLiteral.TryParse(expression, TryScanLiteral, out value);
@@ -131,7 +132,7 @@ public static class FsStringLiteral
         {
             // F# reads the closing delimiter as exactly three quotes, so a longer run is content
             // it cannot hold and never something this wrote
-            return StringLiteral.TryScanMultiLine(text, index, 3, out value, out end);
+            return StringLiteral.TryScanMultiLine(text, index, 3, false, out value, out end);
         }
 
         if (quotes == 2)
