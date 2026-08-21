@@ -66,6 +66,9 @@ public static class InlineStaging
     /// share a line — one per framework — so it is call sites that are counted, not files.
     /// </para>
     /// </remarks>
+    /// <param name="sourceFile">The source file the settled call site is in.</param>
+    /// <param name="line">The line the call site was recorded at.</param>
+    /// <param name="memberName">The member the call site is in, used where the line has moved.</param>
     /// <param name="extraDirectory">
     /// A staging root to clear beside the source project's, for a producer that stages somewhere
     /// of its own. Verify's own fallback writes under the project's intermediate directory, which
