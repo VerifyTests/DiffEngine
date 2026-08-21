@@ -2,9 +2,26 @@ static class FilePurger
 {
     public static void Launch()
     {
-        var thread = new Thread(Inner);
+        var thread = new Thread(Run);
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
+    }
+
+    /// <summary>
+    /// Nothing above this catches. An unhandled exception on a bare Thread takes the process down,
+    /// and the process is the tray - so a purge that threw took every pending move, delete and, if
+    /// this tray owns the queue, every pending inline snapshot with it.
+    /// </summary>
+    static void Run()
+    {
+        try
+        {
+            Inner();
+        }
+        catch (Exception exception)
+        {
+            ExceptionHandler.Handle("Failed to purge verified files.", exception);
+        }
     }
 
     static void Inner()
@@ -19,10 +36,7 @@ static class FilePurger
             return;
         }
 
-        var verifiedFiles = Directory.GetFiles(path, "*.verified.*", SearchOption.AllDirectories);
-        var receivedFiles = Directory.GetFiles(path, "*.received.*", SearchOption.AllDirectories);
-
-        var files = verifiedFiles.Concat(receivedFiles).ToArray();
+        var files = Find(path);
 
         if (files.Length == 0)
         {
@@ -35,6 +49,25 @@ static class FilePurger
             DeleteFiles(files);
         }
     }
+
+    /// <summary>
+    /// SearchOption.AllDirectories is the compatibility enumeration: it does not ignore what it
+    /// cannot read, and it follows reparse points. The dialog lets the user pick a profile folder
+    /// or a drive root, either of which holds a deny-ACL junction - Application Data,
+    /// $Recycle.Bin - so the scan reliably threw UnauthorizedAccessException before it had looked
+    /// at a single file.
+    /// </summary>
+    static readonly EnumerationOptions enumeration = new()
+    {
+        RecurseSubdirectories = true,
+        IgnoreInaccessible = true,
+        AttributesToSkip = FileAttributes.ReparsePoint
+    };
+
+    internal static string[] Find(string path) =>
+        Directory.GetFiles(path, "*.verified.*", enumeration)
+            .Concat(Directory.GetFiles(path, "*.received.*", enumeration))
+            .ToArray();
 
     static bool Confirm(string[] files)
     {
