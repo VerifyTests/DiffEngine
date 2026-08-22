@@ -198,7 +198,16 @@ record QueueEntry(
     {
         if (patch.OriginalExpression is null)
         {
-            return ("expected (new snapshot)", "", null);
+            // A producer whose language has no CallerArgumentExpression - F#, which does not
+            // implement it - anchors on the argument's value instead. It is the same snapshot the
+            // expression would have parsed to, so it is the same pane; without this every F#
+            // entry read as a new snapshot against an empty side, with every received line new.
+            if (patch.OriginalValue is null)
+            {
+                return ("expected (new snapshot)", "", null);
+            }
+
+            return ("expected", SourceLanguage.NormalizeNewlines(patch.OriginalValue), null);
         }
 
         // Read as the language of the file it came out of: an F# literal is not a C# one, and a
