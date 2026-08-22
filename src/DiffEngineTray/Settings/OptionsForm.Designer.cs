@@ -256,6 +256,16 @@
         this.maxInstancesNumericUpDown.Dock = System.Windows.Forms.DockStyle.Left;
         this.maxInstancesNumericUpDown.Location = new System.Drawing.Point(5, 44);
         this.maxInstancesNumericUpDown.Margin = new System.Windows.Forms.Padding(5);
+        // ushort.MaxValue, which is what MaxInstance accepts. Left at the default 100, a
+        // DiffEngine_MaxInstances above that threw out of this form's constructor, so Options
+        // could never be opened to lower it again.
+        this.maxInstancesNumericUpDown.Maximum = new decimal(new int[]
+        {
+            65535,
+            0,
+            0,
+            0
+        });
         this.maxInstancesNumericUpDown.Minimum = new decimal(new int[]
         {
             0,
