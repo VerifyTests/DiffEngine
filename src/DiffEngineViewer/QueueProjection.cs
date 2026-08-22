@@ -329,6 +329,20 @@ static class QueueProjection
             : null;
 
     /// <summary>
+    /// The path an entry's label can be grown from: the source file for an inline entry, and the
+    /// file a tracked one is about. Tracked entries used to have none, so two verified files with
+    /// the same name in two projects of one solution were left showing the same label.
+    /// </summary>
+    static string? LabelPath(QueueEntry entry) =>
+        entry.Kind switch
+        {
+            QueueEntryKind.Inline => entry.Patch?.SourceFile,
+            QueueEntryKind.Move => entry.TargetFile ?? entry.LeftFile,
+            QueueEntryKind.Delete => entry.LeftFile,
+            _ => null
+        };
+
+    /// <summary>
     /// The label an entry shows when it stands alone: the test name when one is known, else the
     /// call site or the tracked file name. Collisions within a solution — the same file name and
     /// line in two projects, or the same test name in two files — grow the shortest
@@ -357,7 +371,7 @@ static class QueueProjection
             {
                 var entry = entries[index];
                 var baseLabel = entry.TestName ?? entry.Name;
-                labels[index] = WithDirectories(entry.Patch!.SourceFile, baseLabel, depth);
+                labels[index] = WithDirectories(LabelPath(entry)!, baseLabel, depth);
             }
         }
 
@@ -367,7 +381,7 @@ static class QueueProjection
         foreach (var index in Collisions(entries, labels))
         {
             var entry = entries[index];
-            labels[index] = $"{entry.TestName ?? entry.Name} ({Path.GetFileName(entry.Patch!.SourceFile)})";
+            labels[index] = $"{entry.TestName ?? entry.Name} ({Path.GetFileName(LabelPath(entry)!)})";
         }
 
         return labels;
@@ -378,7 +392,7 @@ static class QueueProjection
         var collisions = new List<int>();
         for (var index = 0; index < entries.Count; index++)
         {
-            if (entries[index] is not { Kind: QueueEntryKind.Inline, Patch: not null })
+            if (LabelPath(entries[index]) is null)
             {
                 continue;
             }
