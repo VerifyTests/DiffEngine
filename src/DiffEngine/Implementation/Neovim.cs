@@ -20,7 +20,10 @@ static partial class Implementation
                 Windows: new(
                     "nvim.exe",
                     launchArguments,
-                    searchDirectory: @"C:\Program Files\Neovim\bin"),
+                    // %ProgramFiles%, not the literal path: expansion is what picks up
+                    // ProgramW6432 and the x86 variant, and what makes this work on a
+                    // machine whose Windows is not on C:
+                    searchDirectory: @"%ProgramFiles%\Neovim\bin\"),
                 Linux: new(
                     "nvim",
                     launchArguments),

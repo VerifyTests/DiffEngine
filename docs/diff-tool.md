@@ -148,7 +148,7 @@ Non-MDI tools are preferred since it allows [DiffEngineTray](tray.md) to track a
   * Use shell execute: True
   * Create no window: False
   * Environment variable for custom install location: `DiffEngine_BeyondCompare`
-  * Supported binaries: .7z, .bcpkg, .bin, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tbz2, .tgz, .tif, .tiff, .war, .webp, .wim, .xlsx, .xz, .zip, .zipx
+  * Supported binaries: .7z, .bcpkg, .bin, .bmp, .bz, .bz2, .cab, .chm, .deb, .ear, .gif, .gz, .ico, .img, .iso, .jar, .jpeg, .jpg, .kmz, .nupkg, .pdf, .png, .rar, .rpm, .rtf, .svg, .swm, .tar, .tbz, .tbz2, .tgz, .tif, .tiff, .war, .webp, .wim, .xlsx, .xz, .zip, .zipx
 
 #### Tool order:
 
@@ -664,7 +664,9 @@ DiffTools.UseOrder(DiffTool.Neovim);
    -d "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
-    * `C:\Program Files\Neovim\binnvim.exe`
+    * `%ProgramFiles%\Neovim\bin\nvim.exe`
+    * `%ProgramW6432%\Neovim\bin\nvim.exe`
+    * `%ProgramFiles(x86)%\Neovim\bin\nvim.exe`
     * `%PATH%nvim.exe`
 
 #### OSX settings:
