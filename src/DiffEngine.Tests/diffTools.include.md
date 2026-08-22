@@ -262,11 +262,11 @@ DiffTools.UseOrder(DiffTool.ExamDiff);
 
   * Example target on left arguments:
    ```
-   "targetFile.txt" "tempFile.txt" /nh /diffonly /dn1:targetFile.txt /dn2:tempFile.txt
+   "targetFile.txt" "tempFile.txt" /nh /diffonly /dn1:"targetFile.txt" /dn2:"tempFile.txt"
    ```
   * Example target on right arguments:
    ```
-   "tempFile.txt" "targetFile.txt" /nh /diffonly /dn1:tempFile.txt /dn2:targetFile.txt
+   "tempFile.txt" "targetFile.txt" /nh /diffonly /dn1:"tempFile.txt" /dn2:"targetFile.txt"
    ```
   * Scanned paths:
     * `%ProgramFiles%\ExamDiff Pro*\ExamDiff.exe`
