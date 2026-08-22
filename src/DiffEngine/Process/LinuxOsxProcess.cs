@@ -107,7 +107,24 @@
                 CreateNoWindow = false
             }
         };
-        process.Start();
+        try
+        {
+            process.Start();
+        }
+        catch (Exception exception)
+            when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // No ps on this machine. A minimal container without procps is the ordinary case, and
+            // one that does not set DOTNET_RUNNING_IN_CONTAINER gets this far. Degrading to "no
+            // running processes" is what the timeout below already does, and the alternative is
+            // far worse than a wrong answer: this runs from ProcessCleanup's static constructor,
+            // so it becomes a TypeInitializationException on every launch and kill for the life
+            // of the process
+            Trace.WriteLine($"DiffEngine: Could not start ps. Treating as no running processes. {exception.Message}");
+            result = null;
+            return false;
+        }
+
         process.OutputDataReceived += (_, args) =>
         {
             outputBuilder.AppendLine(args.Data);
@@ -127,12 +144,16 @@
 
         if (process.ExitCode != 0)
         {
-            var error = $"""
-                         Could not execute process. Command line: ps {arguments}.
-                         Output: {outputBuilder}
-                         Error: {errorBuilder}
-                         """;
-            throw new(error);
+            // Reported rather than thrown, for the same reason a failure to start is: the caller
+            // is a static constructor, and a throw there is permanent for the process
+            Trace.WriteLine(
+                $"""
+                 DiffEngine: ps exited with {process.ExitCode}. Treating as no running processes. Command line: ps {arguments}.
+                 Output: {outputBuilder}
+                 Error: {errorBuilder}
+                 """);
+            result = null;
+            return false;
         }
 
         result = outputBuilder.ToString();
