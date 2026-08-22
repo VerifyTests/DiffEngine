@@ -1216,6 +1216,7 @@ DiffTools.UseOrder(DiffTool.Cursor);
    --diff "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
+    * `%LocalAppData%\Programs\cursor\Cursor.exe`
     * `%ProgramFiles%\Cursor\Cursor.exe`
     * `%ProgramW6432%\Cursor\Cursor.exe`
     * `%ProgramFiles(x86)%\Cursor\Cursor.exe`
