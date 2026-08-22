@@ -23,11 +23,11 @@ static partial class Implementation
                 Linux: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("$HOME/.dotnet/tools/")),
+                    SearchDirectories("%HOME%/.dotnet/tools/")),
                 Osx: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("$HOME/.dotnet/tools/"))),
+                    SearchDirectories("%HOME%/.dotnet/tools/"))),
             UseShellExecute: false,
             // Console subsystem, so without this a window flashes on every launch.
             CreateNoWindow: true,
