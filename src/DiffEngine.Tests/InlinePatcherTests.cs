@@ -123,6 +123,28 @@ public class InlinePatcherTests
     const string q3 = "\"\"\"";
     const string q4 = "\"\"\"\"";
 
+    /// <summary>
+    /// A chain the test ended by hand. Snapshot returns the SettingsTask and GetAwaiter does not,
+    /// so appending after the end of the chain produced source that does not compile - and
+    /// reported Applied while doing it, which leaves the snapshot recorded as accepted.
+    /// </summary>
+    [Test]
+    [Arguments("GetAwaiter().GetResult()")]
+    [Arguments("ConfigureAwait(false)")]
+    [Arguments("AsTask()")]
+    public async Task AppendGoesInFrontOfAChainTerminator(string tail)
+    {
+        var source = Method($"        await Verify(x).{tail};");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        // In front of the terminator, so the chain the Snapshot is appended to is still a chain
+        await Assert.That(newSource).Contains("Snapshot(");
+        await Assert.That(newSource.IndexOf("Snapshot(", StringComparison.Ordinal))
+            .IsLessThan(newSource.IndexOf(tail.Split('(')[0], StringComparison.Ordinal));
+    }
     [Test]
     public async Task ReplaceRegularLiteral()
     {

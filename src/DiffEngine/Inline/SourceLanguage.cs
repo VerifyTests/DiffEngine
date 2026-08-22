@@ -86,10 +86,15 @@ public abstract class SourceLanguage
     internal abstract char NameSeparator { get; }
 
     /// <summary>
-    /// A chained call that a Snapshot call has to be appended in front of rather than after, or
-    /// null when the end of the chain is always the insertion point.
+    /// Chained calls that a Snapshot call has to be appended in front of rather than after, or
+    /// empty when the end of the chain is always the insertion point.
+    /// <para>
+    /// These are the calls that turn the verify chain into something that is no longer one -
+    /// awaiting it, blocking on it, converting it - so a Snapshot appended after one is appended
+    /// to the wrong type and the file stops compiling.
+    /// </para>
     /// </summary>
-    internal virtual string? ChainTerminator => null;
+    internal virtual string[] ChainTerminators => [];
 
     /// <summary>
     /// Whether a patch from this language carries the source text of the expected argument, which

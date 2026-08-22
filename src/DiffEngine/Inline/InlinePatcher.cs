@@ -451,13 +451,13 @@ static class InlinePatcher
     /// <summary>
     /// Walks the calls chained onto an invocation and returns where a call should be appended:
     /// the end of the chain, or the point in front of the language's
-    /// <see cref="SourceLanguage.ChainTerminator"/> when the chain ends in one.
+    /// <see cref="SourceLanguage.ChainTerminators"/> when the chain ends in one.
     /// <paramref name="found"/> is set when one of them is a call to <paramref name="name"/>.
     /// </summary>
     static int WalkChain(string source, SourceScan scan, int index, string name, out bool found)
     {
         found = false;
-        var terminator = scan.Language.ChainTerminator;
+        var terminators = scan.Language.ChainTerminators;
         // Where the chain was before the terminating call, which is where an appended one goes:
         // in front of the terminator, and behind the whitespace and line break that introduced it
         var beforeTerminator = -1;
@@ -493,9 +493,8 @@ static class InlinePatcher
                 found = true;
             }
 
-            if (terminator != null &&
-                beforeTerminator < 0 &&
-                IsCall(source, nameStart, cursor, terminator))
+            if (beforeTerminator < 0 &&
+                IsTerminator(source, nameStart, cursor, terminators))
             {
                 beforeTerminator = index;
             }
@@ -504,6 +503,19 @@ static class InlinePatcher
         }
 
         return beforeTerminator < 0 ? index : beforeTerminator;
+    }
+
+    static bool IsTerminator(string source, int nameStart, int nameEnd, string[] terminators)
+    {
+        foreach (var terminator in terminators)
+        {
+            if (IsCall(source, nameStart, nameEnd, terminator))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static bool IsCall(string source, int nameStart, int nameEnd, string name) =>

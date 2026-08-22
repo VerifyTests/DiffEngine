@@ -19,6 +19,22 @@ sealed class CsLanguage : SourceLanguage
 
     internal override char NameSeparator => ':';
 
+    /// <summary>
+    /// The calls a C# verify chain ends with when it stops being a verify chain: awaiting it by
+    /// hand, blocking on it, or converting it. Snapshot returns the SettingsTask and none of these
+    /// do, so an appended call goes in front of the first of them rather than after it - otherwise
+    /// the patch produces source that does not compile, which is worse than not patching at all
+    /// because the snapshot is reported as accepted.
+    /// </summary>
+    internal override string[] ChainTerminators =>
+    [
+        "GetAwaiter",
+        "GetResult",
+        "ConfigureAwait",
+        "AsTask",
+        "ToTask"
+    ];
+
     internal override bool IsIdentifierChar(char ch) =>
         char.IsLetterOrDigit(ch) || ch == '_';
 
