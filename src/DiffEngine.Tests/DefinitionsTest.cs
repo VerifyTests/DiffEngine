@@ -74,12 +74,22 @@ public class DefinitionsTest
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Both files say "keep in sync", and this is what checks it. Ordered, because the order is
+    /// the thing being kept in sync: the enum is the default resolution order (OrderReader hands
+    /// back Enum.GetValues), while the generated docs and the remainder after a
+    /// DiffEngine_ToolOrder prefix follow Definitions. IsEquivalentTo is order insensitive by
+    /// default, so the two drifted apart under a green test.
+    /// </summary>
     [Test]
     public async Task ToolOrderMatchesEnumOrder()
     {
-        var definitionsOrder = Definitions.Tools.Select(_ => _.Tool).ToList();
-        var enumOrder = Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>().ToList();
-        await Assert.That(definitionsOrder).IsEquivalentTo(enumOrder);
+        // Joined, because the collection assertions here are order insensitive and the order is
+        // the whole point. A string also names the first tool that differs, rather than saying the
+        // two lists have the same contents
+        var definitionsOrder = string.Join(", ", Definitions.Tools.Select(_ => _.Tool));
+        var enumOrder = string.Join(", ", Enum.GetValues(typeof(DiffTool)).Cast<DiffTool>());
+        await Assert.That(definitionsOrder).IsEqualTo(enumOrder);
     }
 
     [Test]

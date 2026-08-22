@@ -159,6 +159,33 @@ public class InlineStagingTests
         await Assert.That(project.StagedFiles()).IsEmpty();
     }
 
+    /// <summary>
+    /// A settle that names the framework it came from takes only that framework's trio. The queue
+    /// has always scoped a settle this way; staging is the same situation and had no way to say
+    /// it, so in a net8;net10 run where net10 started passing and net8 did not, net10's settle
+    /// deleted net8's still-failing snapshot and it was then pending nowhere.
+    /// </summary>
+    [Test]
+    public async Task ClearScopedToAnOriginLeavesTheOtherFrameworkStaged()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist(
+        [
+            new(
+            [
+                new(Patch(source, "from net8", framework: "net8.0"), ["net8.0"]),
+                new(Patch(source, "from net10", framework: "net10.0"), ["net10.0"]),
+            ])
+        ]);
+
+        var cleared = InlineStaging.Clear(source, 42, null, origin: "net10.0");
+
+        await Assert.That(cleared).IsEqualTo(1);
+        // net8's trio is still there, and still reviewable
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
     [Test]
     public async Task ClearFindsACallSiteWhoseLineHasMovedByMember()
     {

@@ -24,14 +24,21 @@ namespace DiffEngine;
 /// process's life, and its moves and deletes arrive here instead — which a tray that owns the
 /// queue answers, so they end up tracked either way.
 /// </para>
+/// <para>
+/// The mirror of that case is a tray that exits while a long lived host keeps running, and it is
+/// why the piper send is asked whether it connected rather than told to get on with it. The cached
+/// answer still says a tray is there, so every later move and delete went to a port nobody was
+/// listening on and was swallowed into a trace line: pending in nothing, with no fallback and no
+/// LaunchDelete. A refused piper send now falls through to the same branch as no tray at all.
+/// </para>
 /// </summary>
 static class PendingFiles
 {
     public static void AddDelete(string file)
     {
-        if (DiffEngineTray.IsRunning)
+        if (DiffEngineTray.IsRunning &&
+            PiperClient.SendDelete(file))
         {
-            PiperClient.SendDelete(file);
             return;
         }
 
@@ -45,9 +52,9 @@ static class PendingFiles
 
     public static async Task AddDeleteAsync(string file, Cancel cancel)
     {
-        if (DiffEngineTray.IsRunning)
+        if (DiffEngineTray.IsRunning &&
+            await PiperClient.SendDeleteAsync(file, cancel))
         {
-            await PiperClient.SendDeleteAsync(file, cancel);
             return;
         }
 
@@ -67,9 +74,9 @@ static class PendingFiles
         bool canKill,
         int? processId)
     {
-        if (DiffEngineTray.IsRunning)
+        if (DiffEngineTray.IsRunning &&
+            PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId))
         {
-            PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId);
             return;
         }
 
@@ -85,9 +92,9 @@ static class PendingFiles
         int? processId,
         Cancel cancel)
     {
-        if (DiffEngineTray.IsRunning)
+        if (DiffEngineTray.IsRunning &&
+            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel))
         {
-            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel);
             return;
         }
 
