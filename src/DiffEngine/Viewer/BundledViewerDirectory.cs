@@ -34,46 +34,79 @@ static class BundledViewerDirectory
         return null;
     }
 
+    /// <summary>
+    /// The first candidate naming a directory that is on this machine.
+    /// <para>
+    /// A stamped path is only as good as the machine it was stamped on, so one that is not here
+    /// is passed over rather than taken and then found wanting.
+    /// </para>
+    /// </summary>
+    internal static string? FirstUsable(IEnumerable<string?> roots)
+    {
+        foreach (var root in roots)
+        {
+            if (root is {Length: > 0} &&
+                Directory.Exists(root))
+            {
+                return root;
+            }
+        }
+
+        return null;
+    }
+
 #if NET6_0_OR_GREATER
     static string? FindRoot() =>
-        AppContext.GetData(Key) as string;
+        FirstUsable([AppContext.GetData(Key) as string]);
 #else
     /// <summary>
     /// .NET Framework has no runtimeconfig to carry the path, so it is read from the metadata
     /// attribute the targets add to the consuming assembly.
+    /// <para>
+    /// Every stamped assembly carries one, prebuilt dependencies included: a Verify.dll from
+    /// NuGet holds the package path of the machine that built it, which on this one is not there.
+    /// So the entry assembly is asked first, and the rest are still asked after it.
+    /// </para>
     /// </summary>
-    static string? FindRoot()
+    static string? FindRoot() =>
+        FirstUsable(Roots());
+
+    static IEnumerable<string?> Roots()
     {
+        var entry = Assembly.GetEntryAssembly();
+        if (entry != null)
+        {
+            yield return ReadRoot(entry);
+        }
+
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
-            if (assembly.IsDynamic)
+            if (assembly.IsDynamic ||
+                assembly == entry)
             {
                 continue;
             }
 
-            string? value = null;
-            try
+            yield return ReadRoot(assembly);
+        }
+    }
+
+    static string? ReadRoot(Assembly assembly)
+    {
+        try
+        {
+            foreach (var attribute in assembly.GetCustomAttributes(typeof(AssemblyMetadataAttribute), false))
             {
-                foreach (var attribute in assembly.GetCustomAttributes(typeof(AssemblyMetadataAttribute), false))
+                var metadata = (AssemblyMetadataAttribute) attribute;
+                if (metadata.Key == Key)
                 {
-                    var metadata = (AssemblyMetadataAttribute) attribute;
-                    if (metadata.Key == Key)
-                    {
-                        value = metadata.Value;
-                        break;
-                    }
+                    return metadata.Value;
                 }
             }
-            catch
-            {
-                // A reflection only or otherwise unreadable assembly cannot carry the path
-                continue;
-            }
-
-            if (value is {Length: > 0})
-            {
-                return value;
-            }
+        }
+        catch
+        {
+            // A reflection only or otherwise unreadable assembly cannot carry the path
         }
 
         return null;
