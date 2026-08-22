@@ -59,8 +59,10 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
         return AcceptAllSucceeds;
     }
 
-    public void DiscardAll()
+    public bool DiscardAll(out string? message)
     {
+        message = null;
+        return true;
     }
 
     public void Focus(PendingSnapshot snapshot)

@@ -143,8 +143,12 @@ sealed class OwnedInlineHost :
         }
     }
 
-    public void DiscardAll() =>
-        ((IQueueOwner) this).DiscardAll();
+    public bool DiscardAll(out string? message)
+    {
+        message = ((IQueueOwner) this).DiscardAll();
+        // Owned in this process, so there is nobody to fail to reach
+        return true;
+    }
 
     public void Focus(PendingSnapshot snapshot) =>
         Show(WindowCommand.Focus, snapshot.Key);

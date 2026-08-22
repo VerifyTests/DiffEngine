@@ -671,8 +671,17 @@ class Tracker :
     {
         ((ITrackedFiles) this).DiscardAll();
 
-        inline.DiscardAll();
-        snapshots = [];
+        // Only forget the cached snapshots when the owner actually discarded them. It used to be
+        // cleared regardless, so a discard the owner never received still emptied the menu - and
+        // everything came back on the next scan two seconds later
+        if (inline.DiscardAll(out var message))
+        {
+            snapshots = [];
+        }
+        else
+        {
+            Log.Error(message ?? "Could not discard the pending snapshots.");
+        }
     }
 
     /// <summary>
