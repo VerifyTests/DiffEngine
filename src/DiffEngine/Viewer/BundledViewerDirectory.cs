@@ -80,13 +80,30 @@ static class BundledViewerDirectory
     }
 #endif
 
-    static IEnumerable<string> Rids()
-    {
+    static IEnumerable<string> Rids() =>
 #if NET6_0_OR_GREATER
+        Rids(RuntimeInformation.RuntimeIdentifier);
+
+    internal static IEnumerable<string> Rids(string runtimeIdentifier)
+    {
         // The framework's own value first. On Alpine that is linux-musl-x64, a RID we do not
         // ship, so the probe misses and the caller falls through to the dotnet tool rather than
         // resolving a glibc build against musl.
-        yield return RuntimeInformation.RuntimeIdentifier;
+        yield return runtimeIdentifier;
+
+        // And nothing else, or the synthesised RID below undoes that: linux-{arch} is the glibc
+        // build, so on musl the probe would hit after all and hand back an apphost that cannot
+        // start. Falling through to the dotnet tool is the outcome the comment above describes and
+        // was not what happened
+        if (runtimeIdentifier.Contains("-musl-", StringComparison.Ordinal))
+        {
+            yield break;
+        }
+#else
+        InnerRids();
+
+    static IEnumerable<string> InnerRids()
+    {
 #endif
 
         var architecture = RuntimeInformation.OSArchitecture switch
