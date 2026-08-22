@@ -37,7 +37,15 @@ public class KeyRegister :
             modifiers |= KeyModifiers.Alt;
         }
 
-        return TryAddBinding(id, modifiers, Enum.Parse<Keys>(key, true), action);
+        if (!KeyName.TryParse(key, out var keys))
+        {
+            // Unbound rather than thrown. This runs at startup for every configured hot key, and
+            // a hand edited settings.json used to take the tray down at every login
+            Log.Error("'{Key}' is not a key name. The hot key was not bound.", key);
+            return false;
+        }
+
+        return TryAddBinding(id, modifiers, keys, action);
     }
 
     public bool TryAddBinding(int id, KeyModifiers modifiers, Keys keys, Action action)
