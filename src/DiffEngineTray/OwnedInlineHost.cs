@@ -217,11 +217,25 @@ sealed class OwnedInlineHost :
 
             // Taken rather than read, so a focus happens once, on whichever viewer refreshes
             // first, rather than five times a second forever.
-            var command = window;
-            var key = windowKey;
-            window = null;
-            windowKey = null;
-            return ViewerResponse.Listing(items, command, key, moves, deletes);
+            //
+            // Only for a listing that carries patches, which is the one a viewer asks for. A plain
+            // List is the documented IDE plugin API - InlineQueueClient.TryListKeys - and has no
+            // window to raise, so handing it the stashed command threw the command away: the
+            // attached viewer polling beside it never raised for the new snapshot, and the plugin
+            // did nothing with what it was given.
+            ViewerResponse response;
+            if (withPatches)
+            {
+                response = ViewerResponse.Listing(items, window, windowKey, moves, deletes);
+                window = null;
+                windowKey = null;
+            }
+            else
+            {
+                response = ViewerResponse.Listing(items, null, null, moves, deletes);
+            }
+
+            return response;
         }
     }
 
