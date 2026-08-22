@@ -583,7 +583,14 @@ static class InlinePatcher
         lineHint = Clamp(lineHint, lineCount);
         var floor = memberLine is null ? 1 : Clamp(memberLine.Value, lineCount);
         var origin = memberLine is null ? lineHint : floor;
-        if (lineHint >= floor)
+        // The recorded line is tried first so that two snapshots in one member stay apart. It is
+        // only evidence about this member while it is still inside it, though, and a declaration
+        // between the two says it is not: the hint went stale, something above it moved, and it
+        // now points into the test next door. Trying it anyway rewrote that test's snapshot and
+        // left this one alone, which is the failure the member name exists to prevent
+        if (lineHint >= floor &&
+            (memberLine is null ||
+             !DeclarationBetween(source, scan, lineStarts, floor, lineHint)))
         {
             foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, byPrefix))
             {
@@ -619,6 +626,45 @@ static class InlinePatcher
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Whether a declaration sits after <paramref name="afterLine"/> and at or before
+    /// <paramref name="uptoLine"/>. Cheap because it only ever runs over the span between a
+    /// member's declaration and the recorded line.
+    /// </summary>
+    static bool DeclarationBetween(string source, SourceScan scan, List<int> lineStarts, int afterLine, int uptoLine)
+    {
+        if (uptoLine <= afterLine ||
+            afterLine >= lineStarts.Count)
+        {
+            return false;
+        }
+
+        var start = lineStarts[afterLine];
+        var end = uptoLine < lineStarts.Count ? lineStarts[uptoLine] : source.Length;
+        for (var index = start; index < end; index++)
+        {
+            if (!scan.IsIdentifierChar(source[index]) ||
+                !scan.IsCode(index) ||
+                !StartsToken(source, scan, index))
+            {
+                continue;
+            }
+
+            if (scan.IsDeclaration(index))
+            {
+                return true;
+            }
+
+            while (index + 1 < end &&
+                   scan.IsIdentifierChar(source[index + 1]))
+            {
+                index++;
+            }
+        }
+
+        return false;
     }
 
     static int Clamp(int line, int lineCount) =>

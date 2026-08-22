@@ -123,6 +123,37 @@ public class InlinePatcherTests
     const string q3 = "\"\"\"";
     const string q4 = "\"\"\"\"";
 
+    /// <summary>
+    /// A hint that has gone stale and now points into another member. The recorded line is tried
+    /// first so two snapshots in one member stay apart, but it is only evidence while it is still
+    /// inside that member - and a declaration between the two says it is not. Trying it anyway
+    /// rewrote the other test's identical snapshot and left this one as it was.
+    /// </summary>
+    [Test]
+    public async Task AStaleHintDoesNotReachIntoTheNextMember()
+    {
+        var source =
+            "class Tests\n" +
+            "{\n" +
+            "    async Task First()\n" +
+            "    {\n" +
+            "        await Snapshot(\"dup\");\n" +
+            "    }\n" +
+            "\n" +
+            "    async Task Second()\n" +
+            "    {\n" +
+            "        await Snapshot(\"dup\");\n" +
+            "    }\n" +
+            "}";
+
+        // Line 10 is Second's snapshot; the patch came from First
+        var status = TryApply(source, 10, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _, memberName: "First");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        var patched = newSource.Split('\n');
+        await Assert.That(patched[4]).Contains("\"new\"");
+        await Assert.That(patched[9]).Contains("\"dup\"");
+    }
     [Test]
     public async Task ReplaceRegularLiteral()
     {
