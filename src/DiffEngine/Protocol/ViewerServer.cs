@@ -76,9 +76,19 @@ sealed class ViewerServer : IDisposable
                 // Same, on the frameworks where a stopped listener reports it this way.
                 return;
             }
-            catch (SocketException)
+            catch (SocketException exception)
+                when (IsStop(exception, cancel))
             {
                 return;
+            }
+            catch (SocketException)
+            {
+                // A failure of one accept rather than of the listener. A peer that resets while
+                // its connection sits in the backlog surfaces exactly this way - WSAECONNRESET on
+                // Windows, ECONNABORTED on BSD and macOS - and returning gave the queue away for
+                // the life of the process: the socket stays bound, so nobody else can take it,
+                // and every later client lands in a backlog nothing is draining
+                continue;
             }
 
             // Each connection on its own task, so one slow exchange does not stop the next from
@@ -87,6 +97,15 @@ sealed class ViewerServer : IDisposable
             _ = Task.Run(() => Handle(client, handle, cancel), Cancel.None);
         }
     }
+
+    /// <summary>
+    /// Whether a socket failure means the listener itself has stopped, rather than one accept
+    /// having failed. Cancellation is the ordinary way that happens; the two error codes are how a
+    /// stopped listener reports itself when the token has not been observed yet.
+    /// </summary>
+    internal static bool IsStop(SocketException exception, Cancel cancel) =>
+        cancel.IsCancellationRequested ||
+        exception.SocketErrorCode is SocketError.OperationAborted or SocketError.Interrupted;
 
     // ReSharper disable once ReplaceAsyncWithTaskReturn
     async Task<TcpClient> Accept(Cancel cancel)
