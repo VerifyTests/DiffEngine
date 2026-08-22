@@ -7,13 +7,30 @@ static class MenuBuilder
             DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft
         };
         var items = menu.Items;
+        // The items that survive a close, held as themselves. They used to be told apart by their
+        // text, so a solution named after one of them - Options, say - gave that group a header
+        // that was never removed, and another one on every open after that
+        var fixedItems = new HashSet<ToolStripItem>();
+        // Removed while closing and disposed at the next open, rather than disposed while the
+        // close they were removed by is still running
+        var removed = new List<ToolStripItem>();
         menu.Closed += delegate
         {
-            RemovePreviousItems(items);
+            foreach (var item in TrackingMenuItems(items, fixedItems))
+            {
+                items.Remove(item);
+                removed.Add(item);
+            }
         };
         menu.Opening += delegate
         {
-            DisposePreviousItems(items);
+            foreach (var item in removed)
+            {
+                item.Dispose();
+            }
+
+            removed.Clear();
+
             foreach (var item in BuildTrackingMenuItems(tracker))
             {
                 items.Add(item);
@@ -26,47 +43,19 @@ static class MenuBuilder
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
         items.Add(new MenuButton("Purge verified files", FilePurger.Launch, Images.Folder));
         items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
+        fixedItems.UnionWith(items.Cast<ToolStripItem>());
         return menu;
     }
 
     /// <summary>
-    /// The items that survive a close, matched by text. The tracked ones are rebuilt from scratch
-    /// every time the menu opens, so anything added in <see cref="Build"/> has to be listed here
-    /// too or it is removed the first time the menu closes.
+    /// Everything the last open added, which is everything but the items <see cref="Build" /> put
+    /// there. Materialised, because the caller is removing them from the collection it reads.
     /// </summary>
-    static readonly string[] fixedItems =
-    [
-        "Exit",
-        "Options",
-        "Debug view",
-        "Open logs",
-        "Purge verified files",
-        "Raise issue"
-    ];
-
-    static List<ToolStripItem> NonDefaultMenus(ToolStripItemCollection items) =>
+    static List<ToolStripItem> TrackingMenuItems(ToolStripItemCollection items, HashSet<ToolStripItem> fixedItems) =>
         items
             .Cast<ToolStripItem>()
-            .Where(_ => !fixedItems.Contains(_.Text))
+            .Where(_ => !fixedItems.Contains(_))
             .ToList();
-
-    static void RemovePreviousItems(ToolStripItemCollection items)
-    {
-        // Use ToList to avoid deferred execution of NonDefaultMenus
-        foreach (var item in NonDefaultMenus(items))
-        {
-            items.Remove(item);
-        }
-    }
-
-    static void DisposePreviousItems(ToolStripItemCollection items)
-    {
-        // Use ToList to avoid deferred execution of NonDefaultMenus
-        foreach (var item in NonDefaultMenus(items))
-        {
-            item.Dispose();
-        }
-    }
 
     static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
     {
