@@ -16,14 +16,35 @@ static class ProcessEx
             }
         }
 
+        Process? opened = null;
         try
         {
-            process = Process.GetProcessById(id);
+            opened = Process.GetProcessById(id);
+            process = opened;
+            // Forces the OS handle open, and keeps it. GetProcessById holds none of its own, so
+            // Kill, HasExited and MainWindowHandle each re-open the id at the moment they are
+            // called - and a tracked move outlives its diff tool by design, since HandleScanMove
+            // keeps it while the temp file is still there. Hours later that id may belong to
+            // something else, and "Accept all" or "Open diff tool" would kill whatever it is.
+            // An open handle also stops Windows handing the id out again while this move is
+            // tracked, so there is nothing to confuse it with
+            _ = process.Handle;
             return true;
         }
         catch (ArgumentException)
         {
             // Handle Race condition if process doesnt exists
+            process = null;
+            return false;
+        }
+        catch (Exception exception)
+            when (exception is Win32Exception or InvalidOperationException)
+        {
+            // The handle could not be held - it exited between the probe above and here, or this
+            // account cannot open it. Without one there is no way to tell the process apart from a
+            // later holder of the same id, so it is better tracked as no process at all: the tool
+            // is then not killed, rather than something else being killed in its place
+            opened?.Dispose();
             process = null;
             return false;
         }
