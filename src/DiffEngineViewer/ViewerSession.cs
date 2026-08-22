@@ -900,6 +900,14 @@ static class ViewerSession
             return state;
         }
 
+        // Already the entry on screen. Selecting it is what a click on it does, what a right click
+        // opening its menu does, and what a focus naming it does, and none of those asks to be
+        // taken back to the top of what is being read.
+        if (index == state.Selected)
+        {
+            return Clamp(state);
+        }
+
         return Clamp(state with
         {
             Selected = index,
