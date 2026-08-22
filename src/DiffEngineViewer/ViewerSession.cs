@@ -880,16 +880,32 @@ static class ViewerSession
         return -1;
     }
 
-    static SessionState Remove(SessionState state, IReadOnlyList<QueueEntry> queue, string? message) =>
-        Clamp(state with
+    /// <summary>
+    /// Drops whatever is no longer in the queue and leaves the reader where they were.
+    /// <para>
+    /// Most removals are not of the entry on screen: a settle from a test that has started
+    /// passing, "Accept all in &lt;solution&gt;" from a header, a sweep that skipped this one.
+    /// Holding <see cref="SessionState.Selected" /> as an index across those quietly changed what
+    /// was on screen to whatever the old index now landed on, at the top of it. So the selection
+    /// follows its key, the way <see cref="Sync" /> and <see cref="EnqueueInline" /> do, and only
+    /// an entry that is itself gone falls back to advancing by index.
+    /// </para>
+    /// </summary>
+    static SessionState Remove(SessionState state, IReadOnlyList<QueueEntry> queue, string? message)
+    {
+        var key = state.Current?.Key;
+        var selected = key is null ? -1 : IndexOf(queue, key);
+        return Clamp(state with
         {
             Queue = queue,
-            ScrollTop = 0,
+            Selected = selected < 0 ? state.Selected : selected,
+            ScrollTop = selected < 0 ? 0 : state.ScrollTop,
             Message = message,
             // Nothing left to manage, so the window has no reason to stay open.
             Exit = queue.Count == 0,
             Menu = null
         });
+    }
 
     static SessionState Select(SessionState state, int index)
     {
