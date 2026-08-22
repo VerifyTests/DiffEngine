@@ -5,6 +5,31 @@ namespace DiffEngine;
 /// caller turns into a launch (DiffEngine), "nothing pending" (the tray), or "the owner has gone"
 /// (an attached viewer).
 /// </summary>
+/// <summary>
+/// What came back from an exchange with the queue owner. Three outcomes rather than two, because
+/// "nobody is there" and "the owner said no" call for opposite responses: the first is fixed by
+/// launching a viewer, and the second is not.
+/// </summary>
+enum SendOutcome
+{
+    /// <summary>
+    /// Nobody answered. No owner, or one present but unresponsive - the caller cannot tell, and
+    /// for its purposes they are the same.
+    /// </summary>
+    NoOwner,
+
+    /// <summary>
+    /// The owner answered and took it.
+    /// </summary>
+    Accepted,
+
+    /// <summary>
+    /// The owner answered and declined it: a version it does not understand, or a handler that
+    /// threw. Launching another viewer will not change that answer.
+    /// </summary>
+    Refused
+}
+
 static class ViewerClient
 {
     public const int DefaultPort = 3493;
@@ -117,6 +142,18 @@ static class ViewerClient
         ViewerMessage message,
         Cancel cancel,
         int? port = null,
+        TimeSpan? wait = null) =>
+        await SendAsync(message, cancel, port, wait) == SendOutcome.Accepted;
+
+    /// <summary>
+    /// As <see cref="TrySendAsync" />, but says which of the two failures happened. A caller that
+    /// would launch a viewer on absence needs that: launching one because the owner refused the
+    /// payload leaves two processes and still no snapshot.
+    /// </summary>
+    public static async Task<SendOutcome> SendAsync(
+        ViewerMessage message,
+        Cancel cancel,
+        int? port = null,
         TimeSpan? wait = null)
     {
         var endpointPort = port ?? Port;
@@ -137,6 +174,12 @@ static class ViewerClient
 #else
             token.ThrowIfCancellationRequested();
             await client.ConnectAsync(IPAddress.Loopback, endpointPort);
+            // The abort registration cancels by closing the client, and .NET Framework's
+            // TcpClient.Dispose nulls its Client - so a token that fires around here leaves
+            // Configure and HalfClose dereferencing null rather than reporting cancellation.
+            // Asking the token directly is how that becomes the OperationCanceledException the
+            // caller is written against
+            token.ThrowIfCancellationRequested();
 #endif
             Configure(client, timeToWait);
             var stream = client.GetStream();
@@ -154,8 +197,12 @@ static class ViewerClient
 #else
             var text = await reader.ReadToEndAsync();
 #endif
-            return ViewerResponse.TryParse(text, out var response) &&
-                   response.Ok;
+            if (!ViewerResponse.TryParse(text, out var response))
+            {
+                return SendOutcome.NoOwner;
+            }
+
+            return response.Ok ? SendOutcome.Accepted : SendOutcome.Refused;
         }
         // The deadline, rather than the caller cancelling. Whatever the abort surfaced as - a
         // cancellation, a closed socket, a torn down stream - the owner is present but not
@@ -169,13 +216,13 @@ static class ViewerClient
             Trace.WriteLine(
                 $"Timed out after {timeToWait} waiting for the inline queue owner on port {endpointPort}. " +
                 $"Verb: {message.Verb}. The owner is present but unresponsive. {exception.GetType().Name}");
-            return false;
+            return SendOutcome.NoOwner;
         }
         // Cancellation is the caller's business; a missing owner is not.
         catch (Exception exception)
             when (exception is not OperationCanceledException && Ignorable(exception))
         {
-            return false;
+            return SendOutcome.NoOwner;
         }
     }
 
@@ -211,6 +258,11 @@ static class ViewerClient
             SocketException or
             IOException or
             ObjectDisposedException or
+            // .NET Framework's TcpClient.Dispose nulls Client, so the abort registration closing
+            // the socket mid exchange leaves Configure or HalfClose dereferencing null. It is a
+            // torn down connection wearing the wrong exception type, and letting it escape turned
+            // an absent owner into a crash in the caller's test
+            NullReferenceException or
             AggregateException
             {
                 InnerException: SocketException or IOException
