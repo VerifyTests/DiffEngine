@@ -1,9 +1,6 @@
 ﻿// DiffEngineTray is the obsolete public shim, but its IsRunning is still where the tray check lives.
 #pragma warning disable CS0618
 
-using System.Net;
-using System.Net.Sockets;
-
 public static class ModuleInitializer
 {
     [ModuleInitializer]
