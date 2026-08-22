@@ -383,12 +383,20 @@ public class ViewerProtocolTests
     /// The routing contract: only the tray parses keys, and it tells its collections apart by
     /// prefix, which an inline key can never carry because a Windows path cannot put a colon
     /// there.
+    /// <para>
+    /// The path is folded the way InlineKey folds it, which is not the same on every platform: on
+    /// Linux two paths differing only in case are two files. So the expectation is built from that
+    /// rule rather than written out lower cased, which pinned the Windows answer everywhere and
+    /// failed on Linux. That the two rules agree is TrackedKeyCaseTests; this is about the prefix.
+    /// </para>
     /// </summary>
     [Test]
     public async Task TrackedKeysCannotCollideWithInlineKeys()
     {
-        await Assert.That(TrackedKeys.ForMove(@"C:\Temp\A.txt")).IsEqualTo(@"move:c:\temp\a.txt");
-        await Assert.That(TrackedKeys.ForDelete(@"C:\Code\B.txt")).IsEqualTo(@"delete:c:\code\b.txt");
+        var move = @"C:\Temp\A.txt";
+        var delete = @"C:\Code\B.txt";
+        await Assert.That(TrackedKeys.ForMove(move)).IsEqualTo("move:" + InlineKey.FoldPath(move));
+        await Assert.That(TrackedKeys.ForDelete(delete)).IsEqualTo("delete:" + InlineKey.FoldPath(delete));
         await Assert.That(TrackedKeys.IsTracked(@"move:c:\temp\a.txt")).IsTrue();
         await Assert.That(TrackedKeys.IsTracked(@"delete:c:\code\b.txt")).IsTrue();
         await Assert.That(TrackedKeys.IsTracked(InlineKey.For(@"C:\Repo\Tests.cs", 42))).IsFalse();
