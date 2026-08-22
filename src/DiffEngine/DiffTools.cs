@@ -2,8 +2,12 @@
 
 public static partial class DiffTools
 {
-    static Dictionary<string, ResolvedTool> ExtensionLookup = [];
-    static Dictionary<string, ResolvedTool> PathLookup = [];
+    // Case insensitive, because the keys are file extensions and executable paths and the file
+    // systems that produce them are. An ordinal lookup meant .PNG, .JPG and .Docx - which is what
+    // Windows and macOS hand back - matched none of the lowercase registrations, so the tool
+    // resolved for foo.png and not for foo.PNG. Viewer/ImageExtensions already does this
+    static Dictionary<string, ResolvedTool> ExtensionLookup = new(StringComparer.OrdinalIgnoreCase);
+    static Dictionary<string, ResolvedTool> PathLookup = new(StringComparer.OrdinalIgnoreCase);
     static Dictionary<DiffTool, ResolvedTool> ToolLookup = [];
     static ResolvedTool? firstTextTool;
     static List<ResolvedTool> resolved = [];

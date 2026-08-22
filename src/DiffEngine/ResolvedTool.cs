@@ -62,7 +62,9 @@ public record ResolvedTool
             }
         }
 
-        BinaryExtensions = binaryExtensions.ToFrozenSet();
+        // Case insensitive for the same reason ExtensionLookup is: a binary extension is compared
+        // against whatever casing the file system produced
+        BinaryExtensions = binaryExtensions.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
         RequiresTarget = requiresTarget;
         SupportsText = supportsText;
