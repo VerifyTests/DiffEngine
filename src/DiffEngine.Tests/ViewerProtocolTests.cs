@@ -733,6 +733,64 @@ public class ViewerProtocolTests
             listener.Stop();
         }
     }
+    /// <summary>
+    /// An owner that answers with an error is not an absent one. Collapsing the two into false
+    /// meant a refused inline was read as "nobody is there", so a second viewer was launched, it
+    /// could not bind the port, and the snapshot was reported as Queued while being held by
+    /// nothing at all.
+    /// </summary>
+    [Test]
+    public async Task ARefusedExchangeIsToldApartFromAnAbsentOwner()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        var listening = server.Listen(_ => ViewerResponse.Error("no thanks"), cancel.Token);
+
+        try
+        {
+            var refused = await ViewerClient.SendAsync(new(ViewerVerb.List), default, server.Port);
+
+            await Assert.That(refused).IsEqualTo(SendOutcome.Refused);
+        }
+        finally
+        {
+            await cancel.CancelAsync();
+            await Wait(listening);
+        }
+    }
+
+    [Test]
+    public async Task AnAcceptedExchangeReportsAccepted()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        var listening = server.Listen(_ => ViewerResponse.Success("fine"), cancel.Token);
+
+        try
+        {
+            await Assert.That(await ViewerClient.SendAsync(new(ViewerVerb.List), default, server.Port))
+                .IsEqualTo(SendOutcome.Accepted);
+        }
+        finally
+        {
+            await cancel.CancelAsync();
+            await Wait(listening);
+        }
+    }
+
+    [Test]
+    public async Task AnAbsentOwnerReportsNoOwner()
+    {
+        ViewerServer.TryBind(0, out var server);
+        var port = server!.Port;
+        server.Dispose();
+
+        await Assert.That(await ViewerClient.SendAsync(new(ViewerVerb.List), default, port, TimeSpan.FromSeconds(2)))
+            .IsEqualTo(SendOutcome.NoOwner);
+    }
+
     [Test]
     public async Task AnAbsentOwnerIsNotAnError()
     {
