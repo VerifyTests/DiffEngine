@@ -296,13 +296,34 @@ static class InlinePatcher
         public bool IsAbsent => Start == End;
 
         /// <summary>
-        /// True when the argument is character for character the given expression.
+        /// True when the argument is the given expression, character for character or once both
+        /// have had their newlines normalised.
+        /// <para>
+        /// The needle arrives normalised to the file's dominant line ending, which is the right
+        /// thing to write but the wrong thing to search for: a literal whose own lines use the
+        /// other ending is the same expression and did not match, so the snapshot could not be
+        /// patched at all. Mixed endings inside one file are ordinary - a merge, an editor that
+        /// only fixes what it touches, a generator.
+        /// </para>
         /// </summary>
-        public bool Matches(string source, string expression) =>
-            !IsAbsent &&
-            !BlockedByName &&
-            End - Start == expression.Length &&
-            string.CompareOrdinal(source, Start, expression, 0, expression.Length) == 0;
+        public bool Matches(string source, string expression)
+        {
+            if (IsAbsent ||
+                BlockedByName)
+            {
+                return false;
+            }
+
+            if (End - Start == expression.Length &&
+                string.CompareOrdinal(source, Start, expression, 0, expression.Length) == 0)
+            {
+                return true;
+            }
+
+            var argument = source.Substring(Start, End - Start);
+            return SourceLanguage.NormalizeNewlines(argument) ==
+                   SourceLanguage.NormalizeNewlines(expression);
+        }
     }
 
     static bool TryReadArguments(string source, SourceScan scan, int openParen, out ExpectedArgument expected)

@@ -147,6 +147,33 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// A CRLF file holding a literal whose own lines are LF. The anchor is normalised to the
+    /// file's dominant ending before the search, which is right for writing and wrong for
+    /// matching: the literal is the same expression and compared byte for byte it is not, so the
+    /// snapshot could not be patched at all.
+    /// </summary>
+    [Test]
+    public async Task AnAnchorMatchesAcrossMixedLineEndings()
+    {
+        var literal = "\"\"\"\n        old\n        \"\"\"";
+        var source =
+            "class Tests\r\n" +
+            "{\r\n" +
+            "    async Task Test()\r\n" +
+            "    {\r\n" +
+            $"        await Snapshot({literal});\r\n" +
+            "    }\r\n" +
+            "}";
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, literal, "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains("new");
+        await Assert.That(newSource).DoesNotContain("old");
+    }
+
+    /// <summary>
     /// A comment between the argument and the closing paren. A line comment's span includes the
     /// newline that ends it, so trimming trailing whitespace first ate that newline and the
     /// comment then looked like part of the argument - which is not a string literal.
