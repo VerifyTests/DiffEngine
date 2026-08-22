@@ -2,10 +2,10 @@ static class PiperClient
 {
     public static int Port = 3492;
 
-    public static void SendDelete(string file) =>
+    public static bool SendDelete(string file) =>
         Send(BuildDeletePayload(file));
 
-    public static Task SendDeleteAsync(
+    public static Task<bool> SendDeleteAsync(
         string file,
         Cancel cancel = default)
     {
@@ -22,7 +22,7 @@ static class PiperClient
 
           """;
 
-    public static void SendMove(
+    public static bool SendMove(
         string tempFile,
         string targetFile,
         string? exe,
@@ -31,7 +31,7 @@ static class PiperClient
         int? processId) =>
         Send(BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId));
 
-    public static Task SendMoveAsync(
+    public static Task<bool> SendMoveAsync(
         string tempFile,
         string targetFile,
         string? exe,
@@ -79,28 +79,37 @@ static class PiperClient
         return builder.ToString();
     }
 
-    static void Send(string payload)
+    /// <summary>
+    /// True when the tray took it. False is not fatal on its own - the payload is traced either
+    /// way - but it is what lets the caller send the pending file somewhere else instead of
+    /// dropping it, which is what happened when this returned nothing.
+    /// </summary>
+    static bool Send(string payload)
     {
         try
         {
             InnerSend(payload);
+            return true;
         }
         catch (Exception exception)
         {
             HandleSendException(payload, exception);
+            return false;
         }
     }
 
-    static async Task SendAsync(string payload, Cancel cancel)
+    static async Task<bool> SendAsync(string payload, Cancel cancel)
     {
         try
         {
             await InnerSendAsync(payload, cancel);
+            return true;
         }
         // Let cancellation surface to the caller; only genuine send failures are swallowed.
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             HandleSendException(payload, exception);
+            return false;
         }
     }
 
