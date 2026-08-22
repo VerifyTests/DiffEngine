@@ -131,7 +131,7 @@ public class InlinePatcherTests
     [Test]
     [Arguments("GetAwaiter().GetResult()")]
     [Arguments("ConfigureAwait(false)")]
-    [Arguments("AsTask()")]
+    [Arguments("ToTask()")]
     public async Task AppendGoesInFrontOfAChainTerminator(string tail)
     {
         var source = Method($"        await Verify(x).{tail};");

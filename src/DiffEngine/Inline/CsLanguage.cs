@@ -21,17 +21,21 @@ sealed class CsLanguage : SourceLanguage
 
     /// <summary>
     /// The calls a C# verify chain ends with when it stops being a verify chain: awaiting it by
-    /// hand, blocking on it, or converting it. Snapshot returns the SettingsTask and none of these
-    /// do, so an appended call goes in front of the first of them rather than after it - otherwise
-    /// the patch produces source that does not compile, which is worse than not patching at all
-    /// because the snapshot is reported as accepted.
+    /// hand, blocking on it, or converting it. Each is a real member of SettingsTask - checked
+    /// against Verify's source rather than guessed - and none of them returns one.
+    /// <para>
+    /// So a Snapshot appended after any of them is not merely bad style. SettingsTask.ToTask sets
+    /// its task field, and CurrentSettings then throws "This SettingsTask instance has already
+    /// been converted to a Task and can no longer be modified" - so where such a patch compiles at
+    /// all it fails at run time, and where it does not compile the patch still reported Applied
+    /// and the snapshot was recorded as accepted.
+    /// </para>
     /// </summary>
     internal override string[] ChainTerminators =>
     [
         "GetAwaiter",
         "GetResult",
         "ConfigureAwait",
-        "AsTask",
         "ToTask"
     ];
 
