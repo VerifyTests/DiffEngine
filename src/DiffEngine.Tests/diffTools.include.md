@@ -1233,6 +1233,7 @@ DiffTools.UseOrder(DiffTool.SublimeMerge);
    mergetool "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
+    * `/Applications/Sublime Merge.app/Contents/SharedSupport/bin/smerge`
     * `/Applications/smerge.app/Contents/MacOS/smerge`
     * `%PATH%smerge`
 
