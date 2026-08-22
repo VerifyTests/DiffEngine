@@ -80,6 +80,48 @@ public class TrackerDeleteTest :
         await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
+    /// <summary>
+    /// A delete that cannot be done. The menu and hot key paths called File.Delete straight, so a
+    /// read-only or open verified file threw out of the click handler - onto the UI thread, where
+    /// nothing hooks Application.ThreadException - and the entry had already been untracked, so
+    /// the pending delete went with it.
+    /// </summary>
+    [Test]
+    public async Task AcceptLeavesAnUndeletableFileTracked()
+    {
+        await using var tracker = new RecordingTracker();
+        var tracked = tracker.AddDelete(file1);
+
+        using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            tracker.Accept(tracked);
+        }
+
+        await Assert.That(tracker.Deletes).HasSingleItem();
+        await Assert.That(File.Exists(file1)).IsTrue();
+    }
+
+    /// <summary>
+    /// And one bad delete does not stop the rest of Accept all. Unguarded, the throw skipped the
+    /// remaining deletes, every pending move, and the snapshots.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllContinuesPastAnUndeletableFile()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        tracker.AddDelete(file2);
+
+        using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await tracker.AcceptAll();
+        }
+
+        // The one that could go, went; the one that could not is still pending
+        await Assert.That(File.Exists(file2)).IsFalse();
+        await Assert.That(tracker.Deletes).HasSingleItem();
+    }
+
     public void Dispose()
     {
         File.Delete(file1);
