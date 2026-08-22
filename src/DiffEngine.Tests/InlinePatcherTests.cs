@@ -157,6 +157,28 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("still the one the test run saw");
     }
+
+    /// <summary>
+    /// A comment between the argument and the closing paren. A line comment's span includes the
+    /// newline that ends it, so trimming trailing whitespace first ate that newline and the
+    /// comment then looked like part of the argument - which is not a string literal.
+    /// </summary>
+    [Test]
+    public async Task ATrailingCommentIsNotPartOfTheArgument()
+    {
+        var source = Method(
+            "        await Snapshot(\"old\" // note\n" +
+            "            );");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        // The literal is replaced and the comment is left where it was, rather than being
+        // swallowed into the argument
+        await Assert.That(newSource).Contains("Snapshot(\"new\" // note");
+        await Assert.That(newSource).DoesNotContain("\"old\"");
+    }
     [Test]
     public async Task ReplaceRegularLiteral()
     {

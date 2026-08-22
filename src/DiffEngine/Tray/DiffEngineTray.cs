@@ -17,6 +17,13 @@ public static class DiffEngineTray
         catch (IOException)
         {
         }
+        // A mutex that exists but is not accessible to this caller, which Mutex.TryOpenExisting
+        // documents: the tray under one account and the tests under another. Uncaught in a static
+        // constructor it is far worse than a wrong answer - the type never initialises, so every
+        // later DiffRunner.Launch and AddDelete in the process throws TypeInitializationException
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     public static bool IsRunning { get; internal set; }

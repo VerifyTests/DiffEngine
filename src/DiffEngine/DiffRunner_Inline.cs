@@ -14,7 +14,9 @@ public enum InlineResult
     Disabled,
 
     /// <summary>
-    /// No DiffEngineViewer could be resolved. Callers that want a fallback should use it here.
+    /// Nothing has the snapshot. No DiffEngineViewer could be resolved, or the owner of the queue
+    /// declined the payload - which is the same thing from the caller's side, since in both cases
+    /// the snapshot is pending nowhere. Callers that want a fallback should use it here.
     /// </summary>
     NoViewerFound
 }
@@ -61,9 +63,20 @@ public static partial class DiffRunner
         // Onto the payload rather than onto the patch, which belongs to the caller and may be
         // held or sent again
         var payload = InlinePatchFile.Build(patch, patch.Framework ?? RuntimeMoniker.Current);
-        if (await ViewerClient.TrySendAsync(new(ViewerVerb.Inline, Body: payload), cancel))
+        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel);
+        if (outcome == SendOutcome.Accepted)
         {
             return InlineResult.Queued;
+        }
+
+        if (outcome == SendOutcome.Refused)
+        {
+            // An owner that is there and said no - an older one that does not understand the
+            // payload, or a handler that threw. Launching a second viewer cannot change that
+            // answer, and it would bind nothing, so reporting Queued would say the snapshot is
+            // somewhere when it is nowhere. Report it as no viewer, which is the answer that
+            // makes the caller stage the files instead
+            return InlineResult.NoViewerFound;
         }
 
         var launched = await ViewerLauncher.LaunchAsync(patch, payload, cancel);
