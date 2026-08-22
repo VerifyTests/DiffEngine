@@ -29,19 +29,29 @@ static class ViewerSession
     public static SessionState EnqueueInline(SessionState state, InlinePatch patch)
     {
         var key = InlineKey.For(patch.SourceFile, patch.LineHint);
-        var replacedCurrent = state.Current?.Key == key;
+        var current = state.Current;
         var queue = Rebuild(state, Pending(state).Enqueue(patch));
         // Grouping can reorder the list, so the selection follows its key rather than its index.
-        var currentKey = state.Current?.Key;
-        var selected = currentKey is null ? 0 : IndexOf(queue, currentKey);
+        var selected = current is null ? 0 : IndexOf(queue, current.Key);
+        if (selected < 0)
+        {
+            selected = 0;
+        }
+
+        // Start the reader at the top again only when the text under them changed. Folding into an
+        // entry further down the list is not it, and neither is a re-send of what is already
+        // there: Fold reports an identical patch as unchanged and Project hands back the same
+        // entry, so a continuous runner re-sending the same failing snapshot every few seconds
+        // used to bounce the reader to the top on every run.
+        var replaced = current is not null &&
+                       current.Key == key &&
+                       !ReferenceEquals(queue[selected], current);
+
         return Clamp(state with
         {
             Queue = queue,
-            Selected = selected < 0 ? 0 : selected,
-            // The text under the reader just changed, so start it at the top again. Only when it
-            // is the item on screen; folding into one further down the list should not move
-            // anything.
-            ScrollTop = replacedCurrent ? 0 : state.ScrollTop,
+            Selected = selected,
+            ScrollTop = replaced ? 0 : state.ScrollTop,
             // The open menu indexes the queue it was opened over, which just changed.
             Menu = null
         });
