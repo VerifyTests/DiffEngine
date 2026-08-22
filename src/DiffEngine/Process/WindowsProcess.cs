@@ -29,6 +29,18 @@ static partial class WindowsProcess
         int size,
         out int returnLength);
 
+    /// <summary>
+    /// The same export, asked for a pointer sized answer rather than a struct: the ProcessWow64
+    /// Information class returns the address of a WOW64 target's 32-bit PEB.
+    /// </summary>
+    [LibraryImport("ntdll.dll", EntryPoint = "NtQueryInformationProcess")]
+    private static partial int NtQueryWow64Peb(
+        SafeProcessHandle handle,
+        int processInformationClass,
+        ref IntPtr info,
+        int size,
+        out int returnLength);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool IsWow64Process(
@@ -89,6 +101,14 @@ static partial class WindowsProcess
         IntPtr size,
         out IntPtr bytesRead);
 
+    [DllImport("ntdll.dll", EntryPoint = "NtQueryInformationProcess")]
+    static extern int NtQueryWow64Peb(
+        SafeProcessHandle handle,
+        int processInformationClass,
+        ref IntPtr info,
+        int size,
+        out int returnLength);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool IsWow64Process(SafeProcessHandle handle, out bool isWow64);
 #endif
@@ -98,6 +118,12 @@ static partial class WindowsProcess
     const int processVmReadI = 0x0010;
     const int processTerminate = 0x0001;
     const int processBasicInformation = 0;
+
+    /// <summary>
+    /// ProcessWow64Information. Returns the address of the 32-bit PEB for a WOW64 target, or zero
+    /// for one that is not running under WOW64.
+    /// </summary>
+    const int processWow64Information = 26;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct PROCESSENTRY32W
@@ -298,14 +324,44 @@ static partial class WindowsProcess
                 return null;
             }
 
-            return Environment.Is64BitProcess && !isTarget32Bit
-                ? ReadCommandLine64(handle, pbi.PebBaseAddress)
-                : ReadCommandLine32(handle, pbi.PebBaseAddress);
+            if (!Environment.Is64BitProcess)
+            {
+                // A 32-bit caller cannot reach a 64-bit target's PEB, so there is nothing useful to
+                // read rather than something wrong to read
+                if (Environment.Is64BitOperatingSystem &&
+                    !isTarget32Bit)
+                {
+                    return null;
+                }
+
+                return ReadCommandLine32(handle, pbi.PebBaseAddress);
+            }
+
+            if (!isTarget32Bit)
+            {
+                return ReadCommandLine64(handle, pbi.PebBaseAddress);
+            }
+
+            // A WOW64 target seen from a 64-bit caller. ProcessBasicInformation answers with the
+            // 64-bit PEB the system keeps for it, and reading that with 32-bit offsets yields
+            // nothing usable - so every 32-bit diff tool, which is most of the %ProgramFiles(x86)%
+            // installs the resolver goes out of its way to find, had no command line at all: never
+            // detected as already running, and never killed. The 32-bit PEB has to be asked for
+            return TryGetWow64Peb(handle, out var wow64Peb)
+                ? ReadCommandLine32(handle, wow64Peb)
+                : null;
         }
         catch
         {
             return null;
         }
+    }
+
+    static bool TryGetWow64Peb(SafeProcessHandle handle, out IntPtr peb)
+    {
+        peb = IntPtr.Zero;
+        return NtQueryWow64Peb(handle, processWow64Information, ref peb, IntPtr.Size, out _) == 0 &&
+               peb != IntPtr.Zero;
     }
 
     static string? ReadCommandLine64(SafeProcessHandle handle, IntPtr pebAddress)
