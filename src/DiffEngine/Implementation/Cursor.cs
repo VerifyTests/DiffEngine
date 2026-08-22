@@ -23,6 +23,10 @@ static partial class Implementation
                 Windows: new(
                     "Cursor.exe",
                     launchArguments,
+                    // The per user location first, because it is what Cursor's own installer
+                    // defaults to. Only %ProgramFiles% was listed, so an ordinary install was not
+                    // found at all unless the machine also had a system wide one
+                    @"%LocalAppData%\Programs\cursor\",
                     @"%ProgramFiles%\Cursor\"),
                 Linux: new(
                     "cursor",
