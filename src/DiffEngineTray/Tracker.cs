@@ -404,22 +404,30 @@ class Tracker :
                 return existing;
             });
 
+    /// <summary>
+    /// Through <see cref="AcceptTracked(TrackedDelete)"/>, which is what the wire path has always
+    /// used: it catches, re-tracks so the delete can be retried, and reports why.
+    /// <para>
+    /// These called File.Delete straight, so a read-only or open verified file threw out of a menu
+    /// click or a hot key - onto the UI thread, where nothing hooks Application.ThreadException -
+    /// and the entry was already untracked by then, so the pending delete was lost with it.
+    /// </para>
+    /// </summary>
     public void Accept(TrackedDelete delete)
     {
-        if (deletes.TryRemove(delete.File, out var removed))
+        var (ok, message) = AcceptTracked(delete);
+        if (!ok &&
+            message != null)
         {
-            File.Delete(removed.File);
+            Log.Error(message);
         }
     }
 
     public void Accept(IEnumerable<TrackedDelete> toAccept)
     {
-        foreach (var delete in toAccept)
+        foreach (var delete in toAccept.ToList())
         {
-            if (deletes.TryRemove(delete.File, out var removed))
-            {
-                File.Delete(removed.File);
-            }
+            Accept(delete);
         }
     }
 
@@ -706,12 +714,13 @@ class Tracker :
 
     void AcceptAllDeletes()
     {
-        foreach (var delete in deletes.Values)
+        // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
+        // clearing would throw that away. Unguarded, the first bad one also took AcceptMoves and
+        // AcceptAllSnapshots with it, so "Accept all" stopped at the first read-only file
+        foreach (var delete in deletes.Values.ToList())
         {
-            File.Delete(delete.File);
+            Accept(delete);
         }
-
-        deletes.Clear();
     }
 
     public ICollection<TrackedDelete> Deletes => deletes.Values;
