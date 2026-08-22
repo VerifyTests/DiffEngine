@@ -10,7 +10,9 @@
 
     public static void FileExists(string path, string argumentName)
     {
-        AgainstEmpty(argumentName, path);
+        // (value, name), not (name, value). Reversed, this validated the literal parameter name -
+        // never empty - so an empty path fell through to the message below with no ParamName on it
+        AgainstEmpty(path, argumentName);
         if (!File.Exists(path))
         {
             throw new ArgumentException($"File not found. Path: {path}");
