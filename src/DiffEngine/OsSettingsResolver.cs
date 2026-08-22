@@ -4,7 +4,10 @@ static class OsSettingsResolver
 
     static OsSettingsResolver()
     {
-        var pathVariable = Environment.GetEnvironmentVariable("PATH")!;
+        // An unset PATH is a NullReferenceException in a static constructor, and so permanent
+        // for the process. `env -i` and some service launchers really do start a process without
+        // one; nothing on PATH simply means no tool is found that way
+        var pathVariable = Environment.GetEnvironmentVariable("PATH") ?? "";
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
