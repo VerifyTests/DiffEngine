@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <NoWarn>CS1591;CS0649;NU1608;NU1109</NoWarn>
     <Version>20.0.0-beta.30</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
@@ -14,7 +13,12 @@
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <ResolveAssemblyReferencesSilent>true</ResolveAssemblyReferencesSilent>
-    <NoWarn>CA1416;CS1591</NoWarn>
+    <!--
+    One NoWarn, because a second property of the same name replaces the first rather than adding to
+    it. There were two, so CS0649, NU1608 and NU1109 were not suppressed at all - and with
+    TreatWarningsAsErrors below they would have failed a build rather than warned in one.
+    -->
+    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
