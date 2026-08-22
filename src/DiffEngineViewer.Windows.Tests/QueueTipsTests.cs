@@ -68,8 +68,43 @@ public class QueueTipsTests
         using var tips = new QueueTips();
 
         tips.Apply(owner, 3, "before");
-        tips.Forget();
+        tips.Forget(owner);
         tips.Apply(owner, 3, null);
+        await Assert.That(tips.Current(owner)).IsEmpty();
+    }
+
+    /// <summary>
+    /// The reported bug reached the other way round: the cursor leaves the queue column for the
+    /// diff panes, which is a Forget - from the mouse leaving, or from the screen being redrawn -
+    /// followed by a row of -1.
+    /// <para>
+    /// Both set the row to -1, so Apply had nothing to do and returned, and the caption for the
+    /// row last hovered stayed registered on the whole canvas. Resting anywhere brought it back,
+    /// over the panes.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task ForgettingBeforeLeavingTheColumnLeavesNothingRegistered()
+    {
+        using var owner = new Control();
+        using var tips = new QueueTips();
+
+        tips.Apply(owner, 2, "SolutionA/Tests/ATests.cs:6");
+        tips.Forget(owner);
+        tips.Apply(owner, -1, null);
+
+        await Assert.That(tips.Current(owner)).IsEmpty();
+    }
+
+    [Test]
+    public async Task ForgettingClearsTheText()
+    {
+        using var owner = new Control();
+        using var tips = new QueueTips();
+
+        tips.Apply(owner, 2, "SolutionA/Tests/ATests.cs:6");
+        tips.Forget(owner);
+
         await Assert.That(tips.Current(owner)).IsEmpty();
     }
 }

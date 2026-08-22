@@ -102,7 +102,7 @@ sealed class ViewerCanvas : Control
     {
         screen = value;
         // A new screen renumbers the rows, so a kept index would describe a different entry.
-        tips.Forget();
+        tips.Forget(this);
         Invalidate();
     }
 
@@ -498,7 +498,7 @@ sealed class ViewerCanvas : Control
             Cursor = Cursors.Default;
         }
 
-        tips.Forget();
+        tips.Forget(this);
     }
 
     protected override void OnMouseWheel(MouseEventArgs e)
