@@ -213,6 +213,84 @@ public class MenuBuilderTest :
         await Verify(menu, settings);
     }
 
+    /// <summary>
+    /// The tracked items were told from the fixed ones by their text, so a solution named after
+    /// one of them kept its group header through the close that removed everything under it, and
+    /// grew another on the next open.
+    /// </summary>
+    [Test]
+    public async Task A_group_named_after_a_fixed_item_is_removed_with_the_rest()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"MenuBuilderTest_{Guid.NewGuid()}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, "Options.sln"), "");
+            var file = Path.Combine(directory, "file.txt");
+            File.WriteAllText(file, "");
+            await using var tracker = new RecordingTracker();
+            tracker.AddDelete(file);
+            var menu = MenuBuilder.Build(
+                emptyAction,
+                emptyAction,
+                tracker);
+            var fixedCount = menu.Items.Count;
+
+            menu.Show(0, 0);
+            var opened = menu.Items
+                .Cast<System.Windows.Forms.ToolStripItem>()
+                .Skip(fixedCount)
+                .Select(_ => _.Text)
+                .ToList();
+            menu.Close();
+
+            // That the group is there at all, and under the name the rest of this is about
+            await Assert.That(opened).Contains("Options");
+            await Assert.That(menu.Items.Count).IsEqualTo(fixedCount);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// A close removed the tracked items and the next open disposed whatever was still in the
+    /// collection, which by then was only the fixed ones. So every open leaked a menu's worth of
+    /// controls to the finaliser.
+    /// </summary>
+    [Test]
+    public async Task Tracked_items_are_disposed_by_the_next_open()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        var fixedCount = menu.Items.Count;
+
+        menu.Show(0, 0);
+        var tracked = menu.Items
+            .Cast<System.Windows.Forms.ToolStripItem>()
+            .Skip(fixedCount)
+            .ToList();
+        // ToolStripItem.IsDisposed stays false through a Dispose, so the event is what says it
+        // happened
+        var disposed = 0;
+        foreach (var item in tracked)
+        {
+            item.Disposed += (_, _) => disposed++;
+        }
+
+        menu.Close();
+        menu.Show(0, 0);
+        menu.Close();
+
+        await Assert.That(tracked).IsNotEmpty();
+        await Assert.That(disposed).IsEqualTo(tracked.Count);
+    }
+
     public MenuBuilderTest()
     {
         settings = new();
