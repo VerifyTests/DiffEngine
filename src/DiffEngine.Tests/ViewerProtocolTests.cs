@@ -742,6 +742,42 @@ public class ViewerProtocolTests
         }
     }
     /// <summary>
+    /// Which socket failures mean the listener has stopped, as against one accept having failed.
+    /// <para>
+    /// Returning on any SocketException gave the queue away for the life of the process: the
+    /// socket stays bound so nobody else can take it, and every later client lands in a backlog
+    /// nothing is draining. A peer that resets while its connection sits in that backlog is the
+    /// ordinary way to hit it - WSAECONNRESET on Windows, ECONNABORTED on BSD and macOS - and is
+    /// why Kestrel retries the same condition.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Arguments(SocketError.OperationAborted, true)]
+    [Arguments(SocketError.Interrupted, true)]
+    [Arguments(SocketError.ConnectionReset, false)]
+    [Arguments(SocketError.ConnectionAborted, false)]
+    [Arguments(SocketError.NetworkDown, false)]
+    public async Task SocketFailuresThatStopTheListener(SocketError error, bool expected)
+    {
+        var exception = new SocketException((int) error);
+
+        await Assert.That(ViewerServer.IsStop(exception, default)).IsEqualTo(expected);
+    }
+
+    /// <summary>
+    /// And a cancelled token means stop whatever the code says, since that is the ordinary way a
+    /// listener is shut down and the token may be observed before the exception is.
+    /// </summary>
+    [Test]
+    public async Task ACancelledTokenStopsTheListenerWhateverTheCode()
+    {
+        using var cancel = new CancelSource();
+        await cancel.CancelAsync();
+
+        await Assert.That(ViewerServer.IsStop(new((int) SocketError.ConnectionReset), cancel.Token)).IsTrue();
+    }
+
+    /// <summary>
     /// An owner that answers with an error is not an absent one. Collapsing the two into false
     /// meant a refused inline was read as "nobody is there", so a second viewer was launched, it
     /// could not bind the port, and the snapshot was reported as Queued while being held by
