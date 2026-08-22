@@ -845,11 +845,24 @@ public class ViewerProtocolTests
         await Assert.That(ViewerClient.TrySend(new(ViewerVerb.List), out _, port)).IsFalse();
     }
 
+    /// <summary>
+    /// Drains the listener at the end of a test.
+    /// <para>
+    /// On <see cref="underLoad"/> rather than a margin of its own. Unwinding needs the accept's
+    /// continuation to be scheduled, and that waits on the same thread pool everything else here
+    /// does - so five seconds was the same bet the client timeout above had already stopped
+    /// making, and it lost the same way.
+    /// </para>
+    /// <para>
+    /// Still throws when it runs out, because a listener that never unwinds is a real bug and this
+    /// is the only place that would notice.
+    /// </para>
+    /// </summary>
     static async Task Wait(Task listening)
     {
         try
         {
-            await listening.WaitAsync(TimeSpan.FromSeconds(5));
+            await listening.WaitAsync(underLoad);
         }
         catch (OperationCanceledException)
         {
