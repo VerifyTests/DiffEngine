@@ -74,18 +74,34 @@ public static class InlineStaging
     /// of its own. Verify's own fallback writes under the project's intermediate directory, which
     /// is normally inside that <c>obj</c> and found anyway, but does not have to be.
     /// </param>
-    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory = null)
+    /// <param name="origin">
+    /// The framework moniker of the run that settled, which scopes the clear to that run's own
+    /// trio. This is what <see cref="InlineQueue.Settle(string, string?)" /> already does with a
+    /// queue, and staging is the same situation with the same answer: one call site stages one
+    /// trio per framework, so a multi-framework run where one framework starts passing and another
+    /// does not would otherwise have the passing one delete the failing one's staged snapshot.
+    /// <para>
+    /// Null clears every framework's trio for the call site, which is right for a retire - the
+    /// call site is not an inline snapshot in any framework any more - and is the behaviour of
+    /// every caller that does not pass this.
+    /// </para>
+    /// <para>
+    /// A trio staged without a framework label is cleared either way, since there is nothing to
+    /// scope it by and leaving it would strand it forever.
+    /// </para>
+    /// </param>
+    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory = null, string? origin = null)
     {
         var cleared = 0;
         foreach (var directory in StagingDirectories(sourceFile, extraDirectory))
         {
-            cleared += ClearIn(directory, sourceFile, line, memberName);
+            cleared += ClearIn(directory, sourceFile, line, memberName, origin);
         }
 
         return cleared;
     }
 
-    static int ClearIn(string directory, string sourceFile, int line, string? memberName)
+    static int ClearIn(string directory, string sourceFile, int line, string? memberName, string? origin)
     {
         var staged = ReadStaged(directory)
             .Where(_ => SamePath(_.Patch.SourceFile, sourceFile))
@@ -109,6 +125,17 @@ public static class InlineStaging
             {
                 matching = byMember;
             }
+        }
+
+        if (origin != null)
+        {
+            // One call site stages one trio per framework, so a settle that names the framework it
+            // came from must take only that one. Without it a net9 run that started passing
+            // deleted net8's still-failing trio beside its own, and that snapshot was then pending
+            // nowhere: not staged, and not in a queue either, since nothing had one
+            matching = matching
+                .Where(_ => _.Patch.Framework == null || _.Patch.Framework == origin)
+                .ToList();
         }
 
         var cleared = 0;

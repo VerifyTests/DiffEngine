@@ -961,16 +961,19 @@ static class InlinePatcher
 
         while (end > start)
         {
-            if (char.IsWhiteSpace(source[end - 1]))
-            {
-                end--;
-                continue;
-            }
-
+            // The comment is asked about before the whitespace, because a line comment's span
+            // includes the newline that ends it. Trimming first ate that newline, after which
+            // nothing ended at `end` any more and the comment stayed inside the argument
             if (scan.TryGetCommentEndingAt(end, out var commentStart) &&
                 commentStart >= start)
             {
                 end = commentStart;
+                continue;
+            }
+
+            if (char.IsWhiteSpace(source[end - 1]))
+            {
+                end--;
                 continue;
             }
 

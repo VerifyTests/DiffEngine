@@ -22,7 +22,14 @@ public static class InlineKey
     /// </para>
     /// </summary>
     public static string For(string sourceFile, int line) =>
-        $"{(caseInsensitivePaths ? sourceFile.ToLowerInvariant() : sourceFile)}|{line}";
+        $"{FoldPath(sourceFile)}|{line}";
+
+    /// <summary>
+    /// A path folded the way this machine's file system folds it, so anything else keyed by path
+    /// agrees with <see cref="For" /> about when two paths are one file.
+    /// </summary>
+    internal static string FoldPath(string path) =>
+        caseInsensitivePaths ? path.ToLowerInvariant() : path;
 
     static readonly bool caseInsensitivePaths =
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||

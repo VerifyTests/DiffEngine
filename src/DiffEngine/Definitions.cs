@@ -15,9 +15,9 @@ public static class Definitions
             Implementation.Kaleidoscope(),
             Implementation.DeltaWalker(),
             Implementation.WinMerge(),
+            Implementation.TortoiseMerge(),
             Implementation.TortoiseGitMerge(),
             Implementation.TortoiseGitIDiff(),
-            Implementation.TortoiseMerge(),
             Implementation.TortoiseIDiff(),
             Implementation.KDiff3(),
             Implementation.TkDiff(),
@@ -31,8 +31,8 @@ public static class Definitions
             Implementation.Meld(),
             Implementation.SublimeMerge(),
             Implementation.VisualStudioCode(),
-            Implementation.Cursor(),
             Implementation.VisualStudio(),
+            Implementation.Cursor(),
             Implementation.DiffEngineViewer(),
         ];
 }
