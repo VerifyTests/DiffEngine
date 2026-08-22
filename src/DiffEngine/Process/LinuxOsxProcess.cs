@@ -66,20 +66,15 @@
             var pidString = trim[..firstSpace];
             var pid = int.Parse(pidString.ToString());
 
-            var timeAndCommandString = trim[(firstSpace + 1)..];
-            var multiSpaceIndex = 0;
-            CharSpan command;
-
-            var spaces = new CharSpan([' ',' ',' ']);
-            if (timeAndCommandString.IndexOf(spaces, StringComparison.InvariantCulture) > 0)
-            {
-                multiSpaceIndex = timeAndCommandString[firstSpace..].IndexOf(spaces, StringComparison.InvariantCulture);
-                command = timeAndCommandString[(multiSpaceIndex + 1)..].Trim();
-            }
-            else
-            {
-                command = timeAndCommandString[multiSpaceIndex..].Trim();
-            }
+            // `ps -o pid,command` has exactly one separator, so everything after the first space
+            // is the command. There used to be a second branch here looking for a run of three
+            // spaces, left over from a format that also carried TIME, and it was wrong twice over:
+            // it sliced by firstSpace, which is the PID's digit count and means nothing in this
+            // string, and then applied the index it found to the unsliced span. So a command
+            // containing three spaces was truncated, and a seven digit PID with a short command
+            // threw ArgumentOutOfRangeException - out of ProcessCleanup's static constructor,
+            // which makes it permanent for the process
+            var command = trim[(firstSpace + 1)..].Trim();
 
             processCommand = new(command.ToString(), in pid);
             return true;
