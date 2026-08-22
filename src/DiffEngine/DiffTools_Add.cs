@@ -8,7 +8,11 @@ public static partial class DiffTools
         bool? isMdi = null,
         bool? supportsText = null,
         bool? requiresTarget = null,
-        bool? useShellExecute = true,
+        // Null like every other flag here. Defaulting to true made the `?? existing` below dead
+        // code for this one alone, so a tool based on one of the five definitions that set it
+        // false - the bundled viewer, VS Code, Cursor, MsWordDiff, MsExcelDiff - silently became
+        // a ShellExecute launch, and took the inherited CreateNoWindow with it
+        bool? useShellExecute = null,
         bool? createNoWindow = null,
         bool? killLockingProcess = null,
         LaunchArguments? launchArguments = null,
