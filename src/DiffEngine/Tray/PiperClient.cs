@@ -97,8 +97,18 @@ static class PiperClient
         {
             await InnerSendAsync(payload, cancel);
         }
-        // Let cancellation surface to the caller; only genuine send failures are swallowed.
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        // Let cancellation surface to the caller; only genuine send failures are swallowed. A
+        // NullReferenceException under a cancelled token is cancellation too - .NET Framework's
+        // Dispose nulls Client - and reporting it as a send failure would lose the cancel
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (NullReferenceException) when (cancel.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancel);
+        }
+        catch (Exception exception)
         {
             HandleSendException(payload, exception);
         }
@@ -152,6 +162,11 @@ static class PiperClient
             using (cancel.Register(client.Close))
             {
                 await client.ConnectAsync(endpoint.Address, endpoint.Port);
+                // Dispose nulls Client on .NET Framework, so a token that fires around the connect
+                // leaves GetStream dereferencing null instead of reporting cancellation. Asking
+                // the token directly is what makes that an OperationCanceledException, which the
+                // caller lets through rather than swallowing as a send failure
+                cancel.ThrowIfCancellationRequested();
                 using var stream = client.GetStream();
                 using var writer = new StreamWriter(stream);
                 await writer.WriteAsync(payload);

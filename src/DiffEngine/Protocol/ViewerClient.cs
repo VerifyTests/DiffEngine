@@ -137,6 +137,12 @@ static class ViewerClient
 #else
             token.ThrowIfCancellationRequested();
             await client.ConnectAsync(IPAddress.Loopback, endpointPort);
+            // The abort registration cancels by closing the client, and .NET Framework's
+            // TcpClient.Dispose nulls its Client - so a token that fires around here leaves
+            // Configure and HalfClose dereferencing null rather than reporting cancellation.
+            // Asking the token directly is how that becomes the OperationCanceledException the
+            // caller is written against
+            token.ThrowIfCancellationRequested();
 #endif
             Configure(client, timeToWait);
             var stream = client.GetStream();
@@ -211,6 +217,11 @@ static class ViewerClient
             SocketException or
             IOException or
             ObjectDisposedException or
+            // .NET Framework's TcpClient.Dispose nulls Client, so the abort registration closing
+            // the socket mid exchange leaves Configure or HalfClose dereferencing null. It is a
+            // torn down connection wearing the wrong exception type, and letting it escape turned
+            // an absent owner into a crash in the caller's test
+            NullReferenceException or
             AggregateException
             {
                 InnerException: SocketException or IOException
