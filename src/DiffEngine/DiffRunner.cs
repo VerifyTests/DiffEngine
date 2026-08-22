@@ -157,6 +157,7 @@ public static partial class DiffRunner
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
         var canKill = !tool.IsMdi;
+        var replacing = false;
         if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
         {
             if (tool.AutoRefresh)
@@ -165,10 +166,14 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            KillIfNotMdi(tool, command);
+            replacing = KillIfNotMdi(tool, command);
         }
 
-        if (MaxInstance.Reached())
+        // A replacement does not raise the number of open tools, so it does not spend a slot. The
+        // kill above has already happened by this point, so counting it meant a re-failing test
+        // closed its own window and then declined to open another
+        if (!replacing &&
+            MaxInstance.Reached())
         {
             DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
             return LaunchResult.TooManyRunningDiffTools;
@@ -192,6 +197,7 @@ public static partial class DiffRunner
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
         var canKill = !tool.IsMdi;
+        var replacing = false;
         if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
         {
             if (tool.AutoRefresh)
@@ -200,10 +206,12 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            KillIfNotMdi(tool, command);
+            replacing = KillIfNotMdi(tool, command);
         }
 
-        if (MaxInstance.Reached())
+        // As above: a replacement is not a new instance
+        if (!replacing &&
+            MaxInstance.Reached())
         {
             await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
             return LaunchResult.TooManyRunningDiffTools;
@@ -295,12 +303,19 @@ public static partial class DiffRunner
         }
     }
 
-    static void KillIfNotMdi(ResolvedTool tool, string command)
+    /// <summary>
+    /// Closes the tool already showing this pair, and reports whether it did. An MDI tool hosts
+    /// every diff in one window, so there is nothing to close and nothing being replaced.
+    /// </summary>
+    static bool KillIfNotMdi(ResolvedTool tool, string command)
     {
-        if (!tool.IsMdi)
+        if (tool.IsMdi)
         {
-            ProcessCleanup.Kill(command);
+            return false;
         }
+
+        ProcessCleanup.Kill(command);
+        return true;
     }
 
     static void GuardFiles(string tempFile, string targetFile)
