@@ -12,10 +12,13 @@ public static partial class DiffRunner
             return;
         }
 
-        var extension = Path.GetExtension(tempFile);
-        if (!DiffTools.TryFindByExtension(extension, out var diffTool))
+        // TryFindForInputFilePath rather than by extension, so this resolves the same tool the
+        // launch did. By extension alone a file matched by a text file convention resolved to
+        // nothing here, and Kill logged "Extension not found" for a pair LaunchAsync had opened -
+        // leaving the tool on screen for a test that now passes
+        if (!DiffTools.TryFindForInputFilePath(tempFile, out var diffTool))
         {
-            Logging.Write($"Extension not found. {extension}");
+            Logging.Write($"No diff tool for. {tempFile}");
             return;
         }
 
