@@ -630,8 +630,12 @@ static class ViewerSession
     /// not the last copy of it leaving.
     /// </para>
     /// <para>
-    /// A status on an inline entry is the outcome of an attempt, so this reads failures only:
-    /// conflicted entries that a bulk accept skips are handed back untouched and carry none.
+    /// A status on an inline entry is the outcome of an attempt, and this has to read only the
+    /// attempts the sweep it is answering for made. A bulk accept skips conflicted entries and
+    /// hands them back exactly as they were, so a status on one of those was left by a targeted
+    /// accept of a single variant, at some earlier point - and reading it held every pending
+    /// delete on every accept-all after it, citing a refusal in a batch that never touched the
+    /// entry. Everything else left in the queue with a status was tried and refused just now.
     /// Discarding asks nothing of the patches, so it sweeps as it always did.
     /// </para>
     /// </summary>
@@ -644,7 +648,7 @@ static class ViewerSession
 
         foreach (var entry in queue)
         {
-            if (entry is {Kind: QueueEntryKind.Inline, Status: not null})
+            if (entry is {Kind: QueueEntryKind.Inline, Conflicted: false, Status: not null})
             {
                 return true;
             }
