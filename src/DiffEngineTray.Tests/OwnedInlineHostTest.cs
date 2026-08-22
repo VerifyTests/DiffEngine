@@ -214,6 +214,30 @@ public class OwnedInlineHostTest
         await Assert.That(second.Window).IsNull();
     }
 
+    /// <summary>
+    /// A plain List does not take the stashed window command. It is the documented IDE plugin API
+    /// - InlineQueueClient.TryListKeys - and has no window to raise, so taking the command threw
+    /// it away: whoever asked could not act on it, and the attached viewer polling beside it never
+    /// raised for the new snapshot.
+    /// </summary>
+    [Test]
+    public async Task APlainListingLeavesTheWindowCommandForAViewer()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+        var snapshot = owner.Host.List().Single();
+
+        owner.Host.Focus(snapshot);
+
+        var plain = owner.Send(new(ViewerVerb.List));
+        await Assert.That(plain.Window).IsNull();
+
+        // Still there for the surface that has a window
+        var full = owner.Send(new(ViewerVerb.ListFull));
+        await Assert.That(full.Window).IsEqualTo(WindowCommand.Focus);
+        await Assert.That(full.WindowKey).IsEqualTo(snapshot.Key);
+    }
+
     [Test]
     public async Task ClosingTheViewerLeavesTheQueue()
     {
