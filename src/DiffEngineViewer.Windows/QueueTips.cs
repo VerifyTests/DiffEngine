@@ -58,9 +58,19 @@ sealed class QueueTips : IDisposable
     /// <summary>
     /// Forgets which row is described, so the next move re-applies. For a new screen, which
     /// renumbers the rows under a cursor that has not moved, and for the cursor leaving.
+    /// <para>
+    /// The caption goes with it. Resetting only the row left the last row's text registered on the
+    /// whole canvas, and <see cref="Apply" />'s own early return then kept it there: a cursor on
+    /// the canvas but not on a queue row arrives as row -1, which is the row this just set. So the
+    /// tip popped up over the diff panes, which is the thing this type exists to prevent.
+    /// </para>
     /// </summary>
-    public void Forget() =>
+    public void Forget(Control owner)
+    {
         row = -1;
+        tip.Hide(owner);
+        tip.SetToolTip(owner, null);
+    }
 
     /// <summary>
     /// What would be shown, which is what the tests assert on: the bug this type exists to prevent
