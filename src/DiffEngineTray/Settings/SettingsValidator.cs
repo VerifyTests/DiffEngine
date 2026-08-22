@@ -26,6 +26,12 @@ public static class SettingsValidator
         if (string.IsNullOrWhiteSpace(hotKey.Key))
         {
             errors.Add("HotKey: key is required");
+            return;
+        }
+
+        if (!KeyName.TryParse(hotKey.Key, out _))
+        {
+            errors.Add($"HotKey: '{hotKey.Key}' is not a key name");
         }
     }
 }

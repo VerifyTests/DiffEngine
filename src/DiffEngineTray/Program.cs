@@ -97,7 +97,7 @@ static class Program
         var task = StartServer(tracker, cancel);
 
         using var keyRegister = new KeyRegister(icon.Handle());
-        ReBindKeys(settings, keyRegister, tracker);
+        ReBindKeys(settings, keyRegister, tracker, Warn);
 
         var menuStrip = MenuBuilder.Build(
             Application.Exit,
@@ -133,18 +133,27 @@ static class Program
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ShowContextMenu")]
     static extern void ShowContextMenu(NotifyIcon icon);
 
-    internal static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker)
+    internal static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker, Action<string>? warn = null)
     {
         foreach (var binding in BuildKeyBindings(settings, tracker))
         {
             var hotKey = binding.HotKey;
-            keyRegister.TryAddBinding(
-                binding.Id,
-                hotKey.Shift,
-                hotKey.Control,
-                hotKey.Alt,
-                hotKey.Key,
-                binding.Action);
+            if (keyRegister.TryAddBinding(
+                    binding.Id,
+                    hotKey.Shift,
+                    hotKey.Control,
+                    hotKey.Alt,
+                    hotKey.Key,
+                    binding.Action))
+            {
+                continue;
+            }
+
+            // Said out loud, because the alternative is a hot key that quietly does nothing. Only
+            // settings.json can produce a key name the Options form cannot, so only a hand edit
+            // reaches the first half of this
+            warn?.Invoke(
+                $"Could not bind the hot key '{hotKey.Key}'. It is either not a key name, or already registered by another application.");
         }
     }
 

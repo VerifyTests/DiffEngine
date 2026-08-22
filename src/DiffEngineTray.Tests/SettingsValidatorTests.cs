@@ -45,6 +45,28 @@ public class SettingsValidatorTests
         await Assert.That(errors.Contains("HotKey: key is required")).IsTrue();
     }
 
+    /// <summary>
+    /// Only a hand edit produces one, the form offering nothing but letters, and it used to pass
+    /// validation and then throw out of the hot key registration at every startup.
+    /// </summary>
+    [Test]
+    public async Task Hotkey_with_a_key_that_is_not_a_key_name_is_invalid()
+    {
+        var settings = new Settings
+        {
+            AcceptAllHotKey = new()
+            {
+                Shift = true,
+                Key = "Ctrl+A"
+            }
+        };
+
+        var valid = settings.IsValidate(out var errors);
+
+        await Assert.That(valid).IsFalse();
+        await Assert.That(errors.Contains("HotKey: 'Ctrl+A' is not a key name")).IsTrue();
+    }
+
     [Test]
     public async Task Valid_hotkey_passes()
     {
