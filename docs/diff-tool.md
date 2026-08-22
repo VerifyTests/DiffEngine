@@ -316,7 +316,7 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
-    * `$HOME/.dotnet/tools/DiffEngineViewer`
+    * `%HOME%/.dotnet/tools/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
 #### Linux settings:
@@ -330,7 +330,7 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    "tempFile.txt" "targetFile.txt"
    ```
   * Scanned paths:
-    * `$HOME/.dotnet/tools/DiffEngineViewer`
+    * `%HOME%/.dotnet/tools/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)
