@@ -501,13 +501,15 @@ sealed class ViewerCanvas : Control
         tips.Forget(this);
     }
 
+    readonly WheelNotches notches = new(SystemInformation.MouseWheelScrollDelta);
+
     protected override void OnMouseWheel(MouseEventArgs e)
     {
         base.OnMouseWheel(e);
-        var notches = e.Delta / SystemInformation.MouseWheelScrollDelta;
-        if (notches != 0)
+        var scrolled = notches.Add(e.Delta);
+        if (scrolled != 0)
         {
-            Scrolled?.Invoke(notches);
+            Scrolled?.Invoke(scrolled);
         }
     }
 
