@@ -142,8 +142,10 @@ public class WindowsProcessTests
 
             await Assert.That(result).IsTrue();
 
-            // Verify process exited gracefully
-            await Assert.That(process.WaitForExit(1000)).IsTrue();
+            // Generous, because the margin here is the runner's, not the product's: a windowed
+            // FakeDiffTool runs until something closes it, so waiting longer cannot turn a failure
+            // into a pass. One second was a bet on a two core runner being idle
+            await Assert.That(process.WaitForExit(30000)).IsTrue();
         }
         finally
         {
@@ -191,8 +193,12 @@ public class WindowsProcessTests
 
             await Assert.That(result).IsTrue();
 
-            // Verify process was terminated (should be immediate with forceful kill)
-            await Assert.That(process.WaitForExit(1000)).IsTrue();
+            // Waiting longer is not enough on its own here: this FakeDiffTool sleeps five seconds
+            // and then exits by itself, so a wait past that passes whether it was terminated or
+            // simply ran out. The exit code is what tells those apart - TryTerminateProcess passes
+            // -1 to TerminateProcess, and running out returns 0
+            await Assert.That(process.WaitForExit(30000)).IsTrue();
+            await Assert.That(process.ExitCode).IsNotEqualTo(0);
         }
         finally
         {
