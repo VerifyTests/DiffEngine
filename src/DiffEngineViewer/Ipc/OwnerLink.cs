@@ -61,10 +61,22 @@ sealed class OwnerLink(SessionHost host, int port)
             message = Send(command);
         }
 
-        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port, Wait) ||
-            !response.Ok)
+        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port, Wait))
         {
             return false;
+        }
+
+        if (!response.Ok)
+        {
+            // An owner that answers is an owner. ViewerServer turns any exception in the listing
+            // handler into an error reply, so reading one as death closed this window over a
+            // single transient throw and lost the queue it was displaying. Said instead, and asked
+            // again on the next pass.
+            host.Mutate(_ => _ with
+            {
+                Message = response.Message ?? "The queue owner refused the listing."
+            });
+            return true;
         }
 
         var pending = InlineQueue.From(ViewerListing.Pending(response.Items));
