@@ -1057,7 +1057,13 @@ static class ViewerSession
 
     static int PreviousChange(IReadOnlyList<Row> rows, int from)
     {
-        var index = Math.Min(from, rows.Count) - 1;
+        // The top row of the viewport, not the one above it. Stepping off from there took the
+        // block ending immediately above the viewport for the block the viewport was in, and
+        // skipped past it to the one before - or, with nothing before it, refused to move at all.
+        var index = Math.Min(from, rows.Count - 1);
+
+        // So step off only when the viewport really is sitting in a block, which is when its top
+        // row is itself a change.
         while (index >= 0 &&
                IsChange(rows[index]))
         {
