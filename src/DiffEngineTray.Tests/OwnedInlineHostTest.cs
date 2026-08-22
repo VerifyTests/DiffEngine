@@ -339,7 +339,7 @@ public class OwnedInlineHostTest
         owner.Queue();
         owner.Queue(@"c:\repo\OtherTests.cs", 7);
 
-        owner.Host.DiscardAll();
+        owner.Host.DiscardAll(out _);
 
         await Assert.That(owner.Host.List()).IsEmpty();
     }

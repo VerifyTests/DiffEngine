@@ -26,7 +26,11 @@ interface IInlineHost
 
     bool Discard(PendingSnapshot snapshot, out string? message);
     bool AcceptAll(out string? message);
-    void DiscardAll();
+    /// <summary>
+    /// False when the queue owner could not be asked, so a caller clearing its own state knows not
+    /// to.
+    /// </summary>
+    bool DiscardAll(out string? message);
 
     /// <summary>
     /// Bring the window forward on this item, launching one if there is none.

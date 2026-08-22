@@ -96,8 +96,14 @@ class RemoteInlineHost : IInlineHost
             : AcceptOutcome.Applied;
     }
 
+    /// <summary>
+    /// On <see cref="acceptWait"/>, not the short timeout. Discarding is not a clock driven call
+    /// - it comes from the menu or a hot key - and the owner answering it may be busy inside
+    /// InlineApplier, which waits up to ten seconds on its cross process mutex. Half a second
+    /// turned a busy owner into "The snapshot viewer is not running."
+    /// </summary>
     public bool Discard(PendingSnapshot snapshot, out string? message) =>
-        Send(ViewerVerb.Discard, snapshot.Key, ViewerClient.ShortTimeout, out message);
+        Send(ViewerVerb.Discard, snapshot.Key, acceptWait, out message);
 
     /// <summary>
     /// True only when the queue is empty afterwards, for the reason <see cref="Accept"/> gives —
@@ -110,8 +116,14 @@ class RemoteInlineHost : IInlineHost
         Send(ViewerVerb.AcceptAll, null, acceptWait, out message) &&
         List().Count == 0;
 
-    public void DiscardAll() =>
-        Send(ViewerVerb.DiscardAll, null, ViewerClient.ShortTimeout, out _);
+    /// <summary>
+    /// As <see cref="Discard"/>, and the outcome is returned rather than dropped. Discarded on a
+    /// busy owner used to do nothing at all while Tracker.Clear went ahead and emptied its own
+    /// snapshot list, so "Discard (n)" reported success and everything reappeared on the next
+    /// scan two seconds later.
+    /// </summary>
+    public bool DiscardAll(out string? message) =>
+        Send(ViewerVerb.DiscardAll, null, acceptWait, out message);
 
     public void Focus(PendingSnapshot snapshot) =>
         Send(ViewerVerb.Focus, snapshot.Key, ViewerClient.ShortTimeout, out _);
