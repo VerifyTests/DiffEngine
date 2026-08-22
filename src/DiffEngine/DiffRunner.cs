@@ -6,7 +6,33 @@ namespace DiffEngine;
 /// </summary>
 public static partial class DiffRunner
 {
-    public static bool Disabled { get; set; } = DisabledChecker.IsDisable();
+    /// <summary>
+    /// Whether launching a diff tool is turned off, for this process or for this async context.
+    /// <para>
+    /// Read rather than captured, so that the overrides feeding it - <see cref="BuildServerDetector.Detected" />
+    /// and <see cref="AiCliDetector.Detected" />, both of which a test host sets after it has
+    /// loaded - are honoured whenever they are set. Captured once at type initialisation, they
+    /// were inert the moment anything had touched this class, and an AsyncLocal override could
+    /// never have reached a value read into a static anyway.
+    /// </para>
+    /// <para>
+    /// Setting it pins it, and nothing is read from the environment after that.
+    /// </para>
+    /// </summary>
+    public static bool Disabled
+    {
+        get => disabled ?? DisabledChecker.IsDisable();
+        set => disabled = value;
+    }
+
+    static bool? disabled;
+
+    /// <summary>
+    /// Forgets an explicit <see cref="Disabled" />, so it is read from the environment again. For
+    /// tests, which is where anything sets it and then wants the detectors back.
+    /// </summary>
+    internal static void ResetDisabled() =>
+        disabled = null;
 
     public static void MaxInstancesToLaunch(int value) =>
         MaxInstance.SetForAppDomain(value);
