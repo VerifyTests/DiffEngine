@@ -45,6 +45,13 @@ static class MaxInstance
         ResetCapturedValue();
     }
 
+    /// <summary>
+    /// Forgets the instances launched so far. For tests, which need the limit to mean something
+    /// definite rather than however many launches the rest of the run happened to make.
+    /// </summary>
+    internal static void ResetCount() =>
+        Interlocked.Exchange(ref launchedInstances, 0);
+
     public static bool Reached()
     {
         var count = Interlocked.Increment(ref launchedInstances);
