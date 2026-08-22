@@ -118,10 +118,10 @@ public static partial class DiffTools
         firstTextTool = null;
         resolved.Clear();
 
-        foreach (var definition in ToolsOrder.Sort(throwForNoTool, order).Reverse())
+        foreach (var (definition, requested) in ToolsOrder.Sort(order).Reverse())
         {
             var tool = definition.Tool;
-            AddTool(
+            var added = AddTool(
                 tool.ToString(),
                 tool,
                 definition.AutoRefresh,
@@ -133,6 +133,16 @@ public static partial class DiffTools
                 definition.UseShellExecute,
                 definition.CreateNoWindow,
                 definition.KillLockingProcess);
+
+            // Here rather than in Sort, because this is where being installed is decided: Sort
+            // works from Definitions, which holds every tool whether it is on the machine or not,
+            // so it could never answer this question
+            if (added == null &&
+                requested &&
+                throwForNoTool)
+            {
+                throw new($"`DiffEngine_ToolOrder` is configured to use '{tool}' but it is not installed.");
+            }
         }
 
         custom.Reverse();
