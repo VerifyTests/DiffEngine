@@ -21,6 +21,7 @@ public class SettingsWriteTests :
         using var cancellation = new CancelSource();
         var reading = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var missing = 0;
+        var looks = 0;
         var unreadable = new ConcurrentBag<string>();
         var reader = Task.Run(
             () =>
@@ -28,7 +29,6 @@ public class SettingsWriteTests :
                 reading.SetResult(true);
                 while (!cancellation.IsCancellationRequested)
                 {
-                    string text;
                     try
                     {
                         // Sharing everything, including delete, so that reading the file cannot
@@ -39,30 +39,37 @@ public class SettingsWriteTests :
                             FileAccess.Read,
                             FileShare.ReadWrite | FileShare.Delete);
                         using var streamReader = new StreamReader(stream);
-                        text = streamReader.ReadToEnd();
+                        var text = streamReader.ReadToEnd();
+                        if (!CanBeRead(text))
+                        {
+                            unreadable.Add(text);
+                        }
                     }
                     catch (FileNotFoundException)
                     {
                         Interlocked.Increment(ref missing);
-                        continue;
                     }
                     catch (Exception exception)
                         when (exception is IOException or UnauthorizedAccessException)
                     {
                         // The OS asking to come back, rather than the file being damaged
-                        continue;
                     }
 
-                    if (!CanBeRead(text))
-                    {
-                        unreadable.Add(text);
-                    }
+                    Interlocked.Increment(ref looks);
+
+                    // Sampling rather than spinning. A reader that reopens the file the instant it
+                    // closes it holds it for most of the time it runs, which on a two core CI
+                    // machine starves the swap of every attempt it has - and that is the test
+                    // being the adversary, not the file being fragile
+                    Thread.Sleep(1);
                 }
             });
 
         await reading.Task;
 
-        for (var index = 0; index < 200; index++)
+        // Until the reader has looked enough times for the window to have shown itself, rather
+        // than a count of writes, which on a fast machine all pass between two of its looks
+        for (var index = 0; Volatile.Read(ref looks) < 100 && index < 5000; index++)
         {
             await SettingsHelper.WriteFile(
                 new()
@@ -74,6 +81,8 @@ public class SettingsWriteTests :
         await cancellation.CancelAsync();
         await reader;
 
+        // That the reader looked at all. Everything below is a statement about what it saw
+        await Assert.That(looks).IsGreaterThanOrEqualTo(100);
         await Assert.That(missing).IsEqualTo(0);
         await Assert.That(unreadable).IsEmpty();
     }
