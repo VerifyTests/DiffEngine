@@ -21,14 +21,14 @@ public class InlineApplierUnixTests :
     public async Task A_symlinked_source_is_followed_to_the_file_it_names()
     {
         var real = Path.Combine(directory, "Real.cs");
-        File.WriteAllText(real, source);
+        await File.WriteAllTextAsync(real, source);
         var link = Path.Combine(directory, "Link.cs");
         File.CreateSymbolicLink(link, real);
 
         var result = InlineApplier.Apply(Patch(link));
 
         await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
-        await Assert.That(File.ReadAllText(real)).Contains("\"new\"");
+        await Assert.That(await File.ReadAllTextAsync(real)).Contains("\"new\"");
         // Still a link, rather than a regular file holding the patch while the real one holds the
         // snapshot that failed
         await Assert.That(new FileInfo(link).LinkTarget).IsNotNull();
@@ -45,7 +45,7 @@ public class InlineApplierUnixTests :
     public async Task The_file_keeps_the_permissions_it_had()
     {
         var path = Path.Combine(directory, "Sample.cs");
-        File.WriteAllText(path, source);
+        await File.WriteAllTextAsync(path, source);
         const UnixFileMode mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                                   UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                                   UnixFileMode.OtherRead | UnixFileMode.OtherExecute;

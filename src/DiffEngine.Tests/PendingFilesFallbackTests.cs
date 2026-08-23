@@ -41,7 +41,7 @@ public class PendingFilesFallbackTests
             DiffEngineTray.IsRunning = true;
             Environment.SetEnvironmentVariable(ViewerClient.PortVariable, server.Port.ToString());
 
-            PendingFiles.AddMove("temp.txt", "target.txt", null, null, false, null);
+            await PendingFiles.AddMoveAsync("temp.txt", "target.txt", null, null, false, null, cancel.Token);
             await PendingFilesAddDelete("gone.txt");
 
             await Assert.That(heard).Contains(_ => _.StartsWith("Move:", StringComparison.Ordinal));

@@ -20,14 +20,14 @@ public class MaxInstanceReplacementTests :
         LimitTo(1);
 
         ProcessCleanup.Refresh();
-        var first = DiffRunner.Launch(temp, target);
+        var first = await DiffRunner.LaunchAsync(temp, target);
         await Assert.That(first).IsEqualTo(LaunchResult.StartedNewInstance);
 
         await WaitForRunning();
         ProcessCleanup.Refresh();
 
         // The slot is spent, but this pair is already open - so this is a replacement
-        var second = DiffRunner.Launch(temp, target);
+        var second = await DiffRunner.LaunchAsync(temp, target);
         await Assert.That(second).IsEqualTo(LaunchResult.StartedNewInstance);
     }
 
@@ -40,10 +40,10 @@ public class MaxInstanceReplacementTests :
         LimitTo(1);
 
         ProcessCleanup.Refresh();
-        await Assert.That(DiffRunner.Launch(temp, target)).IsEqualTo(LaunchResult.StartedNewInstance);
+        await Assert.That(await DiffRunner.LaunchAsync(temp, target)).IsEqualTo(LaunchResult.StartedNewInstance);
 
         ProcessCleanup.Refresh();
-        await Assert.That(DiffRunner.Launch(otherTemp, otherTarget)).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
+        await Assert.That(await DiffRunner.LaunchAsync(otherTemp, otherTarget)).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
     }
 
     /// <summary>
