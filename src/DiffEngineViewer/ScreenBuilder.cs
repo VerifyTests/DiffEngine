@@ -95,7 +95,7 @@ static class ScreenBuilder
             return null;
         }
 
-        return new(file.Path, header.Width, header.Height);
+        return new(file.Path, header.Width, header.Height, file.Hash);
     }
 
     static IReadOnlyList<QueueItem> BuildQueue(SessionState state, int body, out int top)

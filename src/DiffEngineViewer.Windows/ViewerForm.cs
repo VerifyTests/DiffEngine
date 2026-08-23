@@ -422,9 +422,14 @@ sealed class ViewerForm : Form
               left.Row == right.Row &&
               left.Labels.SequenceEqual(right.Labels);
 
-    static bool Same(Pane left, Pane right) =>
+    internal static bool Same(Pane left, Pane right) =>
         left.Header == right.Header &&
         left.ScrollTop == right.ScrollTop &&
         left.TotalRows == right.TotalRows &&
+        // Records all the way down, so this compares the path, the size and the content stamp. A
+        // re-run that rewrites a received image at the same size changes nothing else about the
+        // screen - the rows say format, dimensions and byte count, and for BMP those hold - so
+        // without it Apply returned before repainting and the pane kept the previous picture.
+        left.Image == right.Image &&
         left.Rows.SequenceEqual(right.Rows);
 }

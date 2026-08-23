@@ -13,4 +13,10 @@
 /// worth trying.
 /// </para>
 /// </summary>
-record ImagePane(string Path, int Width, int Height);
+/// <param name="Hash">
+/// What the file held when the model was built, so a head can tell one picture from another at the
+/// same path and size. Not for drawing - the head reads the file - but for deciding whether what
+/// is on screen is still this. A re-run that rewrites a received image at the same dimensions
+/// changes nothing else in the model, and for BMP that is every re-run.
+/// </param>
+record ImagePane(string Path, int Width, int Height, string? Hash);
