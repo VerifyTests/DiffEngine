@@ -1,4 +1,4 @@
-namespace DiffEngine;
+﻿namespace DiffEngine;
 
 /// <summary>
 /// Applies an <see cref="InlinePatch"/> to a source file, preserving the file's
@@ -55,6 +55,10 @@ public static class InlineApplier
         {
             return InlineApplyResult.Failed($"Invalid InlinePatch.SourceFile: {patch.SourceFile}", exception);
         }
+
+        // Followed before anything else, so the lock, the mutex, the read and the swap all name
+        // the file that actually holds the source
+        fullPath = ResolveLink(fullPath);
 
         var newContent = SourceLanguage.NormalizeNewlines(patch.NewContent);
         var normalizedPath = fullPath.ToLowerInvariant();
@@ -199,6 +203,65 @@ public static class InlineApplier
     /// framework this targets.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The file a symlinked source points at, which is the file to patch.
+    /// <para>
+    /// The whole file is rewritten through a temporary and swapped in, and on Linux and macOS that
+    /// swap is a rename: it replaces the link itself with a regular file, leaving the target still
+    /// holding the old literal and the link no longer a link. Following it first puts the patch on
+    /// the real file, and gives two links to one file the same lock into the bargain.
+    /// </para>
+    /// <para>
+    /// The final target rather than one hop, since a chain has the same problem, and the path as
+    /// it stands when nothing resolves: a broken link is a file that cannot be read, which the
+    /// read reports better than this could.
+    /// </para>
+    /// </summary>
+    static string ResolveLink(string path)
+    {
+#if NET6_0_OR_GREATER
+        try
+        {
+            return File.ResolveLinkTarget(path, true)?.FullName ?? path;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return path;
+        }
+#else
+        return path;
+#endif
+    }
+
+    /// <summary>
+    /// The destination's Unix permissions onto the temporary, because the swap is a rename and the
+    /// file that survives it is the temporary - created with this process's umask. A source file
+    /// that was executable, or group writable, or anything else out of the ordinary, came back as
+    /// whatever the umask happened to say. Windows keeps the destination's ACLs across a Replace,
+    /// so there is nothing to carry there.
+    /// </summary>
+    static void CopyMode(string destination, string temporary)
+    {
+#if NET7_0_OR_GREATER
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            File.SetUnixFileMode(temporary, File.GetUnixFileMode(destination));
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Best effort. The content is the point, and a mode that could not be read or set is
+            // not worth failing a patch that otherwise applied.
+        }
+#endif
+    }
+
     static void WriteThroughTemporary(string fullPath, byte[] output)
     {
         var directory = Path.GetDirectoryName(fullPath)!;
@@ -208,6 +271,7 @@ public static class InlineApplier
         try
         {
             File.WriteAllBytes(temporary, output);
+            CopyMode(fullPath, temporary);
             File.Replace(temporary, fullPath, null);
         }
         finally
