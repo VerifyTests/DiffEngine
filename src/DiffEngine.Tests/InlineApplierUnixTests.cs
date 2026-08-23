@@ -16,7 +16,8 @@ public class InlineApplierUnixTests :
     /// same snapshot again and the patched copy was invisible to the compiler.
     /// </summary>
     [Test]
-    [SkipOnWindows("Making a symlink on Windows needs elevation or developer mode, so this cannot be arranged there.")]
+    // A symlink on Windows needs elevation or developer mode, so this cannot be arranged there.
+    [RunOn(TUnit.Core.Enums.OS.Linux | TUnit.Core.Enums.OS.MacOs)]
     public async Task A_symlinked_source_is_followed_to_the_file_it_names()
     {
         var real = Path.Combine(directory, "Real.cs");
@@ -39,7 +40,8 @@ public class InlineApplierUnixTests :
     /// as whatever the umask said.
     /// </summary>
     [Test]
-    [SkipOnWindows("A Unix file mode is not a thing Windows has.")]
+    // A Unix file mode is not a thing Windows has.
+    [RunOn(TUnit.Core.Enums.OS.Linux | TUnit.Core.Enums.OS.MacOs)]
     public async Task The_file_keeps_the_permissions_it_had()
     {
         var path = Path.Combine(directory, "Sample.cs");
