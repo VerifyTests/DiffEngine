@@ -1,8 +1,9 @@
 /// <summary>
 /// The tray's tracked moves and deletes, as the inline queue owner reaches them to answer the
 /// wire: listed into a full listing, and accepted or discarded by their prefixed keys. Tray only —
-/// a viewer that owns the queue never has any, because DiffEngine only sends moves and deletes to
-/// a running tray.
+/// the interface a tray owner reaches its own tracker through. A viewer that owns the queue holds
+/// the equivalent entries in its session instead, which is where DiffEngine's moves, deletes and
+/// pairs go when no tray is running.
 /// <para>
 /// Everything here can run on a listener thread, so nothing behind it may raise UI: a locked move
 /// is refused with a message pointing at the tray menu instead of prompting.
@@ -39,6 +40,14 @@ interface ITrackedFiles
     void AddMove(string temp, string target);
 
     void AddDelete(string file);
+
+    /// <summary>
+    /// Drop a tracked move or delete without touching the file, for a test that started passing.
+    /// Neither <see cref="Accept"/> nor <see cref="Discard"/>, because both of those act on disk
+    /// and DiffEngine has already dealt with the file by the time this arrives. False when the key
+    /// was not tracked here, which is the goal state either way.
+    /// </summary>
+    bool Untrack(string key);
 
     int DiscardAll();
 }

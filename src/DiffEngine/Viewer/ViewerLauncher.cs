@@ -63,6 +63,22 @@ static class ViewerLauncher
     public static bool LaunchDelete(string file) =>
         Start($"--delete \"{file}\"") is not null;
 
+    /// <summary>
+    /// Starts a viewer holding one failing pair, for when the tool resolved for that pair is the
+    /// viewer itself and nothing owns the queue. The same launch <see cref="LaunchDelete"/> makes,
+    /// for the same reason: the pair joins a queue that later pairs can join too.
+    /// </summary>
+    public static bool LaunchDiff(string temp, string target) =>
+        Start(DiffArguments(temp, target)) is not null;
+
+    /// <summary>
+    /// Built here rather than at each caller, because the tray stores these arguments against the
+    /// tracked move and re-runs them for "Open diff tool". A relaunch that did not say --diff would
+    /// open a window of its own instead of raising the queue the pair is already in.
+    /// </summary>
+    public static string DiffArguments(string temp, string target) =>
+        $"--diff \"{temp}\" \"{target}\"";
+
     static Process? Start(InlinePatch patch) =>
         // The source and line go on the command line, not just in the payload, so each launch is
         // distinguishable: ProcessCleanup matches on command line, and it makes the process

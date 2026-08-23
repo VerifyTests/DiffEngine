@@ -32,6 +32,10 @@ static partial class Implementation
             // Console subsystem, so without this a window flashes on every launch.
             CreateNoWindow: true,
             Notes: """
+                 * The one tool DiffEngine does not open per pair. Every failing pair joins one
+                   window, so the auto-refresh and MDI table above does not describe it: nothing
+                   is relaunched, nothing is killed, and a test that starts passing has its entry
+                   dropped instead
                  * Bundled inside the DiffEngine package, so it needs no install
                  * Also available standalone as `DiffEngineViewer.Windows`, `.Mac` or `.Linux`
                  * Renders natively per platform: WinForms on Windows, AppKit and Core Text on

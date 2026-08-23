@@ -195,38 +195,4 @@ public class EngineInlineTests
         await Assert.That(result).IsEqualTo(EngineResult.NoViewerFound);
         await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
     }
-
-    /// <summary>
-    /// Points DiffEngine at a real viewer on an ephemeral port and restores every piece of global
-    /// state it touches.
-    /// </summary>
-    sealed class EngineScope : IDisposable
-    {
-        readonly string? previousPort;
-        readonly string? previousOptOut;
-        readonly bool previousDisabled;
-
-        public EngineScope(bool disabled = false, bool optOut = false)
-        {
-            Fixture = new();
-            previousPort = Environment.GetEnvironmentVariable(EngineViewerClient.PortVariable);
-            previousOptOut = Environment.GetEnvironmentVariable(EngineRunner.InlineViewerVariable);
-            previousDisabled = EngineRunner.Disabled;
-
-            Environment.SetEnvironmentVariable(EngineViewerClient.PortVariable, Fixture.Server.Port.ToString());
-            Environment.SetEnvironmentVariable(EngineRunner.InlineViewerVariable, optOut ? "false" : null);
-            // Off by default in this process, because an AI CLI counts as disabled.
-            EngineRunner.Disabled = disabled;
-        }
-
-        public ServerFixture Fixture { get; }
-
-        public void Dispose()
-        {
-            Fixture.Dispose();
-            EngineRunner.Disabled = previousDisabled;
-            Environment.SetEnvironmentVariable(EngineViewerClient.PortVariable, previousPort);
-            Environment.SetEnvironmentVariable(EngineRunner.InlineViewerVariable, previousOptOut);
-        }
-    }
 }

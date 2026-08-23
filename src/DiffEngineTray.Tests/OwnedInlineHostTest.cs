@@ -630,6 +630,14 @@ public class OwnedInlineHostTest
 
         public void AddDelete(string file) =>
             Added.Add($"delete {file}");
+
+        public List<string> Untracked { get; } = [];
+
+        public bool Untrack(string key)
+        {
+            Untracked.Add(key);
+            return Has(key);
+        }
     }
 
     [Test]
@@ -667,6 +675,30 @@ public class OwnedInlineHostTest
         await Assert.That(response.Ok).IsTrue();
         await Assert.That(response.Message).IsEqualTo("Accepted tracked");
         await Assert.That(tracked.Accepted).IsEquivalentTo([@"move:c:\temp\a.txt"]);
+        await Assert.That(owner.Host.List()).HasSingleItem();
+    }
+
+    /// <summary>
+    /// A settle for a tracked key drops the pair rather than reaching the inline queue, which is
+    /// how a viewer-as-diff-tool pair leaves when its test starts passing: there is no window to
+    /// kill for it, only a row that should stop describing a file DiffEngine has removed.
+    /// </summary>
+    [Test]
+    public async Task ATrackedKeySettleUntracksThePair()
+    {
+        using var owner = new Owner(_ => throw new("the inline queue must not be touched"));
+        var tracked = new FakeTracked
+        {
+            MoveList = [new(@"move:c:\temp\a.txt", "Sample.Test (txt)", null, @"c:\temp\a.txt", @"c:\code\a.txt")]
+        };
+        owner.Host.TrackedFiles = tracked;
+        owner.Queue();
+
+        var response = owner.Send(new(ViewerVerb.Settle, @"move:c:\temp\a.txt"));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(tracked.Untracked).IsEquivalentTo([@"move:c:\temp\a.txt"]);
+        // The snapshot queued beside it is untouched: a settle names one entry.
         await Assert.That(owner.Host.List()).HasSingleItem();
     }
 

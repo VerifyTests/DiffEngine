@@ -79,8 +79,13 @@ public static partial class DiffRunner
             return InlineResult.NoViewerFound;
         }
 
-        var launched = await ViewerLauncher.LaunchAsync(patch, payload, cancel);
-        return launched ? InlineResult.Queued : InlineResult.NoViewerFound;
+        // Through the gate, because a parallel run reaches here once per failing snapshot with
+        // nothing owning the port, and every one of them used to start a viewer of its own.
+        var launched = await ViewerLaunchGate.LaunchAsync(
+            async () => await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel) == SendOutcome.Accepted,
+            () => ViewerLauncher.LaunchAsync(patch, payload, cancel),
+            cancel);
+        return launched == ViewerLaunchOutcome.Failed ? InlineResult.NoViewerFound : InlineResult.Queued;
     }
 
     /// <summary>

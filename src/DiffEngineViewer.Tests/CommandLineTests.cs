@@ -16,6 +16,14 @@ public class CommandLineTests
     public Task Attach() =>
         Verify(CommandLine.Parse(["--attach"]));
 
+    /// <summary>
+    /// Two paths as well, but queue mode rather than file mode: this is the pair DiffEngine sends
+    /// when the viewer is the diff tool, and every later pair has to be able to join it.
+    /// </summary>
+    [Test]
+    public Task Diff() =>
+        Verify(CommandLine.Parse(["--diff", "received.txt", "target.txt"]));
+
     [Test]
     [Arguments("NoArguments")]
     [Arguments("AttachWithMore", "--attach", "--source", "Tests.cs")]
@@ -27,6 +35,7 @@ public class CommandLineTests
     [Arguments("LineIsZero", "--inline", "--source", "Tests.cs", "--line", "0")]
     [Arguments("UnknownArgument", "--inline", "--wat", "1")]
     [Arguments("MissingValue", "--inline", "--source")]
+    [Arguments("DiffWithoutTarget", "--diff", "received.txt")]
     public async Task Rejected(string name, params string[] args)
     {
         var request = CommandLine.Parse(args);

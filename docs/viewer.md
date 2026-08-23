@@ -39,10 +39,16 @@ One package per operating system rather than one for all of them, because WinFor
 
 ## Usage
 
-Comparing two files:
+Comparing two files, in a window of its own:
 
 ```
 DiffEngineViewer <left> <right>
+```
+
+Comparing a failing pair, which DiffEngine sends when the diff tool it resolved for that pair is the viewer. Queued rather than given its own window, so later pairs join it:
+
+```
+DiffEngineViewer --diff <received> <target>
 ```
 
 Reviewing an inline snapshot, where the patch payload arrives on stdin:
@@ -83,6 +89,10 @@ Nothing is written to disk for inline review. The patch travels over stdin, or o
 ## Multiple pending snapshots
 
 A test run that fails several inline snapshots produces one window, not several. Whichever process binds the loopback port holds the queue; everything else hands its patch to that one. The window lists everything pending and offers **Accept all**.
+
+Failing file comparisons join the same queue, so a run that fails ten snapshots opens one window whether they are inline or on disk. Every other diff tool gets a process per pair, and DiffEngine closes each one as its test starts passing; the viewer is told to drop that row instead.
+
+Rows that came from files follow those files. A re-run that rewrites a received file shows the rewrite, a verified file that appears fills in the other pane, and a row whose received file goes away leaves with it — so nothing is offered for a file that is no longer there, however it went. The window closes once the last row does.
 
 The list sits in a column on the left. Drag the divider beside it to widen the column when the file names are longer than it is. When the list outgrows the window it follows the selection, keeping the selected row visible.
 

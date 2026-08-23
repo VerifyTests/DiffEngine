@@ -47,7 +47,9 @@ static class PendingFiles
             return;
         }
 
-        ViewerLauncher.LaunchDelete(file);
+        ViewerLaunchGate.Launch(
+            () => ViewerClient.TrySend(new(ViewerVerb.Delete, file)),
+            () => ViewerLauncher.LaunchDelete(file));
     }
 
     public static async Task AddDeleteAsync(string file, Cancel cancel)
@@ -63,7 +65,153 @@ static class PendingFiles
             return;
         }
 
-        ViewerLauncher.LaunchDelete(file);
+        await ViewerLaunchGate.LaunchAsync(
+            async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel),
+            () => Task.FromResult(ViewerLauncher.LaunchDelete(file)),
+            cancel);
+    }
+
+    /// <summary>
+    /// A failing pair whose resolved diff tool is the viewer itself.
+    /// <para>
+    /// Tracked exactly as any other move is - the tray when one is running, the queue owner
+    /// otherwise - and then shown, which is the part <see cref="ViewerVerb.Move" /> withholds.
+    /// Every other tool's move arrives with that tool's window already open for the pair; this one
+    /// has no window until something raises one over the entry.
+    /// </para>
+    /// <para>
+    /// The window is a <see cref="ViewerVerb.Focus" /> when the tray took the move, because the
+    /// tray tracks it and the queue owner - normally that same tray - only has to raise something
+    /// over it. In the arrangement where a viewer owns the queue while a tray runs, that viewer
+    /// does not know the tray's files, so the focus finds nothing and the pair stays what it was
+    /// before any of this: an entry in the tray menu.
+    /// </para>
+    /// </summary>
+    public static LaunchResult AddDiff(ResolvedTool tool, string tempFile, string targetFile)
+    {
+        // No process, and the arguments and CanKill from the one place that answers that, because
+        // the tray works out the same two values for itself when a move arrives without them.
+        var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
+        if (DiffEngineTray.IsRunning &&
+            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null))
+        {
+            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)));
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        if (ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile), out var response))
+        {
+            return response.Ok
+                ? LaunchResult.AlreadyRunningAndSupportsRefresh
+                : Refused(tempFile, targetFile);
+        }
+
+        return Launched(
+            ViewerLaunchGate.Launch(
+                () => ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile)),
+                () => ViewerLauncher.LaunchDiff(tempFile, targetFile)));
+    }
+
+    /// <summary>
+    /// A launch that turned out not to be one is not reported as one. Twenty pairs failing at once
+    /// put twenty callers on the gate and one viewer on the screen, and calling that twenty new
+    /// instances is how the count stopped meaning anything.
+    /// </summary>
+    static LaunchResult Launched(ViewerLaunchOutcome outcome) =>
+        outcome switch
+        {
+            ViewerLaunchOutcome.Launched => LaunchResult.StartedNewInstance,
+            ViewerLaunchOutcome.Taken => LaunchResult.AlreadyRunningAndSupportsRefresh,
+            _ => LaunchResult.NoDiffToolFound
+        };
+
+    /// <summary>
+    /// An owner that is there and said no, which is an owner too old to know the verb. Launching a
+    /// second viewer cannot change that answer and would bind nothing, so the pair goes over as a
+    /// plain move: a row with nothing raised over it, which every owner has always understood.
+    /// </summary>
+    static LaunchResult Refused(string tempFile, string targetFile) =>
+        ViewerClient.TrySend(new(ViewerVerb.Move, tempFile, targetFile))
+            ? LaunchResult.AlreadyRunningAndSupportsRefresh
+            : LaunchResult.NoDiffToolFound;
+
+    /// <inheritdoc cref="AddDiff"/>
+    public static async Task<LaunchResult> AddDiffAsync(ResolvedTool tool, string tempFile, string targetFile, Cancel cancel)
+    {
+        var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
+        if (DiffEngineTray.IsRunning &&
+            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel))
+        {
+            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel);
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel);
+        if (outcome == SendOutcome.Accepted)
+        {
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        if (outcome == SendOutcome.Refused)
+        {
+            return await ViewerClient.TrySendAsync(new(ViewerVerb.Move, tempFile, targetFile), cancel)
+                ? LaunchResult.AlreadyRunningAndSupportsRefresh
+                : LaunchResult.NoDiffToolFound;
+        }
+
+        return Launched(
+            await ViewerLaunchGate.LaunchAsync(
+                async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel),
+                () => Task.FromResult(ViewerLauncher.LaunchDiff(tempFile, targetFile)),
+                cancel));
+    }
+
+    /// <summary>
+    /// The other end of <see cref="AddDiff" />: the pair's test started passing, so the row it
+    /// took goes.
+    /// <para>
+    /// A settle rather than a kill, because there is no process of its own to kill and the window
+    /// it is drawn in holds every other pending pair. And rather than a discard, because the
+    /// received file a discard would delete is one DiffEngine has already removed.
+    /// </para>
+    /// <para>
+    /// Silent when nobody answers, the same bargain a pending file with no surface makes: no
+    /// owner means no row, which is the state this was asking for.
+    /// </para>
+    /// </summary>
+    public static void SettleDiff(string tempFile) =>
+        ViewerClient.TrySend(new(ViewerVerb.Settle, TrackedKeys.ForMove(tempFile)));
+
+    /// <summary>
+    /// Whether a pending file should take the <see cref="AddDiff" /> route rather than the plain
+    /// tracking one, which is exactly whether the tool that would have opened a window for it is
+    /// the viewer.
+    /// </summary>
+    public static bool IsViewer(ResolvedTool tool) =>
+        tool.Tool == DiffTool.DiffEngineViewer;
+
+    /// <summary>
+    /// How a tracked move is opened again, and whether the window that opens may be killed.
+    /// <para>
+    /// Answered here rather than at each caller, because there are two: this file, sending the
+    /// move to a tray, and the tray itself, working them out from the extension for a move that
+    /// arrived without them. The two disagreeing is not theoretical - the viewer's declared
+    /// arguments are still the plain two path form, so the tray's answer reopened a pair in a
+    /// window of its own while the queue it belongs to was on screen behind it.
+    /// </para>
+    /// <para>
+    /// A viewer is never killable. It draws every pending pair in one window, so killing the one
+    /// a pair was opened from takes the rest with it.
+    /// </para>
+    /// </summary>
+    public static (string arguments, bool canKill) RelaunchFor(ResolvedTool tool, string temp, string target)
+    {
+        if (IsViewer(tool))
+        {
+            return (ViewerLauncher.DiffArguments(temp, target), false);
+        }
+
+        return (tool.GetArguments(temp, target), !tool.IsMdi);
     }
 
     public static void AddMove(

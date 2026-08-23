@@ -58,8 +58,8 @@ flowchart LR
     Files[("source files and<br/>staged patch files")]
 
     Engine -->|"3492 moves, deletes (one way),<br/>when a tray is running"| Tray
-    Engine -->|"3493 inline, settle, and<br/>moves and deletes with no tray"| Owner
-    Engine -.->|"launch with patch on stdin, or<br/>with a delete, when nothing owns 3493"| Window
+    Engine -->|"3493 inline, settle, and diff,<br/>moves and deletes with no tray"| Owner
+    Engine -.->|"launch with patch on stdin, or with<br/>a delete or a pair, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
     Window <-->|"3493 listfull, accept, discard"| Owner
     Plugin -->|"3493 settle, after accepting"| Owner
@@ -173,10 +173,29 @@ apart.
   `Tray/TrayDetector.cs` as source, because DiffEngine publishes and embeds the heads and a
   reference back would be a cycle.
 - Holds pending moves and deletes itself when it owns the queue, which is what happens with no
-  tray installed. They are ordinary `QueueEntryKind.Move`/`Delete` entries — the same ones an
+  tray installed, and every failing pair DiffEngine resolved it for, whether a tray is running or
+  not.
+- `TrackedWatch` is what keeps those rows honest, and only runs for a queue this process owns. An
+  owned queue is otherwise push only — a socket message or a launch argument puts an entry in it
+  and nothing ever revisits it — so rows described the moment they arrived and nothing after.
+  `OwnerLink.ReadChanges` has always done the equivalent for a displayed queue, on the same 200ms
+  cadence and the same `FileStamp` test, which is why the two are worth reading together. A pass
+  that finds nothing must return the identical `SessionState`, or the open context menu closes
+  five times a second. It stops short of the tray's third rule, dropping a pair whose two files
+  became byte equal: that check exists because an external diff tool might have converged them,
+  and here the viewer is the diff tool. They are ordinary `QueueEntryKind.Move`/`Delete` entries — the same ones an
   attached viewer draws for the tray's — so nothing about how they look or what their menu offers
   is per arrangement. Only who applies them differs: `ViewerActions.MoveFile`/`DeleteFile` here,
   a forwarded key there.
+- `ViewerMode.File` — two paths on the command line, one window, no port — is reached by nothing in
+  DiffEngine any more, and is kept deliberately rather than left behind. It is the blocking
+  one-pair-per-invocation shape a `git difftool` style caller needs, where queue mode's second
+  invocation forwards and exits and the caller races ahead; it is the only place accepting means
+  copy rather than move, which is what two arbitrary files a person named deserve; and
+  `Fixtures.File()` is the "one entry, no queue chrome" state around thirty test call sites are
+  built on, so collapsing it would re-approve every renderer, scroll and pixel snapshot with a
+  pending column those tests are not about. It costs a handful of `if`s in `ScreenBuilder`,
+  `QueueProjection` and `Settle`. Do not delete it because it looks unreachable.
 - Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the queue,
   and a process that fails to bind talks to the owner instead. A viewer that does not own one runs
   with `--attach`: it polls `listfull`, derives every pane from the patches that come back, and
@@ -244,6 +263,14 @@ apart.
   window — the diff tool DiffRunner just launched for that pair — and a delete has no second file
   to compare against, so no tool ever opens for it. `--delete <file>` is the launch, on the command
   line rather than stdin because a path fits where snapshot content does not.
+- Unless that diff tool is the viewer, which is the `Diff` verb and `--diff <received> <target>`.
+  Then the premise above is false — there is no window for the pair yet — so it is tracked exactly
+  as a move and a window is raised over the entry, and `DiffRunner` skips the whole process per
+  pair path: nothing to find already showing it, no window to replace, no `MaxInstance` slot to
+  spend, and no process for the tray to kill on accept. `DiffRunner.Kill` sends `Settle` for the
+  move key rather than killing anything, since the row is drawn in a window shared with every other
+  pending pair. That is what makes ten failing image snapshots one window instead of ten, and it is
+  only available to the viewer because no other tool can be told to drop one pair.
 - The catch that shape creates: every inline transition rebuilds its half of the queue from
   `InlineQueue`, so `ViewerSession.Rebuild` carries the tracked entries across it. Without that,
   accepting one snapshot silently drops the files pending beside it. `Sync` is the one caller that

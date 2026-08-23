@@ -4,10 +4,12 @@ static class CommandLine
         DiffEngineViewer <left> <right>
         DiffEngineViewer --inline --source <source file> --line <number>
         DiffEngineViewer --delete <file>
+        DiffEngineViewer --diff <received> <target>
         DiffEngineViewer --attach
 
         Inline mode reads the patch payload from stdin.
         Delete mode takes a file that a passing test no longer produces.
+        Diff mode takes a failing pair, and queues it rather than taking a window of its own.
         Attach mode reads nothing, and displays the queue of whoever owns the port.
         """;
 
@@ -45,6 +47,21 @@ static class CommandLine
             return new(ViewerMode.Inline, args[1], null, null, 0, null)
             {
                 Delete = true
+            };
+        }
+
+        if (args[0] == "--diff")
+        {
+            if (args.Count != 3)
+            {
+                return Error("--diff takes a received file and a target.");
+            }
+
+            // Queue mode for the same reason --delete is: DiffEngine sends these one pair at a
+            // time, and every pair after the first has to join what is already on screen.
+            return new(ViewerMode.Inline, args[1], args[2], null, 0, null)
+            {
+                Diff = true
             };
         }
 

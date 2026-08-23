@@ -26,6 +26,11 @@ static class ViewerProgram
                 return RunDelete(request.Left!, open);
             }
 
+            if (request.Diff)
+            {
+                return RunDiff(request.Left!, request.Right!, open);
+            }
+
             if (request.Mode == ViewerMode.Inline)
             {
                 return RunInline(open);
@@ -116,6 +121,44 @@ static class ViewerProgram
     }
 
     /// <summary>
+    /// One failing pair, owning the queue so more can join it.
+    /// <para>
+    /// Launched by DiffEngine when the diff tool it resolved for the pair is this viewer and
+    /// nothing answered on the port. Tracked as a pending move, which is what the pair already
+    /// is everywhere else: the same entry a tray's move produces, accepted by putting the
+    /// received file where the target is.
+    /// </para>
+    /// <para>
+    /// Deliberately not <see cref="ViewerMode.File"/>, which owns no port and so cannot be joined.
+    /// That mode is what a hand run <c>DiffEngineViewer left right</c> still gets, where a queue
+    /// nothing else can add to is the whole intent.
+    /// </para>
+    /// </summary>
+    static int RunDiff(string temp, string target, OpenWindow open)
+    {
+        var port = ViewerClient.Port;
+        if (!ViewerServer.TryBind(port, out var server))
+        {
+            if (!ViewerClient.TrySend(new(ViewerVerb.Diff, temp, target), out var response, port) ||
+                !response.Ok)
+            {
+                Console.Error.WriteLine("A viewer holds the port but did not accept the pair.");
+                return 1;
+            }
+
+            return 0;
+        }
+
+        using (server)
+        {
+            var start = ViewerSession.EnqueueTracked(
+                SessionState.Start(ViewerMode.Inline),
+                TrackedEntry.ForMove(temp, target));
+            return Run(new(start), server, null, open);
+        }
+    }
+
+    /// <summary>
     /// Display only: the queue belongs to whoever holds the port, and this process just draws it
     /// and forwards commands. Launched this way by DiffEngineTray, which owns the queue itself and
     /// so can never be the window.
@@ -180,6 +223,11 @@ static class ViewerProgram
         var polling = link is null
             ? null
             : Task.Run(() => link.Run(cancel.Token), Cancel.None);
+        // Only for a queue this process owns. A displayed one is re-read by OwnerLink already, and
+        // its files belong to the owner, which is what decides when an entry stops being pending.
+        var watching = server is null
+            ? null
+            : Task.Run(() => new TrackedWatch(host).Run(cancel.Token), Cancel.None);
 
         using (window)
         {
@@ -191,6 +239,7 @@ static class ViewerProgram
         {
             listening?.Wait(TimeSpan.FromSeconds(2));
             polling?.Wait(TimeSpan.FromSeconds(2));
+            watching?.Wait(TimeSpan.FromSeconds(2));
         }
         catch (AggregateException)
         {
