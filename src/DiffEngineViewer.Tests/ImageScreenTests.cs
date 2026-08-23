@@ -99,8 +99,10 @@ public class ImageScreenTests
     public async Task PanesCarryThePicture()
     {
         var screen = ScreenBuilder.Build(State(Received(), Expected()));
-        await Assert.That(screen.Left.Image).IsEqualTo(new("temp/sample.received.png", 800, 600));
-        await Assert.That(screen.Right.Image).IsEqualTo(new("code/sample.verified.png", 800, 600));
+        // The hash the side carried, which is how a head tells one picture from another at the
+        // same path and size - and how the Windows head knows to repaint for it
+        await Assert.That(screen.Left.Image).IsEqualTo(new("temp/sample.received.png", 800, 600, "0A"));
+        await Assert.That(screen.Right.Image).IsEqualTo(new("code/sample.verified.png", 800, 600, "0A"));
     }
 
     [Test]
