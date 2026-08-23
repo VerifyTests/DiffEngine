@@ -13,7 +13,7 @@ public class AmpersandTests
         using var strip = ViewerMenu.Build(new(0, ["Accept all in R&D"]));
 
         var item = strip.Items
-            .Cast<System.Windows.Forms.ToolStripItem>()
+            .Cast<ToolStripItem>()
             .Single();
         // Doubled, which is how a literal one is written. What is drawn is one
         await Assert.That(item.Text).IsEqualTo("Accept all in R&&D");
@@ -26,7 +26,7 @@ public class AmpersandTests
 
         var status = form.Controls
             .Find("status", true)
-            .OfType<System.Windows.Forms.Label>()
+            .OfType<Label>()
             .Single();
 
         await Assert.That(status.UseMnemonic).IsFalse();
