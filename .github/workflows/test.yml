@@ -193,9 +193,15 @@ jobs:
           # dylib, so loading it here covers the arm64 slice and the step below checks that the
           # x86_64 slice is present.
           #
+          # linux-x64 is here because it is the RID most people run and nothing else loads its
+          # committed binary: the Ubuntu job above overwrites that file with a fresh build before
+          # testing, so a linux-x64 rebuild that was never merged would have shipped unnoticed.
+          #
           # No Windows entry either, since that head renders with WinForms and loads nothing.
           - rid: osx-arm64
             os: macos-14
+          - rid: linux-x64
+            os: ubuntu-24.04
           - rid: linux-arm64
             os: ubuntu-24.04-arm
     steps:
