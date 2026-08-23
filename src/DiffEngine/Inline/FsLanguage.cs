@@ -28,7 +28,7 @@ sealed class FsLanguage : SourceLanguage
     /// test ends the chain with ToTask. Snapshot returns the SettingsTask and ToTask does not, so
     /// an appended call goes in front of it rather than after it.
     /// </summary>
-    internal override string? ChainTerminator => "ToTask";
+    internal override string ChainTerminator => "ToTask";
 
     /// <summary>
     /// The F# compiler does not implement <see cref="CallerArgumentExpressionAttribute"/> - it
