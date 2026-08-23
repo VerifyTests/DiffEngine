@@ -19,7 +19,7 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording();
 
-        var result = await PendingFiles.AddDiffAsync(Temp, Target, Exe, Cancel.None);
+        var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Temp}:{Target}"]);
@@ -30,7 +30,7 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording();
 
-        var result = PendingFiles.AddDiff(Temp, Target, Exe);
+        var result = PendingFiles.AddDiff(Viewer(), Temp, Target);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Temp}:{Target}"]);
@@ -46,7 +46,7 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording {Refuse = ViewerVerb.Diff};
 
-        var result = await PendingFiles.AddDiffAsync(Temp, Target, Exe, Cancel.None);
+        var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(owner.Heard).IsEquivalentTo(
@@ -61,7 +61,7 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording {Refuse = ViewerVerb.Diff};
 
-        PendingFiles.AddDiff(Temp, Target, Exe);
+        PendingFiles.AddDiff(Viewer(), Temp, Target);
 
         await Assert.That(owner.Heard).IsEquivalentTo(
         [
@@ -97,9 +97,72 @@ public class PendingFilesDiffTests
         await Assert.That(() => PendingFiles.SettleDiff(Temp)).ThrowsNothing();
     }
 
+    /// <summary>
+    /// The tray works the arguments out for itself when a move arrives without them, and used to
+    /// take the viewer's declared ones - two plain paths, which open a window of its own for a
+    /// pair whose queue is already on screen. Both callers ask this instead.
+    /// </summary>
+    [Test]
+    public async Task AViewerIsReopenedIntoItsQueueAndNeverKilled()
+    {
+        var (arguments, canKill) = PendingFiles.RelaunchFor(Viewer(), Temp, Target);
+
+        await Assert.That(arguments).IsEqualTo($"--diff \"{Temp}\" \"{Target}\"");
+        // One window holds every pending pair, so killing it takes the rest with it.
+        await Assert.That(canKill).IsFalse();
+    }
+
+    [Test]
+    public async Task AnOrdinaryToolKeepsItsOwnArgumentsAndStaysKillable()
+    {
+        var (arguments, canKill) = PendingFiles.RelaunchFor(Other(isMdi: false), Temp, Target);
+
+        await Assert.That(arguments).IsEqualTo($"\"{Temp}\" \"{Target}\"");
+        await Assert.That(canKill).IsTrue();
+    }
+
+    [Test]
+    public async Task AnMdiToolIsNotKillableEither()
+    {
+        var (_, canKill) = PendingFiles.RelaunchFor(Other(isMdi: true), Temp, Target);
+
+        await Assert.That(canKill).IsFalse();
+    }
+
+    static ResolvedTool Other(bool isMdi) =>
+        new(
+            name: "Fake",
+            exePath: Environment.ProcessPath!,
+            launchArguments: new(
+                Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+            isMdi: isMdi,
+            autoRefresh: false,
+            binaryExtensions: [],
+            requiresTarget: false,
+            supportsText: true,
+            useShellExecute: false);
+
     const string Temp = @"c:\temp\Sample.Test.received.png";
     const string Target = @"c:\code\Sample.Test.verified.png";
-    const string Exe = @"c:\tools\DiffEngineViewer.exe";
+
+    /// <summary>
+    /// Carries the identity the route branches on. Never started: an owner answers every time.
+    /// </summary>
+    static ResolvedTool Viewer() =>
+        new(
+            name: DiffTool.DiffEngineViewer.ToString(),
+            tool: DiffTool.DiffEngineViewer,
+            exePath: Environment.ProcessPath!,
+            launchArguments: new(
+                Left: (temp, target) => $"\"{target}\" \"{temp}\"",
+                Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+            isMdi: false,
+            autoRefresh: false,
+            binaryExtensions: [],
+            requiresTarget: false,
+            supportsText: true,
+            useShellExecute: false);
 
     /// <summary>
     /// A queue owner that only writes down what it was asked, so the assertions are about the

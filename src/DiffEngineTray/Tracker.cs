@@ -192,9 +192,12 @@ class Tracker :
         {
             if (DiffTools.TryFindByExtension(extension, out var tool))
             {
-                arguments = tool.GetArguments(temp, target);
+                // Through DiffEngine's own answer rather than straight off the definition, because
+                // the viewer's declared arguments still name two paths and running those opens a
+                // window of its own for a pair whose queue is already on screen.
+                (arguments, var killable) = PendingFiles.RelaunchFor(tool, temp, target);
+                canKill = killable;
                 exe = tool.ExePath;
-                canKill = !tool.IsMdi;
                 killLockingProcess = tool.KillLockingProcess;
             }
         }

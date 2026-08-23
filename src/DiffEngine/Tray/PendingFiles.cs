@@ -87,13 +87,13 @@ static class PendingFiles
     /// before any of this: an entry in the tray menu.
     /// </para>
     /// </summary>
-    public static LaunchResult AddDiff(string tempFile, string targetFile, string exe)
+    public static LaunchResult AddDiff(ResolvedTool tool, string tempFile, string targetFile)
     {
-        // CanKill false and no process: there is no window of its own to kill, and killing the
-        // shared one would take every other pair in it away as well. The arguments are stored all
-        // the same, because the tray re-runs them for "Open diff tool".
+        // No process, and the arguments and CanKill from the one place that answers that, because
+        // the tray works out the same two values for itself when a move arrives without them.
+        var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (DiffEngineTray.IsRunning &&
-            PiperClient.SendMove(tempFile, targetFile, exe, ViewerLauncher.DiffArguments(tempFile, targetFile), false, null))
+            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null))
         {
             ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)));
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
@@ -136,10 +136,11 @@ static class PendingFiles
             : LaunchResult.NoDiffToolFound;
 
     /// <inheritdoc cref="AddDiff"/>
-    public static async Task<LaunchResult> AddDiffAsync(string tempFile, string targetFile, string exe, Cancel cancel)
+    public static async Task<LaunchResult> AddDiffAsync(ResolvedTool tool, string tempFile, string targetFile, Cancel cancel)
     {
+        var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (DiffEngineTray.IsRunning &&
-            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, ViewerLauncher.DiffArguments(tempFile, targetFile), false, null, cancel))
+            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel))
         {
             await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel);
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
@@ -188,6 +189,30 @@ static class PendingFiles
     /// </summary>
     public static bool IsViewer(ResolvedTool tool) =>
         tool.Tool == DiffTool.DiffEngineViewer;
+
+    /// <summary>
+    /// How a tracked move is opened again, and whether the window that opens may be killed.
+    /// <para>
+    /// Answered here rather than at each caller, because there are two: this file, sending the
+    /// move to a tray, and the tray itself, working them out from the extension for a move that
+    /// arrived without them. The two disagreeing is not theoretical - the viewer's declared
+    /// arguments are still the plain two path form, so the tray's answer reopened a pair in a
+    /// window of its own while the queue it belongs to was on screen behind it.
+    /// </para>
+    /// <para>
+    /// A viewer is never killable. It draws every pending pair in one window, so killing the one
+    /// a pair was opened from takes the rest with it.
+    /// </para>
+    /// </summary>
+    public static (string arguments, bool canKill) RelaunchFor(ResolvedTool tool, string temp, string target)
+    {
+        if (IsViewer(tool))
+        {
+            return (ViewerLauncher.DiffArguments(temp, target), false);
+        }
+
+        return (tool.GetArguments(temp, target), !tool.IsMdi);
+    }
 
     public static void AddMove(
         string tempFile,

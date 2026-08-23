@@ -185,7 +185,7 @@ public static partial class DiffRunner
         // window to replace, and no slot to spend on a window that already exists.
         if (PendingFiles.IsViewer(tool))
         {
-            return PendingFiles.AddDiff(tempFile, targetFile, tool.ExePath);
+            return PendingFiles.AddDiff(tool, tempFile, targetFile);
         }
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
@@ -231,7 +231,7 @@ public static partial class DiffRunner
         // As above: the viewer has no window of its own for this pair to reason about.
         if (PendingFiles.IsViewer(tool))
         {
-            return await PendingFiles.AddDiffAsync(tempFile, targetFile, tool.ExePath, Cancel.None);
+            return await PendingFiles.AddDiffAsync(tool, tempFile, targetFile, Cancel.None);
         }
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
