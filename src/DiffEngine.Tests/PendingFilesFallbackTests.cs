@@ -55,6 +55,10 @@ public class PendingFilesFallbackTests
             await cancel.CancelAsync();
             try
             {
+                // No token: the line above already cancelled it, so passing it here would
+                // return before the listener had unwound rather than waiting for it to. The
+                // timeout is what bounds the drain
+                // ReSharper disable once MethodSupportsCancellation
                 await listening.WaitAsync(TimeSpan.FromSeconds(5));
             }
             catch (Exception exception)

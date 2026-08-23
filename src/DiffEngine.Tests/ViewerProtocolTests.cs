@@ -683,6 +683,7 @@ public class ViewerProtocolTests
             // No token on Task.Run: it cancels the scheduling rather than the delegate, so a pool
             // that had not picked this up before the cancel in the finally would leave the task
             // Canceled and the await below throwing. TrySend is blocking and takes no token anyway
+            // ReSharper disable once MethodSupportsCancellation
             var accepting = Task.Run(() =>
                 ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, hold)
                     ? slow

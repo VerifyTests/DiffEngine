@@ -214,6 +214,7 @@ public class InlineApplierTests
             // `await reader` throwing TaskCanceledException - which is what made this fail on CI,
             // on all three OSes, while passing on any machine with a spare core. The loop already
             // exits on the token, which is the only cancellation this ever wanted
+            // ReSharper disable once MethodSupportsCancellation
             var reader = Task.Run(
                 () =>
                 {

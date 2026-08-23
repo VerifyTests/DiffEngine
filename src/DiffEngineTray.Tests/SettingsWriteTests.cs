@@ -23,6 +23,11 @@ public class SettingsWriteTests :
         var missing = 0;
         var looks = 0;
         var unreadable = new ConcurrentBag<string>();
+        // No token on Task.Run. It cancels the scheduling rather than the delegate, so a pool
+        // that had not yet picked this up when the cancel lands leaves the task Canceled and
+        // `await reader` throwing. The loop already exits on the token, which is the only
+        // cancellation this ever wanted
+        // ReSharper disable once MethodSupportsCancellation
         var reader = Task.Run(
             () =>
             {
