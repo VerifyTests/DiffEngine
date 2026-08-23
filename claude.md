@@ -185,6 +185,15 @@ apart.
   attached viewer draws for the tray's — so nothing about how they look or what their menu offers
   is per arrangement. Only who applies them differs: `ViewerActions.MoveFile`/`DeleteFile` here,
   a forwarded key there.
+- `ViewerMode.File` — two paths on the command line, one window, no port — is reached by nothing in
+  DiffEngine any more, and is kept deliberately rather than left behind. It is the blocking
+  one-pair-per-invocation shape a `git difftool` style caller needs, where queue mode's second
+  invocation forwards and exits and the caller races ahead; it is the only place accepting means
+  copy rather than move, which is what two arbitrary files a person named deserve; and
+  `Fixtures.File()` is the "one entry, no queue chrome" state around thirty test call sites are
+  built on, so collapsing it would re-approve every renderer, scroll and pixel snapshot with a
+  pending column those tests are not about. It costs a handful of `if`s in `ScreenBuilder`,
+  `QueueProjection` and `Settle`. Do not delete it because it looks unreachable.
 - Single instance by socket bind on 3493 (`DiffEngine_ViewerPort`): whoever binds owns the queue,
   and a process that fails to bind talks to the owner instead. A viewer that does not own one runs
   with `--attach`: it polls `listfull`, derives every pane from the patches that come back, and
