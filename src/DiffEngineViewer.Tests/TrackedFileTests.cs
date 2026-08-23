@@ -95,6 +95,88 @@ public class TrackedFileTests
     }
 
     /// <summary>
+    /// A pair leaving because its test started passing. Settling drops it without touching disk,
+    /// which is what accepting and discarding both do and what neither should do here: DiffEngine
+    /// has already taken the received file away by the time this arrives.
+    /// </summary>
+    [Test]
+    public async Task SettlingAPairDropsItWithoutTouchingTheFiles()
+    {
+        var done = new List<string>();
+        var state = Owned(Fixtures.Move(), Fixtures.Delete());
+        state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
+
+        var settled = ViewerSession.Settle(state, Fixtures.Move().Key);
+
+        await Assert.That(settled.Queue.Select(_ => _.Kind))
+            .IsEquivalentTo([QueueEntryKind.Inline, QueueEntryKind.Delete]);
+        await Assert.That(done).IsEmpty();
+    }
+
+    [Test]
+    public async Task SettlingAPairThatIsNotQueuedChangesNothing()
+    {
+        var state = Owned(Fixtures.Delete());
+
+        var settled = ViewerSession.Settle(state, Fixtures.Move().Key);
+
+        await Assert.That(settled).IsSameReferenceAs(state);
+    }
+
+    /// <summary>
+    /// The keys a watch pass reports gone leave, and the rest of the queue is untouched.
+    /// </summary>
+    [Test]
+    public async Task RefreshDropsWhatWentAndKeepsWhatDidNot()
+    {
+        var state = Owned(Fixtures.Move(), Fixtures.Delete());
+        state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
+
+        var refreshed = ViewerSession.Refresh(state, [Fixtures.Move().Key], []);
+
+        await Assert.That(refreshed.Queue.Select(_ => _.Kind))
+            .IsEquivalentTo([QueueEntryKind.Inline, QueueEntryKind.Delete]);
+    }
+
+    [Test]
+    public async Task RefreshReplacesAnEntryByKey()
+    {
+        var state = Owned(Fixtures.Move());
+        var fresh = Fixtures.Move(left: "rewritten");
+
+        var refreshed = ViewerSession.Refresh(state, [], [fresh]);
+
+        await Assert.That(refreshed.Queue.Single().LeftText).IsEqualTo("rewritten");
+    }
+
+    /// <summary>
+    /// A pass runs several times a second, so one that found nothing has to be free: a new state
+    /// every time would close the open context menu and rebuild the screen forever.
+    /// </summary>
+    [Test]
+    public async Task RefreshFindingNothingChangesNothing()
+    {
+        var state = Owned(Fixtures.Move());
+
+        await Assert.That(ViewerSession.Refresh(state, [], [])).IsSameReferenceAs(state);
+        await Assert.That(ViewerSession.Refresh(state, ["not queued"], [])).IsSameReferenceAs(state);
+    }
+
+    /// <summary>
+    /// Housekeeping does not get to speak in the status line: the reader is still owed the answer
+    /// to whatever they last did.
+    /// </summary>
+    [Test]
+    public async Task RefreshKeepsTheMessage()
+    {
+        var state = Owned(Fixtures.Move(), Fixtures.Delete()) with { Message = "Accepted something" };
+
+        var refreshed = ViewerSession.Refresh(state, [Fixtures.Move().Key], []);
+
+        await Assert.That(refreshed.Message).IsEqualTo("Accepted something");
+    }
+
+    /// <summary>
     /// Worded the way an owning tray words its own sweep, so the same click reads the same
     /// whichever process is holding the files.
     /// </summary>

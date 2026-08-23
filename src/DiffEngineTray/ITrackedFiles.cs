@@ -40,5 +40,13 @@ interface ITrackedFiles
 
     void AddDelete(string file);
 
+    /// <summary>
+    /// Drop a tracked move or delete without touching the file, for a test that started passing.
+    /// Neither <see cref="Accept"/> nor <see cref="Discard"/>, because both of those act on disk
+    /// and DiffEngine has already dealt with the file by the time this arrives. False when the key
+    /// was not tracked here, which is the goal state either way.
+    /// </summary>
+    bool Untrack(string key);
+
     int DiscardAll();
 }

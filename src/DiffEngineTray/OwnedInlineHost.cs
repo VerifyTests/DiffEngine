@@ -174,8 +174,24 @@ sealed class OwnedInlineHost :
         return count;
     }
 
+    /// <summary>
+    /// A tracked key settles by being dropped: the pair belongs to a test that now passes, and
+    /// DiffEngine has already removed the received file, so there is nothing here to accept or
+    /// discard - only an entry that would otherwise sit on the queue describing a file that is
+    /// gone.
+    /// </summary>
     void IQueueOwner.Settle(string key, string? origin, string? member)
     {
+        if (TrackedKeys.IsTracked(key))
+        {
+            if (TrackedFiles?.Untrack(key) == true)
+            {
+                Changed?.Invoke();
+            }
+
+            return;
+        }
+
         lock (gate)
         {
             var settled = queue.Settle(key, origin, member);

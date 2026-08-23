@@ -66,6 +66,92 @@ static class PendingFiles
         ViewerLauncher.LaunchDelete(file);
     }
 
+    /// <summary>
+    /// A failing pair whose resolved diff tool is the viewer itself.
+    /// <para>
+    /// Tracked exactly as any other move is - the tray when one is running, the queue owner
+    /// otherwise - and then shown, which is the part <see cref="ViewerVerb.Move" /> withholds.
+    /// Every other tool's move arrives with that tool's window already open for the pair; this one
+    /// has no window until something raises one over the entry.
+    /// </para>
+    /// <para>
+    /// The window is a <see cref="ViewerVerb.Focus" /> when the tray took the move, because the
+    /// tray tracks it and the queue owner - normally that same tray - only has to raise something
+    /// over it. In the arrangement where a viewer owns the queue while a tray runs, that viewer
+    /// does not know the tray's files, so the focus finds nothing and the pair stays what it was
+    /// before any of this: an entry in the tray menu.
+    /// </para>
+    /// </summary>
+    public static LaunchResult AddDiff(string tempFile, string targetFile, string exe)
+    {
+        // CanKill false and no process: there is no window of its own to kill, and killing the
+        // shared one would take every other pair in it away as well. The arguments are stored all
+        // the same, because the tray re-runs them for "Open diff tool".
+        if (DiffEngineTray.IsRunning &&
+            PiperClient.SendMove(tempFile, targetFile, exe, ViewerLauncher.DiffArguments(tempFile, targetFile), false, null))
+        {
+            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)));
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        if (ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile), out var response))
+        {
+            return response.Ok
+                ? LaunchResult.AlreadyRunningAndSupportsRefresh
+                : Refused(tempFile, targetFile);
+        }
+
+        return ViewerLauncher.LaunchDiff(tempFile, targetFile)
+            ? LaunchResult.StartedNewInstance
+            : LaunchResult.NoDiffToolFound;
+    }
+
+    /// <summary>
+    /// An owner that is there and said no, which is an owner too old to know the verb. Launching a
+    /// second viewer cannot change that answer and would bind nothing, so the pair goes over as a
+    /// plain move: a row with nothing raised over it, which every owner has always understood.
+    /// </summary>
+    static LaunchResult Refused(string tempFile, string targetFile) =>
+        ViewerClient.TrySend(new(ViewerVerb.Move, tempFile, targetFile))
+            ? LaunchResult.AlreadyRunningAndSupportsRefresh
+            : LaunchResult.NoDiffToolFound;
+
+    /// <inheritdoc cref="AddDiff"/>
+    public static async Task<LaunchResult> AddDiffAsync(string tempFile, string targetFile, string exe, Cancel cancel)
+    {
+        if (DiffEngineTray.IsRunning &&
+            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, ViewerLauncher.DiffArguments(tempFile, targetFile), false, null, cancel))
+        {
+            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel);
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel);
+        if (outcome == SendOutcome.Accepted)
+        {
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
+        if (outcome == SendOutcome.Refused)
+        {
+            return await ViewerClient.TrySendAsync(new(ViewerVerb.Move, tempFile, targetFile), cancel)
+                ? LaunchResult.AlreadyRunningAndSupportsRefresh
+                : LaunchResult.NoDiffToolFound;
+        }
+
+        return ViewerLauncher.LaunchDiff(tempFile, targetFile)
+            ? LaunchResult.StartedNewInstance
+            : LaunchResult.NoDiffToolFound;
+    }
+
+    /// <summary>
+    /// Whether a pending file should take the <see cref="AddDiff" /> route rather than the plain
+    /// tracking one, which is exactly whether the tool that would have opened a window for it is
+    /// the viewer.
+    /// </summary>
+    public static bool IsViewer(ResolvedTool tool) =>
+        tool.Tool == DiffTool.DiffEngineViewer;
+
     public static void AddMove(
         string tempFile,
         string targetFile,

@@ -3,5 +3,6 @@
   Source: Tests.cs,
   Line: 42,
   Attach: false,
-  Delete: false
+  Delete: false,
+  Diff: false
 }

@@ -82,6 +82,20 @@ static class ViewerSession
             return state;
         }
 
+        // A tracked key settles by being dropped. The pair is a test that now passes, so
+        // DiffEngine has taken the received file away already and neither accepting nor
+        // discarding this has anything left to act on - both would fail on a file that is gone.
+        if (TrackedKeys.IsTracked(key))
+        {
+            var kept = state.Queue.Where(_ => _.Key != key).ToList();
+            if (kept.Count == state.Queue.Count)
+            {
+                return state;
+            }
+
+            return Remove(state, kept, null);
+        }
+
         var pending = Pending(state);
         var settled = pending.Settle(key, origin, member);
         if (ReferenceEquals(settled, pending))
@@ -146,6 +160,60 @@ static class ViewerSession
             // The open menu indexes the queue it was opened over, which was just replaced.
             Menu = null
         });
+    }
+
+    /// <summary>
+    /// A pass over the tracked files this process owns: entries whose file has gone drop out, and
+    /// entries whose file changed underneath the window are replaced by the re-read one.
+    /// <para>
+    /// The owning half of what <see cref="Sync" /> does for a displaying viewer. An attached one
+    /// re-reads the owner's files on every pump and so has always followed them; an owned queue is
+    /// only ever pushed to, so its rows stayed frozen at the moment they arrived - showing content
+    /// a re-run had already replaced, and offering a received file that was no longer there.
+    /// </para>
+    /// <para>
+    /// Both arguments name keys, and anything they name that is no longer queued is skipped: the
+    /// read that produced them ran outside the lock, so a patch or a pair can have arrived since.
+    /// A pass that changes nothing returns the same state, because this runs several times a
+    /// second and rebuilding the queue - or clearing the open menu - on every one of them is not
+    /// housekeeping the reader should be able to feel.
+    /// </para>
+    /// </summary>
+    public static SessionState Refresh(
+        SessionState state,
+        IReadOnlyCollection<string> gone,
+        IReadOnlyList<QueueEntry> changed)
+    {
+        var replacements = changed.ToDictionary(_ => _.Key);
+        var queue = new List<QueueEntry>(state.Queue.Count);
+        var any = false;
+        foreach (var entry in state.Queue)
+        {
+            if (gone.Contains(entry.Key))
+            {
+                any = true;
+                continue;
+            }
+
+            if (replacements.TryGetValue(entry.Key, out var fresh))
+            {
+                any = true;
+                queue.Add(fresh);
+                continue;
+            }
+
+            queue.Add(entry);
+        }
+
+        if (!any)
+        {
+            return state;
+        }
+
+        // The message is carried rather than cleared, unlike every other path through Remove: this
+        // is not something the reader did, and "Accepted Foo" disappearing because an unrelated
+        // file went away reads as the accept having been undone.
+        return Remove(state, queue, state.Message);
     }
 
     /// <summary>

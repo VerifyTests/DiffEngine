@@ -19,6 +19,8 @@ static class ViewerMessageHandler
                 return Settle(owner, message.Key, message.Body, message.Member);
             case ViewerVerb.Move:
                 return Move(owner, message.Key, message.Body);
+            case ViewerVerb.Diff:
+                return Diff(owner, message.Key, message.Body);
             case ViewerVerb.Delete:
                 return Delete(owner, message.Key);
             case ViewerVerb.List:
@@ -100,6 +102,24 @@ static class ViewerMessageHandler
         }
 
         owner.TrackMove(temp, target);
+        return ViewerResponse.Success();
+    }
+
+    /// <summary>
+    /// The same tracking <see cref="Move"/> performs, plus the window it deliberately withholds.
+    /// The focus names the entry just tracked, so an owner with a window selects it and an owner
+    /// without one - a tray - starts a viewer and hands it the same selection.
+    /// </summary>
+    static ViewerResponse Diff(IQueueOwner owner, string? temp, string? target)
+    {
+        if (temp is null ||
+            target is null)
+        {
+            return ViewerResponse.Error("Diff requires a key and a body");
+        }
+
+        owner.TrackMove(temp, target);
+        owner.Window(WindowCommand.Focus, TrackedKeys.ForMove(temp));
         return ViewerResponse.Success();
     }
 

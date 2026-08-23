@@ -780,6 +780,17 @@ class Tracker :
                deletes.ContainsKey(file);
     }
 
+    bool ITrackedFiles.Untrack(string key)
+    {
+        if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
+        {
+            return moves.TryRemove(temp, out _);
+        }
+
+        return TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) &&
+               deletes.TryRemove(file, out _);
+    }
+
     (bool ok, string? message) ITrackedFiles.Accept(string key)
     {
         if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))

@@ -100,6 +100,40 @@ public class TrackerTrackedFilesTest :
         }
     }
 
+    /// <summary>
+    /// Settling a pair whose test started passing. Neither accept nor discard: DiffEngine has
+    /// already taken the received file away, and both of those would act on disk.
+    /// </summary>
+    [Test]
+    public async Task UntrackingLeavesBothFilesAlone()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddDelete(file);
+        await File.WriteAllTextAsync(temp, "content");
+        await File.WriteAllTextAsync(target, "verified");
+        tracker.AddMove(temp, target, null, null, false, null);
+
+        await Assert.That(tracked.Untrack(TrackedKeys.ForMove(temp))).IsTrue();
+        await Assert.That(tracked.Untrack(TrackedKeys.ForDelete(file))).IsTrue();
+
+        await Assert.That(tracker.Moves).IsEmpty();
+        await Assert.That(tracker.Deletes).IsEmpty();
+        await Assert.That(File.Exists(temp)).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("verified");
+        await Assert.That(File.Exists(file)).IsTrue();
+    }
+
+    [Test]
+    public async Task UntrackingSomethingUntrackedSaysSo()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+
+        await Assert.That(tracked.Untrack(TrackedKeys.ForMove("nothing"))).IsFalse();
+        await Assert.That(tracked.Untrack("not a tracked key")).IsFalse();
+    }
+
     [Test]
     public async Task AnUnknownTrackedKeyIsUnknown()
     {

@@ -1,0 +1,1 @@
+﻿--diff takes a received file and a target.

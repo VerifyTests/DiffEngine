@@ -21,4 +21,12 @@ record ViewerRequest(
     /// only surface it can have.
     /// </summary>
     public bool Delete { get; init; }
+
+    /// <summary>
+    /// Own the queue seeded with one pending move, from <see cref="Left"/> to <see cref="Right"/>.
+    /// From DiffEngine when the diff tool it resolved for a pair is this viewer: the pair joins
+    /// the queue beside everything else rather than taking a window of its own, which is what
+    /// <see cref="ViewerMode.File"/> would give it.
+    /// </summary>
+    public bool Diff { get; init; }
 }

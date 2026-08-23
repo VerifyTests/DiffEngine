@@ -24,6 +24,19 @@ enum ViewerVerb
     Move,
 
     /// <summary>
+    /// Show a two file comparison, tracking it as a pending move at the same time: <c>key</c> is
+    /// the received file, <c>body</c> the target it belongs at. From DiffEngine when the diff tool
+    /// it resolved for the pair is the viewer itself.
+    /// <para>
+    /// <see cref="Move"/> with a window, and the split is the whole reason both exist. A move for
+    /// some other tool must not raise anything, because that tool has just opened its own window
+    /// for the pair. When the viewer is the tool there is no such window, and one queue entry with
+    /// a window raised over it is what replaces the process per pair every other tool needs.
+    /// </para>
+    /// </summary>
+    Diff,
+
+    /// <summary>
     /// Track a pending file delete: <c>key</c> is the file. From DiffEngine when no tray is
     /// running, and unlike <see cref="Move"/> this one does start a viewer when nothing owns the
     /// queue — a delete has no second file to compare against and so no diff tool to open, which

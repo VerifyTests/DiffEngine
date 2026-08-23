@@ -1,5 +1,6 @@
 ﻿{
   Mode: Inline,
   Attach: true,
-  Delete: false
+  Delete: false,
+  Diff: false
 }

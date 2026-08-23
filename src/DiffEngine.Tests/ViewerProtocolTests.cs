@@ -468,6 +468,50 @@ public class ViewerProtocolTests
         ]);
     }
 
+    /// <summary>
+    /// The pair whose diff tool is the viewer itself: tracked exactly as a move, and then raised,
+    /// which is the whole difference between the two verbs. The focus names the entry just
+    /// tracked, so an owner with a window selects it and one without starts a viewer over it.
+    /// </summary>
+    [Test]
+    public async Task ADiffTracksThePairAndRaisesAWindow()
+    {
+        var owner = new FakeOwner((true, null));
+
+        var response = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Diff, @"c:\temp\a.received.txt", @"c:\code\a.verified.txt"));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(owner.Tracked).IsEquivalentTo([@"move c:\temp\a.received.txt > c:\code\a.verified.txt"]);
+        await Assert.That(owner.Windowed).IsEquivalentTo([$"{WindowCommand.Focus} {TrackedKeys.ForMove(@"c:\temp\a.received.txt")}"]);
+    }
+
+    /// <summary>
+    /// And a move stays silent, which is what lets the two coexist: every other tool has already
+    /// opened its own window for the pair by the time its move arrives.
+    /// </summary>
+    [Test]
+    public async Task AMoveRaisesNothing()
+    {
+        var owner = new FakeOwner((true, null));
+
+        ViewerMessageHandler.Handle(owner, new(ViewerVerb.Move, @"c:\temp\a.received.txt", @"c:\code\a.verified.txt"));
+
+        await Assert.That(owner.Windowed).IsEmpty();
+    }
+
+    [Test]
+    public async Task ADiffWithoutBothPathsIsRefused()
+    {
+        var owner = new FakeOwner((true, null));
+
+        var noTarget = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Diff, @"c:\temp\a.received.txt"));
+
+        await Assert.That(noTarget.Ok).IsFalse();
+        await Assert.That(noTarget.Message).IsEqualTo("Diff requires a key and a body");
+        await Assert.That(owner.Tracked).IsEmpty();
+        await Assert.That(owner.Windowed).IsEmpty();
+    }
+
     [Test]
     public async Task AMoveWithoutBothPathsIsRefused()
     {
@@ -530,9 +574,10 @@ public class ViewerProtocolTests
 
         public string? DiscardAll() => null;
 
-        public void Window(WindowCommand command, string? key)
-        {
-        }
+        public List<string> Windowed { get; } = [];
+
+        public void Window(WindowCommand command, string? key) =>
+            Windowed.Add($"{command} {key}");
     }
 
     /// <summary>

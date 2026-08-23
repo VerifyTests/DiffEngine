@@ -2,5 +2,6 @@
   Left: left.txt,
   Right: right.txt,
   Attach: false,
-  Delete: false
+  Delete: false,
+  Diff: false
 }

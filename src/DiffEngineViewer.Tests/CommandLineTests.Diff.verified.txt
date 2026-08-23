@@ -1,8 +1,8 @@
 ﻿{
   Mode: Inline,
-  Source: Tests.cs,
-  Line: 42,
+  Left: received.txt,
+  Right: target.txt,
   Attach: false,
   Delete: false,
-  Diff: false
+  Diff: true
 }

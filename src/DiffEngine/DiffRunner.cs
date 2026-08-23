@@ -180,6 +180,14 @@ public static partial class DiffRunner
             return result.Value;
         }
 
+        // The viewer queues rather than opening a window per pair, so none of the process
+        // bookkeeping below applies to it: there is no instance showing this pair to find, no
+        // window to replace, and no slot to spend on a window that already exists.
+        if (PendingFiles.IsViewer(tool))
+        {
+            return PendingFiles.AddDiff(tempFile, targetFile, tool.ExePath);
+        }
+
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
         var canKill = !tool.IsMdi;
@@ -218,6 +226,12 @@ public static partial class DiffRunner
         {
             await DiffEngineTray.AddMoveAsync(tempFile, targetFile, null, null, false, null);
             return result.Value;
+        }
+
+        // As above: the viewer has no window of its own for this pair to reason about.
+        if (PendingFiles.IsViewer(tool))
+        {
+            return await PendingFiles.AddDiffAsync(tempFile, targetFile, tool.ExePath, Cancel.None);
         }
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
