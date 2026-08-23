@@ -10,6 +10,11 @@ struct Frame {
     var subtitle = ""
     var status = ""
     var queue: [QueueItem] = []
+
+    /// Everything pending, which `queue` is not: that is the visible slice, sized to the body and
+    /// with the members of folded groups left out.
+    var pendingCount: Int32 = 0
+
     var buttons: [Button] = []
     var left = Pane()
     var right = Pane()
@@ -63,6 +68,7 @@ struct Frame {
         frame.title = string(screen, screen.titleOffset, screen.titleLength)
         frame.subtitle = string(screen, screen.subtitleOffset, screen.subtitleLength)
         frame.status = string(screen, screen.statusOffset, screen.statusLength)
+        frame.pendingCount = screen.pendingCount
 
         if let items = screen.queue {
             for index in 0 ..< Int(screen.queueCount) {
