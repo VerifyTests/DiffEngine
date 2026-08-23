@@ -58,22 +58,39 @@ record ViewerActions(
     static void Move(string temp, string target)
     {
         File.Move(temp, target, true);
+        Sweep(Path.GetDirectoryName(temp));
+    }
 
-        var directory = Path.GetDirectoryName(temp);
-        if (directory is null ||
-            Directory.EnumerateFileSystemEntries(directory).Any())
+    /// <summary>
+    /// The directory the received file sat in, if it is now empty.
+    /// <para>
+    /// Nothing in here can fail the move. It is already done, and the caller reads a throw as the
+    /// move having failed: the entry goes back on the queue, and the retry fails with file not
+    /// found on a temp file that is no longer there. Only <see cref="IOException" /> was covered,
+    /// so a directory whose parent will not have it removed - or whose permissions are not this
+    /// process's to change - reported a move that had succeeded as a failure.
+    /// </para>
+    /// </summary>
+    static void Sweep(string? directory)
+    {
+        if (directory is null)
         {
             return;
         }
 
         try
         {
+            if (Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                return;
+            }
+
             Directory.Delete(directory);
         }
-        catch (IOException)
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
         {
-            // Raced by something writing into it. The move itself succeeded, which is what the
-            // caller is reporting on.
+            // Raced by something writing into it, or not ours to remove.
         }
     }
 }
