@@ -41,11 +41,20 @@ static class ViewerMenu
         for (var index = 0; index < menu.Labels.Count; index++)
         {
             var captured = index;
-            var item = new ToolStripMenuItem(menu.Labels[index]);
+            var item = new ToolStripMenuItem(Escape(menu.Labels[index]));
             item.Click += (_, _) => clicked(captured);
             strip.Items.Add(item);
         }
     }
+
+    /// <summary>
+    /// Menu labels carry solution names and file names - "Accept all in R&amp;D" - and a menu item
+    /// reads an ampersand as a mnemonic, so that one drew as "Accept all in R_D" with D live as an
+    /// accelerator. Doubling it is how a literal one is written; ToolStripItem has no
+    /// <c>UseMnemonic</c> to turn the reading off.
+    /// </summary>
+    static string Escape(string label) =>
+        label.Replace("&", "&&");
 
     /// <summary>
     /// A strip on its own, for tests and for anything that wants one without a window.
