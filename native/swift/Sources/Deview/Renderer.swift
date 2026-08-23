@@ -172,9 +172,10 @@ final class Renderer {
 
         let headerTop = firstRule + Renderer.gap
         if hasQueue {
-            // Entries only: the rows include group headings, which are not pending anything.
-            let pending = frame.queue.filter { !$0.header }.count
-            text("Pending (\(pending))", in: rect(top: headerTop, left: Renderer.padding, width: queue, height: line, size), Palette.text, context)
+            // The count the managed side carries, not one derived from `queue`: that is the
+            // visible slice, so thirty pending in a sixteen row body read as "Pending (16)" beside
+            // "inline 1 of 30", and folding a group lowered it further.
+            text("Pending (\(frame.pendingCount))", in: rect(top: headerTop, left: Renderer.padding, width: queue, height: line, size), Palette.text, context)
         }
 
         text(frame.left.header, in: rect(top: headerTop, left: panesLeft, width: half, height: line, size), Palette.text, context)

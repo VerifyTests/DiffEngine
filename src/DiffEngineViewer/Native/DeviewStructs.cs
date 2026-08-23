@@ -87,6 +87,11 @@ unsafe struct DeviewScreen
     public int ButtonCount;
     public DeviewQueueItem* Queue;
     public int QueueCount;
+
+    /// <summary>
+    /// Everything pending, rather than the visible slice <see cref="QueueCount" /> counts.
+    /// </summary>
+    public int PendingCount;
     public int TitleOffset;
     public int TitleLength;
     public int SubtitleOffset;

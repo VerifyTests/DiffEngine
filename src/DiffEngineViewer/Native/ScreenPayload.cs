@@ -17,6 +17,7 @@ sealed class ScreenPayload
     int statusOffset;
     int statusLength;
     int menuRow;
+    int pendingCount;
 
     public void Build(Screen screen)
     {
@@ -26,6 +27,7 @@ sealed class ScreenPayload
         queue.Clear();
         menu.Clear();
         menuRow = -1;
+        pendingCount = screen.PendingCount;
 
         (titleOffset, titleLength) = Add(screen.Title);
         (subtitleOffset, subtitleLength) = Add(screen.Subtitle);
@@ -142,6 +144,7 @@ sealed class ScreenPayload
             ButtonCount = buttons.Count,
             Queue = queuePtr,
             QueueCount = queue.Count,
+            PendingCount = pendingCount,
             TitleOffset = titleOffset,
             TitleLength = titleLength,
             SubtitleOffset = subtitleOffset,

@@ -52,13 +52,27 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     ///
     /// The text is answered on demand below rather than stored here, so a row whose label changed
     /// under a resting cursor still reads correctly.
+    /// Rebuilt only when the regions themselves changed. AppKit times its tooltip delay from the
+    /// moment the cursor enters a tracking rectangle, and this runs on every frame, so removing
+    /// and re-adding the rectangle under a resting cursor restarted that delay before it could
+    /// ever elapse - which is to say queue tooltips never appeared on macOS at all.
     func refreshToolTips() {
+        let wanted = layout.queueItems.enumerated()
+            .filter { $0.offset < model.queue.count && !model.queue[$0.offset].tooltip.isEmpty }
+            .map(\.element)
+        guard wanted != toolTipRects else {
+            return
+        }
+
+        toolTipRects = wanted
         removeAllToolTips()
-        for (index, bounds) in layout.queueItems.enumerated()
-        where index < model.queue.count && !model.queue[index].tooltip.isEmpty {
+        for bounds in wanted {
             _ = addToolTip(bounds, owner: self, userData: nil)
         }
     }
+
+    /// What the tips are registered on, so an unchanged frame can leave them alone.
+    private var toolTipRects: [NSRect] = []
 
     /// Composed by the managed side, so this only finds the row under the cursor.
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
@@ -132,12 +146,26 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         super.rightMouseDown(with: event)
     }
 
-    /// Accumulated, because a trackpad delivers many small deltas between two polls and the
-    /// managed side amplifies whatever it is given.
+    /// A notch of a wheel, in the points a precise device reports one movement of it as.
+    ///
+    /// AppKit reports a wheel in lines and a trackpad in points, and rounding both to an integer
+    /// number of notches treated them as the same thing: an ordinary flick of a trackpad reads as
+    /// tens of points, so it arrived as tens of notches and the managed side then multiplied it
+    /// by three. Slow movement rounded to nothing at all.
+    private static let pointsPerNotch = 16.0
+
+    /// What is left over between events, because a trackpad delivers many small deltas between
+    /// two polls and dropping each one on its own is what made slow movement do nothing.
+    private var scrollRemainder = 0.0
+
     override func scrollWheel(with event: NSEvent) {
-        let notches = Int32(event.scrollingDeltaY.rounded())
+        scrollRemainder += event.hasPreciseScrollingDeltas
+            ? event.scrollingDeltaY / ViewerView.pointsPerNotch
+            : event.scrollingDeltaY
+        let notches = scrollRemainder.rounded(.towardZero)
+        scrollRemainder -= notches
         if notches != 0 {
-            Runtime.shared.input.scrollDelta += notches
+            Runtime.shared.input.scrollDelta += Int32(notches)
         }
     }
 

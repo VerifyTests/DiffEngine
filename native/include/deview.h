@@ -127,6 +127,13 @@ typedef struct DeviewScreen {
     const DeviewQueueItem* queue;
     int32_t queueCount;
 
+    /*
+     * How many entries are pending in total, which is not queueCount: that is the visible slice,
+     * sized to the body and with the members of folded groups left out. A head that counted the
+     * slice reported "Pending (16)" beside "inline 1 of 30", and folding a group lowered it.
+     */
+    int32_t pendingCount;
+
     int32_t titleOffset;
     int32_t titleLength;
     int32_t subtitleOffset;
@@ -215,7 +222,7 @@ typedef struct DeviewInput {
  *    described. A widened array element, so an older library reads every pane after the first at
  *    the wrong offset — this is the bump that matters most to honour.
  */
-#define DEVIEW_VERSION 6
+#define DEVIEW_VERSION 7
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
