@@ -12,23 +12,27 @@ public class MoveSweepTests :
     /// let go of raises UnauthorizedAccessException.
     /// </summary>
     [Test]
-    [SkipOnWindows("A read-only directory raises IOException on Windows, which was always caught. Denying the removal takes a Unix permission.")]
+    [RunOn(TUnit.Core.Enums.OS.Linux | TUnit.Core.Enums.OS.MacOs)]
     public async Task A_directory_that_cannot_be_removed_does_not_fail_the_move()
     {
-        var received = Path.Combine(root, "received");
+        // The received file is two deep, and it is the middle directory that cannot be removed.
+        // Everything the move itself touches - taking the file out of "received", and writing it
+        // into a directory of its own - stays permitted, so the only thing denied is the tidy-up
+        var locked = Path.Combine(root, "locked");
+        var received = Path.Combine(locked, "received");
         Directory.CreateDirectory(received);
         var temp = Path.Combine(received, "sample.received.txt");
         File.WriteAllText(temp, "the snapshot");
-        var target = Path.Combine(root, "sample.verified.txt");
+        var target = Path.Combine(root, "target");
+        Directory.CreateDirectory(target);
+        var verified = Path.Combine(target, "sample.verified.txt");
+        File.SetUnixFileMode(locked, UnixFileMode.UserRead | UnixFileMode.UserExecute);
 
-        // Removing "received" is a write to the directory holding it, which this denies. Moving
-        // the file out of it is a write to "received" itself, which stays allowed
-        File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        ViewerActions.Real.MoveFile(temp, verified);
 
-        ViewerActions.Real.MoveFile(temp, target);
-
-        File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        await Assert.That(File.Exists(target)).IsTrue();
+        await Assert.That(File.Exists(verified)).IsTrue();
+        // Still there, which is the point: it could not be removed and that did not matter
+        await Assert.That(Directory.Exists(received)).IsTrue();
     }
 
     [Test]
@@ -70,8 +74,21 @@ public class MoveSweepTests :
         Directory.CreateDirectory(root);
     }
 
-    public void Dispose() =>
+    public void Dispose()
+    {
+        // Whatever the test denied itself, given back, or the tree cannot be removed here either
+        if (!OperatingSystem.IsWindows())
+        {
+            foreach (var directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
+            {
+                File.SetUnixFileMode(
+                    directory,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+        }
+
         Directory.Delete(root, true);
+    }
 
     readonly string root;
 }
