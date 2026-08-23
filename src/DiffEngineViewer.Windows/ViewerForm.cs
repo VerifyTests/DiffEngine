@@ -20,10 +20,15 @@ sealed class ViewerForm : Form
 
     readonly Label status = new()
     {
+        Name = "status",
         Dock = DockStyle.Fill,
         TextAlign = ContentAlignment.MiddleRight,
         ForeColor = Palette.Dim,
-        AutoSize = false
+        AutoSize = false,
+        // The status line is built from paths, solution names and whatever the applier said, and a
+        // Label reads an ampersand in any of those as a mnemonic: "R&D" drew as "R_D" with D live
+        // as an accelerator.
+        UseMnemonic = false
     };
 
     readonly List<FormsButton> pool = [];
