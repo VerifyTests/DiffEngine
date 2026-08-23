@@ -173,6 +173,27 @@ sealed class ViewerForm : Form
         scrollBar.Width = SystemInformation.GetVerticalScrollBarWidthForDpi(DeviceDpi);
     }
 
+    /// <summary>
+    /// Brings the window up, for a snapshot that has just arrived and wants reading.
+    /// <para>
+    /// The restore is the part that was missing. BringToFront and Activate leave a minimised
+    /// window minimised - the taskbar button flashes and nothing else happens - so a viewer that
+    /// had been minimised never showed the snapshot it was being asked to show, and the queue
+    /// filled up out of sight.
+    /// </para>
+    /// </summary>
+    public void Raise()
+    {
+        Visible = true;
+        if (WindowState == FormWindowState.Minimized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+
+        BringToFront();
+        Activate();
+    }
+
     public void Apply(Screen screen)
     {
         // ScreenBuilder allocates a fresh Screen every frame, so record equality would never hit.
