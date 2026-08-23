@@ -110,6 +110,15 @@ struct State
     ImGuiContext* context = nullptr;
     DeviewInput input{};
 
+    /* Whether the last screen carried a context menu, which is what makes Escape and a click
+     * outside it a dismissal rather than what they would otherwise mean. */
+    bool menuOpen = false;
+
+    /* What a wheel message left over. A notch is 1.0, and a touchpad sends fractions of one:
+     * truncating each frame's value on its own threw all of them away, so a touchpad scrolled
+     * nothing at all. */
+    float scrollRemainder = 0.0f;
+
     /*
      * The queue column, owned here rather than by the table.
      *
@@ -384,6 +393,7 @@ void UpdateTexture(ImTextureData* texture)
 void RenderTriangles(
     unsigned int count,
     unsigned int indexStart,
+    unsigned int vertexOffset,
     const ImVector<ImDrawIdx>& indices,
     const ImVector<ImDrawVert>& vertices,
     ImTextureID textureId)
@@ -400,7 +410,12 @@ void RenderTriangles(
     {
         for (unsigned int corner = 0; corner < 3; corner++)
         {
-            const ImDrawVert& vertex = vertices[indices[indexStart + index + corner]];
+            /* Plus the command's own vertex offset. ImDrawIdx is sixteen bits, so a draw list
+             * that runs past 65535 vertices - a maximised 4K window of dense long lines gets
+             * there - is split by ImGui into commands whose indices restart from a base recorded
+             * here. Without adding it the indices wrapped and the panes drew scrambled, and in a
+             * release build, with IM_ASSERT compiled out, nothing said so. */
+            const ImDrawVert& vertex = vertices[vertexOffset + indices[indexStart + index + corner]];
             const ImColor colour = ImColor(vertex.col);
             rlColor4f(colour.Value.x, colour.Value.y, colour.Value.z, colour.Value.w);
             rlTexCoord2f(vertex.uv.x, vertex.uv.y);
@@ -448,6 +463,7 @@ void RenderDrawData(ImDrawData* drawData)
             RenderTriangles(
                 command.ElemCount,
                 command.IdxOffset,
+                command.VtxOffset,
                 commands->IdxBuffer,
                 commands->VtxBuffer,
                 command.GetTexID());
@@ -695,6 +711,10 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
 
 void BuildFrame(const DeviewScreen* screen)
 {
+    /* Read by the input pass, which has no screen of its own: Escape means dismiss while one of
+     * these is up, and quit otherwise. */
+    state.menuOpen = screen->menuCount > 0;
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -785,7 +805,7 @@ void BuildFrame(const DeviewScreen* screen)
                 if (index < screen->queueCount)
                 {
                     const DeviewQueueItem& item = screen->queue[index];
-                    const std::string label = Copy(screen, item.labelOffset, item.labelLength);
+                    std::string label = Copy(screen, item.labelOffset, item.labelLength);
                     if (item.flags & DEVIEW_QUEUE_HEADER)
                     {
                         /* A heading is dimmed like the subtitle, and never carries the selection.
@@ -805,9 +825,14 @@ void BuildFrame(const DeviewScreen* screen)
                     else
                     {
                         const bool selected = (item.flags & DEVIEW_QUEUE_SELECTED) != 0;
-                        if (item.flags & DEVIEW_QUEUE_FAILED)
+                        const bool failed = (item.flags & DEVIEW_QUEUE_FAILED) != 0;
+                        if (failed)
                         {
                             ImGui::PushStyleColor(ImGuiCol_Text, RowColour(DEVIEW_ROW_REMOVED));
+                            /* The marker the other three heads and docs/viewer.md show. Colour
+                             * alone says nothing to a reader who cannot tell this red from the
+                             * one a removed line is drawn in, or from any other. */
+                            label += " !";
                         }
 
                         ImGui::PushID(index);
@@ -817,7 +842,7 @@ void BuildFrame(const DeviewScreen* screen)
                         }
 
                         ImGui::PopID();
-                        if (item.flags & DEVIEW_QUEUE_FAILED)
+                        if (failed)
                         {
                             ImGui::PopStyleColor();
                         }
@@ -981,9 +1006,22 @@ void BuildFrame(const DeviewScreen* screen)
             ImGui::PopID();
         }
 
+        /* Asked before End, which is what makes it about this window. A click anywhere else is a
+         * dismissal: the menu used to float until a row, a button or a key was hit, contrary to
+         * what docs/viewer.md says of it. A right click elsewhere opens the next menu, and the
+         * managed side ignores a dismissal that arrives with one of those. */
+        const bool overMenu = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
         ImGui::End();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
+
+        if (!overMenu &&
+            (ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+             ImGui::IsMouseClicked(ImGuiMouseButton_Right)))
+        {
+            state.input.menuClosed = 1;
+        }
     }
 
     for (int index = 0; index < screen->buttonCount; index++)
@@ -1070,7 +1108,11 @@ int32_t deview_init(
     /* No MSAA. ImGui draws axis aligned quads with pre-antialiased glyph textures, so multisampling
      * buys nothing visually, and it is a real source of difference between a GPU and the software
      * rasteriser the pixel snapshots are pinned to. */
-    unsigned int flags = FLAG_WINDOW_RESIZABLE;
+    /* ALWAYS_RUN because WindowShouldClose waits on events while the window is minimised, and
+     * that call is inside deview_present: without it the managed loop stops being pumped the
+     * moment the window is minimised, so a snapshot arriving after that is accepted by the
+     * listener and never shown. */
+    unsigned int flags = FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN;
     if (hidden != 0)
     {
         flags |= FLAG_WINDOW_HIDDEN;
@@ -1090,6 +1132,10 @@ int32_t deview_init(
     ImGui::SetCurrentContext(state.context);
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+    /* Declared, so ImGui splits a long draw list into commands with a vertex offset rather than
+     * refusing to let one grow past what a sixteen bit index can address. RenderTriangles applies
+     * the offset. */
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     ApplyStyle();
@@ -1164,8 +1210,25 @@ void deview_poll_input(DeviewInput* input)
     if (state.initialised)
     {
         state.input.key = ReadKey();
+
+        /* Escape with a menu up dismisses the menu. It reached the managed side as quit, which
+         * closes the menu and then runs the command, so Esc-to-dismiss closed the viewer - and on
+         * Linux there is no tray to open it again from, so the queue went to staging. */
+        if (state.menuOpen &&
+            state.input.key == DEVIEW_KEY_QUIT &&
+            IsKeyPressed(KEY_ESCAPE))
+        {
+            state.input.key = DEVIEW_KEY_NONE;
+            state.input.menuClosed = 1;
+        }
+
+        /* Whole notches, keeping the fraction. A touchpad sends a fraction of one per frame and
+         * truncating each frame on its own threw every one of them away. */
         const Vector2 wheel = GetMouseWheelMoveV();
-        state.input.scrollDelta = static_cast<int32_t>(wheel.y);
+        state.scrollRemainder += wheel.y;
+        const int32_t notches = static_cast<int32_t>(state.scrollRemainder);
+        state.input.scrollDelta = notches;
+        state.scrollRemainder -= static_cast<float>(notches);
         MeasureGrid();
     }
 
@@ -1252,6 +1315,13 @@ void deview_focus(void)
     }
 
     ClearWindowState(FLAG_WINDOW_HIDDEN);
+    /* A minimised window stays minimised through SetWindowFocused, so a focus for a new snapshot
+     * left it in the taskbar. */
+    if (IsWindowMinimized())
+    {
+        RestoreWindow();
+    }
+
     SetWindowFocused();
 }
 
