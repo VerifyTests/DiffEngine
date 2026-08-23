@@ -152,6 +152,33 @@ public class AttachedViewerTests
     }
 
     /// <summary>
+    /// An owner that answers is an owner, whatever it answered.
+    /// <para>
+    /// ViewerServer turns any exception in the listing handler into an error reply, and this side
+    /// read one of those as the owner having gone: the window closed with "The queue owner is no
+    /// longer running." over a single transient throw, taking the queue it was displaying with it.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AnErrorReplyIsNotADeadOwner()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        var listening = server.Listen(
+            _ => ViewerResponse.Error("The listing could not be built"),
+            cancel.Token);
+        var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+
+        await Assert.That(new OwnerLink(host, server.Port).Pump()).IsTrue();
+
+        await Assert.That(host.State.Message).IsEqualTo("The listing could not be built");
+        await Assert.That(host.State.Exit).IsFalse();
+        await cancel.CancelAsync();
+        _ = listening;
+    }
+
+    /// <summary>
     /// The owner has no window of its own, so raising, hiding and closing come back on a listing
     /// rather than being pushed at a port this process does not hold.
     /// </summary>
