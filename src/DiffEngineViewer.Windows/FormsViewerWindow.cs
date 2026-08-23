@@ -89,9 +89,7 @@ sealed class FormsViewerWindow : IViewerWindow
             return;
         }
 
-        form.Visible = true;
-        form.BringToFront();
-        form.Activate();
+        form.Raise();
     }
 
     public bool Capture(Screen screen, int width, int height, string pngPath)
