@@ -59,10 +59,20 @@ sealed class ViewerCanvas : Control
     Screen? screen;
 
     /// <summary>
-    /// Zero until first asked for, because the default is counted in cells and a cell can only be
-    /// measured once a Graphics exists.
+    /// The queue column as the reader last dragged it, in cells. Zero until they do, which is what
+    /// <see cref="defaultQueueCells" /> answers for.
+    /// <para>
+    /// Cells rather than pixels so that it survives a change of display scaling: the column then
+    /// holds the same number of characters on the new one rather than the same number of pixels.
+    /// </para>
     /// </summary>
-    int queueWidth;
+    int queueCells;
+
+    /// <summary>
+    /// Measured once, from a Graphics, and thrown away when the display scaling changes: the same
+    /// point size is a different number of pixels there.
+    /// </summary>
+    Size cell;
 
     bool dragging;
 
@@ -110,14 +120,29 @@ sealed class ViewerCanvas : Control
     {
         get
         {
-            if (field.IsEmpty)
+            if (cell.IsEmpty)
             {
                 using var graphics = CreateGraphics();
-                field = MonoFont.Cell(graphics, font);
+                cell = MonoFont.Cell(graphics, font);
             }
 
-            return field;
+            return cell;
         }
+    }
+
+    /// <summary>
+    /// Everything drawn here is laid out in character cells, and a cell is measured in pixels from
+    /// a Graphics, which is per display. Dragging the window to a display with different scaling
+    /// left that measurement behind: the framework drew the same eleven point glyphs half again as
+    /// large while the row pitch, the gutter and the queue column stayed where they were - rows
+    /// overlapping, labels clipped, and a body row count that did not match what was on screen.
+    /// The other way round left gaps.
+    /// </summary>
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        cell = Size.Empty;
+        Invalidate();
     }
 
     int BodyTop =>
@@ -127,18 +152,8 @@ sealed class ViewerCanvas : Control
     /// Clamped on every read rather than only when dragged, so shrinking the window narrows the
     /// column instead of leaving the panes with nothing.
     /// </summary>
-    int QueueWidth
-    {
-        get
-        {
-            if (queueWidth == 0)
-            {
-                queueWidth = Cell.Width * defaultQueueCells;
-            }
-
-            return Clamp(queueWidth);
-        }
-    }
+    int QueueWidth =>
+        Clamp(Cell.Width * (queueCells == 0 ? defaultQueueCells : queueCells));
 
     int Clamp(int value)
     {
@@ -446,10 +461,12 @@ sealed class ViewerCanvas : Control
         base.OnMouseMove(e);
         if (dragging)
         {
-            var width = Clamp(e.X - padding - gap / 2);
-            if (width != queueWidth)
+            // Clamped as a width, then held as cells, so the drag stops where it always stopped
+            // and what is remembered is a number of characters
+            var cells = Math.Max(1, Clamp(e.X - padding - gap / 2) / Cell.Width);
+            if (cells != queueCells)
             {
-                queueWidth = width;
+                queueCells = cells;
                 Invalidate();
             }
 
