@@ -81,6 +81,25 @@ static class ViewerClient
     public static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
+    /// Whether anything is listening, without sending it anything. For a caller that has just
+    /// started a viewer and wants to know when it can be talked to, which a send cannot answer
+    /// without also handing over work.
+    /// </summary>
+    public static bool IsOwned(int? port = null)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            return client.ConnectAsync(IPAddress.Loopback, port ?? Port).Wait(ShortTimeout);
+        }
+        catch (Exception exception)
+            when (Ignorable(exception))
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// True when the owner acknowledged. A refused connection means nobody owns the queue.
     /// </summary>
     public static bool TrySend(ViewerMessage message) =>

@@ -47,7 +47,9 @@ static class PendingFiles
             return;
         }
 
-        ViewerLauncher.LaunchDelete(file);
+        ViewerLaunchGate.Launch(
+            () => ViewerClient.TrySend(new(ViewerVerb.Delete, file)),
+            () => ViewerLauncher.LaunchDelete(file));
     }
 
     public static async Task AddDeleteAsync(string file, Cancel cancel)
@@ -63,7 +65,10 @@ static class PendingFiles
             return;
         }
 
-        ViewerLauncher.LaunchDelete(file);
+        await ViewerLaunchGate.LaunchAsync(
+            async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel),
+            () => Task.FromResult(ViewerLauncher.LaunchDelete(file)),
+            cancel);
     }
 
     /// <summary>
@@ -101,10 +106,24 @@ static class PendingFiles
                 : Refused(tempFile, targetFile);
         }
 
-        return ViewerLauncher.LaunchDiff(tempFile, targetFile)
-            ? LaunchResult.StartedNewInstance
-            : LaunchResult.NoDiffToolFound;
+        return Launched(
+            ViewerLaunchGate.Launch(
+                () => ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile)),
+                () => ViewerLauncher.LaunchDiff(tempFile, targetFile)));
     }
+
+    /// <summary>
+    /// A launch that turned out not to be one is not reported as one. Twenty pairs failing at once
+    /// put twenty callers on the gate and one viewer on the screen, and calling that twenty new
+    /// instances is how the count stopped meaning anything.
+    /// </summary>
+    static LaunchResult Launched(ViewerLaunchOutcome outcome) =>
+        outcome switch
+        {
+            ViewerLaunchOutcome.Launched => LaunchResult.StartedNewInstance,
+            ViewerLaunchOutcome.Taken => LaunchResult.AlreadyRunningAndSupportsRefresh,
+            _ => LaunchResult.NoDiffToolFound
+        };
 
     /// <summary>
     /// An owner that is there and said no, which is an owner too old to know the verb. Launching a
@@ -139,9 +158,11 @@ static class PendingFiles
                 : LaunchResult.NoDiffToolFound;
         }
 
-        return ViewerLauncher.LaunchDiff(tempFile, targetFile)
-            ? LaunchResult.StartedNewInstance
-            : LaunchResult.NoDiffToolFound;
+        return Launched(
+            await ViewerLaunchGate.LaunchAsync(
+                async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel),
+                () => Task.FromResult(ViewerLauncher.LaunchDiff(tempFile, targetFile)),
+                cancel));
     }
 
     /// <summary>
