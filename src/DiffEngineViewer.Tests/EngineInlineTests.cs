@@ -118,6 +118,73 @@ public class EngineInlineTests
         await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
     }
 
+    /// <summary>
+    /// The trap <see cref="EngineRunner.SettleAppliedInline" /> exists for. A settle names the
+    /// running process's framework, which is the test run's for the caller that verb was written
+    /// for, and something else entirely for a surface that applies a patch of its own. The owner
+    /// finds no variant carrying that label and answers no differently than if it had.
+    /// </summary>
+    [Test]
+    public async Task SettleMissesAnEntryQueuedByAnotherFramework()
+    {
+        using var scope = new EngineScope();
+        var patch = Patch("Sample.cs", 42, "\"old\"", "new");
+        // A moniker no process can report, standing in for a test project this one is not.
+        patch.Framework = "net99.0";
+        await EngineRunner.AddInlineAsync(patch);
+
+        EngineRunner.SettleInline("Sample.cs", 42);
+
+        await Assert.That(scope.Fixture.Host.State.Queue).HasSingleItem();
+    }
+
+    [Test]
+    public async Task SettleAppliedDropsTheEntryWhateverFrameworkQueuedIt()
+    {
+        using var scope = new EngineScope();
+        var patch = Patch("Sample.cs", 42, "\"old\"", "new");
+        patch.Framework = "net99.0";
+        await EngineRunner.AddInlineAsync(patch);
+        await EngineRunner.AddInlineAsync(Patch("Other.cs", 7, "\"old\"", "new"));
+
+        EngineRunner.SettleAppliedInline(patch);
+
+        var queue = scope.Fixture.Host.State.Queue;
+        await Assert.That(queue).HasSingleItem();
+        await Assert.That(queue[0].Name).IsEqualTo("Other.cs:7");
+    }
+
+    /// <summary>
+    /// Applying one call site moves every later one in the file, so the line an applier reports is
+    /// no longer the line the entry was queued at. The member is what survives that, and the patch
+    /// is carrying it.
+    /// </summary>
+    [Test]
+    public async Task SettleAppliedFindsAnEntryWhoseLineHasMoved()
+    {
+        using var scope = new EngineScope();
+        var queued = Patch("Sample.cs", 42, "\"old\"", "new");
+        queued.MemberName = "TheTest";
+        await EngineRunner.AddInlineAsync(queued);
+
+        var applied = Patch("Sample.cs", 48, "\"old\"", "new");
+        applied.MemberName = "TheTest";
+        EngineRunner.SettleAppliedInline(applied);
+
+        await Assert.That(scope.Fixture.Host.State.Queue).IsEmpty();
+    }
+
+    [Test]
+    public async Task SettleAppliedForAnUnknownCallSiteIsHarmless()
+    {
+        using var scope = new EngineScope();
+        await EngineRunner.AddInlineAsync(Patch("Sample.cs", 42, "\"old\"", "new"));
+
+        EngineRunner.SettleAppliedInline(Patch("Nothing.cs", 1, "\"old\"", "new"));
+
+        await Assert.That(scope.Fixture.Host.State.Queue).HasSingleItem();
+    }
+
     [Test]
     public async Task TheOptOutDoesNotReachTheViewer()
     {

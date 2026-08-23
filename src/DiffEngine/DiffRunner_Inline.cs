@@ -129,6 +129,41 @@ public static partial class DiffRunner
         ViewerClient.TrySend(new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), null, memberName));
     }
 
+    /// <summary>
+    /// Drops a pending inline snapshot whose literal is now in the source, put there by a surface
+    /// that applied the patch itself rather than asking the queue owner to: the IDE plugin, or a
+    /// tool applying what a test run staged. Call it after <see cref="InlineApplier" /> reports
+    /// <see cref="InlineApplyStatus.Applied" /> or <see cref="InlineApplyStatus.AlreadyApplied" />.
+    /// <para>
+    /// Carries no framework, for the same reason <see cref="RetireInline" /> does not. Every
+    /// variant of a call site is anchored to the literal the source was holding, so replacing that
+    /// literal leaves none of them able to apply - the frameworks whose content differed included.
+    /// The statement is "this call site has been written", which is true for all of them at once.
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SettleInline" /> is the wrong verb here and fails silently at it. That one stamps
+    /// the running process's own framework as the origin, which is right for the test run it was
+    /// written for and wrong for an applier, because an applier is not the test run: an IDE backend
+    /// or a dotnet tool reports its own moniker while the entry is labelled with the test project's.
+    /// The owner then finds no variant carrying that label, strips nothing, and answers no
+    /// differently than if it had - so the entry stays pending against source that already holds
+    /// the snapshot, and nothing anywhere says so.
+    /// </remarks>
+    /// <param name="patch">
+    /// The patch that was applied, which names the call site and the member it sits in.
+    /// </param>
+    public static void SettleAppliedInline(InlinePatch patch)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        ViewerClient.TrySend(
+            new(ViewerVerb.Settle, InlineKey.For(patch.SourceFile, patch.LineHint), null, patch.MemberName));
+    }
+
     static InlineResult CheckInline()
     {
         if (Disabled)

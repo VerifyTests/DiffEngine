@@ -74,8 +74,10 @@ stdin and binds the port itself; if no viewer resolves (or `DiffEngine_InlineVie
 Verify stages `received`/`expected`/`.inlinepatch` files and the IDE plugin or a text diff tool
 becomes the review surface. Accepting anywhere runs `InlineApplier` against the source file
 (per-file cross-process mutex — safe concurrently from any process). A passing re-run calls
-`SettleInline`, and any surface that applies a patch itself must settle too, or the queue owner
-keeps offering a snapshot that is already in the source.
+`SettleInline`, and any surface that applies a patch itself must call `SettleAppliedInline` — not
+`SettleInline`, whose framework label is the running process's own and so never matches an entry
+some other process queued, missing silently — or the queue owner keeps offering a snapshot that is
+already in the source.
 
 The source may be C# or F#, decided by the file's extension (`SourceLanguage.ForFile`) rather than
 stated on the patch. `InlinePatcher` walks the same structure either way — a name, an argument
