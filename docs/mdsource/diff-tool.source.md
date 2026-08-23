@@ -32,6 +32,8 @@ If a tool is running for the comparison of the current verification (per test), 
 | false        | true  | Open new instance. Previous instance must be manually closed |
 | false        | false | Kill current and open new instance |
 
+The bundled [DiffEngineViewer](/docs/viewer.md) is the exception: it queues every failing pair into one window, so none of the four rows describes it.
+
 include: diffToolCleanup
 
 

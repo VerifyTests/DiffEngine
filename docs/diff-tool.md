@@ -39,6 +39,8 @@ If a tool is running for the comparison of the current verification (per test), 
 | false        | true  | Open new instance. Previous instance must be manually closed |
 | false        | false | Kill current and open new instance |
 
+The bundled [DiffEngineViewer](/docs/viewer.md) is the exception: it queues every failing pair into one window, so none of the four rows describes it.
+
 This allows, in most cases, for no manual closing of the tool to be required.<!-- singleLineInclude: diffToolCleanup. path: /docs/mdsource/diffToolCleanup.include.md -->
 
 
@@ -284,6 +286,10 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
 
 #### Notes:
 
+ * The one tool DiffEngine does not open per pair. Every failing pair joins one
+   window, so the auto-refresh and MDI table above does not describe it: nothing
+   is relaunched, nothing is killed, and a test that starts passing has its entry
+   dropped instead
  * Bundled inside the DiffEngine package, so it needs no install
  * Also available standalone as `DiffEngineViewer.Windows`, `.Mac` or `.Linux`
  * Renders natively per platform: WinForms on Windows, AppKit and Core Text on

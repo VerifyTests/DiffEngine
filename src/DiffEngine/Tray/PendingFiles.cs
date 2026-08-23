@@ -145,6 +145,22 @@ static class PendingFiles
     }
 
     /// <summary>
+    /// The other end of <see cref="AddDiff" />: the pair's test started passing, so the row it
+    /// took goes.
+    /// <para>
+    /// A settle rather than a kill, because there is no process of its own to kill and the window
+    /// it is drawn in holds every other pending pair. And rather than a discard, because the
+    /// received file a discard would delete is one DiffEngine has already removed.
+    /// </para>
+    /// <para>
+    /// Silent when nobody answers, the same bargain a pending file with no surface makes: no
+    /// owner means no row, which is the state this was asking for.
+    /// </para>
+    /// </summary>
+    public static void SettleDiff(string tempFile) =>
+        ViewerClient.TrySend(new(ViewerVerb.Settle, TrackedKeys.ForMove(tempFile)));
+
+    /// <summary>
     /// Whether a pending file should take the <see cref="AddDiff" /> route rather than the plain
     /// tracking one, which is exactly whether the tool that would have opened a window for it is
     /// the viewer.

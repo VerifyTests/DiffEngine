@@ -28,7 +28,7 @@ public static partial class DiffRunner
         // what killing the window meant for a tool that had one per pair.
         if (PendingFiles.IsViewer(diffTool))
         {
-            ViewerClient.TrySend(new(ViewerVerb.Settle, TrackedKeys.ForMove(tempFile)));
+            PendingFiles.SettleDiff(tempFile);
             return;
         }
 
