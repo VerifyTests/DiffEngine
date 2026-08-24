@@ -66,7 +66,7 @@ static class PendingFiles
         }
 
         await ViewerLaunchGate.LaunchAsync(
-            async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel),
+            () => ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel),
             () => Task.FromResult(ViewerLauncher.LaunchDelete(file)),
             cancel);
     }
@@ -161,7 +161,7 @@ static class PendingFiles
 
         return Launched(
             await ViewerLaunchGate.LaunchAsync(
-                async () => await ViewerClient.TrySendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel),
+                () => ViewerClient.TrySendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel),
                 () => Task.FromResult(ViewerLauncher.LaunchDiff(tempFile, targetFile)),
                 cancel));
     }

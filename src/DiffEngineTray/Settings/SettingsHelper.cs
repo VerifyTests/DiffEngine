@@ -29,11 +29,11 @@ static class SettingsHelper
         return settings;
     }
 
-    public static async Task Write(Settings settings)
+    public static Task Write(Settings settings)
     {
         TargetPosition.SetTargetOnLeft(settings.TargetOnLeft);
         MaxInstance.SetForUser(settings.MaxInstancesToLaunch);
-        await WriteFile(settings);
+        return WriteFile(settings);
     }
 
     /// <summary>
