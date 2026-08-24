@@ -333,12 +333,7 @@ public static class InlineApplier
 
     static string MutexName(string normalizedPath)
     {
-#if NET6_0_OR_GREATER
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedPath));
-#else
-        using var sha = SHA256.Create();
-        var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalizedPath));
-#endif
         var builder = new StringBuilder("DiffEngineInline_");
         foreach (var b in hash)
         {
