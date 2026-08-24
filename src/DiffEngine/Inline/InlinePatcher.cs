@@ -689,13 +689,13 @@ static class InlinePatcher
         var floor = memberLine is null ? 1 : Clamp(memberLine.Value, lineCount);
         var origin = memberLine is null ? lineHint : floor;
         // The recorded line is tried first so that two snapshots in one member stay apart. It is
-        // only evidence about this member while it is still inside it, though, and a declaration
-        // between the two says it is not: the hint went stale, something above it moved, and it
-        // now points into the test next door. Trying it anyway rewrote that test's snapshot and
-        // left this one alone, which is the failure the member name exists to prevent
+        // only evidence about this member while it is still inside it, though, and another member
+        // declared between the two says it is not: the hint went stale, something above it moved,
+        // and it now points into the test next door. Trying it anyway rewrote that test's snapshot
+        // and left this one alone, which is the failure the member name exists to prevent
         if (lineHint >= floor &&
             (memberLine is null ||
-             !DeclarationBetween(source, scan, lineStarts, floor, lineHint)))
+             !MemberDeclaredBetween(source, scan, lineStarts, floor, lineHint)))
         {
             foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, byPrefix))
             {
@@ -734,11 +734,21 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Whether a declaration sits after <paramref name="afterLine"/> and at or before
-    /// <paramref name="uptoLine"/>. Cheap because it only ever runs over the span between a
-    /// member's declaration and the recorded line.
+    /// Whether another member is declared after <paramref name="afterLine"/> and at or before
+    /// <paramref name="uptoLine"/>, which is what says the recorded line has left the member it was
+    /// recorded in. Cheap because it only ever runs over the span between a member's declaration
+    /// and the recorded line.
+    /// <para>
+    /// Indentation is what tells a member from a local, because nothing in front of the name does:
+    /// <c>var hash = Hash()</c> and F#'s <c>let hash = hash ()</c> are declarations to
+    /// <see cref="SourceScan.IsDeclaration"/> exactly as a sibling test method is. A declaration
+    /// indented past the member's own sits inside its body - a local, a local function, a nested
+    /// type - and none of those put the recorded line in another member. Counting them did, which
+    /// made the hint unreachable for the ordinary shape of a test: a local, then a verify call on
+    /// it. A sibling shares the member's own indentation, so the comparison is inclusive.
+    /// </para>
     /// </summary>
-    static bool DeclarationBetween(string source, SourceScan scan, List<int> lineStarts, int afterLine, int uptoLine)
+    static bool MemberDeclaredBetween(string source, SourceScan scan, List<int> lineStarts, int afterLine, int uptoLine)
     {
         if (uptoLine <= afterLine ||
             afterLine >= lineStarts.Count)
@@ -746,6 +756,7 @@ static class InlinePatcher
             return false;
         }
 
+        var memberIndent = LeadingWhitespace(source, lineStarts, lineStarts[afterLine - 1]).Length;
         var start = lineStarts[afterLine];
         var end = uptoLine < lineStarts.Count ? lineStarts[uptoLine] : source.Length;
         for (var index = start; index < end; index++)
@@ -757,7 +768,8 @@ static class InlinePatcher
                 continue;
             }
 
-            if (scan.IsDeclaration(index))
+            if (scan.IsDeclaration(index) &&
+                LeadingWhitespace(source, lineStarts, index).Length <= memberIndent)
             {
                 return true;
             }
