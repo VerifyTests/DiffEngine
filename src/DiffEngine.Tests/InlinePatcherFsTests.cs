@@ -1,8 +1,27 @@
 public class InlinePatcherFsTests
 {
+    /// <summary>
+    /// A whole file of source, written as a raw string so that it reads as the code it stands for.
+    /// <para>
+    /// Normalized on the way in because a raw string carries the line endings of the file holding
+    /// it rather than normalizing them, and every expectation here is written in LF. The checkout
+    /// is LF whatever the platform (<c>* text=auto eol=lf</c>), so this only ever matters to a file
+    /// that arrived some other way - but it is line endings, in the suite that patches them, and
+    /// the failure it produces names the wrong thing entirely.
+    /// </para>
+    /// <para>
+    /// A fixture whose subject is line endings, tabs, or runs of quotes is built by hand instead: a
+    /// raw string cannot carry those without a delimiter wider than the thing being described, or
+    /// without indentation that a formatter is free to rewrite. F# writes its multi-line snapshots
+    /// triple quoted, so that last one covers most of the fixtures here.
+    /// </para>
+    /// </summary>
+    static string Source(string source) =>
+        SourceLanguage.NormalizeNewlines(source);
+
     // Line 5 is the first line of the body
     static string Test(string body) =>
-        $"module Tests\n\n[<Fact>]\nlet MyTest () =\n{body}\n";
+        Source($"module Tests\n\n[<Fact>]\nlet MyTest () =\n{body}\n");
 
     static PatchStatus TryApply(
         string source,
@@ -101,9 +120,11 @@ public class InlinePatcherFsTests
     public async Task DeepCallSiteIndentsFurther()
     {
         var source = Test(
-            "    let inner () =\n" +
-            "        Verifier.Verify(15).Snapshot().ToTask()\n" +
-            "    inner ()");
+            """
+                let inner () =
+                    Verifier.Verify(15).Snapshot().ToTask()
+                inner ()
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Set, null, "a\nb", out var newSource, out _);
 
@@ -191,15 +212,16 @@ public class InlinePatcherFsTests
     [Test]
     public async Task ValueAnchorBeatsAStaleHint()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "let TestA () =",
-            "    Verifier.Verify(a).Snapshot(\"a\").ToTask()",
-            "",
-            "let TestB () =",
-            "    Verifier.Verify(b).Snapshot(\"b\").ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            let TestA () =
+                Verifier.Verify(a).Snapshot("a").ToTask()
+
+            let TestB () =
+                Verifier.Verify(b).Snapshot("b").ToTask()
+            """);
 
         var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "b");
 
@@ -250,15 +272,16 @@ public class InlinePatcherFsTests
     }
 
     static string TwoTests(string literalA, string literalB) =>
-        string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "let TestA () =",
-            $"    Verifier.Verify(a).Snapshot({literalA}).ToTask()",
-            "",
-            "let TestB () =",
-            $"    Verifier.Verify(b).Snapshot({literalB}).ToTask()");
+        Source(
+            $$"""
+              module Tests
+
+              let TestA () =
+                  Verifier.Verify(a).Snapshot({{literalA}}).ToTask()
+
+              let TestB () =
+                  Verifier.Verify(b).Snapshot({{literalB}}).ToTask()
+              """);
 
     // A call above TestB's declaration is not inside TestB, whatever the hint says, so the
     // identical snapshot in the test above is not even a candidate
@@ -346,31 +369,60 @@ public class InlinePatcherFsTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Test(
-                "    Verifier.Verify(15)\n" +
-                "        .Snapshot(\"new\").ToTask() |> Async.AwaitTask"));
+                """
+                    Verifier.Verify(15)
+                        .Snapshot("new").ToTask() |> Async.AwaitTask
+                """));
     }
 
     [Test]
     public async Task AppendToAMultiLineChain()
     {
         var source = Test(
-            "    Verifier\n" +
-            "        .Verify(15)\n" +
-            "        .UseMethodName(\"customName\")\n" +
-            "        .ToTask()\n" +
-            "    |> Async.AwaitTask");
+            """
+                Verifier
+                    .Verify(15)
+                    .UseMethodName("customName")
+                    .ToTask()
+                |> Async.AwaitTask
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Test(
-                "    Verifier\n" +
-                "        .Verify(15)\n" +
-                "        .UseMethodName(\"customName\")\n" +
-                "        .Snapshot(\"new\")\n" +
-                "        .ToTask()\n" +
-                "    |> Async.AwaitTask"));
+                """
+                    Verifier
+                        .Verify(15)
+                        .UseMethodName("customName")
+                        .Snapshot("new")
+                        .ToTask()
+                    |> Async.AwaitTask
+                """));
+    }
+
+    // A let binding inside the test is a declaration exactly as the test's own let is, and reading
+    // one as another member declared the hint stale, which put the call it names out of reach
+    [Test]
+    public async Task AppendReachesAHintPastALocalBinding()
+    {
+        var source = Test(
+            """
+                let value = build ()
+                Verifier.Verify(value).ToTask()
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "MyTest");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    let value = build ()
+                    Verifier.Verify(value)
+                        .Snapshot("new").ToTask()
+                """));
     }
 
     // Awaited in a task expression instead, so there is no ToTask and the chain end is the
@@ -379,19 +431,23 @@ public class InlinePatcherFsTests
     public async Task AppendWithNoToTask()
     {
         var source = Test(
-            "    task {\n" +
-            "        do! Verifier.Verify(15)\n" +
-            "    }");
+            """
+                task {
+                    do! Verifier.Verify(15)
+                }
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Test(
-                "    task {\n" +
-                "        do! Verifier.Verify(15)\n" +
-                "            .Snapshot(\"new\")\n" +
-                "    }"));
+                """
+                    task {
+                        do! Verifier.Verify(15)
+                            .Snapshot("new")
+                    }
+                """));
     }
 
     [Test]
@@ -465,13 +521,14 @@ public class InlinePatcherFsTests
     [Test]
     public async Task LineCommentedOutCallIsSkipped()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "// Verifier.Verify(x).Snapshot(\"doc example\")",
-            "let MyTest () =",
-            "    Verifier.Verify(x).Snapshot().ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            // Verifier.Verify(x).Snapshot("doc example")
+            let MyTest () =
+                Verifier.Verify(x).Snapshot().ToTask()
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -483,13 +540,14 @@ public class InlinePatcherFsTests
     [Test]
     public async Task BlockCommentedOutCallIsSkipped()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "(* Verifier.Verify(x).Snapshot(\"doc example\") *)",
-            "let MyTest () =",
-            "    Verifier.Verify(x).Snapshot().ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            (* Verifier.Verify(x).Snapshot("doc example") *)
+            let MyTest () =
+                Verifier.Verify(x).Snapshot().ToTask()
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -502,13 +560,14 @@ public class InlinePatcherFsTests
     [Test]
     public async Task NestedBlockCommentIsOneComment()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "(* outer (* inner *) .Snapshot(\"commented\") *)",
-            "let MyTest () =",
-            "    Verifier.Verify(x).Snapshot().ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            (* outer (* inner *) .Snapshot("commented") *)
+            let MyTest () =
+                Verifier.Verify(x).Snapshot().ToTask()
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -521,13 +580,14 @@ public class InlinePatcherFsTests
     [Test]
     public async Task MultiplyOperatorIsNotAComment()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "let multiply = (*)",
-            "let MyTest () =",
-            "    Verifier.Verify(x).Snapshot().ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            let multiply = (*)
+            let MyTest () =
+                Verifier.Verify(x).Snapshot().ToTask()
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -539,8 +599,10 @@ public class InlinePatcherFsTests
     public async Task CallInsideAStringIsSkipped()
     {
         var source = Test(
-            "    let text = \"Verifier.Verify(x).Snapshot(\\\"y\\\")\"\n" +
-            "    Verifier.Verify(text).Snapshot().ToTask()");
+            """
+                let text = "Verifier.Verify(x).Snapshot(\"y\")"
+                Verifier.Verify(text).Snapshot().ToTask()
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -569,8 +631,10 @@ public class InlinePatcherFsTests
     public async Task TypeParameterIsNotACharLiteral()
     {
         var source = Test(
-            "    let values : 'T list = []\n" +
-            "    Verifier.Verify(values).Snapshot(\"old\").ToTask()");
+            """
+                let values : 'T list = []
+                Verifier.Verify(values).Snapshot("old").ToTask()
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
@@ -582,8 +646,10 @@ public class InlinePatcherFsTests
     public async Task TickInAnIdentifierIsNotACharLiteral()
     {
         var source = Test(
-            "    let value' = 15\n" +
-            "    Verifier.Verify(value').Snapshot(\"old\").ToTask()");
+            """
+                let value' = 15
+                Verifier.Verify(value').Snapshot("old").ToTask()
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
@@ -596,8 +662,10 @@ public class InlinePatcherFsTests
     public async Task CharLiteralIsSkipped()
     {
         var source = Test(
-            "    let quote = '\"'\n" +
-            "    Verifier.Verify(quote).Snapshot(\"old\").ToTask()");
+            """
+                let quote = '"'
+                Verifier.Verify(quote).Snapshot("old").ToTask()
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
@@ -609,11 +677,12 @@ public class InlinePatcherFsTests
     [Test]
     public async Task LetDeclarationIsNotMistakenForACall()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "let Snapshot (expected: string) = expected");
+        var source = Source(
+            """
+            module Tests
+
+            let Snapshot (expected: string) = expected
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out _, out var reason);
 
@@ -624,13 +693,14 @@ public class InlinePatcherFsTests
     [Test]
     public async Task MemberDeclarationIsNotMistakenForACall()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "type Extensions =",
-            "    member this.Snapshot (expected: string) = expected",
-            "    static member Snapshot (expected: string, other: string) = expected");
+        var source = Source(
+            """
+            module Tests
+
+            type Extensions =
+                member this.Snapshot (expected: string) = expected
+                static member Snapshot (expected: string, other: string) = expected
+            """);
 
         var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out _, out var reason);
 
@@ -677,15 +747,16 @@ public class InlinePatcherFsTests
     [Test]
     public async Task SequentialPatchesOfIdenticalLiterals()
     {
-        var source = string.Join(
-            "\n",
-            "module Tests",
-            "",
-            "let TestA () =",
-            "    Verifier.Verify(a).Snapshot(\"old\").ToTask()",
-            "",
-            "let TestB () =",
-            "    Verifier.Verify(b).Snapshot(\"old\").ToTask()");
+        var source = Source(
+            """
+            module Tests
+
+            let TestA () =
+                Verifier.Verify(a).Snapshot("old").ToTask()
+
+            let TestB () =
+                Verifier.Verify(b).Snapshot("old").ToTask()
+            """);
 
         var first = TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "newA", out var afterFirst, out _);
         var second = TryApply(afterFirst, 7, InlinePatchMode.Set, "\"old\"", "newB", out var afterSecond, out _);

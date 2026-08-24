@@ -14,8 +14,26 @@ public class InlinePatcherTests
 
     const string rawOld = "\"\"\"\n        old\n        \"\"\"";
 
+    /// <summary>
+    /// A whole file of source, written as a raw string so that it reads as the code it stands for.
+    /// <para>
+    /// Normalized on the way in because a raw string carries the line endings of the file holding
+    /// it rather than normalizing them, and every expectation here is written in LF. The checkout
+    /// is LF whatever the platform (<c>* text=auto eol=lf</c>), so this only ever matters to a file
+    /// that arrived some other way - but it is line endings, in the suite that patches them, and
+    /// the failure it produces names the wrong thing entirely.
+    /// </para>
+    /// <para>
+    /// A fixture whose subject is line endings, tabs, or runs of quotes is built by hand instead: a
+    /// raw string cannot carry those without a delimiter wider than the thing being described, or
+    /// without indentation that a formatter is free to rewrite.
+    /// </para>
+    /// </summary>
+    static string Source(string source) =>
+        SourceLanguage.NormalizeNewlines(source);
+
     static string Method(string body) =>
-        $"class Tests\n{{\n    async Task Test()\n    {{\n{body}\n    }}\n}}";
+        Source($"class Tests\n{{\n    async Task Test()\n    {{\n{body}\n    }}\n}}");
 
     [Test]
     public async Task ReplaceRawLiteral()
@@ -132,8 +150,10 @@ public class InlinePatcherTests
     public async Task RemoveTakesTheCallTheAnchorNamesRatherThanTheNearest()
     {
         var source = Method(
-            "        await A().Snapshot(\"one\");\n" +
-            "        await B().Snapshot(\"two\");");
+            """
+                    await A().Snapshot("one");
+                    await B().Snapshot("two");
+            """);
 
         // Hint on the second call, anchor on the first
         var status = TryApply(source, 6, InlinePatchMode.Remove, "\"one\"", "", out var newSource, out _);
@@ -167,19 +187,21 @@ public class InlinePatcherTests
     [Test]
     public async Task AStaleHintDoesNotReachIntoTheNextMember()
     {
-        var source =
-            "class Tests\n" +
-            "{\n" +
-            "    async Task First()\n" +
-            "    {\n" +
-            "        await Snapshot(\"dup\");\n" +
-            "    }\n" +
-            "\n" +
-            "    async Task Second()\n" +
-            "    {\n" +
-            "        await Snapshot(\"dup\");\n" +
-            "    }\n" +
-            "}";
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task First()
+                {
+                    await Snapshot("dup");
+                }
+
+                async Task Second()
+                {
+                    await Snapshot("dup");
+                }
+            }
+            """);
 
         // Line 10 is Second's snapshot; the patch came from First
         var status = TryApply(source, 10, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _, memberName: "First");
@@ -226,8 +248,10 @@ public class InlinePatcherTests
     public async Task ATrailingCommentIsNotPartOfTheArgument()
     {
         var source = Method(
-            "        await Snapshot(\"old\" // note\n" +
-            "            );");
+            """
+                    await Snapshot("old" // note
+                        );
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason);
 
@@ -291,16 +315,17 @@ public class InlinePatcherTests
 
     // Two call sites, A on line 4 and B on line 7
     static string TwoCallSites(string literalA, string literalB) =>
-        string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    Task A() =>",
-            $"        Verify(a).Snapshot({literalA});",
-            "",
-            "    Task B() =>",
-            $"        Verify(b).Snapshot({literalB});",
-            "}");
+        Source(
+            $$"""
+              class Tests
+              {
+                  Task A() =>
+                      Verify(a).Snapshot({{literalA}});
+
+                  Task B() =>
+                      Verify(b).Snapshot({{literalB}});
+              }
+              """);
 
     static (string a, string b) Segments(string text)
     {
@@ -328,15 +353,16 @@ public class InlinePatcherTests
     [Test]
     public async Task EquidistantDuplicatesPreferAtOrAfterHint()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    Task A() =>",
-            "        Verify(a).Snapshot(\"dup\");",
-            "    Task B() =>",
-            "        Verify(b).Snapshot(\"dup\");",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                Task A() =>
+                    Verify(a).Snapshot("dup");
+                Task B() =>
+                    Verify(b).Snapshot("dup");
+            }
+            """);
 
         // Line 5 is equidistant from the sites on lines 4 and 6
         var status = TryApply(source, 5, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _);
@@ -525,16 +551,17 @@ public class InlinePatcherTests
     [Test]
     public async Task RecordedLineWinsOverTheMemberDeclaration()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    async Task Test()",
-            "    {",
-            "        await Verify(a).Snapshot(\"dup\");",
-            "        await Verify(b).Snapshot(\"dup\");",
-            "    }",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Verify(a).Snapshot("dup");
+                    await Verify(b).Snapshot("dup");
+                }
+            }
+            """);
 
         var status = TryApply(source, 6, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out _, memberName: "Test");
 
@@ -565,16 +592,17 @@ public class InlinePatcherTests
     [Test]
     public async Task AppendDoesNotReachAHelperDeclaredAboveTheMember()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    static Task Run(string value) =>",
-            "        Verify(value);",
-            "",
-            "    async Task Test() =>",
-            "        await Run(\"value\");",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                static Task Run(string value) =>
+                    Verify(value);
+
+                async Task Test() =>
+                    await Run("value");
+            }
+            """);
 
         var status = TryApply(source, 4, InlinePatchMode.Append, null, "new", out _, out var reason, memberName: "Test");
 
@@ -587,19 +615,20 @@ public class InlinePatcherTests
     [Test]
     public async Task AppendPrefersACallInsideTheMemberOverAHelperAbove()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    static Task Run(string value) =>",
-            "        Verify(value);",
-            "",
-            "    async Task Test()",
-            "    {",
-            "        await Verify(direct);",
-            "        await Run(\"value\");",
-            "    }",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                static Task Run(string value) =>
+                    Verify(value);
+
+                async Task Test()
+                {
+                    await Verify(direct);
+                    await Run("value");
+                }
+            }
+            """);
 
         var status = TryApply(source, 4, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "Test");
 
@@ -607,6 +636,56 @@ public class InlinePatcherTests
         await Assert.That(newSource).Contains(
             "        await Verify(direct)\n" +
             "            .Snapshot(\"new\");");
+    }
+
+    // The ordinary shape of a test: a local, then a verify call on it. The local sits between the
+    // member's declaration and the hint, and taking it for another member declared the hint stale -
+    // which drops it from the first try and from the outward walk both, so the call sitting exactly
+    // where the hint said was never looked at and an append reported NotFound
+    [Test]
+    public async Task AppendReachesAHintPastALocalDeclaration()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    var value = Build();
+                    await Verify(value);
+                }
+            }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(value)\n" +
+            "            .Snapshot(\"new\");");
+    }
+
+    // Same cause, and every mode that locates by hint pays it: an explicitly typed local is as
+    // much a declaration as a var one
+    [Test]
+    public async Task SetReachesAHintPastALocalDeclaration()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    string value = Build();
+                    await Snapshot("old");
+                }
+            }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Snapshot(\"new\");");
     }
 
     [Test]
@@ -675,9 +754,11 @@ public class InlinePatcherTests
     public async Task AppendGoesAfterAnExistingChain()
     {
         var source = Method(
-            "        await Verify(value)\n" +
-            "            .UseDirectory(\"snapshots\")\n" +
-            "            .ScrubLinesContaining(\"x\");");
+            """
+                    await Verify(value)
+                        .UseDirectory("snapshots")
+                        .ScrubLinesContaining("x");
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
@@ -703,11 +784,13 @@ public class InlinePatcherTests
     public async Task AppendToAMultiLineVerifyCall()
     {
         var source = Method(
-            "        await Verify(\n" +
-            "            new\n" +
-            "            {\n" +
-            "                value\n" +
-            "            });");
+            """
+                    await Verify(
+                        new
+                        {
+                            value
+                        });
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
@@ -924,17 +1007,21 @@ public class InlinePatcherTests
     public async Task RemoveLeavesTheRestOfTheChain()
     {
         var source = Method(
-            "        await Verify(value)\n" +
-            "            .UseDirectory(\"snapshots\")\n" +
-            "            .Snapshot(\"old\");");
+            """
+                    await Verify(value)
+                        .UseDirectory("snapshots")
+                        .Snapshot("old");
+            """);
 
         var status = TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Method(
-                "        await Verify(value)\n" +
-                "            .UseDirectory(\"snapshots\");"));
+                """
+                        await Verify(value)
+                            .UseDirectory("snapshots");
+                """));
     }
 
     [Test]
@@ -1466,14 +1553,15 @@ public class InlinePatcherTests
     [Test]
     public async Task CommentedOutCallIsSkipped()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    // await Verify(x).Snapshot(\"doc example\");",
-            "    async Task Test() =>",
-            "        await Verify(x).Snapshot();",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                // await Verify(x).Snapshot("doc example");
+                async Task Test() =>
+                    await Verify(x).Snapshot();
+            }
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -1486,8 +1574,10 @@ public class InlinePatcherTests
     public async Task CallInsideAStringIsSkipped()
     {
         var source = Method(
-            "        var text = \"await Snapshot(\\\"x\\\")\";\n" +
-            "        await Verify(x).Snapshot();");
+            """
+                    var text = "await Snapshot(\"x\")";
+                    await Verify(x).Snapshot();
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, null, "new", out var newSource, out _);
 
@@ -1500,13 +1590,14 @@ public class InlinePatcherTests
     [Test]
     public async Task SnapshotDeclarationIsNotMistakenForACall()
     {
-        var source = string.Join(
-            "\n",
-            "static class Extensions",
-            "{",
-            "    public static Task Snapshot(this Task task, string? expected = null) =>",
-            "        task;",
-            "}");
+        var source = Source(
+            """
+            static class Extensions
+            {
+                public static Task Snapshot(this Task task, string? expected = null) =>
+                    task;
+            }
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, null, "new", out _, out var reason);
 
@@ -1517,12 +1608,13 @@ public class InlinePatcherTests
     [Test]
     public async Task AppendSkipsAVerifyPrefixedDeclaration()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    Task VerifyThing(string value) => Verify(value);",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                Task VerifyThing(string value) => Verify(value);
+            }
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
@@ -1537,8 +1629,10 @@ public class InlinePatcherTests
     public async Task AppendGoesAfterACommentInTheChain()
     {
         var source = Method(
-            "        await Verify(value) // note\n" +
-            "            .UseDirectory(\"snapshots\");");
+            """
+                    await Verify(value) // note
+                        .UseDirectory("snapshots");
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
 
@@ -1552,8 +1646,10 @@ public class InlinePatcherTests
     public async Task LiteralInACommentIsNotPatched()
     {
         var source = Method(
-            "        // was \"old\"\n" +
-            "        await Verify(x).Snapshot(\"old\");");
+            """
+                    // was "old"
+                    await Verify(x).Snapshot("old");
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
@@ -1565,15 +1661,16 @@ public class InlinePatcherTests
     [Test]
     public async Task LiteralInAnotherMethodIsNotPatched()
     {
-        var source = string.Join(
-            "\n",
-            "class Tests",
-            "{",
-            "    void Helper() => Log(\"old\");",
-            "",
-            "    async Task Test() =>",
-            "        await Verify(x).Snapshot(\"old\");",
-            "}");
+        var source = Source(
+            """
+            class Tests
+            {
+                void Helper() => Log("old");
+
+                async Task Test() =>
+                    await Verify(x).Snapshot("old");
+            }
+            """);
 
         var status = TryApply(source, 3, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
 
@@ -1655,17 +1752,21 @@ public class InlinePatcherTests
     public async Task RemoveLeavesALineCommentAboveIntact()
     {
         var source = Method(
-            "        await Verify(value)\n" +
-            "            // note\n" +
-            "            .Snapshot(\"old\");");
+            """
+                    await Verify(value)
+                        // note
+                        .Snapshot("old");
+            """);
 
         var status = TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Method(
-                "        await Verify(value)\n" +
-                "            // note\n" +
-                "            ;"));
+                """
+                        await Verify(value)
+                            // note
+                            ;
+                """));
     }
 }
