@@ -1,7 +1,5 @@
 extern alias viewer;
 
-using System.Runtime.InteropServices;
-
 using ViewerCommandLine = viewer::CommandLine;
 using ViewerMode = viewer::ViewerMode;
 

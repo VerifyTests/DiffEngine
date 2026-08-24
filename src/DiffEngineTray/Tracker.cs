@@ -422,7 +422,7 @@ class Tracker :
         if (!ok &&
             message != null)
         {
-            Log.Error(message);
+            Log.Error("{Message}", message);
         }
     }
 
@@ -691,7 +691,7 @@ class Tracker :
         }
         else
         {
-            Log.Error(message ?? "Could not discard the pending snapshots.");
+            Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
         }
     }
 

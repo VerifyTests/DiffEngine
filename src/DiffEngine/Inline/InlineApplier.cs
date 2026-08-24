@@ -230,7 +230,9 @@ public static class InlineApplier
             return path;
         }
 #else
+#pragma warning disable IDE0022
         return path;
+#pragma warning restore IDE0022
 #endif
     }
 

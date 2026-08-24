@@ -90,11 +90,9 @@ public class OwnedInlineHostTest
     [Test]
     public async Task DisposalSkipsPatchesWhoseSourceIsGone()
     {
-        using (var owner = new Owner())
-        {
-            owner.Queue();
-            await Assert.That(owner.Host.Queued().Count).IsEqualTo(1);
-        }
+        using var owner = new Owner();
+        owner.Queue();
+        await Assert.That(owner.Host.Queued().Count).IsEqualTo(1);
 
         // Nothing to assert on disk: the fake path has no project to stage under. The absence of
         // an exception out of Dispose is the point.

@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Type or member is obsolete
 extern alias engine;
 
 using EngineRunner = engine::DiffEngine.DiffRunner;

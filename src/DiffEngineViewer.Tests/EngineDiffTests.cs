@@ -1,6 +1,5 @@
 extern alias engine;
 
-using EngineArguments = engine::DiffEngine.LaunchArguments;
 using EngineLaunchResult = engine::DiffEngine.LaunchResult;
 using EngineRunner = engine::DiffEngine.DiffRunner;
 using EngineTool = engine::DiffEngine.DiffTool;

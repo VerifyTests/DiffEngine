@@ -1,3 +1,4 @@
+// ReSharper disable RedundantUnsafeContext
 /// <summary>
 /// The <see cref="IViewerWindow" /> backed by the native shim. The only type in the app that
 /// touches it, so everything else stays testable on a machine with no GPU.

@@ -3,7 +3,6 @@ extern alias engine;
 using EnginePatch = engine::DiffEngine.InlinePatch;
 using EngineResult = engine::DiffEngine.InlineResult;
 using EngineRunner = engine::DiffEngine.DiffRunner;
-using EngineViewerClient = engine::DiffEngine.ViewerClient;
 
 /// <summary>
 /// DiffEngine's public inline entry point, driven against a real <see cref="ViewerServer"/> and

@@ -65,9 +65,10 @@ static class FilePurger
     };
 
     internal static string[] Find(string path) =>
-        Directory.GetFiles(path, "*.verified.*", enumeration)
-            .Concat(Directory.GetFiles(path, "*.received.*", enumeration))
-            .ToArray();
+    [
+        .. Directory.GetFiles(path, "*.verified.*", enumeration),
+        .. Directory.GetFiles(path, "*.received.*", enumeration)
+    ];
 
     static bool Confirm(string[] files)
     {
