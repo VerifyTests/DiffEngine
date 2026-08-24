@@ -47,14 +47,11 @@ public class MaxInstanceReplacementTests :
     }
 
     /// <summary>
-    /// Through the environment variable, because that is what MaxInstance reads first and this
-    /// machine may well have one set - DiffEngine_MaxInstances persists per user, so the app
-    /// domain setting alone silently loses to it. Process scoped, so nothing outlives the run.
+    /// The app domain value beats DiffEngine_MaxInstances, which this machine may well have set -
+    /// it persists per user - so this is all it takes to pin the limit for the test.
     /// </summary>
     static void LimitTo(int value)
     {
-        Environment.SetEnvironmentVariable(variable, value.ToString());
-        // Forces MaxInstance to re-read, since it caches the first answer
         DiffRunner.MaxInstancesToLaunch(value);
         MaxInstance.ResetCount();
     }
@@ -105,8 +102,7 @@ public class MaxInstanceReplacementTests :
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable(variable, original);
-        DiffRunner.MaxInstancesToLaunch(5);
+        MaxInstance.ResetAppDomainValue();
         MaxInstance.ResetCount();
         try
         {
@@ -122,8 +118,6 @@ public class MaxInstanceReplacementTests :
 
     // Per test, not static: two tests sharing paths means the second one's first launch finds
     // the first one's tool still open and is treated as a replacement
-    const string variable = "DiffEngine_MaxInstances";
-    string? original = Environment.GetEnvironmentVariable(variable);
     string directory = Path.Combine(Path.GetTempPath(), $"DiffEngine.MaxInstance.{Guid.NewGuid():N}");
     ResolvedTool tool;
     string temp;

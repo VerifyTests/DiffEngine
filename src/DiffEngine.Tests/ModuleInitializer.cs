@@ -9,8 +9,17 @@ public static class ModuleInitializer
         FileExtensions.AddTextFileConvention(_ => _.EndsWith(".txtConvention".AsSpan()));
         Logging.Enable();
         DiffRunner.Disabled = false;
+        KeepEnvironmentWritesInProcess();
         DetachFromPendingFileSurfaces();
     }
+
+    /// <summary>
+    /// Tests must not write the user environment of the machine running them. The test projects
+    /// run as parallel processes over the one registry key, so a capture in one and a restore in
+    /// the other race, and the value that loses is gone.
+    /// </summary>
+    static void KeepEnvironmentWritesInProcess() =>
+        EnvironmentHelper.Set = EnvironmentHelper.SetProcessOnly;
 
     /// <summary>
     /// Launching sends a real pending move to whatever owns the queue on this machine. On a
