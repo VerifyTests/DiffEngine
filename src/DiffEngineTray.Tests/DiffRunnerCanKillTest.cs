@@ -8,7 +8,6 @@ public class DiffRunnerCanKillTest :
 {
     string tempFile = Path.GetTempFileName();
     bool originalDisabled = DiffRunner.Disabled;
-    string? originalMaxInstances = Environment.GetEnvironmentVariable("DiffEngine_MaxInstances");
 
     public DiffRunnerCanKillTest()
     {
@@ -16,9 +15,7 @@ public class DiffRunnerCanKillTest :
         DiffEngine.DiffEngineTray.IsRunning = true;
         DiffRunner.Disabled = false;
         // Force the "too many running" branch so no real process is launched, while a move
-        // payload is still sent to the tray. The env var takes precedence over the app-domain
-        // value, so set it too; MaxInstancesToLaunch resets the cached lookup.
-        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", "0");
+        // payload is still sent to the tray.
         DiffRunner.MaxInstancesToLaunch(0);
     }
 
@@ -107,8 +104,7 @@ public class DiffRunnerCanKillTest :
     {
         DiffEngine.DiffEngineTray.IsRunning = false;
         DiffRunner.Disabled = originalDisabled;
-        Environment.SetEnvironmentVariable("DiffEngine_MaxInstances", originalMaxInstances);
-        DiffRunner.MaxInstancesToLaunch(5);
+        MaxInstance.ResetAppDomainValue();
         File.Delete(tempFile);
     }
 }

@@ -5,8 +5,17 @@ public static class ModuleInitializer
     {
         VerifyWinForms.Initialize();
         VerifierSettings.UseSsimForPng(PngSsimThreshold);
+        KeepEnvironmentWritesInProcess();
         PointAtAClosedPort();
     }
+
+    /// <summary>
+    /// Tests must not write the user environment of the machine running them. The test projects
+    /// run as parallel processes over the one registry key, so a capture in one and a restore in
+    /// the other race, and the value that loses is gone.
+    /// </summary>
+    static void KeepEnvironmentWritesInProcess() =>
+        EnvironmentHelper.Set = EnvironmentHelper.SetProcessOnly;
 
     /// <summary>
     /// Effectively "the same pixels", rather than Verify's 0.98 default. These screens are mostly
