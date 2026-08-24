@@ -234,16 +234,21 @@ public static class InlineApplier
 #endif
     }
 
+#if NET7_0_OR_GREATER
     /// <summary>
     /// The destination's Unix permissions onto the temporary, because the swap is a rename and the
     /// file that survives it is the temporary - created with this process's umask. A source file
     /// that was executable, or group writable, or anything else out of the ordinary, came back as
     /// whatever the umask happened to say. Windows keeps the destination's ACLs across a Replace,
     /// so there is nothing to carry there.
+    /// <para>
+    /// Only exists from net7, which is where SetUnixFileMode arrives. Below that there is nothing
+    /// to carry on any OS, so the call site is compiled out with it rather than calling an empty
+    /// method.
+    /// </para>
     /// </summary>
     static void CopyMode(string destination, string temporary)
     {
-#if NET7_0_OR_GREATER
         if (OperatingSystem.IsWindows())
         {
             return;
@@ -259,8 +264,8 @@ public static class InlineApplier
             // Best effort. The content is the point, and a mode that could not be read or set is
             // not worth failing a patch that otherwise applied.
         }
-#endif
     }
+#endif
 
     static void WriteThroughTemporary(string fullPath, byte[] output)
     {
@@ -271,7 +276,9 @@ public static class InlineApplier
         try
         {
             File.WriteAllBytes(temporary, output);
+#if NET7_0_OR_GREATER
             CopyMode(fullPath, temporary);
+#endif
             File.Replace(temporary, fullPath, null);
         }
         finally
