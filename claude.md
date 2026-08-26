@@ -306,4 +306,5 @@ apart.
 - Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations
 - Tool order can be customized via `DiffEngine_ToolOrder` environment variable
 - `DisabledChecker` respects `DiffEngine_Disabled` env var
+- `TrayDisabledChecker` respects `DiffEngine_TrayDisabled` env var, behind `DiffRunner.TrayDisabled`. Separate from `Disabled` because tracking a pending move is separate from launching a tool: every exit of `InnerLaunch`, `Disabled` included, still calls `AddMove`. `PendingFiles.TrayAvailable` is the single gate
 - Tests use TUnit and Verify for snapshot testing

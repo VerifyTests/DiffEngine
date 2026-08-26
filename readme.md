@@ -48,6 +48,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
     * [Programmatic usage](#programmatic-usage)
   * [Disable for a machine/process](#disable-for-a-machineprocess)
   * [Disable in code](#disable-in-code)
+  * [Disable the tray](#disable-the-tray)
   * [Icons](#icons)<!-- endToc -->
   * [Tools](/docs/diff-tool.md)<!-- include: doc-index. path: /docs/mdsource/doc-index.include.md -->
   * [Tool Order](/docs/diff-tool.order.md)
@@ -257,6 +258,19 @@ Set an environment variable `DiffEngine_Disabled` with the value `true`.
 ```
 DiffRunner.Disabled = true;
 ```
+
+
+## Disable the tray
+
+Pending moves and deletes are sent to [DiffEngineTray](/docs/tray.md) when one is running. That tracking is separate from launching a diff tool, so disabling diff does not stop it.
+
+Set an environment variable `DiffEngine_TrayDisabled` with the value `true`, or in code:
+
+```
+DiffRunner.TrayDisabled = true;
+```
+
+[More detail](/docs/tray.md#opting-out-of-tracking).
 
 
 ## Icons
