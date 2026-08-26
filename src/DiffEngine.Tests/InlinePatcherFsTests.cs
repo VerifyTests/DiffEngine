@@ -782,4 +782,35 @@ public class InlinePatcherFsTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("\tVerifier.Verify(15)\n\t\t.Snapshot(\"new\").ToTask()");
     }
+
+    /// <summary>
+    /// F#'s directives - <c>#nowarn</c> above a binding, an <c>#if</c> block inside one - are
+    /// trivia to the scan, exactly as C#'s are. A hash anywhere else stays code: it is how a
+    /// flexible type (<c>#seq</c>) is written.
+    /// </summary>
+    [Test]
+    public async Task DirectiveLinesAreTrivia()
+    {
+        var source = Source(
+            """
+            module Tests
+
+            #nowarn "0044"
+
+            [<Fact>]
+            let MyTest () =
+            #if INTERACTIVE
+                printfn "session"
+            #endif
+                Verifier.Verify(15).Snapshot("old").ToTask()
+            """);
+
+        var status = TryApply(source, 10, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "old", memberName: "MyTest");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Verify(15).Snapshot(\"new\").ToTask()");
+        // The directives themselves are untouched
+        await Assert.That(newSource).Contains("#nowarn \"0044\"");
+        await Assert.That(newSource).Contains("#if INTERACTIVE");
+    }
 }

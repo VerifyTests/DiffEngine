@@ -70,6 +70,14 @@ sealed class FsLanguage : SourceLanguage
                     }
 
                     break;
+                case '#':
+                    if (TrySkipDirective(source, ref index))
+                    {
+                        scan.AddSkip(start, index, comment: true);
+                        continue;
+                    }
+
+                    break;
                 case '\'':
                     // Only where the tick cannot be part of the name in front of it, and only
                     // where a closing tick follows within a literal's length. Everything else is

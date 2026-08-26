@@ -1769,4 +1769,250 @@ public class InlinePatcherTests
                             ;
                 """));
     }
+
+    /// <summary>
+    /// A region named exactly after the test, which is what MarkdownSnippets leaves in every test
+    /// that doubles as a readme sample. The directive's text read as code, so the member search
+    /// took <c>#region Test</c> for the declaration of Test - and from that floor the body's own
+    /// locals looked like sibling members, which declared the hint stale and the one Verify call
+    /// unreachable.
+    /// </summary>
+    [Test]
+    public async Task AppendWithARegionNamedAfterTheMember()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    #region Test
+
+                    var value = Build();
+
+                    #endregion
+
+                    await Verify(value);
+                }
+            }
+            """);
+
+        var status = TryApply(source, 11, InlinePatchMode.Append, null, "new", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(reason).IsEmpty();
+        await Assert.That(newSource).Contains(
+            "        await Verify(value)\n" +
+            "            .Snapshot(\"new\");");
+    }
+
+    /// <summary>
+    /// The same regions with a neighbour: displaced off its own member, the search walked into
+    /// the next test, found its Verify already carrying a Snapshot, and refused the append with a
+    /// message naming a line that plainly had none.
+    /// </summary>
+    [Test]
+    public async Task ARegionNamedAfterTheMemberDoesNotDisplaceAnAppend()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task First()
+                {
+                    #region First
+
+                    var value = Build();
+
+                    #endregion
+
+                    await Verify(value);
+                }
+
+                async Task Second()
+                {
+                    #region Second
+
+                    var value = Build();
+
+                    #endregion
+
+                    await Verify(value)
+                        .Snapshot("done");
+                }
+            }
+            """);
+
+        var status = TryApply(source, 11, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "First");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(value)\n" +
+            "            .Snapshot(\"new\");");
+        // The neighbour keeps its own snapshot
+        await Assert.That(newSource).Contains(".Snapshot(\"done\");");
+    }
+
+    /// <summary>
+    /// And the Set shape of the same displacement: with the hint declared stale, the anchor was
+    /// matched against every call below the false floor and landed on the identical literal in
+    /// the next test, so accepting each sample rewrote the one after it.
+    /// </summary>
+    [Test]
+    public async Task ARegionNamedAfterTheMemberDoesNotDisplaceAnAnchoredSet()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task First()
+                {
+                    #region First
+                    await Verify(value)
+                        .Snapshot("one");
+                    #endregion
+                }
+
+                async Task Second()
+                {
+                    #region Second
+                    await Verify(value)
+                        .Snapshot("one");
+                    #endregion
+                }
+            }
+            """);
+
+        var status = TryApply(source, 7, InlinePatchMode.Set, "\"one\"", "new", out var newSource, out _, memberName: "First");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        var second = newSource.IndexOf("Second()", StringComparison.Ordinal);
+        await Assert.That(newSource.Substring(0, second)).Contains(".Snapshot(\"new\");");
+        await Assert.That(newSource.Substring(second)).Contains(".Snapshot(\"one\");");
+    }
+
+    /// <summary>
+    /// A directive whose title opens a verbatim string. Its text is prose, not code: lexed as
+    /// code, the <c>@"</c> opened a literal that never closes, which swallowed the rest of the
+    /// file and hid the one real call in it.
+    /// </summary>
+    [Test]
+    public async Task ADirectiveTitleWithAStrayQuoteDoesNotSwallowTheFile()
+    {
+        var source = Method(
+            """
+                    #region see @"C:\temp for context
+                    await Snapshot("old");
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Snapshot(\"new\");");
+    }
+
+    /// <summary>
+    /// A directive inside the argument list. It is trivia there like a comment is, so the
+    /// argument is the literal between the two rather than a span that starts at <c>#if</c> and
+    /// matches no anchor.
+    /// </summary>
+    [Test]
+    public async Task ADirectiveInsideTheArgumentListIsNotTheArgument()
+    {
+        var source = Method(
+            """
+                    await Snapshot(
+                    #if DEBUG
+                        "old"
+                    #endif
+                        );
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("\"new\"");
+        await Assert.That(newSource).DoesNotContain("\"old\"");
+        // The directives are around the argument, not part of it
+        await Assert.That(newSource).Contains("#if DEBUG");
+        await Assert.That(newSource).Contains("#endif");
+    }
+
+    /// <summary>
+    /// A call written twice under <c>#if</c>/<c>#else</c>. Both branches are source, only one was
+    /// compiled, and nothing at patch time can evaluate the condition - so the hint, which the
+    /// compiled branch stamped, is what says which twin the patch belongs to.
+    /// </summary>
+    [Test]
+    public async Task ConditionalTwinsPickTheCallAtTheHint()
+    {
+        var source = Source(string.Join(
+            "\n",
+            "class Tests",
+            "{",
+            "    async Task Test()",
+            "    {",
+            "#if NET48",
+            "        await Verify(a);",
+            "#else",
+            "        await Verify(b);",
+            "#endif",
+            "    }",
+            "}"));
+
+        var status = TryApply(source, 8, InlinePatchMode.Append, null, "new", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await Verify(b)\n" +
+            "            .Snapshot(\"new\");");
+        await Assert.That(newSource).Contains("await Verify(a);\n");
+    }
+
+    /// <summary>
+    /// The member is a region with two ends. A member whose own call has gone used to send the
+    /// outward walk past the next declaration and into the neighbour's Verify, which appended a
+    /// snapshot to a test that never produced it.
+    /// </summary>
+    [Test]
+    public async Task AppendConfinedToTheMemberReportsRatherThanReachingTheNextTest()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task First()
+                {
+                    Prepare();
+                }
+
+                async Task Second()
+                {
+                    await Verify(value);
+                }
+            }
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason, memberName: "First");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("No Verify or Throws call");
+    }
+
+    /// <summary>
+    /// The anchored shape of the same overreach: First's literal changed since the run, the stale
+    /// anchor matches only the identical snapshot in Second, and near-miss hints landed the walk
+    /// on it. Stale is the honest answer; the neighbour's content is not evidence about First.
+    /// </summary>
+    [Test]
+    public async Task AnAnchorMatchingOnlyTheNextMemberIsStale()
+    {
+        var source = TwoCallSites("\"changed\"", "\"dup\"");
+
+        // Hint on B's declaration line, one above its snapshot; the patch came from A
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"dup\"", "new", out _, out var reason, memberName: "A");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Re-run the test.");
+    }
 }

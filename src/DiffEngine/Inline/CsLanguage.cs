@@ -39,6 +39,14 @@ sealed class CsLanguage : SourceLanguage
                     }
 
                     break;
+                case '#':
+                    if (TrySkipDirective(source, ref index))
+                    {
+                        scan.AddSkip(start, index, comment: true);
+                        continue;
+                    }
+
+                    break;
                 case '\'':
                     if (TrySkipCharLiteral(source, ref index))
                     {

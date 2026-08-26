@@ -106,6 +106,40 @@ public abstract class SourceLanguage
     internal virtual bool SuppliesArgumentExpressions => true;
 
     /// <summary>
+    /// Advances past a compiler directive: from a <c>#</c> that is the first thing on its line to
+    /// the end of that line. Returns false anywhere else, since only there is a hash a directive -
+    /// C# allows one nowhere else at all, and F# uses it mid-expression for a flexible type
+    /// (<c>#seq&lt;int&gt;</c>).
+    /// <para>
+    /// A directive line is trivia to every search here, and treating it as code was worse than
+    /// wasteful. Its text is prose, so <c>#region HelloWorld</c> declared an identifier that a
+    /// member search could take for the member itself, and a title's stray quote or paren opened
+    /// a literal or unbalanced an argument scan that then swallowed real code. Skipped whole,
+    /// none of its characters get a second reading.
+    /// </para>
+    /// </summary>
+    private protected static bool TrySkipDirective(string source, ref int index)
+    {
+        for (var before = index - 1; before >= 0; before--)
+        {
+            var ch = source[before];
+            if (ch == '\n')
+            {
+                break;
+            }
+
+            if (!char.IsWhiteSpace(ch))
+            {
+                return false;
+            }
+        }
+
+        var end = source.IndexOf('\n', index);
+        index = end < 0 ? source.Length : end + 1;
+        return true;
+    }
+
+    /// <summary>
     /// Advances past a type argument list, so Foo&lt;Bar&gt;(...) is located as readily as
     /// Foo(...). Only the characters a type argument list can hold are accepted, and the caller
     /// still has to find a '(' after it, so a comparison cannot be mistaken for one.

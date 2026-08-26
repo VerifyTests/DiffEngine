@@ -661,11 +661,11 @@ static class InlinePatcher
     /// patch usually grew above the call rather than below it.
     /// <para>
     /// <paramref name="memberLine"/>, where the patch named a member the file still declares, does
-    /// two things. It bounds the search: a call above that declaration cannot be inside the member
-    /// the patch came from, whatever else recommends it, so an identical snapshot in the test
-    /// above is no longer reachable at all. And it becomes the origin of the outward walk, so a
-    /// hint gone stale fans out from the right test rather than from a line that now belongs to
-    /// another one.
+    /// two things. It bounds the search to the member's span: a call above the declaration, or at
+    /// or past the next member's, cannot be inside the member the patch came from, whatever else
+    /// recommends it, so an identical snapshot in a neighbouring test is not reachable at all. And
+    /// it becomes the origin of the outward walk, so a hint gone stale fans out from the right
+    /// test rather than from a line that now belongs to another one.
     /// </para>
     /// <para>
     /// The recorded line is still tried first, since a hint that lands on a call is the whole
@@ -688,14 +688,17 @@ static class InlinePatcher
         lineHint = Clamp(lineHint, lineCount);
         var floor = memberLine is null ? 1 : Clamp(memberLine.Value, lineCount);
         var origin = memberLine is null ? lineHint : floor;
-        // The recorded line is tried first so that two snapshots in one member stay apart. It is
-        // only evidence about this member while it is still inside it, though, and another member
-        // declared between the two says it is not: the hint went stale, something above it moved,
-        // and it now points into the test next door. Trying it anyway rewrote that test's snapshot
-        // and left this one alone, which is the failure the member name exists to prevent
+        // The member's other end. The declaration floors the search; the next declaration at the
+        // member's own indentation ceilings it, since a call at or past that line is inside the
+        // test next door however close to the hint it sits. The ceiling used to be applied only
+        // to the recorded line - the outward walk below ran to the end of the file - so a member
+        // whose own call had changed or gone walked straight into the neighbour's and rewrote it
+        var ceiling = memberLine is null ? lineCount + 1 : NextMemberLine(source, scan, lineStarts, floor);
+        // The recorded line is tried first so that two snapshots in one member stay apart. A hint
+        // outside the member's own span has gone stale - something above it moved - and points
+        // into another test, which the bounds already exclude
         if (lineHint >= floor &&
-            (memberLine is null ||
-             !MemberDeclaredBetween(source, scan, lineStarts, floor, lineHint)))
+            lineHint < ceiling)
         {
             foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, byPrefix))
             {
@@ -717,6 +720,7 @@ static class InlinePatcher
 
                 var line = side == 0 ? origin + distance : origin - distance;
                 if (line < floor ||
+                    line >= ceiling ||
                     line > lineCount ||
                     // Already tried, and yielding it twice would have a caller that rejects the
                     // first reject it again rather than move on
@@ -734,31 +738,31 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Whether another member is declared after <paramref name="afterLine"/> and at or before
-    /// <paramref name="uptoLine"/>, which is what says the recorded line has left the member it was
-    /// recorded in. Cheap because it only ever runs over the span between a member's declaration
-    /// and the recorded line.
+    /// Where the next member after the one declared at <paramref name="memberLine"/> begins, or
+    /// one past the last line when it is the file's last. Everything from the declaration up to
+    /// this line is the member's own span, and it is the whole territory a search anchored to the
+    /// member may roam.
     /// <para>
     /// Indentation is what tells a member from a local, because nothing in front of the name does:
     /// <c>var hash = Hash()</c> and F#'s <c>let hash = hash ()</c> are declarations to
     /// <see cref="SourceScan.IsDeclaration"/> exactly as a sibling test method is. A declaration
     /// indented past the member's own sits inside its body - a local, a local function, a nested
-    /// type - and none of those put the recorded line in another member. Counting them did, which
-    /// made the hint unreachable for the ordinary shape of a test: a local, then a verify call on
-    /// it. A sibling shares the member's own indentation, so the comparison is inclusive.
+    /// type - and none of those end the member. Counting them did, which made the hint unreachable
+    /// for the ordinary shape of a test: a local, then a verify call on it. A sibling shares the
+    /// member's own indentation, so the comparison is inclusive.
     /// </para>
     /// </summary>
-    static bool MemberDeclaredBetween(string source, SourceScan scan, List<int> lineStarts, int afterLine, int uptoLine)
+    static int NextMemberLine(string source, SourceScan scan, List<int> lineStarts, int memberLine)
     {
-        if (uptoLine <= afterLine ||
-            afterLine >= lineStarts.Count)
+        var lineCount = lineStarts.Count;
+        if (memberLine >= lineCount)
         {
-            return false;
+            return lineCount + 1;
         }
 
-        var memberIndent = LeadingWhitespace(source, lineStarts, lineStarts[afterLine - 1]).Length;
-        var start = lineStarts[afterLine];
-        var end = uptoLine < lineStarts.Count ? lineStarts[uptoLine] : source.Length;
+        var memberIndent = LeadingWhitespace(source, lineStarts, lineStarts[memberLine - 1]).Length;
+        var start = lineStarts[memberLine];
+        var end = source.Length;
         for (var index = start; index < end; index++)
         {
             if (!scan.IsIdentifierChar(source[index]) ||
@@ -771,7 +775,7 @@ static class InlinePatcher
             if (scan.IsDeclaration(index) &&
                 LeadingWhitespace(source, lineStarts, index).Length <= memberIndent)
             {
-                return true;
+                return LineOf(lineStarts, index);
             }
 
             while (index + 1 < end &&
@@ -781,7 +785,7 @@ static class InlinePatcher
             }
         }
 
-        return false;
+        return lineCount + 1;
     }
 
     static int Clamp(int line, int lineCount) =>
