@@ -19,10 +19,11 @@ namespace DiffEngine;
 /// file to compare against and so no tool to open.
 /// </para>
 /// <para>
-/// The tray check is <see cref="DiffEngineTray.IsRunning"/>, read once when that type initialises.
-/// A tray started after the test process therefore never sees the piper port for the rest of that
-/// process's life, and its moves and deletes arrive here instead — which a tray that owns the
-/// queue answers, so they end up tracked either way.
+/// The tray check is <see cref="TrayAvailable"/>, whose first half is
+/// <see cref="DiffEngineTray.IsRunning"/>, read once when that type initialises. A tray started
+/// after the test process therefore never sees the piper port for the rest of that process's life,
+/// and its moves and deletes arrive here instead — which a tray that owns the queue answers, so
+/// they end up tracked either way.
 /// </para>
 /// <para>
 /// The mirror of that case is a tray that exits while a long lived host keeps running, and it is
@@ -34,9 +35,22 @@ namespace DiffEngine;
 /// </summary>
 static class PendingFiles
 {
+    /// <summary>
+    /// Whether the tray is the surface for a pending file: one is running, and this process has
+    /// not opted out with <see cref="DiffRunner.TrayDisabled"/>.
+    /// <para>
+    /// One property rather than the check at each of the six sends, so opting out cannot cover
+    /// some of them. Read per send, because the opt out is a setting a test moves and puts back
+    /// while <see cref="DiffEngineTray.IsRunning"/> is fixed for the life of the process.
+    /// </para>
+    /// </summary>
+    static bool TrayAvailable =>
+        DiffEngineTray.IsRunning &&
+        !DiffRunner.TrayDisabled;
+
     public static void AddDelete(string file)
     {
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             PiperClient.SendDelete(file))
         {
             return;
@@ -54,7 +68,7 @@ static class PendingFiles
 
     public static async Task AddDeleteAsync(string file, Cancel cancel)
     {
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             await PiperClient.SendDeleteAsync(file, cancel))
         {
             return;
@@ -92,7 +106,7 @@ static class PendingFiles
         // No process, and the arguments and CanKill from the one place that answers that, because
         // the tray works out the same two values for itself when a move arrives without them.
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null))
         {
             ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)));
@@ -139,7 +153,7 @@ static class PendingFiles
     public static async Task<LaunchResult> AddDiffAsync(ResolvedTool tool, string tempFile, string targetFile, Cancel cancel)
     {
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel))
         {
             await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel);
@@ -222,7 +236,7 @@ static class PendingFiles
         bool canKill,
         int? processId)
     {
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId))
         {
             return;
@@ -240,7 +254,7 @@ static class PendingFiles
         int? processId,
         Cancel cancel)
     {
-        if (DiffEngineTray.IsRunning &&
+        if (TrayAvailable &&
             await PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel))
         {
             return;

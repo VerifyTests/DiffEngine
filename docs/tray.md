@@ -156,6 +156,19 @@ To limit impact on system resources, the [default max concurrent open tool insta
 Accept all open HotKey allows the current batch of open diffs to be accepted.
 
 
+## Opting out of tracking
+
+Pending moves and deletes are sent to a running tray by the DiffEngine library inside the test process. That tracking is separate from launching a diff tool: every exit from `DiffRunner.Launch` adds the move, `DiffRunner.Disabled` included, so turning diff off does not turn it off.
+
+To opt a process out, set an environment variable `DiffEngine_TrayDisabled` with the value `true`, or in code:
+
+```
+DiffRunner.TrayDisabled = true;
+```
+
+The case it exists for is a test suite that needs the launch to happen but does not want what it produces collected: for example a suite asserting on the files a snapshot library stages, where each run would otherwise leave the tray a pending entry pointing at a throwaway directory. A move with no tray falls through to whatever owns the inline queue, and goes nowhere when nothing does.
+
+
 ## Currently supported in
 
  * [ApprovalTests](https://github.com/approvals/ApprovalTests.Net) v5.4.0 and above
