@@ -9,8 +9,6 @@
     <Using Include="System.Windows.Forms" />
     <!--
     The core links DiffEngine's Inline sources, so InlinePatch and friends are in that namespace.
-    No alias needed here, unlike DiffEngineViewer.Tests: this project never references the real
-    DiffEngine assembly, so there is only one of each type in scope.
     -->
     <Using Include="DiffEngine" />
     <PackageReference Include="Verify.TUnit" />
@@ -20,6 +18,17 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <ProjectReference Include="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj" />
+    <!--
+    Aliased, exactly as DiffEngineViewer.Tests does it, and for the same reason: the viewer links
+    DiffEngine's Inline sources rather than referencing them, so both assemblies declare a
+    DiffEngine namespace and the shared fixtures name types that exist in each.
+    Nothing here wants the engine's copies - this reference is what displaces the DiffEngine
+    assembly Verify drags in transitively, which is where the second declaration came from. Verify
+    31 depended on a DiffEngine without the Inline types, so there was nothing to collide with and
+    the reference could be left out; Verify 32 depends on one with them, and every unqualified
+    InlinePatch became ambiguous.
+    -->
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" Aliases="engine" />
     <!--
     Linked rather than shared through a helper package: the same fixtures back the ASCII snapshots,
     so the WinForms baselines describe the same screens the text ones do.
