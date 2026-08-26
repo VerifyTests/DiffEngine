@@ -61,8 +61,14 @@
     <!-- Absolute: PublishDir is handed to the viewer project, where a relative path would
          resolve against its own directory rather than this one. -->
     <ViewerStageDir>$(MSBuildProjectDirectory)\obj\viewer\</ViewerStageDir>
-    <BundleViewer Condition="'$(BundleViewer)' == '' And '$(GeneratePackageOnBuild)' == 'true'">true</BundleViewer>
-    <GenerateNuspecDependsOn Condition="'$(BundleViewer)' == 'true'">AddViewerToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+    <!--
+    Unconditional, and with no property to turn it off. This used to hang off
+    GeneratePackageOnBuild, so any pack path that did not have it set produced a package with no
+    viewer in it and reported nothing wrong. 20.0.0-beta.37 shipped that way, at a third of the
+    size, and every consumer of it without a globally installed tool got "`DiffEngine_ToolOrder`
+    is configured to use 'DiffEngineViewer' but it is not installed" rather than a viewer.
+    -->
+    <GenerateNuspecDependsOn>AddViewerToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
   </PropertyGroup>
 
   <!--
@@ -73,15 +79,15 @@
   that head exists.
   -->
   <ItemGroup>
-    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" Native="false" />
-    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" Native="false" />
-    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" Native="true" />
-    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" Native="true" />
-    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" Native="true" />
-    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" Native="true" />
+    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" Native="false" Apphost="DiffEngineViewer.exe" />
+    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" Native="false" Apphost="DiffEngineViewer.exe" />
+    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" Native="true" Apphost="DiffEngineViewer" />
+    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" Native="true" Apphost="DiffEngineViewer" />
+    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" Native="true" Apphost="DiffEngineViewer" />
+    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" Native="true" Apphost="DiffEngineViewer" />
   </ItemGroup>
 
-  <Target Name="PublishViewerHeads" Condition="'$(BundleViewer)' == 'true'">
+  <Target Name="PublishViewerHeads">
     <RemoveDir Directories="$(ViewerStageDir)" />
     <Warning Condition="'%(ViewerRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\runtimes\%(ViewerRid.Identity)\native')"
              Code="DE0001"
@@ -99,11 +105,24 @@
     -->
     <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\%(ViewerRid.Head).csproj&quot; --configuration $(Configuration) --runtime %(ViewerRid.Identity) --self-contained false --output &quot;$(ViewerStageDir)%(ViewerRid.Identity)&quot; -p:GeneratePackageOnBuild=false"
           StandardOutputImportance="low" />
+
+    <!--
+    A publish that produced nothing is caught here rather than by whoever installs the package.
+    Per RID, and by the apphost rather than by a file count, because five RIDs out of six is the
+    same silent hole as none: the platform that missed out resolves no bundled viewer and falls
+    back to a dotnet tool that is probably not installed.
+    -->
+    <ItemGroup>
+      <_RidWithoutApphost Include="@(ViewerRid)"
+                          Condition="!Exists('$(ViewerStageDir)%(ViewerRid.Identity)\%(ViewerRid.Apphost)')" />
+    </ItemGroup>
+    <Error Condition="'@(_RidWithoutApphost)' != ''"
+           Code="DE0002"
+           Text="No DiffEngineViewer apphost was staged for: @(_RidWithoutApphost, ', '). Packing now would ship a DiffEngine with no bundled viewer." />
   </Target>
 
   <Target Name="AddViewerToPackage"
-          DependsOnTargets="PublishViewerHeads"
-          Condition="'$(BundleViewer)' == 'true'">
+          DependsOnTargets="PublishViewerHeads">
     <ItemGroup>
       <_ViewerFile Include="$(ViewerStageDir)**\*" />
       <!--
