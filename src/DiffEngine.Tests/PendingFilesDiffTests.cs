@@ -71,6 +71,37 @@ public class PendingFilesDiffTests
     }
 
     /// <summary>
+    /// With nothing owning the queue this route starts a viewer, and MaxInstancesToLaunch(0) says
+    /// no window opens. It used to be exempt on the grounds that the viewer queues rather than
+    /// opening one per pair - true of every pair after the first, and not of the first, which
+    /// starts a process.
+    /// <para>
+    /// This is the arrangement a test suite that has to leave diff on runs in: no tray, no owner,
+    /// and the cap at zero. Before, every staged snapshot in such a run put a viewer on the
+    /// screen, and nothing in DiffEngine could be set to stop it.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task WithNoOwnerAndNoSlotNothingIsStarted()
+    {
+        using var absent = new NoOwner();
+
+        DiffRunner.MaxInstancesToLaunch(0);
+        MaxInstance.ResetCount();
+        try
+        {
+            var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
+
+            await Assert.That(result).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
+    }
+
+    /// <summary>
     /// The other end: the pair's test started passing, so the row it took goes. A settle rather
     /// than a kill, because there is no process of its own to kill, and rather than a discard,
     /// because the received file a discard would delete is one DiffEngine has already removed.

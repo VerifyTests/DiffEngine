@@ -266,8 +266,10 @@ apart.
 - Unless that diff tool is the viewer, which is the `Diff` verb and `--diff <received> <target>`.
   Then the premise above is false — there is no window for the pair yet — so it is tracked exactly
   as a move and a window is raised over the entry, and `DiffRunner` skips the whole process per
-  pair path: nothing to find already showing it, no window to replace, no `MaxInstance` slot to
-  spend, and no process for the tray to kill on accept. `DiffRunner.Kill` sends `Settle` for the
+  pair path: nothing to find already showing it, no window to replace, and no process for the
+  tray to kill on accept. `MaxInstance` still applies, but charged by `ViewerLaunchGate` rather
+  than by `DiffRunner`, and only on a viewer that has to be started: handing a pair to one already
+  on screen opens no window and spends nothing, so the caller cannot be the one to ask. `DiffRunner.Kill` sends `Settle` for the
   move key rather than killing anything, since the row is drawn in a window shared with every other
   pending pair. That is what makes ten failing image snapshots one window instead of ten, and it is
   only available to the viewer because no other tool can be told to drop one pair.

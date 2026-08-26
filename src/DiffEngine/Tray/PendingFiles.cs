@@ -130,12 +130,17 @@ static class PendingFiles
     /// A launch that turned out not to be one is not reported as one. Twenty pairs failing at once
     /// put twenty callers on the gate and one viewer on the screen, and calling that twenty new
     /// instances is how the count stopped meaning anything.
+    /// <para>
+    /// A capped one reports what every other tool's does, rather than being folded in with a tool
+    /// that could not be found: the pair has a tool and the cap is why no window opened.
+    /// </para>
     /// </summary>
     static LaunchResult Launched(ViewerLaunchOutcome outcome) =>
         outcome switch
         {
             ViewerLaunchOutcome.Launched => LaunchResult.StartedNewInstance,
             ViewerLaunchOutcome.Taken => LaunchResult.AlreadyRunningAndSupportsRefresh,
+            ViewerLaunchOutcome.Capped => LaunchResult.TooManyRunningDiffTools,
             _ => LaunchResult.NoDiffToolFound
         };
 
