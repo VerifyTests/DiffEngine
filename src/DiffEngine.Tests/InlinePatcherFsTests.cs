@@ -274,14 +274,14 @@ public class InlinePatcherFsTests
 
     static string TwoTests(string literalA, string literalB) =>
         Source(
-            $$"""
+            $"""
               module Tests
 
               let TestA () =
-                  Verifier.Verify(a).Snapshot({{literalA}}).ToTask()
+                  Verifier.Verify(a).Snapshot({literalA}).ToTask()
 
               let TestB () =
-                  Verifier.Verify(b).Snapshot({{literalB}}).ToTask()
+                  Verifier.Verify(b).Snapshot({literalB}).ToTask()
               """);
 
     // A call above TestB's declaration is not inside TestB, whatever the hint says, so the
