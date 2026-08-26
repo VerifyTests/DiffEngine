@@ -44,6 +44,19 @@ public sealed class InlinePatch(
     public string? MemberName { get; set; }
 
     /// <summary>
+    /// Members that an <see cref="InlinePatchMode.Append"/> may chain a Snapshot call onto, beyond
+    /// the entry points the adapters expose. Null, or empty, for those alone.
+    /// <para>
+    /// For a test project that reaches verify through a wrapper of its own. Whether appending to
+    /// one is safe comes down to its return type, which is not in the file being patched and often
+    /// not in the project either, so naming it here is the author saying it returns a SettingsTask.
+    /// A wrapper that does not say so keeps its verification on files, which is the outcome to
+    /// prefer: the alternative is source that no longer compiles.
+    /// </para>
+    /// </summary>
+    public string[]? EntryPoints { get; set; }
+
+    /// <summary>
     /// Full path to the source file. Its extension decides the language the literal is written in
     /// (<see cref="SourceLanguage.ForFile"/>).
     /// </summary>
@@ -107,5 +120,26 @@ public sealed class InlinePatch(
         OriginalValue == other.OriginalValue &&
         MemberName == other.MemberName &&
         NewContent == other.NewContent &&
-        Mode == other.Mode;
+        Mode == other.Mode &&
+        SameEntryPoints(other);
+
+    bool SameEntryPoints(InlinePatch other)
+    {
+        var mine = EntryPoints ?? [];
+        var theirs = other.EntryPoints ?? [];
+        if (mine.Length != theirs.Length)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < mine.Length; index++)
+        {
+            if (mine[index] != theirs[index])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

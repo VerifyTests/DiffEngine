@@ -56,7 +56,12 @@ public static class InlinePatchFile
         var memberName = patch.MemberName is null
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(patch.MemberName));
-        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {framework}\noriginalValue: {value}\nmemberName: {memberName}\n";
+        // Joined on a comma, which a member name cannot contain, so the field is one line
+        // like every other. Base64 with the rest of the added fields
+        var entryPoints = patch.EntryPoints is null || patch.EntryPoints.Length == 0
+            ? ""
+            : Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Join(',', patch.EntryPoints)));
+        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {framework}\noriginalValue: {value}\nmemberName: {memberName}\nentryPoints: {entryPoints}\n";
     }
 
     public static bool TryRead(string path, [NotNullWhen(true)] out InlinePatch? patch)
@@ -114,6 +119,7 @@ public static class InlinePatchFile
         string? framework = null;
         string? originalValue = null;
         string? memberName = null;
+        string[]? entryPoints = null;
         try
         {
             expression = expressionBase64.Length == 0
@@ -152,6 +158,15 @@ public static class InlinePatchFile
                     memberName = memberNameBase64.Length == 0
                         ? null
                         : Encoding.UTF8.GetString(Convert.FromBase64String(memberNameBase64));
+                    continue;
+                }
+
+                if (TryValue(lines[index], "entryPoints", out var entryPointsBase64))
+                {
+                    entryPoints = entryPointsBase64.Length == 0
+                        ? null
+                        : Encoding.UTF8.GetString(Convert.FromBase64String(entryPointsBase64))
+                            .Split(',');
                 }
             }
         }
@@ -165,7 +180,8 @@ public static class InlinePatchFile
             TestName = testName,
             Framework = framework,
             OriginalValue = originalValue,
-            MemberName = memberName
+            MemberName = memberName,
+            EntryPoints = entryPoints
         };
         return true;
     }

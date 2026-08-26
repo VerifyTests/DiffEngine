@@ -30,8 +30,7 @@ static class InlinePatcher
 
     /// <summary>
     /// Append mode has no Snapshot call to find, so it locates the verify invocation instead.
-    /// Matched by prefix because the entry points come in families: Verify, VerifyXml, VerifyJson,
-    /// and Throws, ThrowsTask, ThrowsValueTask.
+    /// Every entry point the adapters expose, by name.
     /// <para>
     /// The throwing ones are entry points like any other - they return a SettingsTask, so a
     /// Snapshot call chains onto them exactly the same way - and a test whose whole subject is the
@@ -40,18 +39,61 @@ static class InlinePatcher
     /// nothing, and the verified file was deleted out from under it.
     /// </para>
     /// <para>
-    /// A prefix this ordinary matches things that are not entry points at all - a local helper
-    /// named ThrowsOn, a mock's VerifyAll. Three things keep that in hand: the receiver check in
-    /// <see cref="IsForeignReceiver"/>, the member bound in <see cref="FindCalls"/>, and the line
-    /// hint, which points at the call that actually ran.
+    /// Names, rather than the Verify and Throws prefixes this used to match on. A prefix that
+    /// ordinary reaches things that are no such thing: a mock's VerifyAll, or a test project's own
+    /// <c>Task VerifyDocx(...)</c> wrapper around a verify call. Appending to one of those writes
+    /// source that does not compile, there being no SettingsTask to chain onto, and nothing
+    /// readable from the source says which it is. So the producer says instead: a wrapper that
+    /// returns a SettingsTask declares itself an entry point and arrives on the patch, through
+    /// <see cref="InlinePatch.EntryPoints"/>.
     /// </para>
     /// </summary>
-    static readonly string[] entryPointPrefixes = ["Verify", "Throws"];
+    static readonly string[] builtInEntryPoints =
+    [
+        "Verify",
+        "VerifyJson",
+        "VerifyXml",
+        "VerifyFile",
+        "VerifyFiles",
+        "VerifyDirectory",
+        "VerifyZip",
+        "VerifyTuple",
+        // Not a verify call itself: it opens the chain that ends in one, and the caller info is
+        // captured here, so this is the line the hint names and the call the append hangs off
+        "Combination",
+        "Throws",
+        "ThrowsTask",
+        "ThrowsValueTask"
+    ];
 
     /// <summary>
     /// How the entry points are named in a message, since there is no longer one of them.
     /// </summary>
-    const string entryPointDescription = "Verify or Throws";
+    const string entryPointDescription = "verify entry point";
+
+    /// <summary>
+    /// The built-in entry points, plus whatever the patch declared. Deduplicated, since a name
+    /// searched for twice finds the same call twice and the second one is pure work.
+    /// </summary>
+    static string[] EntryPoints(string[]? declared)
+    {
+        if (declared is null ||
+            declared.Length == 0)
+        {
+            return builtInEntryPoints;
+        }
+
+        var names = new List<string>(builtInEntryPoints);
+        foreach (var name in declared)
+        {
+            if (!names.Contains(name, StringComparer.Ordinal))
+            {
+                names.Add(name);
+            }
+        }
+
+        return names.ToArray();
+    }
 
     /// <summary>
     /// The only receiver a verify entry point is reached through. Every adapter exposes the entry
@@ -67,6 +109,8 @@ static class InlinePatcher
         string? originalExpression,
         string? originalValue,
         string? memberName,
+        string[]? entryPoints,
+        bool anchorOnly,
         string newContent,
         out string newSource,
         out string failReason)
@@ -87,7 +131,7 @@ static class InlinePatcher
 
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, ref newSource, ref failReason);
+            return TryAppend(source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), anchorOnly, newContent, eol, fileUnit, ref newSource, ref failReason);
         }
 
         if (!string.IsNullOrEmpty(originalExpression))
@@ -359,18 +403,20 @@ static class InlinePatcher
         List<int> lineStarts,
         int lineHint,
         int? memberLine,
+        string[] entryPoints,
+        bool anchorOnly,
         string newContent,
         string eol,
         string fileUnit,
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, entryPointPrefixes, true, out var nameStart, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, entryPoints, true, out var nameStart, out var openParen))
         {
             // Short, because every surface that shows it is one line: a status bar, a balloon, a
-            // menu tooltip. The receiver clause earns its place there because it is the one cause
-            // a reader cannot deduce from looking at the line the message names
-            failReason = $"No {entryPointDescription} call at line {lineHint}. One reached through a receiver of its own does not count.";
+            // menu tooltip. Both clauses earn their place there because they are the two causes a
+            // reader cannot deduce from looking at the line the message names
+            failReason = $"No {entryPointDescription} call at line {lineHint}. One reached through a receiver of its own does not count, nor a wrapper that AddInlineEntryPoint has not registered.";
             return PatchStatus.NotFound;
         }
 
@@ -378,6 +424,13 @@ static class InlinePatcher
         {
             failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
             return PatchStatus.NotFound;
+        }
+
+        // Everything a call site needs to host a snapshot has now been established, which is all
+        // an anchor probe asked
+        if (anchorOnly)
+        {
+            return PatchStatus.Applied;
         }
 
         var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var alreadyChained);
@@ -640,11 +693,11 @@ static class InlinePatcher
         int lineHint,
         int? memberLine,
         string[] names,
-        bool byPrefix,
+        bool checkReceiver,
         out int nameStart,
         out int openParen)
     {
-        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, memberLine, names, byPrefix))
+        foreach (var call in FindCalls(source, scan, lineStarts, lineHint, memberLine, names, checkReceiver))
         {
             (nameStart, openParen) = call;
             return true;
@@ -671,9 +724,8 @@ static class InlinePatcher
     /// The recorded line is still tried first, since a hint that lands on a call is the whole
     /// point of having one, and it is what keeps two snapshots in the same method apart.
     /// </para>
-    /// <paramref name="byPrefix"/> matches any identifier starting with one of
-    /// <paramref name="names"/>, which is how the several Verify overloads are found with one
-    /// search.
+    /// <paramref name="checkReceiver"/> rejects a call reached through a receiver of the caller's
+    /// own, which an entry point never is and a Snapshot call always is.
     /// </summary>
     static IEnumerable<(int nameStart, int openParen)> FindCalls(
         string source,
@@ -682,7 +734,7 @@ static class InlinePatcher
         int lineHint,
         int? memberLine,
         string[] names,
-        bool byPrefix)
+        bool checkReceiver)
     {
         var lineCount = lineStarts.Count;
         lineHint = Clamp(lineHint, lineCount);
@@ -700,7 +752,7 @@ static class InlinePatcher
         if (lineHint >= floor &&
             lineHint < ceiling)
         {
-            foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, byPrefix))
+            foreach (var call in CallsOnLine(source, scan, lineStarts, lineHint, names, checkReceiver))
             {
                 yield return call;
             }
@@ -729,7 +781,7 @@ static class InlinePatcher
                     continue;
                 }
 
-                foreach (var call in CallsOnLine(source, scan, lineStarts, line, names, byPrefix))
+                foreach (var call in CallsOnLine(source, scan, lineStarts, line, names, checkReceiver))
                 {
                     yield return call;
                 }
@@ -803,7 +855,7 @@ static class InlinePatcher
         List<int> lineStarts,
         int line,
         string[] names,
-        bool byPrefix)
+        bool checkReceiver)
     {
         var lineCount = lineStarts.Count;
         var start = lineStarts[line - 1];
@@ -827,28 +879,21 @@ static class InlinePatcher
                 }
 
                 index = at;
+                // A whole token: VerifyDocx is not a Verify call, whatever it is called
                 var identifierEnd = index + name.Length;
-                if (byPrefix)
-                {
-                    while (identifierEnd < source.Length &&
-                           scan.IsIdentifierChar(source[identifierEnd]))
-                    {
-                        identifierEnd++;
-                    }
-                }
-                else if (identifierEnd < source.Length &&
-                         scan.IsIdentifierChar(source[identifierEnd]))
+                if (identifierEnd < source.Length &&
+                    scan.IsIdentifierChar(source[identifierEnd]))
                 {
                     index += name.Length;
                     continue;
                 }
 
-                // In code, a whole token, an invocation rather than a declaration, and
+                // In code, the start of a token, an invocation rather than a declaration, and
                 // followed by an argument list. A commented out example passes none of these
                 if (scan.IsCode(index) &&
                     StartsToken(source, scan, index) &&
                     !scan.IsDeclaration(index) &&
-                    !(byPrefix && IsForeignReceiver(source, scan, index)) &&
+                    !(checkReceiver && IsForeignReceiver(source, scan, index)) &&
                     TrySkipToParen(source, scan, identifierEnd, out var paren))
                 {
                     matches ??= [];

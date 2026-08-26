@@ -9,8 +9,9 @@ public class InlinePatcherTests
         out string newSource,
         out string failReason,
         string? originalValue = null,
-        string? memberName = null) =>
-        InlinePatcher.TryApply(SourceLanguage.CSharp, source, lineHint, mode, originalExpression, originalValue, memberName, newContent, out newSource, out failReason);
+        string? memberName = null,
+        string[]? entryPoints = null) =>
+        InlinePatcher.TryApply(SourceLanguage.CSharp, source, lineHint, mode, originalExpression, originalValue, memberName, entryPoints, false, newContent, out newSource, out failReason);
 
     const string rawOld = "\"\"\"\n        old\n        \"\"\"";
 
@@ -607,7 +608,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 4, InlinePatchMode.Append, null, "new", out _, out var reason, memberName: "Test");
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call");
+        await Assert.That(reason).Contains("No verify entry point call");
     }
 
     // When the member's own body has a Verify call, the floor confines the search to it even
@@ -828,7 +829,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
     }
 
     // A project helper named Verify is not the entry point, and a stale hint must not drift onto one
@@ -840,7 +841,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
     }
 
     /// <summary>
@@ -856,7 +857,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
     }
 
     [Test]
@@ -867,7 +868,61 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
+    }
+
+    /// <summary>
+    /// A wrapper of the test project's own, which the Verify prefix used to match. What it returns
+    /// is not in this file and often not in this project - an async one returns a Task, and there
+    /// is no SettingsTask to chain onto - so appending to it wrote source that no longer compiled.
+    /// </summary>
+    [Test]
+    public async Task AppendRefusesAWrapperThatIsNotAnEntryPoint()
+    {
+        var source = Method("        await VerifyDocx(document);");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("No verify entry point call at line");
+        await Assert.That(reason).Contains("AddInlineEntryPoint");
+    }
+
+    // The same wrapper, once its author has declared it returns a SettingsTask
+    [Test]
+    public async Task AppendToADeclaredEntryPoint()
+    {
+        var source = Method("        await VerifyDocx(document);");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _, entryPoints: ["VerifyDocx"]);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "        await VerifyDocx(document)\n" +
+            "            .Snapshot(\"new\");");
+    }
+
+    /// <summary>
+    /// A combination opens the chain that ends in a verify call, and captures the caller info at
+    /// its own call, so it is the line the hint names and the call the append hangs off. The
+    /// chained Verify cannot be found on its own: its receiver is a call result, which an entry
+    /// point never has.
+    /// </summary>
+    [Test]
+    public async Task AppendToACombinationChain()
+    {
+        var source = Method(
+            """
+                    await Combination()
+                        .Verify(BuildAddress, streets, cities);
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains(
+            "            .Verify(BuildAddress, streets, cities)\n" +
+            "            .Snapshot(\"new\");");
     }
 
     // The entry point wrapping a helper of the same name: the outer call is the one to append to
@@ -938,7 +993,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
     }
 
     /// <summary>
@@ -1996,7 +2051,7 @@ public class InlinePatcherTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason, memberName: "First");
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call");
+        await Assert.That(reason).Contains("No verify entry point call");
     }
 
     /// <summary>

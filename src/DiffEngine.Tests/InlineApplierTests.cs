@@ -366,7 +366,7 @@ public class InlineApplierTests
             var result = InlineApplier.CanApply(Patch(path, 3, null, "new", InlinePatchMode.Append));
 
             await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.NotFound);
-            await Assert.That(result.Message).Contains("No Verify or Throws call at line");
+            await Assert.That(result.Message).Contains("No verify entry point call at line");
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(throughHelper);
         }
         finally
@@ -736,6 +736,104 @@ public class InlineApplierTests
             File.Delete(path);
         }
     }
+
+    /// <summary>
+    /// The half of <c>CanApply</c> a producer can act on before its run is over: whether this call
+    /// site can host an inline snapshot at all.
+    /// </summary>
+    [Test]
+    public async Task CanAnchorFindsACallSite()
+    {
+        var path = WriteTemp(Utf8("class C\n{\n    void M() => Verify(value);\n}", bom: false));
+        try
+        {
+            var result = InlineApplier.CanAnchor(Append(path));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+            // Nothing written: the question was whether it could be, not whether to
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("Snapshot");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// The reported case: a wrapper of the test project's own, returning a Task rather than a
+    /// SettingsTask. Accepting used to chain onto it and leave source that would not compile.
+    /// </summary>
+    [Test]
+    public async Task CanAnchorRefusesAWrapper()
+    {
+        var path = WriteTemp(Utf8("class C\n{\n    void M() => VerifyDocx(document);\n}", bom: false));
+        try
+        {
+            var result = InlineApplier.CanAnchor(Append(path));
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.NotFound);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task CanAnchorAcceptsADeclaredWrapper()
+    {
+        var path = WriteTemp(Utf8("class C\n{\n    void M() => VerifyDocx(document);\n}", bom: false));
+        try
+        {
+            var patch = Append(path);
+            patch.EntryPoints = ["VerifyDocx"];
+
+            var result = InlineApplier.CanAnchor(patch);
+
+            await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// An accept has a literal to place and nowhere to put it, so it says to re-run. A producer
+    /// asked only whether the call site can host one, and it can.
+    /// </summary>
+    [Test]
+    public async Task CanAnchorAcceptsAnAlreadyChainedCall()
+    {
+        var path = WriteTemp(Utf8(source, bom: false));
+        try
+        {
+            var patch = Append(path);
+
+            await Assert.That(InlineApplier.CanAnchor(patch).Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(InlineApplier.CanApply(patch).Status).IsEqualTo(InlineApplyStatus.NotFound);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// Failed rather than NotFound. A producer declines inline for a call site it has been told
+    /// cannot host one, and being told nothing is not that.
+    /// </summary>
+    [Test]
+    public async Task CanAnchorOnAMissingFileFails()
+    {
+        var result = InlineApplier.CanAnchor(Append(Path.Combine(Path.GetTempPath(), "InlineApplierTests_Gone.cs")));
+
+        await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
+    }
+
+    static InlinePatch Append(string path) =>
+        Patch(path, 3, null, "new", InlinePatchMode.Append);
+
 }
 
 public class InlinePatchFileTests
@@ -1049,6 +1147,38 @@ public class InlinePatchFileTests
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.SourceFile).IsEqualTo("Tests.cs");
+    }
+
+    /// <summary>
+    /// The names a wrapper was declared under have to reach the process that applies the patch,
+    /// which is never the one that produced it.
+    /// </summary>
+    [Test]
+    public async Task EntryPointsSurvive()
+    {
+        var patch = new InlinePatch("Tests.cs", 1, null, "content")
+        {
+            TestName = null,
+            EntryPoints = ["VerifyDocx", "VerifyXlsx"]
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.EntryPoints).IsEquivalentTo(["VerifyDocx", "VerifyXlsx"]);
+    }
+
+    /// <summary>
+    /// Absent means the built-in entry points alone, which is also how a payload from a sender
+    /// that predates the field has to read.
+    /// </summary>
+    [Test]
+    public async Task AbsentEntryPointsParseAsNull()
+    {
+        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Append\noriginalExpression:\nnewContent: YQ==\n", out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.EntryPoints).IsNull();
     }
 
     // Matching the strictness of the other encoded fields

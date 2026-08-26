@@ -34,7 +34,22 @@ public static class InlineApplier
     public static InlineApplyResult CanApply(InlinePatch patch) =>
         Run(patch, write: false);
 
-    static InlineApplyResult Run(InlinePatch patch, bool write)
+    /// <summary>
+    /// Whether an <see cref="InlinePatchMode.Append"/> has a call site to hang a Snapshot call off
+    /// at all, which is the half of <see cref="CanApply"/> a producer can act on before the run is
+    /// over. Applied for yes, NotFound for no, and Failed where the source could not be read.
+    /// <para>
+    /// Apart from CanApply in one way, and only for Append: a call that already has a Snapshot call
+    /// chained onto it answers yes here and is refused there. Both are right. An accept has nowhere
+    /// to put the literal it is carrying and says to re-run; a producer asking whether this call
+    /// site can host an inline snapshot has its answer, and taking the verification off inline
+    /// because another process got there first would be the wrong lesson to draw.
+    /// </para>
+    /// </summary>
+    public static InlineApplyResult CanAnchor(InlinePatch patch) =>
+        Run(patch, write: false, anchorOnly: true);
+
+    static InlineApplyResult Run(InlinePatch patch, bool write, bool anchorOnly = false)
     {
         if (string.IsNullOrWhiteSpace(patch.SourceFile))
         {
@@ -82,7 +97,7 @@ public static class InlineApplier
                     return InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}");
                 }
 
-                return LockedApply(fullPath, patch, newContent, write);
+                return LockedApply(fullPath, patch, newContent, write, anchorOnly);
             }
             finally
             {
@@ -94,7 +109,7 @@ public static class InlineApplier
         }
     }
 
-    static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent, bool write)
+    static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent, bool write, bool anchorOnly)
     {
         // Asked here rather than before the lock, because the swap at the end of this method takes
         // the path away for the instant it takes to rename over it. Asked outside, an applier
@@ -140,6 +155,8 @@ public static class InlineApplier
             patch.OriginalExpression,
             patch.OriginalValue,
             patch.MemberName,
+            patch.EntryPoints,
+            anchorOnly,
             newContent,
             out var newSource,
             out var failReason);

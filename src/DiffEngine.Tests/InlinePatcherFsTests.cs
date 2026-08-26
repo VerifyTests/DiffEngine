@@ -32,8 +32,9 @@ public class InlinePatcherFsTests
         out string newSource,
         out string failReason,
         string? originalValue = null,
-        string? memberName = null) =>
-        InlinePatcher.TryApply(SourceLanguage.FSharp, source, lineHint, mode, originalExpression, originalValue, memberName, newContent, out newSource, out failReason);
+        string? memberName = null,
+        string[]? entryPoints = null) =>
+        InlinePatcher.TryApply(SourceLanguage.FSharp, source, lineHint, mode, originalExpression, originalValue, memberName, entryPoints, false, newContent, out newSource, out failReason);
 
     [Test]
     public async Task ReplaceRegularLiteral()
@@ -487,7 +488,7 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
-        await Assert.That(reason).Contains("No Verify or Throws call at line");
+        await Assert.That(reason).Contains("No verify entry point call at line");
     }
 
     [Test]
