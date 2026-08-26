@@ -216,8 +216,11 @@ public static partial class DiffRunner
         }
 
         // The viewer queues rather than opening a window per pair, so none of the process
-        // bookkeeping below applies to it: there is no instance showing this pair to find, no
-        // window to replace, and no slot to spend on a window that already exists.
+        // bookkeeping below applies to it: there is no instance showing this pair to find, and no
+        // window to replace. The cap still does, but only on a viewer that has to be started -
+        // handing a pair to one already on screen opens nothing. ViewerLaunchGate is the only
+        // place that knows which of the two is happening, so it charges MaxInstance rather than
+        // this method.
         if (PendingFiles.IsViewer(tool))
         {
             return PendingFiles.AddDiff(tool, tempFile, targetFile);

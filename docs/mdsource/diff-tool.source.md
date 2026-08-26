@@ -41,7 +41,9 @@ include: diffToolCleanup
 
 By default a maximum of 5 tool instances will be launched. This prevents a change that breaks many tests from causing too much load on a machine.
 
-This value can be changed using an environment variable or by explicitly specifying the value by code. When both are used, the environment variable value will be used.
+This value can be changed using an environment variable or by explicitly specifying the value by code. When both are used, the value set in code wins; the environment variable is the ambient default for a run that sets nothing.
+
+The count includes [DiffEngineViewer](/docs/viewer.md), but only when a viewer has to be started. Handing a pair to one already on screen opens no window and so spends nothing.
 
 
 ### Using an environment variable
