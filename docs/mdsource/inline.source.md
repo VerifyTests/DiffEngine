@@ -204,6 +204,8 @@ For the staging fallback, where no viewer could be resolved and the patch is a f
 
 `Apply` returns `Applied`, `AlreadyApplied` (the literal already matches), `NotFound` (the source changed since the test run — tell the user to re-run rather than retrying), or a failure with a message (locked file, unreadable source), which is retryable.
 
+`AlreadyApplied` covers an `Append` onto a call that already has a `Snapshot` call holding this same content, which is what a multi-targeted project transitioning to inline meets: every framework fails the call site and queues an append, and whichever is accepted first writes the literal the rest are carrying. Only a chained call holding *different* content is `NotFound` — that one genuinely cannot say what it wants until it has been re-run against the literal now in the source. Accepting one framework's append before the others have run does mean the queue never sees them together, so a real disagreement between frameworks is reported as that `NotFound` rather than as a conflict to pick from.
+
 `Remove` mode patches are configuration changes with nothing to review: apply them directly; `AddInlineAsync` refuses them.
 
 
