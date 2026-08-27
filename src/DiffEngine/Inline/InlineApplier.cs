@@ -40,10 +40,12 @@ public static class InlineApplier
     /// over. Applied for yes, NotFound for no, and Failed where the source could not be read.
     /// <para>
     /// Apart from CanApply in one way, and only for Append: a call that already has a Snapshot call
-    /// chained onto it answers yes here and is refused there. Both are right. An accept has nowhere
-    /// to put the literal it is carrying and says to re-run; a producer asking whether this call
-    /// site can host an inline snapshot has its answer, and taking the verification off inline
-    /// because another process got there first would be the wrong lesson to draw.
+    /// chained onto it holding other content answers yes here and is refused there. Both are right.
+    /// An accept has nowhere to put the literal it is carrying and says to re-run; a producer
+    /// asking whether this call site can host an inline snapshot has its answer, and taking the
+    /// verification off inline because another process got there first would be the wrong lesson
+    /// to draw. Where the chained call holds this same content there is nothing to tell apart and
+    /// both say yes, CanApply as AlreadyApplied.
     /// </para>
     /// </summary>
     public static InlineApplyResult CanAnchor(InlinePatch patch) =>

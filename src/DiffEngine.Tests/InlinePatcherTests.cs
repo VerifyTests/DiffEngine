@@ -821,6 +821,36 @@ public class InlinePatcherTests
         await Assert.That(reason).Contains("already has a Snapshot call");
     }
 
+    /// <summary>
+    /// The multi-targeted transition, which is where an append lands on a chained call that is
+    /// not in its way at all. Two frameworks fail the same snapshot, each queues an append, and
+    /// accepting the first writes the literal the second is still carrying. Refused, that reads
+    /// as a failure over a source file that is already right, and sends the reader off to re-run
+    /// a test with nothing left to say.
+    /// </summary>
+    [Test]
+    public async Task AppendOntoTheSameContentIsAlreadyApplied()
+    {
+        var source = Method("        await Verify(value)\n            .Snapshot(\"new\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    // The two halves of that have to agree, or the second framework's accept is refused over a
+    // literal the first one wrote from the very content being compared against it
+    [Test]
+    public async Task AppendingTheSameContentTwiceIsAlreadyApplied()
+    {
+        var source = Method("        await Verify(value);");
+
+        TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var applied, out _);
+        var status = TryApply(applied, 5, InlinePatchMode.Append, null, "a\nb", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
     [Test]
     public async Task AppendWithNoVerifyCall()
     {
