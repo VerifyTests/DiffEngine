@@ -20,7 +20,7 @@
     <PackageVersion Include="Verify.TUnit" Version="32.0.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
     <PackageVersion Include="Verify" Version="32.0.0" />
-    <PackageVersion Include="TUnit" Version="1.65.63" />
+    <PackageVersion Include="TUnit" Version="1.65.68" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.10.0" />
   </ItemGroup>
 </Project>
