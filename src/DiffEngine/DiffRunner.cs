@@ -34,6 +34,41 @@ public static partial class DiffRunner
     internal static void ResetDisabled() =>
         disabled = null;
 
+    /// <summary>
+    /// Whether pending moves and deletes are sent to DiffEngineTray.
+    /// <para>
+    /// Independent of <see cref="Disabled" />, because the two answer different questions and a
+    /// test suite driving a library that stages snapshots needs them apart. Disabling diff turns
+    /// off the launch, and in Verify it also turns off the inline staging that a suite testing
+    /// that staging exists to produce. This turns off only the tracking, so a machine with a tray
+    /// running does not collect a pending move per snapshot a test run happened to produce -
+    /// pointing at a throwaway directory, and offering an accept that would write to it.
+    /// </para>
+    /// <para>
+    /// A move with no tray falls through to the inline queue owner, and goes nowhere when nothing
+    /// owns it. Pair this with a <c>DiffEngine_ViewerPort</c> nothing is listening on to detach
+    /// from both, which is what <c>DiffEngine.Tests</c> does.
+    /// </para>
+    /// <para>
+    /// Read from <c>DiffEngine_TrayDisabled</c> until set, then pinned, exactly as
+    /// <see cref="Disabled" /> is.
+    /// </para>
+    /// </summary>
+    public static bool TrayDisabled
+    {
+        get => trayDisabled ?? TrayDisabledChecker.IsDisabled();
+        set => trayDisabled = value;
+    }
+
+    static bool? trayDisabled;
+
+    /// <summary>
+    /// Forgets an explicit <see cref="TrayDisabled" />, so it is read from the environment again.
+    /// For tests, which is where anything sets it and then wants the ambient value back.
+    /// </summary>
+    internal static void ResetTrayDisabled() =>
+        trayDisabled = null;
+
     public static void MaxInstancesToLaunch(int value) =>
         MaxInstance.SetForAppDomain(value);
 
@@ -181,8 +216,11 @@ public static partial class DiffRunner
         }
 
         // The viewer queues rather than opening a window per pair, so none of the process
-        // bookkeeping below applies to it: there is no instance showing this pair to find, no
-        // window to replace, and no slot to spend on a window that already exists.
+        // bookkeeping below applies to it: there is no instance showing this pair to find, and no
+        // window to replace. The cap still does, but only on a viewer that has to be started -
+        // handing a pair to one already on screen opens nothing. ViewerLaunchGate is the only
+        // place that knows which of the two is happening, so it charges MaxInstance rather than
+        // this method.
         if (PendingFiles.IsViewer(tool))
         {
             return PendingFiles.AddDiff(tool, tempFile, targetFile);

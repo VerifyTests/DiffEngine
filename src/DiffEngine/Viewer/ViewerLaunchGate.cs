@@ -19,7 +19,13 @@ enum ViewerLaunchOutcome
     /// <summary>
     /// Nothing could be started, and nobody was there to take it.
     /// </summary>
-    Failed
+    Failed,
+
+    /// <summary>
+    /// Nobody was there to take it and <see cref="MaxInstance" /> had no slot left, so nothing was
+    /// started.
+    /// </summary>
+    Capped
 }
 
 /// <summary>
@@ -51,6 +57,14 @@ enum ViewerLaunchOutcome
 /// cross process wait on the failing path of every run to save a handful of starts in the rarer
 /// arrangement.
 /// </para>
+/// <para>
+/// The gate is also where <see cref="MaxInstance" /> is charged for a viewer, because it is the one
+/// place that knows whether a window is about to be opened. Handing a pair to a viewer that is
+/// already up is not a new instance and spends nothing, which is why the caller cannot ask: it
+/// would charge all twenty of the callers above for the one window between them. Asked after the
+/// ownership probe, so the nineteen that find an owner still forward their work when the cap is
+/// long since reached.
+/// </para>
 /// </summary>
 static class ViewerLaunchGate
 {
@@ -75,9 +89,19 @@ static class ViewerLaunchGate
     /// twenty concurrent connects to a port nothing is listening on and read the answer back out
     /// of the operating system.
     /// </param>
-    public static ViewerLaunchOutcome Launch(Func<bool> retry, Func<bool> launch, Func<bool>? isOwned = null)
+    /// <param name="canLaunch">
+    /// Whether a slot is available, and spends one when it is. Defaults to <see cref="MaxInstance" />.
+    /// Supplied by the tests that are about the gate rather than about the cap, since the count it
+    /// reads is shared with every other launch the process has made.
+    /// </param>
+    public static ViewerLaunchOutcome Launch(
+        Func<bool> retry,
+        Func<bool> launch,
+        Func<bool>? isOwned = null,
+        Func<bool>? canLaunch = null)
     {
         isOwned ??= () => ViewerClient.IsOwned();
+        canLaunch ??= () => !MaxInstance.Reached();
         bool owned;
         gate.Wait();
         try
@@ -87,6 +111,11 @@ static class ViewerLaunchGate
             owned = isOwned();
             if (!owned)
             {
+                if (!canLaunch())
+                {
+                    return ViewerLaunchOutcome.Capped;
+                }
+
                 if (!launch())
                 {
                     return ViewerLaunchOutcome.Failed;
@@ -113,9 +142,11 @@ static class ViewerLaunchGate
         Func<Task<bool>> retry,
         Func<Task<bool>> launch,
         Cancel cancel,
-        Func<bool>? isOwned = null)
+        Func<bool>? isOwned = null,
+        Func<bool>? canLaunch = null)
     {
         isOwned ??= () => ViewerClient.IsOwned();
+        canLaunch ??= () => !MaxInstance.Reached();
         bool owned;
         await gate.WaitAsync(cancel);
         try
@@ -123,6 +154,11 @@ static class ViewerLaunchGate
             owned = isOwned();
             if (!owned)
             {
+                if (!canLaunch())
+                {
+                    return ViewerLaunchOutcome.Capped;
+                }
+
                 if (!await launch())
                 {
                     return ViewerLaunchOutcome.Failed;

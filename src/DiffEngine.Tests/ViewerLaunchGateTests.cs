@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// The gate that keeps a parallel run from starting a viewer per failing snapshot.
 /// <para>
 /// The ownership probe is supplied rather than the real one, so what is asserted is the gate's own
@@ -24,7 +24,8 @@ public class ViewerLaunchGateTests
                 .Select(_ => Task.Run(() => ViewerLaunchGate.Launch(
                     retry: () => true,
                     launch: viewer.Start,
-                    isOwned: viewer.IsUp))));
+                    isOwned: viewer.IsUp,
+                    canLaunch: () => true))));
 
         await Assert.That(viewer.Starts).IsEqualTo(1);
         await Assert.That(outcomes.Count(_ => _ == ViewerLaunchOutcome.Launched)).IsEqualTo(1);
@@ -46,7 +47,8 @@ public class ViewerLaunchGateTests
                 .Select(_ => Task.Run(() => ViewerLaunchGate.Launch(
                     retry: () => true,
                     launch: viewer.Start,
-                    isOwned: viewer.IsUp))));
+                    isOwned: viewer.IsUp,
+                    canLaunch: () => true))));
 
         await Assert.That(viewer.Starts).IsEqualTo(1);
         await Assert.That(outcomes.Count(_ => _ == ViewerLaunchOutcome.Taken)).IsEqualTo(9);
@@ -74,7 +76,8 @@ public class ViewerLaunchGateTests
                             Interlocked.Increment(ref starts);
                             return true;
                         },
-                        isOwned: () => false))));
+                        isOwned: () => false,
+                        canLaunch: () => true))));
 
             await Assert.That(starts).IsEqualTo(3);
             await Assert.That(outcomes.All(_ => _ == ViewerLaunchOutcome.Launched)).IsTrue();
@@ -96,7 +99,8 @@ public class ViewerLaunchGateTests
             var outcome = ViewerLaunchGate.Launch(
                 retry: () => true,
                 launch: () => false,
-                isOwned: () => false);
+                isOwned: () => false,
+                canLaunch: () => true);
 
             await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
         }
@@ -127,6 +131,98 @@ public class ViewerLaunchGateTests
 
         await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
         await Assert.That(launches).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// MaxInstancesToLaunch(0) means no window opens, and the viewer is a window. It used to be
+    /// exempt on the grounds that it queues rather than opening one per pair, which is true of the
+    /// second pair and every one after, and not of the first: that one starts a process.
+    /// </summary>
+    [Test]
+    public async Task NoSlotMeansNoViewerIsStarted()
+    {
+        var viewer = new FakeViewer();
+
+        var outcome = ViewerLaunchGate.Launch(
+            retry: () => true,
+            launch: viewer.Start,
+            isOwned: () => false,
+            canLaunch: () => false);
+
+        await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Capped);
+        await Assert.That(viewer.Starts).IsEqualTo(0);
+    }
+
+    /// <inheritdoc cref="NoSlotMeansNoViewerIsStarted" />
+    [Test]
+    public async Task NoSlotMeansNoViewerIsStartedAsync()
+    {
+        var viewer = new FakeViewer();
+
+        var outcome = await ViewerLaunchGate.LaunchAsync(
+            retry: () => Task.FromResult(true),
+            launch: () => Task.FromResult(viewer.Start()),
+            Cancel.None,
+            isOwned: () => false,
+            canLaunch: () => false);
+
+        await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Capped);
+        await Assert.That(viewer.Starts).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A slot is spent on a window, not on a pair. So the cap is asked only once the ownership
+    /// probe has said there is no window - otherwise the nineteen callers that find the one their
+    /// sibling started would each be charged for it, and a run of twenty failing snapshots would
+    /// exhaust any cap and strand its pairs.
+    /// </summary>
+    [Test]
+    public async Task ForwardingToARunningViewerSpendsNoSlot()
+    {
+        var viewer = new FakeViewer();
+        var asked = 0;
+
+        var outcome = ViewerLaunchGate.Launch(
+            retry: () => true,
+            launch: viewer.Start,
+            isOwned: () => true,
+            canLaunch: () =>
+            {
+                asked++;
+                return true;
+            });
+
+        await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Taken);
+        await Assert.That(viewer.Starts).IsEqualTo(0);
+        await Assert.That(asked).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// The real cap, so the default the call sites rely on is not only ever exercised through a
+    /// stand-in.
+    /// </summary>
+    [Test]
+    public async Task TheDefaultSlotCheckReadsMaxInstance()
+    {
+        var viewer = new FakeViewer();
+        try
+        {
+            DiffRunner.MaxInstancesToLaunch(0);
+            MaxInstance.ResetCount();
+
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: viewer.Start,
+                isOwned: () => false);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Capped);
+            await Assert.That(viewer.Starts).IsEqualTo(0);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
     }
 
     /// <summary>

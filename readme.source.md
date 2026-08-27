@@ -116,6 +116,19 @@ DiffRunner.Disabled = true;
 ```
 
 
+## Disable the tray
+
+Pending moves and deletes are sent to [DiffEngineTray](/docs/tray.md) when one is running. That tracking is separate from launching a diff tool, so disabling diff does not stop it.
+
+Set an environment variable `DiffEngine_TrayDisabled` with the value `true`, or in code:
+
+```
+DiffRunner.TrayDisabled = true;
+```
+
+[More detail](/docs/tray.md#opting-out-of-tracking).
+
+
 ## Icons
 
 [Game](https://thenounproject.com/term/game/2956486/) designed by [Andrejs Kirma](https://thenounproject.com/andrejs/) from [The Noun Project](https://thenounproject.com).
