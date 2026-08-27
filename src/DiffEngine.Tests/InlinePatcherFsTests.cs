@@ -480,6 +480,30 @@ public class InlinePatcherFsTests
         await Assert.That(reason).Contains("already has a Snapshot call");
     }
 
+    // The second framework of a multi-targeted transition, appending onto the literal the first
+    // one's accept just wrote. Read by value, so F# gets the same answer C# does even though the
+    // layout of its triple quoted literal is nothing like the content it stands for
+    [Test]
+    public async Task AppendOntoTheSameContentIsAlreadyApplied()
+    {
+        var source = Test("    Verifier.Verify(15).Snapshot(\"same\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "same", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    [Test]
+    public async Task AppendingTheSameContentTwiceIsAlreadyApplied()
+    {
+        var source = Test("    Verifier.Verify(15).ToTask()");
+
+        TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var applied, out _);
+        var status = TryApply(applied, 5, InlinePatchMode.Append, null, "a\nb", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
     [Test]
     public async Task AppendSkipsAVerifyOnAnotherReceiver()
     {

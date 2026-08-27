@@ -433,10 +433,22 @@ static class InlinePatcher
             return PatchStatus.Applied;
         }
 
-        var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var alreadyChained);
-        // Another process may have appended one between the run and the accept
-        if (alreadyChained)
+        var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
+        // Another process may have appended one between the run and the accept, and two
+        // frameworks failing the same call site is the ordinary way that happens: each queues an
+        // append, and accepting the first leaves the second with nowhere to put a literal that is
+        // already there. Only the content tells the two apart. The same snapshot is done, and
+        // saying so matters - a refusal reads as a failure, and the reader who sent two identical
+        // snapshots and got one applied and one rejected has no way to see that their source is
+        // already right. A different one is a call site that cannot say what it wants until it has
+        // been re-run against the literal it now has.
+        if (chained >= 0)
         {
+            if (HoldsContent(source, scan, chained, newContent))
+            {
+                return PatchStatus.AlreadyApplied;
+            }
+
             failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
             return PatchStatus.NotFound;
         }
@@ -452,6 +464,31 @@ static class InlinePatcher
         var argument = OnOwnLine(rendered, contentIndent, eol);
         newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
         return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Whether the call at <paramref name="openParen"/> already carries
+    /// <paramref name="content"/> as its expected argument.
+    /// <para>
+    /// What the argument means rather than what it says, so a literal the append would have
+    /// written in another shape - a different delimiter, a different indent - still counts as the
+    /// same snapshot. Anything that is not a literal at all, or is hidden behind another named
+    /// argument, is not this content: no answer can be read out of it, and the caller's other
+    /// branch says to re-run, which is where a call site nobody can make sense of belongs.
+    /// </para>
+    /// </summary>
+    static bool HoldsContent(string source, SourceScan scan, int openParen, string content)
+    {
+        if (!TryReadArguments(source, scan, openParen, out var expected) ||
+            expected.IsAbsent ||
+            expected.BlockedByName)
+        {
+            return false;
+        }
+
+        var argument = source.Substring(expected.Start, expected.End - expected.Start);
+        return scan.Language.TryParse(argument, out var value) &&
+               value == content;
     }
 
     /// <summary>
@@ -533,11 +570,13 @@ static class InlinePatcher
     /// Walks the calls chained onto an invocation and returns where a call should be appended:
     /// the end of the chain, or the point in front of the language's
     /// <see cref="SourceLanguage.ChainTerminator"/> when the chain ends in one.
-    /// <paramref name="found"/> is set when one of them is a call to <paramref name="name"/>.
+    /// <paramref name="found"/> is the open paren of the first call to <paramref name="name"/>
+    /// among them, or -1 where there is none. The position rather than the fact of it, because a
+    /// caller deciding what to do about one has to read its argument.
     /// </summary>
-    static int WalkChain(string source, SourceScan scan, int index, string name, out bool found)
+    static int WalkChain(string source, SourceScan scan, int index, string name, out int found)
     {
-        found = false;
+        found = -1;
         var terminator = scan.Language.ChainTerminator;
         // Where the chain was before the terminating call, which is where an appended one goes:
         // in front of the terminator, and behind the whitespace and line break that introduced it
@@ -569,9 +608,10 @@ static class InlinePatcher
                 break;
             }
 
-            if (IsCall(source, nameStart, cursor, name))
+            if (found < 0 &&
+                IsCall(source, nameStart, cursor, name))
             {
-                found = true;
+                found = paren;
             }
 
             if (terminator != null &&
