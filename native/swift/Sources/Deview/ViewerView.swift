@@ -7,6 +7,14 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     private let renderer: Renderer
     private var draggingSplitter = false
 
+    /// Whether the left button is down over a pane, and where it went down. The side is fixed for
+    /// the life of the drag: a selection belongs to one pane, so crossing into the other extends
+    /// within the first rather than jumping.
+    private var selecting = false
+    private var selectSide: Int32 = 0
+    private var selectAnchorRow: Int32 = 0
+    private var selectAnchorColumn: Int32 = 0
+
     /// Where the last frame put things. Read by `Runtime` to anchor the context menu, which is a
     /// real `NSMenu` and so is popped from outside the drawing code.
     private(set) var layout = Renderer.Layout()
@@ -113,17 +121,42 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
             Runtime.shared.input.clickedQueueItem = Int32(index)
+            return
         }
+
+        // Not gated on there being a queue: file mode has two panes and no column, and its text is
+        // as worth copying as anything else.
+        guard let cell = paneCell(at: point) else {
+            return
+        }
+
+        selecting = true
+        selectSide = cell.side
+        selectAnchorRow = cell.row
+        selectAnchorColumn = cell.column
+        // Both ends on the press, so a click with no drag behind it reports an empty selection,
+        // which is what clears the previous one.
+        report(focusRow: cell.row, focusColumn: cell.column)
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard draggingSplitter else {
+        let point = convert(event.locationInWindow, from: nil)
+        if draggingSplitter {
+            renderer.dragQueueWidth(to: point.x, in: bounds.width)
+            needsDisplay = true
+            return
+        }
+
+        guard selecting else {
             super.mouseDragged(with: event)
             return
         }
 
-        renderer.dragQueueWidth(to: convert(event.locationInWindow, from: nil).x, in: bounds.width)
-        needsDisplay = true
+        // Against the side the press landed in, whatever the pointer has wandered over since: a
+        // selection is one pane's, and the other pane's rows are a different document.
+        report(
+            focusRow: draggedRow(point.y, side: selectSide),
+            focusColumn: column(at: point.x, side: selectSide))
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -132,7 +165,65 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
+        if selecting {
+            // Nothing to report: the managed side is already holding the selection, so a release
+            // has nothing left to say.
+            selecting = false
+            return
+        }
+
         super.mouseUp(with: event)
+    }
+
+    /// The pane cell under a point, or nil when the point is not over one. Rows are rows of the
+    /// whole side rather than of the visible slice, since that is what a selection is anchored in
+    /// and only this side knows the scroll top the frame was drawn with.
+    private func paneCell(at point: NSPoint) -> (side: Int32, row: Int32, column: Int32)? {
+        guard layout.panes.count == 2,
+              !layout.body.isEmpty,
+              renderer.cell.height > 0,
+              point.y >= layout.body.minY,
+              point.y <= layout.body.maxY,
+              point.x >= layout.panes[0].cellLeft,
+              point.x <= layout.body.maxX
+        else {
+            return nil
+        }
+
+        let side: Int32 = point.x >= layout.panes[1].cellLeft ? 1 : 0
+        return (side, draggedRow(point.y, side: side), column(at: point.x, side: side))
+    }
+
+    /// The row under a y, in rows of the whole side and clamped into the body: a drag below the
+    /// last row means the last row rather than nothing.
+    private func draggedRow(_ y: CGFloat, side: Int32) -> Int32 {
+        let line = renderer.cell.height
+        let capacity = max(1, Int(layout.body.height / line))
+        // The context is not flipped, so the top of the body is its maxY and rows count downwards
+        // from there.
+        let visible = min(max(Int((layout.body.maxY - y) / line), 0), capacity - 1)
+        let pane = side == 1 ? model.right : model.left
+        return pane.scrollTop + Int32(visible)
+    }
+
+    /// Rounded to the nearest boundary between characters rather than truncated to the one under
+    /// the pointer, because a selection ends between two characters. Unclamped at the top: the
+    /// managed side holds the text and pulls it back to the end of the line there.
+    private func column(at x: CGFloat, side: Int32) -> Int32 {
+        guard layout.panes.count == 2, renderer.cell.width > 0 else {
+            return 0
+        }
+
+        let textLeft = layout.panes[Int(side)].textLeft
+        return Int32(max(0, ((x - textLeft) / renderer.cell.width + 0.5).rounded(.down)))
+    }
+
+    private func report(focusRow: Int32, focusColumn: Int32) {
+        Runtime.shared.input.dragSide = selectSide
+        Runtime.shared.input.dragAnchorRow = selectAnchorRow
+        Runtime.shared.input.dragAnchorColumn = selectAnchorColumn
+        Runtime.shared.input.dragFocusRow = focusRow
+        Runtime.shared.input.dragFocusColumn = focusColumn
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -183,6 +274,21 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     /// publish.
     private static func map(_ event: NSEvent) -> Int32 {
         let shift = event.modifierFlags.contains(.shift)
+        // Command normally never reaches here, because the Edit menu's key equivalents are matched
+        // first. Control is the fallback for a keyboard driving this over a remote session, and
+        // both are answered before the plain letters below: without that, ctrl+a fell through to
+        // A, which accepts.
+        if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "c":
+                return DEVIEW_KEY_COPY.value
+            case "a":
+                return DEVIEW_KEY_SELECT_ALL.value
+            default:
+                return DEVIEW_KEY_NONE.value
+            }
+        }
+
         switch Int(event.keyCode) {
         case 126:
             return DEVIEW_KEY_SCROLL_UP.value

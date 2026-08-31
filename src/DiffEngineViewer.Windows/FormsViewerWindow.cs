@@ -92,6 +92,22 @@ sealed class FormsViewerWindow : IViewerWindow
         form.Raise();
     }
 
+    /// <summary>
+    /// Best effort, the way revealing a file is. Another process can hold the clipboard open, and
+    /// failing to copy is not worth taking the reviewer's window down over.
+    /// </summary>
+    public void SetClipboard(string text)
+    {
+        try
+        {
+            Clipboard.SetText(text);
+        }
+        catch (ExternalException exception)
+        {
+            Console.Error.WriteLine($"Could not write to the clipboard: {exception.Message}");
+        }
+    }
+
     public bool Capture(Screen screen, int width, int height, string pngPath)
     {
         if (form.IsDisposed)

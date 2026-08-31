@@ -26,7 +26,7 @@ record MenuState(int Row, IReadOnlyList<MenuItem> Items, IReadOnlyList<int> Memb
 /// </summary>
 static class ContextMenu
 {
-    public static IReadOnlyList<MenuItem> ForEntry(QueueEntry entry)
+    public static IReadOnlyList<MenuItem> ForEntry(QueueEntry entry, bool hasSelection)
     {
         var items = new List<MenuItem>();
         switch (entry.Kind)
@@ -53,7 +53,30 @@ static class ContextMenu
                 break;
         }
 
+        // Last, and named after the panes rather than after the sides, so the menu reads as the
+        // headers above the text it copies. "Copy selection" only when there is one: an item that
+        // would copy nothing is worse than no item.
+        if (hasSelection)
+        {
+            items.Add(new("Copy selection", CommandKind.Copy));
+        }
+
+        AddCopy(items, entry, PaneSide.Left, CommandKind.CopyLeft);
+        AddCopy(items, entry, PaneSide.Right, CommandKind.CopyRight);
         return items;
+    }
+
+    /// <summary>
+    /// A side, unless copying it would copy nothing. A pending delete's left side is the state
+    /// after accepting, which is no file at all, and the expected side of a brand new snapshot has
+    /// nothing in it yet - and an item that reports "nothing to copy" is worse than no item.
+    /// </summary>
+    static void AddCopy(List<MenuItem> items, QueueEntry entry, PaneSide side, CommandKind kind)
+    {
+        if (SelectionText.All(entry, side).Length > 0)
+        {
+            items.Add(new($"Copy {SelectionText.Header(entry, side)}", kind));
+        }
     }
 
     /// <summary>

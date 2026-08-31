@@ -4,13 +4,13 @@
 | Pending (2)          | sample.received.txt               | sample.verified.txt               |
 +----------------------+-----------------------------------+-----------------------------------+
 | > Sample.Test (txt)  |      1  the quick                 |      1  the quick                 |
-|  +-----------------------+  2  brown dog                 | ~    2  brown fox                 |
-|  | Accept move           |  3  jumps over                |      3  jumps over                |
-|  | Discard               |  4  the lazy                  |      4  the lazy                  |
-|  | Open target directory |  5  dog                       |      5  dog                       |
-|  +-----------------------+                               |                                   |
-|                      |                                   |                                   |
-|                      |                                   |                                   |
+|  +--------------------------+  brown dog                 | ~    2  brown fox                 |
+|  | Accept move              |  jumps over                |      3  jumps over                |
+|  | Discard                  |  the lazy                  |      4  the lazy                  |
+|  | Open target directory    |  dog                       |      5  dog                       |
+|  | Copy sample.received.txt |                            |                                   |
+|  | Copy sample.verified.txt |                            |                                   |
+|  +--------------------------+                            |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |

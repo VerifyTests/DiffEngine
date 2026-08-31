@@ -1,0 +1,18 @@
+﻿status: selected 3 characters
+
+Sample.received.txt
+     1  the quick
+     2  brown dog
+     3  jumps over
+     4  the lazy
+     5  dog
+
+Sample.verified.txt
+     1  the quick
+     2  brown [fox]
+     3  jumps over
+     4  the lazy
+     5  dog
+
+copied:
+fox

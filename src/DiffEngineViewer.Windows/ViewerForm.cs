@@ -303,6 +303,7 @@ sealed class ViewerForm : Form
 
     public ViewerInput Drain()
     {
+        var drag = canvas.TakeDrag();
         var input = new ViewerInput(
             Key: key,
             ClickedButton: clickedButton,
@@ -316,7 +317,12 @@ sealed class ViewerForm : Form
             RightClickedQueueItem: rightClickedQueueItem,
             ClickedMenuItem: clickedMenuItem,
             MenuClosed: menuClosed,
-            ScrollTo: scrollTo);
+            ScrollTo: scrollTo,
+            DragSide: drag is null ? -1 : (int) drag.Value.Side,
+            DragAnchorRow: drag?.AnchorRow ?? 0,
+            DragAnchorColumn: drag?.AnchorColumn ?? 0,
+            DragFocusRow: drag?.FocusRow ?? 0,
+            DragFocusColumn: drag?.FocusColumn ?? 0);
 
         key = CommandKind.None;
         clickedButton = -1;
@@ -390,7 +396,21 @@ sealed class ViewerForm : Form
     static CommandKind Map(Keys keyData)
     {
         var shift = (keyData & Keys.Shift) == Keys.Shift;
-        return (keyData & Keys.KeyCode) switch
+        var code = keyData & Keys.KeyCode;
+        // Answered on its own rather than folded into the switch, which reads only the key code:
+        // ctrl+a is select all, and without this it was accept - the modifier the whole point of
+        // the chord went straight through.
+        if ((keyData & Keys.Control) == Keys.Control)
+        {
+            return code switch
+            {
+                Keys.C => CommandKind.Copy,
+                Keys.A => CommandKind.SelectAll,
+                _ => CommandKind.None
+            };
+        }
+
+        return code switch
         {
             Keys.Up => CommandKind.ScrollUp,
             Keys.Down => CommandKind.ScrollDown,

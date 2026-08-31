@@ -28,6 +28,13 @@ struct Frame {
         var kind: Int32 = 0
         var lineNumber: Int32 = -1
         var text = ""
+
+        /// What of `text` the reader has selected, in characters. Length 0 on a row with nothing
+        /// selected, which is every row of almost every frame. The managed side has already
+        /// resolved which side the drag is in and clipped the range to the visible slice, so this
+        /// is a rectangle to fill rather than a range to work out.
+        var selectStart: Int32 = 0
+        var selectLength: Int32 = 0
     }
 
     struct Pane {
@@ -132,7 +139,9 @@ struct Frame {
                 Row(
                     kind: row.kind,
                     lineNumber: row.lineNumber,
-                    text: string(screen, row.textOffset, row.textLength)))
+                    text: string(screen, row.textOffset, row.textLength),
+                    selectStart: row.selectStart,
+                    selectLength: row.selectLength))
         }
 
         return pane

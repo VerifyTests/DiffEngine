@@ -4,7 +4,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-/// The eight entry points of native/include/deview.h, implemented over AppKit and Core Text.
+/// The nine entry points of native/include/deview.h, implemented over AppKit and Core Text.
 ///
 /// The header is imported for its struct layouts only, with DEVIEW_TYPES_ONLY, so these are the
 /// definitions of those symbols rather than a second declaration of them.
@@ -71,6 +71,19 @@ public func deviewSetHidden(_ hidden: Int32) {
     } else {
         Runtime.shared.hide()
     }
+}
+
+@_cdecl("deview_set_clipboard")
+public func deviewSetClipboard(_ text: UnsafePointer<CChar>?) {
+    guard let text else {
+        return
+    }
+
+    // Cleared first: NSPasteboard keeps whatever types were declared before, so writing a string
+    // over an image would otherwise leave both on the board and paste the wrong one.
+    let board = NSPasteboard.general
+    board.clearContents()
+    board.setString(String(cString: text), forType: .string)
 }
 
 @_cdecl("deview_focus")

@@ -170,7 +170,9 @@ sealed class ScreenPayload
                     Kind = (int) row.Kind,
                     LineNumber = row.LineNumber ?? -1,
                     TextOffset = textOffset,
-                    TextLength = textLength
+                    TextLength = textLength,
+                    SelectStart = row.Selection.Start,
+                    SelectLength = row.Selection.Length
                 });
         }
 

@@ -4,14 +4,14 @@
 | Pending (2)          | received (net8.0)                 | expected                          |
 +----------------------+-----------------------------------+-----------------------------------+
 | > * SampleTests.cs:> |      1  the quick                 |      1  the quick                 |
-|  +-------------------+ ~    2  brown dog                 | ~    2  brown fox                 |
-|  | Accept            |      3  jumps over                |      3  jumps over                |
-|  | Show next variant |      4  the lazy                  |      4  the lazy                  |
-|  | Discard           |      5  dog                       |      5  dog                       |
-|  | Open source file  |                                   |                                   |
-|  +-------------------+                                   |                                   |
-|                      |                                   |                                   |
-|                      |                                   |                                   |
+|  +------------------------+ 2  brown dog                 | ~    2  brown fox                 |
+|  | Accept                 | 3  jumps over                |      3  jumps over                |
+|  | Show next variant      | 4  the lazy                  |      4  the lazy                  |
+|  | Discard                | 5  dog                       |      5  dog                       |
+|  | Open source file       |                              |                                   |
+|  | Copy received (net8.0) |                              |                                   |
+|  | Copy expected          |                              |                                   |
+|  +------------------------+                              |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |

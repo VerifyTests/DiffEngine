@@ -51,6 +51,18 @@ typedef struct DeviewRow {
     int32_t lineNumber;
     int32_t textOffset;
     int32_t textLength;
+
+    /*
+     * What of this row the reader has selected, in characters of the text above rather than in
+     * pixels: the managed side flattens tabs before it counts, so a column here multiplied by the
+     * cell width is where the highlight goes.
+     *
+     * selectLength is 0 on a row with nothing selected, which is every row of almost every frame.
+     * The managed side has already resolved which side the drag is in and clipped the range to the
+     * visible slice, so a renderer only fills a rectangle and never decides what is in it.
+     */
+    int32_t selectStart;
+    int32_t selectLength;
 } DeviewRow;
 
 typedef struct DeviewPane {
@@ -168,7 +180,11 @@ enum DeviewKey {
     DEVIEW_KEY_DISCARD = 12,
     DEVIEW_KEY_ACCEPT_ALL = 13,
     DEVIEW_KEY_QUIT = 14,
-    DEVIEW_KEY_NEXT_VARIANT = 15
+    DEVIEW_KEY_NEXT_VARIANT = 15,
+    /* Ctrl+C, and Cmd+C on macOS. */
+    DEVIEW_KEY_COPY = 16,
+    /* Ctrl+A, which is why plain A must be reported as accept only when no modifier is held. */
+    DEVIEW_KEY_SELECT_ALL = 17
 };
 
 typedef struct DeviewInput {
@@ -203,6 +219,26 @@ typedef struct DeviewInput {
      */
     int32_t columns;
     int32_t rows;
+
+    /*
+     * A drag selecting pane text: which pane (0 left, 1 right, -1 for the frames with no button
+     * held over one), and both of its ends.
+     *
+     * Reported together for as long as the button is held and then simply not reported, rather
+     * than as press, move and release events. The managed side already holds the selection by
+     * then, so a release has nothing to add, and a whole press-drag-release landing inside one
+     * frame still arrives whole.
+     *
+     * Rows are rows of the whole side, not of the visible slice: this side drew the press with a
+     * scrollTop it still remembers, so only this side can resolve a drag that spans a wheel notch.
+     * Columns are characters of the row's text. Neither is clamped here — the managed side owns
+     * the text and does it there.
+     */
+    int32_t dragSide;
+    int32_t dragAnchorRow;
+    int32_t dragAnchorColumn;
+    int32_t dragFocusRow;
+    int32_t dragFocusColumn;
 } DeviewInput;
 
 /*
@@ -221,8 +257,15 @@ typedef struct DeviewInput {
  * 6: DeviewPane carries the picture the side is, so an image comparison is drawn rather than only
  *    described. A widened array element, so an older library reads every pane after the first at
  *    the wrong offset — this is the bump that matters most to honour.
+ * 7: DeviewScreen carries the pending count, which is not the length of the queue it also carries:
+ *    that is the visible slice, so a head deriving one from the other said "Pending (16)" beside
+ *    "inline 1 of 30".
+ * 8: DeviewRow carries the selected run of its text and DeviewInput reports a drag across a pane,
+ *    which between them are text selection. DeviewRow is a widened array element, so this is the
+ *    same kind of bump 6 was. deview_set_clipboard is added beside them, because the selection is
+ *    only worth having if it can be copied and each toolkit owns its own clipboard.
  */
-#define DEVIEW_VERSION 7
+#define DEVIEW_VERSION 8
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -265,6 +308,12 @@ DEVIEW_API int32_t deview_capture(
     const char* pngPath);
 
 DEVIEW_API void deview_set_hidden(int32_t hidden);
+
+/*
+ * Puts UTF-8 text on the system clipboard. The toolkit's own clipboard rather than the managed
+ * side shelling out to a copy program, which is a thing every desktop has a different one of.
+ */
+DEVIEW_API void deview_set_clipboard(const char* text);
 
 DEVIEW_API void deview_focus(void);
 

@@ -89,11 +89,19 @@ sealed class NativeViewerWindow : IViewerWindow
             RightClickedQueueItem: input.RightClickedQueueItem,
             ClickedMenuItem: input.ClickedMenuItem,
             MenuClosed: input.MenuClosed != 0,
-            ScrollTo: input.ScrollTo);
+            ScrollTo: input.ScrollTo,
+            DragSide: input.DragSide,
+            DragAnchorRow: input.DragAnchorRow,
+            DragAnchorColumn: input.DragAnchorColumn,
+            DragFocusRow: input.DragFocusRow,
+            DragFocusColumn: input.DragFocusColumn);
     }
 
     public void SetHidden(bool hidden) =>
         Deview.SetHidden(hidden ? 1 : 0);
+
+    public void SetClipboard(string text) =>
+        Deview.SetClipboard(text);
 
     public void Focus() =>
         Deview.Focus();
@@ -120,6 +128,8 @@ sealed class NativeViewerWindow : IViewerWindow
             DeviewKey.AcceptAll => CommandKind.AcceptAll,
             DeviewKey.Quit => CommandKind.Quit,
             DeviewKey.NextVariant => CommandKind.NextVariant,
+            DeviewKey.Copy => CommandKind.Copy,
+            DeviewKey.SelectAll => CommandKind.SelectAll,
             _ => CommandKind.None
         };
 

@@ -37,6 +37,12 @@ enum Palette {
     /// composite, so the queue highlight matches without carrying an alpha channel around.
     static let selected = rgb(38, 64, 90)
 
+    /// Behind selected pane text. Brighter than the queue's row highlight so the two do not read
+    /// as the same thing, and dark enough that added green and removed red are still legible over
+    /// it - selected text keeps its own colour, because what kind of change a line is does not
+    /// stop mattering while it is being copied.
+    static let selection = rgb(55, 92, 130)
+
     static let buttonFace = grey(52)
     static let buttonDisabled = grey(34)
 

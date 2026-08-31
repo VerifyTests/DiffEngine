@@ -138,6 +138,20 @@ struct State
     /* Keyed by the path the screen model handed over. std::map rather than unordered, because the
      * entries are handed out as pointers and this one does not move them. */
     std::map<std::string, CachedTexture> pictures;
+
+    /*
+     * A text selection being dragged out: whether the button is still down, which pane it went
+     * down in, and where. The side is fixed for the life of the drag, because a selection belongs
+     * to one pane and the other one's rows are a different document.
+     *
+     * The anchor is kept here rather than reported once, because the managed side takes both ends
+     * of a drag on every frame it is held. That is what makes a press and release landing inside
+     * a single frame arrive whole.
+     */
+    bool dragging = false;
+    int32_t dragSide = -1;
+    int32_t dragAnchorRow = 0;
+    int32_t dragAnchorColumn = 0;
 };
 
 State state;
@@ -164,6 +178,13 @@ void ResetInput()
      * rather than "go to the top". */
     state.input.scrollTo = -1;
     state.input.closeRequested = 0;
+    /* -1 for the same reason scrollTo is: 0 is the left pane, so a cleared field has to say "no
+     * drag" rather than "a drag in the left pane at row 0". */
+    state.input.dragSide = -1;
+    state.input.dragAnchorRow = 0;
+    state.input.dragAnchorColumn = 0;
+    state.input.dragFocusRow = 0;
+    state.input.dragFocusColumn = 0;
 }
 
 /* Every string is an offset into one UTF-8 blob. Bad offsets are a crash, not a glitch, so the
@@ -497,6 +518,20 @@ void PumpInput()
 
 int ReadKey()
 {
+    /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
+     * session still copies with the chord its user has in their fingers. */
+    const bool control =
+        IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
+        IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
+    if (control)
+    {
+        /* Answered before the unmodified keys below, and returning none for anything else: without
+         * this ctrl+a fell through to plain A, which accepts. */
+        if (IsKeyPressed(KEY_C)) return DEVIEW_KEY_COPY;
+        if (IsKeyPressed(KEY_A)) return DEVIEW_KEY_SELECT_ALL;
+        return DEVIEW_KEY_NONE;
+    }
+
     if (IsKeyPressed(KEY_UP)) return DEVIEW_KEY_SCROLL_UP;
     if (IsKeyPressed(KEY_DOWN)) return DEVIEW_KEY_SCROLL_DOWN;
     if (IsKeyPressed(KEY_PAGE_UP)) return DEVIEW_KEY_PAGE_UP;
@@ -540,8 +575,42 @@ void MeasureGrid()
 
 /* ---- the frame ---- */
 
-void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column)
+/*
+ * Where a pane's rows landed, gathered while they are drawn rather than recomputed afterwards.
+ * The table owns the pane split and the gutter is a formatted string rather than a fixed number of
+ * cells, so asking the layout is the only way a drag can be resolved against the same numbers that
+ * drew the text it is selecting.
+ */
+struct PaneHit
 {
+    /* The left edge of the column, which is where the gutter starts. */
+    float cellLeft = -1.0f;
+
+    /* Where the row text starts, past that gutter, read from the first row that draws any. Stays
+     * -1 for a pane of nothing but filler, which has nothing to select either. */
+    float textLeft = -1.0f;
+
+    /* The top of row zero and the pitch between rows, read from the first two rows the way
+     * PaneImage reads them. */
+    float first = -1.0f;
+    float pitch = 0.0f;
+};
+
+void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column, PaneHit& hit)
+{
+    /* Before the row count check, so a pane shorter than the body still reports where its rows
+     * begin and how far apart they are. */
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    if (index == 0)
+    {
+        hit.cellLeft = origin.x;
+        hit.first = origin.y;
+    }
+    else if (index == 1 && hit.first >= 0.0f)
+    {
+        hit.pitch = origin.y - hit.first;
+    }
+
     if (index >= pane.rowCount)
     {
         return;
@@ -572,9 +641,145 @@ void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int 
 
     ImGui::PopStyleColor();
     ImGui::SameLine();
+
+    const ImVec2 textPos = ImGui::GetCursorScreenPos();
+    if (hit.textLeft < 0.0f)
+    {
+        hit.textLeft = textPos.x;
+    }
+
+    /* Behind the text rather than over it, and the text keeps its own colour: what kind of change
+     * a line is has to survive being selected. The table's own clip rectangle keeps a run wider
+     * than the column inside it. */
+    if (row.selectLength > 0)
+    {
+        const float cell = ImGui::CalcTextSize("M").x;
+        const ImVec2 min(textPos.x + static_cast<float>(row.selectStart) * cell, textPos.y);
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            min,
+            ImVec2(
+                min.x + static_cast<float>(row.selectLength) * cell,
+                min.y + ImGui::GetTextLineHeight()),
+            IM_COL32(55, 92, 130, 255));
+    }
+
     ImGui::PushStyleColor(ImGuiCol_Text, RowColour(row.kind));
     Text(screen, row.textOffset, row.textLength);
     ImGui::PopStyleColor();
+}
+
+/* The row of the visible slice a y is over, clamped into it: a drag below the last row means the
+ * last row rather than nothing. */
+int RowAt(const PaneHit& hit, float y, int rowCount)
+{
+    if (rowCount <= 0)
+    {
+        return 0;
+    }
+
+    const float pitch = hit.pitch > 0.0f ? hit.pitch : ImGui::GetTextLineHeightWithSpacing();
+    const int row = static_cast<int>((y - hit.first) / pitch);
+    return std::min(std::max(row, 0), rowCount - 1);
+}
+
+/* Rounded to the nearest boundary between characters rather than truncated to the one under the
+ * pointer, because a selection ends between two characters. Unclamped at the top: the managed side
+ * holds the text and pulls it back to the end of the line there. */
+int ColumnAt(const PaneHit& hit, float x, float cell)
+{
+    if (cell <= 0.0f)
+    {
+        return 0;
+    }
+
+    if (hit.textLeft < 0.0f)
+    {
+        return 0;
+    }
+
+    const int column = static_cast<int>((x - hit.textLeft) / cell + 0.5f);
+    return std::max(column, 0);
+}
+
+/*
+ * A drag across a pane, reduced to the two ends the managed side takes.
+ *
+ * Nothing here decides what is selected: the rows are reported in rows of the whole side, using
+ * the scroll top the frame was drawn with, so a drag that spans a wheel notch still means what it
+ * meant when it started.
+ */
+void UpdateSelection(
+    const DeviewScreen* screen,
+    const PaneHit& leftHit,
+    const PaneHit& rightHit,
+    const ImVec2& bodyMin,
+    const ImVec2& bodyAvail,
+    float dividerX,
+    float cell)
+{
+    if (screen->paneCount < 2)
+    {
+        return;
+    }
+
+    /* A capture draws one frame in a fresh context that was never fed a mouse, so there is no
+     * position to resolve anything against - and a pointer that left the window is the same
+     * answer. */
+    if (!ImGui::IsMousePosValid())
+    {
+        state.dragging = false;
+        return;
+    }
+
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    if (!state.dragging)
+    {
+        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+            /* This head draws its own context menu, so a click on one lands on the panes as far as
+             * anything here can tell. The other two heads use a real popup, whose tracking loop
+             * swallows the click before a view ever sees it. */
+            screen->menuCount > 0 ||
+            mouse.y < bodyMin.y ||
+            mouse.y > bodyMin.y + bodyAvail.y ||
+            mouse.x > bodyMin.x + bodyAvail.x ||
+            leftHit.cellLeft < 0.0f ||
+            leftHit.textLeft < 0.0f ||
+            mouse.x < leftHit.cellLeft ||
+            /* The splitter's grab zone overlaps the left pane's edge, and a drag that started
+             * there would otherwise also select whatever it began over. */
+            (dividerX >= 0.0f && mouse.x <= dividerX + grabWidth))
+        {
+            return;
+        }
+
+        const bool right = rightHit.cellLeft >= 0.0f && mouse.x >= rightHit.cellLeft;
+        if (right && rightHit.textLeft < 0.0f)
+        {
+            return;
+        }
+
+        const PaneHit& hit = right ? rightHit : leftHit;
+        const DeviewPane& pane = screen->panes[right ? 1 : 0];
+        state.dragging = true;
+        state.dragSide = right ? 1 : 0;
+        state.dragAnchorRow = pane.scrollTop + RowAt(hit, mouse.y, pane.rowCount);
+        state.dragAnchorColumn = ColumnAt(hit, mouse.x, cell);
+    }
+
+    const PaneHit& hit = state.dragSide == 1 ? rightHit : leftHit;
+    const DeviewPane& pane = screen->panes[state.dragSide == 1 ? 1 : 0];
+    state.input.dragSide = state.dragSide;
+    state.input.dragAnchorRow = state.dragAnchorRow;
+    state.input.dragAnchorColumn = state.dragAnchorColumn;
+    state.input.dragFocusRow = pane.scrollTop + RowAt(hit, mouse.y, pane.rowCount);
+    state.input.dragFocusColumn = ColumnAt(hit, mouse.x, cell);
+
+    /* Reported one last time on the frame the button came up, and then not at all: the managed
+     * side is already holding the selection, so a release has nothing left to say. */
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        state.dragging = false;
+    }
 }
 
 /*
@@ -775,6 +980,10 @@ void BuildFrame(const DeviewScreen* screen)
      * common frame, where neither side is a picture. */
     PaneImage leftImage;
     PaneImage rightImage;
+
+    /* Filled by the same pass that draws the rows, and read after it by UpdateSelection. */
+    PaneHit leftHit;
+    PaneHit rightHit;
     if (screen->paneCount >= 2 &&
         ImGui::BeginTable("##panes", columns, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame))
     {
@@ -882,10 +1091,10 @@ void BuildFrame(const DeviewScreen* screen)
             }
 
             RecordPaneImage(leftImage, left, index);
-            DrawRow(screen, left, index, column);
+            DrawRow(screen, left, index, column, leftHit);
             ImGui::TableSetColumnIndex(column + 1);
             RecordPaneImage(rightImage, right, index);
-            DrawRow(screen, right, index, column + 1);
+            DrawRow(screen, right, index, column + 1, rightHit);
         }
 
         ImGui::EndTable();
@@ -897,6 +1106,10 @@ void BuildFrame(const DeviewScreen* screen)
         DrawPaneImage(screen, screen->panes[0], leftImage, bottom);
         DrawPaneImage(screen, screen->panes[1], rightImage, bottom);
     }
+
+    /* After the table, which is where the geometry it reads becomes complete, and before the
+     * splitter, which claims its own clicks. */
+    UpdateSelection(screen, leftHit, rightHit, bodyMin, bodyAvail, dividerX, cell);
 
     /*
      * The drag, submitted after the table so it wins the overlap: within a window the last item to
@@ -1305,6 +1518,20 @@ void deview_set_hidden(int32_t hidden)
     }
 
     ClearWindowState(FLAG_WINDOW_HIDDEN);
+}
+
+void deview_set_clipboard(const char* text)
+{
+    /* GLFW owns the clipboard and needs its window, so a runtime that never opened one - a capture
+     * host - copies nothing rather than crashing. */
+    if (text == nullptr ||
+        !state.initialised ||
+        !state.windowOpen)
+    {
+        return;
+    }
+
+    SetClipboardText(text);
 }
 
 void deview_focus(void)
