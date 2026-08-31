@@ -605,7 +605,7 @@ public class ViewerSessionTests
 
         await Assert.That(open.Current!.Name).IsEqualTo("OtherTests.cs:7");
         await Assert.That(open.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept", "Discard", "Open source file"]);
+            .IsEquivalentTo(["Accept", "Discard", "Open source file", "Copy received", "Copy expected"]);
     }
 
     [Test]
@@ -614,7 +614,15 @@ public class ViewerSessionTests
         var open = ViewerSession.OpenMenu(Conflicted(), 0);
 
         await Assert.That(open.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept", "Show next variant", "Discard", "Open source file"]);
+            .IsEquivalentTo(
+            [
+                "Accept",
+                "Show next variant",
+                "Discard",
+                "Open source file",
+                "Copy received (net8.0)",
+                "Copy expected"
+            ]);
     }
 
     [Test]
@@ -624,11 +632,26 @@ public class ViewerSessionTests
 
         var move = ViewerSession.OpenMenu(state, 0);
         await Assert.That(move.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept move", "Discard", "Open target directory"]);
+            .IsEquivalentTo(
+            [
+                "Accept move",
+                "Discard",
+                "Open target directory",
+                "Copy sample.received.txt",
+                "Copy sample.verified.txt"
+            ]);
 
         var delete = ViewerSession.OpenMenu(state, 1);
         await Assert.That(delete.Menu!.Items.Select(_ => _.Label))
-            .IsEquivalentTo(["Accept delete", "Discard", "Open directory"]);
+            .IsEquivalentTo(
+            // Only the file, because the left side of a delete is the state after accepting it,
+            // which is nothing to copy.
+            [
+                "Accept delete",
+                "Discard",
+                "Open directory",
+                "Copy extra.verified.txt"
+            ]);
     }
 
     static SessionState TwoSolutions() =>

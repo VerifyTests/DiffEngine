@@ -76,6 +76,26 @@ sealed class ViewerCanvas : Control
 
     bool dragging;
 
+    /// <summary>
+    /// Whether the left button is down over a pane, and where it went down. The side is fixed for
+    /// the life of the drag: a selection belongs to one pane, so crossing into the other extends
+    /// within the first rather than jumping.
+    /// </summary>
+    bool selecting;
+
+    PaneSide selectSide;
+
+    int selectAnchorRow;
+
+    int selectAnchorColumn;
+
+    /// <summary>
+    /// The drag as the input model wants it, or null. Held rather than raised as an event, because
+    /// it has to be reported on every frame the button is held - the model takes both ends each
+    /// time - and a press and release that both land between two drains still has to arrive.
+    /// </summary>
+    (PaneSide Side, int AnchorRow, int AnchorColumn, int FocusRow, int FocusColumn)? drag;
+
     public ViewerCanvas()
     {
         SetStyle(
@@ -107,6 +127,21 @@ sealed class ViewerCanvas : Control
 
     public int ColumnCapacity =>
         Math.Max(40, Width / Cell.Width);
+
+    /// <summary>
+    /// The drag in progress, for <see cref="ViewerForm.Drain" />. Cleared on the read after the
+    /// button came up, so the last position is reported once more and then stops.
+    /// </summary>
+    public (PaneSide Side, int AnchorRow, int AnchorColumn, int FocusRow, int FocusColumn)? TakeDrag()
+    {
+        var taken = drag;
+        if (!selecting)
+        {
+            drag = null;
+        }
+
+        return taken;
+    }
 
     public void Draw(Screen value)
     {
@@ -173,6 +208,78 @@ sealed class ViewerCanvas : Control
         screen.Queue.Count > 0 &&
         Math.Abs(x - SplitterX) <= grab;
 
+    /// <summary>
+    /// Where the two panes ended up. Read by the paint and by the hit testing, which is the point:
+    /// a highlight drawn from one set of numbers and a drag resolved from another would select one
+    /// run of characters and colour a different one.
+    /// </summary>
+    (int Left, int Half, int Width) Panes()
+    {
+        var queue = screen is { Queue.Count: > 0 } ? QueueWidth : 0;
+        var left = queue > 0 ? padding + queue + gap : padding;
+        var width = Math.Max(2 * Cell.Width, Width - padding - left);
+        return (left, width / 2, width);
+    }
+
+    /// <summary>
+    /// Where a pane's row text starts, which is its column plus the gutter.
+    /// </summary>
+    int TextLeft(PaneSide side)
+    {
+        var panes = Panes();
+        return (side == PaneSide.Left ? panes.Left : panes.Left + panes.Half) + gutterCells * Cell.Width;
+    }
+
+    /// <summary>
+    /// The pane cell under a point, or null when the point is not over one. Rows are rows of the
+    /// whole side rather than of the visible slice, since that is what a selection is anchored in.
+    /// </summary>
+    /// <summary>
+    /// Internal so PaneHitTests can round-trip a drawn highlight back through it, which is the
+    /// only check that the painter and the hit test are reading the same layout.
+    /// </summary>
+    internal (PaneSide Side, int Row, int Column)? PaneCellAt(Point point)
+    {
+        if (screen is null)
+        {
+            return null;
+        }
+
+        var panes = Panes();
+        if (point.X < panes.Left ||
+            point.Y < BodyTop)
+        {
+            return null;
+        }
+
+        var row = (point.Y - BodyTop) / Cell.Height;
+        if (row >= BodyCapacity)
+        {
+            return null;
+        }
+
+        var side = point.X < panes.Left + panes.Half ? PaneSide.Left : PaneSide.Right;
+        return (side, ScrollTop(side) + row, ColumnAt(point.X, side));
+    }
+
+    int ScrollTop(PaneSide side) =>
+        side == PaneSide.Left ? screen!.Left.ScrollTop : screen!.Right.ScrollTop;
+
+    /// <summary>
+    /// Rounded to the nearest boundary between characters rather than truncated to the one under
+    /// the pointer, because a selection ends between two characters and the half a reader is
+    /// pointing at is the one they mean.
+    /// </summary>
+    int ColumnAt(int x, PaneSide side) =>
+        Math.Max(0, (x - TextLeft(side) + Cell.Width / 2) / Cell.Width);
+
+    /// <summary>
+    /// The body row a point is on, clamped into the body. Used while dragging, where a pointer
+    /// above or below the rows means the first or last of them rather than nothing.
+    /// </summary>
+    int DraggedRow(int y) =>
+        Math.Clamp((y - BodyTop) / Cell.Height, 0, Math.Max(0, BodyCapacity - 1));
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var graphics = e.Graphics;
@@ -186,9 +293,7 @@ sealed class ViewerCanvas : Control
         var lineHeight = Cell.Height;
         var hasQueue = screen.Queue.Count > 0;
         var queue = hasQueue ? QueueWidth : 0;
-        var panesLeft = hasQueue ? padding + queue + gap : padding;
-        var panesWidth = Math.Max(2 * Cell.Width, Width - padding - panesLeft);
-        var half = panesWidth / 2;
+        var (panesLeft, half, panesWidth) = Panes();
 
         DrawTitle(graphics, lineHeight);
 
@@ -374,6 +479,21 @@ sealed class ViewerCanvas : Control
         }
 
         var gutter = gutterCells * Cell.Width;
+        // Behind the text rather than over it, and the text keeps its own colour: what kind of
+        // change a line is has to survive being selected.
+        if (row.Selection.Length > 0)
+        {
+            graphics.FillRectangle(
+                Painter.Brush(Palette.Selection),
+                Rectangle.Intersect(
+                    new(
+                        bounds.X + gutter + row.Selection.Start * Cell.Width,
+                        bounds.Y,
+                        row.Selection.Length * Cell.Width,
+                        bounds.Height),
+                    bounds));
+        }
+
         Painter.Draw(
             graphics,
             $"{Palette.Marker(row.Kind)} {row.LineNumber,4}",
@@ -404,8 +524,7 @@ sealed class ViewerCanvas : Control
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (screen is null ||
-            screen.Queue.Count == 0)
+        if (screen is null)
         {
             return;
         }
@@ -421,18 +540,34 @@ sealed class ViewerCanvas : Control
         }
 
         var index = QueueRowAt(e.Location);
-        if (index < 0)
+        if (index >= 0)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                QueueItemRightClicked?.Invoke(index, e.Location);
+                return;
+            }
+
+            QueueItemClicked?.Invoke(index);
+            return;
+        }
+
+        // Not gated on there being a queue: file mode has two panes and no column, and its text is
+        // as worth copying as anything else.
+        if (e.Button != MouseButtons.Left ||
+            PaneCellAt(e.Location) is not { } cell)
         {
             return;
         }
 
-        if (e.Button == MouseButtons.Right)
-        {
-            QueueItemRightClicked?.Invoke(index, e.Location);
-            return;
-        }
-
-        QueueItemClicked?.Invoke(index);
+        selecting = true;
+        Capture = true;
+        selectSide = cell.Side;
+        selectAnchorRow = cell.Row;
+        selectAnchorColumn = cell.Column;
+        // Both ends on the press, so a click with no drag behind it reports an empty selection,
+        // which is what clears the previous one.
+        drag = (cell.Side, cell.Row, cell.Column, cell.Row, cell.Column);
     }
 
     /// <summary>
@@ -459,6 +594,19 @@ sealed class ViewerCanvas : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (selecting)
+        {
+            // Against the side the press landed in, whatever the pointer has wandered over since:
+            // a selection is one pane's, and the other pane's rows are a different document.
+            drag = (
+                selectSide,
+                selectAnchorRow,
+                selectAnchorColumn,
+                ScrollTop(selectSide) + DraggedRow(e.Y),
+                ColumnAt(e.X, selectSide));
+            return;
+        }
+
         if (dragging)
         {
             // Clamped as a width, then held as cells, so the drag stops where it always stopped
@@ -474,8 +622,13 @@ sealed class ViewerCanvas : Control
         }
 
         // Assigned only on a change: setting Cursor is a window message, and this runs on every
-        // pixel the mouse moves over the canvas.
-        var wanted = OverSplitter(e.X) ? Cursors.VSplit : Cursors.Default;
+        // pixel the mouse moves over the canvas. The beam over a pane is the only thing that says
+        // the text there can be selected at all.
+        var wanted = OverSplitter(e.X)
+            ? Cursors.VSplit
+            : PaneCellAt(e.Location) is null
+                ? Cursors.Default
+                : Cursors.IBeam;
         if (Cursor != wanted)
         {
             Cursor = wanted;
@@ -498,6 +651,14 @@ sealed class ViewerCanvas : Control
         if (dragging)
         {
             dragging = false;
+            Capture = false;
+        }
+
+        if (selecting)
+        {
+            // The drag itself is left for one more read, so a press and release between two frames
+            // still reports the click that cleared the selection.
+            selecting = false;
             Capture = false;
         }
     }

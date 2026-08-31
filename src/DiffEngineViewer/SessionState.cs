@@ -37,6 +37,21 @@ record SessionState(
     /// </summary>
     public IReadOnlySet<string> Collapsed { get; init; } = new HashSet<string>();
 
+    /// <summary>
+    /// The pane text the reader has selected, or null. Carried here rather than in the frame
+    /// because a drag survives scrolling, resizing and anything else that rebuilds a
+    /// <see cref="Screen"/>, which is every frame.
+    /// </summary>
+    public TextSelection? Selection { get; init; }
+
+    /// <summary>
+    /// The selection, but only while it still describes what is on screen. Everything that reads
+    /// one goes through this, so a stale selection needs no clearing: the entry it named is gone,
+    /// so it stops existing.
+    /// </summary>
+    public TextSelection? LiveSelection =>
+        Selection is { } selection && selection.Describes(Current) ? selection : null;
+
     public QueueEntry? Current =>
         Selected >= 0 && Selected < Queue.Count ? Queue[Selected] : null;
 

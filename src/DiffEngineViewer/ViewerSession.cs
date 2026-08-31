@@ -289,7 +289,100 @@ static class ViewerSession
         var selected = Select(state, row.EntryIndex);
         return selected with
         {
-            Menu = new(fullRow, ContextMenu.ForEntry(selected.Queue[row.EntryIndex]), [row.EntryIndex])
+            Menu = new(
+                fullRow,
+                ContextMenu.ForEntry(
+                    selected.Queue[row.EntryIndex],
+                    selected.LiveSelection is { IsEmpty: false }),
+                [row.EntryIndex])
+        };
+    }
+
+    /// <summary>
+    /// The reader dragging out a range of pane text. The two ends arrive already in rows of the
+    /// whole side rather than of the visible slice, because a head knows the scroll top it drew
+    /// with and a drag that continues across a wheel notch has to mean the same thing either side
+    /// of it.
+    /// <para>
+    /// Reported for as long as the button is held, and simply not reported once it is let go: the
+    /// selection is already here, so there is nothing for a release to say. That is what makes a
+    /// whole press-drag-release landing inside one frame come out right.
+    /// </para>
+    /// </summary>
+    public static SessionState Drag(
+        SessionState state,
+        PaneSide side,
+        int anchorRow,
+        int anchorColumn,
+        int focusRow,
+        int focusColumn)
+    {
+        if (state.Current is not { } current)
+        {
+            return state;
+        }
+
+        var selection = SelectionText.Clamp(
+            new(
+                current.Key,
+                current.SelectedVariant,
+                side,
+                anchorRow,
+                anchorColumn,
+                focusRow,
+                focusColumn),
+            current);
+
+        // The identical state when the pointer has not left the cell it was in, which is most
+        // frames of a drag. A fresh record every frame would repaint three heads for nothing.
+        if (state.Menu is null &&
+            selection == state.Selection)
+        {
+            return state;
+        }
+
+        // A drag is the user moving on, so it closes an open menu like every other input, and
+        // drops whatever the last command reported: the status line is about to describe this
+        // selection, and "Copied 3 lines" sitting over a different one is a lie.
+        return state with
+        {
+            Selection = selection,
+            Message = null,
+            Menu = null
+        };
+    }
+
+    /// <summary>
+    /// Everything on one side. The side of the current selection, so select-all after a click in
+    /// the expected pane takes that pane, and the received one before anything has been pointed
+    /// at.
+    /// </summary>
+    static SessionState SelectAll(SessionState state)
+    {
+        if (state.Current is not { } current)
+        {
+            return state;
+        }
+
+        var side = state.LiveSelection?.Side ?? PaneSide.Left;
+        var rows = SelectionText.Rows(current, side);
+        if (rows.Count == 0)
+        {
+            return state with { Selection = null };
+        }
+
+        var last = rows.Count - 1;
+        return state with
+        {
+            Message = null,
+            Selection = new(
+                current.Key,
+                current.SelectedVariant,
+                side,
+                0,
+                0,
+                last,
+                RowText.Flatten(rows[last].Text).Length)
         };
     }
 
@@ -368,6 +461,8 @@ static class ViewerSession
                     : DiscardInline(state);
             case CommandKind.DiscardAll:
                 return inline ? DiscardAllInline(state, actions) : DiscardFile(state);
+            case CommandKind.SelectAll:
+                return SelectAll(state);
             case CommandKind.NextVariant:
                 return NextVariant(state);
             case CommandKind.Quit:

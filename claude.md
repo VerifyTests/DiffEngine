@@ -165,6 +165,19 @@ apart.
   three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
   line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
   (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
+- Text selection is a view, and makes the same bargain images do. A drag arrives as both of its
+  ends at once, in rows of the whole side rather than of the visible slice: a head knows the scroll
+  top it drew the press with, so only it can resolve one that spans a wheel notch, and reporting
+  the pair every held frame rather than press/move/release events is what makes a whole
+  press-drag-release inside one frame arrive whole. `SessionState.Selection` names the entry it was
+  dragged in, so a stale one stops existing (`LiveSelection`) rather than needing a clear on every
+  transition, one of which would eventually be missed. `Row.Selection` is the run to highlight,
+  which the three pixel heads draw and `AsciiRenderer` cannot - a character grid has no way to
+  invert part of a line without changing its width - so what the model universally states about a
+  selection goes in the **status line**, where every renderer draws it, and the highlight is the
+  enrichment on top. Copying is `IViewerWindow.SetClipboard` rather than a `ViewerActions` member,
+  because a clipboard belongs to a toolkit the way a window does, and it is answered before the
+  owner link: the text is already in this process.
 - Queue tooltips are composed once in `QueueProjection`, not per head, and are **null when they
   would only repeat the row**. Labels are already the shortest distinguishing form, so the tip is
   what the label left off — path, test, frameworks, failure text. `QueueTooltipTests` snapshots the

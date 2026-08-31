@@ -31,6 +31,14 @@ static class Palette
     /// </summary>
     public static readonly Color Selected = Color.FromArgb(38, 64, 90);
 
+    /// <summary>
+    /// Behind selected pane text. Brighter than the queue's row highlight so the two do not read
+    /// as the same thing, and dark enough that added green and removed red are still legible over
+    /// it - the text keeps its own colour when selected, because what kind of change a line is
+    /// does not stop mattering while it is being copied.
+    /// </summary>
+    public static readonly Color Selection = Color.FromArgb(55, 92, 130);
+
     public static Color Foreground(RowKind kind) =>
         kind switch
         {

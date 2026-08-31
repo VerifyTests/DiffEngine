@@ -16,18 +16,23 @@ static class ScreenBuilder
     {
         var body = BodyRows(state);
         var current = state.Current;
+        var selection = state.LiveSelection;
         var left = BuildPane(
             current?.LeftHeader ?? "received",
             current?.LeftRows ?? [],
             state.ScrollTop,
             body,
-            current?.LeftImage);
+            current?.LeftImage,
+            selection,
+            PaneSide.Left);
         var right = BuildPane(
             current?.RightHeader ?? "expected",
             current?.RightRows ?? [],
             state.ScrollTop,
             body,
-            current?.RightImage);
+            current?.RightImage,
+            selection,
+            PaneSide.Right);
 
         var queue = BuildQueue(state, body, out var top);
         return new(
@@ -71,13 +76,20 @@ static class ScreenBuilder
         IReadOnlyList<Row> rows,
         int scrollTop,
         int body,
-        ImageFile? image)
+        ImageFile? image,
+        TextSelection? selection,
+        PaneSide side)
     {
         var end = Math.Min(scrollTop + body, rows.Count);
         var visible = new List<Row>(Math.Max(0, end - scrollTop));
         for (var index = Math.Max(0, scrollTop); index < end; index++)
         {
-            visible.Add(rows[index]);
+            var row = rows[index];
+            // Attached to the visible slice rather than carried beside it, so a head draws a row
+            // and its highlight from one thing and the frame comparison that decides whether to
+            // repaint already covers both.
+            var span = SelectionText.Span(selection, side, index, row.Text);
+            visible.Add(span.Length == 0 ? row : row with { Selection = span });
         }
 
         return new(header, visible, scrollTop, rows.Count, BuildImage(image));
@@ -177,6 +189,15 @@ static class ScreenBuilder
         if (current is null)
         {
             return "nothing pending";
+        }
+
+        // Above the warning and the line count, because a selection is what the reader is doing
+        // right now and both of those are still true the moment it goes. This is also the whole
+        // of what a renderer with no way to invert text can say about one, which is why it is
+        // stated here rather than left to the highlight.
+        if (state.LiveSelection is { IsEmpty: false } selection)
+        {
+            return SelectionText.Summary(selection, current);
         }
 
         if (current.Warning is not null)

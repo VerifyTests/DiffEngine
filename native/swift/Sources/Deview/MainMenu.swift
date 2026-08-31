@@ -57,6 +57,7 @@ enum MainMenu {
         let name = ProcessInfo.processInfo.processName
         let bar = NSMenu()
         bar.addItem(submenu(NSMenu(title: name), items: application(target, name)))
+        bar.addItem(submenu(NSMenu(title: "Edit"), items: edit(target)))
         bar.addItem(submenu(NSMenu(title: "Snapshot"), items: snapshot(target)))
         bar.addItem(submenu(NSMenu(title: "Window"), items: window()))
         return bar
@@ -76,6 +77,17 @@ enum MainMenu {
             .separator(),
             item("Quit \(name)", #selector(ControlTarget.quit(_:)), key: "q", target: target)
         ]
+    }
+
+    /// The two commands that do carry key equivalents, because both are chords rather than plain
+    /// letters and so cannot swallow the keystrokes `ViewerView.keyDown` exists to read. They are
+    /// also the two a macOS reader will try before reading any documentation.
+    private static func edit(_ target: ControlTarget) -> [NSMenuItem] {
+        let copy = command("Copy", DEVIEW_KEY_COPY, target)
+        copy.keyEquivalent = "c"
+        let selectAll = command("Select All", DEVIEW_KEY_SELECT_ALL, target)
+        selectAll.keyEquivalent = "a"
+        return [copy, selectAll]
     }
 
     /// The keymap the docs publish, one item per command, so it is discoverable rather than only
