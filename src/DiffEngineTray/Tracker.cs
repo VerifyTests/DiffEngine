@@ -227,7 +227,10 @@ class Tracker :
             }
         }
 
-        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess);
+        // Off the resolved executable rather than the resolved tool, because the sender's viewer
+        // and this tray's are different copies at different paths, so the path lookup above finds
+        // nothing for the one case that matters most here.
+        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess, PendingFiles.IsViewerExe(exe));
     }
 
     /// <summary>
@@ -712,7 +715,7 @@ class Tracker :
 
         AcceptMoves(
             moves.Values
-                .Where(_ => _.Process is { HasExited: false })
+                .Where(_ => _.IsOpen)
                 .ToList());
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
