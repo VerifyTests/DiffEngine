@@ -187,6 +187,7 @@ static class ViewerClient
             // ReadToEndAsync takes no token at all, and net462 has no cancellable connect or
             // write either. Registered after the client and so disposed before it, which is what
             // stops the callback firing on a disposed object
+            // ReSharper disable once UseAwaitUsing
             using var abort = token.Register(() => Abort(client));
 #if NET6_0_OR_GREATER
             await client.ConnectAsync(IPAddress.Loopback, endpointPort, token);

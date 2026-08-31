@@ -92,7 +92,7 @@ public class TrackerDeleteTest :
         await using var tracker = new RecordingTracker();
         var tracked = tracker.AddDelete(file1);
 
-        using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
+        await using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             tracker.Accept(tracked);
         }
@@ -112,7 +112,7 @@ public class TrackerDeleteTest :
         tracker.AddDelete(file1);
         tracker.AddDelete(file2);
 
-        using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
+        await using (File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             await tracker.AcceptAll();
         }
