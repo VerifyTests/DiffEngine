@@ -225,9 +225,9 @@ public class MenuBuilderTest :
         Directory.CreateDirectory(directory);
         try
         {
-            File.WriteAllText(Path.Combine(directory, "Options.sln"), "");
+            await File.WriteAllTextAsync(Path.Combine(directory, "Options.sln"), "");
             var file = Path.Combine(directory, "file.txt");
-            File.WriteAllText(file, "");
+            await File.WriteAllTextAsync(file, "");
             await using var tracker = new RecordingTracker();
             tracker.AddDelete(file);
             var menu = MenuBuilder.Build(

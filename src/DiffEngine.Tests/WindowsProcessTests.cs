@@ -179,7 +179,7 @@ public class WindowsProcessTests
                 FileName = FakeDiffTool.Exe,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            })!;
 
         await Assert.That(process).IsNotNull();
 

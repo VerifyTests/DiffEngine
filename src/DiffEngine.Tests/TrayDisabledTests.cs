@@ -17,14 +17,14 @@
 [NotInParallel]
 public class TrayDisabledTests
 {
-    const string Variable = "DiffEngine_TrayDisabled";
+    const string variable = "DiffEngine_TrayDisabled";
 
     [Test]
     public async Task Read_from_the_environment_until_set()
     {
         DiffRunner.ResetTrayDisabled();
 
-        Environment.SetEnvironmentVariable(Variable, "true");
+        Environment.SetEnvironmentVariable(variable, "true");
         await Assert.That(DiffRunner.TrayDisabled).IsTrue();
 
         // Setting pins it, exactly as Disabled does, so a consumer that opts back in is not
@@ -108,7 +108,7 @@ public class TrayDisabledTests
     [After(Test)]
     public void Restore()
     {
-        Environment.SetEnvironmentVariable(Variable, null);
+        Environment.SetEnvironmentVariable(variable, null);
         DiffRunner.ResetTrayDisabled();
     }
 
@@ -159,6 +159,7 @@ public class TrayDisabledTests
                     // net48 too. Stop in Dispose is what breaks the accept, which lands in the
                     // catch below.
                     using var client = await listener.AcceptTcpClientAsync();
+                    // ReSharper disable once UseAwaitUsing
                     using var stream = client.GetStream();
                     using var reader = new StreamReader(stream);
                     Payloads.Add(await reader.ReadToEndAsync());
