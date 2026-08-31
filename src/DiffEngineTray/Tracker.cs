@@ -230,7 +230,17 @@ class Tracker :
         // Off the resolved executable rather than the resolved tool, because the sender's viewer
         // and this tray's are different copies at different paths, so the path lookup above finds
         // nothing for the one case that matters most here.
-        return new(temp, target, exe, arguments, canKill.GetValueOrDefault(false), process, solution, extension, killLockingProcess, PendingFiles.IsViewerExe(exe));
+        return new(
+            temp,
+            target,
+            exe,
+            arguments,
+            canKill.GetValueOrDefault(false),
+            process,
+            solution,
+            extension,
+            killLockingProcess,
+            PendingFiles.IsViewerExe(exe));
     }
 
     /// <summary>
@@ -296,10 +306,15 @@ class Tracker :
 
     // The owner does not always have something to add, and a balloon ending in a bare full stop
     // and a space reads as a message that went missing
-    static string CouldNotAccept(string name, string? message) =>
-        message is { Length: > 0 }
-            ? $"Could not accept the snapshot for '{name}'. {message}"
-            : $"Could not accept the snapshot for '{name}'.";
+    static string CouldNotAccept(string name, string? message)
+    {
+        if (message is { Length: > 0 })
+        {
+            return $"Could not accept the snapshot for '{name}'. {message}";
+        }
+
+        return $"Could not accept the snapshot for '{name}'.";
+    }
 
     /// <summary>
     /// On a worker, matching <see cref="Accept(PendingSnapshot)"/> and for the same reason. Against
@@ -807,16 +822,17 @@ class Tracker :
     {
         if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
         {
-            return moves.TryGetValue(temp, out var move)
-                ? AcceptWithoutPrompting(move)
-                : (false, null);
+            if (moves.TryGetValue(temp, out var move))
+            {
+                return AcceptWithoutPrompting(move);
+            }
         }
-
-        if (TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file))
+        else if (TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file))
         {
-            return deletes.TryGetValue(file, out var delete)
-                ? AcceptTracked(delete)
-                : (false, null);
+            if (deletes.TryGetValue(file, out var delete))
+            {
+                return AcceptTracked(delete);
+            }
         }
 
         return (false, null);
