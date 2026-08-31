@@ -63,7 +63,7 @@ public class SettingsHelperTests
                     AlwaysKillLockingProcesses = true
                 });
 
-            var result = await SettingsHelper.Read();
+            var result = SettingsHelper.Read();
 
             await Verify(result);
         }
