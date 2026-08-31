@@ -10,7 +10,7 @@ public class RevealFileTests :
     public async Task A_file_that_is_there_is_selected()
     {
         var file = Path.Combine(directory, "sample.verified.txt");
-        File.WriteAllText(file, "");
+        await File.WriteAllTextAsync(file, "");
 
         var resolved = RevealFile.Resolve(file);
 

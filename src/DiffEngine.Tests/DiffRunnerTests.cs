@@ -43,10 +43,12 @@ public class DiffRunnerTests
         {
             await Task.Delay(500);
             ProcessCleanup.Refresh();
+            // ReSharper disable once MethodHasAsyncOverload
             var result = DiffRunner.Launch(file1, "fake.txt");
             await Task.Delay(300);
             await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
             ProcessCleanup.Refresh();
+            // ReSharper disable once MethodHasAsyncOverload
             result = DiffRunner.Launch(file2, "fake.txt");
             await Assert.That(result).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
             ProcessCleanup.Refresh();
@@ -119,6 +121,7 @@ public class DiffRunnerTests
             await WaitForRunning(false);
             await Assert.That(IsRunning()).IsFalse();
             await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
+            // ReSharper disable once MethodHasAsyncOverload
             var result = DiffRunner.Launch(file1, file2);
             await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
             Thread.Sleep(500);
@@ -170,6 +173,7 @@ public class DiffRunnerTests
         await WaitForRunning(false);
         await Assert.That(IsRunning()).IsFalse();
         await Assert.That(ProcessCleanup.IsRunning(command)).IsFalse();
+        // ReSharper disable once MethodHasAsyncOverload
         var result = DiffRunner.Launch(file1, file2);
         await Assert.That(result).IsEqualTo(LaunchResult.StartedNewInstance);
         await WaitForRunning(true);

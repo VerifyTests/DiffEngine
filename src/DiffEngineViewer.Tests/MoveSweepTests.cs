@@ -22,7 +22,7 @@ public class MoveSweepTests :
         var received = Path.Combine(locked, "received");
         Directory.CreateDirectory(received);
         var temp = Path.Combine(received, "sample.received.txt");
-        File.WriteAllText(temp, "the snapshot");
+        await File.WriteAllTextAsync(temp, "the snapshot");
         var target = Path.Combine(root, "target");
         Directory.CreateDirectory(target);
         var verified = Path.Combine(target, "sample.verified.txt");
@@ -41,7 +41,7 @@ public class MoveSweepTests :
         var received = Path.Combine(root, "received");
         Directory.CreateDirectory(received);
         var temp = Path.Combine(received, "sample.received.txt");
-        File.WriteAllText(temp, "the snapshot");
+        await File.WriteAllTextAsync(temp, "the snapshot");
         var target = Path.Combine(root, "sample.verified.txt");
 
         ViewerActions.Real.MoveFile(temp, target);
@@ -59,8 +59,8 @@ public class MoveSweepTests :
         var received = Path.Combine(root, "received");
         Directory.CreateDirectory(received);
         var temp = Path.Combine(received, "sample.received.txt");
-        File.WriteAllText(temp, "the snapshot");
-        File.WriteAllText(Path.Combine(received, "other.received.txt"), "another");
+        await File.WriteAllTextAsync(temp, "the snapshot");
+        await File.WriteAllTextAsync(Path.Combine(received, "other.received.txt"), "another");
         var target = Path.Combine(root, "sample.verified.txt");
 
         ViewerActions.Real.MoveFile(temp, target);
