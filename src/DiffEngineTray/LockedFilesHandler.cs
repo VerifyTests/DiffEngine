@@ -26,7 +26,7 @@ static class LockedFilesHandler
         {
             try
             {
-                var settings = await SettingsHelper.Read();
+                var settings = SettingsHelper.Read();
                 settings.AlwaysKillLockingProcesses = true;
                 await SettingsHelper.Write(settings);
             }

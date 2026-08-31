@@ -10,7 +10,7 @@ static class SettingsHelper
         FilePath = Path.Combine(directory, "settings.json");
     }
 
-    public static async Task<Settings> Read()
+    public static Settings Read()
     {
         Settings settings;
         if (File.Exists(FilePath))
@@ -25,7 +25,7 @@ static class SettingsHelper
         }
         else
         {
-            await File.WriteAllTextAsync(FilePath, "{}");
+            File.WriteAllText(FilePath, "{}");
             settings = new();
         }
 

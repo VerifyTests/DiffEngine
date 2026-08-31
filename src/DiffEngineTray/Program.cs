@@ -56,7 +56,7 @@ static class Program
         void Warn(string message) =>
             icon.ShowBalloonTip(10000, "DiffEngineTray", message, ToolTipIcon.Warning);
 
-        var settings = await GetSettings();
+        var settings = GetSettings();
         if (settings == null)
         {
             return;
@@ -181,11 +181,11 @@ static class Program
 
     internal record KeyBinding(int Id, HotKey HotKey, Action Action);
 
-    static async Task<Settings?> GetSettings()
+    static Settings? GetSettings()
     {
         try
         {
-            return await SettingsHelper.Read();
+            return SettingsHelper.Read();
         }
         catch (Exception exception)
         {
