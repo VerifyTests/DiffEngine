@@ -79,7 +79,7 @@ public class TrayViewerSyncTest
         await pair.Tracker.Accept(snapshot);
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
     }
 
     [Test]
@@ -160,7 +160,7 @@ public class TrayViewerSyncTest
         pair.Send(new(ViewerVerb.Settle, Key(sample, 1)));
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public class TrayViewerSyncTest
 
         var viewer = pair.Pump();
         await Assert.That(viewer.Queue).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+        await Assert.That(pair.Listing).IsEmpty();
         await Assert.That(pair.Tracker.Moves).IsEmpty();
         await Assert.That(pair.Tracker.Deletes).IsEmpty();
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
@@ -199,7 +199,7 @@ public class TrayViewerSyncTest
         pair.Link.Post(ViewerSideVerb.Accept, Key(sample, 1));
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
         await Assert.That(pair.Applied.Select(_ => _.LineHint)).IsEquivalentTo([1]);
     }
 
@@ -214,7 +214,7 @@ public class TrayViewerSyncTest
         pair.Link.Post(ViewerSideVerb.Discard, Key(sample, 1));
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
         await Assert.That(pair.Applied).IsEmpty();
     }
 
@@ -270,7 +270,7 @@ public class TrayViewerSyncTest
 
         await Assert.That(pair.Failures).IsEmpty();
         await Assert.That(pair.Applied).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
     }
 
     /// <summary>
@@ -289,7 +289,7 @@ public class TrayViewerSyncTest
         var viewer = pair.Pump();
         await Assert.That(viewer.Queue.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(viewer.Exit).IsFalse();
-        await Assert.That(pair.Tracker.Snapshots.Single().Status).IsEqualTo("the file is locked");
+        await Assert.That(pair.Listing.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
     }
 
@@ -314,7 +314,7 @@ public class TrayViewerSyncTest
         var viewer = pair.Pump();
         await Assert.That(viewer.Keys()).IsEquivalentTo([Key(sample, 1)]);
         await Assert.That(viewer.Queue.Single().Status).IsEqualTo("the file is locked");
-        await Assert.That(pair.Tracker.Snapshots.Single().Status).IsEqualTo("the file is locked");
+        await Assert.That(pair.Listing.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
     }
 
@@ -357,7 +357,7 @@ public class TrayViewerSyncTest
         await pair.Tracker.AcceptAll();
 
         await Assert.That(pair.Viewer.Queue).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+        await Assert.That(pair.Listing).IsEmpty();
         await Assert.That(pair.Applied.Count).IsEqualTo(2);
     }
 
@@ -389,7 +389,7 @@ public class TrayViewerSyncTest
         await pair.Tracker.Accept(snapshot);
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
     }
 
     [Test]
@@ -415,7 +415,7 @@ public class TrayViewerSyncTest
         pair.Tracker.Clear();
 
         await Assert.That(pair.Viewer.Queue).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+        await Assert.That(pair.Listing).IsEmpty();
         await Assert.That(pair.Applied).IsEmpty();
     }
 
@@ -429,7 +429,7 @@ public class TrayViewerSyncTest
         pair.Act(CommandKind.Accept, Key(sample, 1));
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
     }
 
     [Test]
@@ -442,7 +442,7 @@ public class TrayViewerSyncTest
         pair.Act(CommandKind.AcceptAll, null);
 
         await Assert.That(pair.Viewer.Queue).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+        await Assert.That(pair.Listing).IsEmpty();
         await Assert.That(pair.Tracker.TrackingAny).IsFalse();
     }
 
@@ -456,7 +456,7 @@ public class TrayViewerSyncTest
         pair.Act(CommandKind.Discard, Key(sample, 1));
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(other, 7)]);
-        await Assert.That(pair.Tracker.Snapshots.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
         await Assert.That(pair.Applied).IsEmpty();
     }
 
@@ -473,7 +473,7 @@ public class TrayViewerSyncTest
         await pair.Tracker.Accept(snapshot);
 
         await Assert.That(pair.Viewer.Queue.Single().Status).IsEqualTo("the file is locked");
-        await Assert.That(pair.Tracker.Snapshots.Single().Status).IsEqualTo("the file is locked");
+        await Assert.That(pair.Listing.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
     }
 
@@ -492,7 +492,7 @@ public class TrayViewerSyncTest
 
         await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(sample, 1)]);
         await Assert.That(pair.Viewer.Queue.Single().Status).IsEqualTo("the file is locked");
-        await Assert.That(pair.Tracker.Snapshots.Single().Status).IsEqualTo("the file is locked");
+        await Assert.That(pair.Listing.Single().Status).IsEqualTo("the file is locked");
         await Assert.That(pair.Failures.Single()).Contains("the file is locked");
     }
 
@@ -518,7 +518,7 @@ public class TrayViewerSyncTest
 
         await Assert.That(pair.Failures).IsEmpty();
         await Assert.That(pair.Viewer.Queue).IsEmpty();
-        await Assert.That(pair.Tracker.Snapshots).IsEmpty();
+        await Assert.That(pair.Listing).IsEmpty();
     }
 
     /// <inheritdoc cref="ASlowAcceptIsWaitedForRatherThanCalledAMissingViewer"/>
@@ -821,6 +821,24 @@ public class TrayViewerSyncTest
         public List<string> Warnings { get; } = [];
         public List<string> Failures { get; } = [];
 
+        /// <summary>
+        /// What the tray menu is built from. <see cref="Tracker.Snapshots"/> is the last listing
+        /// seen rather than a live read, so this refreshes first - standing in for the two second
+        /// scan, and for <see cref="OwnedInlineHost.Changed"/> where that is what keeps it current.
+        /// <para>
+        /// Reading the property alone would assert against whatever the cache happened to hold,
+        /// which for an empty expectation is a test that cannot fail.
+        /// </para>
+        /// </summary>
+        public IReadOnlyList<PendingSnapshot> Listing
+        {
+            get
+            {
+                Tracker.Refresh();
+                return Tracker.Snapshots;
+            }
+        }
+
         readonly string root = TempRoot();
 
         /// <summary>
@@ -858,7 +876,7 @@ public class TrayViewerSyncTest
                 throw new($"The owner refused the patch. {response.Message}");
             }
 
-            return Tracker.Snapshots.Single(_ => _.Key == Key(source, line));
+            return Listing.Single(_ => _.Key == Key(source, line));
         }
 
         public TrackedMoveFiles AddMove()
@@ -982,6 +1000,20 @@ public class TrayViewerSyncTest
 
         public SessionState Viewer => Window.State;
 
+        /// <summary>
+        /// What the tray menu is built from, refreshed first - see
+        /// <see cref="TrayOwned.Listing"/>. It matters more on this side: with the queue in the
+        /// other process, the cache only moves when something refreshes it.
+        /// </summary>
+        public IReadOnlyList<PendingSnapshot> Listing
+        {
+            get
+            {
+                Tracker.Refresh();
+                return Tracker.Snapshots;
+            }
+        }
+
         public void Queue(string source, int line, string content = "new", string? framework = null)
         {
             var message = new ViewerMessage(ViewerVerb.Inline, Body: Payload(source, line, content, framework));
@@ -995,7 +1027,7 @@ public class TrayViewerSyncTest
         public PendingSnapshot Snapshot(string source, int line, string content = "new", string? framework = null)
         {
             Queue(source, line, content, framework);
-            return Tracker.Snapshots.Single(_ => _.Key == Key(source, line));
+            return Listing.Single(_ => _.Key == Key(source, line));
         }
 
         public ViewerResponse Send(ViewerMessage message)

@@ -1,17 +1,24 @@
+using System.Net.NetworkInformation;
+
 /// <summary>
 /// The queue belongs to a viewer that bound the port before this tray started, so every call is a
 /// short loopback round trip and the tray is a remote control.
 /// <para>
-/// The listing and the menu verbs use ViewerClient.ShortTimeout. Those run from the 2 second scan
-/// timer and from the menu opening, so a slow exchange must not outlast the timer period or block
-/// the UI.
+/// The listing and the menu verbs use ViewerClient.ShortTimeout. The listing runs from the 2
+/// second scan timer, so a slow exchange must not outlast the timer period. It is no longer what
+/// the menu is built from - see <see cref="Tracker.Snapshots"/> - so nothing here is waited on
+/// from the UI thread except a verb the user clicked.
 /// </para>
 /// <para>
 /// Accepting does not, for the reason <see cref="acceptWait"/> gives.
 /// </para>
 /// <para>
-/// A refused connection means the viewer has gone, which is the same as nothing pending. The queue
-/// went with it, and this tray does not take ownership: it was decided at startup.
+/// No owner means the viewer has gone, which is the same as nothing pending. The queue went with
+/// it, and this tray does not take ownership: it was decided at startup.
+/// </para>
+/// <para>
+/// "No owner" is asked of the OS rather than found out by connecting - see
+/// <see cref="PortIsHeld"/>.
 /// </para>
 /// </summary>
 class RemoteInlineHost : IInlineHost
@@ -156,6 +163,50 @@ class RemoteInlineHost : IInlineHost
         return response.Ok;
     }
 
-    static bool Exchange(ViewerMessage message, TimeSpan wait, [NotNullWhen(true)] out ViewerResponse? response) =>
-        ViewerClient.TrySend(message, out response, wait: wait);
+    static bool Exchange(ViewerMessage message, TimeSpan wait, [NotNullWhen(true)] out ViewerResponse? response)
+    {
+        if (!PortIsHeld())
+        {
+            response = null;
+            return false;
+        }
+
+        return ViewerClient.TrySend(message, out response, wait: wait);
+    }
+
+    /// <summary>
+    /// Whether anything holds the port, asked of the OS rather than found out by connecting to it.
+    /// <para>
+    /// Connecting to a port nothing is listening on is supposed to be refused at once, and every
+    /// caller here was written expecting that. It is not refused at once on every machine: where
+    /// the SYN is dropped rather than answered with a reset, the connect runs to its timeout
+    /// instead. Once the owning viewer exits, that is the full
+    /// <see cref="ViewerClient.ShortTimeout"/> per call - half a second on the two second scan,
+    /// and half a second on every menu verb - for the rest of this tray's life, because ownership
+    /// is decided at startup and this host is never replaced.
+    /// </para>
+    /// <para>
+    /// The listener table is a local kernel query costing well under a millisecond, and it answers
+    /// the only question worth asking first. Matched on the port alone: a listener on any address
+    /// accepts a loopback connection, so the round trip is skipped only when nothing at all holds
+    /// the port. Racing it is harmless either way - an owner that binds just after the check is
+    /// found by the next call, and one that exits just after it costs the timeout exactly as
+    /// before.
+    /// </para>
+    /// </summary>
+    static bool PortIsHeld()
+    {
+        var port = ViewerClient.Port;
+        try
+        {
+            return IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpListeners()
+                .Any(_ => _.Port == port);
+        }
+        catch (NetworkInformationException)
+        {
+            // No table to read, so let the connect decide as it always did
+            return true;
+        }
+    }
 }

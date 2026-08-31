@@ -10,8 +10,9 @@ class Tracker :
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
     IInlineHost inline;
-    // The last listing seen, used for the icon state. Free when this tray owns the queue, and a
-    // loopback round trip when a viewer does, which is why the menu re-reads live when it opens.
+    // The last listing seen, used for the icon state and for the menu. Free when this tray owns
+    // the queue, and a loopback round trip when a viewer does, which is why nothing re-reads it
+    // from a click.
     IReadOnlyList<PendingSnapshot> snapshots = [];
     AsyncTimer timer;
     int lastScanCount;
@@ -31,6 +32,11 @@ class Tracker :
             {
                 ExceptionHandler.Handle("Failed to scan files", exception);
             });
+
+        // Seeded rather than left empty until the first scan two seconds later. The menu reads
+        // this cache now, so without it a tray that has just started shows none of what a viewer
+        // already had queued - and the icon stays dark for the same two seconds.
+        Refresh();
     }
 
     Task ScanFiles(Cancel cancel)
@@ -316,19 +322,20 @@ class Tracker :
             }
         });
 
-    public Task AcceptAllSnapshots()
-    {
-        // Live read, not the scan cache: this can be called before the first scan, and acting on
-        // a stale empty cache would silently do nothing.
-        if (Snapshots.Count == 0)
-        {
-            return Task.CompletedTask;
-        }
-
-        return Task.Run(() =>
+    public Task AcceptAllSnapshots() =>
+        Task.Run(() =>
         {
             try
             {
+                // Live read, not the scan cache: this can be called before the first scan, and
+                // acting on a stale empty cache would silently do nothing. Inside the worker
+                // rather than in front of it, because the caller is a menu click or a hot key and
+                // the read is a round trip whenever a viewer owns the queue.
+                if (inline.List().Count == 0)
+                {
+                    return;
+                }
+
                 if (!inline.AcceptAll(out var message))
                 {
                     inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
@@ -341,7 +348,6 @@ class Tracker :
                 ExceptionHandler.Handle("Failed to accept the pending snapshots", exception);
             }
         });
-    }
 
     /// <summary>
     /// Accepts just these snapshots, for a group header: unlike <see cref="AcceptAllSnapshots"/>,
@@ -936,17 +942,24 @@ class Tracker :
     }
 
     /// <summary>
-    /// Read live rather than from the scan cache, so the menu shows the viewer's current queue at
-    /// the moment it opens.
+    /// The last listing seen, rather than a fresh one.
+    /// <para>
+    /// This is what the menu is built from, and building it runs on the UI thread inside
+    /// <c>ContextMenuStrip.Opening</c>. Reading live there put a loopback round trip between the
+    /// right click and the menu whenever a viewer owned the queue. Worse, a connection to a port
+    /// nothing is listening on is only refused at once on some machines - where the SYN is dropped
+    /// instead, an owner that had exited cost the whole of
+    /// <see cref="ViewerClient.ShortTimeout"/>, so every menu open took half a second for the rest
+    /// of the tray's life.
+    /// </para>
+    /// <para>
+    /// Nothing is lost where the queue is held here: <see cref="OwnedInlineHost.Changed"/> runs
+    /// <see cref="Refresh"/> on every mutation, and the tray's own accepts and discards refresh
+    /// too, so the cache is the live queue. Where a viewer holds it, the listing is at most one
+    /// scan old - which is what <see cref="TrackingAny"/> and the icon have always shown.
+    /// </para>
     /// </summary>
-    public IReadOnlyList<PendingSnapshot> Snapshots
-    {
-        get
-        {
-            snapshots = inline.List();
-            return snapshots;
-        }
-    }
+    public IReadOnlyList<PendingSnapshot> Snapshots => snapshots;
 
     /// <summary>
     /// Deliberately not <see cref="Clear"/>: exiting is not discarding. The diff tools this tray
