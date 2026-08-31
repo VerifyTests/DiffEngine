@@ -86,6 +86,17 @@ final class Renderer {
 
         /// The rows region, which is what a scroller spans and what the tooltips sit inside.
         var body: CGRect = .zero
+
+        /// Where the two panes' columns ended up, left then right, so a drag selecting text is
+        /// resolved against the same numbers that drew it.
+        var panes: [PaneColumn] = []
+    }
+
+    /// One pane's horizontal extent: the column, and where its row text starts past the gutter.
+    struct PaneColumn {
+        var cellLeft: CGFloat = 0
+        var textLeft: CGFloat = 0
+        var width: CGFloat = 0
     }
 
     init(fontData: Data?, size: CGFloat) {
@@ -226,6 +237,14 @@ final class Renderer {
             width: content - Renderer.padding * 2,
             height: bodyBottom - bodyTop,
             size)
+        let gutter = Renderer.gutterCells * cell.width
+        layout.panes = [
+            PaneColumn(cellLeft: panesLeft, textLeft: panesLeft + gutter, width: half),
+            PaneColumn(
+                cellLeft: panesLeft + half,
+                textLeft: panesLeft + half + gutter,
+                width: panesWidth - half)
+        ]
         layout.buttons = footer(frame, size: size, height: footerHeight, line: line, in: context)
         return layout
     }
@@ -307,6 +326,20 @@ final class Renderer {
         let number = String(row.lineNumber)
         let gutter = "\(Palette.marker(row.kind)) \(String(repeating: " ", count: max(0, 4 - number.count)))\(number)"
         let width = Renderer.gutterCells * cell.width
+
+        // Behind the text rather than over it, and the text keeps its own colour: what kind of
+        // change a line is has to survive being selected.
+        if row.selectLength > 0 {
+            context.setFillColor(Palette.selection)
+            context.fill(
+                CGRect(
+                    x: bounds.minX + width + CGFloat(row.selectStart) * cell.width,
+                    y: bounds.minY,
+                    width: CGFloat(row.selectLength) * cell.width,
+                    height: bounds.height)
+                    .intersection(bounds))
+        }
+
         text(gutter, in: CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height), Palette.dim, context)
         text(
             row.text,

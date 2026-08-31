@@ -1,0 +1,17 @@
+﻿status: selected 2 lines, 8 characters
+
+Sample.received.txt
+     1  one
+     2  two
+     3  three
+     4  four
+
+Sample.verified.txt
+     1  [one]
+        
+        
+     2  [four]
+
+copied:
+one
+four

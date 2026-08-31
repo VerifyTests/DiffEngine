@@ -20,6 +20,14 @@ struct DeviewRow
 
     public int TextOffset;
     public int TextLength;
+
+    /// <summary>
+    /// <see cref="Row.Selection"/>, in characters of the flattened text. Zero length on a row with
+    /// nothing selected, which is every row of almost every frame.
+    /// </summary>
+    public int SelectStart;
+
+    public int SelectLength;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -118,6 +126,18 @@ struct DeviewInput
     public int CloseRequested;
     public int Columns;
     public int Rows;
+
+    /// <summary>
+    /// A drag across a pane: 0 left, 1 right, -1 when there is none, and its two ends in rows of
+    /// the whole side and characters of the row. Unclamped, because the shim does not hold the
+    /// text.
+    /// </summary>
+    public int DragSide;
+
+    public int DragAnchorRow;
+    public int DragAnchorColumn;
+    public int DragFocusRow;
+    public int DragFocusColumn;
 }
 
 [Flags]
@@ -162,5 +182,7 @@ enum DeviewKey
     Discard = 12,
     AcceptAll = 13,
     Quit = 14,
-    NextVariant = 15
+    NextVariant = 15,
+    Copy = 16,
+    SelectAll = 17
 }

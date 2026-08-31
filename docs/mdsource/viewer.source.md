@@ -76,7 +76,18 @@ Nothing is written to disk for inline review. The patch travels over stdin, or o
 | `Shift+A` | Accept all |
 | `d` | Discard |
 | `v` | Cycle the variants of a conflicted snapshot (also the Variant button) |
+| `Ctrl+A` | Select all of one pane |
+| `Ctrl+C` | Copy the selection |
 | `q` `Esc` | Close |
+
+
+## Selecting and copying
+
+Drag across either pane to select text, and `Ctrl+C` to copy it. `Ctrl+A` selects one whole pane: the one something is already selected in, or the received side when nothing is. On macOS the Edit menu carries both, so `Cmd+C` and `Cmd+A` work there too.
+
+A selection belongs to one pane. Dragging out of it keeps extending within the side the drag started in rather than crossing into the other, because the two sides are different documents. It survives scrolling, so a range taller than the window is a drag plus a wheel. The status line says how much is selected, and a click with no drag behind it clears it.
+
+What lands on the clipboard is what is on screen: tabs already expanded to the four spaces the panes draw them as, and no line numbers or change markers. Filler rows are left out — the blank lines that keep the two panes aligned where one side has no line are padding rather than content, so pasting a selection back gives the file's lines and nothing else.
 
 
 ## Multiple pending snapshots
@@ -103,12 +114,13 @@ Every row of the pending column answers a right-click:
  * An inline snapshot offers **Accept**, **Discard** and **Open source file**, plus **Show next variant** when frameworks disagree about it.
  * A move offers **Accept move**, **Discard** and **Open target directory**; a delete offers **Accept delete**, **Discard** and **Open directory**.
  * A solution header offers **Accept all in ...** and **Discard all in ...** for that solution only, and a test sub-header the same for that test's changes. Bulk accepts skip conflicted snapshots, the way accept-all does.
+ * Every entry also offers **Copy selection** when there is one, and a **Copy** item per pane, named after that pane, which copies the whole side. A side with nothing in it — the expected side of a brand new snapshot, or what is left after a delete — gets no item rather than one that copies nothing.
 
 Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file manager is always local — the files are on this machine, wherever the queue lives.
 
 On Windows and macOS this is the real OS menu, so it also takes the arrow keys, Enter, Escape and type-to-select, flips rather than clips near the edge of a screen, and is readable by a screen reader. A click that dismisses it is consumed doing so, which is why right-clicking a different row while a menu is open takes two clicks. On Linux it is drawn by the viewer, and any other click or key closes it.
 
-macOS also carries a menu bar, listing the same commands as the keys below.
+macOS also carries a menu bar: a Snapshot menu listing the same commands as the keys above, and an Edit menu with Copy and Select All. Those two are the only items carrying a key equivalent, because the rest are plain letters and a menu would match them before the window ever saw them.
 
 
 ## Grouping

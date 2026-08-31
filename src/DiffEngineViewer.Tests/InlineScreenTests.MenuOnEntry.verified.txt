@@ -8,9 +8,9 @@
 |  | Accept           ||      3  jumps over                |      3  jumps over                |
 |  | Discard          ||      4  the lazy                  |      4  the lazy                  |
 |  | Open source file ||      5  dog                       |      5  dog                       |
+|  | Copy received    ||                                   |                                   |
+|  | Copy expected    ||                                   |                                   |
 |  +------------------+|                                   |                                   |
-|                      |                                   |                                   |
-|                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |
 |                      |                                   |                                   |

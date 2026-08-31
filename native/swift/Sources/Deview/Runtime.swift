@@ -300,5 +300,12 @@ final class Runtime {
         // target" rather than "go to the top".
         input.scrollTo = -1
         input.closeRequested = 0
+        // -1 for the same reason scrollTo is: 0 is the left pane, so a cleared field has to say
+        // "no drag" rather than "a drag in the left pane at row 0".
+        input.dragSide = -1
+        input.dragAnchorRow = 0
+        input.dragAnchorColumn = 0
+        input.dragFocusRow = 0
+        input.dragFocusColumn = 0
     }
 }

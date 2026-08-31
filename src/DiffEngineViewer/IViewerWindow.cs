@@ -22,6 +22,17 @@ interface IViewerWindow : IDisposable
 
     void SetHidden(bool hidden);
 
+    /// <summary>
+    /// Puts text on the system clipboard.
+    /// <para>
+    /// Here rather than in <see cref="ViewerActions" /> with the rest of the IO, because a
+    /// clipboard belongs to a toolkit the way a window does: WinForms, AppKit and GLFW each own
+    /// one, and the alternative was shelling out to <c>clip</c>, <c>pbcopy</c> and whichever of
+    /// <c>xclip</c> or <c>wl-copy</c> happened to be installed.
+    /// </para>
+    /// </summary>
+    void SetClipboard(string text);
+
     void Focus();
 
     /// <summary>

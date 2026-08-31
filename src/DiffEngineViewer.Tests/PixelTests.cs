@@ -150,9 +150,21 @@ public class PixelTests
     public Task ContextMenu() =>
         Capture(ViewerSession.OpenMenu(Fixtures.GroupedConflicted(), 5));
 
+    /// <summary>
+    /// A selection dragged across three rows of the received pane. Mirrored in WindowsPixelTests
+    /// over the same range, because the highlight is the one part of a selection the ASCII
+    /// snapshots cannot describe - a character grid has no way to invert part of a line without
+    /// changing its width - so these baselines are what hold the three heads to one appearance.
+    /// </summary>
     [Test]
     [PixelTest]
     [NotInParallel(nameof(PixelTests), Order = 8)]
+    public Task Selection() =>
+        Capture(ViewerSession.Drag(Fixtures.File(), PaneSide.Left, 1, 6, 3, 4));
+
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 9)]
     public Task InlineAccepted()
     {
         var state = Fixtures.Inline(

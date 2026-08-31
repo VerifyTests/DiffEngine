@@ -106,6 +106,16 @@ public class WindowsPixelTests
     public Task Images() =>
         Capture(Fixtures.Images());
 
+    /// <summary>
+    /// A selection dragged across three rows of the received pane. Mirrored in the native suite
+    /// over the same range, because the highlight is the one part of a selection the ASCII
+    /// snapshots cannot describe - a character grid has no way to invert part of a line without
+    /// changing its width - so these baselines are what hold the three heads to one appearance.
+    /// </summary>
+    [Test]
+    public Task Selection() =>
+        Capture(ViewerSession.Drag(Fixtures.File(), PaneSide.Left, 1, 6, 3, 4));
+
     // No menu case here: this head shows a real popup, which is a top level window and so cannot
     // appear in a capture of the client area. ContextMenuTests renders the strip itself instead.
 

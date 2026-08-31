@@ -309,7 +309,7 @@ static class ViewerProgram
             }
 
             var input = window.Poll();
-            host.Mutate(_ => Apply(_, input, link));
+            host.Mutate(_ => Apply(_, input, link, window));
 
             // Q, Escape and the Close menu item arrive as a state flag, consumed here into the
             // same decision as the window's own close button. Routed rather than exited, because
@@ -344,7 +344,11 @@ static class ViewerProgram
         }
     }
 
-    static SessionState Apply(SessionState state, ViewerInput input, OwnerLink? link)
+    /// <summary>
+    /// One frame of input against one state. Internal so SelectionTests can drive a drag and a
+    /// copy the way a head does, since the clipboard and the drag are only connected here.
+    /// </summary>
+    internal static SessionState Apply(SessionState state, ViewerInput input, OwnerLink? link, IViewerWindow window)
     {
         state = ViewerSession.Resize(state, input.Columns, input.Rows);
 
@@ -363,7 +367,7 @@ static class ViewerProgram
             if (state.Menu is { } open &&
                 input.ClickedMenuItem < open.Items.Count)
             {
-                state = Dispatch(state, open.Items[input.ClickedMenuItem].Kind, link);
+                state = Dispatch(state, open.Items[input.ClickedMenuItem].Kind, link, window);
             }
         }
         else if (input.RightClickedQueueItem >= 0)
@@ -392,6 +396,24 @@ static class ViewerProgram
             }
         }
 
+        // After the click chain, deliberately. A drag closes the menu like every other input, and
+        // the head that draws its own menu reports a click on one as landing wherever the menu is
+        // floating - which is over a pane. Resolving the drag first would then close the menu
+        // before the branch above could look up which item was chosen, and swallow the command.
+        //
+        // Order against the scroll does not matter: both ends arrive in rows of the whole side,
+        // which is what a scroll top is subtracted from rather than added to.
+        if (input.DragSide >= 0)
+        {
+            state = ViewerSession.Drag(
+                state,
+                input.DragSide == 0 ? PaneSide.Left : PaneSide.Right,
+                input.DragAnchorRow,
+                input.DragAnchorColumn,
+                input.DragFocusRow,
+                input.DragFocusColumn);
+        }
+
         // After the click chain above, deliberately: that branch needs the menu still open to
         // resolve which item was chosen, so clearing first would swallow the command. And not when
         // a right-click opened another menu in the same frame, which is the dismissal's successor
@@ -416,14 +438,14 @@ static class ViewerProgram
                 var button = buttons[input.ClickedButton];
                 if (button.Enabled)
                 {
-                    state = Dispatch(state, button.Command, link);
+                    state = Dispatch(state, button.Command, link, window);
                 }
             }
         }
 
         if (input.Key != CommandKind.None)
         {
-            state = Dispatch(state, input.Key, link);
+            state = Dispatch(state, input.Key, link, window);
         }
 
         return state;
@@ -434,8 +456,16 @@ static class ViewerProgram
     /// to them and letting the next refresh bring the result back, which keeps the round trip and
     /// the ten second mutex behind it off this thread.
     /// </summary>
-    static SessionState Dispatch(SessionState state, Command command, OwnerLink? link)
+    static SessionState Dispatch(SessionState state, Command command, OwnerLink? link, IViewerWindow window)
     {
+        // Before everything, including the link check. Copying reads what is on screen and writes
+        // it to this machine's clipboard, so it is never something to ask an owner for - and the
+        // owner's answer would be the text this process already has.
+        if (command.Kind is CommandKind.Copy or CommandKind.CopyLeft or CommandKind.CopyRight)
+        {
+            return Copy(state, command.Kind, window);
+        }
+
         if (link is null)
         {
             return ViewerSession.Apply(state, command, ViewerActions.Real);
@@ -475,6 +505,59 @@ static class ViewerProgram
         return state with
         {
             Message = "Waiting for the queue owner.",
+            Menu = null
+        };
+    }
+
+    /// <summary>
+    /// Pane text to the clipboard, and a status line saying what went. An empty side or an empty
+    /// selection says so rather than silently putting nothing on the clipboard, since the two are
+    /// indistinguishable afterwards.
+    /// </summary>
+    static SessionState Copy(SessionState state, CommandKind kind, IViewerWindow window)
+    {
+        if (state.Current is not { } current)
+        {
+            return state with { Menu = null };
+        }
+
+        string text;
+        string what;
+        if (kind == CommandKind.Copy)
+        {
+            if (state.LiveSelection is not { IsEmpty: false } selection)
+            {
+                return state with
+                {
+                    Message = "Nothing is selected. Drag across a pane, or press ctrl+a.",
+                    Menu = null
+                };
+            }
+
+            text = SelectionText.Of(selection, current);
+            what = "the selection";
+        }
+        else
+        {
+            var side = kind == CommandKind.CopyLeft ? PaneSide.Left : PaneSide.Right;
+            text = SelectionText.All(current, side);
+            what = SelectionText.Header(current, side);
+        }
+
+        if (text.Length == 0)
+        {
+            return state with
+            {
+                Message = $"Nothing to copy from {what}.",
+                Menu = null
+            };
+        }
+
+        window.SetClipboard(text);
+        var lines = text.Count(_ => _ == '\n') + 1;
+        return state with
+        {
+            Message = $"Copied {lines} line{(lines == 1 ? "" : "s")} from {what}.",
             Menu = null
         };
     }
