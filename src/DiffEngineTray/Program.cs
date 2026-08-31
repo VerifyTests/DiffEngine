@@ -23,16 +23,6 @@ static class Program
 
     static async Task Inner()
     {
-        var settings = await GetSettings();
-        if (settings == null)
-        {
-            return;
-        }
-
-        LockedFilesHandler.AlwaysKill = settings.AlwaysKillLockingProcesses;
-
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
         var tokenSource = new CancelSource();
         var cancel = tokenSource.Token;
         using var mutex = new Mutex(true, "DiffEngine", out var createdNew);
@@ -52,6 +42,10 @@ static class Program
             Log.Error(exception, "Failed to write the tray version marker");
         }
 
+        // Before the settings file rather than after it, because nothing between here and the
+        // first use of a setting needs one, and until this line the user is looking at an empty
+        // notification area. Still after the mutex, so a second instance exits without ever
+        // showing an icon.
         using var icon = new NotifyIcon
         {
             Icon = Images.Default,
@@ -61,6 +55,14 @@ static class Program
 
         void Warn(string message) =>
             icon.ShowBalloonTip(10000, "DiffEngineTray", message, ToolTipIcon.Warning);
+
+        var settings = GetSettings();
+        if (settings == null)
+        {
+            return;
+        }
+
+        LockedFilesHandler.AlwaysKill = settings.AlwaysKillLockingProcesses;
 
         // Ownership of the inline queue is decided here, once, by whether the bind succeeds, and
         // never transfers. Usually the tray wins, because it starts at login. A viewer that was
@@ -179,11 +181,11 @@ static class Program
 
     internal record KeyBinding(int Id, HotKey HotKey, Action Action);
 
-    static async Task<Settings?> GetSettings()
+    static Settings? GetSettings()
     {
         try
         {
-            return await SettingsHelper.Read();
+            return SettingsHelper.Read();
         }
         catch (Exception exception)
         {
