@@ -141,7 +141,7 @@ Registers a system wide HotKey to accept pending:
 Registers a system wide HotKey to accept pending:
 
  * Deletes
- * Moves that are currently open in a diff tool
+ * Moves that are currently open in a diff tool. A pair whose tool is the viewer counts: it is drawn as a row in the one window every pending pair shares, rather than in a process of its own
  * Inline snapshots, all of which are open by definition: the viewer only stays running while it has something to show
 
 To limit impact on system resources, the [default max concurrent open tool instances is limited to 5](/docs/diff-tool.md#maxinstancestolaunch).

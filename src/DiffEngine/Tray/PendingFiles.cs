@@ -210,6 +210,46 @@ static class PendingFiles
         tool.Tool == DiffTool.DiffEngineViewer;
 
     /// <summary>
+    /// The same question asked of a move that is already tracked, where all that survives of the
+    /// tool is the executable it was recorded with.
+    /// <para>
+    /// By file name rather than through <see cref="DiffTools.TryFindByPath"/>, which is an exact
+    /// path lookup: the sender resolved the viewer bundled inside its own DiffEngine package and
+    /// a tray carries a copy of its own, so the two paths are never the same string.
+    /// </para>
+    /// </summary>
+    public static bool IsViewerExe(string? exe) =>
+        exe != null &&
+        viewerExeNames.Contains(Path.GetFileName(exe));
+
+    // Read off the definition rather than spelled again here, so renaming the executable cannot
+    // leave this matching the old name. Every OS's name, because the string being tested arrived
+    // from another process rather than from this one.
+    static readonly HashSet<string> viewerExeNames = ViewerExeNames();
+
+    static HashSet<string> ViewerExeNames()
+    {
+        var support = Definitions.Tools
+            .Single(_ => _.Tool == DiffTool.DiffEngineViewer)
+            .OsSupport;
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var settings in new[]
+                 {
+                     support.Windows,
+                     support.Linux,
+                     support.Osx
+                 })
+        {
+            if (settings != null)
+            {
+                names.Add(settings.ExeName);
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>
     /// How a tracked move is opened again, and whether the window that opens may be killed.
     /// <para>
     /// Answered here rather than at each caller, because there are two: this file, sending the
