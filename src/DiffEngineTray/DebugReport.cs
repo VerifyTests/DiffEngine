@@ -64,6 +64,8 @@ static class DebugReport
             AppendField(builder, "CanKill", move.CanKill);
             AppendField(builder, "KillLockingProcess", move.KillLockingProcess);
             AppendField(builder, "Process", Describe(move.Process));
+            // What "accept all open" acts on, which is not the process for a viewer backed pair.
+            AppendField(builder, "IsOpen", move.IsOpen);
         }
 
         var queued = tracker.QueuedPatches;

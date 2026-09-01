@@ -21,6 +21,7 @@ Moves (1)
     CanKill:            True
     KillLockingProcess: False
     Process:            none
+    IsOpen:             False
 
 Snapshots (3)
 -------------
