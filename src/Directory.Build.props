@@ -18,10 +18,11 @@
     it. There were two, so CS0649, NU1608 and NU1109 were not suppressed at all - and with
     TreatWarningsAsErrors below they would have failed a build rather than warned in one.
     -->
-    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416</NoWarn>
+    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416;SC023</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+    <Verify_SponsorshipLicenseIgnored>true</Verify_SponsorshipLicenseIgnored>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.CompilerServices" />
