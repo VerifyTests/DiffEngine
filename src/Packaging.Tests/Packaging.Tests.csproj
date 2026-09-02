@@ -11,8 +11,8 @@
     drops in nugets, so referencing the projects that produce them would add nothing and would tie
     this project to their target frameworks.
     -->
-    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.3" />
-    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.3" />
+    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.4" />
+    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.4" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />

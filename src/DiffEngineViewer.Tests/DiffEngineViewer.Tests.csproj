@@ -7,9 +7,9 @@
     <Using Include="DiffEngine" />
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.DiffPlex" />
-    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.3" />
+    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.4" />
     <PackageReference Include="SimpleInfoName" />
-    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.3" />
+    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.4" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
     <!--
