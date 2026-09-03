@@ -11,9 +11,9 @@
     The core links DiffEngine's Inline sources, so InlinePatch and friends are in that namespace.
     -->
     <Using Include="DiffEngine" />
-    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.4" />
+    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.6" />
     <PackageReference Include="Verify.WinForms" />
-    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.4" />
+    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.6" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />

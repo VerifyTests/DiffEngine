@@ -9,10 +9,10 @@
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.WinForms" />
-    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.4" />
+    <PackageReference Include="Verify.TUnit" VersionOverride="33.0.0-beta.6" />
     <PackageReference Include="EmptyFiles" />
     <PackageReference Include="SimpleInfoName" />
-    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.4" />
+    <PackageReference Include="Verify" VersionOverride="33.0.0-beta.6" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
