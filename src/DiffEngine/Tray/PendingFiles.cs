@@ -96,9 +96,24 @@ static class PendingFiles
     /// <para>
     /// The window is a <see cref="ViewerVerb.Focus" /> when the tray took the move, because the
     /// tray tracks it and the queue owner - normally that same tray - only has to raise something
-    /// over it. In the arrangement where a viewer owns the queue while a tray runs, that viewer
-    /// does not know the tray's files, so the focus finds nothing and the pair stays what it was
-    /// before any of this: an entry in the tray menu.
+    /// over it.
+    /// </para>
+    /// <para>
+    /// A refused focus falls through to <see cref="ViewerVerb.Diff" /> rather than being discarded,
+    /// because the two sends are two connections and nothing orders them. The piper send is fire
+    /// and forget: it reports that the bytes went out, not that the move was tracked, and the tray
+    /// reads that connection on a task of its own - through a solution directory walk, on the first
+    /// move for a path - while the focus is already asking about a key that has not landed. Focus
+    /// refuses an unknown key and raises nothing, so losing that race was a first run where the
+    /// pair reached the tray menu and no window ever opened, and a second run where the same key
+    /// was still tracked and one did. Diff tracks and raises in a single message to a single
+    /// process, so there is no order left to get wrong, and its tracking is keyed on the received
+    /// file like the piper move's, so whichever lands second updates the one entry.
+    /// </para>
+    /// <para>
+    /// It is also the answer in the arrangement where a viewer owns the queue while a tray runs:
+    /// that viewer does not know the tray's files, so the focus can never find the key. The pair is
+    /// tracked on both sides there rather than shown by neither.
     /// </para>
     /// </summary>
     public static LaunchResult AddDiff(ResolvedTool tool, string tempFile, string targetFile)
@@ -107,9 +122,9 @@ static class PendingFiles
         // the tray works out the same two values for itself when a move arrives without them.
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
-            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null))
+            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null) &&
+            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile))))
         {
-            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)));
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
 
@@ -159,9 +174,9 @@ static class PendingFiles
     {
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
-            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel))
+            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel) &&
+            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel))
         {
-            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel);
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
 
