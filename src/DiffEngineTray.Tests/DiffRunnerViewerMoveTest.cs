@@ -149,7 +149,15 @@ public class DiffRunnerViewerMoveTest :
     readonly string temp;
     readonly string target;
     readonly bool originalDisabled = DiffRunner.Disabled;
-    readonly string? originalViewerPort = Environment.GetEnvironmentVariable("DiffEngine_ViewerPort");
+
+    /// <summary>
+    /// An owner that answers the focus the route sends once the tray has taken the move, and that
+    /// publishes its own port so a live viewer on this machine is not raised. A port with nothing
+    /// on it would leave the focus unanswered, which is the fall through to
+    /// <see cref="ViewerVerb.Diff" /> that <see cref="DiffRunnerViewerFocusRaceTest" /> is about;
+    /// this one is about what rides the move.
+    /// </summary>
+    readonly FakeViewer owner = new();
 
     public DiffRunnerViewerMoveTest()
     {
@@ -158,9 +166,6 @@ public class DiffRunnerViewerMoveTest :
         target = Path.Combine(directory, "Sample.Test.verified.txt");
         File.WriteAllText(temp, "received");
         PiperClient.Port = GetFreePort();
-        // The route sends a focus to whoever owns the queue after the tray has taken the move.
-        // Pointed at a free port so a live viewer on the machine running these is not raised.
-        Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", GetFreePort().ToString());
         DiffEngine.DiffEngineTray.IsRunning = true;
         DiffRunner.Disabled = false;
     }
@@ -169,7 +174,7 @@ public class DiffRunnerViewerMoveTest :
     {
         DiffEngine.DiffEngineTray.IsRunning = false;
         DiffRunner.Disabled = originalDisabled;
-        Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", originalViewerPort);
+        owner.Dispose();
         Directory.Delete(directory, true);
     }
 }
