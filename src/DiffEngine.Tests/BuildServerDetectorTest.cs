@@ -18,6 +18,7 @@ public class BuildServerDetectorTest
         var isGoDc = BuildServerDetector.IsGoDc;
         var isDocker = BuildServerDetector.IsDocker;
         var isAppVeyor = BuildServerDetector.IsAppVeyor;
+        var isBitbucketPipelines = BuildServerDetector.IsBitbucketPipelines;
 
         #endregion
 
