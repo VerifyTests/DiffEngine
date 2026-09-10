@@ -71,6 +71,7 @@ Supports:
  * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
  * [GoCD](https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html)
+ * [Bitbucket Pipelines](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/#Default-variables)
 
 There are also individual properties to check for each specific build system
 

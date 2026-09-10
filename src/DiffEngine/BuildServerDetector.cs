@@ -43,6 +43,10 @@ public static class BuildServerDetector
         // https://www.appveyor.com/docs/environment-variables/
         IsAppVeyor = variables.Contains("APPVEYOR");
 
+        // Bitbucket Pipelines
+        // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/#Default-variables
+        IsBitbucketPipelines = variables.Contains("BITBUCKET_BUILD_NUMBER");
+
         IsWsl = variables.Contains("WSL_DISTRO_NAME");
 
         // AzureDevops
@@ -62,7 +66,8 @@ public static class BuildServerDetector
                    IsGoDc ||
                    IsDocker ||
                    IsWsl ||
-                   IsAppVeyor;
+                   IsAppVeyor ||
+                   IsBitbucketPipelines;
     }
 
     static bool detected;
@@ -82,6 +87,8 @@ public static class BuildServerDetector
     public static bool IsWsl { get; }
 
     public static bool IsAppVeyor { get; }
+
+    public static bool IsBitbucketPipelines { get; }
 
     public static bool IsTravis { get; }
 

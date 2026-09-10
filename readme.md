@@ -144,6 +144,7 @@ Supports:
  * [MyGet](https://docs.myget.org/docs/reference/build-services#Available_Environment_Variables)
  * [GitLab](https://docs.gitlab.com/ee/ci/variables/predefined_variables.html)
  * [GoCD](https://docs.gocd.org/current/faq/dev_use_current_revision_in_build.html)
+ * [Bitbucket Pipelines](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/#Default-variables)
 
 There are also individual properties to check for each specific build system
 
@@ -161,8 +162,9 @@ var isMyGet = BuildServerDetector.IsMyGet;
 var isGoDc = BuildServerDetector.IsGoDc;
 var isDocker = BuildServerDetector.IsDocker;
 var isAppVeyor = BuildServerDetector.IsAppVeyor;
+var isBitbucketPipelines = BuildServerDetector.IsBitbucketPipelines;
 ```
-<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L8-L22' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L8-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -206,7 +208,7 @@ public async Task SetDetectedDoesNotLeakToOtherContexts()
     await Assert.That(BuildServerDetector.Detected).IsEqualTo(parentValue);
 }
 ```
-<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L27-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L28-L63' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorDetectedOverride' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
