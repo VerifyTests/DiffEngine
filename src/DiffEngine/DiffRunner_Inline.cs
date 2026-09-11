@@ -63,7 +63,10 @@ public static partial class DiffRunner
         // Onto the payload rather than onto the patch, which belongs to the caller and may be
         // held or sent again
         var payload = InlinePatchFile.Build(patch, patch.Framework ?? RuntimeMoniker.Current);
-        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel);
+        // A port recently found unowned is not asked again here, because the gate below probes for
+        // itself before launching anything, and that probe is what corrects the memory when an
+        // owner has arrived since. Asking twice would only pay twice for the same refusal
+        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel, skipIfUnowned: true);
         if (outcome == SendOutcome.Accepted)
         {
             return InlineResult.Queued;
@@ -90,7 +93,11 @@ public static partial class DiffRunner
 
     /// <summary>
     /// Drops a pending inline snapshot from the viewer's queue, for when a previously failing test
-    /// starts passing. Does nothing when no viewer is running.
+    /// starts passing. Does nothing when no viewer is running - and cheaply, since this is called
+    /// once per passing inline verification: a port found with nothing listening is taken as
+    /// still unowned for ten minutes rather than connected to again, because on Windows a refused
+    /// loopback connection takes two seconds rather than none, and a green run of a few hundred
+    /// inline tests was spending minutes on refusals.
     /// <para>
     /// Carries this process's framework so a multi-targeted run only settles its own variant of a
     /// conflicted entry; the other framework's differing content stays pending.
@@ -165,8 +172,13 @@ public static partial class DiffRunner
             return;
         }
 
+        // Not answered from the memory of an unowned port the way the test run's own settles are.
+        // This is one send per accept on a person's click rather than one per verification, and an
+        // owner that has appeared since an earlier refusal - a viewer a later test run started -
+        // holds exactly the entry this is for. So it always connects, whatever was found before
         ViewerClient.TrySend(
-            new(ViewerVerb.Settle, InlineKey.For(patch.SourceFile, patch.LineHint), null, patch.MemberName));
+            new(ViewerVerb.Settle, InlineKey.For(patch.SourceFile, patch.LineHint), null, patch.MemberName),
+            out _);
     }
 
     static InlineResult CheckInline()

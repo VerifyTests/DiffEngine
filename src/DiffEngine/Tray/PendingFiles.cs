@@ -128,7 +128,9 @@ static class PendingFiles
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
 
-        if (ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile), out var response))
+        // A port recently found unowned is not asked again: the gate below probes for itself
+        // before launching, and its probe corrects the memory when an owner has arrived since
+        if (ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile), out var response, skipIfUnowned: true))
         {
             return response.Ok
                 ? LaunchResult.AlreadyRunningAndSupportsRefresh
@@ -180,7 +182,7 @@ static class PendingFiles
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
 
-        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel);
+        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel, skipIfUnowned: true);
         if (outcome == SendOutcome.Accepted)
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
