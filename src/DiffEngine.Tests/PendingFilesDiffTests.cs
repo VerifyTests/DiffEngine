@@ -182,7 +182,7 @@ public class PendingFilesDiffTests
     /// </summary>
     static ResolvedTool Viewer() =>
         new(
-            name: DiffTool.DiffEngineViewer.ToString(),
+            name: nameof(DiffTool.DiffEngineViewer),
             tool: DiffTool.DiffEngineViewer,
             exePath: Environment.ProcessPath!,
             launchArguments: new(
