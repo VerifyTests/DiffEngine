@@ -1,14 +1,46 @@
 name: merge-dependabot
+
+# Merges a Dependabot pull request once the Test workflow has passed on it. No personal access
+# token: GITHUB_TOKEN gets write access through the permissions block below, which GitHub allows
+# for Dependabot triggered runs since 2022.
+#
+# Triggered by the Test run finishing rather than by the pull request opening, because main has
+# no required status checks and auto-merge is not enabled, so `gh pr merge --auto` would merge
+# immediately. Waiting for the run makes a red build unmergeable whatever the settings.
+#
+# Major version bumps are left for a person. Grouped updates have no single version in the title
+# and are left too.
 on:
-  pull_request:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  automerge:
+  merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.pull_requests[0] != null
     steps:
-      - name: Dependabot Auto Merge
-        uses: ahmadnassri/action-dependabot-auto-merge@v2.6.6
-        with:
-          target: minor
-          github-token: ${{ secrets.dependabot }}
-          command: squash and merge
+      - name: Merge when the bump is minor or patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          title=$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json title --jq .title)
+          echo "$title"
+          if [[ "$title" =~ from\ ([0-9]+)\.[0-9A-Za-z.-]+\ to\ ([0-9]+)\.[0-9A-Za-z.-]+ ]]; then
+            if [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ]; then
+              echo "Major bump, leaving for review."
+              exit 0
+            fi
+          else
+            echo "No single version bump in the title, leaving for review."
+            exit 0
+          fi
+          gh pr merge "$NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
