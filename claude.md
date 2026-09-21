@@ -223,6 +223,10 @@ apart.
   quotes, braces and newlines, and the `inline` body carries an `InlinePatchFile` payload verbatim.
 - Compiles for every DiffEngine target, so the socket calls carry `#if` branches for the
   frameworks with no cancellation overloads. `ViewerProtocolTests` runs on all of them.
+- `ViewerServer`'s accept loop awaits with `ConfigureAwait(false)`, the one place that matters
+  in a repo that otherwise leaves it off. The Windows viewer starts listening on its UI thread,
+  and resuming there left every connection waiting on the render loop to pump.
+  `AnOwnerAnswersWhileTheThreadThatStartedItIsBusy` pins it.
 
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in
