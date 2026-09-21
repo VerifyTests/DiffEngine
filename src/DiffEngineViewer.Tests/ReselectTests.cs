@@ -28,33 +28,39 @@ public class ReselectTests
     }
 
     /// <summary>
-    /// A different entry is a different comparison, so that one does start at the top.
+    /// A different entry is a different comparison, so that one does start again, at its first
+    /// change.
     /// </summary>
     [Test]
-    public async Task Selecting_another_entry_starts_at_its_top()
+    public async Task Selecting_another_entry_starts_at_its_first_change()
     {
         var state = Scrolled();
 
         var selected = ViewerSession.SelectKey(state, state.Queue[0].Key);
 
         await Assert.That(selected.Current!.Key).IsEqualTo(state.Queue[0].Key);
-        await Assert.That(selected.ScrollTop).IsEqualTo(0);
+        await Assert.That(selected.ScrollTop).IsEqualTo(26);
     }
 
+    /// <summary>
+    /// Scrolled past where the entry opened, so keeping the scroll and starting again cannot be
+    /// mistaken for each other.
+    /// </summary>
     static SessionState Scrolled()
     {
-        var state = Fixtures.Inline(
-            Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true)),
-            Fixtures.Patch("B.cs", 2, null, Fixtures.Long(true)));
+        var state = Fixtures.Inline(Patch("A.cs", 1), Patch("B.cs", 2));
         state = ViewerSession.SelectKey(state, state.Queue[1].Key);
         state = ViewerSession.Apply(state, CommandKind.PageDown);
-        if (state.ScrollTop == 0)
+        if (state.ScrollTop == 26)
         {
             throw new("The entry did not scroll, so nothing below asserts anything.");
         }
 
         return state;
     }
+
+    static InlinePatch Patch(string source, int line) =>
+        Fixtures.Patch(source, line, Fixtures.Literal(Fixtures.Deep(false)), Fixtures.Deep(true));
 
     static int VisibleRowOf(SessionState state, int entry)
     {

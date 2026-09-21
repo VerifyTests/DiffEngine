@@ -33,6 +33,10 @@ enum Palette {
 
     static let rule = grey(70)
 
+    /// Behind a folded row, a shade lighter than filler, so the runs the minimal view leaves out
+    /// read as breaks in the file rather than as a line of it or as padding.
+    static let folded = grey(34)
+
     /// ImGui draws a selected item as its accent at 31% over the window background. This is that
     /// composite, so the queue highlight matches without carrying an alpha channel around.
     static let selected = rgb(38, 64, 90)
@@ -60,6 +64,9 @@ enum Palette {
             return rgb(233, 129, 129)
         case DEVIEW_ROW_MODIFIED.value:
             return rgb(231, 197, 113)
+        // Dimmed like the gutter, since what it says is about the file rather than from it.
+        case DEVIEW_ROW_FOLDED.value:
+            return dim
         default:
             return text
         }
@@ -76,6 +83,8 @@ enum Palette {
             return rgb(74, 64, 32)
         case DEVIEW_ROW_FILLER.value:
             return filler
+        case DEVIEW_ROW_FOLDED.value:
+            return folded
         default:
             return nil
         }

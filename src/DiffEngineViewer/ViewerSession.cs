@@ -38,35 +38,51 @@ static class ViewerSession
             selected = 0;
         }
 
-        // Start the reader at the top again only when the text under them changed. Folding into an
-        // entry further down the list is not it, and neither is a re-send of what is already
-        // there: Fold reports an identical patch as unchanged and Project hands back the same
-        // entry, so a continuous runner re-sending the same failing snapshot every few seconds
-        // used to bounce the reader to the top on every run.
+        // Start the reader over, at the first change, only when the text under them changed.
+        // Folding into an entry further down the list is not it, and neither is a re-send of what
+        // is already there: Fold reports an identical patch as unchanged and Project hands back
+        // the same entry, so a continuous runner re-sending the same failing snapshot every few
+        // seconds used to bounce the reader to the top on every run.
         var replaced = current is not null &&
                        current.Key == key &&
                        !ReferenceEquals(queue[selected], current);
 
-        return Clamp(state with
+        var next = state with
         {
             Queue = queue,
             Selected = selected,
-            ScrollTop = replaced ? 0 : state.ScrollTop,
             // The open menu indexes the queue it was opened over, which just changed.
             Menu = null
-        });
+        };
+
+        // Nothing on screen before means nobody has been reading this one yet either.
+        if (current is null ||
+            replaced)
+        {
+            return Open(next);
+        }
+
+        return Clamp(next);
     }
 
     /// <summary>
     /// The single entry a file comparison shows. Nothing arrives after it, because file mode runs
     /// without a socket.
     /// </summary>
-    public static SessionState EnqueueFile(SessionState state, QueueEntry entry) =>
-        Clamp(state with
+    public static SessionState EnqueueFile(SessionState state, QueueEntry entry)
+    {
+        var next = state with
         {
-            Queue = [..state.Queue, entry],
-            Selected = state.Selected < 0 ? 0 : state.Selected
-        });
+            Queue = [..state.Queue, entry]
+        };
+
+        if (state.Selected < 0)
+        {
+            return Open(next with { Selected = 0 });
+        }
+
+        return Clamp(next);
+    }
 
     /// <summary>
     /// Drops the item for a key, used when a previously failing test starts passing — or, with an
@@ -122,13 +138,20 @@ static class ViewerSession
         var queue = QueueProjection.Order([..kept, entry]);
         var currentKey = state.Current?.Key;
         var selected = currentKey is null ? 0 : IndexOf(queue, currentKey);
-        return Clamp(state with
+        var next = state with
         {
             Queue = queue,
             Selected = selected < 0 ? 0 : selected,
-            ScrollTop = replacedCurrent ? 0 : state.ScrollTop,
             Menu = null
-        });
+        };
+
+        if (currentKey is null ||
+            replacedCurrent)
+        {
+            return Open(next);
+        }
+
+        return Clamp(next);
     }
 
     /// <summary>
@@ -149,17 +172,23 @@ static class ViewerSession
         var queue = QueueProjection.Order(entries);
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
-        return Clamp(state with
+        var next = state with
         {
             Queue = queue,
             Selected = selected < 0 ? state.Selected : selected,
-            ScrollTop = selected < 0 ? 0 : state.ScrollTop,
             Message = message ?? state.Message,
             // Nothing left to show, and this window is not what is holding the queue.
             Exit = queue.Count == 0,
             // The open menu indexes the queue it was opened over, which was just replaced.
             Menu = null
-        });
+        };
+
+        if (selected < 0)
+        {
+            return Open(next);
+        }
+
+        return Clamp(next);
     }
 
     /// <summary>
@@ -304,6 +333,11 @@ static class ViewerSession
     /// with and a drag that continues across a wheel notch has to mean the same thing either side
     /// of it.
     /// <para>
+    /// Rows of the side the head drew, that is, which in the minimal view are not the entry's. They
+    /// are unfolded here into the entry's own rows, which is what a selection is held in, so the
+    /// heads never learn that a view can leave rows out.
+    /// </para>
+    /// <para>
     /// Reported for as long as the button is held, and simply not reported once it is let go: the
     /// selection is already here, so there is nothing for a release to say. That is what makes a
     /// whole press-drag-release landing inside one frame come out right.
@@ -322,15 +356,18 @@ static class ViewerSession
             return state;
         }
 
+        var ends = current
+            .View(state.Minimal)
+            .Unfold(anchorRow, anchorColumn, focusRow, focusColumn);
         var selection = SelectionText.Clamp(
             new(
                 current.Key,
                 current.SelectedVariant,
                 side,
-                anchorRow,
-                anchorColumn,
-                focusRow,
-                focusColumn),
+                ends.AnchorRow,
+                ends.AnchorColumn,
+                ends.FocusRow,
+                ends.FocusColumn),
             current);
 
         // The identical state when the pointer has not left the cell it was in, which is most
@@ -424,9 +461,11 @@ static class ViewerSession
             case CommandKind.ScrollTo:
                 return Scroll(state, command.Index);
             case CommandKind.NextChange:
-                return Scroll(state, NextChange(Rows(state), state.ScrollTop));
+                return Scroll(state, state.View?.Next(state.ScrollTop, body) ?? state.ScrollTop);
             case CommandKind.PreviousChange:
-                return Scroll(state, PreviousChange(Rows(state), state.ScrollTop));
+                return Scroll(state, state.View?.Previous(state.ScrollTop, body) ?? state.ScrollTop);
+            case CommandKind.ToggleMinimal:
+                return ToggleMinimal(state, body);
             case CommandKind.NextItem:
                 return Step(state, 1);
             case CommandKind.PreviousItem:
@@ -658,11 +697,7 @@ static class ViewerSession
         var queue = state.Queue.ToList();
         queue[state.Selected] = rebuilt;
         // The text under the reader changed, the same reason a fold resets it.
-        return Clamp(state with
-        {
-            Queue = queue,
-            ScrollTop = 0
-        });
+        return Open(state with { Queue = queue });
     }
 
     /// <summary>
@@ -691,11 +726,7 @@ static class ViewerSession
 
             var queue = state.Queue.ToList();
             queue[state.Selected] = QueueEntry.ForInline(new(current.Variants, current.Status), index);
-            return Clamp(state with
-            {
-                Queue = queue,
-                ScrollTop = 0
-            });
+            return Open(state with { Queue = queue });
         }
 
         return state;
@@ -1062,16 +1093,22 @@ static class ViewerSession
     {
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
-        return Clamp(state with
+        var next = state with
         {
             Queue = queue,
             Selected = selected < 0 ? state.Selected : selected,
-            ScrollTop = selected < 0 ? 0 : state.ScrollTop,
             Message = message,
             // Nothing left to manage, so the window has no reason to stay open.
             Exit = queue.Count == 0,
             Menu = null
-        });
+        };
+
+        if (selected < 0)
+        {
+            return Open(next);
+        }
+
+        return Clamp(next);
     }
 
     static SessionState Select(SessionState state, int index)
@@ -1091,11 +1128,24 @@ static class ViewerSession
             return Clamp(state);
         }
 
-        return Clamp(state with
+        return Open(state with { Selected = index });
+    }
+
+    /// <summary>
+    /// Puts the current entry on screen the way a reader first meets it: scrolled to its first
+    /// change rather than to its first line. Every path that changes what is being read comes
+    /// through here - selecting, stepping, a re-run that rewrote the text, a variant cycled to,
+    /// the entry on screen going - so an entry is met the same way however it got there.
+    /// </summary>
+    static SessionState Open(SessionState state)
+    {
+        state = Clamp(state);
+        if (state.View is not { } view)
         {
-            Selected = index,
-            ScrollTop = 0
-        });
+            return state;
+        }
+
+        return state with { ScrollTop = view.Opening(ScreenBuilder.BodyRows(state)) };
     }
 
     /// <summary>
@@ -1199,78 +1249,37 @@ static class ViewerSession
     static SessionState Scroll(SessionState state, int top) =>
         Clamp(state with { ScrollTop = top });
 
+    /// <summary>
+    /// Switches between every line and only the changes, keeping the reader's place rather than
+    /// sending them back to the first change: the row they were reading stays where it was on
+    /// screen while what is around it folds away or opens out. A selection is held in the entry's
+    /// own rows, so it carries across untouched.
+    /// </summary>
+    static SessionState ToggleMinimal(SessionState state, int body)
+    {
+        var toggled = state with { Minimal = !state.Minimal };
+        if (state.View is not { } from ||
+            toggled.View is not { } to ||
+            ReferenceEquals(from, to))
+        {
+            return Clamp(toggled);
+        }
+
+        return Clamp(toggled with { ScrollTop = to.Follow(from, state.ScrollTop, body) });
+    }
+
     static SessionState Clamp(SessionState state)
     {
         var selected = state.Queue.Count == 0
             ? -1
             : Math.Clamp(state.Selected, 0, state.Queue.Count - 1);
-        var total = selected < 0 ? 0 : state.Queue[selected].TotalRows;
+        // The rows on screen, which in the minimal view are fewer than the entry has.
+        var total = selected < 0 ? 0 : state.Queue[selected].View(state.Minimal).Count;
         var maxScroll = Math.Max(0, total - ScreenBuilder.BodyRows(state));
         return state with
         {
             Selected = selected,
             ScrollTop = Math.Clamp(state.ScrollTop, 0, maxScroll)
         };
-    }
-
-    static IReadOnlyList<Row> Rows(SessionState state) =>
-        state.Current?.LeftRows ?? [];
-
-    static bool IsChange(Row row) =>
-        row.Kind != RowKind.Unchanged;
-
-    static int NextChange(IReadOnlyList<Row> rows, int from)
-    {
-        var index = from;
-        // Step off the block currently at the top of the viewport before looking for the next one.
-        while (index < rows.Count &&
-               IsChange(rows[index]))
-        {
-            index++;
-        }
-
-        while (index < rows.Count &&
-               !IsChange(rows[index]))
-        {
-            index++;
-        }
-
-        return index < rows.Count ? index : from;
-    }
-
-    static int PreviousChange(IReadOnlyList<Row> rows, int from)
-    {
-        // The top row of the viewport, not the one above it. Stepping off from there took the
-        // block ending immediately above the viewport for the block the viewport was in, and
-        // skipped past it to the one before - or, with nothing before it, refused to move at all.
-        var index = Math.Min(from, rows.Count - 1);
-
-        // So step off only when the viewport really is sitting in a block, which is when its top
-        // row is itself a change.
-        while (index >= 0 &&
-               IsChange(rows[index]))
-        {
-            index--;
-        }
-
-        while (index >= 0 &&
-               !IsChange(rows[index]))
-        {
-            index--;
-        }
-
-        if (index < 0)
-        {
-            return from;
-        }
-
-        // Land on the first row of the block, not its last.
-        while (index > 0 &&
-               IsChange(rows[index - 1]))
-        {
-            index--;
-        }
-
-        return index;
     }
 }

@@ -88,7 +88,7 @@ public class ViewerLaunchTests
             "Two panes, headers Sample.received.txt and Sample.verified.txt",
             "Line 2 highlighted on both sides, dog on the left and fox on the right",
             "No pending queue column",
-            "Buttons are Accept and Close");
+            "Buttons are Accept, Close, Prev change, Next change and Changes only");
 
         var result = await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
 

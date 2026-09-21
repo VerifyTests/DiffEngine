@@ -15,6 +15,13 @@ enum CommandKind
     ScrollTo,
     NextChange,
     PreviousChange,
+
+    /// <summary>
+    /// Switch the panes between every line and only the changes, each with a few lines either
+    /// side. View only, like <see cref="NextVariant"/>: it changes what is being read, never a
+    /// file, and applies locally even when the queue belongs to someone else.
+    /// </summary>
+    ToggleMinimal,
     NextItem,
     PreviousItem,
     SelectItem,

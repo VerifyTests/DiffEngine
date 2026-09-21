@@ -70,7 +70,8 @@ Nothing is written to disk for inline review. The patch travels over stdin, or o
 | Key | Action |
 | --- | --- |
 | `Up` `Down` `PgUp` `PgDn` `Home` `End` | Scroll |
-| `n` `p` | Next and previous change |
+| `n` `p` | Next and previous change (also the **Next change** and **Prev change** buttons) |
+| `m` | Show only the changes, or every line (also the **Changes only** button) |
 | `Tab` `Shift+Tab` | Next and previous pending item |
 | `a` | Accept |
 | `Shift+A` | Accept all |
@@ -79,6 +80,15 @@ Nothing is written to disk for inline review. The patch travels over stdin, or o
 | `Ctrl+A` | Select all of one pane |
 | `Ctrl+C` | Copy the selection |
 | `q` `Esc` | Close |
+
+
+## Moving between changes
+
+A comparison opens scrolled to its first change, with three lines of context above it, rather than at line 1. **Next change** and **Prev change** move from one change to the next, putting each in the same place under the top of the pane, and each is disabled when no change is left in its direction.
+
+**Changes only** switches to a minimal view: each change with the three lines either side of it, and every longer run of unchanged lines folded into one row saying how many lines it stands for. The button then reads **All lines**, which switches back. Switching keeps the line being read where it is on screen, and the choice holds while moving through the queue. Images are never folded, because their rows are their properties and each is worth reading.
+
+A fold is only a view. A selection that spans one copies the lines it stands for, since those are what lies between the selection's two ends, and the status line names the stretch of the file on screen rather than a count of rows: sixteen rows in the minimal view can read `lines 1-30 of 40`.
 
 
 ## Selecting and copying

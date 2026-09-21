@@ -290,15 +290,16 @@ public class ViewerSessionTests
     {
         var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
 
-        var first = ViewerSession.Apply(state, CommandKind.NextChange);
-        var second = ViewerSession.Apply(first, CommandKind.NextChange);
+        var second = ViewerSession.Apply(state, CommandKind.NextChange);
         var third = ViewerSession.Apply(second, CommandKind.NextChange);
         var past = ViewerSession.Apply(third, CommandKind.NextChange);
 
-        // Changes sit on lines 3, 17 and 33, so rows 2, 16 and 32 zero based. Row 32 is past the
-        // last full page of 40 rows in a 16 row viewport, so it clamps to 24 and stays there.
-        await Assert.That(first.ScrollTop).IsEqualTo(2);
-        await Assert.That(second.ScrollTop).IsEqualTo(16);
+        // Changes sit on lines 3, 17 and 33, so rows 2, 16 and 32 zero based, and each is brought
+        // in with three rows above it. The first is already there when the entry opens, so the
+        // walk starts at the second. Row 32 is past the last full page of 40 rows in a 16 row
+        // viewport, so it clamps to 24 and stays there.
+        await Assert.That(state.ScrollTop).IsEqualTo(0);
+        await Assert.That(second.ScrollTop).IsEqualTo(13);
         await Assert.That(third.ScrollTop).IsEqualTo(24);
         await Assert.That(past.ScrollTop).IsEqualTo(24);
     }

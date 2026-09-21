@@ -116,6 +116,14 @@ public class WindowsPixelTests
     public Task Selection() =>
         Capture(ViewerSession.Drag(Fixtures.File(), PaneSide.Left, 1, 6, 3, 4));
 
+    /// <summary>
+    /// The minimal view, whose folded rows are drawn dimmed on a band of their own. Mirrored in the
+    /// native suite, which is what holds the three heads to one look for a fold.
+    /// </summary>
+    [Test]
+    public Task Minimal() =>
+        Capture(ViewerSession.Apply(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)), CommandKind.ToggleMinimal));
+
     // No menu case here: this head shows a real popup, which is a top level window and so cannot
     // appear in a capture of the client area. ContextMenuTests renders the strip itself instead.
 

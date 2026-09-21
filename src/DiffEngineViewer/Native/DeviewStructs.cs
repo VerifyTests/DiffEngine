@@ -14,7 +14,7 @@ struct DeviewRow
     public int Kind;
 
     /// <summary>
-    /// -1 when the row is filler and has no line number.
+    /// -1 when the row is filler or folded and has no line number.
     /// </summary>
     public int LineNumber;
 
@@ -184,5 +184,11 @@ enum DeviewKey
     Quit = 14,
     NextVariant = 15,
     Copy = 16,
-    SelectAll = 17
+    SelectAll = 17,
+
+    /// <summary>
+    /// m. A shim built before the key existed never reports it, and the footer button still
+    /// reaches the same command.
+    /// </summary>
+    ToggleMinimal = 18
 }

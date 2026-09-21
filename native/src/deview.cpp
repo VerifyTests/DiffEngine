@@ -241,6 +241,9 @@ ImU32 RowColour(int kind)
             return IM_COL32(233, 129, 129, 255);
         case DEVIEW_ROW_MODIFIED:
             return IM_COL32(231, 197, 113, 255);
+        /* Dimmed like the gutter, since what it says is about the file rather than from it. */
+        case DEVIEW_ROW_FOLDED:
+            return IM_COL32(130, 130, 130, 255);
         default:
             return IM_COL32(212, 212, 212, 255);
     }
@@ -256,6 +259,10 @@ ImU32 RowBackground(int kind)
             return IM_COL32(84, 40, 40, 255);
         case DEVIEW_ROW_MODIFIED:
             return IM_COL32(74, 64, 32, 255);
+        /* A shade lighter than filler, so a fold reads as a break in the file rather than as a
+         * line of it or as padding. */
+        case DEVIEW_ROW_FOLDED:
+            return IM_COL32(34, 34, 34, 255);
         default:
             return 0;
     }
@@ -540,6 +547,7 @@ int ReadKey()
     if (IsKeyPressed(KEY_END)) return DEVIEW_KEY_END;
     if (IsKeyPressed(KEY_N)) return DEVIEW_KEY_NEXT_CHANGE;
     if (IsKeyPressed(KEY_P)) return DEVIEW_KEY_PREVIOUS_CHANGE;
+    if (IsKeyPressed(KEY_M)) return DEVIEW_KEY_TOGGLE_MINIMAL;
     if (IsKeyPressed(KEY_TAB)) return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)
         ? DEVIEW_KEY_PREVIOUS_ITEM
         : DEVIEW_KEY_NEXT_ITEM;

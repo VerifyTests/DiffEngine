@@ -173,6 +173,16 @@ public class PixelTests
         return Capture(ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applied));
     }
 
+    /// <summary>
+    /// The minimal view, whose folded rows are drawn dimmed on a band of their own and with no
+    /// line number. Mirrored in WindowsPixelTests over the same fixture.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 10)]
+    public Task Minimal() =>
+        Capture(ViewerSession.Apply(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)), CommandKind.ToggleMinimal));
+
     static async Task Capture(SessionState state)
     {
         var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));

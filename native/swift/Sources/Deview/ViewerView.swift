@@ -315,6 +315,8 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return DEVIEW_KEY_NEXT_CHANGE.value
         case "p":
             return DEVIEW_KEY_PREVIOUS_CHANGE.value
+        case "m":
+            return DEVIEW_KEY_TOGGLE_MINIMAL.value
         case "a":
             return shift ? DEVIEW_KEY_ACCEPT_ALL.value : DEVIEW_KEY_ACCEPT.value
         case "d":

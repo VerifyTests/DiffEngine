@@ -13,8 +13,10 @@ enum PaneSide
 /// an ordered pair, so extending a selection backwards past its own start keeps working.
 /// <para>
 /// Rows are indexes into the whole side, not into the visible slice: a drag that continues while
-/// the wheel scrolls has to mean the same thing before and after. Columns are characters of the
-/// row's flattened text, which is what is on screen and therefore what was pointed at.
+/// the wheel scrolls has to mean the same thing before and after. The entry's side, too, rather
+/// than the minimal view's, so a selection means the same text whichever view is on screen.
+/// Columns are characters of the row's flattened text, which is what is on screen and therefore
+/// what was pointed at.
 /// </para>
 /// <para>
 /// <paramref name="Key"/> and <paramref name="Variant"/> are the entry this describes. Anything

@@ -178,6 +178,16 @@ apart.
   enrichment on top. Copying is `IViewerWindow.SetClipboard` rather than a `ViewerActions` member,
   because a clipboard belongs to a toolkit the way a window does, and it is answered before the
   owner link: the text is already in this process.
+- An entry opens at its first change, not line 1: every path that changes what is being read goes
+  through `ViewerSession.Open`, so none resets to row 0 on its own. The minimal view ("Changes
+  only", `SessionState.Minimal`) is a second `DiffView` built with each entry - changes plus
+  `DiffView.Context` rows either side, longer unchanged runs folded into one `RowKind.Folded` row.
+  Scrolling, the scrollbar and navigation count rows of the view on screen; a selection stays in
+  rows of the entry (`ViewerSession.Drag` unfolds the head's rows), so it survives switching views
+  and a fold inside it copies what it stands for. Navigation is defined over where it lands a
+  change - `Context` rows under the top - which is what makes previous undo next. The fold kind and
+  the `m` key are additive ABI values with no `DEVIEW_VERSION` bump, as `DEVIEW_QUEUE_HEADER` was:
+  a stale library draws a fold as a plain row.
 - Queue tooltips are composed once in `QueueProjection`, not per head, and are **null when they
   would only repeat the row**. Labels are already the shortest distinguishing form, so the tip is
   what the label left off — path, test, frameworks, failure text. `QueueTooltipTests` snapshots the

@@ -121,6 +121,7 @@ sealed class NativeViewerWindow : IViewerWindow
             DeviewKey.End => CommandKind.ScrollEnd,
             DeviewKey.NextChange => CommandKind.NextChange,
             DeviewKey.PreviousChange => CommandKind.PreviousChange,
+            DeviewKey.ToggleMinimal => CommandKind.ToggleMinimal,
             DeviewKey.NextItem => CommandKind.NextItem,
             DeviewKey.PreviousItem => CommandKind.PreviousItem,
             DeviewKey.Accept => CommandKind.Accept,

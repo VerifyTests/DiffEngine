@@ -105,6 +105,7 @@ enum MainMenu {
             .separator(),
             command("Next Change (n)", DEVIEW_KEY_NEXT_CHANGE, target),
             command("Previous Change (p)", DEVIEW_KEY_PREVIOUS_CHANGE, target),
+            command("Toggle Changes Only (m)", DEVIEW_KEY_TOGGLE_MINIMAL, target),
             .separator(),
             command("Next Pending (⇥)", DEVIEW_KEY_NEXT_ITEM, target),
             command("Previous Pending (⇧⇥)", DEVIEW_KEY_PREVIOUS_ITEM, target)

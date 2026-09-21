@@ -17,6 +17,12 @@ static class Palette
     public static readonly Color Rule = Color.FromArgb(70, 70, 70);
 
     /// <summary>
+    /// Behind a folded row, a shade lighter than filler, so the runs the minimal view leaves out
+    /// read as breaks in the file rather than as a line of it or as padding.
+    /// </summary>
+    public static readonly Color Folded = Color.FromArgb(34, 34, 34);
+
+    /// <summary>
     /// The two squares behind a picture. Dark enough not to compete with the image, and different
     /// enough from each other that a transparent region is obviously transparent rather than
     /// just flat.
@@ -45,6 +51,8 @@ static class Palette
             RowKind.Added => Color.FromArgb(126, 214, 139),
             RowKind.Removed => Color.FromArgb(233, 129, 129),
             RowKind.Modified => Color.FromArgb(231, 197, 113),
+            // Dimmed like the gutter, since what it says is about the file rather than from it.
+            RowKind.Folded => Dim,
             _ => Text
         };
 
@@ -58,6 +66,7 @@ static class Palette
             RowKind.Removed => Color.FromArgb(84, 40, 40),
             RowKind.Modified => Color.FromArgb(74, 64, 32),
             RowKind.Filler => Filler,
+            RowKind.Folded => Folded,
             _ => null
         };
 

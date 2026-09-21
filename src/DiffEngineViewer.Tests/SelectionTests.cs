@@ -56,6 +56,60 @@ public class SelectionTests
                     3,
                     4)));
 
+    /// <summary>
+    /// A drag from one change's context into the next, across the fold between them. A fold stands
+    /// for the lines it leaves out, so it is highlighted whole and they are copied: what lies
+    /// between a selection's two ends is what a selection is, on screen or not.
+    /// </summary>
+    [Test]
+    public Task AcrossAFoldedRow() =>
+        Verify(Report(Drag(Minimal(), PaneSide.Left, 4, 0, 8, 4)));
+
+    /// <summary>
+    /// A drag finishing on a fold takes in every line it stands for, since part of a label is not
+    /// part of anything.
+    /// </summary>
+    [Test]
+    public Task EndingOnAFoldedRow() =>
+        Verify(Report(Drag(Minimal(), PaneSide.Left, 2, 0, 6, 3)));
+
+    /// <summary>
+    /// The same fold with the drag going up from it. It is still the end the selection finishes
+    /// at, so it still takes in all of its lines, rather than stopping at the first of them because
+    /// that is where the press landed.
+    /// </summary>
+    [Test]
+    public Task StartingOnAFoldedRowGoingUp() =>
+        Verify(Report(Drag(Minimal(), PaneSide.Left, 6, 3, 2, 0)));
+
+    /// <summary>
+    /// A selection is held in the entry's rows rather than the view's, so switching views leaves it
+    /// selecting the same text: the middle of this one folds away and is still copied.
+    /// </summary>
+    [Test]
+    public Task ASelectionSurvivesSwitchingViews()
+    {
+        var full = Files(Fixtures.Long(true), Fixtures.Long(false));
+        var selected = Drag(full, PaneSide.Left, 4, 0, 14, 4);
+        return Verify(Report(Key(selected, CommandKind.ToggleMinimal)));
+    }
+
+    /// <summary>
+    /// A press with no drag behind it is a click whatever it lands on, and a click clears. On a
+    /// fold, taking it for a selection of everything the fold stands for would select seven lines
+    /// with a tap.
+    /// </summary>
+    [Test]
+    public async Task AClickOnAFoldedRowClearsTheSelection()
+    {
+        var selected = Drag(Minimal(), PaneSide.Left, 1, 0, 3, 4);
+        await Assert.That(selected.LiveSelection).IsNotNull();
+
+        var clicked = Drag(selected, PaneSide.Left, 6, 3, 6, 3);
+
+        await Assert.That(clicked.LiveSelection!.IsEmpty).IsTrue();
+    }
+
     [Test]
     public Task SelectAll() =>
         Verify(Report(Key(Files(), CommandKind.SelectAll)));
@@ -182,6 +236,13 @@ public class SelectionTests
 
     static SessionState Files(string left = Fixtures.Received, string right = Fixtures.Expected) =>
         Fixtures.File(left, right);
+
+    /// <summary>
+    /// Forty lines in the minimal view: lines 1-6 on rows 0-5, a fold of lines 7-13 on row 6, and
+    /// lines 14-20 from row 7.
+    /// </summary>
+    static SessionState Minimal() =>
+        Key(Files(Fixtures.Long(true), Fixtures.Long(false)), CommandKind.ToggleMinimal);
 
     static SessionState Drag(
         SessionState state,
