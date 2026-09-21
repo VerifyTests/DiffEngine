@@ -125,7 +125,10 @@ static class ScreenBuilder
     static IReadOnlyList<Button> BuildButtons(SessionState state)
     {
         var current = state.Current;
-        var enabled = current is not null;
+        // Nothing that changes the queue while an accept-all is working through it. Kept in their
+        // slots, disabled, which is what a footer does for a queue that drained
+        var idle = state.Progress is null;
+        var enabled = current is not null && idle;
         if (state.Mode == ViewerMode.File)
         {
             return
@@ -149,7 +152,7 @@ static class ScreenBuilder
             new("Discard", enabled, CommandKind.Discard),
             // Enabled from one, not two. Shift+A has always accepted a queue of one, and a button
             // that refuses what the key it names does reads as a bug rather than a nicety.
-            new("Accept all", state.Queue.Count > 0, CommandKind.AcceptAll)
+            new("Accept all", state.Queue.Count > 0 && idle, CommandKind.AcceptAll)
         };
 
         if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
@@ -181,6 +184,13 @@ static class ScreenBuilder
 
     static string BuildStatus(SessionState state, QueueEntry? current, int body)
     {
+        // Over whatever the last command said, which while a batch runs is at best "Waiting for
+        // the queue owner." - and saying that over a list that is visibly shrinking is not news
+        if (state.Progress is { } progress)
+        {
+            return progress.Describe();
+        }
+
         if (state.Message is not null)
         {
             return state.Message;

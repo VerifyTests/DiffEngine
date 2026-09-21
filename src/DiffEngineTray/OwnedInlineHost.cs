@@ -35,6 +35,19 @@ sealed class OwnedInlineHost :
     WindowCommand? window;
     string? windowKey;
 
+    /// <summary>
+    /// How far the running accept-all has got, null when none is. Under <see cref="gate"/>, since
+    /// the listener threads read it into every listing.
+    /// </summary>
+    AcceptProgress? progress;
+
+    /// <summary>
+    /// One accept-all at a time. The menu, a hot key and a displaying viewer can each ask for one,
+    /// and two sweeping the same queue at once would apply every snapshot twice and report two
+    /// sets of progress over each other. A second waits, and then sweeps whatever arrived meanwhile.
+    /// </summary>
+    readonly Lock accepting = new();
+
     OwnedInlineHost(
         ViewerServer server,
         Action<string> failed,
@@ -134,7 +147,19 @@ sealed class OwnedInlineHost :
 
     public bool AcceptAll(out string? message)
     {
-        message = AcceptEvery();
+        lock (accepting)
+        {
+            StartProgress(0);
+            try
+            {
+                message = AcceptEvery();
+            }
+            finally
+            {
+                EndProgress();
+            }
+        }
+
         lock (gate)
         {
             // A snapshot that arrived while the batch was applying is still pending, and saying
@@ -246,13 +271,13 @@ sealed class OwnedInlineHost :
             ViewerResponse response;
             if (withPatches)
             {
-                response = ViewerResponse.Listing(items, window, windowKey, moves, deletes);
+                response = ViewerResponse.Listing(items, window, windowKey, moves, deletes, progress);
                 window = null;
                 windowKey = null;
             }
             else
             {
-                response = ViewerResponse.Listing(items, null, null, moves, deletes);
+                response = ViewerResponse.Listing(items, null, null, moves, deletes, progress);
             }
 
             return response;
@@ -335,11 +360,30 @@ sealed class OwnedInlineHost :
     /// moves as well as the snapshots, mirroring the tray menu's own "Accept all". Files first,
     /// the order that menu has always used, and never through <see cref="Tracker.AcceptAll"/>,
     /// whose snapshot half would re-enter this host and whose move path can prompt.
+    /// <para>
+    /// The files count towards the progress a listing reports, since a move that is being retried
+    /// while a diff tool lets go of it is as much of the wait as any snapshot.
+    /// </para>
     /// </summary>
     string IQueueOwner.AcceptAll()
     {
-        var tracked = TrackedFiles?.AcceptAll();
-        var message = AcceptEvery();
+        (int accepted, int kept)? tracked;
+        string message;
+        lock (accepting)
+        {
+            var files = TrackedFiles is { } trackedFiles ? trackedFiles.Moves().Count + trackedFiles.Deletes().Count : 0;
+            StartProgress(files);
+            try
+            {
+                tracked = TrackedFiles?.AcceptAll(Advance);
+                message = AcceptEvery();
+            }
+            finally
+            {
+                EndProgress();
+            }
+        }
+
         Changed?.Invoke();
         if (tracked is not { } swept ||
             swept is { accepted: 0, kept: 0 })
@@ -464,25 +508,84 @@ sealed class OwnedInlineHost :
         return (outcome, message, false);
     }
 
+    /// <summary>
+    /// Every snapshot pending when it starts, applied outside the gate and completed one at a
+    /// time. The list is immutable, so applying over it is safe, and each completion skips an
+    /// entry that changed underneath it. Conflicted entries are never applied: they are counted
+    /// into the message at the end.
+    /// <para>
+    /// Completed as each lands rather than all together at the end, so a displaying viewer's next
+    /// listing shows the queue shrinking and says how far the batch has got. Together they left
+    /// the window showing an untouched queue for as long as the batch took.
+    /// </para>
+    /// </summary>
     string AcceptEvery()
     {
-        IReadOnlyList<PendingInline> pending;
+        List<PendingInline> pending;
         lock (gate)
         {
-            pending = queue.Items;
+            pending = queue.Items
+                .Where(_ => !_.Conflicted)
+                .ToList();
+            // Exact now, where the start could only estimate it: the files swept first gave
+            // snapshots time to arrive or settle
+            if (progress is not null)
+            {
+                progress = progress with { Total = progress.Done + pending.Count };
+            }
         }
 
-        // The list is immutable, so applying over it outside the gate is safe; the completion
-        // skips anything that changed underneath. Conflicted entries are never applied: the
-        // batch completion counts what it skipped into the message.
-        var outcomes = pending
-            .Where(_ => !_.Conflicted)
-            .Select(_ => (_, applier(_.Patch)))
-            .ToList();
+        var tally = new AcceptAllTally();
+        foreach (var entry in pending)
+        {
+            var result = applier(entry.Patch);
+            // Together, so no listing can show the entry gone and the count not yet moved past it
+            lock (gate)
+            {
+                queue = queue.AcceptInBatch(entry, result, ref tally);
+                progress = progress?.Advance();
+            }
+
+            Changed?.Invoke();
+        }
+
         lock (gate)
         {
-            queue = queue.AcceptAll(outcomes, out var message);
-            return message;
+            return tally.Message(queue.Conflicts);
+        }
+    }
+
+    /// <summary>
+    /// A bulk accept is starting, over <paramref name="files"/> tracked files and whatever
+    /// snapshots can be applied.
+    /// </summary>
+    void StartProgress(int files)
+    {
+        lock (gate)
+        {
+            progress = new(0, files + queue.Items.Count(_ => !_.Conflicted));
+        }
+    }
+
+    /// <summary>
+    /// One more tracked file dealt with. Raises <see cref="Changed"/>, so the tray's own listing
+    /// follows the batch as a displaying viewer's does.
+    /// </summary>
+    void Advance()
+    {
+        lock (gate)
+        {
+            progress = progress?.Advance();
+        }
+
+        Changed?.Invoke();
+    }
+
+    void EndProgress()
+    {
+        lock (gate)
+        {
+            progress = null;
         }
     }
 

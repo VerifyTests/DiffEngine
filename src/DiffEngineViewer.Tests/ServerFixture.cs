@@ -8,7 +8,11 @@ sealed class ServerFixture : IDisposable
     readonly CancelSource cancel = new();
     readonly Task listening;
 
-    public ServerFixture(ViewerMode mode = ViewerMode.Inline)
+    /// <param name="applier">
+    /// What applying answers, and when, for a test that needs a batch held part way through.
+    /// Applied, at once, otherwise.
+    /// </param>
+    public ServerFixture(ViewerMode mode = ViewerMode.Inline, Func<InlinePatch, InlineApplyResult>? applier = null)
     {
         Host = new(SessionState.Start(mode, Fixtures.Columns, Fixtures.Rows));
         if (!ViewerServer.TryBind(0, out var server))
@@ -20,8 +24,12 @@ sealed class ServerFixture : IDisposable
         var actions = new ViewerActions(
             patch =>
             {
-                Applied.Add(patch);
-                return InlineApplyResult.Applied;
+                lock (Applied)
+                {
+                    Applied.Add(patch);
+                }
+
+                return applier?.Invoke(patch) ?? InlineApplyResult.Applied;
             },
             (_, _) => { },
             _ => { });
@@ -34,9 +42,9 @@ sealed class ServerFixture : IDisposable
     public List<InlinePatch> Applied { get; } = [];
     public List<WindowCommand> Windows { get; } = [];
 
-    public ViewerResponse Send(ViewerMessage message)
+    public ViewerResponse Send(ViewerMessage message, TimeSpan? wait = null)
     {
-        if (!ViewerClient.TrySend(message, out var response, Server.Port))
+        if (!ViewerClient.TrySend(message, out var response, Server.Port, wait))
         {
             throw new($"No response for {message.Verb}.");
         }

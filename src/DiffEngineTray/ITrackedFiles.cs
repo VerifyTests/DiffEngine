@@ -29,7 +29,11 @@ interface ITrackedFiles
     /// Accept every tracked delete and move without prompting. Kept is what stayed pending —
     /// locked moves, undeletable files.
     /// </summary>
-    (int accepted, int kept) AcceptAll();
+    /// <param name="advanced">
+    /// Called as each file is dealt with, whichever way it went, so the owner can say how far an
+    /// accept-all has got while a locked move is still being retried.
+    /// </param>
+    (int accepted, int kept) AcceptAll(Action? advanced = null);
 
     /// <summary>
     /// Track a pending move or delete that arrived over the viewer port rather than the piper one.
