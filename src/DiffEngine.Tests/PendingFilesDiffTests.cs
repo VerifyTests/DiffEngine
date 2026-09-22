@@ -129,6 +129,60 @@ public class PendingFilesDiffTests
     }
 
     /// <summary>
+    /// The other end of a delete: the file it was raised for is in use again, because a later run
+    /// verified against it. The delete goes, by the tracked key it is listed under, and nothing
+    /// reaches the file.
+    /// </summary>
+    [Test]
+    public async Task SettlingADeleteSendsTheDeleteKey()
+    {
+        using var owner = new Recording();
+        var previousDisabled = DiffRunner.Disabled;
+        // DisabledChecker turns this on for build servers and AI CLIs, and this drives the real
+        // DiffRunner entry point
+        DiffRunner.Disabled = false;
+        try
+        {
+            DiffRunner.SettleDelete(Stale);
+        }
+        finally
+        {
+            DiffRunner.Disabled = previousDisabled;
+        }
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Settle}:{TrackedKeys.ForDelete(Stale)}:"]);
+    }
+
+    /// <summary>
+    /// A settle answers to the same switch the delete it settles did.
+    /// </summary>
+    [Test]
+    public async Task SettlingADeleteWhileDisabledSendsNothing()
+    {
+        using var owner = new Recording();
+        var previousDisabled = DiffRunner.Disabled;
+        DiffRunner.Disabled = true;
+        try
+        {
+            DiffRunner.SettleDelete(Stale);
+        }
+        finally
+        {
+            DiffRunner.Disabled = previousDisabled;
+        }
+
+        await Assert.That(owner.Heard).IsEmpty();
+    }
+
+    [Test]
+    public async Task SettlingADeleteWithNoOwnerIsSilent()
+    {
+        using var absent = new NoOwner();
+
+        await Assert.That(() => PendingFiles.SettleDelete(Stale)).ThrowsNothing();
+    }
+
+    /// <summary>
     /// The tray works the arguments out for itself when a move arrives without them, and used to
     /// take the viewer's declared ones - two plain paths, which open a window of its own for a
     /// pair whose queue is already on screen. Both callers ask this instead.
@@ -176,6 +230,7 @@ public class PendingFilesDiffTests
 
     const string Temp = @"c:\temp\Sample.Test.received.png";
     const string Target = @"c:\code\Sample.Test.verified.png";
+    const string Stale = @"c:\code\Sample.Stale.verified.txt";
 
     /// <summary>
     /// Carries the identity the route branches on. Never started: an owner answers every time.

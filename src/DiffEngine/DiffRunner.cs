@@ -192,6 +192,26 @@ public static partial class DiffRunner
         return DiffEngineTray.AddDeleteAsync(file);
     }
 
+    /// <summary>
+    /// Withdraws a pending delete, for when the file it was raised for is in use again: a later
+    /// run verified against it, so accepting the delete would remove a file that run depends on.
+    /// Nothing is deleted.
+    /// <para>
+    /// Does nothing when no tray or viewer holds the queue - and cheaply, the way
+    /// <see cref="SettleInline" /> does, since a port found with nothing listening is not
+    /// connected to again for a while.
+    /// </para>
+    /// </summary>
+    public static void SettleDelete(string file)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        PendingFiles.SettleDelete(file);
+    }
+
     public static Task<LaunchResult> LaunchAsync(ResolvedTool tool, string tempFile, string targetFile, Encoding? encoding = null)
     {
         GuardFiles(tempFile, targetFile);
