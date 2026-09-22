@@ -219,6 +219,22 @@ static class PendingFiles
         ViewerClient.TrySend(new(ViewerVerb.Settle, TrackedKeys.ForMove(tempFile)));
 
     /// <summary>
+    /// The other end of <see cref="AddDelete" />: the file a delete was raised for is in use
+    /// again, so the delete goes. Nothing is deleted.
+    /// <para>
+    /// To the queue owner, as <see cref="SettleDiff" /> is, which reaches the delete wherever it
+    /// is held: in a viewer, or in a tray that owns the queue, which keeps the deletes that arrived
+    /// over the piper port in the same tracked files. A tray that does not own the queue keeps its
+    /// own, and the piper format that would reach it is frozen at moves and deletes.
+    /// </para>
+    /// <para>
+    /// Silent when nobody answers: no owner means no row, which is the state this was asking for.
+    /// </para>
+    /// </summary>
+    public static void SettleDelete(string file) =>
+        ViewerClient.TrySend(new(ViewerVerb.Settle, TrackedKeys.ForDelete(file)));
+
+    /// <summary>
     /// Whether a pending file should take the <see cref="AddDiff" /> route rather than the plain
     /// tracking one, which is exactly whether the tool that would have opened a window for it is
     /// the viewer.

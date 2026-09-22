@@ -113,6 +113,23 @@ public class TrackedFileTests
         await Assert.That(done).IsEmpty();
     }
 
+    /// <summary>
+    /// A delete leaving because the file it was raised for is in use again: a later run verified
+    /// against it. Settling drops it, and a settle is a change to the queue alone, so the file
+    /// accepting would have removed stays.
+    /// </summary>
+    [Test]
+    public async Task SettlingADeleteDropsItAndKeepsTheRest()
+    {
+        var state = Owned(Fixtures.Move(), Fixtures.Delete());
+        state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
+
+        var settled = ViewerSession.Settle(state, Fixtures.Delete().Key);
+
+        await Assert.That(settled.Queue.Select(_ => _.Kind))
+            .IsEquivalentTo([QueueEntryKind.Inline, QueueEntryKind.Move]);
+    }
+
     [Test]
     public async Task SettlingAPairThatIsNotQueuedChangesNothing()
     {

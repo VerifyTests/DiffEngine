@@ -43,6 +43,8 @@ A test can produce multiple resulting snapshots. If the accepted versions has a 
 
 Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop down will expose extra actions for that change.
 
+A delete is withdrawn when a later test run verifies against its file again, since the file is then in use rather than stale: `DiffRunner.SettleDelete(file)` drops the pending delete and leaves the file alone. It reaches a tray that owns the inline queue, which is the usual arrangement since the tray starts at login.
+
 
 ### Pending snapshots
 

@@ -772,6 +772,27 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A delete raised for a file that a later run verified against again, and settled by that
+    /// run. The settle names the file through its folded key while the tray tracked it as it
+    /// arrived, and the two have to meet: the delete goes, and the file it would have removed
+    /// stays where it is.
+    /// </summary>
+    [Test]
+    public async Task ASettledDeleteLeavesTheTrayAndKeepsTheFile()
+    {
+        await using var pair = new TrayOwned();
+        var delete = pair.AddDelete();
+        await Assert.That(pair.Pump().Keys()).IsEquivalentTo([delete.Key]);
+
+        var response = pair.Send(new(ViewerVerb.Settle, TrackedKeys.ForDelete(delete.File)));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(pair.Tracker.Deletes).IsEmpty();
+        await Assert.That(pair.Pump().Queue).IsEmpty();
+        await Assert.That(File.Exists(delete.File)).IsTrue();
+    }
+
+    /// <summary>
     /// The tray check is cached, so this is the state a test process is in, not a property of the
     /// machine. Set explicitly rather than assumed, because another test in this project sets it
     /// true.
