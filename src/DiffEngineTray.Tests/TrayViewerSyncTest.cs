@@ -188,6 +188,45 @@ public class TrayViewerSyncTest
         await Assert.That(File.Exists(delete.File)).IsFalse();
     }
 
+    /// <summary>
+    /// The arrangement the tray sets up at login: it owns the queue and a viewer displays it. An
+    /// accept-all clicked in that viewer runs in the tray, and the window follows it there - each
+    /// entry leaving as it lands, and the tray's count in the status line - rather than saying
+    /// "Waiting for the queue owner." over an unmoving list until the whole batch is done.
+    /// <para>
+    /// Through the viewer's own polling loop rather than <see cref="TrayOwned.Pump"/>, since
+    /// listing beside a forwarded command that is still running is the loop's job.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AViewerAttachedToTheTrayFollowsItsAcceptAll()
+    {
+        using var held = new HeldApply(2);
+        await using var pair = new TrayOwned(held.Apply);
+        pair.Queue(sample, 1);
+        pair.Queue(other, 7);
+        pair.Pump();
+        using var cancel = new CancelSource();
+        var polling = Task.Run(() => pair.Link.Run(cancel.Token), Cancel.None);
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+        held.WaitUntilHeld();
+        // A listing taken while the first entry was still applying can land first, so wait for one
+        // taken with the second held
+        await Until(() => pair.Window.State.OwnerProgress is { Done: 1, Total: 2 });
+
+        await Assert.That(pair.Window.State.Progress!.Describe()).IsEqualTo("Accepting 2 of 2");
+        await Assert.That(pair.Window.State.Keys()).IsEquivalentTo([Key(other, 7)]);
+
+        held.Release();
+        // The last entry going closes a window that only displays the tray's queue
+        await Until(() => pair.Window.State.Exit);
+        await Assert.That(pair.Window.State.OwnerProgress).IsNull();
+        await Assert.That(pair.Listing).IsEmpty();
+        await cancel.CancelAsync();
+        await polling.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
     [Test]
     public async Task ViewerAcceptOfOneSnapshotReachesTheTray()
     {
@@ -1079,6 +1118,24 @@ public class TrayViewerSyncTest
 
     static string TempRoot() =>
         Path.Combine(Path.GetTempPath(), $"TrayViewerSync_{Guid.NewGuid():N}");
+
+    /// <summary>
+    /// For the tests that run the viewer's polling loop for real, which catches up with the tray
+    /// on its own schedule.
+    /// </summary>
+    static async Task Until(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (!condition())
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new("Timed out waiting for the viewer to catch up.");
+            }
+
+            await Task.Delay(20);
+        }
+    }
 }
 
 static class TrayViewerSyncExtensions

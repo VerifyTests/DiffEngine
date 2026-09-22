@@ -464,54 +464,81 @@ public sealed class InlineQueue
         IReadOnlyList<(PendingInline Entry, InlineApplyResult Result)> outcomes,
         out string message)
     {
-        var remaining = new List<PendingInline>();
-        var accepted = 0;
-        var notWritten = 0;
-        var failed = 0;
-        var conflicted = 0;
-        string? failure = null;
-        foreach (var entry in Items)
+        var queue = this;
+        var tally = new AcceptAllTally();
+        foreach (var (entry, result) in outcomes)
         {
-            var outcome = outcomes.FirstOrDefault(_ => ReferenceEquals(_.Entry.Variants, entry.Variants));
-            if (outcome.Entry is null)
-            {
-                if (entry.Conflicted)
-                {
-                    conflicted++;
-                }
-
-                remaining.Add(entry);
-                continue;
-            }
-
-            var (removed, stale, text) = Outcome(entry, outcome.Result);
-            // Dropped on its own, an entry the reader was watching and got an answer about. Dropped
-            // out of a batch of thirty, an entry nobody saw go: no literal written, nothing left in
-            // the queue to say so, and a count of accepts that included it. So it stays, carrying
-            // what the applier said, the way every other unwritten snapshot in the batch does. A
-            // re-run brings the patch back and the arrival clears the status.
-            if (stale)
-            {
-                notWritten++;
-                failure = text;
-                remaining.Add(entry with { Status = text });
-                continue;
-            }
-
-            if (removed)
-            {
-                accepted++;
-                continue;
-            }
-
-            failed++;
-            failure = text;
-            remaining.Add(entry with { Status = text });
+            queue = queue.AcceptInBatch(entry, result, ref tally);
         }
 
-        message = AcceptAllMessage(accepted, notWritten, failed, conflicted, failure);
-        return new(remaining);
+        message = tally.Message(queue.Conflicts);
+        return queue;
     }
+
+    /// <summary>
+    /// One entry of a bulk accept, completed on its own rather than with the rest of the batch.
+    /// <para>
+    /// A host applying a long queue commits each outcome as it arrives, so whoever is watching the
+    /// queue sees it shrink as the batch goes, and a listing taken partway through says how far it
+    /// has got. Completing everything at the end left a window showing an untouched queue for as
+    /// long as the batch took, and then emptying all at once.
+    /// </para>
+    /// <para>
+    /// The rules are the batch's rather than a single accept's, because the batch completion above
+    /// is this, once per outcome. An entry that changed while its patch was applying is left alone
+    /// and not counted, found by its variants the way the two phase accept finds it.
+    /// </para>
+    /// </summary>
+    internal InlineQueue AcceptInBatch(PendingInline entry, InlineApplyResult result, ref AcceptAllTally tally)
+    {
+        var items = Items.ToList();
+        var index = items.FindIndex(_ => ReferenceEquals(_.Variants, entry.Variants));
+        if (index < 0)
+        {
+            return this;
+        }
+
+        var current = items[index];
+        var (removed, stale, text) = Outcome(current, result);
+        // Dropped on its own, an entry the reader was watching and got an answer about. Dropped
+        // out of a batch of thirty, an entry nobody saw go: no literal written, nothing left in
+        // the queue to say so, and a count of accepts that included it. So it stays, carrying
+        // what the applier said, the way every other unwritten snapshot in the batch does. A
+        // re-run brings the patch back and the arrival clears the status.
+        if (stale)
+        {
+            tally = tally with
+            {
+                NotWritten = tally.NotWritten + 1,
+                Failure = text
+            };
+            items[index] = current with { Status = text };
+        }
+        else if (removed)
+        {
+            tally = tally with { Accepted = tally.Accepted + 1 };
+            items.RemoveAt(index);
+        }
+        else
+        {
+            tally = tally with
+            {
+                Failed = tally.Failed + 1,
+                Failure = text
+            };
+            items[index] = current with { Status = text };
+        }
+
+        return new(items);
+    }
+
+    /// <summary>
+    /// What a bulk accept that has finished counts as still needing review: it never applies an
+    /// entry with more than one variant, so whatever the queue holds of those is left for a
+    /// reviewer to pick from.
+    /// </summary>
+    internal int Conflicts =>
+        Items.Count(_ => _.Conflicted);
 
     public PendingInline? Find(string key) =>
         Items.FirstOrDefault(_ => _.Key == key);

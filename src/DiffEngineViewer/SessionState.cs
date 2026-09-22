@@ -67,6 +67,24 @@ record SessionState(
     public TextSelection? LiveSelection =>
         Selection is { } selection && selection.Describes(Current) ? selection : null;
 
+    /// <summary>
+    /// The accept-all this process is carrying out over a queue it owns, or null.
+    /// </summary>
+    public AcceptBatch? Batch { get; init; }
+
+    /// <summary>
+    /// The owner's accept-all as its last listing described it, for a viewer displaying someone
+    /// else's queue. Null for an owning viewer, whose own is <see cref="Batch"/>.
+    /// </summary>
+    public AcceptProgress? OwnerProgress { get; init; }
+
+    /// <summary>
+    /// How far an accept-all has got, whichever process is running it. What the status line says
+    /// while one runs, and what takes the acting buttons away until it has finished.
+    /// </summary>
+    public AcceptProgress? Progress =>
+        Batch?.Progress ?? OwnerProgress;
+
     public QueueEntry? Current =>
         Selected >= 0 && Selected < Queue.Count ? Queue[Selected] : null;
 

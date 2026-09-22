@@ -217,8 +217,11 @@ static class ViewerProgram
         // Whichever of the two produces them; a process either owns the queue or displays one.
         var windowCommands = link?.Windows ?? new();
         using var cancel = new CancelSource();
+        // Only for a queue this process owns. A displayed one's accept-all runs in its owner, and
+        // file mode's is the one comparison it shows.
+        var runner = server is null ? null : new AcceptAllRunner(host, ViewerActions.Real);
         var listening = server?.Listen(
-            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue).Handle,
+            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue, runner).Handle,
             cancel.Token);
         var polling = link is null
             ? null
@@ -231,8 +234,13 @@ static class ViewerProgram
 
         using (window)
         {
-            Loop(host, window, link, windowCommands);
+            Loop(host, window, link, windowCommands, runner);
         }
+
+        // Closing the window mid batch does not abandon it: clicking Accept all and then closing
+        // used to mean both happened, because the click held the window until it was done. Before
+        // the listener stops, so a drive the tray started finishes answering it.
+        runner?.Finish();
 
         cancel.Cancel();
         try
@@ -275,7 +283,8 @@ static class ViewerProgram
         SessionHost host,
         IViewerWindow window,
         OwnerLink? link,
-        ConcurrentQueue<WindowCommand> windowCommands)
+        ConcurrentQueue<WindowCommand> windowCommands,
+        AcceptAllRunner? runner)
     {
         while (true)
         {
@@ -310,6 +319,15 @@ static class ViewerProgram
 
             var input = window.Poll();
             host.Mutate(_ => Apply(_, input, link, window));
+
+            // An accept-all this frame's input began is carried out on a worker, so this thread
+            // goes back to drawing the queue as it shrinks. One the tray began is already being
+            // carried out by the listener thread, and the runner leaves that one to it.
+            if (runner is not null &&
+                host.State.Batch is not null)
+            {
+                runner.Start();
+            }
 
             // Q, Escape and the Close menu item arrive as a state flag, consumed here into the
             // same decision as the window's own close button. Routed rather than exited, because
@@ -466,8 +484,26 @@ static class ViewerProgram
             return Copy(state, command.Kind, window);
         }
 
+        // Nothing that changes the queue while an accept-all is working through it, whichever
+        // process is running it. The buttons already say so by being disabled; this is the keys
+        // and the menu agreeing with them. Looking around - scrolling, selecting, folding, copying
+        // - carries on, since that is what there is to do while it runs.
+        if (state.Progress is not null &&
+            ViewerSession.ChangesQueue(command.Kind))
+        {
+            return state with { Menu = null };
+        }
+
         if (link is null)
         {
+            // Only begun here. Applying every entry inside this frame held the window for as long
+            // as the queue was long; the loop hands the batch to a worker instead.
+            if (command.Kind == CommandKind.AcceptAll &&
+                state.Mode == ViewerMode.Inline)
+            {
+                return ViewerSession.BeginAcceptAll(state);
+            }
+
             return ViewerSession.Apply(state, command, ViewerActions.Real);
         }
 

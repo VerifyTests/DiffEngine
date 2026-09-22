@@ -65,6 +65,13 @@ record ViewerResponse(
 
     public IReadOnlyList<ViewerResponseDelete> Deletes { get; init; } = [];
 
+    /// <summary>
+    /// How far the accept-all the owner is running has got, on a listing taken while one is, and
+    /// null the rest of the time. A reader that predates it skips the line, as it skips any name it
+    /// does not know.
+    /// </summary>
+    public AcceptProgress? Progress { get; init; }
+
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
 
@@ -76,11 +83,13 @@ record ViewerResponse(
         WindowCommand? window = null,
         string? windowKey = null,
         IReadOnlyList<ViewerResponseMove>? moves = null,
-        IReadOnlyList<ViewerResponseDelete>? deletes = null) =>
+        IReadOnlyList<ViewerResponseDelete>? deletes = null,
+        AcceptProgress? progress = null) =>
         new(true, null, items, window, windowKey)
         {
             Moves = moves ?? [],
-            Deletes = deletes ?? []
+            Deletes = deletes ?? [],
+            Progress = progress
         };
 
     public string Build()
@@ -94,6 +103,12 @@ record ViewerResponse(
             // ReSharper disable once RedundantSuppressNullableWarningExpression
             builder.Append($"window: {Window.ToString()!.ToLowerInvariant()}\n");
             ViewerPayload.Append(builder, "windowKey", WindowKey);
+        }
+
+        if (Progress is not null)
+        {
+            // Plain too: two counts
+            builder.Append($"progress: {Progress.Build()}\n");
         }
 
         foreach (var item in Items)
@@ -143,6 +158,7 @@ record ViewerResponse(
         string? message = null;
         WindowCommand? window = null;
         string? windowKey = null;
+        AcceptProgress? progress = null;
         var items = new List<ViewerResponseItem>();
         var moves = new List<ViewerResponseMove>();
         var deletes = new List<ViewerResponseDelete>();
@@ -164,6 +180,13 @@ record ViewerResponse(
                     continue;
                 case "windowKey":
                     if (!ViewerPayload.TryDecode(value, out windowKey))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                case "progress":
+                    if (!AcceptProgress.TryParse(value, out progress))
                     {
                         return false;
                     }
@@ -248,7 +271,8 @@ record ViewerResponse(
         response = new(ok.Value, message, items, window, windowKey)
         {
             Moves = moves,
-            Deletes = deletes
+            Deletes = deletes,
+            Progress = progress
         };
         return true;
     }

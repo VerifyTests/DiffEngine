@@ -21,9 +21,9 @@ public class OwnedInlineHostTest
         public FakeLauncher Launcher { get; } = new();
         public List<string> Warnings { get; } = [];
 
-        public ViewerResponse Send(ViewerMessage message)
+        public ViewerResponse Send(ViewerMessage message, TimeSpan? wait = null)
         {
-            if (!ViewerClient.TrySend(message, out var response, Host.Port))
+            if (!ViewerClient.TrySend(message, out var response, Host.Port, wait))
             {
                 throw new($"No response for {message.Verb}.");
             }
@@ -617,7 +617,16 @@ public class OwnedInlineHostTest
             return (true, "Discarded tracked");
         }
 
-        public (int accepted, int kept) AcceptAll() => SweepResult;
+        public (int accepted, int kept) AcceptAll(Action? advanced = null)
+        {
+            // One step per file the sweep reports, which is what the real tracker calls it for
+            for (var file = 0; file < SweepResult.accepted + SweepResult.kept; file++)
+            {
+                advanced?.Invoke();
+            }
+
+            return SweepResult;
+        }
 
         public int DiscardAll() => 0;
 
@@ -729,5 +738,79 @@ public class OwnedInlineHostTest
         var response = owner.Send(new(ViewerVerb.AcceptAll));
 
         await Assert.That(response.Message).IsEqualTo("Accepted 1, plus 2 files (1 kept)");
+    }
+
+    /// <summary>
+    /// An accept-all is one exchange that answers once the whole queue is done, so a viewer
+    /// displaying the queue learns how it is going from the listings it takes meanwhile: each
+    /// snapshot leaves as it lands, and the listing says how far the batch has got.
+    /// </summary>
+    [Test]
+    public async Task AListingDuringAnAcceptAllSaysHowFarItHasGot()
+    {
+        using var held = new HeldApply(2);
+        using var owner = new Owner(held.Apply);
+        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue();
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+
+        var partway = owner.Send(new(ViewerVerb.ListFull));
+        await Assert.That(partway.Progress).IsEqualTo(new AcceptProgress(1, 2));
+        await Assert.That(partway.Items).HasSingleItem();
+
+        held.Release();
+        var response = await accepting;
+
+        await Assert.That(response.Message).IsEqualTo("Accepted 2");
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsNull();
+    }
+
+    /// <summary>
+    /// The tracked files are swept first, and a move being retried while a diff tool lets go of it
+    /// is as much of the wait as any snapshot, so they count towards the progress too.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptAllCountsTheFilesIntoItsProgress()
+    {
+        using var held = new HeldApply(1);
+        using var owner = new Owner(held.Apply);
+        owner.Host.TrackedFiles = new FakeTracked
+        {
+            MoveList = [new(@"move:c:\temp\a.txt", "a (txt)", null, @"c:\temp\a.txt", @"c:\code\a.txt")],
+            DeleteList = [new(@"delete:c:\code\b.txt", "b.txt", null, @"c:\code\b.txt")],
+            SweepResult = (2, 0)
+        };
+        owner.Queue();
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(2, 3));
+
+        held.Release();
+        await Assert.That((await accepting).Message).IsEqualTo("Accepted 1, plus 2 files");
+    }
+
+    /// <summary>
+    /// The menu's accept-all reaches the queue through the tray's own host rather than the wire,
+    /// and a viewer displaying the queue follows that one the same way.
+    /// </summary>
+    [Test]
+    public async Task TheMenusAcceptAllReportsProgressToo()
+    {
+        using var held = new HeldApply(1);
+        using var owner = new Owner(held.Apply);
+        owner.Queue();
+
+        var accepting = Task.Run(() => owner.Host.AcceptAll(out _));
+        held.WaitUntilHeld();
+
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(0, 1));
+
+        held.Release();
+        await Assert.That(await accepting).IsTrue();
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsNull();
     }
 }

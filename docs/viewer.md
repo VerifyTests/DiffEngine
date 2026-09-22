@@ -111,6 +111,8 @@ What lands on the clipboard is what is on screen: tabs already expanded to the f
 
 A test run that fails several inline snapshots produces one window, not several. Whichever process binds the loopback port holds the queue; everything else hands its patch to that one. The window lists everything pending and offers **Accept all**.
 
+**Accept all** takes as long as the queue is long, so it goes one entry at a time. Each entry leaves the list as it lands, the status line says how far it has got (`Accepting 12 of 40`), and the window keeps responding throughout. **Accept**, **Discard** and **Accept all** are disabled until it finishes; scrolling, selecting and copying are not. It is the same when [DiffEngineTray](/docs/tray.md) holds the queue, and when the accept-all was started from the tray's menu: the window follows the tray's progress.
+
 Failing file comparisons join the same queue, so a run that fails ten snapshots opens one window whether they are inline or on disk. Every other diff tool gets a process per pair, and DiffEngine closes each one as its test starts passing; the viewer is told to drop that row instead.
 
 Rows that came from files follow those files. A re-run that rewrites a received file shows the rewrite, a verified file that appears fills in the other pane, and a row whose received file goes away leaves with it — so nothing is offered for a file that is no longer there, however it went. The window closes once the last row does.

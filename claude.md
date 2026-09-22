@@ -152,6 +152,18 @@ apart.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
   rules about when a header exists at all live in one place and must stay there. A fold is a view:
   `AcceptAll` still sweeps what it hides, which `CollapseTests` pins.
+- Accept-all goes an entry at a time, because it takes as long as the queue is long.
+  `ViewerSession.BeginAcceptAll` records an `AcceptBatch`, and `AcceptAllRunner` claims an entry
+  under `SessionHost`'s lock (`ClaimNext`), applies it outside (`ApplyClaimed`), and records it
+  under the lock again - snapshots before files, since whether a delete is held turns on how the
+  snapshots went. The render loop takes that lock every frame, so one transition over the queue
+  froze the window for the whole batch. A window's batch runs on a worker, a wire `AcceptAll` on
+  its listener thread, and `ViewerSession.Apply(AcceptAll)` is the same steps back to back, which
+  is what the tests drive. Owners put `AcceptProgress` on their listings - the tray completes each
+  snapshot with `InlineQueue.AcceptInBatch` rather than all at the end - and `OwnerLink.Run` lists
+  beside an in-flight send rather than after it, so an attached window follows the owner's batch.
+  While `SessionState.Progress` is set the status line shows it and the window refuses anything
+  `ChangesQueue` names.
 - Images (`Images/`, extensions in `DiffEngine/Viewer/ImageExtensions.cs`, linked into the viewer so
   the tool registration and the renderer cannot disagree) are a side, not a mode. `FileSide.Read`
   decides text or picture **by extension**, because the expected side of a new snapshot has no bytes
@@ -233,6 +245,10 @@ apart.
   quotes, braces and newlines, and the `inline` body carries an `InlinePatchFile` payload verbatim.
 - Compiles for every DiffEngine target, so the socket calls carry `#if` branches for the
   frameworks with no cancellation overloads. `ViewerProtocolTests` runs on all of them.
+- `ViewerServer`'s accept loop awaits with `ConfigureAwait(false)`, the one place that matters
+  in a repo that otherwise leaves it off. The Windows viewer starts listening on its UI thread,
+  and resuming there left every connection waiting on the render loop to pump.
+  `AnOwnerAnswersWhileTheThreadThatStartedItIsBusy` pins it.
 
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in

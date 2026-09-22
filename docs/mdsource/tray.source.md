@@ -59,6 +59,8 @@ Exiting the tray writes any still-pending inline snapshots back to disk, under t
 
 "Accept all" will accept all pending moves, deletes and inline snapshots. Snapshots whose target frameworks disagree about the content are skipped rather than picked between; resolve those in the viewer.
 
+A long queue takes a while to accept. An open [DiffEngineViewer](/docs/viewer.md) window shows how far it has got, with each snapshot leaving the list as it lands.
+
 
 ### Locked files
 

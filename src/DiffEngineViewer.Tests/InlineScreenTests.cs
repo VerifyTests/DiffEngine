@@ -36,6 +36,25 @@ public class InlineScreenTests
     public Task AfterAcceptAll() =>
         Verify(Fixtures.Render(ViewerSession.Apply(Pending(), CommandKind.AcceptAll, Fixtures.Applied)));
 
+    /// <summary>
+    /// Part way through an accept-all: what has been accepted has left the list, the status line
+    /// says how far the batch has got, and nothing that changes the queue is offered until it is
+    /// done.
+    /// </summary>
+    [Test]
+    public Task AcceptAllInProgress()
+    {
+        var state = ViewerSession.BeginAcceptAll(Pending());
+        for (var step = 0; step < 2; step++)
+        {
+            state = ViewerSession.ClaimNext(state);
+            state = ViewerSession.ApplyClaimed(state.Batch!.Current!, Fixtures.Applied)(state);
+        }
+
+        // The third claimed, and still applying
+        return Verify(Fixtures.Render(ViewerSession.ClaimNext(state)));
+    }
+
     [Test]
     public Task StalePatch()
     {

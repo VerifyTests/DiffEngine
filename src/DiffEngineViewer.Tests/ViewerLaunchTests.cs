@@ -358,6 +358,255 @@ public class ViewerLaunchTests
     }
 
     /// <summary>
+    /// Enough pending snapshots that accepting them takes a while, for watching an accept-all go:
+    /// the status line counting up, entries leaving as they land, and the window answering the whole
+    /// time. Two solutions of ten classes, twenty five snapshots a class, which is the shape a run
+    /// that changed something widely used leaves behind. Every accept rewrites a file holding two
+    /// dozen others, and the multi line literal it writes moves every call site below it, so the
+    /// rest of the class is found by what it says rather than by the line it was reported on.
+    /// <para>
+    /// A fast disk accepts all of that in a second or two, which is not long enough to watch or to
+    /// try anything while it runs. So the class halfway down the batch is held the way another
+    /// process part way through writing it would hold it - an IDE accepting its own snapshot - and
+    /// the batch stops there for a few seconds. That is also the case the window used to freeze in.
+    /// </para>
+    /// <para>
+    /// Three conflicts ride along. Accept-all leaves those for review, so the window is still open
+    /// once the batch has finished, and what it says about the batch can be read.
+    /// </para>
+    /// <para>
+    /// On its own port, for the reason <see cref="GroupedQueue"/> gives.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Explicit]
+    public async Task AcceptAllOverALongQueue()
+    {
+        const int classes = 10;
+        const int snapshots = 25;
+        const int conflicts = 3;
+        Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", "3499");
+        try
+        {
+            var root = ManualViewer.TempDirectory();
+            var solutionA = root.CreateSubdirectory("SolutionA");
+            await File.WriteAllTextAsync(Path.Combine(solutionA.FullName, "SolutionA.slnx"), "");
+            var solutionB = root.CreateSubdirectory("SolutionB");
+            await File.WriteAllTextAsync(Path.Combine(solutionB.FullName, "SolutionB.slnx"), "");
+
+            var sources = new List<string>();
+            var patches = new List<engine::DiffEngine.InlinePatch>();
+            foreach (var solution in new[] { solutionA, solutionB })
+            {
+                for (var index = 1; index <= classes; index++)
+                {
+                    var (source, lines) = WriteClass(solution, $"{solution.Name[^1]}{index:D2}Tests.cs", snapshots);
+                    sources.Add(source);
+                    for (var method = 1; method <= snapshots; method++)
+                    {
+                        patches.Add(
+                            new(source, lines[method - 1], $"\"old {method}\"", Snapshot(method))
+                            {
+                                TestName = null,
+                                MemberName = $"Case{method}"
+                            });
+                    }
+                }
+            }
+
+            var (conflicted, conflictedLines) = WriteClass(solutionB, "ConflictedTests.cs", conflicts);
+            for (var method = 1; method <= conflicts; method++)
+            {
+                var line = conflictedLines[method - 1];
+                patches.Add(Patch(conflicted, line, $"\"old {method}\"", $"eight {method}", framework: "net8.0"));
+                patches.Add(Patch(conflicted, line, $"\"old {method}\"", $"nine {method}", framework: "net9.0"));
+            }
+
+            var total = sources.Count * snapshots;
+            ManualViewer.Expect(
+                "Accept all over a long queue",
+                $"Pending ({total + conflicts}), grouped under SolutionA and SolutionB headers - the list follows the last arrival to the bottom, so scroll it up to see them",
+                "Press Accept all, or Shift+A",
+                $"The status line counts up - Accepting 1 of {total}, 2 of {total} - and entries leave the list as they land",
+                "Accept, Discard and Accept all are disabled until it finishes, and a, d and Shift+A do nothing",
+                "About halfway the count stops for six seconds, on a class this test is holding the way another process writing it would",
+                "The window keeps answering the whole time, stop included: scroll, Tab through the entries, click one, fold a header",
+                "The count carries on once the class is let go",
+                $"When it finishes the {conflicts} ConflictedTests.cs entries are left, and the status line says Accepted {total}, {conflicts} conflicts need review");
+
+            foreach (var patch in patches)
+            {
+                var result = await EngineRunner.AddInlineAsync(patch);
+                await Assert.That(result).IsEqualTo(EngineResult.Queued);
+            }
+
+            // The batch goes in the order the queue lists, so the class listed halfway down is the
+            // one it reaches halfway through
+            if (!ViewerClient.TrySend(new(ViewerVerb.List), out var listing, 3499))
+            {
+                throw new("The viewer did not list its queue.");
+            }
+
+            var halfway = listing.Items[listing.Items.Count / 2].Name.Split(':')[0];
+            using var cancel = new CancelSource();
+            var holding = HoldOnceReached(sources.Single(_ => Path.GetFileName(_) == halfway), 3499, cancel.Token);
+
+            await ManualViewer.WaitForClose();
+            await cancel.CancelAsync();
+            await holding;
+
+            var left = sources.Sum(_ => Unaccepted(_));
+            Console.WriteLine();
+            Console.WriteLine($"{total - left} of {total} call sites rewritten, and {Unaccepted(conflicted)} of {conflicts} conflicted ones left alone.");
+            // One class in full, for what the accepts wrote. The other nineteen are the same shape.
+            Report(sources[0]);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DiffEngine_ViewerPort", null);
+        }
+    }
+
+    /// <summary>
+    /// Holds <paramref name="source"/> the way another process applying a patch to it would, by
+    /// taking the cross process mutex InlineApplier waits on, so an accept-all stops when it gets
+    /// there.
+    /// <para>
+    /// Taken only once a batch has started, so someone who accepts one at a time instead is never
+    /// held up by it. Let go six seconds after the count stops moving, well inside the ten seconds
+    /// InlineApplier waits before giving up, so the held entry still lands.
+    /// </para>
+    /// <para>
+    /// A thread of its own, because a mutex has to be released by the thread that took it.
+    /// </para>
+    /// </summary>
+    static Task HoldOnceReached(string source, int port, Cancel cancel) =>
+        Task.Factory.StartNew(
+            () =>
+            {
+                AcceptProgress? Progress() =>
+                    ViewerClient.TrySend(new(ViewerVerb.List), out var response, port) ? response.Progress : null;
+
+                while (Progress() is null)
+                {
+                    if (cancel.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(50)))
+                    {
+                        return;
+                    }
+                }
+
+                using var mutex = new Mutex(false, PatchMutex(source));
+                if (!mutex.WaitOne(TimeSpan.FromSeconds(5)))
+                {
+                    return;
+                }
+
+                try
+                {
+                    // Stopped, rather than between two entries, once the count has stood still for
+                    // longer than an apply takes
+                    var previous = Progress();
+                    var since = DateTime.UtcNow;
+                    while (previous is not null &&
+                           DateTime.UtcNow - since < TimeSpan.FromMilliseconds(300))
+                    {
+                        if (cancel.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(50)))
+                        {
+                            return;
+                        }
+
+                        var current = Progress();
+                        if (current != previous)
+                        {
+                            previous = current;
+                            since = DateTime.UtcNow;
+                        }
+                    }
+
+                    // A batch that finished instead got past this class before it was taken
+                    if (previous is not null)
+                    {
+                        cancel.WaitHandle.WaitOne(TimeSpan.FromSeconds(6));
+                    }
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
+            },
+            // Watched inside rather than handed over: a token here cancels the scheduling, and a
+            // task that never ran would fault the await after the window closes
+            Cancel.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+    /// <summary>
+    /// The name InlineApplier gives the mutex it waits on for a file. Worked out the same way here
+    /// rather than shared, because nothing but this test needs it; if the two ever part, the
+    /// batch simply does not stop, and the rest of the test still stands.
+    /// </summary>
+    static string PatchMutex(string source)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes(Path.GetFullPath(source).ToLowerInvariant()));
+        return $"DiffEngineInline_{Convert.ToHexString(hash)}";
+    }
+
+    /// <summary>
+    /// A class of <paramref name="methods"/> tests, each verifying and holding a snapshot, in the
+    /// shape <see cref="WriteSource"/> writes one of. Returns the line of each verify call, which is
+    /// what a patch reports.
+    /// </summary>
+    static (string Path, IReadOnlyList<int> Lines) WriteClass(DirectoryInfo directory, string name, int methods)
+    {
+        var builder = new StringBuilder("public class Sample\n{\n");
+        var lines = new List<int>();
+        for (var method = 1; method <= methods; method++)
+        {
+            // The class opens on two lines, each method takes seven, and the verify call is the
+            // fourth of them
+            lines.Add(2 + (method - 1) * 7 + 4);
+            builder.Append("    [Test]\n");
+            builder.Append($"    public Task Case{method}()\n");
+            builder.Append("    {\n");
+            builder.Append("        Verify(Build())\n");
+            builder.Append($"            .Snapshot(\"old {method}\");\n");
+            builder.Append("    }\n");
+            builder.Append('\n');
+        }
+
+        builder.Append("    static string Build() =>\n");
+        builder.Append("        \"content\";\n");
+        builder.Append("}\n");
+        return (Write(directory, name, builder.ToString()), lines);
+    }
+
+    /// <summary>
+    /// Several lines, so accepting one writes a raw string literal and moves what follows it.
+    /// </summary>
+    static string Snapshot(int method) =>
+        $$"""
+          {
+            Case: {{method}},
+            Value: new
+          }
+          """;
+
+    static int Unaccepted(string source)
+    {
+        var text = File.ReadAllText(source);
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(".Snapshot(\"old ", index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index++;
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// Line 6 is the verify call in both shapes, which is what every patch above points at.
     /// </summary>
     static string WriteSource(DirectoryInfo directory, string name, string? literal)
