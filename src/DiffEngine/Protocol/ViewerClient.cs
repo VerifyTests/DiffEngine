@@ -164,7 +164,7 @@ static class ViewerClient
         try
         {
             using var client = new TcpClient();
-            owned = client.ConnectAsync(IPAddress.Loopback, endpointPort).Wait(ShortTimeout);
+            owned = Connect(client, endpointPort, ShortTimeout);
         }
         catch (Exception exception)
             when (Ignorable(exception))
@@ -223,7 +223,7 @@ static class ViewerClient
         try
         {
             using var client = new TcpClient();
-            if (!client.ConnectAsync(IPAddress.Loopback, endpointPort).Wait(deadline))
+            if (!Connect(client, endpointPort, deadline))
             {
                 Found(endpointPort, false);
                 return false;
@@ -383,6 +383,30 @@ static class ViewerClient
 
             return SendOutcome.NoOwner;
         }
+    }
+
+    /// <summary>
+    /// A connect waited on for at most <paramref name="wait"/>. One given up on is still pending
+    /// when the caller disposes the client, and faults once that tears it down - or, where the
+    /// port refuses rather than hangs, when the refusal arrives - with nobody left to observe it.
+    /// The finalizer then reported it as an unobserved task exception: once per probe the launch
+    /// gate made while a viewer it had just started was still binding, in a test process that may
+    /// treat those as fatal. Observed here instead, since there is nothing to do with the fault.
+    /// </summary>
+    static bool Connect(TcpClient client, int port, TimeSpan wait)
+    {
+        var connecting = client.ConnectAsync(IPAddress.Loopback, port);
+        if (connecting.Wait(wait))
+        {
+            return true;
+        }
+
+        connecting.ContinueWith(
+            static _ => _.Exception,
+            Cancel.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        return false;
     }
 
     /// <summary>

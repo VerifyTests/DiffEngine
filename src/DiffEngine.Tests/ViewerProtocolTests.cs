@@ -984,6 +984,61 @@ public class ViewerProtocolTests
             .IsEqualTo(SendOutcome.NoOwner);
     }
 
+    /// <summary>
+    /// A connect given up on is disposed while still pending, and the task behind it faults
+    /// afterwards with nobody left to observe it. The finalizer then reports it: in a test process
+    /// that launched a viewer, once per probe the launch gate made while the viewer was still
+    /// binding, and fatally in a host that treats unobserved task exceptions as fatal.
+    /// <para>
+    /// A zero wait gives up on every connect, whatever the platform does with a port nothing is
+    /// listening on - Windows lets it hang, others refuse it, both only after the wait has returned.
+    /// Serialised with the other tests in this class, since the event is process wide.
+    /// </para>
+    /// </summary>
+    [Test]
+    [NotInParallel]
+    public async Task AConnectGivenUpOnIsObserved()
+    {
+        ViewerServer.TryBind(0, out var server);
+        var port = server!.Port;
+        server.Dispose();
+        ViewerClient.ForgetUnowned();
+
+        var unobserved = new List<Exception>();
+        void Record(object? sender, UnobservedTaskExceptionEventArgs args)
+        {
+            lock (unobserved)
+            {
+                unobserved.Add(args.Exception);
+            }
+        }
+
+        TaskScheduler.UnobservedTaskException += Record;
+        try
+        {
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                ViewerClient.TrySend(new(ViewerVerb.List), out _, port, TimeSpan.Zero);
+            }
+
+            // Long enough for the abandoned connects to fault, then collected so their tasks
+            // are finalized, which is when an unobserved fault is reported
+            for (var pass = 0; pass < 5; pass++)
+            {
+                await Task.Delay(200);
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= Record;
+            ViewerClient.ForgetUnowned();
+        }
+
+        await Assert.That(unobserved).IsEmpty();
+    }
+
     [Test]
     public async Task AnAbsentOwnerIsNotAnError()
     {
