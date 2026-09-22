@@ -176,10 +176,10 @@ public class AcceptAllProgressTests
         var screen = ScreenBuilder.Build(state);
 
         await Assert.That(screen.Status).IsEqualTo("Accepting 1 of 3");
-        await Assert.That(screen.Buttons.Where(_ => _.Enabled)).IsEmpty();
+        await Assert.That(EnabledQueueButtons(screen)).IsEmpty();
 
         var window = new Window();
-        foreach (var key in new[] { CommandKind.Accept, CommandKind.Discard, CommandKind.AcceptAll })
+        foreach (var key in queueCommands)
         {
             var pressed = ViewerProgram.Apply(state, Input(key), null, window);
             await Assert.That(pressed.Queue).IsSameReferenceAs(state.Queue);
@@ -206,7 +206,7 @@ public class AcceptAllProgressTests
 
         var screen = ScreenBuilder.Build(state);
         await Assert.That(screen.Status).IsEqualTo("Accepting 5 of 9");
-        await Assert.That(screen.Buttons.Where(_ => _.Enabled)).IsEmpty();
+        await Assert.That(EnabledQueueButtons(screen)).IsEmpty();
 
         // And the listing after the batch is what gives the window back
         var after = ViewerSession.Sync(state, Fixtures.Pending(Fixtures.Patch()), [], "Accepted 8", null);
@@ -358,6 +358,15 @@ public class AcceptAllProgressTests
             Fixtures.Patch(),
             Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two"),
             Fixtures.Patch("OtherTests.cs", 12, null, "brand new"));
+
+    /// <summary>
+    /// What a batch refuses. Moving between changes and switching views only change what is being
+    /// read, so those buttons stay live while one runs.
+    /// </summary>
+    static readonly CommandKind[] queueCommands = [CommandKind.Accept, CommandKind.Discard, CommandKind.AcceptAll];
+
+    static IEnumerable<Button> EnabledQueueButtons(Screen screen) =>
+        screen.Buttons.Where(_ => _.Enabled && queueCommands.Contains(_.Command));
 
     static ViewerInput Input(CommandKind key) =>
         new(key, -1, -1, 0, false, Fixtures.Columns, Fixtures.Rows);
