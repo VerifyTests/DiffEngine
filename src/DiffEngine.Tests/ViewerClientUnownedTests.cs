@@ -13,8 +13,14 @@ public class ViewerClientUnownedTests
     static readonly ViewerMessage settle = new(ViewerVerb.Settle, InlineKey.For("Tests.cs", 1));
 
     // Read before any test can have changed it, so the restore below puts back the real default
-    // rather than a copy of it kept here
-    static readonly TimeSpan recheckUnownedAfter = ViewerClient.RecheckUnownedAfter;
+    // rather than a copy of it kept here. A hook rather than a static field initializer: with no
+    // static constructor that runs on first touching a static field, and TheMemoryExpires sets the
+    // value before it touches one, so running first it captured Zero for every test after it.
+    static TimeSpan recheckUnownedAfter;
+
+    [Before(Class)]
+    public static void Remember() =>
+        recheckUnownedAfter = ViewerClient.RecheckUnownedAfter;
 
     [Before(Test)]
     public void Forget() =>
