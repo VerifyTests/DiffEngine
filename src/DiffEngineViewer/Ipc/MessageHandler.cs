@@ -4,9 +4,19 @@
 /// stays here is the projection into <see cref="SessionState"/>, so the display follows the queue
 /// in the same mutation — acting on an entry selects it, and a focus lands on its item.
 /// </summary>
-class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowCommand> window) :
+/// <param name="runner">
+/// The window's, when there is one, so an accept-all from the tray and one clicked in the window
+/// take turns rather than claiming the same entries. A handler with no window makes its own.
+/// </param>
+class MessageHandler(
+    SessionHost host,
+    ViewerActions actions,
+    Action<WindowCommand> window,
+    AcceptAllRunner? runner = null) :
     IQueueOwner
 {
+    readonly AcceptAllRunner runner = runner ?? new(host, actions);
+
     public ViewerResponse Handle(ViewerMessage message) =>
         ViewerMessageHandler.Handle(this, message);
 
@@ -52,7 +62,9 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
     /// </summary>
     ViewerResponse IQueueOwner.Listing(bool withPatches)
     {
-        var queue = host.State.Queue;
+        // One read, so the queue and the progress describe the same moment of a batch
+        var state = host.State;
+        var queue = state.Queue;
         var items = ViewerListing.Items(
             queue
                 .Where(_ => _.Kind == QueueEntryKind.Inline)
@@ -60,7 +72,7 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             withPatches);
         if (!withPatches)
         {
-            return ViewerResponse.Listing(items);
+            return ViewerResponse.Listing(items, progress: state.Progress);
         }
 
         return ViewerResponse.Listing(
@@ -72,7 +84,8 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
             deletes: queue
                 .Where(_ => _.Kind == QueueEntryKind.Delete)
                 .Select(_ => new ViewerResponseDelete(_.Key, _.Name, _.Solution, _.LeftFile!))
-                .ToList());
+                .ToList(),
+            progress: state.Progress);
     }
 
     bool IQueueOwner.Has(string key) =>
@@ -122,8 +135,17 @@ class MessageHandler(SessionHost host, ViewerActions actions, Action<WindowComma
         return (true, state.Message);
     }
 
-    string? IQueueOwner.AcceptAll() =>
-        host.Mutate(_ => ViewerSession.Apply(_, CommandKind.AcceptAll, actions)).Message;
+    /// <summary>
+    /// Started and carried out here, on the listener thread, since the tray asking is waiting for
+    /// the answer - but a mutation per entry rather than one around the whole batch. Held as one,
+    /// the lock kept the render loop out for as long as the queue took to apply, so the window
+    /// froze exactly when there was progress to show.
+    /// </summary>
+    string? IQueueOwner.AcceptAll()
+    {
+        host.Mutate(ViewerSession.BeginAcceptAll);
+        return runner.Drive();
+    }
 
     string? IQueueOwner.DiscardAll() =>
         host.Mutate(_ => ViewerSession.Apply(_, CommandKind.DiscardAll, actions)).Message;

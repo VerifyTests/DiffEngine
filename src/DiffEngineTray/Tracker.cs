@@ -866,7 +866,7 @@ class Tracker :
         return (false, null);
     }
 
-    (int accepted, int kept) ITrackedFiles.AcceptAll()
+    (int accepted, int kept) ITrackedFiles.AcceptAll(Action? advanced)
     {
         var accepted = 0;
         var kept = 0;
@@ -880,6 +880,8 @@ class Tracker :
             {
                 kept++;
             }
+
+            advanced?.Invoke();
         }
 
         foreach (var move in moves.Values.ToList())
@@ -892,6 +894,8 @@ class Tracker :
             {
                 kept++;
             }
+
+            advanced?.Invoke();
         }
 
         return (accepted, kept);

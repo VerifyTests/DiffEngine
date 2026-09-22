@@ -38,6 +38,14 @@ class RemoteInlineHost : IInlineHost
     /// </summary>
     static readonly TimeSpan acceptWait = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// An accept-all is one exchange holding an apply per entry, so it outlasts a lone accept by as
+    /// many entries as the queue holds, and fifteen seconds read a long queue as a missing viewer
+    /// partway through accepting it. The owning viewer says how far it has got in its own window;
+    /// this only bounds one that took the verb and wedged. On a worker, as every accept here is.
+    /// </summary>
+    static readonly TimeSpan acceptAllWait = TimeSpan.FromMinutes(5);
+
     public string Description => $"owned by another process on port {ViewerClient.Port}";
 
     public IReadOnlyList<PendingSnapshot> List() =>
@@ -117,10 +125,8 @@ class RemoteInlineHost : IInlineHost
     /// and matching what an owning tray reports, which is also "is anything still pending". A
     /// conflict counts as not accepted, which is right: it is what a reviewer still has to resolve.
     /// </summary>
-    // One accept per entry inside a single exchange, so this outlasts a lone accept rather than
-    // matching it
     public bool AcceptAll(out string? message) =>
-        Send(ViewerVerb.AcceptAll, null, acceptWait, out message) &&
+        Send(ViewerVerb.AcceptAll, null, acceptAllWait, out message) &&
         List().Count == 0;
 
     /// <summary>

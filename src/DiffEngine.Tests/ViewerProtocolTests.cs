@@ -609,6 +609,56 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// How a viewer displaying someone else's queue learns how far the owner's accept-all has got:
+    /// on a listing taken while it runs, since the accept itself is one exchange that answers only
+    /// once the batch is done.
+    /// </summary>
+    [Test]
+    public async Task AcceptProgressRidesOnAListing()
+    {
+        var text = ViewerResponse.Listing([], progress: new(3, 40)).Build();
+
+        await Assert.That(text).Contains("progress: 3|40\n");
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Progress).IsEqualTo(new AcceptProgress(3, 40));
+    }
+
+    [Test]
+    public async Task AListingWithNoAcceptRunningSaysNothingOfProgress()
+    {
+        var text = ViewerResponse.Listing([]).Build();
+
+        await Assert.That(text).DoesNotContain("progress:");
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Progress).IsNull();
+    }
+
+    /// <summary>
+    /// A progress line is only a count, so one that does not parse is a response that does not,
+    /// the way a malformed move line is.
+    /// </summary>
+    [Test]
+    public async Task AMalformedProgressLineRejectsTheResponse()
+    {
+        var text = ViewerResponse.Listing([], progress: new(3, 40)).Build()
+            .Replace("progress: 3|40\n", "progress: 3\n");
+
+        await Assert.That(ViewerResponse.TryParse(text, out _)).IsFalse();
+    }
+
+    /// <summary>
+    /// The entry being worked on rather than the count finished: the first is "1 of 40" while it
+    /// is applying, and the last is never "41 of 40".
+    /// </summary>
+    [Test]
+    public async Task ProgressNamesTheEntryInHand()
+    {
+        await Assert.That(new AcceptProgress(0, 40).Describe()).IsEqualTo("Accepting 1 of 40");
+        await Assert.That(new AcceptProgress(39, 40).Describe()).IsEqualTo("Accepting 40 of 40");
+        await Assert.That(new AcceptProgress(40, 40).Describe()).IsEqualTo("Accepting 40 of 40");
+    }
+
+    /// <summary>
     /// The client's three second default is what a real caller uses to decide the owner has died.
     /// The tests below are about what the owner answers rather than how fast, and CI starts six
     /// test assemblies at once on a two core runner, where an answer arriving on a scheduled task

@@ -36,12 +36,29 @@ sealed class OwnerLink(SessionHost host, int port)
     /// </summary>
     public static TimeSpan Wait { get; set; } = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// How long a posted command may take, which for an accept-all is as long as the queue is
+    /// long. The listing taken beside it is what says whether the owner is still there, so this
+    /// only has to bound one that took the command and wedged; fifteen seconds said a long queue's
+    /// owner had gone while it was part way through accepting it.
+    /// </summary>
+    public static TimeSpan SendWait { get; set; } = TimeSpan.FromMinutes(5);
+
     readonly ConcurrentQueue<Outbound> outbound = new();
+
+    /// <summary>
+    /// Set by a post and by a send finishing, so the loop answers either at once rather than on
+    /// its next interval.
+    /// </summary>
+    readonly AutoResetEvent wake = new(false);
 
     record Outbound(ViewerVerb Verb, string? Key, string? Body);
 
-    public void Post(ViewerVerb verb, string? key, string? body = null) =>
+    public void Post(ViewerVerb verb, string? key, string? body = null)
+    {
         outbound.Enqueue(new(verb, key, body));
+        wake.Set();
+    }
 
     public bool Pump() =>
         Pump(out _);
@@ -50,8 +67,18 @@ sealed class OwnerLink(SessionHost host, int port)
     /// Send everything posted since the last pass, then read the queue back. Returns false when
     /// the owner has gone, reported rather than acted on so the caller can decide whether that
     /// means "do not open a window" or "close the one that is open".
+    /// <para>
+    /// One after the other, which is what a first read and a test want. <see cref="Run"/> lists
+    /// beside a send instead, so a long one does not stop the window following the owner.
+    /// </para>
     /// </summary>
-    public bool Pump(out bool sent)
+    public bool Pump(out bool sent) =>
+        List(SendPosted(out sent));
+
+    /// <summary>
+    /// Everything posted, in order, and what the last of it said. Null when nothing was.
+    /// </summary>
+    string? SendPosted(out bool sent)
     {
         sent = false;
         string? message = null;
@@ -61,6 +88,15 @@ sealed class OwnerLink(SessionHost host, int port)
             message = Send(command);
         }
 
+        return message;
+    }
+
+    /// <summary>
+    /// Reads the queue back into the session, with <paramref name="message"/> being what a
+    /// finished send said, to arrive in the same mutation as the listing that shows its effect.
+    /// </summary>
+    bool List(string? message)
+    {
         if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port, Wait))
         {
             return false;
@@ -81,7 +117,7 @@ sealed class OwnerLink(SessionHost host, int port)
 
         var pending = InlineQueue.From(ViewerListing.Pending(response.Items));
         var changes = ReadChanges(response);
-        host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message));
+        host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message, response.Progress));
 
         // The owner has no window of its own, so anything it wants raised, hidden or closed comes
         // back on the listing rather than being pushed at a port this process does not hold.
@@ -119,11 +155,47 @@ sealed class OwnerLink(SessionHost host, int port)
         }
     }
 
+    /// <summary>
+    /// Sends go on a task of their own, and the listing carries on beside them.
+    /// <para>
+    /// Send, then list, was one step, and an accept-all is one send for as long as the owner takes
+    /// to apply the whole queue. The window said "Waiting for the queue owner." over a list that
+    /// did not move for all of that, and then emptied at once. Listed alongside, the window follows
+    /// the owner as it goes - entries leaving as they land, and the owner's own count of how far
+    /// it has got in the status line.
+    /// </para>
+    /// <para>
+    /// Only this loop lists, and a finished send's message rides the first listing taken after it,
+    /// so the two still reach the session together, and a listing from partway through can never
+    /// land after the one that shows the result.
+    /// </para>
+    /// </summary>
     void Pump(Cancel cancel)
     {
+        Task<string?>? sending = null;
         while (!cancel.IsCancellationRequested)
         {
-            if (!Pump(out var sent))
+            string? message = null;
+            if (sending is { IsCompleted: true })
+            {
+                message = sending.Result;
+                sending = null;
+            }
+
+            if (sending is null &&
+                !outbound.IsEmpty)
+            {
+                sending = Task.Run(() => SendPosted(out _), Cancel.None);
+                // Once it has finished rather than as it is finishing, so the pass it wakes finds
+                // it complete instead of waiting out another interval for the message
+                sending.ContinueWith(
+                    _ => wake.Set(),
+                    Cancel.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+
+            if (!List(message))
             {
                 // The owner went away, so there is nothing left to display and no queue for this
                 // window to be reopened from.
@@ -135,13 +207,7 @@ sealed class OwnerLink(SessionHost host, int port)
                 return;
             }
 
-            if (sent)
-            {
-                // Straight back round, so the window does not lag its own click by an interval.
-                continue;
-            }
-
-            cancel.WaitHandle.WaitOne(Interval);
+            WaitHandle.WaitAny([cancel.WaitHandle, wake], Interval);
         }
     }
 
@@ -149,7 +215,7 @@ sealed class OwnerLink(SessionHost host, int port)
     {
         // The long wait matters most here: an accept is the command that takes ten seconds, and
         // failing it at three used to report the owner dead while it was mid apply.
-        if (!ViewerClient.TrySend(new(command.Verb, command.Key, command.Body), out var response, port, Wait))
+        if (!ViewerClient.TrySend(new(command.Verb, command.Key, command.Body), out var response, port, SendWait))
         {
             return "The queue owner is no longer running.";
         }

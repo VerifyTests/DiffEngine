@@ -399,6 +399,52 @@ public class InlineQueueTests
         await Assert.That(message).IsEqualTo("Accepted 2");
     }
 
+    /// <summary>
+    /// A batch completed an entry at a time, the way an owner applying a long queue completes it
+    /// so the queue can be watched shrinking. Each step leaves the queue a listing would show at
+    /// that point, and the steps together say what the whole batch would have.
+    /// </summary>
+    [Test]
+    public async Task ABatchCompletedAnEntryAtATimeShrinksAsItGoes()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2))
+            .Enqueue(Patch("C.cs", 3));
+        var pending = queue.Items;
+        var tally = new AcceptAllTally();
+
+        queue = queue.AcceptInBatch(pending[0], InlineApplyResult.Applied, ref tally);
+        await Assert.That(queue.Items.Select(_ => _.Name)).IsEquivalentTo(["B.cs:2", "C.cs:3"]);
+
+        queue = queue.AcceptInBatch(pending[1], InlineApplyResult.NotFound("no Verify or Throws call"), ref tally);
+        queue = queue.AcceptInBatch(pending[2], InlineApplyResult.Applied, ref tally);
+
+        // The stale one stays, as it does out of a whole batch
+        await Assert.That(queue.Items.Single().Status).IsEqualTo("B.cs:2 not written. no Verify or Throws call");
+        await Assert.That(tally.Refused).IsTrue();
+        await Assert.That(tally.Message(queue.Conflicts))
+            .IsEqualTo("Accepted 2, 1 not written. B.cs:2 not written. no Verify or Throws call");
+    }
+
+    /// <summary>
+    /// A re-run that replaced the entry while its patch applied keeps its new content, and the
+    /// batch does not count an outcome that describes content no longer pending.
+    /// </summary>
+    [Test]
+    public async Task ABatchStepSkipsAnEntryReplacedWhileItApplied()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(content: "first"));
+        var entry = queue.Items.Single();
+        queue = queue.Enqueue(Patch(content: "second"));
+        var tally = new AcceptAllTally();
+
+        var after = queue.AcceptInBatch(entry, InlineApplyResult.Applied, ref tally);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(tally).IsEqualTo(new AcceptAllTally());
+    }
+
     [Test]
     public async Task DiscardRemovesWithoutApplying()
     {
