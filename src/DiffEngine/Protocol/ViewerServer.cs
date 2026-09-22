@@ -60,7 +60,12 @@ sealed class ViewerServer : IDisposable
             TcpClient client;
             try
             {
-                client = await Accept(cancel);
+                // Off whatever thread started listening, here and in Accept. The Windows viewer
+                // starts on its UI thread, which has a WinForms context by then, and resuming there
+                // waited for the render loop to pump: every connection went unanswered for as long
+                // as that thread was busy, which an accept holding InlineApplier's mutex makes up
+                // to ten seconds. Both awaits, because the first Accept runs on the caller's thread.
+                client = await Accept(cancel).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -111,12 +116,12 @@ sealed class ViewerServer : IDisposable
     async Task<TcpClient> Accept(Cancel cancel)
     {
 #if NET6_0_OR_GREATER
-        return await listener.AcceptTcpClientAsync(cancel);
+        return await listener.AcceptTcpClientAsync(cancel).ConfigureAwait(false);
 #else
         // No token overload here, so cancellation arrives as the registered Stop, which faults
         // this await with one of the exceptions the caller already treats as "stop serving".
         cancel.ThrowIfCancellationRequested();
-        return await listener.AcceptTcpClientAsync();
+        return await listener.AcceptTcpClientAsync().ConfigureAwait(false);
 #endif
     }
 

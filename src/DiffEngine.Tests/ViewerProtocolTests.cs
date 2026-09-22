@@ -690,6 +690,59 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// The Windows viewer starts listening on its UI thread, which carries a WinForms context by
+    /// then, and that thread is the render loop: it pumps between frames, and not at all while an
+    /// accept on it waits up to ten seconds on InlineApplier's mutex. The accept loop resumed on
+    /// it, so every connection went unanswered for as long as the render thread was busy - a
+    /// tray's listing, an attached viewer's poll, the next failing snapshot.
+    /// <para>
+    /// A context that is never pumped is that thread at its worst, and the owner still answers.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AnOwnerAnswersWhileTheThreadThatStartedItIsBusy()
+    {
+        await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
+        using var server = bound!;
+        using var cancel = new CancelSource();
+        Task listening;
+        var previous = SynchronizationContext.Current;
+        // Only around the call, and with nothing awaited inside it: a continuation of this test
+        // posted to a context nobody pumps would never run
+        SynchronizationContext.SetSynchronizationContext(new UnpumpedContext());
+        try
+        {
+            listening = server.Listen(_ => ViewerResponse.Success($"heard {_.Verb}"), cancel.Token);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        var sent = ViewerClient.TrySend(new(ViewerVerb.List), out var response, server.Port, underLoad);
+
+        await Assert.That(sent).IsTrue();
+        await Assert.That(response!.Message).IsEqualTo("heard List");
+
+        await cancel.CancelAsync();
+        await Wait(listening);
+    }
+
+    /// <summary>
+    /// The one thread of a context whose owner is too busy to pump it, so whatever is posted to it
+    /// waits for good.
+    /// </summary>
+    sealed class UnpumpedContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+        }
+
+        public override void Send(SendOrPostCallback callback, object? state) =>
+            throw new NotSupportedException("A thread that is not pumping cannot be sent to.");
+    }
+
+    /// <summary>
     /// Connections are handled concurrently, so one slow exchange does not stop the next from
     /// being answered. Accepting an inline snapshot legitimately takes seconds, and a client
     /// whose listing goes unanswered for that long concludes the owner has died.
