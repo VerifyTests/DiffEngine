@@ -45,6 +45,21 @@ record SessionState(
     public TextSelection? Selection { get; init; }
 
     /// <summary>
+    /// Whether the panes show only the changes, each with <see cref="DiffView.Context"/> lines
+    /// either side, rather than every line. A view setting like <see cref="Collapsed"/>: it holds
+    /// across entries rather than belonging to one, and it is this window's to set even when the
+    /// queue belongs to someone else.
+    /// </summary>
+    public bool Minimal { get; init; }
+
+    /// <summary>
+    /// The current entry's rows as <see cref="Minimal"/> lays them out. Everything that scrolls
+    /// reads these rather than the entry's own, so the scroll, the scrollbar and change navigation
+    /// all count the rows that are on screen.
+    /// </summary>
+    public DiffView? View => Current?.View(Minimal);
+
+    /// <summary>
     /// The selection, but only while it still describes what is on screen. Everything that reads
     /// one goes through this, so a stale selection needs no clearing: the entry it named is gone,
     /// so it stops existing.

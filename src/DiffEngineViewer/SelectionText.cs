@@ -31,6 +31,32 @@ static class SelectionText
     }
 
     /// <summary>
+    /// What of one row of a view is selected. A shown row is one of the entry's own, so it is
+    /// measured as one. A folded row stands for lines rather than being any, so it is highlighted
+    /// whole when the selection takes in any of them and not at all otherwise, which is also what
+    /// copying it does: the lines between a selection's ends are copied whether or not they are on
+    /// screen.
+    /// </summary>
+    public static SelectionSpan Span(TextSelection? selection, PaneSide side, DiffView view, int row)
+    {
+        var shown = view.Side(side)[row];
+        if (shown.Kind != RowKind.Folded)
+        {
+            return Span(selection, side, view.First(row), shown.Text);
+        }
+
+        if (selection is not { IsEmpty: false } range ||
+            range.Side != side ||
+            range.Start.Row > view.Last(row) ||
+            range.End.Row < view.First(row))
+        {
+            return default;
+        }
+
+        return new(0, RowText.Flatten(shown.Text).Length);
+    }
+
+    /// <summary>
     /// What of one row is selected, for a row of the visible slice. Empty for the other side and
     /// for a row outside the selection, which is most of them.
     /// </summary>

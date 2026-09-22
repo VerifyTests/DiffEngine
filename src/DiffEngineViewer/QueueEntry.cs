@@ -56,14 +56,29 @@ record QueueEntry(
     // Computed once, because the diff is a pure function of the two sides and a new entry only
     // arrives on stdin or the socket. A `with` expression copies this field rather than
     // recomputing, so change the content by building a fresh entry, never by `with`.
-    readonly (IReadOnlyList<Row> Left, IReadOnlyList<Row> Right) rows =
+    readonly (DiffView Full, DiffView Minimal) views = DiffView.Build(
         LeftImage is null && RightImage is null
             ? DiffRows.Build(LeftText, RightText)
-            : ImageRows.Build(LeftImage, RightImage);
+            : ImageRows.Build(LeftImage, RightImage),
+        fold: LeftImage is null && RightImage is null);
 
-    public IReadOnlyList<Row> LeftRows => rows.Left;
-    public IReadOnlyList<Row> RightRows => rows.Right;
-    public int TotalRows => rows.Left.Count;
+    public IReadOnlyList<Row> LeftRows => views.Full.Left;
+    public IReadOnlyList<Row> RightRows => views.Full.Right;
+    public int TotalRows => views.Full.Count;
+
+    /// <summary>
+    /// The rows the panes show: every one, or only the changes and the lines around them. The
+    /// entry's own rows stay <see cref="LeftRows"/> and <see cref="RightRows"/> either way.
+    /// </summary>
+    public DiffView View(bool minimal)
+    {
+        if (minimal)
+        {
+            return views.Minimal;
+        }
+
+        return views.Full;
+    }
 
     /// <summary>
     /// A picture on either side makes the whole entry one, because the two sides of a comparison

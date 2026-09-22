@@ -17,8 +17,8 @@ public class QueueRemovalTests
     }
 
     /// <summary>
-    /// The entry on screen going is the one case where the reader has to be moved, and the top of
-    /// the next entry is where they go.
+    /// The entry on screen going is the one case where the reader has to be moved, and the first
+    /// change of the next entry is where they go.
     /// </summary>
     [Test]
     public async Task Settling_the_entry_being_read_moves_on_to_the_next()
@@ -28,27 +28,28 @@ public class QueueRemovalTests
         var settled = ViewerSession.Settle(state, reading);
 
         await Assert.That(settled.Current!.Key).IsNotEqualTo(reading);
-        await Assert.That(settled.ScrollTop).IsEqualTo(0);
+        await Assert.That(settled.ScrollTop).IsEqualTo(26);
     }
 
     /// <summary>
     /// Three entries, the middle one selected and scrolled into - so that a removal above it moves
-    /// every index below, which is the thing being asserted about.
+    /// every index below, which is the thing being asserted about. Scrolled past where it opened,
+    /// so staying put and moving on cannot be mistaken for each other.
     /// </summary>
     static SessionState Scrolled(out string reading)
     {
-        var state = Fixtures.Inline(
-            Fixtures.Patch("A.cs", 1, null, Fixtures.Long(true)),
-            Fixtures.Patch("B.cs", 2, null, Fixtures.Long(true)),
-            Fixtures.Patch("C.cs", 3, null, Fixtures.Long(true)));
+        var state = Fixtures.Inline(Patch("A.cs", 1), Patch("B.cs", 2), Patch("C.cs", 3));
         reading = state.Queue[1].Key;
         state = ViewerSession.SelectKey(state, reading);
         state = ViewerSession.Apply(state, CommandKind.PageDown);
-        if (state.ScrollTop == 0)
+        if (state.ScrollTop == 26)
         {
             throw new("The entry did not scroll, so nothing below asserts anything.");
         }
 
         return state;
     }
+
+    static InlinePatch Patch(string source, int line) =>
+        Fixtures.Patch(source, line, Fixtures.Literal(Fixtures.Deep(false)), Fixtures.Deep(true));
 }

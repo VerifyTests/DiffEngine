@@ -323,7 +323,8 @@ final class Renderer {
             return
         }
 
-        let number = String(row.lineNumber)
+        // A folded row has no number, and printing the -1 standing in for one put it in the gutter.
+        let number = row.lineNumber < 0 ? "" : String(row.lineNumber)
         let gutter = "\(Palette.marker(row.kind)) \(String(repeating: " ", count: max(0, 4 - number.count)))\(number)"
         let width = Renderer.gutterCells * cell.width
 

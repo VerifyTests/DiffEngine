@@ -1,0 +1,50 @@
+﻿status: selected 11 lines, 84 characters
+
+Sample.received.txt
+     1  line 01
+     2  line 02
+     3  line 03 changed
+     4  line 04
+     5  [line 05]
+     6  [line 06]
+        [... 7 unchanged lines ...]
+    14  [line 14]
+    15  [line] 15
+    16  line 16
+    17  line 17 changed
+    18  line 18
+    19  line 19
+    20  line 20
+        ... 9 unchanged lines ...
+    30  line 30
+
+Sample.verified.txt
+     1  line 01
+     2  line 02
+     3  line 03
+     4  line 04
+     5  line 05
+     6  line 06
+        ... 7 unchanged lines ...
+    14  line 14
+    15  line 15
+    16  line 16
+    17  line 17
+    18  line 18
+    19  line 19
+    20  line 20
+        ... 9 unchanged lines ...
+    30  line 30
+
+copied:
+line 05
+line 06
+line 07
+line 08
+line 09
+line 10
+line 11
+line 12
+line 13
+line 14
+line

@@ -49,11 +49,51 @@ public class FileScreenTests
         return Verify(Fixtures.Render(Apply(state, CommandKind.ScrollEnd)));
     }
 
+    /// <summary>
+    /// The second change, with the three rows leading into it above it.
+    /// </summary>
     [Test]
     public Task NextChange()
     {
         var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
-        return Verify(Fixtures.Render(Apply(state, CommandKind.NextChange, CommandKind.NextChange)));
+        return Verify(Fixtures.Render(Apply(state, CommandKind.NextChange)));
+    }
+
+    /// <summary>
+    /// A comparison whose first change is far down the file opens on that change rather than on
+    /// line 1, which is the part of the file nothing is wrong with.
+    /// </summary>
+    [Test]
+    public Task OpensAtTheFirstChange() =>
+        Verify(Fixtures.Render(Fixtures.File(Fixtures.Deep(true), Fixtures.Deep(false))));
+
+    /// <summary>
+    /// Only the changes and the three rows either side of each, with every longer run of unchanged
+    /// rows folded into one row saying how many it stands for.
+    /// </summary>
+    [Test]
+    public Task Minimal()
+    {
+        var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
+        return Verify(Fixtures.Render(Apply(state, CommandKind.ToggleMinimal)));
+    }
+
+    [Test]
+    public Task MinimalAtEnd()
+    {
+        var state = Fixtures.File(Fixtures.Long(true), Fixtures.Long(false));
+        return Verify(Fixtures.Render(Apply(state, CommandKind.ToggleMinimal, CommandKind.ScrollEnd)));
+    }
+
+    /// <summary>
+    /// Nothing differs, so everything folds: one row saying so rather than an empty pane, which
+    /// would read as a comparison with nothing in it.
+    /// </summary>
+    [Test]
+    public Task MinimalNoDifferences()
+    {
+        var state = Fixtures.File(Fixtures.Long(false), Fixtures.Long(false));
+        return Verify(Fixtures.Render(Apply(state, CommandKind.ToggleMinimal)));
     }
 
     static SessionState Apply(SessionState state, params CommandKind[] commands)

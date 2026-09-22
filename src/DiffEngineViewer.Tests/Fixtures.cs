@@ -2,8 +2,13 @@ static class Fixtures
 {
     /// <summary>
     /// Fixed so every screen snapshot has the same grid. 24 rows leaves 16 body rows.
+    /// <para>
+    /// Wide enough for the fullest footer the snapshots carry - a conflicted entry's buttons beside
+    /// the accept-all summary - with its status whole. A footer that runs out of room loses the end
+    /// of its status line, and the status line is what half these snapshots are about.
+    /// </para>
     /// </summary>
-    public const int Columns = 96;
+    public const int Columns = 136;
 
     public const int Rows = 24;
 
@@ -50,6 +55,32 @@ static class Fixtures
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Sixty lines changed only at 30 and 50, so an entry holding it opens well below its first
+    /// line - on row 26, three above the first change - and the minimal view has a run to fold
+    /// before, between and after the two.
+    /// </summary>
+    public static string Deep(bool changed)
+    {
+        var builder = new StringBuilder();
+        for (var index = 1; index <= 60; index++)
+        {
+            if (index > 1)
+            {
+                builder.Append('\n');
+            }
+
+            builder.Append($"line {index:D2}");
+            if (changed &&
+                index is 30 or 50)
+            {
+                builder.Append(" changed");
+            }
+        }
+
+        return builder.ToString();
+    }
+
     public static SessionState File(string left = Received, string right = Expected) =>
         ViewerSession.EnqueueFile(
             SessionState.Start(ViewerMode.File, Columns, Rows),
@@ -68,6 +99,17 @@ static class Fixtures
         }
 
         return state;
+    }
+
+    /// <summary>
+    /// The source of a raw string literal holding a text, for a patch whose expected side has to be
+    /// that text. A patch with no expression is a new snapshot, every line of which is a change, so
+    /// where its first change is says nothing.
+    /// </summary>
+    public static string Literal(string text)
+    {
+        var lines = text.Split('\n').Select(_ => $"    {_}");
+        return $"\"\"\"\n{string.Join("\n", lines)}\n    \"\"\"";
     }
 
     public static InlinePatch Patch(

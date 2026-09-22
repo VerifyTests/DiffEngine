@@ -16,10 +16,11 @@ static class ScreenBuilder
     {
         var body = BodyRows(state);
         var current = state.Current;
+        var view = state.View;
         var selection = state.LiveSelection;
         var left = BuildPane(
             current?.LeftHeader ?? "received",
-            current?.LeftRows ?? [],
+            view,
             state.ScrollTop,
             body,
             current?.LeftImage,
@@ -27,7 +28,7 @@ static class ScreenBuilder
             PaneSide.Left);
         var right = BuildPane(
             current?.RightHeader ?? "expected",
-            current?.RightRows ?? [],
+            view,
             state.ScrollTop,
             body,
             current?.RightImage,
@@ -42,7 +43,7 @@ static class ScreenBuilder
             Queue: queue,
             Left: left,
             Right: right,
-            Buttons: BuildButtons(state),
+            Buttons: BuildButtons(state, body),
             Status: BuildStatus(state, current, body),
             Columns: state.Columns,
             Rows: state.Rows,
@@ -73,13 +74,19 @@ static class ScreenBuilder
 
     static Pane BuildPane(
         string header,
-        IReadOnlyList<Row> rows,
+        DiffView? view,
         int scrollTop,
         int body,
         ImageFile? image,
         TextSelection? selection,
         PaneSide side)
     {
+        if (view is null)
+        {
+            return new(header, [], scrollTop, 0, BuildImage(image));
+        }
+
+        var rows = view.Side(side);
         var end = Math.Min(scrollTop + body, rows.Count);
         var visible = new List<Row>(Math.Max(0, end - scrollTop));
         for (var index = Math.Max(0, scrollTop); index < end; index++)
@@ -88,7 +95,7 @@ static class ScreenBuilder
             // Attached to the visible slice rather than carried beside it, so a head draws a row
             // and its highlight from one thing and the frame comparison that decides whether to
             // repaint already covers both.
-            var span = SelectionText.Span(selection, side, index, row.Text);
+            var span = SelectionText.Span(selection, side, view, index);
             visible.Add(span.Length == 0 ? row : row with { Selection = span });
         }
 
@@ -122,7 +129,7 @@ static class ScreenBuilder
         return QueueProjection.Visible(state, body, out top);
     }
 
-    static IReadOnlyList<Button> BuildButtons(SessionState state)
+    static IReadOnlyList<Button> BuildButtons(SessionState state, int body)
     {
         var current = state.Current;
         // Nothing that changes the queue while an accept-all is working through it. Kept in their
@@ -134,7 +141,8 @@ static class ScreenBuilder
             return
             [
                 new("Accept", enabled, CommandKind.Accept),
-                new("Close", true, CommandKind.Quit)
+                new("Close", true, CommandKind.Quit),
+                ..ViewButtons(state, body)
             ];
         }
 
@@ -155,6 +163,10 @@ static class ScreenBuilder
             new("Accept all", state.Queue.Count > 0 && idle, CommandKind.AcceptAll)
         };
 
+        // Ahead of the variant button, which comes and goes with the entry selected, so these
+        // keep their place in the footer whatever is on screen.
+        buttons.AddRange(ViewButtons(state, body));
+
         if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
         {
             var variant = current.Variants[current.SelectedVariant];
@@ -165,6 +177,32 @@ static class ScreenBuilder
         }
 
         return buttons;
+    }
+
+    /// <summary>
+    /// The buttons that move around the entry on screen rather than act on it, the same in both
+    /// modes. Each change button is enabled only when there is a change to go to, so the pair
+    /// also say whether any are left above or below, which otherwise takes scrolling to find out.
+    /// <para>
+    /// The fold is labelled with what it switches to. A picture's rows are its properties, none of
+    /// which the minimal view leaves out, so for one there is nothing for it to do.
+    /// </para>
+    /// </summary>
+    static IEnumerable<Button> ViewButtons(SessionState state, int body)
+    {
+        var view = state.View;
+        yield return new(
+            "Prev change",
+            view?.Previous(state.ScrollTop, body) is not null,
+            CommandKind.PreviousChange);
+        yield return new(
+            "Next change",
+            view?.Next(state.ScrollTop, body) is not null,
+            CommandKind.NextChange);
+        yield return new(
+            state.Minimal ? "All lines" : "Changes only",
+            state.Current is { IsImage: false },
+            CommandKind.ToggleMinimal);
     }
 
     static string BuildSubtitle(SessionState state)
@@ -222,10 +260,19 @@ static class ScreenBuilder
             return ImageStatus(current);
         }
 
-        var total = current.TotalRows;
-        var from = total == 0 ? 0 : state.ScrollTop + 1;
-        var to = Math.Min(state.ScrollTop + body, total);
-        return $"lines {from}-{to} of {total}";
+        // Rows of the entry rather than of the view. In the minimal view the rows on screen run from
+        // one line to another with folds between, and which stretch of the file that is says more
+        // than how far down a list of rows it is - "lines 1-1 of 1" beside a fold of forty lines
+        // said nothing true. In the full view the two are the same numbers.
+        var view = current.View(state.Minimal);
+        if (view.Count == 0)
+        {
+            return "lines 0-0 of 0";
+        }
+
+        var top = Math.Clamp(state.ScrollTop, 0, view.Count - 1);
+        var bottom = Math.Min(top + body, view.Count) - 1;
+        return $"lines {view.First(top) + 1}-{view.Last(bottom) + 1} of {current.TotalRows}";
     }
 
     static string ImageStatus(QueueEntry entry)

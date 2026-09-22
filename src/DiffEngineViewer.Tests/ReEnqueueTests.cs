@@ -10,29 +10,34 @@ public class ReEnqueueTests
     {
         var state = Scrolled();
 
-        var again = ViewerSession.EnqueueInline(state, Patch(Fixtures.Long(true)));
+        var again = ViewerSession.EnqueueInline(state, Patch(Fixtures.Deep(true)));
 
         await Assert.That(again.Queue[0]).IsSameReferenceAs(state.Queue[0]);
         await Assert.That(again.ScrollTop).IsEqualTo(state.ScrollTop);
     }
 
     /// <summary>
-    /// A re-send that says something else is a new comparison, and that one does start at the top.
+    /// A re-send that says something else is a new comparison, and that one does start again, at
+    /// its first change.
     /// </summary>
     [Test]
-    public async Task A_re_send_of_different_content_starts_at_the_top()
+    public async Task A_re_send_of_different_content_starts_at_its_first_change()
     {
         var state = Scrolled();
 
-        var again = ViewerSession.EnqueueInline(state, Patch($"{Fixtures.Long(true)}\nand one more line"));
+        var again = ViewerSession.EnqueueInline(state, Patch($"{Fixtures.Deep(true)}\nand one more line"));
 
-        await Assert.That(again.ScrollTop).IsEqualTo(0);
+        await Assert.That(again.ScrollTop).IsEqualTo(26);
     }
 
+    /// <summary>
+    /// Scrolled away from where the entry opened, so neither staying put nor starting again can
+    /// pass by coincidence.
+    /// </summary>
     static SessionState Scrolled()
     {
-        var state = ViewerSession.Apply(Fixtures.Inline(Patch(Fixtures.Long(true))), CommandKind.PageDown);
-        if (state.ScrollTop == 0)
+        var state = ViewerSession.Apply(Fixtures.Inline(Patch(Fixtures.Deep(true))), CommandKind.PageDown);
+        if (state.ScrollTop == 26)
         {
             throw new("The entry did not scroll, so nothing below asserts anything.");
         }
@@ -41,5 +46,5 @@ public class ReEnqueueTests
     }
 
     static InlinePatch Patch(string content) =>
-        Fixtures.Patch("A.cs", 1, null, content);
+        Fixtures.Patch("A.cs", 1, Fixtures.Literal(Fixtures.Deep(false)), content);
 }

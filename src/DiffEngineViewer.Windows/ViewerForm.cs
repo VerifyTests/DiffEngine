@@ -420,6 +420,7 @@ sealed class ViewerForm : Form
             Keys.End => CommandKind.ScrollEnd,
             Keys.N => CommandKind.NextChange,
             Keys.P => CommandKind.PreviousChange,
+            Keys.M => CommandKind.ToggleMinimal,
             Keys.Tab => shift ? CommandKind.PreviousItem : CommandKind.NextItem,
             Keys.A => shift ? CommandKind.AcceptAll : CommandKind.Accept,
             Keys.D => CommandKind.Discard,

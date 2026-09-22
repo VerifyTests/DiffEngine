@@ -31,7 +31,13 @@ enum DeviewRowKind {
     DEVIEW_ROW_ADDED = 1,
     DEVIEW_ROW_REMOVED = 2,
     DEVIEW_ROW_MODIFIED = 3,
-    DEVIEW_ROW_FILLER = 4
+    DEVIEW_ROW_FILLER = 4,
+    /*
+     * A run of unchanged lines the minimal view left out, as one row: its text says how many, and
+     * it has no line number. Drawn dimmed on a band of its own. A library built before this kind
+     * existed draws it as a plain unchanged row, which still reads.
+     */
+    DEVIEW_ROW_FOLDED = 5
 };
 
 enum DeviewButtonFlags {
@@ -47,7 +53,7 @@ enum DeviewQueueFlags {
 
 typedef struct DeviewRow {
     int32_t kind;
-    /* -1 when the row is filler and has no line number. */
+    /* -1 when the row is filler or folded and has no line number. */
     int32_t lineNumber;
     int32_t textOffset;
     int32_t textLength;
@@ -184,7 +190,9 @@ enum DeviewKey {
     /* Ctrl+C, and Cmd+C on macOS. */
     DEVIEW_KEY_COPY = 16,
     /* Ctrl+A, which is why plain A must be reported as accept only when no modifier is held. */
-    DEVIEW_KEY_SELECT_ALL = 17
+    DEVIEW_KEY_SELECT_ALL = 17,
+    /* M: every line, or only the changes and the lines around them. */
+    DEVIEW_KEY_TOGGLE_MINIMAL = 18
 };
 
 typedef struct DeviewInput {
