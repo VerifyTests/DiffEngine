@@ -22,7 +22,9 @@ for tool in cmake ninja; do
   fi
 done
 
-cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+# LEGACY links libGL.so.1, which every GL driver ships. This distribution's CMake otherwise
+# prefers the GLVND split and links libOpenGL.so.0, which a machine with only libgl1 lacks.
+cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOpenGL_GL_PREFERENCE=LEGACY
 cmake --build build --config Release
 
 # Here rather than in the workflow's collect step: the build directory belongs to this

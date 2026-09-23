@@ -69,6 +69,11 @@ jobs:
             echo "::error::libdiffengine_viewer.so requires $highest, above the $GLIBC_FLOOR floor"
             exit 1
           fi
+          # libGL.so.1 is on every machine with a GL driver; libOpenGL.so.0 is not
+          if objdump -p build/libdiffengine_viewer.so | grep -q 'NEEDED.*libOpenGL'; then
+            echo "::error::libdiffengine_viewer.so links libOpenGL.so.0 rather than libGL.so.1"
+            exit 1
+          fi
 
       # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
       # package rather than a CMake project. Both --arch flags in one invocation produce a
