@@ -53,9 +53,22 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
 
     public string? AcceptAllMessage { get; init; }
 
-    public bool AcceptAll(out string? message)
+    /// <summary>
+    /// Whether the sweep reports a snapshot it could not write, which is what holds the tray's
+    /// pending deletes back.
+    /// </summary>
+    public bool AcceptAllRefuses { get; init; }
+
+    /// <summary>
+    /// Run as the sweep starts, so a test can look at what else has or has not happened by then.
+    /// </summary>
+    public Action? AcceptingAll { get; init; }
+
+    public bool AcceptAll(out string? message, out bool refused)
     {
+        AcceptingAll?.Invoke();
         message = AcceptAllMessage;
+        refused = AcceptAllRefuses;
         return AcceptAllSucceeds;
     }
 

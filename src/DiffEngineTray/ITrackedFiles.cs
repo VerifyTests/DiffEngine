@@ -26,14 +26,18 @@ interface ITrackedFiles
     (bool ok, string? message) Discard(string key);
 
     /// <summary>
-    /// Accept every tracked delete and move without prompting. Kept is what stayed pending —
-    /// locked moves, undeletable files.
+    /// Accept every tracked move and delete without prompting. Kept is what stayed pending —
+    /// locked moves, undeletable files, and deletes held back.
     /// </summary>
+    /// <param name="holdDeletes">
+    /// Leave every delete pending rather than carrying it out, because a snapshot swept alongside
+    /// was not written, and the file a delete removes may be the only copy of it left.
+    /// </param>
     /// <param name="advanced">
     /// Called as each file is dealt with, whichever way it went, so the owner can say how far an
     /// accept-all has got while a locked move is still being retried.
     /// </param>
-    (int accepted, int kept) AcceptAll(Action? advanced = null);
+    (int accepted, int kept) AcceptAll(bool holdDeletes, Action? advanced = null);
 
     /// <summary>
     /// Track a pending move or delete that arrived over the viewer port rather than the piper one.

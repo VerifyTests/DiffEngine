@@ -153,11 +153,34 @@ public class TrackerTrackedFilesTest :
         await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
-        var (accepted, kept) = tracked.AcceptAll();
+        var (accepted, kept) = tracked.AcceptAll(holdDeletes: false);
 
         await Assert.That(accepted).IsEqualTo(2);
         await Assert.That(kept).IsEqualTo(0);
         await Assert.That(File.Exists(file)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("content");
+    }
+
+    /// <summary>
+    /// A snapshot swept alongside was not written, so the file a delete would remove may be the
+    /// only copy of it left. The delete stays pending, and the file stays where it is; a move is
+    /// the snapshot arriving rather than the last copy leaving, so it goes ahead.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllHoldingDeletesLeavesThemPending()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddDelete(file);
+        await File.WriteAllTextAsync(temp, "content");
+        tracker.AddMove(temp, target, null, null, false, null);
+
+        var (accepted, kept) = tracked.AcceptAll(holdDeletes: true);
+
+        await Assert.That(accepted).IsEqualTo(1);
+        await Assert.That(kept).IsEqualTo(1);
+        await Assert.That(File.Exists(file)).IsTrue();
+        await Assert.That(tracker.Deletes).HasSingleItem();
         await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("content");
     }
 

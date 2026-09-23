@@ -617,8 +617,14 @@ public class OwnedInlineHostTest
             return (true, "Discarded tracked");
         }
 
-        public (int accepted, int kept) AcceptAll(Action? advanced = null)
+        /// <summary>
+        /// What the last sweep was told about its deletes, null before there was one.
+        /// </summary>
+        public bool? HeldDeletes { get; private set; }
+
+        public (int accepted, int kept) AcceptAll(bool holdDeletes, Action? advanced = null)
         {
+            HeldDeletes = holdDeletes;
             // One step per file the sweep reports, which is what the real tracker calls it for
             for (var file = 0; file < SweepResult.accepted + SweepResult.kept; file++)
             {
@@ -787,10 +793,89 @@ public class OwnedInlineHostTest
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
         held.WaitUntilHeld();
 
-        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(2, 3));
+        // Snapshots first, so none of the files has been dealt with while one is applying, and
+        // the total still counts them
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(0, 3));
 
         held.Release();
         await Assert.That((await accepting).Message).IsEqualTo("Accepted 1, plus 2 files");
+    }
+
+    /// <summary>
+    /// A snapshot moving inline arrives as a patch plus a delete of the verified file it replaces.
+    /// The files went first, so a patch refused after them had already cost its snapshot the file:
+    /// in neither place. Now the patches go first, and a refusal holds the deletes.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptAllWhosePatchIsRefusedHoldsTheDeletes()
+    {
+        using var owner = new Owner(_ => InlineApplyResult.NotFound("The source changed since the test run."));
+        var tracked = new FakeTracked
+        {
+            DeleteList = [new(@"delete:c:\code\b.verified.txt", "b.verified.txt", null, @"c:\code\b.verified.txt")],
+            SweepResult = (0, 1)
+        };
+        owner.Host.TrackedFiles = tracked;
+        owner.Queue();
+
+        var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
+
+        await Assert.That(tracked.HeldDeletes).IsTrue();
+        await Assert.That(response.Message).Contains(Tracker.DeletesHeld);
+    }
+
+    /// <summary>
+    /// Every patch written, nothing to protect: the deletes go ahead.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptAllWhosePatchesAllLandCarriesOutTheDeletes()
+    {
+        using var owner = new Owner(_ => InlineApplyResult.Applied);
+        var tracked = new FakeTracked
+        {
+            DeleteList = [new(@"delete:c:\code\b.verified.txt", "b.verified.txt", null, @"c:\code\b.verified.txt")],
+            SweepResult = (1, 0)
+        };
+        owner.Host.TrackedFiles = tracked;
+        owner.Queue();
+
+        var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
+
+        await Assert.That(tracked.HeldDeletes).IsFalse();
+        await Assert.That(response.Message).IsEqualTo("Accepted 1, plus 1 files");
+    }
+
+    /// <summary>
+    /// An accept-all runs for as long as the queue is long, and the queue moves meanwhile. It
+    /// applied from a copy taken at the start, so an entry discarded while an earlier one was
+    /// applying was still written into the source.
+    /// </summary>
+    [Test]
+    public async Task AnEntryDiscardedDuringAnAcceptAllIsNotWritten()
+    {
+        using var held = new HeldApply(1);
+        var applied = new List<InlinePatch>();
+        using var owner = new Owner(
+            patch =>
+            {
+                lock (applied)
+                {
+                    applied.Add(patch);
+                }
+
+                return held.Apply(patch);
+            });
+        owner.Queue(line: 1);
+        owner.Queue(line: 2);
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        owner.Send(new(ViewerVerb.Discard, InlineKey.For(@"c:\repo\SampleTests.cs", 2)));
+        held.Release();
+        await accepting;
+
+        await Assert.That(applied).HasSingleItem();
+        await Assert.That(applied[0].LineHint).IsEqualTo(1);
     }
 
     /// <summary>
@@ -804,7 +889,7 @@ public class OwnedInlineHostTest
         using var owner = new Owner(held.Apply);
         owner.Queue();
 
-        var accepting = Task.Run(() => owner.Host.AcceptAll(out _));
+        var accepting = Task.Run(() => owner.Host.AcceptAll(out _, out _));
         held.WaitUntilHeld();
 
         await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(0, 1));

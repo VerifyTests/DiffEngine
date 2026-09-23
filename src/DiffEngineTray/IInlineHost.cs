@@ -25,7 +25,17 @@ interface IInlineHost
     AcceptOutcome Accept(PendingSnapshot snapshot, out string? message);
 
     bool Discard(PendingSnapshot snapshot, out string? message);
-    bool AcceptAll(out string? message);
+
+    /// <summary>
+    /// True when nothing is pending afterwards.
+    /// </summary>
+    /// <param name="refused">
+    /// A snapshot this sweep tried was not written, or the owner could not be asked. What holds
+    /// the tray's pending deletes back, since a snapshot moving inline arrives as a patch plus a
+    /// delete of the verified file it replaces, and that file may be the only copy of it left.
+    /// </param>
+    bool AcceptAll(out string? message, out bool refused);
+
     /// <summary>
     /// False when the queue owner could not be asked, so a caller clearing its own state knows not
     /// to.

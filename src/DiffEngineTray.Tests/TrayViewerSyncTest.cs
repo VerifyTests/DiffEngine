@@ -536,6 +536,42 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A snapshot moving inline while a viewer holds the queue sends its patch there and the
+    /// delete of its verified file here. The tray reads what the batch refused back out of the
+    /// viewer's listing, and holds its delete rather than removing the file under a patch that
+    /// was never written.
+    /// </summary>
+    [Test]
+    public async Task TrayAcceptAllHoldsItsDeletesWhenTheOwningViewerRefusedAPatch()
+    {
+        await using var pair = new ViewerOwned(_ => ViewerSideApplyResult.NotFound("The source changed since the test run."));
+        pair.Queue(sample, 1);
+        var stale = pair.StageStaleFile();
+        pair.Tracker.AddDelete(stale);
+
+        await pair.Tracker.AcceptAll();
+
+        await Assert.That(File.Exists(stale)).IsTrue();
+        await Assert.That(pair.Tracker.Deletes).HasSingleItem();
+        await Assert.That(pair.Failures.Single()).Contains(Tracker.DeletesHeld);
+    }
+
+    /// <inheritdoc cref="TrayAcceptAllHoldsItsDeletesWhenTheOwningViewerRefusedAPatch"/>
+    [Test]
+    public async Task TrayAcceptAllCarriesOutItsDeletesWhenTheOwningViewerWroteEveryPatch()
+    {
+        await using var pair = new ViewerOwned();
+        pair.Queue(sample, 1);
+        var stale = pair.StageStaleFile();
+        pair.Tracker.AddDelete(stale);
+
+        await pair.Tracker.AcceptAll();
+
+        await Assert.That(File.Exists(stale)).IsFalse();
+        await Assert.That(pair.Tracker.Deletes).IsEmpty();
+    }
+
+    /// <summary>
     /// An owning viewer applies inside its session, and InlineApplier waits up to ten seconds on
     /// its cross process mutex, so an accept legitimately outlasts the wait the listing verbs use.
     /// The tray has to wait for the answer: reporting the viewer as gone while it is in the middle
