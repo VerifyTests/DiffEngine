@@ -140,4 +140,93 @@ public class TrackedWatchTests :
 
     public void Dispose() =>
         Directory.Delete(directory, true);
+
+    /// <summary>
+    /// The real pass, parked between its stat and its apply by holding the host's lock: the stat
+    /// runs outside the lock and the apply inside it. A re-run clears its old received file, the
+    /// pass finds it gone, and before that is applied the re-run writes the new one and the pair
+    /// arrives again under the same key. Dropped by key, the new pair went with the old.
+    /// </summary>
+    [Test]
+    public async Task APassDoesNotDropAPairReStagedAfterItsStat()
+    {
+        var (temp, target) = Pair("Sample.Test");
+        var host = Owned(TrackedEntry.ForMove(temp, target));
+        new TrackedWatch(host).Pump();
+        File.Delete(temp);
+
+        Thread? pass = null;
+        var parked = false;
+        host.Mutate(state =>
+        {
+            pass = new(() => new TrackedWatch(host).Pump());
+            pass.Start();
+            parked = WaitUntilBlocked(pass);
+
+            File.WriteAllText(temp, "second run");
+            return ViewerSession.EnqueueTracked(state, TrackedEntry.ForMove(temp, target));
+        });
+        pass!.Join();
+
+        await Assert.That(parked).IsTrue();
+        await Assert.That(host.State.Queue.Select(_ => _.LeftText)).IsEquivalentTo(["second run"]);
+    }
+
+    /// <summary>
+    /// The same interleaving from its two halves: what the pass found about the entry it saw, and
+    /// the arrival that replaced that entry before the finding was applied.
+    /// </summary>
+    [Test]
+    public async Task ARefreshLeavesAnEntryThatArrivedAfterThePass()
+    {
+        var (temp, target) = Pair("Other.Test");
+        var seen = TrackedEntry.ForMove(temp, target);
+        var state = Owned(seen).State;
+        File.WriteAllText(temp, "second run");
+        var restaged = TrackedEntry.ForMove(temp, target);
+        state = ViewerSession.EnqueueTracked(state, restaged);
+
+        var refreshed = ViewerSession.Refresh(state, [seen], [(seen, Fixtures.Move())]);
+
+        await Assert.That(refreshed).IsSameReferenceAs(state);
+    }
+
+    /// <summary>
+    /// A file that stats but cannot be read is not re-read and re-diffed on every pass while it
+    /// stays that way, and the entry for it is left alone.
+    /// </summary>
+    [Test]
+    public async Task AnUnreadableFileIsNotReReadEveryPass()
+    {
+        var (temp, target) = Pair("Locked.Test");
+        var host = Owned(TrackedEntry.ForMove(temp, target));
+        var watch = new TrackedWatch(host);
+        File.WriteAllText(temp, "rewritten and then held");
+        using (new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            watch.Pump();
+            var held = host.State;
+
+            watch.Pump();
+            watch.Pump();
+
+            await Assert.That(host.State).IsSameReferenceAs(held);
+        }
+    }
+
+    static bool WaitUntilBlocked(Thread thread)
+    {
+        var watch = Stopwatch.StartNew();
+        while (watch.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            if ((thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0)
+            {
+                return true;
+            }
+
+            Thread.Sleep(1);
+        }
+
+        return false;
+    }
 }

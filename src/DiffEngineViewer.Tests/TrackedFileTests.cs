@@ -140,8 +140,11 @@ public class TrackedFileTests
         await Assert.That(settled).IsSameReferenceAs(state);
     }
 
+    static QueueEntry Seen(SessionState state, QueueEntryKind kind) =>
+        state.Queue.Single(_ => _.Kind == kind);
+
     /// <summary>
-    /// The keys a watch pass reports gone leave, and the rest of the queue is untouched.
+    /// The entries a watch pass reports gone leave, and the rest of the queue is untouched.
     /// </summary>
     [Test]
     public async Task RefreshDropsWhatWentAndKeepsWhatDidNot()
@@ -149,19 +152,19 @@ public class TrackedFileTests
         var state = Owned(Fixtures.Move(), Fixtures.Delete());
         state = ViewerSession.EnqueueInline(state, Fixtures.Patch());
 
-        var refreshed = ViewerSession.Refresh(state, [Fixtures.Move().Key], []);
+        var refreshed = ViewerSession.Refresh(state, [Seen(state, QueueEntryKind.Move)], []);
 
         await Assert.That(refreshed.Queue.Select(_ => _.Kind))
             .IsEquivalentTo([QueueEntryKind.Inline, QueueEntryKind.Delete]);
     }
 
     [Test]
-    public async Task RefreshReplacesAnEntryByKey()
+    public async Task RefreshReplacesTheEntryThePassSaw()
     {
         var state = Owned(Fixtures.Move());
         var fresh = Fixtures.Move(left: "rewritten");
 
-        var refreshed = ViewerSession.Refresh(state, [], [fresh]);
+        var refreshed = ViewerSession.Refresh(state, [], [(state.Queue.Single(), fresh)]);
 
         await Assert.That(refreshed.Queue.Single().LeftText).IsEqualTo("rewritten");
     }
@@ -176,7 +179,8 @@ public class TrackedFileTests
         var state = Owned(Fixtures.Move());
 
         await Assert.That(ViewerSession.Refresh(state, [], [])).IsSameReferenceAs(state);
-        await Assert.That(ViewerSession.Refresh(state, ["not queued"], [])).IsSameReferenceAs(state);
+        // An entry the pass saw that is no longer queued, which is all a key naming nothing ever was
+        await Assert.That(ViewerSession.Refresh(state, [Fixtures.Delete()], [])).IsSameReferenceAs(state);
     }
 
     /// <summary>
@@ -188,7 +192,7 @@ public class TrackedFileTests
     {
         var state = Owned(Fixtures.Move(), Fixtures.Delete()) with { Message = "Accepted something" };
 
-        var refreshed = ViewerSession.Refresh(state, [Fixtures.Move().Key], []);
+        var refreshed = ViewerSession.Refresh(state, [Seen(state, QueueEntryKind.Move)], []);
 
         await Assert.That(refreshed.Message).IsEqualTo("Accepted something");
     }

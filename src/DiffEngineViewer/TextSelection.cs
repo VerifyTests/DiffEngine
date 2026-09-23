@@ -15,8 +15,8 @@ enum PaneSide
 /// Rows are indexes into the whole side, not into the visible slice: a drag that continues while
 /// the wheel scrolls has to mean the same thing before and after. The entry's side, too, rather
 /// than the minimal view's, so a selection means the same text whichever view is on screen.
-/// Columns are characters of the row's flattened text, which is what is on screen and therefore
-/// what was pointed at.
+/// Columns are cells of the row's flattened text - code points, one to a cell - which is what is
+/// on screen and therefore what was pointed at (<see cref="SelectionText.Cells"/>).
 /// </para>
 /// <para>
 /// <paramref name="Key"/> and <paramref name="Variant"/> are the entry this describes. Anything
@@ -60,5 +60,14 @@ record TextSelection(
     public bool Describes(QueueEntry? entry) =>
         entry is not null &&
         entry.Key == Key &&
-        entry.SelectedVariant == Variant;
+        entry.SelectedVariant == Variant &&
+        ReferenceEquals(entry.View(false), Text);
+
+    /// <summary>
+    /// The text this was dragged across, as the entry's built view. A re-run lands on the same key
+    /// with other text, and a selection that outlived that highlighted and copied rows the reader
+    /// never selected. The view is built with the entry and carried by every <c>with</c> on it, so
+    /// a status change keeps the selection and a rebuild of the text ends it.
+    /// </summary>
+    public required DiffView Text { get; init; }
 }

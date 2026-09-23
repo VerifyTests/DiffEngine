@@ -53,7 +53,7 @@ static class SelectionText
             return default;
         }
 
-        return new(0, RowText.Flatten(shown.Text).Length);
+        return new(0, Cells(RowText.Flatten(shown.Text)));
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ static class SelectionText
             return default;
         }
 
-        var length = RowText.Flatten(text).Length;
+        var length = Cells(RowText.Flatten(text));
         var from = row == startRow ? Math.Min(startColumn, length) : 0;
         var to = row == endRow ? Math.Min(endColumn, length) : length;
         return to <= from ? default : new(from, to - from);
@@ -106,7 +106,8 @@ static class SelectionText
 
             var text = RowText.Flatten(row.Text);
             var span = Span(selection, selection.Side, index, row.Text);
-            lines.Add(span.Length == 0 ? "" : text.Substring(span.Start, span.Length));
+            var from = Index(text, span.Start);
+            lines.Add(text[from..Index(text, span.Start + span.Length)]);
         }
 
         return string.Join("\n", lines);
@@ -179,6 +180,50 @@ static class SelectionText
         return $"selected {lines} lines, {characters}";
     }
 
+    /// <summary>
+    /// How many cells a row's flattened text takes, which is what a selection's columns count.
+    /// <para>
+    /// A head reports a drag in cells, and every head draws one code point to a cell: GDI+ draws a
+    /// character outside the basic plane one cell wide, as ImGui lays out one glyph per code point.
+    /// Counted in UTF-16 units instead, each such character shifted the copy one place from the
+    /// highlight, and a selection could end between the two halves of it and copy half a
+    /// character. Wide CJK and combining marks still do not fit this; that takes each head
+    /// reporting string positions from its own layout.
+    /// </para>
+    /// </summary>
+    public static int Cells(string flattened)
+    {
+        var cells = 0;
+        foreach (var character in flattened)
+        {
+            if (!char.IsLowSurrogate(character))
+            {
+                cells++;
+            }
+        }
+
+        return cells;
+    }
+
+    /// <summary>
+    /// Where in the flattened text a cell starts: never inside a surrogate pair.
+    /// </summary>
+    static int Index(string flattened, int cell)
+    {
+        var index = 0;
+        for (var count = 0; count < cell && index < flattened.Length; count++)
+        {
+            index++;
+            if (index < flattened.Length &&
+                char.IsLowSurrogate(flattened[index]))
+            {
+                index++;
+            }
+        }
+
+        return index;
+    }
+
     static int ClampRow(int row, IReadOnlyList<Row> rows) =>
         Math.Clamp(row, 0, Math.Max(0, rows.Count - 1));
 
@@ -190,6 +235,6 @@ static class SelectionText
         }
 
         var text = RowText.Flatten(rows[ClampRow(row, rows)].Text);
-        return Math.Clamp(column, 0, text.Length);
+        return Math.Clamp(column, 0, Cells(text));
     }
 }

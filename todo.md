@@ -9,54 +9,14 @@ Open findings from a review of `main` at 4244ebe6 (2026-09-23), rechecked on c37
 
 ## Bugs
 
-The repro tests are on the local branch `review-repros`, one class per area: `ReviewReproSessionTests` and `ReviewReproWatchTests` (viewer model), `ReviewReproWindowsTests`, `ReviewReproTrayTests`, `ReviewReproPatcherTests`, `ReviewReproLibraryTests`. Each test fails on c37bf9e1 except a control (`ControlSpaceIndentedLocalLeavesTheSiblingAlone`) and a measurement (`HowLongADecodeHoldsTheFile`).
+The repro tests are on the local branch `review-repros`, one class per area: `ReviewReproWindowsTests`, `ReviewReproTrayTests`, `ReviewReproPatcherTests`, `ReviewReproLibraryTests`. Each test fails on c37bf9e1 except a control (`ControlSpaceIndentedLocalLeavesTheSiblingAlone`) and a measurement (`HowLongADecodeHoldsTheFile`).
 
 Viewer model
 
-- [ ] **Removing the current entry can select one hidden inside a collapsed group** (repro)
-  - `Remove` (`src/DiffEngineViewer/ViewerSession.cs:1449`) and `Sync` (`:186`) keep the old index and never check `VisibleEntries`, so after an accept, discard, settle or refresh, the panes and Accept act on an entry under a fold that nothing in the list highlights. An attached viewer gets there through `Sync` on every accept.
-  - Tests: `Accepting_the_entry_being_read_does_not_select_one_under_a_fold`, `A_listing_without_the_entry_being_read_does_not_select_one_under_a_fold`.
-  - Fix as suggested: run `Toggle`'s search (`:1530-1544`) after `Clamp` in both. Tried: both pass and nothing else breaks.
+- [ ] **Selection columns count one code point to a cell, which wide CJK and combining marks do not take** (verified)
+  - Columns now count code points, which fixed the copy and the highlight for characters outside the basic plane: GDI+ draws those one cell wide and ImGui lays out one glyph per code point (`SelectionText.Cells`). Still off: CJK falls back to a font 1.83 cells wide on Windows, a combining mark takes none, and Core Text substitutes fonts with their own widths.
+  - Fix: have each head report string positions from its own layout rather than cells, or put every code point on the grid.
 
-- [ ] **A text selection survives its entry's text being replaced under the same key** (repro)
-  - `Describes` (`src/DiffEngineViewer/TextSelection.cs:60-63`) compares key and variant only. A re-run rebuilds the entry (`ViewerSession.cs:53-73`) without touching `Selection`, so the highlight and the copy point into the new rows.
-  - Test: `A_rerun_that_replaces_the_text_under_a_selection_ends_the_selection` (copies "added two" where "brown dog" was selected).
-  - Fix as suggested: the `View(false)` reference works, since a `with` keeps it and a rebuild does not. It also ends the selection when a conflicted entry gains a variant, which errs the safe way.
-
-- [ ] **An open entry menu acts on whatever is selected when it is clicked, and the selection can move under it** (repro)
-  - Menu items act on `state.Current` (`src/DiffEngineViewer/ViewerProgram.cs:445`, discard at `ViewerSession.cs:1263`, the attached key at `ViewerProgram.cs:586`), and `SelectKey`/`Select` (`ViewerSession.cs:309`, `:1488`) never clear `Menu`.
-  - Triggers: a wire Focus from the tray menu or an IDE (`MessageHandler.cs:191`); and, attached, with nobody touching anything, a test re-sending an identical patch. The tray folds it into the same entry and stashes a Focus (`OwnedInlineHost.cs:198`) that its next listing carries (`:274`); `Sync` keeps the menu because the entries are unchanged, then `OwnerLink.cs:128` selects.
-  - Tests: `A_wire_focus_does_not_retarget_an_open_entry_menu`, `A_focus_riding_the_owners_listing_does_not_retarget_an_open_entry_menu`.
-  - Fix: `Menu = null` in `Select`, the only path that moves the selection without changing the queue. Not covered: an arrival landing between a painted frame and a key press, which focusing arrivals are built on.
-
-- [ ] **"Accept all in <solution>" holds that solution's deletes because of an unrelated earlier failure** (repro)
-  - `AcceptGroup` passes `refused: notWritten > 0` (`ViewerSession.cs:675`) and `SweepTracked` ORs in `InlineRefused` (`:1097`), which scans every inline entry in the queue (`:1182-1188`), not the group's.
-  - Test: `An_earlier_failure_in_another_solution_does_not_hold_this_solutions_deletes`.
-  - The suggested fix is incomplete: the flag must be `notWritten + failed > 0`, because members that failed stay queued and only the scan catches them today. `InlineRefused` then has no non-discarding caller left.
-
-- [ ] **The variant a reader picked is kept by index rather than identity** (repro)
-  - `Project` rebuilds a changed entry with `QueueEntry.ForInline(pending, entry.SelectedVariant)` (`ViewerSession.cs:1378`), which only clamps (`QueueEntry.cs:98`). An origin settle (`ViewerSession.cs:125-132`) or a re-run merging two variants (`InlineQueue.cs:137-182`) moves the reader to another framework's content with nothing to say so, and Accept then applies that one (`ViewerSession.cs:580-586`).
-  - Tests: `ASettleOfAnEarlierVariantKeepsTheVariantOnScreen`, `AReRunThatMergesAnEarlierVariantKeepsTheVariantOnScreen`.
-  - Fix: keep the variant that holds one of the old variant's origins, and fall back to the index only when none does.
-
-- [ ] **A BMP with a height of `0x80000000` throws in `Math.Abs(int.MinValue)`** (repro)
-  - `src/DiffEngineViewer/Images/ImageHeader.cs:181`. `FileSide.Read`'s catch-all (`FileSide.cs:41-44`) turns the `OverflowException` into an unreadable side warning "Negating the minimum value of a twos complement number is invalid", with no stamp, so it is re-read every 200 ms (and, attached, closes an open menu each time; see `ReadChanges` below). No crash.
-  - Tests: `ABmpWithTheMinimumHeightIsStillABmp`, `ABmpWithTheMinimumHeightIsNotReportedUnreadable`.
-
-- [ ] **`OwnerLink.ReadChanges` replaces an unreadable file's entry on every pump, which closes an attached viewer's menu within 200 ms** (repro)
-  - Both it (`src/DiffEngineViewer/Ipc/OwnerLink.cs:244-279`) and `TrackedWatch` (`TrackedWatch.cs:101-117`) compare the stored stamp, null after a failed read, with a fresh stat, so both re-read and re-diff a locked file five times a second (the diff runs in `QueueEntry.cs:59-63`). Only `TrackedWatch` then drops the rebuilt entry (`Changed`, `:147-156`). `ReadChanges` hands `Sync` a new reference every pump, which defeats #881's `SameEntries` guard.
-  - Test: `AnUnreadableTrackedFileLeavesAnAttachedViewersMenuOpen`.
-  - The suggested fix is incomplete: porting the guard stops the menu closing but not the re-reads in either path. Storing the stat's stamp on a failed read would leave a briefly locked file unreadable until it changed. A retry backoff would do both.
-
-- [ ] **`TrackedWatch` can drop a pair re-staged under the same key between its stat and its `Refresh`** (repro)
-  - `Pump` reads the queue without the lock (`src/DiffEngineViewer/TrackedWatch.cs:65`), stats the files outside it, and applies `Refresh` under `Mutate` (`:85`), which drops or replaces by key alone (`ViewerSession.cs:256-269`). A re-run that deletes then rewrites its received file lands in that gap, and in an owning viewer the pair is gone until the test fails again.
-  - Tests: `APassDoesNotDropAPairReStagedAfterItsStat` (6 of 6 runs), `ARefreshDoesNotDropAnEntryThatArrivedAfterTheStat`.
-  - Fix as suggested: act only when the current entry is the reference the stat saw.
-
-- [ ] **Selection columns are UTF-16 units, but every head reports cells** (repro for the copy, verified for the heads)
-  - All three heads turn the pointer's x into cells (`src/DiffEngineViewer.Windows/ViewerCanvas.cs:273-274`, `native/src/deview.cpp:708-722`, `native/swift/Sources/Deview/ViewerView.swift:212-219`), and `SelectionText` indexes UTF-16 with them (`:63-83`, `:93-113`). GDI+ draws a non-BMP code point as exactly one cell, and ImGui lays out one glyph per code point.
-  - Tests: `ADragAcrossOneNonBmpCharacterCopiesAllOfIt` (copies a lone high surrogate), `ADragAfterANonBmpCharacterCopiesWhatWasHighlighted` (copies a low surrogate and "a" for "ab").
-  - Counting in Runes is incomplete: CJK falls back to a font 1.83 cells wide on Windows, a combining mark takes none, and Core Text substitutes fonts with their own widths. Either put every code point on the grid or have each head report string indexes from its own layout; at the least, snap the ends to Rune boundaries. `Summary` and select-all's end column (`ViewerSession.cs:474`) count UTF-16 too.
 
 Windows head (measured in the test host at 96 DPI; this machine is 120)
 

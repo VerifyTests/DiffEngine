@@ -47,4 +47,40 @@ public class ReEnqueueTests
 
     static InlinePatch Patch(string content) =>
         Fixtures.Patch("A.cs", 1, Fixtures.Literal(Fixtures.Deep(false)), content);
+
+    static SessionState ThreeVariants() =>
+        Fixtures.Inline(
+            Fixtures.Patch(content: "eight", framework: "net8.0"),
+            Fixtures.Patch(content: "nine", framework: "net9.0"),
+            Fixtures.Patch(content: "ten", framework: "net10.0"));
+
+    /// <summary>
+    /// net8.0 starts passing, so its variant goes. The reader had cycled to net9.0's, which is
+    /// still there: kept by index, the screen switched to net10.0's with nothing to say so, and
+    /// Accept would have applied that.
+    /// </summary>
+    [Test]
+    public async Task A_settle_of_an_earlier_variant_keeps_the_variant_on_screen()
+    {
+        var onNine = ViewerSession.Apply(ThreeVariants(), CommandKind.NextVariant);
+        await Assert.That(onNine.Current!.LeftHeader).IsEqualTo("received (net9.0)");
+
+        var settled = ViewerSession.Settle(onNine, onNine.Current.Key, "net8.0");
+
+        await Assert.That(settled.Current!.LeftHeader).IsEqualTo("received (net9.0)");
+    }
+
+    /// <summary>
+    /// net8.0 re-runs and now agrees with net10.0: its variant merges into that one. Nothing
+    /// happened to the net9.0 variant the reader is on.
+    /// </summary>
+    [Test]
+    public async Task A_rerun_that_merges_an_earlier_variant_keeps_the_variant_on_screen()
+    {
+        var onNine = ViewerSession.Apply(ThreeVariants(), CommandKind.NextVariant);
+
+        var merged = ViewerSession.EnqueueInline(onNine, Fixtures.Patch(content: "ten", framework: "net8.0"));
+
+        await Assert.That(merged.Current!.LeftHeader).IsEqualTo("received (net9.0)");
+    }
 }

@@ -571,4 +571,53 @@ public class AttachedViewerTests
         {
         }
     }
+
+    /// <summary>
+    /// A tracked file the owner lists that this side cannot open. The listing is the same from one
+    /// pump to the next, so the entry should be too: rebuilt anyway, it replaced the one on screen
+    /// every 200ms and closed the reader's open menu with it.
+    /// </summary>
+    [Test]
+    public async Task AnUnreadableTrackedFileLeavesTheMenuOpen()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"AttachedViewerTests_{Guid.NewGuid():N}.verified.txt");
+        await File.WriteAllTextAsync(file, "locked away");
+        try
+        {
+            using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+            if (!ViewerServer.TryBind(0, out var server))
+            {
+                throw new("Could not bind an ephemeral port.");
+            }
+
+            using (server)
+            using (var cancel = new CancelSource())
+            {
+                _ = server.Listen(
+                    _ => ViewerResponse.Listing(
+                        [],
+                        deletes: [new(TrackedKeys.ForDelete(file), "Extra.verified.txt", null, file)]),
+                    cancel.Token);
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+                var link = new OwnerLink(host, server.Port);
+
+                await Assert.That(link.Pump()).IsTrue();
+                var first = host.State.Queue.Single();
+                await Assert.That(first.Warning).Contains("Could not read");
+                var row = QueueProjection.Rows(host.State).ToList().FindIndex(_ => _.Kind == QueueRowKind.Entry);
+                host.Mutate(_ => ViewerSession.OpenMenu(_, row));
+                await Assert.That(host.State.Menu).IsNotNull();
+
+                link.Pump();
+
+                await Assert.That(host.State.Menu).IsNotNull();
+                await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
 }

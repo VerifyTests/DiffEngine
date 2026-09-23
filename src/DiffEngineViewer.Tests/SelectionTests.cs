@@ -344,4 +344,83 @@ public class SelectionTests
         {
         }
     }
+
+    /// <summary>
+    /// A re-run lands on the same key with other text: two lines more at the top, so what the
+    /// reader selected is now two rows down. The selection was made on text that is gone, so it
+    /// goes with it, rather than highlighting and copying rows the reader never selected.
+    /// </summary>
+    [Test]
+    public async Task A_rerun_that_replaces_the_text_under_a_selection_ends_the_selection()
+    {
+        var state = Drag(Fixtures.Inline(Fixtures.Patch()), PaneSide.Left, 1, 0, 1, 9);
+        await Assert.That(Copy(state)).IsEqualTo("brown dog");
+
+        var rerun = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(content: $"added one\nadded two\n{Fixtures.Received}"));
+        await Assert.That(rerun.Current!.Key).IsEqualTo(state.Current!.Key);
+
+        await Assert.That(Copy(rerun)).IsNull();
+    }
+
+    /// <summary>
+    /// A status change is not new text, so a selection survives it.
+    /// </summary>
+    [Test]
+    public async Task A_status_change_keeps_the_selection()
+    {
+        var state = Drag(Fixtures.Inline(Fixtures.Patch()), PaneSide.Left, 1, 0, 1, 9);
+
+        var failed = ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applying(InlineApplyResult.Failed("locked")));
+
+        await Assert.That(failed.Current!.Status).IsNotNull();
+        await Assert.That(Copy(failed)).IsEqualTo("brown dog");
+    }
+
+    /// <summary>
+    /// A head reports cells, and draws a character outside the basic plane in one: a drag across
+    /// the emoji alone ends at column 1, and copies all of it rather than half.
+    /// </summary>
+    [Test]
+    public async Task A_drag_across_one_non_bmp_character_copies_all_of_it()
+    {
+        var state = Drag(Fixtures.File("\U0001F600x", "x"), PaneSide.Left, 0, 0, 0, 1);
+
+        await Assert.That(Copy(state)).IsEqualTo("\U0001F600");
+    }
+
+    /// <summary>
+    /// "ab" drawn in cells 1 and 2, after an emoji in cell 0: the copy is what was highlighted.
+    /// </summary>
+    [Test]
+    public async Task A_drag_after_a_non_bmp_character_copies_what_was_highlighted()
+    {
+        var state = Drag(Fixtures.File("\U0001F600ab", "x"), PaneSide.Left, 0, 1, 0, 3);
+
+        await Assert.That(Copy(state)).IsEqualTo("ab");
+        await Assert.That(ScreenBuilder.Build(state).Left.Rows[0].Selection).IsEqualTo(new SelectionSpan(1, 2));
+    }
+
+    /// <summary>
+    /// Select all ends at the last cell of the last row, not a cell further per wide character.
+    /// </summary>
+    [Test]
+    public async Task Select_all_ends_on_the_last_cell()
+    {
+        var state = Key(Files("\U0001F600ab", "x"), CommandKind.SelectAll);
+
+        await Assert.That(state.Selection!.FocusColumn).IsEqualTo(3);
+        await Assert.That(Copy(state)).IsEqualTo("\U0001F600ab");
+    }
+
+    /// <summary>
+    /// What ctrl+c puts on the clipboard, or null when it puts nothing there.
+    /// </summary>
+    static string? Copy(SessionState state)
+    {
+        var window = new Recorder();
+        ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
+        return window.Copied;
+    }
 }
