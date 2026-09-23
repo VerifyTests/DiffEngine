@@ -3,28 +3,11 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
-        IgnoreMachineSettings();
+        MachineSettings.Ignore();
         VerifyWinForms.Initialize();
         VerifierSettings.UseSsimForPng(PngSsimThreshold);
         KeepEnvironmentWritesInProcess();
         PointAtAClosedPort();
-    }
-
-    /// <summary>
-    /// Every <c>DiffEngine_*</c> variable is a preference of the machine running the tests, and the
-    /// tests assert on the defaults. A developer with <c>DiffEngine_ToolOrder</c> naming a tool the
-    /// test process cannot resolve failed every test touching DiffTools, from its type initializer,
-    /// while CI, which sets none of them, passed. Tests about a variable set it themselves.
-    /// </summary>
-    static void IgnoreMachineSettings()
-    {
-        foreach (var name in Environment.GetEnvironmentVariables().Keys.Cast<string>())
-        {
-            if (name.StartsWith("DiffEngine_", StringComparison.OrdinalIgnoreCase))
-            {
-                Environment.SetEnvironmentVariable(name, null);
-            }
-        }
     }
 
     /// <summary>

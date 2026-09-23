@@ -3,6 +3,7 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
+        MachineSettings.Ignore();
         VerifyWinForms.Initialize();
         // Effectively "the same pixels", rather than Verify's 0.98 default. A viewer screen is
         // mostly flat background, so 0.98 is far looser than it sounds on one: dropping a whole row

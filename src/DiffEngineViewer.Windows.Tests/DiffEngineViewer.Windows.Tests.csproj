@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />
     <Using Include="System.Drawing" />
     <Using Include="System.Windows.Forms" />
     <!--

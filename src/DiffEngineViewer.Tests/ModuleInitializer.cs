@@ -3,6 +3,7 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
+        MachineSettings.Ignore();
         // Tighter than Verify's 0.98 default, which cannot see a real defect on these screens: they
         // are mostly flat background, so dropping a whole row of body text still scores about
         // 0.998. Looser than the WinForms suites' 0.9999, because these baselines come from CI
