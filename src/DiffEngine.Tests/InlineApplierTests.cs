@@ -188,6 +188,63 @@ public class InlineApplierTests
         }
     }
 
+    // ReplaceFile can fail after the destination has already gone: with no backup name,
+    // ERROR_UNABLE_TO_MOVE_REPLACEMENT leaves the original deleted and the replacement under its
+    // temporary name. The temporary is then the only copy of the source there is, and deleting it
+    // on the way out lost the file outright
+    [Test]
+    public async Task AReplaceThatFailsAfterRemovingTheSourceStillLeavesOne()
+    {
+        var directory = NewDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "Sample.cs");
+            await File.WriteAllTextAsync(path, "original");
+
+            InlineApplier.WriteThroughTemporary(
+                path,
+                Encoding.UTF8.GetBytes("patched"),
+                (_, destination) =>
+                {
+                    File.Delete(destination);
+                    throw new IOException("Unable to move the replacement file to the file to be replaced.");
+                });
+
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("patched");
+            await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([path]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    // The ordinary failure, where the swap gives up before touching either file: reported, with the
+    // source as it was and nothing left beside it
+    [Test]
+    public async Task AReplaceThatFailsCleanlyLeavesTheSourceAsItWas()
+    {
+        var directory = NewDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "Sample.cs");
+            await File.WriteAllTextAsync(path, "original");
+
+            Assert.Throws<IOException>(
+                () => InlineApplier.WriteThroughTemporary(
+                    path,
+                    Encoding.UTF8.GetBytes("patched"),
+                    (_, _) => throw new IOException("The process cannot access the file.")));
+
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("original");
+            await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([path]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     // Writing in place truncates first, so a reader - or a process that stops partway, which is
     // the case this stands in for - could see a file with its tail missing. Reading alongside the
     // apply can only fail when that window is real, so it never goes red on timing alone

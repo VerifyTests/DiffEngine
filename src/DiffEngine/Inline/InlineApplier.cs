@@ -288,7 +288,15 @@ public static class InlineApplier
     }
 #endif
 
-    static void WriteThroughTemporary(string fullPath, byte[] output)
+    static void WriteThroughTemporary(string fullPath, byte[] output) =>
+        WriteThroughTemporary(fullPath, output, static (temporary, destination) => File.Replace(temporary, destination, null));
+
+    /// <param name="replace">
+    /// The swap. Supplied by the tests, because the failure it has to survive is one ReplaceFile
+    /// produces on its own schedule - an antivirus or sync client holding the file it was just
+    /// handed - and cannot be arranged on demand.
+    /// </param>
+    internal static void WriteThroughTemporary(string fullPath, byte[] output, Action<string, string> replace)
     {
         var directory = Path.GetDirectoryName(fullPath)!;
         // Named after the file it replaces, so anything left by a process that died between the
@@ -300,15 +308,33 @@ public static class InlineApplier
 #if NET7_0_OR_GREATER
             CopyMode(fullPath, temporary);
 #endif
-            File.Replace(temporary, fullPath, null);
+            try
+            {
+                replace(temporary, fullPath);
+            }
+            catch (Exception exception)
+                when (!File.Exists(fullPath) &&
+                      File.Exists(temporary))
+            {
+                // ReplaceFile can fail after it has already taken the destination away: with no
+                // backup name, ERROR_UNABLE_TO_MOVE_REPLACEMENT means the original no longer
+                // exists and the replacement is still under its temporary name. The temporary is
+                // then the only copy of the source anywhere, and the finally below used to delete
+                // it. It is the whole patched file, so finishing the swap by hand is the write
+                // having happened.
+                MoveIntoPlace(temporary, fullPath, exception);
+            }
         }
         finally
         {
             // Replace consumed it. Anything still there is this method's litter, and failing an
-            // applied patch over a temporary file that could not be deleted helps nobody
+            // applied patch over a temporary file that could not be deleted helps nobody - unless
+            // the destination is gone, when it is the source file and is left for the reader of
+            // the failure to find
             try
             {
-                if (File.Exists(temporary))
+                if (File.Exists(temporary) &&
+                    File.Exists(fullPath))
                 {
                     File.Delete(temporary);
                 }
@@ -317,6 +343,23 @@ public static class InlineApplier
                 when (exception is IOException or UnauthorizedAccessException)
             {
             }
+        }
+    }
+
+    static void MoveIntoPlace(string temporary, string fullPath, Exception replaceFailure)
+    {
+        try
+        {
+            File.Move(temporary, fullPath);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Named, because this is the one failure a person has to act on: the file they edit is
+            // not where it was, and this is where it went
+            throw new IOException(
+                $"Replacing {fullPath} failed after the original had been removed, and the patched source could not be moved back into place. It is in {temporary}.",
+                new AggregateException(replaceFailure, exception));
         }
     }
 
