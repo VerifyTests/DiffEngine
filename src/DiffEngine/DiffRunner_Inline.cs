@@ -88,8 +88,26 @@ public static partial class DiffRunner
             async () => await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel) == SendOutcome.Accepted,
             () => ViewerLauncher.LaunchAsync(patch, payload, cancel),
             cancel);
-        return launched == ViewerLaunchOutcome.Failed ? InlineResult.NoViewerFound : InlineResult.Queued;
+        return InlineResultFor(launched);
     }
+
+    /// <summary>
+    /// Queued only where something now holds the snapshot: the viewer this call started, or an
+    /// owner that turned up while it waited at the gate.
+    /// <para>
+    /// A capped launch started nothing, and nobody was there to take the patch, so it is pending
+    /// nowhere - the same position as a viewer that could not be found, and answered the same way
+    /// so the caller stages it. Everything but Failed used to read as queued, which was right until
+    /// Capped existed and wrong from then on: with no tray running, every inline snapshot failing
+    /// after the fifth diff tool of a run was reported as handed over and staged by nobody.
+    /// </para>
+    /// </summary>
+    internal static InlineResult InlineResultFor(ViewerLaunchOutcome outcome) =>
+        outcome switch
+        {
+            ViewerLaunchOutcome.Launched or ViewerLaunchOutcome.Taken => InlineResult.Queued,
+            _ => InlineResult.NoViewerFound
+        };
 
     /// <summary>
     /// Drops a pending inline snapshot from the viewer's queue, for when a previously failing test

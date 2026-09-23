@@ -171,6 +171,20 @@ public class ViewerLaunchGateTests
     }
 
     /// <summary>
+    /// What AddInlineAsync tells its caller about each outcome. Capped is the one that matters:
+    /// nothing was started and nothing took the patch, and reporting that as queued meant the
+    /// caller staged nothing either, so the snapshot was pending nowhere.
+    /// </summary>
+    [Test]
+    public async Task OnlyALaunchOrAHandoverIsQueued()
+    {
+        await Assert.That(DiffRunner.InlineResultFor(ViewerLaunchOutcome.Launched)).IsEqualTo(InlineResult.Queued);
+        await Assert.That(DiffRunner.InlineResultFor(ViewerLaunchOutcome.Taken)).IsEqualTo(InlineResult.Queued);
+        await Assert.That(DiffRunner.InlineResultFor(ViewerLaunchOutcome.Capped)).IsEqualTo(InlineResult.NoViewerFound);
+        await Assert.That(DiffRunner.InlineResultFor(ViewerLaunchOutcome.Failed)).IsEqualTo(InlineResult.NoViewerFound);
+    }
+
+    /// <summary>
     /// A slot is spent on a window, not on a pair. So the cap is asked only once the ownership
     /// probe has said there is no window - otherwise the nineteen callers that find the one their
     /// sibling started would each be charged for it, and a run of twenty failing snapshots would
