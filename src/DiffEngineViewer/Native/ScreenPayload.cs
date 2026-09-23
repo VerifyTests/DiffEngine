@@ -34,8 +34,8 @@ sealed class ScreenPayload
         (subtitleOffset, subtitleLength) = Add(screen.Subtitle);
         (statusOffset, statusLength) = Add(screen.Status);
 
-        panes[0] = AddPane(screen.Left);
-        panes[1] = AddPane(screen.Right);
+        panes[0] = AddPane(screen.Left, screen.Columns);
+        panes[1] = AddPane(screen.Right, screen.Columns);
 
         foreach (var button in screen.Buttons)
         {
@@ -157,13 +157,15 @@ sealed class ScreenPayload
             MenuRow = menuRow
         };
 
-    DeviewPane AddPane(Pane pane)
+    DeviewPane AddPane(Pane pane, int columns)
     {
         var (headerOffset, headerLength) = Add(pane.Header);
         var rowOffset = rows.Count;
         foreach (var row in pane.Rows)
         {
-            var (textOffset, textLength) = Add(row.Text);
+            // Clipped to the window, for the reason RowText.Clip gives: marshalled and laid out
+            // whole every frame otherwise
+            var (textOffset, textLength) = Add(RowText.Clip(row.Text, columns));
             rows.Add(
                 new()
                 {

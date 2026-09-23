@@ -68,6 +68,14 @@ public static class ProcessCleanup
         Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
         if (matchingCommands.Count == 0)
         {
+            // Only when someone will read it. This is the usual outcome of a passing verification,
+            // and on Linux and macOS the list is every process the user owns, so the joined string
+            // was hundreds of KB of garbage per test with logging off.
+            if (!Logging.enabled)
+            {
+                return;
+            }
+
             var separator = Environment.NewLine + "\t";
             var joined = string.Join(separator, Commands.Select(_ => _.Command));
             Logging.Write($"No matching commands. All commands: {separator}{joined}.");

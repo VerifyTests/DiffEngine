@@ -30,6 +30,9 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+# raylib spins for the last part of every frame by default, for timing precision nothing here
+# needs: most of a millisecond of a core per frame, for as long as the viewer is open.
+set(SUPPORT_PARTIALBUSY_WAIT_LOOP OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RMODELS OFF CACHE BOOL "" FORCE)
 # The formats the viewer compares as pictures and raylib can decode. WebP and ICO are also

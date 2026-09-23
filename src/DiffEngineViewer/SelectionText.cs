@@ -132,18 +132,51 @@ static class SelectionText
     /// What the status line says while something is selected. The universal statement about a
     /// selection: the heads that can draw a highlight also draw this, and the one that cannot
     /// still says a selection exists and how much of one.
+    /// <para>
+    /// Counted from the spans rather than by building the text, because this runs every frame for
+    /// as long as a selection exists: ctrl+a over a large file built megabytes of string sixty
+    /// times a second only to measure it. The counts are what <see cref="Of"/> would produce - one
+    /// line per non-filler row, joined by one newline each.
+    /// </para>
     /// </summary>
     public static string Summary(TextSelection selection, QueueEntry entry)
     {
-        var text = Of(selection, entry);
-        if (text.Length == 0)
+        var rows = Rows(entry, selection.Side);
+        var (startRow, _) = selection.Start;
+        var (endRow, _) = selection.End;
+        var lines = 0;
+        var length = 0;
+        for (var index = Math.Max(0, startRow); index <= endRow && index < rows.Count; index++)
+        {
+            var row = rows[index];
+            if (row.Kind == RowKind.Filler)
+            {
+                continue;
+            }
+
+            lines++;
+            length += Span(selection, selection.Side, index, row.Text).Length;
+        }
+
+        if (lines == 0)
         {
             return "nothing selected";
         }
 
-        var lines = text.Count(_ => _ == '\n') + 1;
-        var characters = $"{text.Length} character{(text.Length == 1 ? "" : "s")}";
-        return lines == 1 ? $"selected {characters}" : $"selected {lines} lines, {characters}";
+        // The newlines joining the lines
+        length += lines - 1;
+        if (length == 0)
+        {
+            return "nothing selected";
+        }
+
+        var characters = $"{length} character{(length == 1 ? "" : "s")}";
+        if (lines == 1)
+        {
+            return $"selected {characters}";
+        }
+
+        return $"selected {lines} lines, {characters}";
     }
 
     static int ClampRow(int row, IReadOnlyList<Row> rows) =>
