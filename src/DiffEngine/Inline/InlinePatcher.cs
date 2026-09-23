@@ -664,7 +664,7 @@ static class InlinePatcher
             }
 
             // The last on the line is the nearest one above the hint
-            var (_, openParen) = calls[calls.Count - 1];
+            var (_, openParen) = calls[^1];
             if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
             {
                 return false;

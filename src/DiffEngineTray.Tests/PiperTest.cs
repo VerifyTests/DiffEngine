@@ -194,7 +194,7 @@ public class PiperTest :
             await client.ConnectAsync(IPAddress.Loopback, PiperClient.Port, source.Token);
             await using var stream = client.GetStream();
             await using var writer = new StreamWriter(stream);
-            await writer.WriteAsync("{\"Type\":\"Nonsense\"}");
+            await writer.WriteAsync("{\"Type\":\"Nonsense\"}".AsMemory(), source.Token);
         }
 
         await Task.Delay(500, source.Token);
@@ -258,15 +258,15 @@ public class PiperTest :
             // for now nothing is accepting: the gap between one accept and the next, held open
             using (var first = new TcpClient())
             {
-                await first.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+                await first.ConnectAsync(IPAddress.Loopback, PiperClient.Port, cancel.Token);
             }
 
             await Assert.That(await held.WaitForPending(TimeSpan.FromSeconds(5))).IsTrue();
 
             // Connects into the backlog during that gap, and resets there
-            await second.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+            await second.ConnectAsync(IPAddress.Loopback, PiperClient.Port, cancel.Token);
             second.Client.Close(0);
-            await Task.Delay(200);
+            await Task.Delay(200, cancel.Token);
 
             // The loop goes on: it handles the first client, then accepts again
             held.RunFor(TimeSpan.FromSeconds(1));

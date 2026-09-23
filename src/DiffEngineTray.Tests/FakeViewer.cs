@@ -25,6 +25,10 @@ sealed class FakeViewer : IDisposable
         var port = ((IPEndPoint) listener.LocalEndpoint).Port;
         previousPort = Environment.GetEnvironmentVariable(ViewerClient.PortVariable);
         Environment.SetEnvironmentVariable(ViewerClient.PortVariable, port.ToString());
+        // No token on Task.Run: it cancels the scheduling rather than the delegate, so a cancel
+        // landing before the pool picked this up would leave the task Canceled and the wait in
+        // Dispose throwing. The loop already exits on the token
+        // ReSharper disable once MethodSupportsCancellation
         listening = Task.Run(Listen);
     }
 

@@ -133,7 +133,7 @@ public class DiffRunnerViewerFocusRaceTest
             tracker.Moves.Single().Exe;
 
         public Task<MovePayload> PiperMove() =>
-            move.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            move.Task.WaitAsync(TimeSpan.FromSeconds(10), piperCancel.Token);
 
         static int FreePort()
         {

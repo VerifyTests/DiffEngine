@@ -754,6 +754,10 @@ sealed class OwnedInlineHost :
 
         try
         {
+            // No token: the first line already cancelled it, so passing it here would return
+            // before the listener had unwound rather than waiting for it to. The timeout is
+            // what bounds the drain
+            // ReSharper disable once MethodSupportsCancellation
             await listening.WaitAsync(TimeSpan.FromSeconds(2));
         }
         catch (Exception exception)

@@ -127,6 +127,10 @@ public class TrayDisabledTests
             listener = new(IPAddress.Loopback, 0);
             listener.Start();
             Port = ((IPEndPoint) listener.LocalEndpoint).Port;
+            // No token on Task.Run: it cancels the scheduling rather than the delegate, so a cancel
+            // landing before the pool picked this up would leave the task Canceled and the wait in
+            // Dispose throwing. The loop already exits on the token
+            // ReSharper disable once MethodSupportsCancellation
             loop = Task.Run(Accept);
         }
 
@@ -143,7 +147,7 @@ public class TrayDisabledTests
                     return;
                 }
 
-                await Task.Delay(20);
+                await Task.Delay(20, cancellation.Token);
             }
 
             throw new($"Only {Payloads.Count} payloads reached the tray, expected {count}.");
@@ -157,11 +161,13 @@ public class TrayDisabledTests
                 {
                     // No token: the cancellable overload is net6 and up, and this compiles for
                     // net48 too. Stop in Dispose is what breaks the accept, which lands in the
-                    // catch below.
+                    // catch below. The same goes for ReadToEndAsync, whose overload is net7 and up
+                    // ReSharper disable once MethodSupportsCancellation
                     using var client = await listener.AcceptTcpClientAsync();
                     // ReSharper disable once UseAwaitUsing
                     using var stream = client.GetStream();
                     using var reader = new StreamReader(stream);
+                    // ReSharper disable once MethodSupportsCancellation
                     Payloads.Add(await reader.ReadToEndAsync());
                 }
                 catch (Exception exception)

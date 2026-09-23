@@ -333,6 +333,10 @@ public class AcceptAllProgressTests
         await Until(() => host.State.Exit);
         await Assert.That(host.State.OwnerProgress).IsNull();
         await cancel.CancelAsync();
+        // No token: the line above already cancelled it, so passing it here would return
+        // before the listener had unwound rather than waiting for it to. The timeout is
+        // what bounds the drain
+        // ReSharper disable once MethodSupportsCancellation
         await polling.WaitAsync(TimeSpan.FromSeconds(10));
     }
 

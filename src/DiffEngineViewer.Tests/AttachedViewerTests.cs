@@ -404,7 +404,7 @@ public class AttachedViewerTests
                 await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
 
                 // A stamp needs a distinct write time; length changing makes it deterministic.
-                await File.WriteAllTextAsync(file, "second, longer");
+                await File.WriteAllTextAsync(file, "second, longer", cancel.Token);
                 link.Pump();
                 await Assert.That(host.State.Queue.Single().RightText).IsEqualTo("second, longer");
                 await cancel.CancelAsync();

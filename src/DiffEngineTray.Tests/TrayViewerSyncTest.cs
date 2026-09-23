@@ -224,6 +224,10 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Window.State.OwnerProgress).IsNull();
         await Assert.That(pair.Listing).IsEmpty();
         await cancel.CancelAsync();
+        // No token: the line above already cancelled it, so passing it here would return
+        // before the listener had unwound rather than waiting for it to. The timeout is
+        // what bounds the drain
+        // ReSharper disable once MethodSupportsCancellation
         await polling.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
@@ -1225,6 +1229,10 @@ public class TrayViewerSyncTest
             server.Dispose();
             try
             {
+                // No token: the cancel above already cancelled it, so passing it here would return
+                // before the listener had unwound rather than waiting for it to. The timeout is
+                // what bounds the drain
+                // ReSharper disable once MethodSupportsCancellation
                 await listening.WaitAsync(TimeSpan.FromSeconds(5));
             }
             catch (Exception exception)
