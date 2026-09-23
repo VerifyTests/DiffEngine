@@ -1,10 +1,10 @@
 # Review todo
 
-Findings from a review of `main` at 4244ebe6 (2026-09-23).
+Findings from a review of `main` at 4244ebe6 (2026-09-23). A second pass checked every item left unverified, on c37bf9e1 (see "Bugs, second pass").
 
-- **repro**: a test in the appendix fails on that commit.
+- **repro**: a test fails on the commit the item was checked on: the appendix for the first pass, the local branch `review-repros` for the second.
 - **verified**: confirmed by reading the code (or running the API involved), no test yet.
-- **unverified**: reported by a reviewer, not re-checked.
+- **cannot verify here**: needs a platform this machine lacks; the item says what would settle it.
 
 
 ## Data loss
@@ -23,8 +23,8 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
   - Fix: `Failed or Capped` → `NoViewerFound`.
   - Related: `MaxInstance.Reached()` increments before `launch()` runs, so a launch that returns false still spends a slot.
 
-- [ ] **Committed Linux native binaries need glibc 2.38** (verified)
-  - **Workflow fixed, binaries not yet rebuilt:** the Linux jobs now build inside `quay.io/pypa/manylinux_2_28_$(uname -m)` via `native/build-linux.sh`, and a "Check glibc floor" step fails the job if `objdump -T` shows anything above `GLIBC_2.28`. Not run locally (no Docker running here). Pushing the workflow change triggers `build-native`, whose propose job opens the PR with the rebuilt `.so` files; tick this once that merges.
+- [x] **Committed Linux native binaries need glibc 2.38** (verified)
+  - **Fixed:** the Linux jobs build inside `quay.io/pypa/manylinux_2_28_$(uname -m)` via `native/build-linux.sh`, and a "Check glibc floor" step fails the job if `objdump -T` shows anything above `GLIBC_2.28`. The binaries rebuilt that way (#882) need at most `GLIBC_2.27` and link `libGL.so.1` rather than `libOpenGL.so.0` (`readelf -V`/`-d` in WSL).
   - Both `src/DiffEngineViewer.Linux/runtimes/linux-{x64,arm64}/native/libdiffengine_viewer.so` reference `GLIBC_2.38` (`__isoc23_sscanf`, `fmod`, `fmodf`), plus 2.35 and 2.34. They are built on `ubuntu-24.04` with no floor (`.github/workflows/build-native.yml:40`).
   - `dlopen` fails on Ubuntu 22.04 (2.35), Debian 12 (2.36), RHEL 8/9 and Amazon Linux 2023. CI only loads them on 24.04.
   - Fix: build in an old-glibc container (e.g. `quay.io/pypa/manylinux_2_28_*`) or with `zig cc -target x86_64-linux-gnu.2.28`, and fail the job if `objdump -T` shows a GLIBC version above the floor.
@@ -61,8 +61,20 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
   - A settle empties the queue; before the next frame a Diff, Move or Delete arrives and is answered Ok; the loop then sees `Exit` and quits. `PersistOwned` stages only inline entries, so the tracked pair is in no window and no tray, and an inline one is staged rather than shown while its sender believes it is queued.
   - Fix: `Exit = false` in both enqueue methods. Better, decide the exit under the lock and have the handler refuse once closing.
 
+- [ ] **An attached "Accept all in <solution>" deletes verified files whose snapshots were not written** (repro, second pass)
+  - `DispatchGroup` (`src/DiffEngineViewer/ViewerProgram.cs:663-697`) posts one `Accept` per member, deletes included (`:683`), before any answer comes back, and the owner carries each out as a single accept with no held-delete rule: the tray through `OwnedInlineHost.cs:302-304` and `Tracker.cs:956` to `File.Delete` at `:1061`, a viewer through `MessageHandler.cs:156`. #878 fixed the tray's accept-all and the AcceptAll verb, not this path. The owning viewer's own group accept does hold deletes (`ViewerSession.cs:664-675`).
+  - Test (`review-repros`): `An_attached_accept_all_in_a_solution_holds_its_deletes_when_a_snapshot_was_not_written`. The patch comes back NotFound and the verified file is deleted anyway, so no copy of the snapshot is left. Its owner is a viewer; the tray owner's delete path was read, not run.
+  - Fix: the client cannot know the patch outcomes when it posts, so the rule belongs with the owner, for example a group verb that carries the member keys through the owner's batch and its hold rule.
+
 
 ## Bugs
+
+- [x] **The Linux viewer never showed a frame or read input** (repro, found while verifying the items below)
+  - **Fixed:** `native/CMakeLists.txt` switches `SUPPORT_CUSTOM_FRAME_CONTROL` and `SUPPORT_BUSY_WAIT_LOOP` back off, with every other flag raylib's `config.h` defaults to 0. Test: `PixelTests.PresentWaitsForTheNextFrame`, which the Ubuntu job runs under xvfb against the renderer built from source.
+  - raylib 6.0's `cmake/ParseConfigHeader.cmake` turns every `#define SUPPORT_X <value>` in `config.h` into an option defaulting to ON, whatever the value (raysan5/raylib#5844 fixed it after 6.0), and `CUSTOMIZE_BUILD ON` skips `config.h`'s own values. The Linux configure output listed `SUPPORT_CUSTOM_FRAME_CONTROL=ON`, `SUPPORT_BUSY_WAIT_LOOP=ON` and every image format raylib has (build-native run 35812014703).
+  - With custom frame control, `EndDrawing` skips `SwapScreenBuffer`, the `SetTargetFPS` wait and `PollInputEvents`, the only callers of `glfwSwapBuffers` and `glfwPollEvents`, and `deview_present` calls none of them itself. Disassembly of both committed `.so` files shows neither has a call site. So the window never painted and ignored keys, mouse and its close button, while the managed loop, which relies on the present to pace it, spun; and it owned 3493 the whole time, accepting snapshots it could not show.
+  - Measured on the committed linux-x64 `.so` in WSL (python ctypes, hidden window): a bare `deview_present` loop ran at 41,659 fps across 11 cores.
+  - Every committed Linux binary since the first (#733) was built this way. The pixel snapshots never noticed, because `deview_capture` draws into a texture and never calls `EndDrawing`.
 
 - [x] **Attached viewer's right-click menu closes within 200 ms** (repro)
   - `src/DiffEngineViewer/ViewerSession.cs:189`: `Sync` always sets `Menu = null`. `OwnerLink.List` calls it on every poll (`src/DiffEngineViewer/Ipc/OwnerLink.cs:120`), `ViewerForm.ApplyMenu` then closes the popup, and a later click is dropped (`ViewerProgram.cs:385`). Every viewer is attached when the tray owns the queue, which is the default on Windows.
@@ -114,68 +126,231 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
   - Fix: do the lookup and the refusal inside the `Mutate` lambda.
 
 
-## Bugs, unverified
+## Bugs, second pass
+
+Every item that was unverified, checked on c37bf9e1, after #878, #881 and #884. All of them hold, and none of the three fixed any. The repro tests are on the local branch `review-repros`, one class per area: `ReviewReproSessionTests` and `ReviewReproWatchTests` (viewer model), `ReviewReproWindowsTests`, `ReviewReproTrayTests`, `ReviewReproPatcherTests`, `ReviewReproLibraryTests`. Each test fails on c37bf9e1 except a control (`ControlSpaceIndentedLocalLeavesTheSiblingAlone`) and a measurement (`HowLongADecodeHoldsTheFile`). The attached "Accept all in <solution>" item moved to Data loss.
 
 Viewer model
 
-- [ ] Removing the current entry can select one hidden inside a collapsed group: `Remove` keeps the old index without checking `VisibleEntries` (`src/DiffEngineViewer/ViewerSession.cs:1392`, also `Sync` at :183). `Toggle` (:1466-1480) already has the search; reuse it.
-- [ ] A text selection survives its entry's text being replaced under the same key: `Describes` checks only key and variant (`src/DiffEngineViewer/TextSelection.cs:60-63`), so a re-run highlights and copies rows the reader never selected. Store a content token, such as the entry's `View(false)` instance, and compare by reference.
-- [ ] The selection can move under an open entry menu: a wire `Focus` goes through `SelectKey` → `Select`, which does not clear `Menu` (`ViewerSession.cs:263-267`, `:1407-1425`), so Discard then acts on the newly selected entry. An arriving snapshot's `SelectKey` can likewise land between a painted frame and a key press. Clear `Menu` when the selection changes, or keep the entry's key in `MenuState`.
-- [ ] "Accept all in <solution>" holds that solution's deletes because of an unrelated earlier failure: `InlineRefused` scans the whole queue (`ViewerSession.cs:629,1051,1129-1145`). Pass the group's own tally.
-- [ ] Attached "Accept all in <solution>" posts one Accept per member, deletes included, with no held-delete rule (`src/DiffEngineViewer/ViewerProgram.cs:606-640`, `DispatchGroup`).
-- [ ] The variant a reader picked is kept by index rather than identity, so a fold that drops or merges variants shows a different one (`ViewerSession.cs:1332`).
-- [ ] A BMP with a height of `0x80000000` throws in `Math.Abs(int.MinValue)` (`src/DiffEngineViewer/Images/ImageHeader.cs:181`).
-- [ ] `OwnerLink.ReadChanges` lacks `TrackedWatch`'s re-stamp guard, so a locked or unreadable file is re-read, re-diffed and replaced every 200 ms (`src/DiffEngineViewer/Ipc/OwnerLink.cs:244-279`).
-- [ ] `TrackedWatch` can drop a pair re-staged under the same key between its stat and its `Refresh` (`src/DiffEngineViewer/TrackedWatch.cs:61-86`, `ViewerSession.cs:217-252`). Replace or drop only when the current entry is the same reference.
+- [ ] **Removing the current entry can select one hidden inside a collapsed group** (repro)
+  - `Remove` (`src/DiffEngineViewer/ViewerSession.cs:1449`) and `Sync` (`:186`) keep the old index and never check `VisibleEntries`, so after an accept, discard, settle or refresh, the panes and Accept act on an entry under a fold that nothing in the list highlights. An attached viewer gets there through `Sync` on every accept.
+  - Tests: `Accepting_the_entry_being_read_does_not_select_one_under_a_fold`, `A_listing_without_the_entry_being_read_does_not_select_one_under_a_fold`.
+  - Fix as suggested: run `Toggle`'s search (`:1530-1544`) after `Clamp` in both. Tried: both pass and nothing else breaks.
 
-Windows head
+- [ ] **A text selection survives its entry's text being replaced under the same key** (repro)
+  - `Describes` (`src/DiffEngineViewer/TextSelection.cs:60-63`) compares key and variant only. A re-run rebuilds the entry (`ViewerSession.cs:53-73`) without touching `Selection`, so the highlight and the copy point into the new rows.
+  - Test: `A_rerun_that_replaces_the_text_under_a_selection_ends_the_selection` (copies "added two" where "brown dog" was selected).
+  - Fix as suggested: the `View(false)` reference works, since a `with` keeps it and a rebuild does not. It also ends the selection when a conflicted entry gains a variant, which errs the safe way.
 
-- [ ] Selection highlight and hit-test drift: `MonoFont.Cell` rounds the 8.8 px advance to 9 while `DrawString` uses 8.8, so from about column 22 the highlight and the copy are a character off, two by column 66 (`src/DiffEngineViewer.Windows/MonoFont.cs:26-28`, `ViewerCanvas.cs:273-274`, `:484-495`). Use the unrounded advance.
-- [ ] `ImageCache` never evicts, so every decoded picture stays for the life of a process the tray can keep hidden for days (`src/DiffEngineViewer.Windows/ImageCache.cs:13,45-58`).
-- [ ] The initial window is 1100×700 physical pixels under PerMonitorV2 while the text scales with DPI; at 200% each pane shows a few characters (`ViewerForm.cs:115`). Size with `LogicalToDeviceUnits` and scale the pixel constants.
-- [ ] Discrete input fields (`key`, `clickedButton`, `clickedQueueItem`, ...) overwrite each other within one `DoEvents` and are applied in a fixed order rather than the order they happened (`ViewerForm.cs:94-101`). Queue them.
-- [ ] Right-clicking the row whose menu is already open leaves the popup and the model out of step: `Apply` returns before `ApplyMenu` when the screen is unchanged (`ViewerForm.cs:202-217`).
-- [ ] Dragging the scrollbar thumb, or moving or resizing the window, runs a user32 modal loop inside `DoEvents`, so the panes freeze until release (`ViewerForm.cs:134,219-236`).
-- [ ] Losing mouse capture mid drag (Alt+Tab, Win key, UAC) leaves `selecting`/`dragging` set (`ViewerCanvas.cs:534-664`). Override `OnMouseCaptureChanged`.
-- [ ] At logoff the session can end before `PersistOwned` runs (`ViewerForm.cs:345-363`). Persist synchronously on `FormClosed` with `WindowsShutDown`.
-- [ ] `ImageCache` reads with `FileShare.Read`, which can fail a concurrent accept's move or delete (`ImageCache.cs:68`), and it ignores `ImagePane.Hash`, so a same-size rewrite within timestamp granularity keeps the old picture.
+- [ ] **An open entry menu acts on whatever is selected when it is clicked, and the selection can move under it** (repro)
+  - Menu items act on `state.Current` (`src/DiffEngineViewer/ViewerProgram.cs:445`, discard at `ViewerSession.cs:1263`, the attached key at `ViewerProgram.cs:586`), and `SelectKey`/`Select` (`ViewerSession.cs:309`, `:1488`) never clear `Menu`.
+  - Triggers: a wire Focus from the tray menu or an IDE (`MessageHandler.cs:191`); and, attached, with nobody touching anything, a test re-sending an identical patch. The tray folds it into the same entry and stashes a Focus (`OwnedInlineHost.cs:198`) that its next listing carries (`:274`); `Sync` keeps the menu because the entries are unchanged, then `OwnerLink.cs:128` selects.
+  - Tests: `A_wire_focus_does_not_retarget_an_open_entry_menu`, `A_focus_riding_the_owners_listing_does_not_retarget_an_open_entry_menu`.
+  - Fix: `Menu = null` in `Select`, the only path that moves the selection without changing the queue. Not covered: an arrival landing between a painted frame and a key press, which focusing arrivals are built on.
+
+- [ ] **"Accept all in <solution>" holds that solution's deletes because of an unrelated earlier failure** (repro)
+  - `AcceptGroup` passes `refused: notWritten > 0` (`ViewerSession.cs:675`) and `SweepTracked` ORs in `InlineRefused` (`:1097`), which scans every inline entry in the queue (`:1182-1188`), not the group's.
+  - Test: `An_earlier_failure_in_another_solution_does_not_hold_this_solutions_deletes`.
+  - The suggested fix is incomplete: the flag must be `notWritten + failed > 0`, because members that failed stay queued and only the scan catches them today. `InlineRefused` then has no non-discarding caller left.
+
+- [ ] **The variant a reader picked is kept by index rather than identity** (repro)
+  - `Project` rebuilds a changed entry with `QueueEntry.ForInline(pending, entry.SelectedVariant)` (`ViewerSession.cs:1378`), which only clamps (`QueueEntry.cs:98`). An origin settle (`ViewerSession.cs:125-132`) or a re-run merging two variants (`InlineQueue.cs:137-182`) moves the reader to another framework's content with nothing to say so, and Accept then applies that one (`ViewerSession.cs:580-586`).
+  - Tests: `ASettleOfAnEarlierVariantKeepsTheVariantOnScreen`, `AReRunThatMergesAnEarlierVariantKeepsTheVariantOnScreen`.
+  - Fix: keep the variant that holds one of the old variant's origins, and fall back to the index only when none does.
+
+- [ ] **A BMP with a height of `0x80000000` throws in `Math.Abs(int.MinValue)`** (repro)
+  - `src/DiffEngineViewer/Images/ImageHeader.cs:181`. `FileSide.Read`'s catch-all (`FileSide.cs:41-44`) turns the `OverflowException` into an unreadable side warning "Negating the minimum value of a twos complement number is invalid", with no stamp, so it is re-read every 200 ms (and, attached, closes an open menu each time; see `ReadChanges` below). No crash.
+  - Tests: `ABmpWithTheMinimumHeightIsStillABmp`, `ABmpWithTheMinimumHeightIsNotReportedUnreadable`.
+
+- [ ] **`OwnerLink.ReadChanges` replaces an unreadable file's entry on every pump, which closes an attached viewer's menu within 200 ms** (repro)
+  - Both it (`src/DiffEngineViewer/Ipc/OwnerLink.cs:244-279`) and `TrackedWatch` (`TrackedWatch.cs:101-117`) compare the stored stamp, null after a failed read, with a fresh stat, so both re-read and re-diff a locked file five times a second (the diff runs in `QueueEntry.cs:59-63`). Only `TrackedWatch` then drops the rebuilt entry (`Changed`, `:147-156`). `ReadChanges` hands `Sync` a new reference every pump, which defeats #881's `SameEntries` guard.
+  - Test: `AnUnreadableTrackedFileLeavesAnAttachedViewersMenuOpen`.
+  - The suggested fix is incomplete: porting the guard stops the menu closing but not the re-reads in either path. Storing the stat's stamp on a failed read would leave a briefly locked file unreadable until it changed. A retry backoff would do both.
+
+- [ ] **`TrackedWatch` can drop a pair re-staged under the same key between its stat and its `Refresh`** (repro)
+  - `Pump` reads the queue without the lock (`src/DiffEngineViewer/TrackedWatch.cs:65`), stats the files outside it, and applies `Refresh` under `Mutate` (`:85`), which drops or replaces by key alone (`ViewerSession.cs:256-269`). A re-run that deletes then rewrites its received file lands in that gap, and in an owning viewer the pair is gone until the test fails again.
+  - Tests: `APassDoesNotDropAPairReStagedAfterItsStat` (6 of 6 runs), `ARefreshDoesNotDropAnEntryThatArrivedAfterTheStat`.
+  - Fix as suggested: act only when the current entry is the reference the stat saw.
+
+- [ ] **Selection columns are UTF-16 units, but every head reports cells** (repro for the copy, verified for the heads)
+  - All three heads turn the pointer's x into cells (`src/DiffEngineViewer.Windows/ViewerCanvas.cs:273-274`, `native/src/deview.cpp:708-722`, `native/swift/Sources/Deview/ViewerView.swift:212-219`), and `SelectionText` indexes UTF-16 with them (`:63-83`, `:93-113`). GDI+ draws a non-BMP code point as exactly one cell, and ImGui lays out one glyph per code point.
+  - Tests: `ADragAcrossOneNonBmpCharacterCopiesAllOfIt` (copies a lone high surrogate), `ADragAfterANonBmpCharacterCopiesWhatWasHighlighted` (copies a low surrogate and "a" for "ab").
+  - Counting in Runes is incomplete: CJK falls back to a font 1.83 cells wide on Windows, a combining mark takes none, and Core Text substitutes fonts with their own widths. Either put every code point on the grid or have each head report string indexes from its own layout; at the least, snap the ends to Rune boundaries. `Summary` and select-all's end column (`ViewerSession.cs:474`) count UTF-16 too.
+
+Windows head (measured in the test host at 96 DPI; this machine is 120)
+
+- [ ] **Selection highlight and hit-test drift from the glyphs** (repro at 100%, 150%, 175% and 200%; not at 125%)
+  - `Graphics.DrawString` with `GenericTypographic` places glyphs at the unhinted advance (8.798 px at 96 DPI), while `MonoFont.Cell` rounds it (9, `src/DiffEngineViewer.Windows/MonoFont.cs:26-28`), and the highlight (`ViewerCanvas.cs:486-494`) and `ColumnAt` (`:273-274`) multiply by the rounded width. Drift at column 66: −13.2 px at 96 DPI, +13.2 at 144, +26.2 at 168, −26.8 at 192.
+  - Tests: `CellAgainstTheDrawnAdvance`, `HighlightAtColumn66CoversItsGlyph` (the bar at column 66 hit-tests as 65).
+  - Fix as suggested, the subtitle width at `:430` included. The integer cell can stay for layout.
+
+- [ ] **`ImageCache` never evicts** (repro)
+  - Keyed by path and only replaced for the path asked about (`src/DiffEngineViewer.Windows/ImageCache.cs:45-58`); `ViewerCanvas.Draw` never prunes it. The process lives while the queue has anything in it, hidden or not.
+  - Test: `EveryPictureEverDrawnStaysDecoded` (ten 400×300 pairs, each accepted: 20 pictures and 9.4 MB of unmanaged GDI+ memory held, on a screen showing none).
+  - Fix: keep only the paths on the current screen.
+
+- [ ] **The initial window is 1100×700 device pixels under PerMonitorV2** (repro)
+  - `ViewerForm.cs:115`, with `AutoScaleMode` left at Inherit, which scales nothing on a top-level form, while the 11 pt font grows with DPI. Characters a pane with a queue showing: 34 at 96 DPI, 23 at 120, 15 at 144, 4 at 192.
+  - Test: `WhatTheDefaultWindowHoldsAtEachScale`.
+  - Fix: `LogicalToDeviceUnits`, clamped to the working area, since 1100×700 at 150% is too tall for 1080p. Of the pixel constants only `grab = 4` matters.
+
+- [ ] **Discrete input overwrites itself within one `DoEvents` and is applied in a fixed order** (repro)
+  - One slot per kind of input (`ViewerForm.cs:94-101`), one `ViewerInput` per `Drain` (`:304-337`), applied as the click chain, then buttons, then the key (`ViewerProgram.cs:440-524`). It needs a slow frame, for example the loop waiting in `host.Mutate` behind an accept on the mutex.
+  - Tests: `TwoKeysInOnePumpAreTwoCommands` (two Downs scroll once), `AKeyThenAClickInOnePumpAreAppliedInTheirOrder`: d pressed on one entry, then a click on another, discards the clicked one, which the reader never looked at. With a, it would be accepted into source.
+  - Fix: queue them and emit one per `Drain`, without waiting while more are queued. That also fixes the next item.
+
+- [ ] **Right-clicking the row whose menu is open leaves the popup and the model out of step** (repro)
+  - The menu filter closes the popup (`ViewerForm.cs:144-156`), the model keeps an equal menu (`ViewerProgram.cs:496-500`), and `Apply` returns before `ApplyMenu` (`ViewerForm.cs:206-209`), so right-clicking that row does nothing until something else changes the screen.
+  - Test: `RightClickingTheRowWhoseMenuIsOpen`. Fix: call `ApplyMenu` before the early return.
+
+- [ ] **Dragging the scrollbar thumb, or moving or resizing the window, freezes the panes** (repro for the thumb)
+  - `Present` returns only after `DoEvents` (`src/DiffEngineViewer.Windows/FormsViewerWindow.cs:58-60`), and the thumb is tracked in the scroll bar's own modal loop. Move and resize rest on `WM_ENTERSIZEMOVE`'s documentation. The class comment's "no nested message loops" (`:7-9`) is wrong.
+  - Test: `DraggingTheThumbHoldsThePump` (one `DoEvents` took 560 ms; the panes jumped on release).
+  - A fix needs a way to run a frame from inside the modal loop, which `IViewerWindow` has no hook for.
+
+- [ ] **Losing mouse capture mid drag leaves `selecting`/`dragging` set** (repro)
+  - Only `OnMouseUp` clears them (`ViewerCanvas.cs:649-665`), and a window without capture never hears the button come up.
+  - Tests: `LosingCaptureMidDragEndsTheDrag` (the selection follows the pointer with no button held), `LosingCaptureMidSplitterDragEndsTheDrag`.
+  - Fix: `OnMouseCaptureChanged` acting when `!Capture`, and ending the drag when a move arrives without the left button.
+
+- [ ] **At logoff the session can end before `PersistOwned` runs** (verified)
+  - WinForms closes and disposes the form inside `WM_ENDSESSION`. The loop notices only after `DoEvents` returns, and `Run`'s finally then joins the listener and the watcher, up to 2 s each, before persisting (`ViewerProgram.cs:256-281`). The documentation says the session may end once every application has returned from that message.
+  - Test: `EndSessionReturnsBeforeTheLoopHasStartedToPersist` (`WM_ENDSESSION` returned at 330 ms, before `Run`'s finally had started). Only a real logoff shows whether Windows ends the process in that gap.
+  - The suggested fix is incomplete: the form has no route to the session. It must set `Closing` before persisting, so late arrivals are refused and staged by their senders, and must not wait on the runner or the joins.
+
+- [ ] **`ImageCache` ignores `ImagePane.Hash`, and reads with `FileShare.Read`** (repro)
+  - The key is the path, checked by write time and length (`ImageCache.cs:27-51`), and `DrawImage` never passes the hash (`ViewerCanvas.cs:351`). In the app, that takes a pair re-sent within the timestamp granularity.
+  - Test: `ARewriteWithTheSameStampKeepsTheOldPicture` (180 of 199 back-to-back writes here kept the stamp). Fix: pass the hash into `Get`.
+  - The file is held only for the `ReadAllBytes`: 0.1 ms at 100 KB, 2.8 ms at 10 MB (`HowLongADecodeHoldsTheFile`). The viewer's accept-all worker can overlap it and does not retry; the tray's move retries, its discard does not. `FileSide.Read` opens the same files the same way (`FileSide.cs:36, 39`), so widen the sharing there too.
 
 Tray
 
-- [ ] A failed bind on 3492 leaves `PiperServer.Start`'s faulted task unobserved: the tray runs without the listener while holding the mutex, then rethrows on exit (`src/DiffEngineTray/Program.cs:99,131-132`, `PiperServer.cs:31-32`).
-- [ ] The locked-file kill uses a bare PID after an unbounded modal dialog; Restart Manager's `ProcessStartTime` is read and discarded (`Tracker.cs:556-578`, `FileLockKiller.cs:89-131`, `LockingProcess.cs`).
-- [ ] `AddMove`'s update factory disposes `existing.Process` without nulling it, and `AddOrUpdate` factories can run twice under contention (`Tracker.cs:164-176`). A menu item built before the update then throws from "Open diff tool" on the UI thread.
-- [ ] `PiperServer`'s handler runs synchronously on the accept loop until its first real await, and its `IOException` connection-reset catch can never match (`PiperServer.cs:52,63-76`). Use `Task.Run` and catch `SocketException`.
-- [ ] `FileComparer` opens with `FileShare.Read`, which can fail a test's rewrite or delete of the received file during the 2 s scan; `count2` is ignored (`FileComparer.cs:10-41`).
-- [ ] "Always kill locking processes" is ignored for accepts arriving over the socket (`Tracker.cs:596-600,955-958`).
+- [ ] **A failed bind on 3492 leaves the tray running without its listener** (verified)
+  - `PiperServer.Start` is async, so a bind failure (`src/DiffEngineTray/PiperServer.cs:31-32`) faults the returned task, which `Program` awaits only after `Application.Run` returns (`Program.cs:99`, `:132`), holding the "DiffEngine" mutex throughout; on exit it is logged as Fatal "Failed at startup" and rethrown. Meanwhile, if another process holds 3492, `PortIsHeld` says yes and every move and delete goes to it; a bind that failed otherwise sends moves to 3493 without exe, arguments or process id.
+  - Needs the named mutex, which the real tray holds, so not unit tested.
+  - Fix: bind synchronously, as `ViewerServer.TryBind` does, and warn; or check `IsFaulted` before `Application.Run`.
 
-Native
+- [ ] **The locked-file kill uses a bare PID after an unbounded modal dialog** (verified)
+  - `FileLockKiller.cs:89-100` drops `RM_UNIQUE_PROCESS.ProcessStartTime`, and `LockingProcess` has nowhere to keep it. After `form.ShowDialog()` (`LockedFilesHandler.cs:12-13`), which has no timeout, `Kill` opens each process by id (`FileLockKiller.cs:121`). Only the dialog path has a long window; PID reuse cannot be forced in a test.
+  - Fix: keep the start time and compare it with the opened process's through the same handle before killing.
 
-- [ ] F12 in the Linux viewer writes `screenshotNNN.png` into the working directory (raylib `SUPPORT_SCREEN_CAPTURE` default; the string is in the committed `.so`). `set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
-- [ ] Decoded image caches never evict on Linux (textures) or macOS (CGImages) (`native/src/deview.cpp:140,311-361`, `native/swift/Sources/Deview/Renderer.swift:60,436-452`).
-- [ ] macOS drag-select clamps to the renderer's capacity rather than the rows drawn, so an overshooting drag copies up to three unseen rows (`ViewerView.swift:199-207`).
-- [ ] Selection columns are UTF-16 units but the renderers treat them as glyph cells, so non-BMP characters shift the copy and can split a surrogate pair (`native/include/deview.h:61-69`, `SelectionText.cs`). Count in `Rune`s.
-- [ ] `NativeResolver` still loads the glibc build on musl through the synthesized `linux-{arch}` candidate (`src/DiffEngineViewer/Native/NativeResolver.cs:77-108`).
-- [ ] The Linux queue header ignores `pendingCount` (`deview.cpp:1002`).
-- [ ] `deview_capture` flips scissor rectangles with the window height rather than the render target's (`deview.cpp:470`). Latent while every capture is 1100×700.
-- [ ] Five-digit line numbers widen the Linux gutter by a cell, and hit-testing uses the first row's text start (`deview.cpp:643-657`).
-- [ ] macOS has no autorelease pool around the hand-pumped frame (`Exports.swift:41-65`, `Runtime.swift`). Check with `OBJC_DEBUG_MISSING_POOLS=YES`.
-- [ ] macOS Dock Quit and logout call `NSApp.terminate` directly, skipping `PersistOwned` (`Runtime.swift:65-104`).
-- [ ] macOS App Nap can stall the loop while the window is covered (`Runtime.swift:244-249`).
+- [ ] **"Open diff tool" from a menu built before a re-run's move throws on the UI thread** (repro)
+  - `AddMove`'s update factory disposes `existing.Process` (`src/DiffEngineTray/Tracker.cs:207`) and leaves it on the old move, which a menu that was open across the re-run still holds (`MenuBuilder.cs:284`; the menu is rebuilt on each Opening). Nothing handles `ThreadException`, so the user gets WinForms' unhandled exception dialog. The factory running twice under contention only leaks a handle.
+  - Test: `OpenDiffToolFromAMenuBuiltBeforeTheMoveWasUpdated`.
+  - The suggested fix is incomplete: nulling it stops the throw, but "Open diff tool" would then attach the new tool to the orphaned move, which nothing kills. Look the move up by key when clicked, and dispose outside the factory.
+
+- [ ] **A connection that resets while waiting to be accepted shows the "open an issue" box and stalls the listener** (repro)
+  - `AcceptTcpClientAsync` throws a bare `SocketException` ConnectionReset (measured on .NET 10), but the accept loop's catch expects an `IOException` wrapping one (`PiperServer.cs:63-67`), so it reaches `ExceptionHandler.Handle` and its modal box, on the accept loop's own thread. `Handle`'s catch (`:126-130`) is right as it is: a reset during the read is the wrapped form.
+  - Test: `AClientThatResetsBeforeItIsAcceptedIsNotReportedAsAnError`.
+  - Fix: catch `SocketException` in the accept loop only. The handler running inline until its first real await is true, but only widens the window. Also, `PiperTest.ClientDisconnectsAbruptly` never sends a reset (`TcpClient.Dispose` closes cleanly); `Socket.Close(0)` does.
+
+- [ ] **`FileComparer` blocks a test's delete of its received file during a compare** (repro)
+  - Both files are opened with `FileShare.Read` (`src/DiffEngineTray/FileComparer.cs:10-16`) for the whole compare, which since #884 runs once per change of a same-size pair.
+  - Test: `ATestCanDeleteItsReceivedFileWhileTheScanComparesIt` (a 64 MB pair).
+  - `count2` cannot give a wrong answer today, because `FileShare.Read` keeps writers out. So widening the sharing alone is wrong: truncating the received file mid compare then made `FilesAreEqual` return true against a 64 MB verified file, and the scan would drop the move and kill its tool. Widen it only together with returning false when `count1 != count2`.
+
+- [ ] **"Always kill locking processes" is ignored for accepts arriving over the socket** (repro)
+  - Wire accepts go through `AcceptWithoutPrompting` (`Tracker.cs:1073-1090`), and `ShouldKill` returns false at `:720-724`, before the resolver, the only place that reads the setting (`LockedFilesHandler.cs:7-10`). The viewer is told to accept from the tray menu, where the same accept kills without asking.
+  - Test: `AlwaysKillAppliesToAnAcceptArrivingOverTheSocket`.
+  - Fix: read the setting in `ShouldKill` before the `NeverPrompt` branch. `ALockedMoveIsRefusedWithoutPrompting` requires that the resolver, which builds a dialog, is never consulted.
+
+Native (the Linux items were unreachable until "The Linux viewer never showed a frame" was fixed; these are verdicts on the code as it behaves from there)
+
+- [x] F12 in the Linux viewer writes `screenshotNNN.png` into the working directory (raylib `SUPPORT_SCREEN_CAPTURE` default; the string is in the committed `.so`). `set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
+  - **Fixed** with the frame control above (verified: `EndDrawing` takes `IsKeyPressed(KEY_F12)` to `TakeScreenshot` in the working directory). It could not fire while nothing polled input, and could as soon as something did.
+
+- [ ] **Decoded image caches never evict on Linux or macOS** (verified)
+  - `state.pictures` (`native/src/deview.cpp:140`) drops an entry only when that path is asked for again and has changed or gone (`:318-344`), or at shutdown; `Renderer.swift:60` likewise (`:436-452`). Bounded by one viewer session, which ends when the queue empties.
+  - Fix: after each frame, drop what the frame did not use.
+
+- [ ] **macOS drag-select clamps to the renderer's capacity rather than the rows drawn** (verified)
+  - `draggedRow` clamps to `capacity - 1` (`native/swift/Sources/Deview/ViewerView.swift:199-207`) while the managed side draws `Rows - 8` (`ScreenBuilder.cs:10-13`), and neither `DiffView.Unfold` nor `SelectionText.Clamp` clamps to the rows shown. An overshooting drag highlights to the last visible row, but the status line counts, and Cmd+C copies, up to three or four rows below it.
+  - Fix: clamp to the drawn rows, as Linux's `RowAt` does (`deview.cpp:693-703`).
+
+- [ ] **The Linux queue header ignores `pendingCount`** (verified)
+  - `deview.cpp:1014` draws the literal "Pending". macOS, WinForms and the text renderer draw "Pending (N)", which ABI 7 added the field for.
+
+- [ ] **`deview_capture` flips scissor rectangles with the window height** (verified, latent)
+  - `RenderDrawData` uses `GetScreenHeight()` (`deview.cpp:470`, `:484-489`), and `BeginTextureMode` changes only the render target's height. Every capture is 1100×700 in a 1100×700 window, so no output is wrong today.
+  - Fix: `drawData->DisplaySize.y`.
+
+- [ ] **Five-digit line numbers widen the Linux gutter, and hit-testing uses the first row's text start** (verified)
+  - `"%c %4d"` (`deview.cpp:655`) is seven cells from line 10000, and `textLeft` is read from the first row drawn (`:665-669`) and used for every row. Only files over 9999 lines; macOS uses a fixed eight-cell gutter.
+
+- [ ] **macOS has no autorelease pool around the hand-pumped frame** (verified; the leak rate needs a Mac)
+  - Nothing pushes a pool in `deview_present` or `deview_poll_input` (`native/swift/Sources/Deview/Exports.swift:41-65`, `Runtime.swift:131-150, 244-249`), and the dylib imports neither `objc_autoreleasePoolPush` nor `Pop`. objc4 then creates a pool that drains only when the thread exits. Check with `OBJC_DEBUG_MISSING_POOLS=YES`.
+  - Fix: `autoreleasepool {}` around each export's body, as GLFW does.
+
+- [ ] **macOS Dock Quit and logout skip `PersistOwned`** (verified)
+  - There is no app delegate and no `applicationShouldTerminate` (`Runtime.swift:92-96`). A quit Apple event becomes `terminate:`, after which cleanup in `main` never runs (Apple's `terminate(_:)` documentation), so #878's `finally` does not either. macOS has no tray, so an owning viewer's queue is lost.
+  - Fix, as GLFW does: an app delegate that records the quit and returns `.terminateCancel`. `.terminateLater` would deadlock, running a modal loop inside the pump while the managed thread waits.
+
+- [ ] **macOS App Nap can stall the loop while the window is covered** (cannot verify here)
+  - Nothing opts out (no `beginActivity`, `NSAppSleepDisabled` or power assertion), the only wait is `nextEvent(until: now + 1/60)` (`Runtime.swift:244-249`), and a Focus queued by an arriving patch waits for the next managed frame.
+  - Check on a Mac: cover the viewer for a minute, confirm Activity Monitor shows App Nap, then time how long a failing inline test takes to bring it forward against an uncovered window.
+
+- [ ] **`NativeResolver` loads the glibc build on musl through the `linux-{arch}` candidate** (cannot verify here)
+  - For `linux-musl-x64` the order is `runtimes/linux-musl-x64` (not shipped), then `runtimes/linux-x64` (glibc), then beside the exe (`src/DiffEngineViewer/Native/NativeResolver.cs:65-108`), against its own comment (`:79-80`). #788 fixed the same thing in `BundledViewerDirectory` but not here.
+  - A failed load is harmless: it is caught and the queue is staged before exit 4. All 238 undefined symbols are names musl exports, though, so the load could succeed, and a crash after it would skip staging.
+  - Check on Alpine x64 with mesa-gl, libx11, libxext, libsm, libice and libstdc++: whether the tool renders or crashes.
 
 Library and inline
 
-- [ ] Settle-by-member counts queue entries, not call sites, so a passing sibling in the same member drops the one pending entry (`src/DiffEngine/Inline/InlineQueue.cs:235-239,304-331`; the same rule in `InlineStaging.cs:118-128`).
-- [ ] The viewer launch (`UseShellExecute = false`, `src/DiffEngine/Viewer/ViewerLauncher.cs:95-102`) inherits the test host's std handles, so a redirected stdout pipe may keep `dotnet test` open until the viewer closes (the Verify#1229 problem). Confirm under MTP and VSTest.
-- [ ] `MemberLine` picks the nearest same-named declaration even when it is below the hint: an F# local named like the test, or a same-named member in a nested type, moves the floor past the hint (`InlinePatcher.cs:971-1008`). Prefer the candidate whose span contains the hint.
-- [ ] `NextMemberLine` compares indentation by character count, so a tab-indented body under a space-indented member ends the member early (`InlinePatcher.cs:855,867-868`).
-- [ ] F#: a regular literal whose value looks like layout reads differently in the patcher (not stripped) and the test library (`SnapshotValue` strips), e.g. content `"\nx = \"\"\"\n"` is reported AlreadyApplied forever (`src/DiffEngine/Inline/FsStringLiteral.cs:39-46,81-84,123-146`).
-- [ ] F#: escapes F# does not define (`"\d+"`) are kept literally by F# but rejected here as "not a string literal" (`FsStringLiteral.cs:158-203`).
-- [ ] `WildcardFileFinder` enumerates from an unexpanded `%VAR%` root and throws `DirectoryNotFoundException` out of the `DiffTools` static constructor when a Program Files variable is undefined (`src/DiffEngine/WildcardFileFinder.cs:20-33`). Check `Directory.Exists` and catch IO errors.
-- [ ] Sync `ViewerLaunchGate.Launch` blocks on the semaphore that async callers hold across awaits without `ConfigureAwait(false)`, so a bounded sync context (xUnit v2) can deadlock (`ViewerLaunchGate.cs:106,151-167`).
-- [ ] `InlineApplier.Apply` can throw (mutex creation, a patcher bug) instead of returning `Failed`; in an owning viewer that unwinds the loop and skips `PersistOwned` (`InlineApplier.cs:84,152-164`).
-- [ ] Test display names over about 220 characters push staged file names past 255 and are silently not persisted (`src/DiffEngine/Inline/InlineStaging.cs:373-394`). Truncate the test segment.
-- [ ] Port 3493 is IANA-registered to Network UPS Tools; on a host running upsd, inline review silently degrades and every settle connects to it (`src/DiffEngine/Protocol/ViewerServer.cs:41-45`). At least trace a hint to set `DiffEngine_ViewerPort`.
+- [ ] **With no tray, `dotnet test` does not return until the viewer it launched is closed** (repro)
+  - `src/DiffEngine/Viewer/ViewerLauncher.cs:104-115` starts the viewer with `UseShellExecute = false`, so it inherits every inheritable handle, including the pipe `dotnet test` reads the test host's output from. `DiffRunner` launches tools with the default `UseShellExecute = true` (`Definition.cs:13`), which inherits nothing.
+  - Measured with a test starting a 22 s child each way, on Windows: MTP 23.4 s and VSTest 23.7 s with `UseShellExecute = false`, with or without redirecting stdin; 1.5 s and 1.3 s with ShellExecute. The scratch projects are not in the repo.
+  - Redirecting all three handles still blocked. The stdin launch cannot use ShellExecute: it needs `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, the payload sent another way, or a launcher that re-spawns itself detached.
+
+- [ ] **Settle-by-member counts queue entries, not call sites** (repro)
+  - A settle carries the passing call's own line, the framework and the member (`src/DiffEngine/DiffRunner_Inline.cs:130-139`). When the line names nothing, `FindByMember` removes the one entry with that member (`InlineQueue.cs:235-239`, `:304-331`), which may be a failing sibling's; `InlineStaging.cs:118-128` does the same on disk.
+  - Tests: `SettleFromAPassingSiblingKeepsTheFailingSiblingsEntry`, `ClearFromAPassingSiblingKeepsTheFailingSiblingsStagedTrio`.
+  - In Verify's usual shape the failing check throws first and the passing one never runs, so mostly it costs a drop and re-add. The entry is lost when the failing check does not end the test, or when the sibling is a same-named method in another nested class, run later.
+  - Not fixable in the queue, which only sees failing call sites: `SettleFindsAnEntryWhoseLineHasMovedByMember` feeds the same inputs and wants the opposite. The settle has to carry the passing call's value or expression, or the owner has to re-locate the entry's call site.
+
+- [ ] **`MemberLine` takes the nearest same-named declaration, even below the hint** (repro)
+  - Nearest by line distance, with no check of which span holds the hint (`src/DiffEngine/Inline/InlinePatcher.cs:1083-1120`). Two nested types each declaring `Works`: A's patch goes to B, or misses.
+  - Tests: `ASameNamedMemberInTheNextNestedTypeDoesNotTakeThePatch`, `ASameNamedMemberInTheNextNestedTypeDoesNotHideTheCall`, `AnFsLocalNamedLikeTheTestDoesNotFloorTheSearchPastTheHint`.
+  - Fix as suggested, tried: the three pass and the 225 patcher and applier tests still do. When several spans hold the hint, prefer the outermost.
+
+- [ ] **`NextMemberLine` compares indentation by character count** (repro)
+  - `InlinePatcher.cs:967`, `:980`. A tab-indented body under a space-indented member ends the member early, so the call is missed on every re-run, or the sibling above it is patched instead. C# only: F# rejects tabs (FS1161).
+  - Tests: `ATabIndentedLocalDoesNotEndASpaceIndentedMember`, `ATabIndentedLocalDoesNotSendThePatchToTheSiblingAboveIt`, and the passing `ControlSpaceIndentedLocalLeavesTheSiblingAlone`, which differs only in indentation.
+  - Tab stops of 4 fixed both; matching braces would be sturdier.
+
+- [ ] **F#: a regular literal whose value looks like layout is AlreadyApplied forever** (repro)
+  - Content holding `"""` is written as a regular literal (`src/DiffEngine/Inline/FsStringLiteral.cs:39-46`). The test library strips it as layout (`FsLanguage.cs:16-17`); the patcher does not (`FsStringLiteral.cs:127`, `:146`), finds it equal to the new content, and reports AlreadyApplied. The queue drops it, and the next run fails the same way.
+  - Tests: `FsLayoutShapedRegularLiteralRoundTripsThroughTheCompiler` (through fsi), `FsPatcherDoesNotCallALayoutShapedRegularLiteralAlreadyApplied`.
+  - Needs both halves, which together passed everything: the writer wraps layout-shaped fallback content in `"\n"…"\n"`, and the patcher strips regular and verbatim values as `SnapshotValue` does. Add the case to `FsCompilerRoundTripTests`.
+
+- [ ] **F#: escapes F# does not define are rejected as "not a string literal"** (repro)
+  - fsi keeps `"\d+"`, `"\0"`, `"\12"`, `"\e"`, `"\x4"`, `"\u12"` and `"\U0041"` literally, with no warning. `TryEscape` rejects them (`FsStringLiteral.cs:162-169`, `:188-201`), and the shared scanner rejects `\u`/`\U` before that (`StringLiteral.cs:445-461`), so an accept returns NotFound, on every run.
+  - Tests: `FsUnknownEscapeIsKeptLiterally` (4 cases), `FsPatcherUpdatesALiteralHoldingAnUnknownEscape`.
+  - Fixing `TryEscape` alone leaves `\u12`, and breaks `FsStringLiteralTests.ParseRejects` for `\0`, `\12` and `\e`, which pin the belief fsi disproves; they become `Parse` cases.
+
+- [ ] **`WildcardFileFinder` throws out of `DiffTools`' static constructor under an undefined Program Files variable** (repro)
+  - The unexpanded `%ProgramW6432%` becomes a relative root (`src/DiffEngine/WildcardFileFinder.cs:20-32`), and `DirectoryNotFoundException` escapes through `OsSettingsResolver.cs:163` to `DiffTools.cs:18`. With `ProgramW6432` unset, `DiffToolsTest` fails with a `TypeInitializationException`. ExamDiff (`ExamDiff.cs:40`) and Beyond Compare put a wildcard right after the variable.
+  - Tests: `AnUndefinedVariableBeforeAWildcardIsNotFoundRatherThanThrown`, `ResolvingATwoLevelWildcardUnderAnUndefinedVariableIsNotFound`.
+  - Only 64-bit Windows defines both variables, so this needs 32-bit Windows or a trimmed environment. Fix as suggested.
+
+- [ ] **Sync `ViewerLaunchGate.Launch` deadlocks behind an async launch on a single threaded context** (repro)
+  - `gate.Wait()` (`src/DiffEngine/Viewer/ViewerLaunchGate.cs:106`) blocks the thread that `LaunchAsync`'s awaits (`:162`, `:167`, `:214`) need to resume on.
+  - Tests: `SyncLaunchBehindAnAsyncDeleteOnTheSameContextFinishes`, `SyncLaunchBehindAnAsyncInlineOnTheSameContextFinishes`.
+  - Verify 33.1.1 calls only the async APIs, so this needs a sync caller (ApprovalTests or Shouldly style) in the same xUnit v2 assembly. Rare.
+  - `ConfigureAwait(false)` in the gate fixes the delete case only: `ViewerLauncher.cs:28,30,32` resume on the caller's context too.
+
+- [ ] **`InlineApplier.Apply` throws instead of returning `Failed`** (repro; the `PersistOwned` half was fixed by #878)
+  - `OpenMutex` (`src/DiffEngine/Inline/InlineApplier.cs:410-413`) and `InlinePatcher.TryApply` (`:152-164`) are unguarded. In a viewer, a single or group accept then unwinds the loop: the queue is staged and the window vanishes mid review. Accept-all, the wire handler and the tray catch it.
+  - Test: `AMutexThisProcessCannotOpenFailsTheApplyRatherThanThrowing` (`UnauthorizedAccessException` from a mutex an elevated process holds).
+
+- [ ] **Staged file names over 255 characters are silently not written** (repro)
+  - `BuildName` (`src/DiffEngine/Inline/InlineStaging.cs:423-428`) adds about 30 characters to the test name; the write throws and `:407-414` swallows it. Long path support does not help: the limit is the 255 character file name component.
+  - Test: `ALongTestNameIsStillPersisted` (a 242 character test name).
+  - Above about 225 characters of test name, which is mostly F# sentence names, or fewer non-ASCII ones on ext4 and APFS, whose limit is in bytes. Fix: truncate by UTF-8 bytes; the call-site hash keeps names unique.
+
+- [ ] **Something other than a viewer on 3493 silently disables the viewer** (repro, against a fake upsd)
+  - `TrySend` marks the port owned as soon as the connect succeeds (`src/DiffEngine/Protocol/ViewerClient.cs:233`), so an unparseable reply returns false (`:241`) and the unowned-port memory never applies. `IsOwned` stays true, so the gate never launches, `AddInlineAsync` returns `NoViewerFound`, a pair whose tool is the viewer gets `NoDiffToolFound`, deletes are dropped, and nothing mentions `DiffEngine_ViewerPort`.
+  - Test: `ANonViewerOnThePortIsReportedRatherThanTakenForAnOwner`.
+  - The connects cost under a millisecond each; losing the viewer is the problem. Real upsd was not tried: if it held the connection open, every send would wait out its timeout.
 
 
 ## Perf
@@ -190,6 +365,7 @@ Library and inline
 - [ ] Windows image panes rescale from full resolution and redraw the checkerboard on every paint (11 to 40 ms per image), and decode on the UI thread (`ViewerCanvas.cs:385-420`, `ImageCache.cs:56-71`). Cache the composited scaled bitmap per path, stamp and size.
 - [x] All three heads lay out each row's full text though only about 35 cells fit (`ViewerCanvas.cs:503-508`, `src/DiffEngineViewer/Native/ScreenPayload.cs:164-177`); a 1 MB minified line costs about 0.8 s per paint on Windows. Truncate to the visible columns before drawing or marshalling.
 - [x] raylib busy-waits the last 5% of every frame: `set(SUPPORT_PARTIALBUSY_WAIT_LOOP OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
+  - That line alone changed nothing: `build-native` after #884 produced byte-identical binaries. The misparse behind "The Linux viewer never showed a frame" had `SUPPORT_BUSY_WAIT_LOOP` on too, which takes precedence and would have spun through the whole of every frame's wait once frame control ran it. Both are off now.
 - [x] `InlineStaging.Clear` walks the `obj` tree and re-reads and parses every staged `.inlinepatch` on each verification (`src/DiffEngine/Inline/InlineStaging.cs:94-192`). Cache per directory keyed on `LastWriteTimeUtc`.
 - [x] Tray: `SafeMove`'s 8 × 400 ms retry runs on the UI thread even for failures that cannot clear, such as a read-only target or a missing directory (`src/DiffEngineTray/Tracker.cs:535-585`, `FileEx.cs:73-90`). Retry only sharing violations.
 - [x] Tray: the 2 s scan re-reads every equal-size, different pair from scratch (`Tracker.cs:81-97`, `FileComparer.cs:18-57`). Cache length and write time with the last result.
