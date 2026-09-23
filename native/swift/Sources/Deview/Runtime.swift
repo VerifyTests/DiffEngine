@@ -11,6 +11,9 @@ final class Runtime {
     static let shared = Runtime()
 
     private var delegate: WindowDelegate?
+
+    /// Held here because `NSApplication.delegate` does not keep it alive.
+    private let applicationDelegate = ApplicationDelegate()
     private var size = CGSize(width: 1100, height: 700)
     private var title = "DiffEngineViewer"
 
@@ -80,6 +83,7 @@ final class Runtime {
 
         // Before finishLaunching, which is when the bar is first read.
         application.mainMenu = MainMenu.build(target)
+        application.delegate = applicationDelegate
         application.finishLaunching()
 
         let bounds = NSRect(origin: .zero, size: size)
@@ -307,5 +311,26 @@ final class Runtime {
         input.dragAnchorColumn = 0
         input.dragFocusRow = 0
         input.dragFocusColumn = 0
+    }
+}
+
+/// Answers a quit that comes from outside the managed loop: Quit in the Dock, and logout.
+///
+/// Both arrive as `terminate:`, which does not return. With no delegate to ask, AppKit exits from
+/// inside it, so nothing after the pump call runs, the managed `finally` included. For a viewer
+/// that owns the queue, that `finally` is `PersistOwned`, and macOS has no tray to hold the queue
+/// instead, so the queue was lost.
+///
+/// The quit is refused and reported as a close, which the managed side answers the way it answers
+/// the window's close button: it leaves the loop, persists, and exits. That is what GLFW does.
+/// Not `.terminateLater`, whose reply AppKit waits for in a modal loop inside the pump, while the
+/// thread that would send the reply is the one blocked waiting for the pump to return.
+///
+/// A refused quit also cancels the logout that asked for it. By the time the logout is tried
+/// again the viewer has exited.
+final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Runtime.shared.input.closeRequested = 1
+        return .terminateCancel
     }
 }

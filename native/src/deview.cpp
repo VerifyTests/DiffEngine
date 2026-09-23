@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <map>
@@ -101,6 +102,9 @@ struct CachedTexture
     bool loaded = false;
     std::uintmax_t length = 0;
     std::filesystem::file_time_type written{};
+
+    /* Whether the frame being built asked for this picture. What ForgetUnusedPictures keeps. */
+    bool used = false;
 };
 
 struct State
@@ -337,6 +341,7 @@ const Texture2D* Picture(const std::string& path)
         if (found->second.written == written &&
             found->second.length == length)
         {
+            found->second.used = true;
             return found->second.loaded ? &found->second.texture : nullptr;
         }
 
@@ -346,6 +351,7 @@ const Texture2D* Picture(const std::string& path)
     CachedTexture entry;
     entry.written = written;
     entry.length = length;
+    entry.used = true;
     const Texture2D texture = LoadTexture(path.c_str());
     if (IsTextureValid(texture))
     {
@@ -358,6 +364,34 @@ const Texture2D* Picture(const std::string& path)
 
     const auto inserted = state.pictures.emplace(path, entry).first;
     return inserted->second.loaded ? &inserted->second.texture : nullptr;
+}
+
+/*
+ * Drops every picture the frame just drawn did not ask for, once the frame has been rendered and
+ * the draw data naming those textures has been consumed.
+ *
+ * Otherwise an entry went only when its own path was asked for again and had changed or gone, so
+ * every image reviewed in a session stayed decoded, on the GPU, until the session ended. A picture
+ * scrolled or navigated back to is decoded again, which is one file read.
+ */
+void ForgetUnusedPictures()
+{
+    for (auto entry = state.pictures.begin(); entry != state.pictures.end();)
+    {
+        if (entry->second.used)
+        {
+            entry->second.used = false;
+            ++entry;
+            continue;
+        }
+
+        if (entry->second.loaded)
+        {
+            UnloadTexture(entry->second.texture);
+        }
+
+        entry = state.pictures.erase(entry);
+    }
 }
 
 void UnloadPictures()
@@ -467,7 +501,10 @@ void RenderDrawData(ImDrawData* drawData)
     rlDrawRenderBatchActive();
     rlDisableBackfaceCulling();
 
-    const float height = static_cast<float>(GetScreenHeight());
+    /* The height of what is being drawn to, which is not the window's for a capture: that draws to
+     * a render texture of its own size, and BeginTextureMode changes the target without changing
+     * what GetScreenHeight reports. */
+    const float height = drawData->DisplaySize.y;
     for (int list = 0; list < drawData->CmdListsCount; list++)
     {
         const ImDrawList* commands = drawData->CmdLists[list];
@@ -606,8 +643,9 @@ struct PaneHit
     /* The left edge of the column, which is where the gutter starts. */
     float cellLeft = -1.0f;
 
-    /* Where the row text starts, past that gutter, read from the first row that draws any. Stays
-     * -1 for a pane of nothing but filler, which has nothing to select either. */
+    /* Where the row text starts, past that gutter, read from the first row that draws any, and
+     * true of every row because GutterDigits gives them all one width. Stays -1 for a pane of
+     * nothing but filler, which has nothing to select either. */
     float textLeft = -1.0f;
 
     /* The top of row zero and the pitch between rows, read from the first two rows the way
@@ -616,7 +654,38 @@ struct PaneHit
     float pitch = 0.0f;
 };
 
-void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column, PaneHit& hit)
+/*
+ * How many digits the line numbers of this frame take: four, the width every other renderer
+ * gives them, or more when a row drawn in either pane needs it.
+ *
+ * One width for every row of both panes, which is what lets the text start read from the first
+ * row stand for all of them. Formatted per row, a five digit number pushed its own row's text a
+ * cell right of the rows above it, and a drag across them selected a cell off.
+ */
+int GutterDigits(const DeviewScreen* screen)
+{
+    int digits = 4;
+    for (int side = 0; side < 2 && side < screen->paneCount; side++)
+    {
+        const DeviewPane& pane = screen->panes[side];
+        for (int index = 0; index < pane.rowCount; index++)
+        {
+            int32_t number = screen->rows[pane.rowOffset + index].lineNumber;
+            int length = 1;
+            while (number >= 10)
+            {
+                number /= 10;
+                length++;
+            }
+
+            digits = std::max(digits, length);
+        }
+    }
+
+    return digits;
+}
+
+void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column, int digits, PaneHit& hit)
 {
     /* Before the row count check, so a pane shorter than the body still reports where its rows
      * begin and how far apart they are. */
@@ -652,11 +721,11 @@ void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int 
     ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(130, 130, 130, 255));
     if (row.lineNumber >= 0)
     {
-        ImGui::Text("%c %4d", RowMarker(row.kind), row.lineNumber);
+        ImGui::Text("%c %*d", RowMarker(row.kind), digits, row.lineNumber);
     }
     else
     {
-        ImGui::Text("%c     ", RowMarker(row.kind));
+        ImGui::Text("%c %*s", RowMarker(row.kind), digits, "");
     }
 
     ImGui::PopStyleColor();
@@ -1001,6 +1070,8 @@ void BuildFrame(const DeviewScreen* screen)
     PaneImage leftImage;
     PaneImage rightImage;
 
+    const int digits = GutterDigits(screen);
+
     /* Filled by the same pass that draws the rows, and read after it by UpdateSelection. */
     PaneHit leftHit;
     PaneHit rightHit;
@@ -1011,7 +1082,11 @@ void BuildFrame(const DeviewScreen* screen)
         const DeviewPane& right = screen->panes[1];
         if (hasQueue)
         {
-            ImGui::TableSetupColumn("Pending", ImGuiTableColumnFlags_WidthFixed, queueWidth);
+            /* The count every other renderer puts in this header, with the column's id kept apart
+             * from it so a count that changes is still the same column. */
+            char pending[48];
+            std::snprintf(pending, sizeof pending, "Pending (%d)###Pending", screen->pendingCount);
+            ImGui::TableSetupColumn(pending, ImGuiTableColumnFlags_WidthFixed, queueWidth);
         }
 
         ImGui::TableSetupColumn(Copy(screen, left.headerOffset, left.headerLength).c_str());
@@ -1111,10 +1186,10 @@ void BuildFrame(const DeviewScreen* screen)
             }
 
             RecordPaneImage(leftImage, left, index);
-            DrawRow(screen, left, index, column, leftHit);
+            DrawRow(screen, left, index, column, digits, leftHit);
             ImGui::TableSetColumnIndex(column + 1);
             RecordPaneImage(rightImage, right, index);
-            DrawRow(screen, right, index, column + 1, rightHit);
+            DrawRow(screen, right, index, column + 1, digits, rightHit);
         }
 
         ImGui::EndTable();
@@ -1428,6 +1503,7 @@ int32_t deview_present(const DeviewScreen* screen)
     ClearBackground(Color{24, 24, 24, 255});
     RenderDrawData(ImGui::GetDrawData());
     EndDrawing();
+    ForgetUnusedPictures();
 
     MeasureGrid();
     return 1;
@@ -1511,6 +1587,7 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
     ClearBackground(Color{24, 24, 24, 255});
     RenderDrawData(ImGui::GetDrawData());
     EndTextureMode();
+    ForgetUnusedPictures();
 
     Image image = LoadImageFromTexture(target.texture);
     /* Render textures come back bottom up. */

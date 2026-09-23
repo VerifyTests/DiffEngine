@@ -212,6 +212,11 @@ final class Renderer {
 
         let bodyBottom = bodyTop + CGFloat(capacity) * line
 
+        // Only the pictures this frame names stay decoded. An entry used to go only when its own
+        // path was asked for again and had changed or gone, so every image reviewed in a session
+        // was held until the session ended.
+        pictures = pictures.filter { $0.key == frame.left.imagePath || $0.key == frame.right.imagePath }
+
         // Under the rows rather than instead of them. The rows are what every head draws — format,
         // size and byte count, coloured against the other side — and this one can afford to also
         // show the thing they describe.

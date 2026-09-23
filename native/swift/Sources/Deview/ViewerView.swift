@@ -194,15 +194,19 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         return (side, draggedRow(point.y, side: side), column(at: point.x, side: side))
     }
 
-    /// The row under a y, in rows of the whole side and clamped into the body: a drag below the
-    /// last row means the last row rather than nothing.
+    /// The row under a y, in rows of the whole side and clamped into the rows the pane drew, as
+    /// Linux's `RowAt` does: a drag below the last row means the last row rather than nothing.
+    /// Clamped to the body instead, a drag past the end reached the rows the managed side holds
+    /// back below what it draws, so the status line counted, and a copy took, rows nobody saw
+    /// highlighted.
     private func draggedRow(_ y: CGFloat, side: Int32) -> Int32 {
         let line = renderer.cell.height
         let capacity = max(1, Int(layout.body.height / line))
+        let pane = side == 1 ? model.right : model.left
+        let drawn = max(1, min(capacity, pane.rows.count))
         // The context is not flipped, so the top of the body is its maxY and rows count downwards
         // from there.
-        let visible = min(max(Int((layout.body.maxY - y) / line), 0), capacity - 1)
-        let pane = side == 1 ? model.right : model.left
+        let visible = min(max(Int((layout.body.maxY - y) / line), 0), drawn - 1)
         return pane.scrollTop + Int32(visible)
     }
 
