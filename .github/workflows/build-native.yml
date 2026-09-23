@@ -47,22 +47,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build \
-            libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
-            libgl1-mesa-dev libglu1-mesa-dev libwayland-dev libxkbcommon-dev
-
-      - name: Configure
-        if: matrix.rid != 'osx'
-        run: cmake -S native -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
+      # In a manylinux_2_28 container rather than on the runner, for its glibc 2.28: the floor
+      # .NET 10 itself supports, which is RHEL 8. A library records the glibc symbol versions of
+      # the headers it was compiled against, and the loader refuses it anywhere older - built on
+      # the runner's own Ubuntu 24.04 it needed GLIBC_2.38, so the viewer could not start on
+      # Ubuntu 22.04, Debian 12, or RHEL 8 or 9, and every inline snapshot sent to it was lost.
       - name: Build
-        if: matrix.rid != 'osx'
-        run: cmake --build build --config Release
+        if: runner.os == 'Linux'
+        run: docker run --rm -v "$PWD:/src" -w /src "quay.io/pypa/manylinux_2_28_$(uname -m)" bash native/build-linux.sh
+
+      # The floor the container is there to hold, checked rather than trusted, since nothing else
+      # would notice until a user on an older distribution did.
+      - name: Check glibc floor
+        if: runner.os == 'Linux'
+        env:
+          GLIBC_FLOOR: GLIBC_2.28
+        run: |
+          highest=$(objdump -T build/libdiffengine_viewer.so | grep -o 'GLIBC_[0-9][0-9.]*' | sort -uV | tail -n 1)
+          echo "Highest glibc symbol version required: $highest"
+          if [ "$(printf '%s\n' "$GLIBC_FLOOR" "$highest" | sort -V | tail -n 1)" != "$GLIBC_FLOOR" ]; then
+            echo "::error::libdiffengine_viewer.so requires $highest, above the $GLIBC_FLOOR floor"
+            exit 1
+          fi
 
       # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
       # package rather than a CMake project. Both --arch flags in one invocation produce a
@@ -85,7 +91,7 @@ jobs:
           }
           case "${{ matrix.rid }}" in
             linux-*)
-              strip build/libdiffengine_viewer.so
+              # Already stripped, inside the container that owns the build directory
               collect DiffEngineViewer.Linux "${{ matrix.rid }}" build/libdiffengine_viewer.so
               ;;
             osx)
