@@ -3,6 +3,7 @@
 public static class ProcessCleanup
 {
     static List<ProcessCommand> commands;
+    static readonly object gate = new();
     static Func<HashSet<string>?, List<ProcessCommand>> findAll;
     static Func<int, bool> tryTerminateProcess;
 
@@ -61,7 +62,9 @@ public static class ProcessCleanup
         }
 
         var matchingCommands = Commands
-            .Where(_ => _.Command == command).ToList();
+            .Where(_ => _.Command == command)
+            .Where(StillRunning)
+            .ToList();
         Logging.Write($"Kill: {command}. Matching count: {matchingCommands.Count}");
         if (matchingCommands.Count == 0)
         {
@@ -92,7 +95,55 @@ public static class ProcessCleanup
         }
 
         process = commands.FirstOrDefault(_ => _.Command == command);
-        return !process.Equals(default(ProcessCommand));
+        if (process.Equals(default(ProcessCommand)))
+        {
+            return false;
+        }
+
+        if (StillRunning(process))
+        {
+            return true;
+        }
+
+        Forget(process);
+        process = default;
+        return false;
+    }
+
+    /// <summary>
+    /// A tool this process started, so a relaunch or a kill later in the same run finds it. The
+    /// list is otherwise taken once, when the type initialises.
+    /// </summary>
+    internal static void Track(string command, int processId)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            command = TrimCommand(command);
+        }
+
+        lock (gate)
+        {
+            commands = [new(command, processId), ..commands];
+        }
+    }
+
+    /// <summary>
+    /// Whether the process a snapshot of the list named is still the one it named. The list is
+    /// taken once per test process, so a tool closed since then has left a PID that Windows can
+    /// hand to anything else - and killing by that PID terminated whatever got it. Asked only on a
+    /// hit, which is rare, and answered by reading that process's command line again.
+    /// </summary>
+    static bool StillRunning(ProcessCommand process) =>
+        findAll(CandidateExeNames())
+            .Any(_ => _.Process == process.Process &&
+                      _.Command == process.Command);
+
+    static void Forget(ProcessCommand process)
+    {
+        lock (gate)
+        {
+            commands = commands.Where(_ => !_.Equals(process)).ToList();
+        }
     }
 
     static void TerminateProcessIfExists(in int processId)

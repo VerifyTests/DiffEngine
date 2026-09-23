@@ -346,7 +346,14 @@ static class ViewerProgram
             }
 
             var input = window.Poll();
-            host.Mutate(_ => Apply(_, input, link, window));
+            // Not on a frame with nothing in it, which is almost all of them. The listener thread
+            // takes the same lock to accept a snapshot, which can wait ten seconds on
+            // InlineApplier's mutex, and taking it every frame put the render loop behind that
+            // wait - the stall SessionHost's lock free reads exist to prevent.
+            if (!IsIdle(input, state))
+            {
+                host.Mutate(_ => Apply(_, input, link, window));
+            }
 
             // An accept-all this frame's input began is carried out on a worker, so this thread
             // goes back to drawing the queue as it shrinks. One the tray began is already being
@@ -379,7 +386,11 @@ static class ViewerProgram
             // Hidden rather than exited even when the tray owns the queue and could relaunch:
             // staying up makes reopening a focus rather than a process start, and the tray tracks
             // the process it launched, so it sends that focus instead of starting a second one.
-            if (TrayDetector.IsRunning() &&
+            //
+            // Never in file mode, which owns no port and which the tray does not know about:
+            // nothing could ever show it again, and a caller blocked on the process waited forever.
+            if (host.State.Mode == ViewerMode.Inline &&
+                TrayDetector.IsRunning() &&
                 host.State.Queue.Count > 0)
             {
                 window.SetHidden(true);
@@ -389,6 +400,24 @@ static class ViewerProgram
             return;
         }
     }
+
+    /// <summary>
+    /// A frame that would change nothing: no key, click, scroll, drag or close, and the window
+    /// the size the state already is.
+    /// </summary>
+    internal static bool IsIdle(ViewerInput input, SessionState state) =>
+        input.Key == CommandKind.None &&
+        input.ClickedButton < 0 &&
+        input.ClickedQueueItem < 0 &&
+        input.ScrollDelta == 0 &&
+        !input.CloseRequested &&
+        input.RightClickedQueueItem < 0 &&
+        input.ClickedMenuItem < 0 &&
+        !input.MenuClosed &&
+        input.ScrollTo < 0 &&
+        input.DragSide < 0 &&
+        Math.Max(40, input.Columns) == state.Columns &&
+        Math.Max(10, input.Rows) == state.Rows;
 
     /// <summary>
     /// One frame of input against one state. Internal so SelectionTests can drive a drag and a

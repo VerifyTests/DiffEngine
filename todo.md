@@ -64,52 +64,52 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
 
 ## Bugs
 
-- [ ] **Attached viewer's right-click menu closes within 200 ms** (repro)
+- [x] **Attached viewer's right-click menu closes within 200 ms** (repro)
   - `src/DiffEngineViewer/ViewerSession.cs:189`: `Sync` always sets `Menu = null`. `OwnerLink.List` calls it on every poll (`src/DiffEngineViewer/Ipc/OwnerLink.cs:120`), `ViewerForm.ApplyMenu` then closes the popup, and a later click is dropped (`ViewerProgram.cs:385`). Every viewer is attached when the tray owns the queue, which is the default on Windows.
   - `EnqueueInline` also clears the menu when an identical snapshot is re-sent.
   - Fix: when the new queue is element-wise `ReferenceEquals` to `state.Queue` (`Project` and `ReadChanges` already reuse unchanged entries), keep `Menu`; if the message is null and progress unchanged too, return `state` itself. `AQueueChangeClosesTheMenu` only covers a listing that changed.
 
-- [ ] **.NET Framework: one quoted PATH entry breaks DiffTools for the whole process** (verified)
+- [x] **.NET Framework: one quoted PATH entry breaks DiffTools for the whole process** (verified)
   - `src/DiffEngine/OsSettingsResolver.cs:14` splits PATH with no cleanup, and `:152` `Path.Combine("\"C:\\Program Files\\Foo\\bin\"", name)` throws `ArgumentException: Illegal characters in path` on net4x (checked in Windows PowerShell 5.1). It runs in `DiffTools`' static constructor, so it is a permanent `TypeInitializationException`, and `DiffRunner.Kill` throws on every passing test.
   - Fix: trim whitespace and quotes, and drop entries that are empty or contain invalid path characters.
 
-- [ ] **`DiffEngineViewer left right` never exits while the tray runs** (verified)
+- [x] **`DiffEngineViewer left right` never exits while the tray runs** (verified)
   - `src/DiffEngineViewer/ViewerProgram.cs:354`: hide-instead-of-exit has no mode check. File mode owns no port and the tray does not know the process, so X, Close, q and Esc hide it forever, and a blocking `git difftool` style caller hangs.
   - Fix: add `host.State.Mode == ViewerMode.Inline &&`.
 
-- [ ] **F# double-backtick test names get no MemberName narrowing** (repro)
+- [x] **F# double-backtick test names get no MemberName narrowing** (repro)
   - `src/DiffEngine/Inline/InlinePatcher.cs:991-994` (`MemberLine`) and `src/DiffEngine/Inline/FsLanguage.cs:120` (`IsDeclaration`): for `let ``test b`` () =` the character before the name is a backtick, so it is not a declaration, `MemberLine` returns null, and the search is hint only. `NextMemberLine` never sees backticked siblings either. Double backticks are the common F# test naming style.
   - Repro: two tests ` ``test a`` ` and ` ``test b`` ` with identical literals, stale hint on test a, member "test b": test a's literal is rewritten.
   - Fix: when the name is enclosed in double backticks, judge the declaration from before the opening pair.
 
-- [ ] **An empty entry-point name hangs the patcher** (repro)
+- [x] **An empty entry-point name hangs the patcher** (repro)
   - `src/DiffEngine/Inline/InlinePatcher.cs:915`: `IndexOf("", i, n)` returns `i` and `index += 0`, so `CallsOnLine` spins (or grows `matches` until out of memory) while holding the per-file mutex. `InlinePatchFile.TryParse` produces `["VerifyDocx", ""]` from a payload of `"VerifyDocx,"`.
   - Fix: skip null or empty (ideally any non-identifier) names in `EntryPoints()` (:78).
 
-- [ ] **"Copy received" and "Copy expected" turn tabs into four spaces** (repro)
+- [x] **"Copy received" and "Copy expected" turn tabs into four spaces** (repro)
   - `src/DiffEngineViewer/SelectionText.cs:119` (`All`) goes through `RowText.Flatten`. A whole-side copy has no columns to keep aligned. Pasting the result into a verified file changes it.
   - Fix: `.Select(_ => _.Text)`.
 
-- [ ] **Linux shortcuts follow physical key position rather than layout** (verified)
+- [x] **Linux shortcuts follow physical key position rather than layout** (verified)
   - `native/src/deview.cpp:526` (`ReadKey`) tests raylib/GLFW key tokens, which are US key positions. On AZERTY the key labelled Q sends `KEY_A`, which accepts (with Shift, accepts all), and the key labelled A sends `KEY_Q`, which quits; Ctrl+A and Ctrl+Q are swapped. The macOS and WinForms heads follow the layout.
   - Fix: drain `GetKeyPressed()` and map letters through `GetKeyName(key)`, falling back to the position for non-Latin layouts. `IsKeyPressedRepeat` for navigation keys.
 
-- [ ] **InlineApplier's mutex is session scoped on macOS and Linux** (verified against .NET semantics)
+- [x] **InlineApplier's mutex is session scoped on macOS and Linux** (verified against .NET semantics)
   - `src/DiffEngine/Inline/InlineApplier.cs:84,355-365`: `DiffEngineInline_<sha>` has no prefix, so it is Local, which on Unix means per POSIX session, and every terminal is its own session. Rider's plugin and a viewer launched from a terminal test run do not exclude each other: both read, both swap, the later rename wins, and one literal is silently lost while both report Applied.
   - Fix: `Global\` prefix off Windows, falling back to Local on `UnauthorizedAccessException` or `IOException`.
 
-- [ ] **ProcessCleanup's process list is taken once and PIDs are not re-checked** (verified)
+- [x] **ProcessCleanup's process list is taken once and PIDs are not re-checked** (verified)
   - `src/DiffEngine/Process/ProcessCleanup.cs:27` (the only `Refresh` call, in the static constructor), `:94` (`TryGetProcessInfo`), `src/DiffEngine/Process/WindowsProcess.cs:155` (`TryTerminateProcess` kills whatever holds the PID).
   - A tool window from a previous run closed mid run: an AutoRefresh tool is reported `AlreadyRunningAndSupportsRefresh` and no window opens. If Windows has reused that PID, a passing test's `Kill`, or a replacement launch, terminates an unrelated process. Tools launched in this run never enter the list.
   - Fix: on a hit, re-read that PID's command line and drop it if it no longer matches; remove entries once terminated; add `(command, pid)` after a launch.
 
-- [ ] **Slow work runs inside SessionHost's lock, and the render loop takes that lock every frame** (verified)
+- [x] **Slow work runs inside SessionHost's lock, and the render loop takes that lock every frame** (verified)
   - `src/DiffEngineViewer/ViewerProgram.cs:321`: `host.Mutate(_ => Apply(...))` every frame, even with no input.
   - `src/DiffEngineViewer/Ipc/MessageHandler.cs:47-51`: `TrackedEntry.ForMove`/`ForDelete` (file reads, SHA-256 of images, the DiffPlex diff) is evaluated inside the `Mutate` lambda, contrary to the comment above it. `Act` (:102-133) runs `InlineApplier`, with its up to 10 s mutex wait, inside `Mutate`.
   - The window stalls, which `SessionHost`'s doc says lock-free reads exist to prevent.
   - Fix: build tracked entries before `Mutate`; skip the per-frame `Mutate` when the input is empty and the size unchanged; apply wire accepts outside the lock the way `AcceptAllRunner` does.
 
-- [ ] **`MessageHandler.Act` checks the conflict refusal outside the lock** (verified)
+- [x] **`MessageHandler.Act` checks the conflict refusal outside the lock** (verified)
   - `src/DiffEngineViewer/Ipc/MessageHandler.cs:102-133` reads `host.State` twice, so `Queue[index]` can throw `ArgumentOutOfRangeException`, and the conflict check can pass just before a second framework's patch makes the entry conflicted, after which the accept picks a side.
   - Fix: do the lookup and the refusal inside the `Mutate` lambda.
 

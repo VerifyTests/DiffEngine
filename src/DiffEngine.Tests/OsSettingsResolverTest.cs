@@ -3,6 +3,19 @@ using Assembly = System.Reflection.Assembly;
 [NotInParallel]
 public class OsSettingsResolverTest
 {
+    /// <summary>
+    /// Windows allows a PATH entry in quotes, and .NET Framework's Path.Combine throws on the
+    /// quote, out of the static constructor that reads PATH, so every tool lookup in the process
+    /// failed for good.
+    /// </summary>
+    [Test]
+    public async Task PathEntriesAreUnquotedAndEmptiesDropped()
+    {
+        var paths = OsSettingsResolver.ParsePath(@"C:\one;""C:\Program Files\two"" ; ;C:\thr|ee;", ';');
+
+        await Assert.That(paths).IsEquivalentTo([@"C:\one", @"C:\Program Files\two"]);
+    }
+
     [Test]
     public async Task Simple()
     {

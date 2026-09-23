@@ -115,13 +115,18 @@ static class SelectionText
     /// <summary>
     /// One whole side, which is what the copy commands that name a pane hand over. Filler rows are
     /// dropped for the same reason they are dropped from a selection.
+    /// <para>
+    /// The file's own text rather than the flattened row: a whole side has no columns to keep in
+    /// step with the screen, and flattening turned every tab into four spaces, so pasting a copied
+    /// side into a verified file changed it.
+    /// </para>
     /// </summary>
     public static string All(QueueEntry entry, PaneSide side) =>
         string.Join(
             "\n",
             Rows(entry, side)
                 .Where(_ => _.Kind != RowKind.Filler)
-                .Select(_ => RowText.Flatten(_.Text)));
+                .Select(_ => _.Text));
 
     /// <summary>
     /// What the status line says while something is selected. The universal statement about a

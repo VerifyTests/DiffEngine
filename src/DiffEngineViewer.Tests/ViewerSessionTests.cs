@@ -781,6 +781,40 @@ public class ViewerSessionTests
     }
 
     /// <summary>
+    /// An attached viewer syncs five times a second, almost always to the same queue. Each one
+    /// cleared the open menu, so a right-click menu closed within 200ms.
+    /// </summary>
+    [Test]
+    public async Task AnUnchangedListingKeepsTheMenuOpen()
+    {
+        var open = ViewerSession.OpenMenu(Fixtures.Attached(Fixtures.Pending(Fixtures.Patch())), 0);
+        await Assert.That(open.Menu).IsNotNull();
+
+        var synced = ViewerSession.Sync(open, Fixtures.Pending(Fixtures.Patch()), [], null);
+
+        await Assert.That(synced.Menu).IsNotNull();
+    }
+
+    /// <summary>
+    /// Copying a whole side hands over the file's lines. Flattened for the screen, every tab
+    /// became four spaces, and pasting that into a verified file changed it.
+    /// </summary>
+    [Test]
+    public async Task CopyingAWholeSideKeepsTabs() =>
+        await Assert.That(SelectionText.All(Fixtures.Move(left: "a\tb", right: "a\tb"), PaneSide.Left)).IsEqualTo("a\tb");
+
+    [Test]
+    public async Task AFrameWithNothingInItTakesNoLock()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+        var idle = new ViewerInput(CommandKind.None, -1, -1, 0, false, state.Columns, state.Rows);
+
+        await Assert.That(ViewerProgram.IsIdle(idle, state)).IsTrue();
+        await Assert.That(ViewerProgram.IsIdle(idle with { ScrollDelta = 1 }, state)).IsFalse();
+        await Assert.That(ViewerProgram.IsIdle(idle with { Columns = state.Columns + 1 }, state)).IsFalse();
+    }
+
+    /// <summary>
     /// A settle that empties the queue sets Exit, and the loop acts on it a frame later. An arrival
     /// in between is a reason to stay: carried across, Exit took the new entry out with the window.
     /// </summary>

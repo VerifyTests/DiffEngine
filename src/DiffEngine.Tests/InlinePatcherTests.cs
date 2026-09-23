@@ -1173,6 +1173,21 @@ public class InlinePatcherTests
     /// <summary>
     /// Nothing at the recorded line at all, and nothing anywhere else either, is still reported.
     /// </summary>
+    /// <summary>
+    /// An empty name matches everywhere and advances nothing, so the search for it never ended.
+    /// A payload of "VerifyDocx," declares one.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyEntryPointIsIgnored()
+    {
+        var source = "class Tests\n{\n    Task Test() =>\n        Verify(a);\n}\n";
+
+        var apply = Task.Run(() => InlinePatcher.TryApply(SourceLanguage.CSharp, source, 4, InlinePatchMode.Append, null, null, null, ["VerifyDocx", ""], true, "x", out _, out _));
+
+        await Assert.That(await Task.WhenAny(apply, Task.Delay(TimeSpan.FromSeconds(10)))).IsSameReferenceAs(apply);
+        await Assert.That(await apply).IsEqualTo(PatchStatus.Applied);
+    }
+
     [Test]
     public async Task RemoveWithNoCallAtAll()
     {

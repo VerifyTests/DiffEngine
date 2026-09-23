@@ -272,6 +272,7 @@ public static partial class DiffRunner
         }
 
         var processId = LaunchProcess(tool, arguments);
+        ProcessCleanup.Track(command, processId);
 
         DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
 
@@ -316,6 +317,7 @@ public static partial class DiffRunner
         }
 
         var processId = LaunchProcess(tool, arguments);
+        ProcessCleanup.Track(command, processId);
 
         await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
 

@@ -539,24 +539,36 @@ int ReadKey()
         return DEVIEW_KEY_NONE;
     }
 
+    /* Letters by the character typed rather than by key position. raylib's key codes are
+     * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
+     * snapshot written into source by a key meant to quit - while the one labelled A quit.
+     * Characters follow the layout, the way the macOS and Windows heads already do. */
+    for (int character = GetCharPressed(); character != 0; character = GetCharPressed())
+    {
+        switch (character)
+        {
+            case 'a': return DEVIEW_KEY_ACCEPT;
+            case 'A': return DEVIEW_KEY_ACCEPT_ALL;
+            case 'd': return DEVIEW_KEY_DISCARD;
+            case 'v': return DEVIEW_KEY_NEXT_VARIANT;
+            case 'q': return DEVIEW_KEY_QUIT;
+            case 'n': return DEVIEW_KEY_NEXT_CHANGE;
+            case 'p': return DEVIEW_KEY_PREVIOUS_CHANGE;
+            case 'm': return DEVIEW_KEY_TOGGLE_MINIMAL;
+            default: break;
+        }
+    }
+
     if (IsKeyPressed(KEY_UP)) return DEVIEW_KEY_SCROLL_UP;
     if (IsKeyPressed(KEY_DOWN)) return DEVIEW_KEY_SCROLL_DOWN;
     if (IsKeyPressed(KEY_PAGE_UP)) return DEVIEW_KEY_PAGE_UP;
     if (IsKeyPressed(KEY_PAGE_DOWN)) return DEVIEW_KEY_PAGE_DOWN;
     if (IsKeyPressed(KEY_HOME)) return DEVIEW_KEY_HOME;
     if (IsKeyPressed(KEY_END)) return DEVIEW_KEY_END;
-    if (IsKeyPressed(KEY_N)) return DEVIEW_KEY_NEXT_CHANGE;
-    if (IsKeyPressed(KEY_P)) return DEVIEW_KEY_PREVIOUS_CHANGE;
-    if (IsKeyPressed(KEY_M)) return DEVIEW_KEY_TOGGLE_MINIMAL;
     if (IsKeyPressed(KEY_TAB)) return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)
         ? DEVIEW_KEY_PREVIOUS_ITEM
         : DEVIEW_KEY_NEXT_ITEM;
-    if (IsKeyPressed(KEY_A)) return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)
-        ? DEVIEW_KEY_ACCEPT_ALL
-        : DEVIEW_KEY_ACCEPT;
-    if (IsKeyPressed(KEY_D)) return DEVIEW_KEY_DISCARD;
-    if (IsKeyPressed(KEY_V)) return DEVIEW_KEY_NEXT_VARIANT;
-    if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
+    if (IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
     return DEVIEW_KEY_NONE;
 }
 
