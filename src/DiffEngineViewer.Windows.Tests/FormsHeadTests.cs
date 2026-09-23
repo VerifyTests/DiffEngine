@@ -736,20 +736,23 @@ public class FormsHeadTests
 
         readonly List<Bitmap> bitmaps = [];
 
-        public ViewerCanvas Canvas { get; } = new()
-        {
-            Dock = DockStyle.Fill
-        };
+        /// <summary>
+        /// Sized itself rather than docked to the form. A top level window is held to the screen's
+        /// size, so on a 1024 by 768 build agent every canvas docked to one came out 1028 by 749,
+        /// whatever was asked for. A child control has no such limit, and draws to a bitmap
+        /// whole whether or not it fits the form.
+        /// </summary>
+        public ViewerCanvas Canvas { get; } = new();
 
         public CanvasHost(int width = 1100, int height = 700)
         {
-            form.ClientSize = new(width, height);
+            Canvas.Size = new(width, height);
             form.Controls.Add(Canvas);
             form.Show();
         }
 
         public void Resize(int width, int height) =>
-            form.ClientSize = new(width, height);
+            Canvas.Size = new(width, height);
 
         public Bitmap Draw(Screen screen)
         {
