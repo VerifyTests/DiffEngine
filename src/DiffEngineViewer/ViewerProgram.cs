@@ -67,7 +67,7 @@ static class ViewerProgram
                 // between the bind and the send. Whoever launched this was told the patch was
                 // taken, and a refusal used to be read as a hand over, so it is staged rather
                 // than dropped: this process is the only place it exists.
-                InlineStaging.Persist([new PendingInline(patch)]);
+                InlineStaging.Persist([new(patch)]);
                 Console.Error.WriteLine("A viewer holds the port but did not accept the patch.");
                 return 1;
             }
@@ -271,7 +271,7 @@ static class ViewerProgram
             hooks.Frame = () => ModalFrame(host, window, link);
             hooks.SessionEnding = () =>
             {
-                host.Mutate(_ => _ with { Closing = true });
+                host.Mutate(_ => _ with {Closing = true});
                 PersistOwned(host.State, link);
             };
         }
@@ -307,7 +307,7 @@ static class ViewerProgram
         {
             // However the loop ended, nothing arriving from here on has a window to be shown in,
             // and the listener keeps answering until it is cancelled below
-            host.Mutate(_ => _ with { Closing = true });
+            host.Mutate(_ => _ with {Closing = true});
 
             // Closing the window mid batch does not abandon it: clicking Accept all and then
             // closing used to mean both happened, because the click held the window until it was
@@ -442,7 +442,7 @@ static class ViewerProgram
             if (host.State.QuitRequested)
             {
                 closeRequested = true;
-                host.Mutate(_ => _ with { QuitRequested = false });
+                host.Mutate(_ => _ with {QuitRequested = false});
             }
 
             if (!closeRequested)
@@ -478,16 +478,11 @@ static class ViewerProgram
     /// the size the state already is.
     /// </summary>
     internal static bool IsIdle(ViewerInput input, SessionState state) =>
-        input.Key == CommandKind.None &&
-        input.ClickedButton < 0 &&
-        input.ClickedQueueItem < 0 &&
-        input.ScrollDelta == 0 &&
-        !input.CloseRequested &&
-        input.RightClickedQueueItem < 0 &&
-        input.ClickedMenuItem < 0 &&
-        !input.MenuClosed &&
-        input.ScrollTo < 0 &&
-        input.DragSide < 0 &&
+        input is
+        {
+            Key: CommandKind.None,
+            ClickedButton: < 0, ClickedQueueItem: < 0, ScrollDelta: 0, CloseRequested: false, RightClickedQueueItem: < 0, ClickedMenuItem: < 0, MenuClosed: false, ScrollTo: < 0, DragSide: < 0
+        } &&
         Math.Max(40, input.Columns) == state.Columns &&
         Math.Max(10, input.Rows) == state.Rows;
 
@@ -539,7 +534,7 @@ static class ViewerProgram
             }
             else if (state.Menu is not null)
             {
-                state = state with { Menu = null };
+                state = state with {Menu = null};
             }
         }
 
@@ -568,7 +563,7 @@ static class ViewerProgram
         if (input is {MenuClosed: true, RightClickedQueueItem: < 0} &&
             state.Menu is not null)
         {
-            state = state with { Menu = null };
+            state = state with {Menu = null};
         }
 
         if (input.ScrollTo >= 0)
@@ -620,7 +615,7 @@ static class ViewerProgram
         if (state.Progress is not null &&
             ViewerSession.ChangesQueue(command.Kind))
         {
-            return state with { Menu = null };
+            return state with {Menu = null};
         }
 
         if (link is null)
@@ -660,8 +655,8 @@ static class ViewerProgram
         // what the reviewer was reading.
         string? body = null;
         if (verb is ViewerVerb.Accept &&
-            state.Current is { Kind: QueueEntryKind.Inline, Conflicted: true } current &&
-            current.Variants[current.SelectedVariant].Origins is { Count: > 0 } origins)
+            state.Current is {Kind: QueueEntryKind.Inline, Conflicted: true} current &&
+            current.Variants[current.SelectedVariant].Origins is {Count: > 0} origins)
         {
             body = origins[0];
         }
@@ -683,14 +678,14 @@ static class ViewerProgram
     {
         if (state.Current is not { } current)
         {
-            return state with { Menu = null };
+            return state with {Menu = null};
         }
 
         string text;
         string what;
         if (kind == CommandKind.Copy)
         {
-            if (state.LiveSelection is not { IsEmpty: false } selection)
+            if (state.LiveSelection is not {IsEmpty: false} selection)
             {
                 return state with
                 {

@@ -65,7 +65,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
     /// </summary>
     public void Keep(IReadOnlyCollection<string> paths)
     {
-        wanted = new(paths, StringComparer.OrdinalIgnoreCase);
+        wanted = [with(StringComparer.OrdinalIgnoreCase), .. paths];
         foreach (var path in entries.Keys.Where(_ => !wanted.Contains(_)).ToList())
         {
             Forget(path);
@@ -141,7 +141,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
                         image?.Dispose();
                     }
                 },
-                CancellationToken.None,
+                Cancel.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
         return null;

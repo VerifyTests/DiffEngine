@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 /// <summary>
 /// The decode the WinForms head puts under an image pane's rows.
 /// <para>
@@ -131,7 +129,7 @@ public class ImageCacheTests
         var resized = cache.Composite(path, new(6, 4), build);
 
         await Assert.That(ReferenceEquals(first, again)).IsTrue();
-        await Assert.That(resized!.Size).IsEqualTo(new Size(6, 4));
+        await Assert.That(resized!.Size).IsEqualTo(new(6, 4));
         await Assert.That(cache.Composed).IsEqualTo(2);
     }
 
@@ -165,13 +163,13 @@ public class ImageCacheTests
     public async Task ARewriteWithTheSameStampKeepsTheOldPicture()
     {
         var path = Path.Combine(Directory(), "Same.received.png");
-        File.WriteAllBytes(path, SamplePng.Build(8, 6, 200, 40, 40));
+        await File.WriteAllBytesAsync(path, SamplePng.Build(8, 6, 200, 40, 40));
         var stamp = File.GetLastWriteTimeUtc(path);
         using var cache = new ImageCache();
         var before = ((Bitmap) cache.Get(path, FileSide.Read(path).Image!.Value.Hash)!).GetPixel(0, 0);
         var hashBefore = FileSide.Read(path).Image!.Value.Hash;
 
-        File.WriteAllBytes(path, SamplePng.Build(8, 6, 40, 200, 40));
+        await File.WriteAllBytesAsync(path, SamplePng.Build(8, 6, 40, 200, 40));
         File.SetLastWriteTimeUtc(path, stamp);
         var hashAfter = FileSide.Read(path).Image!.Value.Hash;
         var after = ((Bitmap) cache.Get(path, hashAfter)!).GetPixel(0, 0);

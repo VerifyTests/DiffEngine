@@ -391,9 +391,9 @@ public class InlineStagingTests
         Directory.CreateDirectory(directory);
         try
         {
-            File.WriteAllText(Path.Combine(directory, "Sample.csproj"), "<Project />");
+            await File.WriteAllTextAsync(Path.Combine(directory, "Sample.csproj"), "<Project />");
             var source = Path.Combine(directory, "SampleTests.cs");
-            File.WriteAllText(source, "// sample");
+            await File.WriteAllTextAsync(source, "// sample");
 
             var patch = new InlinePatch(source, 42, "\"old\"", "new")
             {

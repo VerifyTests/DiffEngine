@@ -699,7 +699,7 @@ public class ViewerProtocolTests
 
         await Assert.That(text).Contains("progress: 3|40\n");
         await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
-        await Assert.That(parsed!.Progress).IsEqualTo(new AcceptProgress(3, 40));
+        await Assert.That(parsed!.Progress).IsEqualTo(new(3, 40));
     }
 
     [Test]

@@ -512,7 +512,7 @@ public class InlineQueueTests
         var after = queue.AcceptInBatch(entry, InlineApplyResult.Applied, ref tally);
 
         await Assert.That(after).IsSameReferenceAs(queue);
-        await Assert.That(tally).IsEqualTo(new AcceptAllTally());
+        await Assert.That(tally).IsEqualTo(new());
     }
 
     [Test]

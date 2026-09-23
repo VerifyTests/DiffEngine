@@ -76,7 +76,7 @@ record SessionState(
     /// so it stops existing.
     /// </summary>
     public TextSelection? LiveSelection =>
-        Selection is { } selection && selection.Describes(Current) ? selection : null;
+        Selection != null && Selection.Describes(Current) ? Selection : null;
 
     /// <summary>
     /// The accept-all this process is carrying out over a queue it owns, or null.

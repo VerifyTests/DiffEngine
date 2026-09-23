@@ -29,9 +29,6 @@ struct DeviewRow
     public int TextOffset;
     public int TextLength;
 
-    /// <summary>
-    /// The row's <see cref="CellGrid.Segments"/>, in <see cref="DeviewScreen.Segments"/>.
-    /// </summary>
     public int SegmentOffset;
     public int SegmentCount;
 

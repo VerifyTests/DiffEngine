@@ -207,7 +207,7 @@ public class InlineApplierTests
 
             InlineApplier.WriteThroughTemporary(
                 path,
-                Encoding.UTF8.GetBytes("patched"),
+                "patched"u8.ToArray(),
                 (_, destination) =>
                 {
                     File.Delete(destination);
@@ -237,7 +237,7 @@ public class InlineApplierTests
             Assert.Throws<IOException>(
                 () => InlineApplier.WriteThroughTemporary(
                     path,
-                    Encoding.UTF8.GetBytes("patched"),
+                    "patched"u8.ToArray(),
                     (_, _) => throw new IOException("The process cannot access the file.")));
 
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("original");
@@ -1272,7 +1272,7 @@ public class InlinePatchFileTests
         try
         {
             var source = Path.Combine(directory, "Sample.cs");
-            File.WriteAllText(source, "class C\n{\n    void M() => Verify(\"old\");\n}\n");
+            await File.WriteAllTextAsync(source, "class C\n{\n    void M() => Verify(\"old\");\n}\n");
 
             var name = (string) typeof(InlineApplier)
                 .GetMethod("MutexName", BindingFlags.NonPublic | BindingFlags.Static)!

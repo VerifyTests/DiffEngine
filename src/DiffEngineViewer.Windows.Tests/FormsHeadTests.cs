@@ -543,13 +543,14 @@ public class FormsHeadTests
         var host = new SessionHost(Fixtures.File());
         var handle = IntPtr.Zero;
         ViewerForm? form = null;
-        OpenWindow open = (string title, int width, int height, bool hidden, out string? error) =>
+
+        IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
         {
             var window = FormsViewerWindow.Open(title, width, height, true, out error);
             form = Field<ViewerForm>(window!, "form");
             handle = form.Handle;
             return window;
-        };
+        }
 
         var clock = Stopwatch.StartNew();
         var query = IntPtr.Zero;
@@ -576,14 +577,14 @@ public class FormsHeadTests
         };
         sender.Start();
 
-        var code = ViewerProgram.Run(host, null, null, open);
+        var code = ViewerProgram.Run(host, null, null, Open);
         var runReturnedAt = clock.ElapsedMilliseconds;
         sender.Join();
 
         Console.WriteLine(
             $"WM_QUERYENDSESSION answered {query}; WM_ENDSESSION returned {end} at {endReturnedAt}ms with the form disposed " +
             $"{disposedAtReturn} and Run's finally started {closingAtReturn}; Run returned {code} at {runReturnedAt}ms");
-        await Assert.That(query).IsEqualTo(new IntPtr(1));
+        await Assert.That(query).IsEqualTo(new(1));
         await Assert.That(closingAtReturn).IsTrue();
     }
 
