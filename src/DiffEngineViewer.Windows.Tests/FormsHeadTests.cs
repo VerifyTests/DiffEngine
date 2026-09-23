@@ -88,6 +88,47 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// A bar after characters the font does not draw a cell wide, selected at the column the grid
+    /// puts it in: its ink has to be inside the highlight. Drawn as one string, GDI+ put the bar
+    /// wherever the fallback font's widths left it - after two CJK characters about a third of a
+    /// cell short of column 4, and after a combining mark a whole cell before the column the
+    /// selection counted.
+    /// </summary>
+    [Test]
+    [Arguments("中中|", 4)]
+    [Arguments("é|", 1)]
+    [Arguments("a한b|", 4)]
+    public async Task HighlightAfterACharacterOffTheGridCoversTheNext(string line, int column)
+    {
+        var state = ViewerSession.Resize(
+            ViewerSession.Drag(Fixtures.File(line, line), PaneSide.Left, 0, column, 0, column + 1),
+            columns,
+            rows);
+
+        using var host = new CanvasHost();
+        var bitmap = host.Draw(ScreenBuilder.Build(state));
+        var highlight = Bounds(bitmap, _ => _.ToArgb() == Palette.Selection.ToArgb());
+        await Assert.That(highlight).IsNotNull();
+
+        var band = highlight!.Value;
+        var ink = new List<int>();
+        for (var x = band.Left - 2; x < band.Right + 2; x++)
+        {
+            if (bitmap.GetPixel(x, band.Top + band.Height / 2).GetBrightness() > 0.6f)
+            {
+                ink.Add(x);
+            }
+        }
+
+        Console.WriteLine($"{line}: highlight x {band.Left}..{band.Right - 1}, ink {string.Join(",", ink)}");
+        await Assert.That(ink).IsNotEmpty();
+        // Centred, as a bar is in its own cell. Inside the highlight is not enough: drawn as one
+        // string the bar after two CJK characters was still inside it, three pixels short
+        var offCentre = Math.Abs((ink.Min() + ink.Max()) / 2.0 - (band.Left + band.Right - 1) / 2.0);
+        await Assert.That(offCentre).IsLessThanOrEqualTo(1);
+    }
+
+    /// <summary>
     /// Ten image pairs drawn one after another, each accepted (received moved over
     /// verified) before the next, and then a screen with no picture on it. Nothing needs more than
     /// the two on screen.

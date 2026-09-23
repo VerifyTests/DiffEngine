@@ -51,17 +51,38 @@ enum DeviewQueueFlags {
     DEVIEW_QUEUE_HEADER = 1 << 2
 };
 
+/*
+ * A run of a row's text and the cell column it starts at. A renderer draws a row as its segments,
+ * each at its column times the cell width, rather than as one string: a character the font draws
+ * wider or narrower than a cell - CJK in a fallback font, a combining mark - then moves nothing
+ * after it, and a column means the same thing to the highlight, the hit test and the copy. A row
+ * of plain text is one segment at column 0.
+ *
+ * textOffset and textLength are into DeviewScreen.strings, like every other text reference, and
+ * always inside the row's own text.
+ */
+typedef struct DeviewSegment {
+    int32_t textOffset;
+    int32_t textLength;
+    int32_t column;
+} DeviewSegment;
+
 typedef struct DeviewRow {
     int32_t kind;
     /* -1 when the row is filler or folded and has no line number. */
     int32_t lineNumber;
+    /* Flattened: a tab is already four spaces, so every character is drawn where it is counted. */
     int32_t textOffset;
     int32_t textLength;
 
+    /* segmentCount entries of DeviewScreen.segments from segmentOffset: how to draw the text. */
+    int32_t segmentOffset;
+    int32_t segmentCount;
+
     /*
-     * What of this row the reader has selected, in characters of the text above rather than in
-     * pixels: the managed side flattens tabs before it counts, so a column here multiplied by the
-     * cell width is where the highlight goes.
+     * What of this row the reader has selected, in cells of the grid the segments are drawn on
+     * rather than in pixels, so a column here multiplied by the cell width is where the highlight
+     * goes.
      *
      * selectLength is 0 on a row with nothing selected, which is every row of almost every frame.
      * The managed side has already resolved which side the drag is in and clipped the range to the
@@ -138,6 +159,9 @@ typedef struct DeviewScreen {
 
     const DeviewRow* rows;
     int32_t rowCount;
+
+    const DeviewSegment* segments;
+    int32_t segmentCount;
 
     const DeviewButton* buttons;
     int32_t buttonCount;
@@ -272,8 +296,12 @@ typedef struct DeviewInput {
  *    which between them are text selection. DeviewRow is a widened array element, so this is the
  *    same kind of bump 6 was. deview_set_clipboard is added beside them, because the selection is
  *    only worth having if it can be copied and each toolkit owns its own clipboard.
+ * 9: DeviewRow carries segments, drawn each at its cell column, and its text arrives flattened.
+ *    Drawing a row as one string let each renderer's fonts decide where a wide or combining
+ *    character went, while a selection counted cells, so the two disagreed past the first one.
+ *    DeviewRow is widened and DeviewScreen gains an array, the same kind of bump 6 and 8 were.
  */
-#define DEVIEW_VERSION 8
+#define DEVIEW_VERSION 9
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

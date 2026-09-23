@@ -352,11 +352,23 @@ final class Renderer {
         }
 
         text(gutter, in: CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height), Palette.dim, context)
-        text(
-            row.text,
-            in: CGRect(x: bounds.minX + width, y: bounds.minY, width: bounds.width - width, height: bounds.height),
-            Palette.foreground(row.kind),
-            context)
+
+        // Each segment at its column rather than the row as one line, so a character Core Text
+        // takes from a fallback font, at that font's width, moves nothing after it. A row of plain
+        // text is one segment at column 0, drawn exactly as the whole row was.
+        let segments = row.segments.isEmpty ? [Frame.Segment(text: row.text, column: 0)] : row.segments
+        for segment in segments {
+            let left = bounds.minX + width + CGFloat(segment.column) * cell.width
+            guard left < bounds.maxX else {
+                break
+            }
+
+            text(
+                segment.text,
+                in: CGRect(x: left, y: bounds.minY, width: bounds.maxX - left, height: bounds.height),
+                Palette.foreground(row.kind),
+                context)
+        }
     }
 
     /// The picture a pane is, one blank line under its rows — the same placement the other two
