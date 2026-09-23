@@ -109,4 +109,27 @@ public class FileSideTests
         bytes[23] = 600 & 0xFF;
         return bytes;
     }
+
+    /// <summary>
+    /// What a reader met for a bitmap with the one height Math.Abs throws on: FileSide.Read's
+    /// catch-all made the side unreadable, with the exception's message as its warning and no
+    /// stamp, so it was read again on every pass.
+    /// </summary>
+    [Test]
+    public async Task ABmpWithTheMinimumHeightIsReadAsABmp()
+    {
+        var bytes = new byte[54];
+        "BM"u8.CopyTo(bytes);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(2), bytes.Length);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(14), 40);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(18), 64);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(22), int.MinValue);
+        var path = Write("MinimumHeight.received.bmp", bytes);
+
+        var side = FileSide.Read(path);
+
+        await Assert.That(side.Warning).IsNull();
+        await Assert.That(side.Stamp).IsNotNull();
+        await Assert.That(side.Image!.Value.Header!.Value.Format).IsEqualTo(ImageFormat.Bmp);
+    }
 }

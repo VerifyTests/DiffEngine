@@ -174,11 +174,13 @@ readonly record struct ImageHeader(ImageFormat Format, int Width, int Height)
         }
 
         // A negative height means the rows are stored top down, which is not something the size
-        // should report.
+        // should report. The one negative with no positive counterpart is no real bitmap, and
+        // Math.Abs throws on it, so it reads as unknown the way a truncated header does.
+        var height = BinaryPrimitives.ReadInt32LittleEndian(bytes[22..]);
         header = new(
             ImageFormat.Bmp,
             BinaryPrimitives.ReadInt32LittleEndian(bytes[18..]),
-            Math.Abs(BinaryPrimitives.ReadInt32LittleEndian(bytes[22..])));
+            height == int.MinValue ? 0 : Math.Abs(height));
         return true;
     }
 

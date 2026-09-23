@@ -57,11 +57,17 @@ sealed class TrackedWatch(SessionHost host)
 
     /// <summary>
     /// One pass. Public for the tests, which drive it directly rather than waiting on a thread.
+    /// <para>
+    /// What it found is handed on with the entries it found it about, and applied only to those
+    /// same entries. The stat runs outside the host's lock, and a re-run can stage its pair again
+    /// under the same key in between: dropped by key, the new pair went with the old one's missing
+    /// file, and stayed gone until the test failed again.
+    /// </para>
     /// </summary>
     public void Pump()
     {
-        var gone = new List<string>();
-        var changed = new List<QueueEntry>();
+        var gone = new List<QueueEntry>();
+        var changed = new List<(QueueEntry Seen, QueueEntry Fresh)>();
         foreach (var entry in host.State.Queue)
         {
             if (entry.Kind == QueueEntryKind.Move)
@@ -85,7 +91,9 @@ sealed class TrackedWatch(SessionHost host)
         host.Mutate(_ => ViewerSession.Refresh(_, gone, changed));
     }
 
-    static void Move(QueueEntry entry, List<string> gone, List<QueueEntry> changed)
+    readonly ReadRetry retry = new();
+
+    void Move(QueueEntry entry, List<QueueEntry> gone, List<(QueueEntry Seen, QueueEntry Fresh)> changed)
     {
         var temp = entry.LeftFile!;
         var target = entry.TargetFile!;
@@ -94,7 +102,7 @@ sealed class TrackedWatch(SessionHost host)
             // The received file is what the pair exists for, so its absence ends the entry. A
             // target that is not there is not the same thing at all: a brand new snapshot never
             // has one, and an entry offering to create it is the whole point.
-            gone.Add(entry.Key);
+            gone.Add(entry);
             return;
         }
 
@@ -106,7 +114,7 @@ sealed class TrackedWatch(SessionHost host)
 
         Changed(
             entry,
-            QueueEntry.ForMove(
+            () => QueueEntry.ForMove(
                 entry.Key,
                 entry.Name,
                 entry.Solution,
@@ -117,13 +125,13 @@ sealed class TrackedWatch(SessionHost host)
             changed);
     }
 
-    static void Delete(QueueEntry entry, List<string> gone, List<QueueEntry> changed)
+    void Delete(QueueEntry entry, List<QueueEntry> gone, List<(QueueEntry Seen, QueueEntry Fresh)> changed)
     {
         var file = entry.LeftFile!;
         if (FileSide.StampOf(file) is not { } stamp)
         {
             // Already gone, so there is nothing left to offer to delete.
-            gone.Add(entry.Key);
+            gone.Add(entry);
             return;
         }
 
@@ -134,24 +142,31 @@ sealed class TrackedWatch(SessionHost host)
 
         Changed(
             entry,
-            QueueEntry.ForDelete(entry.Key, entry.Name, entry.Solution, file, FileSide.Read(file)),
+            () => QueueEntry.ForDelete(entry.Key, entry.Name, entry.Solution, file, FileSide.Read(file)),
             changed);
     }
 
     /// <summary>
-    /// Stamped again after the read rather than trusted from before it, because a file that exists
-    /// but cannot be opened stamps and does not read: it comes back with no stamp at all, which
-    /// differs from the stat every time and would rebuild and re-diff the entry on every pass for
-    /// as long as whatever holds the file holds it.
+    /// Re-read, unless a read of it failed a moment ago (<see cref="ReadRetry" />). Stamped again
+    /// after the read rather than trusted from before it, because a file that exists but cannot be
+    /// opened stamps and does not read: it comes back with no stamp at all, the same as the entry
+    /// already held, which is kept rather than replaced by an identical one.
     /// </summary>
-    static void Changed(QueueEntry entry, QueueEntry fresh, List<QueueEntry> changed)
+    void Changed(QueueEntry entry, Func<QueueEntry> read, List<(QueueEntry Seen, QueueEntry Fresh)> changed)
     {
+        if (retry.Waiting(entry.Key))
+        {
+            return;
+        }
+
+        var fresh = read();
+        retry.Read(fresh);
         if (fresh.LeftStamp == entry.LeftStamp &&
             fresh.RightStamp == entry.RightStamp)
         {
             return;
         }
 
-        changed.Add(fresh);
+        changed.Add((entry, fresh));
     }
 }

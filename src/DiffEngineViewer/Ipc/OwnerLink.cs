@@ -349,44 +349,85 @@ sealed class OwnerLink(SessionHost host, int port)
         var changes = new List<QueueEntry>(response.Moves.Count + response.Deletes.Count);
         foreach (var move in response.Moves)
         {
-            if (existing.TryGetValue(move.Key, out var entry) &&
-                entry.LeftFile == move.Temp &&
-                entry.TargetFile == move.Target &&
-                entry.LeftStamp == FileSide.StampOf(move.Temp) &&
-                entry.RightStamp == FileSide.StampOf(move.Target))
+            existing.TryGetValue(move.Key, out var held);
+            if (held is not null &&
+                (held.LeftFile != move.Temp ||
+                 held.TargetFile != move.Target))
             {
-                changes.Add(entry);
-                continue;
+                held = null;
             }
 
-            changes.Add(QueueEntry.ForMove(
-                move.Key,
-                move.Name,
-                move.Group,
-                move.Temp,
-                move.Target,
-                FileSide.Read(move.Temp),
-                FileSide.Read(move.Target)));
+            changes.Add(Read(
+                held,
+                () => QueueEntry.ForMove(
+                    move.Key,
+                    move.Name,
+                    move.Group,
+                    move.Temp,
+                    move.Target,
+                    FileSide.Read(move.Temp),
+                    FileSide.Read(move.Target))));
         }
 
         foreach (var delete in response.Deletes)
         {
-            if (existing.TryGetValue(delete.Key, out var entry) &&
-                entry.LeftFile == delete.File &&
-                entry.LeftStamp == FileSide.StampOf(delete.File))
+            existing.TryGetValue(delete.Key, out var held);
+            if (held is not null &&
+                held.LeftFile != delete.File)
             {
-                changes.Add(entry);
-                continue;
+                held = null;
             }
 
-            changes.Add(QueueEntry.ForDelete(
-                delete.Key,
-                delete.Name,
-                delete.Group,
-                delete.File,
-                FileSide.Read(delete.File)));
+            changes.Add(Read(
+                held,
+                () => QueueEntry.ForDelete(
+                    delete.Key,
+                    delete.Name,
+                    delete.Group,
+                    delete.File,
+                    FileSide.Read(delete.File))));
         }
 
         return changes;
+    }
+
+    readonly ReadRetry retry = new();
+
+    /// <summary>
+    /// The entry already held for the same files when nothing about them has changed, and a fresh
+    /// read otherwise.
+    /// <para>
+    /// Held is also kept when a read of it failed a moment ago (<see cref="ReadRetry" />), and when
+    /// a read finds no more than it has - a file that stats but cannot be opened comes back with no
+    /// stamp every time. Replacing it anyway handed <see cref="ViewerSession.Sync" /> a new entry
+    /// on every pump, which closed any open menu within 200ms, for as long as the file was locked.
+    /// </para>
+    /// </summary>
+    QueueEntry Read(QueueEntry? held, Func<QueueEntry> read)
+    {
+        if (held is not null)
+        {
+            if (held.LeftStamp == FileSide.StampOf(held.LeftFile!) &&
+                (held.TargetFile is null || held.RightStamp == FileSide.StampOf(held.TargetFile)))
+            {
+                return held;
+            }
+
+            if (retry.Waiting(held.Key))
+            {
+                return held;
+            }
+        }
+
+        var fresh = read();
+        retry.Read(fresh);
+        if (held is not null &&
+            fresh.LeftStamp == held.LeftStamp &&
+            fresh.RightStamp == held.RightStamp)
+        {
+            return held;
+        }
+
+        return fresh;
     }
 }

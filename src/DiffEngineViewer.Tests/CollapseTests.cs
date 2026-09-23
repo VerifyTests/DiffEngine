@@ -178,4 +178,46 @@ public class CollapseTests
         QueueProjection.Rows(state)
             .Select(_ => _.Label)
             .ToList();
+
+    /// <summary>
+    /// The entry being read is accepted, and the queue closes up: the index it leaves behind names
+    /// the first entry of the folded group after it. Nothing in the list would be highlighted while
+    /// the panes and Accept went on acting on an entry nobody could see.
+    /// </summary>
+    [Test]
+    public async Task Accepting_the_entry_being_read_does_not_select_one_under_a_fold()
+    {
+        var state = ViewerSession.ToggleGroup(Fixtures.Inline(solutionA1, solutionA2, solutionB1, solutionB2), solutionB);
+        state = ViewerSession.SelectKey(state, KeyOf(solutionA2));
+        await Assert.That(QueueProjection.VisibleEntries(state)).Contains(state.Selected);
+
+        var accepted = ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applied);
+
+        await Assert.That(QueueProjection.VisibleEntries(accepted)).Contains(accepted.Selected);
+    }
+
+    /// <summary>
+    /// The same for a window attached to someone else's queue, whose listing no longer has the
+    /// entry being read - accepted from the tray menu, say.
+    /// </summary>
+    [Test]
+    public async Task A_listing_without_the_entry_being_read_does_not_select_one_under_a_fold()
+    {
+        var state = ViewerSession.ToggleGroup(Fixtures.Attached(Fixtures.Pending(solutionA1, solutionA2, solutionB1, solutionB2)), solutionB);
+        state = ViewerSession.SelectKey(state, KeyOf(solutionA2));
+        await Assert.That(QueueProjection.VisibleEntries(state)).Contains(state.Selected);
+
+        var synced = ViewerSession.Sync(state, Fixtures.Pending(solutionA1, solutionB1, solutionB2), [], null);
+
+        await Assert.That(QueueProjection.VisibleEntries(synced)).Contains(synced.Selected);
+    }
+
+    const string solutionB = "solution|SolutionB";
+    static readonly InlinePatch solutionA1 = Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10);
+    static readonly InlinePatch solutionA2 = Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 30);
+    static readonly InlinePatch solutionB1 = Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 10);
+    static readonly InlinePatch solutionB2 = Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 30);
+
+    static string KeyOf(InlinePatch patch) =>
+        QueueEntry.KeyForInline(patch.SourceFile, patch.LineHint);
 }

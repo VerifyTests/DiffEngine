@@ -152,4 +152,23 @@ public class ImageHeaderTests
         bytes[7] = (byte) (height == 256 ? 0 : height);
         return bytes;
     }
+
+    /// <summary>
+    /// The one height with no positive counterpart. Math.Abs throws on it, and the side it was read
+    /// for came back unreadable with that exception's message as its warning.
+    /// </summary>
+    [Test]
+    public async Task ABmpWithTheMinimumHeightIsStillABmp()
+    {
+        var bytes = new byte[54];
+        "BM"u8.CopyTo(bytes);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(14), 40);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(18), 64);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(22), int.MinValue);
+
+        await Assert.That(ImageHeader.TryRead(bytes, out var header)).IsTrue();
+        await Assert.That(header.Format).IsEqualTo(ImageFormat.Bmp);
+        await Assert.That(header.Width).IsEqualTo(64);
+        await Assert.That(header.Height).IsEqualTo(0);
+    }
 }

@@ -222,7 +222,7 @@ static class ViewerSession
 
         if (selected < 0)
         {
-            return Open(next);
+            return Reopen(next);
         }
 
         return Clamp(next);
@@ -238,8 +238,9 @@ static class ViewerSession
     /// a re-run had already replaced, and offering a received file that was no longer there.
     /// </para>
     /// <para>
-    /// Both arguments name keys, and anything they name that is no longer queued is skipped: the
-    /// read that produced them ran outside the lock, so a patch or a pair can have arrived since.
+    /// Both arguments name the entries the pass looked at, and any of those no longer queued is
+    /// skipped: the read that produced them ran outside the lock, so a patch or a pair can have
+    /// arrived since, under the same key or not.
     /// A pass that changes nothing returns the same state, because this runs several times a
     /// second and rebuilding the queue - or clearing the open menu - on every one of them is not
     /// housekeeping the reader should be able to feel.
@@ -247,21 +248,29 @@ static class ViewerSession
     /// </summary>
     public static SessionState Refresh(
         SessionState state,
-        IReadOnlyCollection<string> gone,
-        IReadOnlyList<QueueEntry> changed)
+        IReadOnlyCollection<QueueEntry> gone,
+        IReadOnlyList<(QueueEntry Seen, QueueEntry Fresh)> changed)
     {
-        var replacements = changed.ToDictionary(_ => _.Key);
+        // By the entries the pass looked at, not by their keys: one staged again under the same
+        // key since then is news the pass has not seen, and is left as it arrived.
+        var replacements = new Dictionary<QueueEntry, QueueEntry>(ReferenceEqualityComparer.Instance);
+        foreach (var (seen, fresh) in changed)
+        {
+            replacements[seen] = fresh;
+        }
+
+        var went = new HashSet<QueueEntry>(gone, ReferenceEqualityComparer.Instance);
         var queue = new List<QueueEntry>(state.Queue.Count);
         var any = false;
         foreach (var entry in state.Queue)
         {
-            if (gone.Contains(entry.Key))
+            if (went.Contains(entry))
             {
                 any = true;
                 continue;
             }
 
-            if (replacements.TryGetValue(entry.Key, out var fresh))
+            if (replacements.TryGetValue(entry, out var fresh))
             {
                 any = true;
                 queue.Add(fresh);
@@ -419,7 +428,10 @@ static class ViewerSession
                 ends.AnchorRow,
                 ends.AnchorColumn,
                 ends.FocusRow,
-                ends.FocusColumn),
+                ends.FocusColumn)
+            {
+                Text = current.View(false)
+            },
             current);
 
         // The identical state when the pointer has not left the cell it was in, which is most
@@ -471,7 +483,10 @@ static class ViewerSession
                 0,
                 0,
                 last,
-                RowText.Flatten(rows[last].Text).Length)
+                SelectionText.Cells(RowText.Flatten(rows[last].Text)))
+            {
+                Text = current.View(false)
+            }
         };
     }
 
@@ -670,9 +685,9 @@ static class ViewerSession
             actions,
             discarding: false,
             TrackedKeysOf(all),
-            // A group accept drops its stale entries, so the queue it hands on cannot be read for
-            // them the way the full sweep's can
-            refused: notWritten > 0);
+            // Its own members only: a stale one has left the queue, and one that failed is still
+            // in it, beside other entries' statuses from other accepts
+            refused: notWritten + failed > 0);
     }
 
     static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
@@ -868,7 +883,7 @@ static class ViewerSession
     /// Entries with nothing left to apply are passed over rather than claimed: one that has gone
     /// since the batch began - settled, discarded, its file taken away - and one a second
     /// framework has since made a conflict of. A delete is held rather than claimed once a
-    /// snapshot in the batch was not written, for the reason <see cref="InlineRefused"/> gives.
+    /// snapshot in the batch was not written, for the reason <see cref="SweepTracked"/> gives.
     /// </para>
     /// </summary>
     public static SessionState ClaimNext(SessionState state)
@@ -1082,6 +1097,26 @@ static class ViewerSession
     /// The keys to sweep, for a group header acting on its own members. Null sweeps every tracked
     /// entry, which is what the unqualified bulk commands mean.
     /// </param>
+    /// <param name="refused">
+    /// Whether the inline accept this sweep follows left a snapshot unwritten, which holds every
+    /// delete it would carry out.
+    /// <para>
+    /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
+    /// into the source, and a delete of the verified file it replaces. The sweep ran the delete
+    /// whether or not the patch landed, so a patch the applier would not take — a call site that
+    /// cannot host a Snapshot call, a source that moved since the run — cost the snapshot both
+    /// copies at once. Nothing ties a delete to the patch it belongs to, so the whole sweep of
+    /// deletes waits on the whole batch of patches. Blunt, and deliberately so — the entries held
+    /// are still queued, still shown, and still acceptable one at a time. Moves are left alone: a
+    /// received file promoted over a verified one is the snapshot arriving, not the last copy of it
+    /// leaving.
+    /// </para>
+    /// <para>
+    /// Counted by the caller from the attempts it made, never read off the queue. Every status an
+    /// entry carries looks the same there, and reading them held a group's deletes over a failure
+    /// in another solution, left by an accept long before this one.
+    /// </para>
+    /// </param>
     static SessionState SweepTracked(
         SessionState state,
         IReadOnlyList<QueueEntry> queue,
@@ -1094,7 +1129,6 @@ static class ViewerSession
         var remaining = new List<QueueEntry>(queue.Count);
         var swept = 0;
         var kept = 0;
-        refused = refused || InlineRefused(queue, discarding);
         foreach (var entry in queue)
         {
             if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
@@ -1143,52 +1177,6 @@ static class ViewerSession
     }
 
     const string deleteHeld = "Held: a snapshot in this batch could not be written inline, and this file may be the only copy of it left. Accept it on its own to delete it anyway.";
-
-    /// <summary>
-    /// Whether this sweep follows an inline accept that something refused.
-    /// <para>
-    /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
-    /// into the source, and a delete of the verified file it replaces. The sweep ran the delete
-    /// whether or not the patch landed, so a patch the applier would not take — a call site that
-    /// cannot host a Snapshot call, a source that moved since the run — cost the snapshot both
-    /// copies at once. The literal was never written and the file it was replacing was gone, which
-    /// no re-run recovers: every later run reports the same new snapshot and deletes nothing,
-    /// forever.
-    /// </para>
-    /// <para>
-    /// Nothing ties a delete to the patch it belongs to, so the whole sweep of deletes waits on the
-    /// whole batch of patches. Blunt, and deliberately so — the entries held are still queued,
-    /// still shown, and still acceptable one at a time by anyone who knows the file is redundant.
-    /// Moves are left alone: a received file promoted over a verified one is the snapshot arriving,
-    /// not the last copy of it leaving.
-    /// </para>
-    /// <para>
-    /// A status on an inline entry is the outcome of an attempt, and this has to read only the
-    /// attempts the sweep it is answering for made. A bulk accept skips conflicted entries and
-    /// hands them back exactly as they were, so a status on one of those was left by a targeted
-    /// accept of a single variant, at some earlier point - and reading it held every pending
-    /// delete on every accept-all after it, citing a refusal in a batch that never touched the
-    /// entry. Everything else left in the queue with a status was tried and refused just now.
-    /// Discarding asks nothing of the patches, so it sweeps as it always did.
-    /// </para>
-    /// </summary>
-    static bool InlineRefused(IReadOnlyList<QueueEntry> queue, bool discarding)
-    {
-        if (discarding)
-        {
-            return false;
-        }
-
-        foreach (var entry in queue)
-        {
-            if (entry is {Kind: QueueEntryKind.Inline, Conflicted: false, Status: not null})
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     /// <summary>
     /// Accepting a tracked entry is the file operation it describes; discarding one is throwing
@@ -1375,7 +1363,7 @@ static class ViewerSession
 
                 // The variants changed, so the entry rebuilds, but what the reader had cycled to
                 // survives where it still exists.
-                entries.Add(QueueEntry.ForInline(pending, entry.SelectedVariant));
+                entries.Add(QueueEntry.ForInline(pending, SameVariant(entry, pending)));
                 continue;
             }
 
@@ -1462,10 +1450,31 @@ static class ViewerSession
 
         if (selected < 0)
         {
-            return Open(next);
+            return Reopen(next);
         }
 
         return Clamp(next);
+    }
+
+    /// <summary>
+    /// Where the variant the reader had cycled to is among the rebuilt entry's. Found by what it is
+    /// the output of rather than by where it was: a framework settling, or a re-run agreeing with
+    /// another variant, drops or merges the ones before it, and the index then named a different
+    /// framework's content - silently, and Accept applied that one. The index stands only when no
+    /// variant holds any framework the old one did.
+    /// </summary>
+    static int SameVariant(QueueEntry entry, PendingInline pending)
+    {
+        var origins = entry.Variants[entry.SelectedVariant].Origins;
+        for (var index = 0; index < pending.Variants.Count; index++)
+        {
+            if (pending.Variants[index].Origins.Any(origins.Contains))
+            {
+                return index;
+            }
+        }
+
+        return entry.SelectedVariant;
     }
 
     static SessionState Select(SessionState state, int index)
@@ -1485,7 +1494,11 @@ static class ViewerSession
             return Clamp(state);
         }
 
-        return Open(state with { Selected = index });
+        // An entry's menu acts on the entry selected when an item is clicked, so one left open over
+        // a move - a focus from the tray or an IDE, a re-sent snapshot - discarded or accepted an
+        // entry it was never opened on. Selecting is the only way the entry changes without the
+        // queue changing, and a queue change already closes the menu.
+        return Open(state with { Selected = index, Menu = null });
     }
 
     /// <summary>
@@ -1517,21 +1530,39 @@ static class ViewerSession
         }
 
         var folded = state with { Collapsed = collapsed };
-        var visible = QueueProjection.VisibleEntries(folded);
-        if (visible.Count == 0 ||
-            visible.Contains(folded.Selected))
+        if (NearestVisible(folded) is { } visible)
         {
-            return Clamp(folded);
+            return Select(folded, visible);
         }
 
-        // The selection went under the fold. The column follows the selection, so leaving it there
-        // would leave the whole list with nothing highlighted. Forward first, because folding a
-        // group is usually done on the way down the queue.
+        return Clamp(folded);
+    }
+
+    /// <summary>
+    /// Where the selection goes when it is under a fold, or null when it is not. The column follows
+    /// the selection, so leaving it there would leave the whole list with nothing highlighted,
+    /// while the panes and Accept went on acting on an entry nobody could see. Forward first,
+    /// because folding a group is usually done on the way down the queue, and an entry that goes
+    /// hands the selection to the one after it.
+    /// <para>
+    /// For a fold, and for the entry being read going: an index kept across that can name the
+    /// first entry of a folded group that follows it.
+    /// </para>
+    /// </summary>
+    static int? NearestVisible(SessionState state)
+    {
+        var visible = QueueProjection.VisibleEntries(state);
+        if (visible.Count == 0 ||
+            visible.Contains(state.Selected))
+        {
+            return null;
+        }
+
         var before = -1;
         var after = -1;
         foreach (var index in visible)
         {
-            if (index < folded.Selected)
+            if (index < state.Selected)
             {
                 before = index;
             }
@@ -1541,7 +1572,27 @@ static class ViewerSession
             }
         }
 
-        return Select(folded, after >= 0 ? after : before);
+        if (after >= 0)
+        {
+            return after;
+        }
+
+        return before;
+    }
+
+    /// <summary>
+    /// The entry being read has gone, and the selection is left on whatever now has its index:
+    /// opened there, or at the nearest entry that can be seen when that one is under a fold.
+    /// </summary>
+    static SessionState Reopen(SessionState state)
+    {
+        state = Clamp(state);
+        if (NearestVisible(state) is { } visible)
+        {
+            return Select(state, visible);
+        }
+
+        return Open(state);
     }
 
     /// <summary>
