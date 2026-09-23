@@ -172,6 +172,7 @@ sealed class FormsViewerWindow :
         {
             form.ClientSize = new(width, height);
             form.Apply(screen);
+            form.LoadPictures();
             form.PerformLayout();
             // Invalidate only marks dirty; the paint has to have happened before the bitmap.
             form.Surface.Refresh();
