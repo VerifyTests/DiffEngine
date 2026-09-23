@@ -5,11 +5,15 @@
 /// Pumped rather than inverted onto <c>Application.Run</c>. ViewerProgram owns the loop for all
 /// three heads, and keeping it that way means the scroll amplification, the button lookup and the
 /// close-means-hide rule stay in one place. <c>DoEvents</c> is usually a smell, but the conditions
-/// that make it one are absent here: no modal dialogs, no nested message loops, and session state
-/// already behind its own lock.
+/// that make it one are absent here: no modal dialogs, and session state already behind its own
+/// lock. user32's own modal loops - a scroll bar thumb being dragged, the window being moved or
+/// sized - do hold the thread inside DoEvents, and <see cref="ILoopHooks"/> is how frames keep
+/// coming while they do.
 /// </para>
 /// </summary>
-sealed class FormsViewerWindow : IViewerWindow
+sealed class FormsViewerWindow :
+    IViewerWindow,
+    ILoopHooks
 {
     /// <summary>
     /// Roughly sixty frames a second, which is what the shim's SetTargetFPS gives the other heads.
@@ -75,6 +79,13 @@ sealed class FormsViewerWindow : IViewerWindow
     /// </summary>
     void Wait()
     {
+        // Input already waiting is the next frame's, now: a key and a click that land together are
+        // two frames, and sleeping between them would put the second a frame behind for nothing.
+        if (form.Pending)
+        {
+            return;
+        }
+
         var timeout = form.Visible ? frameMilliseconds - 1 : hiddenMilliseconds;
         MsgWaitForMultipleObjectsEx(0, IntPtr.Zero, (uint) timeout, allInput, inputAvailable);
     }
@@ -88,6 +99,16 @@ sealed class FormsViewerWindow : IViewerWindow
 
     public ViewerInput Poll() =>
         form.IsDisposed ? default : form.Drain();
+
+    public Func<Screen>? Frame
+    {
+        set => form.Frame = value;
+    }
+
+    public Action? SessionEnding
+    {
+        set => form.SessionEnding = value;
+    }
 
     /// <summary>
     /// Visibility only. Assigning ShowInTaskbar recreates the window handle, and doing that under

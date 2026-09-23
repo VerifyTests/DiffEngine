@@ -14,11 +14,11 @@ public class ImageCacheTests
         var path = Write("decoded.png", SamplePng.Build(8, 6, 200, 40, 40));
         using var cache = new ImageCache();
 
-        var first = cache.Get(path);
+        var first = cache.Get(path, null);
         await Assert.That(first).IsNotNull();
         await Assert.That(first!.Width).IsEqualTo(8);
         await Assert.That(first.Height).IsEqualTo(6);
-        await Assert.That(ReferenceEquals(cache.Get(path), first)).IsTrue();
+        await Assert.That(ReferenceEquals(cache.Get(path, null), first)).IsTrue();
     }
 
     /// <summary>
@@ -31,7 +31,7 @@ public class ImageCacheTests
     {
         var path = Write("copied-over.png", SamplePng.Build(8, 6, 200, 40, 40));
         using var cache = new ImageCache();
-        await Assert.That(cache.Get(path)).IsNotNull();
+        await Assert.That(cache.Get(path, null)).IsNotNull();
 
         var replacement = Write("replacement.png", SamplePng.Build(4, 4, 40, 200, 40));
         File.Copy(replacement, path, true);
@@ -46,12 +46,12 @@ public class ImageCacheTests
     {
         var path = Write("rewritten.png", SamplePng.Build(8, 6, 200, 40, 40));
         using var cache = new ImageCache();
-        await Assert.That(cache.Get(path)!.Width).IsEqualTo(8);
+        await Assert.That(cache.Get(path, null)!.Width).IsEqualTo(8);
 
         // A different size, so the change is visible whatever the file system's timestamp
         // resolution turns out to be.
         await File.WriteAllBytesAsync(path, SamplePng.Build(4, 4, 40, 200, 40));
-        await Assert.That(cache.Get(path)!.Width).IsEqualTo(4);
+        await Assert.That(cache.Get(path, null)!.Width).IsEqualTo(4);
     }
 
     /// <summary>
@@ -64,15 +64,15 @@ public class ImageCacheTests
         var path = Write("notreally.png", "the quick brown fox"u8.ToArray());
         using var cache = new ImageCache();
 
-        await Assert.That(cache.Get(path)).IsNull();
-        await Assert.That(cache.Get(path)).IsNull();
+        await Assert.That(cache.Get(path, null)).IsNull();
+        await Assert.That(cache.Get(path, null)).IsNull();
     }
 
     [Test]
     public async Task MissingFile()
     {
         using var cache = new ImageCache();
-        await Assert.That(cache.Get(Path.Combine(Directory(), "gone.png"))).IsNull();
+        await Assert.That(cache.Get(Path.Combine(Directory(), "gone.png"), null)).IsNull();
     }
 
     static string Write(string name, byte[] content)
@@ -87,5 +87,42 @@ public class ImageCacheTests
         var path = Path.Combine(Path.GetTempPath(), "deview-image-cache");
         System.IO.Directory.CreateDirectory(path);
         return path;
+    }
+
+    /// <summary>
+    /// A picture rewritten with different pixels at the same length and
+    /// the same write time, which is what a rewrite inside the file system's timestamp granularity
+    /// looks like to a stat. The model's hash sees it.
+    /// </summary>
+    [Test]
+    public async Task ARewriteWithTheSameStampKeepsTheOldPicture()
+    {
+        var path = Path.Combine(Directory(), "Same.received.png");
+        File.WriteAllBytes(path, SamplePng.Build(8, 6, 200, 40, 40));
+        var stamp = File.GetLastWriteTimeUtc(path);
+        using var cache = new ImageCache();
+        var before = ((Bitmap) cache.Get(path, FileSide.Read(path).Image!.Value.Hash)!).GetPixel(0, 0);
+        var hashBefore = FileSide.Read(path).Image!.Value.Hash;
+
+        File.WriteAllBytes(path, SamplePng.Build(8, 6, 40, 200, 40));
+        File.SetLastWriteTimeUtc(path, stamp);
+        var hashAfter = FileSide.Read(path).Image!.Value.Hash;
+        var after = ((Bitmap) cache.Get(path, hashAfter)!).GetPixel(0, 0);
+
+        // How often two writes in a row land on one stamp here, for how reachable that is.
+        var ticks = new List<long>();
+        for (var index = 0; index < 200; index++)
+        {
+            File.WriteAllBytes(path, [(byte) index]);
+            ticks.Add(File.GetLastWriteTimeUtc(path).Ticks);
+        }
+
+        var repeats = ticks.Zip(ticks.Skip(1)).Count(_ => _.First == _.Second);
+        var smallest = ticks.Zip(ticks.Skip(1)).Select(_ => _.Second - _.First).Where(_ => _ > 0).DefaultIfEmpty(0).Min();
+        File.Delete(path);
+        Console.WriteLine(
+            $"hash changed {hashBefore != hashAfter}; pixel before {before}, after {after}; " +
+            $"back to back writes on this volume: {repeats} of 199 kept the stamp, smallest step {smallest / 10}us");
+        await Assert.That(after.ToArgb()).IsNotEqualTo(before.ToArgb());
     }
 }

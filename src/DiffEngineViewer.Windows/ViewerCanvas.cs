@@ -146,9 +146,26 @@ sealed class ViewerCanvas : Control
     public void Draw(Screen value)
     {
         screen = value;
+        images.Keep(PicturesOn(value));
         // A new screen renumbers the rows, so a kept index would describe a different entry.
         tips.Forget(this);
         Invalidate();
+    }
+
+    static List<string> PicturesOn(Screen screen)
+    {
+        var paths = new List<string>(2);
+        if (screen.Left.Image is { } left)
+        {
+            paths.Add(left.Path);
+        }
+
+        if (screen.Right.Image is { } right)
+        {
+            paths.Add(right.Path);
+        }
+
+        return paths;
     }
 
     Size Cell
@@ -159,11 +176,33 @@ sealed class ViewerCanvas : Control
             {
                 using var graphics = CreateGraphics();
                 cell = MonoFont.Cell(graphics, font);
+                advance = MonoFont.Advance(graphics, font);
             }
 
             return cell;
         }
     }
+
+    /// <summary>
+    /// Where glyphs actually land within a line, for anything placed under or against them. The
+    /// cell stays whole pixels for laying out the grid. See <see cref="MonoFont.Advance"/>.
+    /// </summary>
+    float Advance
+    {
+        get
+        {
+            _ = Cell;
+            return advance;
+        }
+    }
+
+    float advance;
+
+    /// <summary>
+    /// The pixel offset of a column into a line of text.
+    /// </summary>
+    int Offset(int column) =>
+        (int) Math.Round(column * Advance);
 
     /// <summary>
     /// Everything drawn here is laid out in character cells, and a cell is measured in pixels from
@@ -271,7 +310,7 @@ sealed class ViewerCanvas : Control
     /// pointing at is the one they mean.
     /// </summary>
     int ColumnAt(int x, PaneSide side) =>
-        Math.Max(0, (x - TextLeft(side) + Cell.Width / 2) / Cell.Width);
+        Math.Max(0, (int) Math.Floor((x - TextLeft(side)) / Advance + 0.5f));
 
     /// <summary>
     /// The body row a point is on, clamped into the body. Used while dragging, where a pointer
@@ -348,7 +387,7 @@ sealed class ViewerCanvas : Control
             return;
         }
 
-        var picture = images.Get(image.Path);
+        var picture = images.Get(image.Path, image.Hash);
         if (picture is null)
         {
             return;
@@ -427,7 +466,7 @@ sealed class ViewerCanvas : Control
             return;
         }
 
-        var width = screen.Subtitle.Length * Cell.Width;
+        var width = Offset(screen.Subtitle.Length);
         Painter.Draw(graphics, screen.Subtitle, font, Palette.Dim, Cellular(Width - padding - width, padding, width, lineHeight));
     }
 
@@ -487,9 +526,9 @@ sealed class ViewerCanvas : Control
                 Painter.Brush(Palette.Selection),
                 Rectangle.Intersect(
                     new(
-                        bounds.X + gutter + row.Selection.Start * Cell.Width,
+                        bounds.X + gutter + Offset(row.Selection.Start),
                         bounds.Y,
-                        row.Selection.Length * Cell.Width,
+                        Offset(row.Selection.Start + row.Selection.Length) - Offset(row.Selection.Start),
                         bounds.Height),
                     bounds));
         }
@@ -595,6 +634,14 @@ sealed class ViewerCanvas : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        // A move with the button up is a drag whose release went somewhere else - the button let go
+        // over another window after an Alt+Tab, say - and not one still going.
+        if ((selecting || dragging) &&
+            (e.Button & MouseButtons.Left) == 0)
+        {
+            EndDrag();
+        }
+
         if (selecting)
         {
             // Against the side the press landed in, whatever the pointer has wandered over since:
@@ -649,6 +696,26 @@ sealed class ViewerCanvas : Control
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        EndDrag();
+    }
+
+    /// <summary>
+    /// The mouse was taken away mid drag: Alt+Tab, the Windows key, a UAC prompt, another window
+    /// grabbing it. Only the window holding capture hears the button come up, so without this the
+    /// selection followed the pointer with no button held, and the splitter dragged the queue
+    /// column along, until the next click happened to land here.
+    /// </summary>
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        if (!Capture)
+        {
+            EndDrag();
+        }
+    }
+
+    void EndDrag()
+    {
         if (dragging)
         {
             dragging = false;
