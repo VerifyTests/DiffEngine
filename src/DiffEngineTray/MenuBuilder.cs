@@ -178,7 +178,8 @@ static class MenuBuilder
                 yield return BuildMove(
                     move,
                     () => tracker.Accept(move),
-                    () => tracker.Discard(move));
+                    () => tracker.Discard(move),
+                    () => tracker.FindMove(move.Temp));
             }
         }
 
@@ -268,7 +269,12 @@ static class MenuBuilder
         return menu;
     }
 
-    static ToolStripDropDownButton BuildMove(TrackedMove move, Action accept, Action discard)
+    /// <param name="current">
+    /// The move as it is when an item is clicked, found again by its received file. A re-run
+    /// replaces the move while a menu built before it can still be open, and the one captured
+    /// here then holds a process the replacement has disposed.
+    /// </param>
+    static ToolStripDropDownButton BuildMove(TrackedMove move, Action accept, Action discard, Func<TrackedMove?> current)
     {
         var tempName = Path.GetFileNameWithoutExtension(move.Temp);
         var targetName = Path.GetFileNameWithoutExtension(move.Target);
@@ -281,7 +287,13 @@ static class MenuBuilder
         menu.DropDownItems.Add(new MenuButton("Discard", discard));
         if (move.Exe != null)
         {
-            menu.DropDownItems.Add(new MenuButton("Open diff tool", () => DiffToolLauncher.Launch(move)));
+            menu.DropDownItems.Add(new MenuButton("Open diff tool", () =>
+            {
+                if (current() is { Exe: not null } live)
+                {
+                    DiffToolLauncher.Launch(live);
+                }
+            }));
         }
 
         menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));

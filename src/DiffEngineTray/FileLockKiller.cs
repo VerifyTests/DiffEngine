@@ -96,7 +96,7 @@ static class FileLockKiller
                     continue;
                 }
 
-                processes.Add(new(processId, info.strAppName));
+                processes.Add(new(processId, info.strAppName, StartTime(info.Process.ProcessStartTime)));
             }
         }
         catch (Exception exception)
@@ -112,6 +112,40 @@ static class FileLockKiller
         return processes;
     }
 
+    static DateTime? StartTime(System.Runtime.InteropServices.ComTypes.FILETIME time)
+    {
+        var ticks = ((long) (uint) time.dwHighDateTime << 32) | (uint) time.dwLowDateTime;
+        if (ticks == 0)
+        {
+            return null;
+        }
+
+        return DateTime.FromFileTimeUtc(ticks);
+    }
+
+    /// <summary>
+    /// Whether the process that holds the id now is the one Restart Manager reported, by its start
+    /// time, read through the handle the kill then uses.
+    /// </summary>
+    static bool IsSame(Process process, LockingProcess locking)
+    {
+        if (locking.StartTime is not { } reported)
+        {
+            return false;
+        }
+
+        try
+        {
+            // Restart Manager and the process's own creation time are the same FILETIME
+            return Math.Abs((process.StartTime.ToUniversalTime() - reported).TotalMilliseconds) < 1;
+        }
+        catch (Exception exception)
+            when (exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     public static bool Kill(IEnumerable<LockingProcess> processes)
     {
         var killed = false;
@@ -120,6 +154,16 @@ static class FileLockKiller
         {
             if (!ProcessEx.TryGet(locking.ProcessId, out var process))
             {
+                continue;
+            }
+
+            if (!IsSame(process, locking))
+            {
+                Log.Information(
+                    "Not killing PID {ProcessId}: it is no longer the '{ProcessName}' that held the file",
+                    locking.ProcessId,
+                    locking.Name);
+                process.Dispose();
                 continue;
             }
 

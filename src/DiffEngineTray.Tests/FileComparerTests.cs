@@ -94,4 +94,81 @@ public class FileComparerTests
             await Cleanup(first, second, differsInLastChunk);
         }
     }
+
+    /// <summary>
+    /// The scan opens both files with FileShare.Read only, so for as long as a comparison
+    /// runs, a test deleting its received file - what a passing re-run does - gets a sharing
+    /// violation.
+    /// </summary>
+    [Test]
+    public async Task ATestCanDeleteItsReceivedFileWhileTheScanComparesIt()
+    {
+        // Same size and large, so the comparison reads both through and is still reading when the
+        // delete arrives
+        var content = new byte[64 * 1024 * 1024];
+        var temp = TempFile("");
+        var target = TempFile("");
+        await File.WriteAllBytesAsync(temp, content);
+        await File.WriteAllBytesAsync(target, content);
+
+        var comparing = FileComparer.FilesAreEqual(temp, target);
+
+        Exception? refused = null;
+        try
+        {
+            File.Delete(temp);
+        }
+        catch (IOException exception)
+        {
+            refused = exception;
+        }
+
+        // Both files are opened before FilesAreEqual first yields, and closed only as it completes,
+        // so not being complete here means the delete arrived while the scan held them
+        var overlapped = !comparing.IsCompleted;
+        try
+        {
+            await comparing;
+        }
+        catch (IOException)
+        {
+        }
+
+        await Cleanup(temp, target);
+        await Assert.That(overlapped).IsTrue();
+        await Assert.That(refused).IsNull();
+    }
+
+
+    /// <summary>
+    /// With writers let in, a file can be cut short while it is compared. The shorter read is two
+    /// files that differ, not two that both ended.
+    /// </summary>
+    [Test]
+    public async Task A_file_cut_short_mid_compare_is_not_equal()
+    {
+        var content = new byte[64 * 1024 * 1024];
+        var received = TempFile("");
+        var verified = TempFile("");
+        await File.WriteAllBytesAsync(received, content);
+        await File.WriteAllBytesAsync(verified, content);
+        try
+        {
+            var comparing = FileComparer.FilesAreEqual(received, verified);
+            await using (var cut = new FileStream(received, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            {
+                cut.SetLength(8 * 1024 * 1024);
+            }
+
+            var overlapped = !comparing.IsCompleted;
+            var equal = await comparing;
+
+            await Assert.That(overlapped).IsTrue();
+            await Assert.That(equal).IsFalse();
+        }
+        finally
+        {
+            await Cleanup(received, verified);
+        }
+    }
 }

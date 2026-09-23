@@ -18,37 +18,6 @@ Viewer model
   - Fix: have each head report string positions from its own layout rather than cells, or put every code point on the grid.
 
 
-Tray
-
-- [ ] **A failed bind on 3492 leaves the tray running without its listener** (verified)
-  - `PiperServer.Start` is async, so a bind failure (`src/DiffEngineTray/PiperServer.cs:31-32`) faults the returned task, which `Program` awaits only after `Application.Run` returns (`Program.cs:99`, `:132`), holding the "DiffEngine" mutex throughout; on exit it is logged as Fatal "Failed at startup" and rethrown. Meanwhile, if another process holds 3492, `PortIsHeld` says yes and every move and delete goes to it; a bind that failed otherwise sends moves to 3493 without exe, arguments or process id.
-  - Needs the named mutex, which the real tray holds, so not unit tested.
-  - Fix: bind synchronously, as `ViewerServer.TryBind` does, and warn; or check `IsFaulted` before `Application.Run`.
-
-- [ ] **The locked-file kill uses a bare PID after an unbounded modal dialog** (verified)
-  - `FileLockKiller.cs:89-100` drops `RM_UNIQUE_PROCESS.ProcessStartTime`, and `LockingProcess` has nowhere to keep it. After `form.ShowDialog()` (`LockedFilesHandler.cs:12-13`), which has no timeout, `Kill` opens each process by id (`FileLockKiller.cs:121`). Only the dialog path has a long window; PID reuse cannot be forced in a test.
-  - Fix: keep the start time and compare it with the opened process's through the same handle before killing.
-
-- [ ] **"Open diff tool" from a menu built before a re-run's move throws on the UI thread** (repro)
-  - `AddMove`'s update factory disposes `existing.Process` (`src/DiffEngineTray/Tracker.cs:207`) and leaves it on the old move, which a menu that was open across the re-run still holds (`MenuBuilder.cs:284`; the menu is rebuilt on each Opening). Nothing handles `ThreadException`, so the user gets WinForms' unhandled exception dialog. The factory running twice under contention only leaks a handle.
-  - Test: `OpenDiffToolFromAMenuBuiltBeforeTheMoveWasUpdated`.
-  - The suggested fix is incomplete: nulling it stops the throw, but "Open diff tool" would then attach the new tool to the orphaned move, which nothing kills. Look the move up by key when clicked, and dispose outside the factory.
-
-- [ ] **A connection that resets while waiting to be accepted shows the "open an issue" box and stalls the listener** (repro)
-  - `AcceptTcpClientAsync` throws a bare `SocketException` ConnectionReset (measured on .NET 10), but the accept loop's catch expects an `IOException` wrapping one (`PiperServer.cs:63-67`), so it reaches `ExceptionHandler.Handle` and its modal box, on the accept loop's own thread. `Handle`'s catch (`:126-130`) is right as it is: a reset during the read is the wrapped form.
-  - Test: `AClientThatResetsBeforeItIsAcceptedIsNotReportedAsAnError`.
-  - Fix: catch `SocketException` in the accept loop only. The handler running inline until its first real await is true, but only widens the window. Also, `PiperTest.ClientDisconnectsAbruptly` never sends a reset (`TcpClient.Dispose` closes cleanly); `Socket.Close(0)` does.
-
-- [ ] **`FileComparer` blocks a test's delete of its received file during a compare** (repro)
-  - Both files are opened with `FileShare.Read` (`src/DiffEngineTray/FileComparer.cs:10-16`) for the whole compare, which since #884 runs once per change of a same-size pair.
-  - Test: `ATestCanDeleteItsReceivedFileWhileTheScanComparesIt` (a 64 MB pair).
-  - `count2` cannot give a wrong answer today, because `FileShare.Read` keeps writers out. So widening the sharing alone is wrong: truncating the received file mid compare then made `FilesAreEqual` return true against a 64 MB verified file, and the scan would drop the move and kill its tool. Widen it only together with returning false when `count1 != count2`.
-
-- [ ] **"Always kill locking processes" is ignored for accepts arriving over the socket** (repro)
-  - Wire accepts go through `AcceptWithoutPrompting` (`Tracker.cs:1073-1090`), and `ShouldKill` returns false at `:720-724`, before the resolver, the only place that reads the setting (`LockedFilesHandler.cs:7-10`). The viewer is told to accept from the tray menu, where the same accept kills without asking.
-  - Test: `AlwaysKillAppliesToAnAcceptArrivingOverTheSocket`.
-  - Fix: read the setting in `ShouldKill` before the `NeverPrompt` branch. `ALockedMoveIsRefusedWithoutPrompting` requires that the resolver, which builds a dialog, is never consulted.
-
 Native (the Linux items were unreachable until #885 made the Linux window draw and read input; these are verdicts on the code as it behaves since)
 
 

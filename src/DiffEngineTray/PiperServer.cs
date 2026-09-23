@@ -19,17 +19,55 @@
 /// </summary>
 static class PiperServer
 {
+    /// <summary>
+    /// Binds and serves, with a bind that fails faulting the task. For the tests; the tray binds
+    /// with <see cref="TryBind"/> first, so it can say so.
+    /// </summary>
     public static async Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
         Cancel cancel = default)
     {
-        TcpListener? listener = default;
+        var listener = new TcpListener(IPAddress.Loopback, PiperClient.Port);
+        listener.Start();
+        await Serve(listener, move, delete, cancel);
+    }
 
+    /// <summary>
+    /// The port, taken now, or null with why not.
+    /// <para>
+    /// Synchronous, and before anything is served. A bind that failed inside the serving task
+    /// faulted a task nothing looked at until the tray exited: it ran for the whole session with
+    /// no listener, holding the mutex that keeps a second tray from starting, while every move and
+    /// delete went to whatever did hold 3492 - and then crashed on the way out, logged as having
+    /// failed at startup.
+    /// </para>
+    /// </summary>
+    public static TcpListener? TryBind(out SocketException? error)
+    {
+        var listener = new TcpListener(IPAddress.Loopback, PiperClient.Port);
         try
         {
-            listener = new(IPAddress.Loopback, PiperClient.Port);
             listener.Start();
+            error = null;
+            return listener;
+        }
+        catch (SocketException exception)
+        {
+            listener.Stop();
+            error = exception;
+            return null;
+        }
+    }
+
+    public static async Task Serve(
+        TcpListener listener,
+        Action<MovePayload> move,
+        Action<DeletePayload> delete,
+        Cancel cancel = default)
+    {
+        try
+        {
             // Kept from when the accept lived inside the per-connection method: cancelling stops
             // the listener, which is what brings a pending accept down with it
             await using var registration = cancel.Register(listener.Stop);
@@ -49,7 +87,11 @@ static class PiperServer
                     // move and delete from every other process for as long as it stayed that way,
                     // with nothing to end the wait. The callbacks are the tracker's concurrent
                     // collections, which the viewer port already writes to off this thread
-                    _ = Handle(client, move, delete, cancel);
+                    //
+                    // Task.Run rather than a bare call, which ran the handler on this loop until
+                    // its first await that did not complete at once - for a payload already
+                    // buffered, all of it, parse and tracker included - with no accept pending.
+                    _ = Task.Run(() => Handle(client, move, delete, cancel), Cancel.None);
                 }
                 catch (TaskCanceledException)
                 {
@@ -60,10 +102,13 @@ static class PiperServer
                     //when task is cancelled socket is disposed
                     break;
                 }
-                catch (IOException exception)
-                    when (exception.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset })
+                catch (SocketException exception)
+                    when (exception.SocketErrorCode == SocketError.ConnectionReset)
                 {
-                    //client disconnected abruptly, e.g. test was canceled
+                    // A client that reset while it waited to be accepted - a test run cancelled
+                    // mid send. The accept throws that bare, where a read throws it wrapped in an
+                    // IOException, so the wrapped catch below never matched it here and it went to
+                    // the "open an issue" box, modal, on this loop's thread.
                 }
                 catch (Exception exception)
                 {
@@ -78,7 +123,7 @@ static class PiperServer
         }
         finally
         {
-            listener?.Stop();
+            listener.Stop();
         }
     }
 

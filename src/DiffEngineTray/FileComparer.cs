@@ -7,11 +7,17 @@ static class FileComparer
         return first.Length == second.Length;
     }
 
+    /// <summary>
+    /// Shared with writers and deleters. The scan compares for as long as reading both files takes,
+    /// and read sharing alone failed a test's rewrite or delete of its received file with "being
+    /// used by another process" for all of it. Which means a file can change under the compare,
+    /// and <see cref="StreamsAreEqual"/> is what makes that read as different rather than equal.
+    /// </summary>
     static FileStream OpenRead(string path) =>
         new(path,
             FileMode.Open,
             FileAccess.Read,
-            FileShare.Read,
+            FileShare.ReadWrite | FileShare.Delete,
             bufferSize: 4096,
             useAsync: true);
 
@@ -36,11 +42,20 @@ static class FileComparer
         while (true)
         {
             var t1 = ReadBuffer(stream1, buffer1);
-            await ReadBuffer(stream2, buffer2);
+            var count2 = await ReadBuffer(stream2, buffer2);
 
             var count = await t1;
 
-            //no need to compare size since only enter on files being same size
+            // The sizes matched when the compare began, but either file can be rewritten or cut
+            // short while it runs. A pass that read less from one than the other is two files that
+            // are no longer the same size, and ending on the shorter as though both had ended took
+            // a received file truncated mid compare for equal to its verified file - and the scan
+            // drops an equal pair and kills its diff tool.
+            if (count != count2)
+            {
+                return false;
+            }
+
             if (count == 0)
             {
                 return true;
