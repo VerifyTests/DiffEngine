@@ -141,16 +141,33 @@ static class ViewerMessageHandler
             return ViewerResponse.Error($"{verb} requires a key");
         }
 
-        // The body is the variant origin a reviewer picked, and only an accept carries one.
-        var (ok, message) = verb == ViewerVerb.Accept
-            ? owner.Accept(key, body)
-            : owner.Discard(key);
-        if (!ok)
+        if (verb == ViewerVerb.Discard)
         {
-            return ViewerResponse.Error(message ?? $"No pending snapshot for {key}");
+            return Reply(key, owner.Discard(key));
         }
 
-        return ViewerResponse.Success(message);
+        // The body is the variant origin a reviewer picked, and only an accept carries one.
+        var (ok, message, written) = owner.Accept(key, body);
+        var reply = Reply(key, (ok, message));
+        if (!ok)
+        {
+            return reply;
+        }
+
+        return reply with
+        {
+            Written = written
+        };
+    }
+
+    static ViewerResponse Reply(string key, (bool ok, string? message) result)
+    {
+        if (!result.ok)
+        {
+            return ViewerResponse.Error(result.message ?? $"No pending snapshot for {key}");
+        }
+
+        return ViewerResponse.Success(result.message);
     }
 
     static ViewerResponse Focus(IQueueOwner owner, string? key)

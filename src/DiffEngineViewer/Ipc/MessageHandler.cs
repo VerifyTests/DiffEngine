@@ -114,14 +114,25 @@ class MessageHandler(
     bool IQueueOwner.Has(string key) =>
         IndexOf(host.State, key) >= 0;
 
-    (bool ok, string? message) IQueueOwner.Accept(string key, string? origin) =>
+    (bool ok, string? message, bool written) IQueueOwner.Accept(string key, string? origin) =>
         Act(key, CommandKind.Accept, origin);
 
-    (bool ok, string? message) IQueueOwner.Discard(string key) =>
-        Act(key, CommandKind.Discard);
-
-    (bool ok, string? message) Act(string key, CommandKind command, string? origin = null)
+    (bool ok, string? message) IQueueOwner.Discard(string key)
     {
+        var (ok, message, _) = Act(key, CommandKind.Discard);
+        return (ok, message);
+    }
+
+    (bool ok, string? message, bool written) Act(string key, CommandKind command, string? origin = null)
+    {
+        // What the applier answered, for whoever sent this to know whether the snapshot is in the
+        // source now. The session drops a patch whose call site moved just as it drops one that
+        // landed, so the queue afterwards cannot tell the two apart.
+        InlineApplyResult? applied = null;
+        var recording = actions with
+        {
+            ApplyInline = _ => applied = actions.ApplyInline(_)
+        };
         // Looked up and refused inside the same mutation that acts, rather than on a read taken
         // before it: the queue can change in between, which threw on an index that had gone, and
         // let an accept through on an entry a second framework had just made a conflict of.
@@ -153,20 +164,21 @@ class MessageHandler(
                 selected = ViewerSession.SelectVariant(selected, origin);
             }
 
-            return ViewerSession.Apply(selected, command, actions);
+            return ViewerSession.Apply(selected, command, recording);
         });
 
         if (!found)
         {
-            return (false, null);
+            return (false, null, false);
         }
 
         if (refusal is not null)
         {
-            return (false, refusal);
+            return (false, refusal, false);
         }
 
-        return (true, state.Message);
+        var written = applied?.Status is InlineApplyStatus.Applied or InlineApplyStatus.AlreadyApplied;
+        return (true, state.Message, written);
     }
 
     /// <summary>

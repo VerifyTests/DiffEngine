@@ -7,14 +7,6 @@ Open findings from a review of `main` at 4244ebe6 (2026-09-23), rechecked on c37
 - **cannot verify here**: needs a platform this machine lacks; the item says what would settle it.
 
 
-## Data loss
-
-- [ ] **An attached "Accept all in <solution>" deletes verified files whose snapshots were not written** (repro)
-  - `DispatchGroup` (`src/DiffEngineViewer/ViewerProgram.cs:663-697`) posts one `Accept` per member, deletes included (`:683`), before any answer comes back, and the owner carries each out as a single accept with no held-delete rule: the tray through `OwnedInlineHost.cs:302-304` and `Tracker.cs:956` to `File.Delete` at `:1061`, a viewer through `MessageHandler.cs:156`. #878 fixed the tray's accept-all and the AcceptAll verb, not this path. The owning viewer's own group accept does hold deletes (`ViewerSession.cs:664-675`).
-  - Test (`review-repros`): `An_attached_accept_all_in_a_solution_holds_its_deletes_when_a_snapshot_was_not_written`. The patch comes back NotFound and the verified file is deleted anyway, so no copy of the snapshot is left. Its owner is a viewer; the tray owner's delete path was read, not run.
-  - Fix: the client cannot know the patch outcomes when it posts, so the rule belongs with the owner, for example a group verb that carries the member keys through the owner's batch and its hold rule.
-
-
 ## Bugs
 
 The repro tests are on the local branch `review-repros`, one class per area: `ReviewReproSessionTests` and `ReviewReproWatchTests` (viewer model), `ReviewReproWindowsTests`, `ReviewReproTrayTests`, `ReviewReproPatcherTests`, `ReviewReproLibraryTests`. Each test fails on c37bf9e1 except a control (`ControlSpaceIndentedLocalLeavesTheSiblingAlone`) and a measurement (`HowLongADecodeHoldsTheFile`).

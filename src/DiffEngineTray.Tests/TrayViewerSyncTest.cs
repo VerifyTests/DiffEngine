@@ -242,6 +242,45 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Applied.Select(_ => _.LineHint)).IsEquivalentTo([1]);
     }
 
+    /// <summary>
+    /// "Accept all in" a group, from a window attached to the tray, whose patch the tray cannot
+    /// write because the call site moved since the run. The tray takes each accept as asked and a
+    /// stale patch goes as an applied one does, so only the reply says it was not written - and
+    /// the verified file the delete would remove is the one copy of that snapshot left.
+    /// </summary>
+    [Test]
+    public async Task AViewerGroupAcceptHoldsItsDeletesWhenTheTrayCouldNotWriteASnapshot()
+    {
+        await using var pair = new TrayOwned(_ => InlineApplyResult.NotFound("Could not locate the call"));
+        pair.Queue(sample, 1);
+        var delete = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.PostAcceptGroup([], [Key(sample, 1)], [delete.Key]);
+
+        var viewer = pair.Pump();
+        await Assert.That(File.Exists(delete.File)).IsTrue();
+        await Assert.That(pair.Tracker.Deletes).HasSingleItem();
+        await Assert.That(viewer.Message).IsEqualTo(OwnerLink.DeletesHeld);
+    }
+
+    [Test]
+    public async Task AViewerGroupAcceptCarriesOutItsDeletesOnceTheTrayWroteTheSnapshots()
+    {
+        await using var pair = new TrayOwned();
+        pair.Queue(sample, 1);
+        var move = pair.AddMove();
+        var delete = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.PostAcceptGroup([move.Key], [Key(sample, 1)], [delete.Key]);
+
+        await Assert.That(pair.Pump().Queue).IsEmpty();
+        await Assert.That(pair.Applied.Select(_ => _.LineHint)).IsEquivalentTo([1]);
+        await Assert.That(File.Exists(delete.File)).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+    }
+
     [Test]
     public async Task ViewerDiscardOfOneSnapshotReachesTheTray()
     {

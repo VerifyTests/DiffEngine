@@ -49,8 +49,14 @@ interface IQueueOwner
     /// nothing was attempted, and the message says why — a conflicted entry with no origin to
     /// pick, or a locked tracked move. True means attempted, including a retryable apply failure,
     /// whose message says what went wrong while the entry stays pending.
+    /// <para>
+    /// Written is whether a snapshot is in the source now: applied, or found already there. False
+    /// for anything else, a tracked file included, since that has no snapshot. It is what a surface
+    /// accepting a group from someone else's queue waits on before sending the group's deletes,
+    /// because ok cannot say it: a patch whose call site moved is attempted, and dropped unwritten.
+    /// </para>
     /// </summary>
-    (bool ok, string? message) Accept(string key, string? origin);
+    (bool ok, string? message, bool written) Accept(string key, string? origin);
 
     (bool ok, string? message) Discard(string key);
 

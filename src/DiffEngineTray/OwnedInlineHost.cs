@@ -297,34 +297,34 @@ sealed class OwnedInlineHost :
         }
     }
 
-    (bool ok, string? message) IQueueOwner.Accept(string key, string? origin)
+    (bool ok, string? message, bool written) IQueueOwner.Accept(string key, string? origin)
     {
         if (TrackedKeys.IsTracked(key))
         {
-            var result = TrackedFiles?.Accept(key) ?? (false, null);
-            if (result.ok)
+            var (ok, text) = TrackedFiles?.Accept(key) ?? (false, null);
+            if (ok)
             {
                 Changed?.Invoke();
             }
 
-            return result;
+            return (ok, text, false);
         }
 
         var (outcome, message, refused) = AcceptOne(key, origin);
         if (outcome == AcceptOutcome.Unknown)
         {
-            return (false, null);
+            return (false, null, false);
         }
 
         if (refused)
         {
             // Nothing changed and nothing was attempted; the message says what a reviewer has to
             // do, and it goes on the wire as an error so a remote surface shows it as one.
-            return (false, message);
+            return (false, message, false);
         }
 
         Changed?.Invoke();
-        return (true, message);
+        return (true, message, outcome == AcceptOutcome.Applied);
     }
 
     (bool ok, string? message) IQueueOwner.Discard(string key)

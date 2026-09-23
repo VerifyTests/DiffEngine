@@ -412,16 +412,17 @@ public class InlineQueueClientTests
             }
         }
 
-        (bool ok, string? message) IQueueOwner.Accept(string key, string? origin)
+        (bool ok, string? message, bool written) IQueueOwner.Accept(string key, string? origin)
         {
             lock (gate)
             {
                 if (queue.Find(key) is null)
                 {
-                    return (false, null);
+                    return (false, null, false);
                 }
 
                 var before = queue;
+                var applied = Applied.Count;
                 queue = origin is null
                     ? queue.Accept(key, Record, out var message)
                     : queue.Accept(key, origin, Record, out message);
@@ -430,10 +431,11 @@ public class InlineQueueClientTests
                 // refusal rather than an attempt and goes on the wire as an error.
                 if (ReferenceEquals(before, queue))
                 {
-                    return (false, message);
+                    return (false, message, false);
                 }
 
-                return (true, message);
+                // Record keeps only what landed
+                return (true, message, Applied.Count > applied);
             }
         }
 
