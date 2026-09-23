@@ -9,6 +9,14 @@
 /// </para>
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
+struct DeviewSegment
+{
+    public int TextOffset;
+    public int TextLength;
+    public int Column;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 struct DeviewRow
 {
     public int Kind;
@@ -22,7 +30,13 @@ struct DeviewRow
     public int TextLength;
 
     /// <summary>
-    /// <see cref="Row.Selection"/>, in characters of the flattened text. Zero length on a row with
+    /// The row's <see cref="CellGrid.Segments"/>, in <see cref="DeviewScreen.Segments"/>.
+    /// </summary>
+    public int SegmentOffset;
+    public int SegmentCount;
+
+    /// <summary>
+    /// <see cref="Row.Selection"/>, in cells of the grid the segments are drawn on. Zero length on a row with
     /// nothing selected, which is every row of almost every frame.
     /// </summary>
     public int SelectStart;
@@ -92,6 +106,8 @@ unsafe struct DeviewScreen
     public int PaneCount;
     public DeviewRow* Rows;
     public int RowCount;
+    public DeviewSegment* Segments;
+    public int SegmentCount;
     public DeviewButton* Buttons;
     public int ButtonCount;
     public DeviewQueueItem* Queue;

@@ -172,6 +172,36 @@ public class SelectionTests
         await Assert.That(copied.Message).IsEqualTo("Copied 3 lines from the selection.");
     }
 
+    /// <summary>
+    /// A wide character is two cells, and a drag that starts or ends inside one takes it whole or
+    /// not at all: the highlight and the copy both end at the same character boundary.
+    /// </summary>
+    [Test]
+    public async Task ADragInsideWideCharactersTakesThemWhole()
+    {
+        var window = new Recorder();
+        // 中 is cells 0 and 1, 文 cells 2 and 3, a cell 4. From inside 中 to inside 文
+        var state = Drag(Fixtures.File("中文a", "中文a"), PaneSide.Left, 0, 1, 0, 3);
+
+        ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
+        var highlighted = ScreenBuilder.Build(state).Left.Rows[0].Selection;
+
+        await Assert.That(window.Copied).IsEqualTo("文");
+        await Assert.That((highlighted.Start, highlighted.Length)).IsEqualTo((2, 2));
+    }
+
+    /// <summary>
+    /// A combining mark takes no cell: the bar after "é" is in cell 1, where every head draws it,
+    /// and selecting that cell copies the bar. Counted a cell a code point, cell 1 was the mark.
+    /// </summary>
+    [Test]
+    public async Task ACombiningMarkTakesNoCell()
+    {
+        var state = Drag(Fixtures.File("é|", "x"), PaneSide.Left, 0, 1, 0, 2);
+
+        await Assert.That(Copy(state)).IsEqualTo("|");
+    }
+
     [Test]
     public async Task CopyWithNothingSelectedSaysSoAndWritesNothing()
     {
@@ -379,24 +409,25 @@ public class SelectionTests
     }
 
     /// <summary>
-    /// A head reports cells, and draws a character outside the basic plane in one: a drag across
-    /// the emoji alone ends at column 1, and copies all of it rather than half.
+    /// A head reports cells, and a character outside the basic plane is one character on the grid,
+    /// not two: a drag across 𝐀 (U+1D400) alone ends at column 1, and copies all of it rather than
+    /// half. Not an emoji, which is wide and so two cells: see CellGridTests.
     /// </summary>
     [Test]
     public async Task A_drag_across_one_non_bmp_character_copies_all_of_it()
     {
-        var state = Drag(Fixtures.File("\U0001F600x", "x"), PaneSide.Left, 0, 0, 0, 1);
+        var state = Drag(Fixtures.File("\U0001D400x", "x"), PaneSide.Left, 0, 0, 0, 1);
 
-        await Assert.That(Copy(state)).IsEqualTo("\U0001F600");
+        await Assert.That(Copy(state)).IsEqualTo("\U0001D400");
     }
 
     /// <summary>
-    /// "ab" drawn in cells 1 and 2, after an emoji in cell 0: the copy is what was highlighted.
+    /// "ab" drawn in cells 1 and 2, after 𝐀 in cell 0: the copy is what was highlighted.
     /// </summary>
     [Test]
     public async Task A_drag_after_a_non_bmp_character_copies_what_was_highlighted()
     {
-        var state = Drag(Fixtures.File("\U0001F600ab", "x"), PaneSide.Left, 0, 1, 0, 3);
+        var state = Drag(Fixtures.File("\U0001D400ab", "x"), PaneSide.Left, 0, 1, 0, 3);
 
         await Assert.That(Copy(state)).IsEqualTo("ab");
         await Assert.That(ScreenBuilder.Build(state).Left.Rows[0].Selection).IsEqualTo(new SelectionSpan(1, 2));
@@ -408,10 +439,10 @@ public class SelectionTests
     [Test]
     public async Task Select_all_ends_on_the_last_cell()
     {
-        var state = Key(Files("\U0001F600ab", "x"), CommandKind.SelectAll);
+        var state = Key(Files("\U0001D400ab", "x"), CommandKind.SelectAll);
 
         await Assert.That(state.Selection!.FocusColumn).IsEqualTo(3);
-        await Assert.That(Copy(state)).IsEqualTo("\U0001F600ab");
+        await Assert.That(Copy(state)).IsEqualTo("\U0001D400ab");
     }
 
     /// <summary>

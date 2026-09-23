@@ -606,13 +606,26 @@ sealed class ViewerCanvas : Control
             font,
             Palette.Dim,
             Cellular(bounds.X, bounds.Y, gutter, bounds.Height));
-        Painter.Draw(
-            graphics,
-            // No wider than the pane can show in pixels, which no line of characters can exceed
-            RowText.Clip(RowText.Flatten(row.Text), bounds.Width),
-            font,
-            Palette.Foreground(row.Kind),
-            Cellular(bounds.X + gutter, bounds.Y, bounds.Width - gutter, bounds.Height));
+        // Each segment at its column on the grid rather than the row as one string, so a character
+        // the font draws wider or narrower than a cell moves nothing after it: see CellGrid. A row
+        // of plain text is one segment at column 0, drawn exactly as the whole row was.
+        var text = RowText.Flatten(row.Text);
+        foreach (var segment in CellGrid.Segments(text))
+        {
+            var left = bounds.X + gutter + Offset(segment.Column);
+            if (left >= bounds.Right)
+            {
+                break;
+            }
+
+            Painter.Draw(
+                graphics,
+                // No wider than the pane can show in pixels, which no line of characters can exceed
+                RowText.Clip(text.Substring(segment.Start, segment.Length), bounds.Right - left),
+                font,
+                Palette.Foreground(row.Kind),
+                Cellular(left, bounds.Y, bounds.Right - left, bounds.Height));
+        }
     }
 
     void DrawRule(Graphics graphics, int top) =>

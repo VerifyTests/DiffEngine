@@ -31,12 +31,22 @@ struct Frame: Equatable {
         var lineNumber: Int32 = -1
         var text = ""
 
-        /// What of `text` the reader has selected, in characters. Length 0 on a row with nothing
+        /// How to draw `text`: each segment at its cell column, so a character a font draws
+        /// wider or narrower than a cell moves nothing after it. One segment at column 0 for a
+        /// row of plain text.
+        var segments: [Segment] = []
+
+        /// What of `text` the reader has selected, in cells. Length 0 on a row with nothing
         /// selected, which is every row of almost every frame. The managed side has already
         /// resolved which side the drag is in and clipped the range to the visible slice, so this
         /// is a rectangle to fill rather than a range to work out.
         var selectStart: Int32 = 0
         var selectLength: Int32 = 0
+    }
+
+    struct Segment: Equatable {
+        var text = ""
+        var column: Int32 = 0
     }
 
     struct Pane: Equatable {
@@ -137,11 +147,28 @@ struct Frame: Equatable {
             }
 
             let row = rows[offset]
+            var segments: [Segment] = []
+            if let source = screen.segments {
+                for index in 0 ..< Int(max(0, row.segmentCount)) {
+                    let at = Int(row.segmentOffset) + index
+                    guard at >= 0, at < Int(screen.segmentCount) else {
+                        continue
+                    }
+
+                    let segment = source[at]
+                    segments.append(
+                        Segment(
+                            text: string(screen, segment.textOffset, segment.textLength),
+                            column: segment.column))
+                }
+            }
+
             pane.rows.append(
                 Row(
                     kind: row.kind,
                     lineNumber: row.lineNumber,
                     text: string(screen, row.textOffset, row.textLength),
+                    segments: segments,
                     selectStart: row.selectStart,
                     selectLength: row.selectLength))
         }

@@ -11,7 +11,7 @@ static unsafe partial class Deview
     /// Must match DEVIEW_VERSION in native/include/deview.h. Bumped whenever the structs change,
     /// so a stale native library is reported rather than read as garbage.
     /// </summary>
-    public const int ExpectedVersion = 8;
+    public const int ExpectedVersion = 9;
 
     [LibraryImport(library, EntryPoint = "deview_version")]
     public static partial int Version();

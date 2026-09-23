@@ -685,6 +685,47 @@ int GutterDigits(const DeviewScreen* screen)
     return digits;
 }
 
+/*
+ * A row's text, each segment at its cell column: see DeviewSegment. A row that is one segment is
+ * drawn as the whole row always was, through the text item that also lays the row out; that is a
+ * row of plain text, which is nearly all of them. Any other row puts its segments on the window's
+ * draw list at their columns, clipped to the table cell like the item would be, and keeps its
+ * place in the layout with an item as tall as a line.
+ */
+void RowText(const DeviewScreen* screen, const DeviewRow& row, ImVec2 textPos)
+{
+    if (row.segmentCount <= 1 ||
+        screen->segments == nullptr ||
+        row.segmentOffset < 0 ||
+        row.segmentOffset + row.segmentCount > screen->segmentCount)
+    {
+        Text(screen, row.textOffset, row.textLength);
+        return;
+    }
+
+    const float cell = ImGui::CalcTextSize("M").x;
+    ImDrawList* list = ImGui::GetWindowDrawList();
+    const ImU32 colour = ImGui::GetColorU32(ImGuiCol_Text);
+    for (int index = 0; index < row.segmentCount; index++)
+    {
+        const DeviewSegment& segment = screen->segments[row.segmentOffset + index];
+        const char* begin;
+        const char* end;
+        if (!Slice(screen, segment.textOffset, segment.textLength, &begin, &end))
+        {
+            continue;
+        }
+
+        list->AddText(
+            ImVec2(textPos.x + static_cast<float>(segment.column) * cell, textPos.y),
+            colour,
+            begin,
+            end);
+    }
+
+    ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight()));
+}
+
 void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int column, int digits, PaneHit& hit)
 {
     /* Before the row count check, so a pane shorter than the body still reports where its rows
@@ -753,7 +794,7 @@ void DrawRow(const DeviewScreen* screen, const DeviewPane& pane, int index, int 
     }
 
     ImGui::PushStyleColor(ImGuiCol_Text, RowColour(row.kind));
-    Text(screen, row.textOffset, row.textLength);
+    RowText(screen, row, textPos);
     ImGui::PopStyleColor();
 }
 

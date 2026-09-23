@@ -58,6 +58,7 @@ public class DeviewStructTests
 
     public static IEnumerable<(string, Type)> Structs()
     {
+        yield return ("DeviewSegment", typeof(DeviewSegment));
         yield return ("DeviewRow", typeof(DeviewRow));
         yield return ("DeviewPane", typeof(DeviewPane));
         yield return ("DeviewButton", typeof(DeviewButton));

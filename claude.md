@@ -190,6 +190,12 @@ apart.
   enrichment on top. Copying is `IViewerWindow.SetClipboard` rather than a `ViewerActions` member,
   because a clipboard belongs to a toolkit the way a window does, and it is answered before the
   owner link: the text is already in this process.
+- Columns are cells of `CellGrid`, decided in the model rather than by any head's fonts: a wide
+  character (CJK, fullwidth, emoji) takes two, a combining mark or joiner none. Every head draws a
+  row as `CellGrid.Segments`, each at its column, rather than as one string - a row of plain text
+  is one segment at column 0 - so a character a fallback font draws at its own width moves nothing
+  after it, and the highlight, the hit test and the copy count the same cells. Selection ends snap
+  to cluster boundaries (`CellGrid.Snap`), so a wide character is taken whole or not at all.
 - An entry opens at its first change, not line 1: every path that changes what is being read goes
   through `ViewerSession.Open`, so none resets to row 0 on its own. The minimal view ("Changes
   only", `SessionState.Minimal`) is a second `DiffView` built with each entry - changes plus

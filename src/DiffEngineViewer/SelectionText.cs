@@ -76,9 +76,12 @@ static class SelectionText
             return default;
         }
 
-        var length = Cells(RowText.Flatten(text));
-        var from = row == startRow ? Math.Min(startColumn, length) : 0;
-        var to = row == endRow ? Math.Min(endColumn, length) : length;
+        var flattened = RowText.Flatten(text);
+        var length = Cells(flattened);
+        // Snapped to whole clusters, the same boundaries the copy cuts at, so a selection ending
+        // inside a wide character highlights the whole of what it copies
+        var from = row == startRow ? CellGrid.Snap(flattened, Math.Min(startColumn, length)) : 0;
+        var to = row == endRow ? CellGrid.Snap(flattened, Math.Min(endColumn, length)) : length;
         return to <= from ? default : new(from, to - from);
     }
 
@@ -156,7 +159,10 @@ static class SelectionText
             }
 
             lines++;
-            length += Span(selection, selection.Side, index, row.Text).Length;
+            // Characters rather than cells, which a wide character is two of
+            var text = RowText.Flatten(row.Text);
+            var span = Span(selection, selection.Side, index, row.Text);
+            length += Characters(text, Index(text, span.Start), Index(text, span.Start + span.Length));
         }
 
         if (lines == 0)
@@ -181,47 +187,34 @@ static class SelectionText
     }
 
     /// <summary>
-    /// How many cells a row's flattened text takes, which is what a selection's columns count.
-    /// <para>
-    /// A head reports a drag in cells, and every head draws one code point to a cell: GDI+ draws a
-    /// character outside the basic plane one cell wide, as ImGui lays out one glyph per code point.
-    /// Counted in UTF-16 units instead, each such character shifted the copy one place from the
-    /// highlight, and a selection could end between the two halves of it and copy half a
-    /// character. Wide CJK and combining marks still do not fit this; that takes each head
-    /// reporting string positions from its own layout.
-    /// </para>
+    /// How many cells a row's flattened text takes, which is what a selection's columns count. A
+    /// head reports a drag in cells and draws each row on the same grid: see <see cref="CellGrid"/>.
     /// </summary>
-    public static int Cells(string flattened)
-    {
-        var cells = 0;
-        foreach (var character in flattened)
-        {
-            if (!char.IsLowSurrogate(character))
-            {
-                cells++;
-            }
-        }
-
-        return cells;
-    }
+    public static int Cells(string flattened) =>
+        CellGrid.Cells(flattened);
 
     /// <summary>
-    /// Where in the flattened text a cell starts: never inside a surrogate pair.
+    /// Where in the flattened text a cell starts: never inside a surrogate pair, and never between
+    /// a character and its marks.
     /// </summary>
-    static int Index(string flattened, int cell)
+    static int Index(string flattened, int cell) =>
+        CellGrid.Index(flattened, cell);
+
+    /// <summary>
+    /// The code points between two indexes, which is what the status line calls characters.
+    /// </summary>
+    static int Characters(string text, int from, int to)
     {
-        var index = 0;
-        for (var count = 0; count < cell && index < flattened.Length; count++)
+        var count = 0;
+        for (var index = from; index < to; index++)
         {
-            index++;
-            if (index < flattened.Length &&
-                char.IsLowSurrogate(flattened[index]))
+            if (!char.IsLowSurrogate(text[index]))
             {
-                index++;
+                count++;
             }
         }
 
-        return index;
+        return count;
     }
 
     static int ClampRow(int row, IReadOnlyList<Row> rows) =>

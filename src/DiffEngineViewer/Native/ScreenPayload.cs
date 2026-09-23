@@ -7,6 +7,7 @@ sealed class ScreenPayload
 {
     readonly List<byte> strings = [];
     readonly List<DeviewRow> rows = [];
+    readonly List<DeviewSegment> segments = [];
     readonly List<DeviewButton> buttons = [];
     readonly List<DeviewQueueItem> queue = [];
     readonly List<DeviewMenuItem> menu = [];
@@ -24,6 +25,7 @@ sealed class ScreenPayload
     {
         strings.Clear();
         rows.Clear();
+        segments.Clear();
         buttons.Clear();
         queue.Clear();
         menu.Clear();
@@ -102,12 +104,13 @@ sealed class ScreenPayload
     {
         fixed (byte* stringsPtr = CollectionsMarshal.AsSpan(strings))
         fixed (DeviewRow* rowsPtr = CollectionsMarshal.AsSpan(rows))
+        fixed (DeviewSegment* segmentsPtr = CollectionsMarshal.AsSpan(segments))
         fixed (DeviewButton* buttonsPtr = CollectionsMarshal.AsSpan(buttons))
         fixed (DeviewQueueItem* queuePtr = CollectionsMarshal.AsSpan(queue))
         fixed (DeviewMenuItem* menuPtr = CollectionsMarshal.AsSpan(menu))
         fixed (DeviewPane* panesPtr = panes)
         {
-            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr, menuPtr);
+            var native = Native(stringsPtr, panesPtr, rowsPtr, segmentsPtr, buttonsPtr, queuePtr, menuPtr);
             return Deview.Present(&native);
         }
     }
@@ -116,12 +119,13 @@ sealed class ScreenPayload
     {
         fixed (byte* stringsPtr = CollectionsMarshal.AsSpan(strings))
         fixed (DeviewRow* rowsPtr = CollectionsMarshal.AsSpan(rows))
+        fixed (DeviewSegment* segmentsPtr = CollectionsMarshal.AsSpan(segments))
         fixed (DeviewButton* buttonsPtr = CollectionsMarshal.AsSpan(buttons))
         fixed (DeviewQueueItem* queuePtr = CollectionsMarshal.AsSpan(queue))
         fixed (DeviewMenuItem* menuPtr = CollectionsMarshal.AsSpan(menu))
         fixed (DeviewPane* panesPtr = panes)
         {
-            var native = Native(stringsPtr, panesPtr, rowsPtr, buttonsPtr, queuePtr, menuPtr);
+            var native = Native(stringsPtr, panesPtr, rowsPtr, segmentsPtr, buttonsPtr, queuePtr, menuPtr);
             return Deview.Capture(&native, width, height, pngPath);
         }
     }
@@ -130,6 +134,7 @@ sealed class ScreenPayload
         byte* stringsPtr,
         DeviewPane* panesPtr,
         DeviewRow* rowsPtr,
+        DeviewSegment* segmentsPtr,
         DeviewButton* buttonsPtr,
         DeviewQueueItem* queuePtr,
         DeviewMenuItem* menuPtr) =>
@@ -141,6 +146,8 @@ sealed class ScreenPayload
             PaneCount = panes.Length,
             Rows = rowsPtr,
             RowCount = rows.Count,
+            Segments = segmentsPtr,
+            SegmentCount = segments.Count,
             Buttons = buttonsPtr,
             ButtonCount = buttons.Count,
             Queue = queuePtr,
@@ -163,9 +170,13 @@ sealed class ScreenPayload
         var rowOffset = rows.Count;
         foreach (var row in pane.Rows)
         {
-            // Clipped to the window, for the reason RowText.Clip gives: marshalled and laid out
+            // Flattened, so a tab is drawn as the four cells a selection counts it as, and
+            // clipped to the window, for the reason RowText.Clip gives: marshalled and laid out
             // whole every frame otherwise
-            var (textOffset, textLength) = Add(RowText.Clip(row.Text, columns));
+            var text = RowText.Clip(RowText.Flatten(row.Text), columns);
+            var (textOffset, textLength) = Add(text);
+            var segmentOffset = segments.Count;
+            AddSegments(text, textOffset);
             rows.Add(
                 new()
                 {
@@ -173,6 +184,8 @@ sealed class ScreenPayload
                     LineNumber = row.LineNumber ?? -1,
                     TextOffset = textOffset,
                     TextLength = textLength,
+                    SegmentOffset = segmentOffset,
+                    SegmentCount = segments.Count - segmentOffset,
                     SelectStart = row.Selection.Start,
                     SelectLength = row.Selection.Length
                 });
@@ -194,6 +207,25 @@ sealed class ScreenPayload
             ImageWidth = pane.Image?.Width ?? 0,
             ImageHeight = pane.Image?.Height ?? 0
         };
+    }
+
+    /// <summary>
+    /// The row's <see cref="CellGrid.Segments"/>, as byte ranges of the UTF-8 the row's text was
+    /// just written as at <paramref name="textOffset"/>, so no text is written twice.
+    /// </summary>
+    void AddSegments(string text, int textOffset)
+    {
+        foreach (var segment in CellGrid.Segments(text))
+        {
+            var start = textOffset + Encoding.UTF8.GetByteCount(text.AsSpan(0, segment.Start));
+            segments.Add(
+                new()
+                {
+                    TextOffset = start,
+                    TextLength = Encoding.UTF8.GetByteCount(text.AsSpan(segment.Start, segment.Length)),
+                    Column = segment.Column
+                });
+        }
     }
 
     (int Offset, int Length) Add(string text)
