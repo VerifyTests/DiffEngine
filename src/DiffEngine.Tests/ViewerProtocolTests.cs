@@ -480,6 +480,49 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// An attached viewer asks for the full listing five times a second, and it is every patch
+    /// serialized. Sent the tag of the one it holds, an owner whose queue has not changed since
+    /// answers that it has not, with nothing else. An owner with no tag to give, and a reader
+    /// sending none, get the listing in full as before tags.
+    /// </summary>
+    [Test]
+    public async Task AnUnchangedListingIsNotSentAgain()
+    {
+        static ViewerResponse RoundTrip(ViewerResponse response)
+        {
+            if (!ViewerResponse.TryParse(response.Build(), out var parsed))
+            {
+                throw new("Unreadable response.");
+            }
+
+            return parsed;
+        }
+
+        var owner = new FakeOwner((true, null))
+        {
+            Tag = "one"
+        };
+
+        var full = RoundTrip(ViewerMessageHandler.Handle(owner, new(ViewerVerb.ListFull)));
+        await Assert.That(full.Tag).IsEqualTo("one");
+        await Assert.That(full.Unchanged).IsFalse();
+
+        var same = RoundTrip(ViewerMessageHandler.Handle(owner, new(ViewerVerb.ListFull, Body: "one")));
+        await Assert.That(same.Unchanged).IsTrue();
+        await Assert.That(same.Tag).IsEqualTo("one");
+
+        owner.Tag = "two";
+        var changed = RoundTrip(ViewerMessageHandler.Handle(owner, new(ViewerVerb.ListFull, Body: "one")));
+        await Assert.That(changed.Unchanged).IsFalse();
+        await Assert.That(changed.Tag).IsEqualTo("two");
+
+        owner.Tag = null;
+        var untagged = RoundTrip(ViewerMessageHandler.Handle(owner, new(ViewerVerb.ListFull, Body: "two")));
+        await Assert.That(untagged.Unchanged).IsFalse();
+        await Assert.That(untagged.Tag).IsNull();
+    }
+
+    /// <summary>
     /// A pending file with no tray running. The paths ride key and body rather than an encoded
     /// payload, because that is all a tracked move or delete is.
     /// </summary>
@@ -591,6 +634,10 @@ public class ViewerProtocolTests
             Tracked.Add($"delete {file}");
 
         public ViewerResponse Listing(bool withPatches) => ViewerResponse.Listing([]);
+
+        public string? Tag { get; set; }
+
+        public string? ListingTag() => Tag;
 
         public bool Has(string key) => true;
 

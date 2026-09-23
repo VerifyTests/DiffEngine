@@ -111,6 +111,31 @@ class MessageHandler(
             progress: state.Progress);
     }
 
+    /// <summary>
+    /// The session's queue is immutable and replaced on every change - its moves and deletes are
+    /// entries in it - so a new reference is a new generation. The progress rides the listing
+    /// beside it. No window command is ever stashed: this owner has its own window.
+    /// </summary>
+    string IQueueOwner.ListingTag()
+    {
+        var state = host.State;
+        lock (tagGate)
+        {
+            if (!ReferenceEquals(state.Queue, taggedQueue))
+            {
+                taggedQueue = state.Queue;
+                generation++;
+            }
+
+            return $"{instance}.{generation}.{state.Progress?.Build()}";
+        }
+    }
+
+    readonly string instance = Guid.NewGuid().ToString("N");
+    readonly Lock tagGate = new();
+    IReadOnlyList<QueueEntry>? taggedQueue;
+    long generation;
+
     bool IQueueOwner.Has(string key) =>
         IndexOf(host.State, key) >= 0;
 

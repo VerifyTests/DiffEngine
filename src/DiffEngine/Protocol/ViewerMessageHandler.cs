@@ -26,7 +26,7 @@ static class ViewerMessageHandler
             case ViewerVerb.List:
                 return owner.Listing(false);
             case ViewerVerb.ListFull:
-                return owner.Listing(true);
+                return ListFull(owner, message.Body);
             case ViewerVerb.Accept:
             case ViewerVerb.Discard:
                 return Act(owner, message.Key, message.Body, message.Verb);
@@ -132,6 +132,28 @@ static class ViewerMessageHandler
 
         owner.TrackDelete(file);
         return ViewerResponse.Success();
+    }
+
+    /// <summary>
+    /// The body is the tag of the listing the reader already holds, if any. A reader that predates
+    /// tags sends none and gets the listing in full, as ever.
+    /// </summary>
+    static ViewerResponse ListFull(IQueueOwner owner, string? since)
+    {
+        // Taken before the listing is built and never after. A change landing in between then
+        // costs one more full listing next time, where the other order sent a listing older than
+        // the tag it went under, and the reader would have kept it until something else changed.
+        var tag = owner.ListingTag();
+        if (tag is not null &&
+            tag == since)
+        {
+            return ViewerResponse.UnchangedSince(tag);
+        }
+
+        return owner.Listing(true) with
+        {
+            Tag = tag
+        };
     }
 
     static ViewerResponse Act(IQueueOwner owner, string? key, string? body, ViewerVerb verb)

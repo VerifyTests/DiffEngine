@@ -42,6 +42,16 @@ sealed class OwnedInlineHost :
     AcceptProgress? progress;
 
     /// <summary>
+    /// What <see cref="IQueueOwner.ListingTag"/> is made of, under <see cref="gate"/>. The queue
+    /// is immutable and replaced on every change, so a new reference is a new generation; asks
+    /// counts window commands stashed, so a listing carrying one is never answered unchanged.
+    /// </summary>
+    readonly string instance = Guid.NewGuid().ToString("N");
+    InlineQueue? taggedQueue;
+    long generation;
+    long asks;
+
+    /// <summary>
     /// One accept-all at a time. The menu, a hot key and a displaying viewer can each ask for one,
     /// and two sweeping the same queue at once would apply every snapshot twice and report two
     /// sets of progress over each other. A second waits, and then sweeps whatever arrived meanwhile.
@@ -282,6 +292,40 @@ sealed class OwnedInlineHost :
 
             return response;
         }
+    }
+
+    string IQueueOwner.ListingTag()
+    {
+        // The tracked files by what the listing would carry of them rather than by a count, since
+        // the tracker changes them on its own scan as well as through here. A handful of paths,
+        // where the listing it saves is every patch.
+        var files = TrackedFiles is { } tracked ? Fingerprint(tracked) : "";
+        lock (gate)
+        {
+            if (!ReferenceEquals(queue, taggedQueue))
+            {
+                taggedQueue = queue;
+                generation++;
+            }
+
+            return $"{instance}.{generation}.{asks}.{progress?.Build()}.{files}";
+        }
+    }
+
+    static string Fingerprint(ITrackedFiles tracked)
+    {
+        var builder = new StringBuilder();
+        foreach (var move in tracked.Moves())
+        {
+            builder.Append(move).Append('\n');
+        }
+
+        foreach (var delete in tracked.Deletes())
+        {
+            builder.Append(delete).Append('\n');
+        }
+
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
 
     bool IQueueOwner.Has(string key)
@@ -650,6 +694,7 @@ sealed class OwnedInlineHost :
         {
             window = command;
             windowKey = key;
+            asks++;
         }
     }
 

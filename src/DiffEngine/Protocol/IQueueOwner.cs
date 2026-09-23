@@ -42,6 +42,14 @@ interface IQueueOwner
     /// </summary>
     ViewerResponse Listing(bool withPatches);
 
+    /// <summary>
+    /// Something that changes whenever the full listing would, and is cheap to take: the listing
+    /// is every patch serialized, and an attached viewer asks for it five times a second. Unique
+    /// to this owner, so a tag from an owner that has since restarted can never match. Null to
+    /// always answer in full.
+    /// </summary>
+    string? ListingTag();
+
     bool Has(string key);
 
     /// <summary>

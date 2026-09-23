@@ -234,6 +234,5 @@ Library and inline
 
 ## Perf
 
-- [ ] **An attached viewer polls `ListFull` five times a second, even while hidden.** The owner re-serialises every patch (base64 twice) inside its gate and the viewer re-parses all of it (`src/DiffEngineViewer/Ipc/OwnerLink.cs:100`, `src/DiffEngine/Protocol/ViewerListing.cs`, `src/DiffEngineTray/OwnedInlineHost.cs:259-284`). Add a generation or etag and answer "unchanged"; poll slower while hidden.
 - [ ] macOS repaints the whole window every frame (`native/swift/Sources/Deview/Runtime.swift:139-140`). Redraw only when the frame, bounds or a picture stamp change, and cache scaled pictures.
 - [ ] Windows image panes rescale from full resolution and redraw the checkerboard on every paint (11 to 40 ms per image), and decode on the UI thread (`ViewerCanvas.cs:385-420`, `ImageCache.cs:56-71`). Cache the composited scaled bitmap per path, stamp and size.

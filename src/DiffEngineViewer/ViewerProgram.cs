@@ -320,13 +320,17 @@ static class ViewerProgram
                     return;
                 }
 
+                var hide = command == WindowCommand.Hide;
+                // A focus shows the window as well as raising it
+                link?.Hidden = hide;
+
                 if (command == WindowCommand.Focus)
                 {
                     window.Focus();
                     continue;
                 }
 
-                window.SetHidden(command == WindowCommand.Hide);
+                window.SetHidden(hide);
             }
 
             // Committed under the lock rather than read and acted on. Between reading Exit and the
@@ -394,6 +398,8 @@ static class ViewerProgram
                 host.State.Queue.Count > 0)
             {
                 window.SetHidden(true);
+                link?.Hidden = true;
+
                 continue;
             }
 

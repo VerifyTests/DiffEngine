@@ -59,6 +59,25 @@ sealed class OwnerLink(SessionHost host, int port)
 
     record Outbound(ViewerVerb Verb, string? Key, string? Body);
 
+    /// <summary>
+    /// The last full listing, under the tag the owner gave it, and the queue parsed out of it. An
+    /// owner answers "unchanged" to that tag rather than serializing every patch again, and this
+    /// is what stands in for the listing it did not send. Null from an owner that gives no tags,
+    /// which is then asked in full every time, as before them.
+    /// </summary>
+    record Held(string Tag, InlineQueue Pending, ViewerResponse Response);
+
+    Held? held;
+
+    /// <summary>
+    /// Whether the window is hidden, set by the render loop as it hides and shows it. A hidden
+    /// window is listed at <see cref="HiddenInterval"/>: nobody is watching it follow the owner,
+    /// and what brings it back - a focus riding the listing - can wait a second.
+    /// </summary>
+    public bool Hidden { get; set; }
+
+    public static TimeSpan HiddenInterval { get; set; } = TimeSpan.FromSeconds(1);
+
     public void Post(ViewerVerb verb, string? key, string? body = null) =>
         Enqueue(() => Send(new(verb, key, body)));
 
@@ -161,7 +180,7 @@ sealed class OwnerLink(SessionHost host, int port)
     /// </summary>
     bool List(string? message)
     {
-        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull), out var response, port, Wait))
+        if (!ViewerClient.TrySend(new(ViewerVerb.ListFull, Body: held?.Tag), out var response, port, Wait))
         {
             return false;
         }
@@ -179,7 +198,26 @@ sealed class OwnerLink(SessionHost host, int port)
             return true;
         }
 
-        var pending = InlineQueue.From(ViewerListing.Pending(response.Items));
+        InlineQueue pending;
+        if (response.Unchanged &&
+            held is not null &&
+            response.Tag == held.Tag)
+        {
+            // Nothing sent and nothing to parse: the queue is the one already held. Its files are
+            // still read below, since a re-run rewriting one changes no listing.
+            pending = held.Pending;
+            response = held.Response;
+        }
+        else
+        {
+            pending = InlineQueue.From(ViewerListing.Pending(response.Items));
+            // Without its window command, which was for this listing and is acted on below, not
+            // for every unchanged answer after it
+            held = response.Tag is { } tag
+                ? new(tag, pending, response with { Window = null, WindowKey = null })
+                : null;
+        }
+
         var changes = ReadChanges(response);
         host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message, response.Progress));
 
@@ -271,7 +309,7 @@ sealed class OwnerLink(SessionHost host, int port)
                 return;
             }
 
-            WaitHandle.WaitAny([cancel.WaitHandle, wake], Interval);
+            WaitHandle.WaitAny([cancel.WaitHandle, wake], Hidden ? HiddenInterval : Interval);
         }
     }
 

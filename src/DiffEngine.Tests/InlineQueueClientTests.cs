@@ -404,6 +404,8 @@ public class InlineQueueClientTests
             }
         }
 
+        string? IQueueOwner.ListingTag() => null;
+
         bool IQueueOwner.Has(string key)
         {
             lock (gate)
