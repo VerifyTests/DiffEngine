@@ -44,7 +44,12 @@ sealed class OwnerLink(SessionHost host, int port)
     /// </summary>
     public static TimeSpan SendWait { get; set; } = TimeSpan.FromMinutes(5);
 
-    readonly ConcurrentQueue<Outbound> outbound = new();
+    /// <summary>
+    /// What is waiting to be sent, each as the step that sends it and says what came of it. A step
+    /// rather than a message, because a group accept is several messages whose last ones depend on
+    /// what the first ones did.
+    /// </summary>
+    readonly ConcurrentQueue<Func<string>> outbound = new();
 
     /// <summary>
     /// Set by a post and by a send finishing, so the loop answers either at once rather than on
@@ -54,10 +59,69 @@ sealed class OwnerLink(SessionHost host, int port)
 
     record Outbound(ViewerVerb Verb, string? Key, string? Body);
 
-    public void Post(ViewerVerb verb, string? key, string? body = null)
+    public void Post(ViewerVerb verb, string? key, string? body = null) =>
+        Enqueue(() => Send(new(verb, key, body)));
+
+    /// <summary>
+    /// "Accept all in" a group of someone else's queue: its moves, then its snapshots, then - only
+    /// once every snapshot has been written - its deletes.
+    /// <para>
+    /// A snapshot moving inline arrives as a patch plus a delete of the verified file it replaces.
+    /// Posting an accept per member sent the delete whether or not the patch landed, and the owner
+    /// carries out a single accept as asked, so a patch it could not write cost the snapshot both
+    /// copies. The owning viewer's group accept and every owner's accept-all hold the deletes for
+    /// that; this is the same rule on the side of a viewer that owns nothing.
+    /// </para>
+    /// <para>
+    /// Whether each snapshot landed is the reply's <see cref="ViewerResponse.Written"/>, not ok and
+    /// not a listing: a patch whose call site moved is attempted, so ok, and dropped, so gone from
+    /// the listing just as an applied one is. A reply without it - an owner that predates it, or
+    /// none at all - holds the deletes too, because a delete is the one thing not safe to guess
+    /// about. The deletes held are still queued, to be accepted on their own.
+    /// </para>
+    /// </summary>
+    public void PostAcceptGroup(IReadOnlyList<string> moves, IReadOnlyList<string> snapshots, IReadOnlyList<string> deletes) =>
+        Enqueue(() => AcceptGroup(moves, snapshots, deletes));
+
+    public const string DeletesHeld = "Deletes kept: a snapshot in this group was not written, and a file being deleted may be the only copy of it left. Accept them on their own to delete them anyway.";
+
+    void Enqueue(Func<string> send)
     {
-        outbound.Enqueue(new(verb, key, body));
+        outbound.Enqueue(send);
         wake.Set();
+    }
+
+    string AcceptGroup(IReadOnlyList<string> moves, IReadOnlyList<string> snapshots, IReadOnlyList<string> deletes)
+    {
+        var message = "";
+        foreach (var key in moves)
+        {
+            message = Send(new(ViewerVerb.Accept, key, null));
+        }
+
+        var landed = true;
+        foreach (var key in snapshots)
+        {
+            message = Send(new(ViewerVerb.Accept, key, null), out var written);
+            landed &= written;
+        }
+
+        if (deletes.Count == 0)
+        {
+            return message;
+        }
+
+        if (!landed)
+        {
+            return DeletesHeld;
+        }
+
+        foreach (var key in deletes)
+        {
+            message = Send(new(ViewerVerb.Accept, key, null));
+        }
+
+        return message;
     }
 
     public bool Pump() =>
@@ -82,10 +146,10 @@ sealed class OwnerLink(SessionHost host, int port)
     {
         sent = false;
         string? message = null;
-        while (outbound.TryDequeue(out var command))
+        while (outbound.TryDequeue(out var send))
         {
             sent = true;
-            message = Send(command);
+            message = send();
         }
 
         return message;
@@ -211,8 +275,13 @@ sealed class OwnerLink(SessionHost host, int port)
         }
     }
 
-    string Send(Outbound command)
+    string Send(Outbound command) =>
+        Send(command, out _);
+
+    /// <param name="written">The reply's <see cref="ViewerResponse.Written"/>, false when it had none.</param>
+    string Send(Outbound command, out bool written)
     {
+        written = false;
         // The long wait matters most here: an accept is the command that takes ten seconds, and
         // failing it at three used to report the owner dead while it was mid apply.
         if (!ViewerClient.TrySend(new(command.Verb, command.Key, command.Body), out var response, port, SendWait))
@@ -220,6 +289,7 @@ sealed class OwnerLink(SessionHost host, int port)
             return "The queue owner is no longer running.";
         }
 
+        written = response.Written == true;
         return response.Message ?? (response.Ok ? "" : $"{command.Verb} was refused.");
     }
 

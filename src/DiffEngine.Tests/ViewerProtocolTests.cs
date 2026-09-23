@@ -448,6 +448,38 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// Whether an accept left its snapshot in the source, which ok cannot say: a patch whose call
+    /// site moved is attempted, so ok, and dropped unwritten. A surface accepting a group from
+    /// someone else's queue sends the group's deletes on it. A reply without it, from an owner
+    /// that predates it, reads as null, which that surface takes as not written.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptSaysWhetherTheSnapshotWasWritten()
+    {
+        static ViewerResponse RoundTrip(ViewerResponse response)
+        {
+            if (!ViewerResponse.TryParse(response.Build(), out var parsed))
+            {
+                throw new("Unreadable response.");
+            }
+
+            return parsed;
+        }
+
+        var written = RoundTrip(ViewerMessageHandler.Handle(new FakeOwner((true, "Applied Tests.cs:42"), written: true), new(ViewerVerb.Accept, "key")));
+        await Assert.That(written.Written).IsTrue();
+
+        var stale = RoundTrip(ViewerMessageHandler.Handle(new FakeOwner((true, "Not written")), new(ViewerVerb.Accept, "key")));
+        await Assert.That(stale.Ok).IsTrue();
+        await Assert.That(stale.Written).IsFalse();
+
+        var discarded = RoundTrip(ViewerMessageHandler.Handle(new FakeOwner((true, null), written: true), new(ViewerVerb.Discard, "key")));
+        await Assert.That(discarded.Written).IsNull();
+
+        await Assert.That(RoundTrip(ViewerResponse.Success("Applied Tests.cs:42")).Written).IsNull();
+    }
+
+    /// <summary>
     /// A pending file with no tray running. The paths ride key and body rather than an encoded
     /// payload, because that is all a tracked move or delete is.
     /// </summary>
@@ -539,7 +571,7 @@ public class ViewerProtocolTests
         await Assert.That(owner.AcceptedOrigin).IsEqualTo("net9.0");
     }
 
-    class FakeOwner((bool ok, string? message) act) :
+    class FakeOwner((bool ok, string? message) act, bool written = false) :
         IQueueOwner
     {
         public string? AcceptedOrigin { get; private set; }
@@ -562,10 +594,10 @@ public class ViewerProtocolTests
 
         public bool Has(string key) => true;
 
-        public (bool ok, string? message) Accept(string key, string? origin)
+        public (bool ok, string? message, bool written) Accept(string key, string? origin)
         {
             AcceptedOrigin = origin;
-            return act;
+            return (act.ok, act.message, written);
         }
 
         public (bool ok, string? message) Discard(string key) => act;

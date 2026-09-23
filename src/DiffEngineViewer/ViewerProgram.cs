@@ -656,9 +656,13 @@ static class ViewerProgram
     }
 
     /// <summary>
-    /// A group command against someone else's queue: one accept or discard per member, by key,
-    /// with conflicted entries skipped the way every bulk accept skips them. The results come
-    /// back on the next listing like any other forwarded command.
+    /// A group command against someone else's queue, by key, with conflicted entries skipped the
+    /// way every bulk accept skips them. The results come back on the next listing like any other
+    /// forwarded command.
+    /// <para>
+    /// A discard is one per member. An accept goes as one ordered step, deletes last and only once
+    /// the snapshots have landed: see <see cref="OwnerLink.PostAcceptGroup"/>.
+    /// </para>
     /// </summary>
     static SessionState DispatchGroup(SessionState state, CommandKind kind, OwnerLink link)
     {
@@ -667,26 +671,23 @@ static class ViewerProgram
             return state;
         }
 
-        foreach (var index in menu.Members)
+        var members = menu.Members
+            .Where(_ => _ >= 0 && _ < state.Queue.Count)
+            .Select(_ => state.Queue[_])
+            .ToList();
+        if (kind == CommandKind.AcceptGroup)
         {
-            if (index < 0 ||
-                index >= state.Queue.Count)
+            link.PostAcceptGroup(
+                KeysOf(members, QueueEntryKind.Move),
+                KeysOf(members.Where(_ => !_.Conflicted), QueueEntryKind.Inline),
+                KeysOf(members, QueueEntryKind.Delete));
+        }
+        else
+        {
+            foreach (var entry in members)
             {
-                continue;
+                link.Post(ViewerVerb.Discard, entry.Key);
             }
-
-            var entry = state.Queue[index];
-            if (kind == CommandKind.AcceptGroup)
-            {
-                if (!entry.Conflicted)
-                {
-                    link.Post(ViewerVerb.Accept, entry.Key);
-                }
-
-                continue;
-            }
-
-            link.Post(ViewerVerb.Discard, entry.Key);
         }
 
         return state with
@@ -695,6 +696,12 @@ static class ViewerProgram
             Menu = null
         };
     }
+
+    static List<string> KeysOf(IEnumerable<QueueEntry> entries, QueueEntryKind kind) =>
+        entries
+            .Where(_ => _.Kind == kind)
+            .Select(_ => _.Key)
+            .ToList();
 
     static ViewerVerb? Remote(CommandKind kind) =>
         kind switch

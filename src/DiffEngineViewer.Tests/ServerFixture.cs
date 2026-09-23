@@ -27,12 +27,29 @@ sealed class ServerFixture : IDisposable
                 lock (Applied)
                 {
                     Applied.Add(patch);
+                    Actions.Add($"apply {patch.SourceFile}");
                 }
 
                 return applier?.Invoke(patch) ?? InlineApplyResult.Applied;
             },
             (_, _) => { },
-            _ => { });
+            _ => { })
+        {
+            MoveFile = (temp, _) =>
+            {
+                lock (Applied)
+                {
+                    Actions.Add($"move {temp}");
+                }
+            },
+            DeleteFile = path =>
+            {
+                lock (Applied)
+                {
+                    Actions.Add($"delete {path}");
+                }
+            }
+        };
         var handler = new MessageHandler(Host, actions, Windows.Add);
         listening = server.Listen(handler.Handle, cancel.Token);
     }
@@ -40,6 +57,12 @@ sealed class ServerFixture : IDisposable
     public SessionHost Host { get; }
     public ViewerServer Server { get; }
     public List<InlinePatch> Applied { get; } = [];
+
+    /// <summary>
+    /// Every apply, move and delete the owner carried out, in order. Nothing is written: the moves
+    /// and deletes are recorded, not performed.
+    /// </summary>
+    public List<string> Actions { get; } = [];
     public List<WindowCommand> Windows { get; } = [];
 
     public ViewerResponse Send(ViewerMessage message, TimeSpan? wait = null)

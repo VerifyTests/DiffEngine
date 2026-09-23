@@ -394,4 +394,117 @@ public class AttachedViewerTests
         await Assert.That(host.State.Message)
             .IsEqualTo("Conflicting snapshots (net8.0 / net9.0), resolve in the viewer");
     }
+
+    /// <summary>
+    /// A snapshot moving inline is a patch plus a delete of the verified file it replaces. "Accept
+    /// all in SolutionA" from an attached window used to post an accept per member, the delete
+    /// included, and the owner carried each out as asked: a patch it could not write - the source
+    /// moved since the run - and the verified file went anyway, leaving no copy of the snapshot.
+    /// </summary>
+    [Test]
+    public async Task AGroupAcceptHoldsItsDeletesWhenASnapshotWasNotWritten()
+    {
+        using var owner = new ServerFixture(applier: _ => InlineApplyResult.NotFound("Could not locate the call"));
+        var (verified, host, link) = AttachToSolutionA(owner);
+        try
+        {
+            AcceptAllInSolutionA(host, link);
+
+            await Assert.That(owner.Actions).IsEquivalentTo([$"apply {solutionA.SourceFile}"]);
+            await Assert.That(host.State.Message).IsEqualTo(OwnerLink.DeletesHeld);
+            // Still pending, to be accepted on its own once the reviewer has seen why
+            await Assert.That(host.State.Queue.Select(_ => _.Kind)).Contains(QueueEntryKind.Delete);
+        }
+        finally
+        {
+            File.Delete(verified);
+        }
+    }
+
+    /// <summary>
+    /// The deletes still go once every snapshot has landed, and only then.
+    /// </summary>
+    [Test]
+    public async Task AGroupAcceptDeletesOnceItsSnapshotsLanded()
+    {
+        using var owner = new ServerFixture();
+        var (verified, host, link) = AttachToSolutionA(owner);
+        try
+        {
+            AcceptAllInSolutionA(host, link);
+
+            // In this order: a delete sent before the patch landed is what this is about
+            await Assert.That(string.Join(" | ", owner.Actions))
+                .IsEqualTo($"apply {solutionA.SourceFile} | delete {verified}");
+            await Assert.That(host.State.Queue.Select(_ => _.Key)).IsEquivalentTo([QueueEntry.KeyForInline(solutionB.SourceFile, solutionB.LineHint)]);
+        }
+        finally
+        {
+            File.Delete(verified);
+        }
+    }
+
+    static readonly InlinePatch solutionA = Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10);
+    static readonly InlinePatch solutionB = Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 10);
+
+    /// <summary>
+    /// An owner holding a snapshot and a pending delete in SolutionA, and a snapshot in SolutionB
+    /// so the queue groups, with a window attached to it.
+    /// </summary>
+    static (string verified, SessionHost host, OwnerLink link) AttachToSolutionA(ServerFixture owner)
+    {
+        var verified = Fixtures.SolutionFile("SolutionA", "Tests", $"Group{Guid.NewGuid():N}.verified.txt");
+        File.WriteAllText(verified, "the verified file the snapshot is moving inline from");
+        owner.Send(Inline(solutionA));
+        owner.Host.Mutate(_ => ViewerSession.EnqueueTracked(_, TrackedEntry.ForDelete(verified)));
+        owner.Send(Inline(solutionB));
+        var (host, link) = Attach(owner);
+        link.Pump();
+        return (verified, host, link);
+    }
+
+    /// <summary>
+    /// Right-click SolutionA's header and choose "Accept all in SolutionA", as the reader would.
+    /// </summary>
+    static void AcceptAllInSolutionA(SessionHost host, OwnerLink link)
+    {
+        var visible = QueueProjection.Visible(host.State, ScreenBuilder.BodyRows(host.State), out _).ToList();
+        var header = visible.FindIndex(_ => _.GroupName == "SolutionA");
+        host.Mutate(_ => ViewerSession.OpenMenu(_, header));
+        var item = host.State.Menu!.Items.ToList().FindIndex(_ => _.Label == "Accept all in SolutionA");
+        var click = new ViewerInput(CommandKind.None, -1, -1, 0, false, Fixtures.Columns, Fixtures.Rows)
+        {
+            ClickedMenuItem = item
+        };
+        host.Mutate(_ => ViewerProgram.Apply(_, click, link, new NoWindow()));
+        link.Pump();
+    }
+
+    sealed class NoWindow : IViewerWindow
+    {
+        public bool Present(Screen screen) =>
+            true;
+
+        public ViewerInput Poll() =>
+            default;
+
+        public void SetHidden(bool hidden)
+        {
+        }
+
+        public void Focus()
+        {
+        }
+
+        public void SetClipboard(string text)
+        {
+        }
+
+        public bool Capture(Screen screen, int width, int height, string pngPath) =>
+            false;
+
+        public void Dispose()
+        {
+        }
+    }
 }

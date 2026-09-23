@@ -72,6 +72,13 @@ record ViewerResponse(
     /// </summary>
     public AcceptProgress? Progress { get; init; }
 
+    /// <summary>
+    /// On an accept: whether a snapshot is in the source now (see <see cref="IQueueOwner.Accept"/>).
+    /// Null on every other reply, and on any reply from an owner that predates it, which a reader
+    /// needing an answer takes as not written: what waits on it is a delete.
+    /// </summary>
+    public bool? Written { get; init; }
+
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
 
@@ -109,6 +116,11 @@ record ViewerResponse(
         {
             // Plain too: two counts
             builder.Append($"progress: {Progress.Build()}\n");
+        }
+
+        if (Written is { } written)
+        {
+            builder.Append($"written: {(written ? "true" : "false")}\n");
         }
 
         foreach (var item in Items)
@@ -159,6 +171,7 @@ record ViewerResponse(
         WindowCommand? window = null;
         string? windowKey = null;
         AcceptProgress? progress = null;
+        bool? written = null;
         var items = new List<ViewerResponseItem>();
         var moves = new List<ViewerResponseMove>();
         var deletes = new List<ViewerResponseDelete>();
@@ -191,6 +204,9 @@ record ViewerResponse(
                         return false;
                     }
 
+                    continue;
+                case "written":
+                    written = value == "true";
                     continue;
                 case "message":
                     if (!ViewerPayload.TryDecode(value, out message))
@@ -272,7 +288,8 @@ record ViewerResponse(
         {
             Moves = moves,
             Deletes = deletes,
-            Progress = progress
+            Progress = progress,
+            Written = written
         };
         return true;
     }
