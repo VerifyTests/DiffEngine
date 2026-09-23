@@ -18,43 +18,11 @@ Viewer model
   - Fix: have each head report string positions from its own layout rather than cells, or put every code point on the grid.
 
 
-Native (the Linux items were unreachable until #885 made the Linux window draw and read input; these are verdicts on the code as it behaves since)
-
-
-- [ ] **Decoded image caches never evict on Linux or macOS** (verified)
-  - `state.pictures` (`native/src/deview.cpp:140`) drops an entry only when that path is asked for again and has changed or gone (`:318-344`), or at shutdown; `Renderer.swift:60` likewise (`:436-452`). Bounded by one viewer session, which ends when the queue empties.
-  - Fix: after each frame, drop what the frame did not use.
-
-- [ ] **macOS drag-select clamps to the renderer's capacity rather than the rows drawn** (verified)
-  - `draggedRow` clamps to `capacity - 1` (`native/swift/Sources/Deview/ViewerView.swift:199-207`) while the managed side draws `Rows - 8` (`ScreenBuilder.cs:10-13`), and neither `DiffView.Unfold` nor `SelectionText.Clamp` clamps to the rows shown. An overshooting drag highlights to the last visible row, but the status line counts, and Cmd+C copies, up to three or four rows below it.
-  - Fix: clamp to the drawn rows, as Linux's `RowAt` does (`deview.cpp:693-703`).
-
-- [ ] **The Linux queue header ignores `pendingCount`** (verified)
-  - `deview.cpp:1014` draws the literal "Pending". macOS, WinForms and the text renderer draw "Pending (N)", which ABI 7 added the field for.
-
-- [ ] **`deview_capture` flips scissor rectangles with the window height** (verified, latent)
-  - `RenderDrawData` uses `GetScreenHeight()` (`deview.cpp:470`, `:484-489`), and `BeginTextureMode` changes only the render target's height. Every capture is 1100×700 in a 1100×700 window, so no output is wrong today.
-  - Fix: `drawData->DisplaySize.y`.
-
-- [ ] **Five-digit line numbers widen the Linux gutter, and hit-testing uses the first row's text start** (verified)
-  - `"%c %4d"` (`deview.cpp:655`) is seven cells from line 10000, and `textLeft` is read from the first row drawn (`:665-669`) and used for every row. Only files over 9999 lines; macOS uses a fixed eight-cell gutter.
-
-- [ ] **macOS has no autorelease pool around the hand-pumped frame** (verified; the leak rate needs a Mac)
-  - Nothing pushes a pool in `deview_present` or `deview_poll_input` (`native/swift/Sources/Deview/Exports.swift:41-65`, `Runtime.swift:131-150, 244-249`), and the dylib imports neither `objc_autoreleasePoolPush` nor `Pop`. objc4 then creates a pool that drains only when the thread exits. Check with `OBJC_DEBUG_MISSING_POOLS=YES`.
-  - Fix: `autoreleasepool {}` around each export's body, as GLFW does.
-
-- [ ] **macOS Dock Quit and logout skip `PersistOwned`** (verified)
-  - There is no app delegate and no `applicationShouldTerminate` (`Runtime.swift:92-96`). A quit Apple event becomes `terminate:`, after which cleanup in `main` never runs (Apple's `terminate(_:)` documentation), so #878's `finally` does not either. macOS has no tray, so an owning viewer's queue is lost.
-  - Fix, as GLFW does: an app delegate that records the quit and returns `.terminateCancel`. `.terminateLater` would deadlock, running a modal loop inside the pump while the managed thread waits.
+Native
 
 - [ ] **macOS App Nap can stall the loop while the window is covered** (cannot verify here)
-  - Nothing opts out (no `beginActivity`, `NSAppSleepDisabled` or power assertion), the only wait is `nextEvent(until: now + 1/60)` (`Runtime.swift:244-249`), and a Focus queued by an arriving patch waits for the next managed frame.
+  - Nothing opts out (no `beginActivity`, `NSAppSleepDisabled` or power assertion), the only wait is `nextEvent(until: now + 1/60)` (`Runtime.swift:248-253`), and a Focus queued by an arriving patch waits for the next managed frame.
   - Check on a Mac: cover the viewer for a minute, confirm Activity Monitor shows App Nap, then time how long a failing inline test takes to bring it forward against an uncovered window.
-
-- [ ] **`NativeResolver` loads the glibc build on musl through the `linux-{arch}` candidate** (cannot verify here)
-  - For `linux-musl-x64` the order is `runtimes/linux-musl-x64` (not shipped), then `runtimes/linux-x64` (glibc), then beside the exe (`src/DiffEngineViewer/Native/NativeResolver.cs:65-108`), against its own comment (`:79-80`). #788 fixed the same thing in `BundledViewerDirectory` but not here.
-  - A failed load is harmless: it is caught and the queue is staged before exit 4. All 238 undefined symbols are names musl exports, though, so the load could succeed, and a crash after it would skip staging.
-  - Check on Alpine x64 with mesa-gl, libx11, libxext, libsm, libice and libstdc++: whether the tool renders or crashes.
 
 Library and inline
 

@@ -8,6 +8,13 @@ import ImageIO
 ///
 /// The header is imported for its struct layouts only, with DEVIEW_TYPES_ONLY, so these are the
 /// definitions of those symbols rather than a second declaration of them.
+///
+/// Every one that touches AppKit runs inside its own autorelease pool. `NSApplication.run` drains
+/// a pool per event, but this app never calls it: the managed loop calls in instead, and with no
+/// pool pushed objc4 parks everything autoreleased in one it creates for the thread, which drains
+/// only when the thread exits. That is the main thread, so everything a frame autoreleased - the
+/// events, the attributed strings, the drawing - stayed until the process did. GLFW, which also
+/// pumps by hand, does the same.
 
 @_cdecl("deview_version")
 public func deviewVersion() -> Int32 {
@@ -16,6 +23,19 @@ public func deviewVersion() -> Int32 {
 
 @_cdecl("deview_init")
 public func deviewInit(
+    _ width: Int32,
+    _ height: Int32,
+    _ title: UnsafePointer<CChar>?,
+    _ fontTtf: UnsafePointer<UInt8>?,
+    _ fontLength: Int32,
+    _ fontSize: Float,
+    _ hidden: Int32) -> Int32 {
+    autoreleasepool {
+        initialise(width, height, title, fontTtf, fontLength, fontSize, hidden)
+    }
+}
+
+private func initialise(
     _ width: Int32,
     _ height: Int32,
     _ title: UnsafePointer<CChar>?,
@@ -45,7 +65,10 @@ public func deviewPresent(_ screen: UnsafePointer<DeviewScreen>?) -> Int32 {
         return 0
     }
 
-    runtime.present(Frame.decode(screen))
+    autoreleasepool {
+        runtime.present(Frame.decode(screen))
+    }
+
     return 1
 }
 
@@ -56,8 +79,10 @@ public func deviewPollInput(_ input: UnsafeMutablePointer<DeviewInput>?) {
     }
 
     let runtime = Runtime.shared
-    if runtime.initialised {
-        runtime.measureGrid()
+    autoreleasepool {
+        if runtime.initialised {
+            runtime.measureGrid()
+        }
     }
 
     input.pointee = runtime.input
@@ -66,10 +91,12 @@ public func deviewPollInput(_ input: UnsafeMutablePointer<DeviewInput>?) {
 
 @_cdecl("deview_set_hidden")
 public func deviewSetHidden(_ hidden: Int32) {
-    if hidden == 0 {
-        Runtime.shared.show()
-    } else {
-        Runtime.shared.hide()
+    autoreleasepool {
+        if hidden == 0 {
+            Runtime.shared.show()
+        } else {
+            Runtime.shared.hide()
+        }
     }
 }
 
@@ -81,19 +108,25 @@ public func deviewSetClipboard(_ text: UnsafePointer<CChar>?) {
 
     // Cleared first: NSPasteboard keeps whatever types were declared before, so writing a string
     // over an image would otherwise leave both on the board and paste the wrong one.
-    let board = NSPasteboard.general
-    board.clearContents()
-    board.setString(String(cString: text), forType: .string)
+    autoreleasepool {
+        let board = NSPasteboard.general
+        board.clearContents()
+        board.setString(String(cString: text), forType: .string)
+    }
 }
 
 @_cdecl("deview_focus")
 public func deviewFocus() {
-    Runtime.shared.show()
+    autoreleasepool {
+        Runtime.shared.show()
+    }
 }
 
 @_cdecl("deview_shutdown")
 public func deviewShutdown() {
-    Runtime.shared.shutdown()
+    autoreleasepool {
+        Runtime.shared.shutdown()
+    }
 }
 
 /// Renders into a bitmap of this side's own making rather than asking the view for one.
@@ -105,6 +138,16 @@ public func deviewShutdown() {
 /// snapshot tests do not need a window server.
 @_cdecl("deview_capture")
 public func deviewCapture(
+    _ screen: UnsafePointer<DeviewScreen>?,
+    _ width: Int32,
+    _ height: Int32,
+    _ pngPath: UnsafePointer<CChar>?) -> Int32 {
+    autoreleasepool {
+        capture(screen, width, height, pngPath)
+    }
+}
+
+private func capture(
     _ screen: UnsafePointer<DeviewScreen>?,
     _ width: Int32,
     _ height: Int32,
