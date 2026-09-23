@@ -9,5 +9,6 @@
       Key: othertests.cs|7,
       Name: othertests.cs:7
     }
-  ]
+  ],
+  Unchanged: false
 }

@@ -1,3 +1,4 @@
 ﻿{
-  Ok: true
+  Ok: true,
+  Unchanged: false
 }

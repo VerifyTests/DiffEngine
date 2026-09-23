@@ -79,6 +79,28 @@ record ViewerResponse(
     /// </summary>
     public bool? Written { get; init; }
 
+    /// <summary>
+    /// On a full listing: what the owner's queue looked like when it was taken, for the reader to
+    /// send back on its next <see cref="ViewerVerb.ListFull"/>. Opaque, and only ever compared for
+    /// equality by the owner that made it. Null from an owner that predates it.
+    /// </summary>
+    public string? Tag { get; init; }
+
+    /// <summary>
+    /// The answer to a full listing whose tag still stands: nothing has changed, so nothing is
+    /// sent, and the reader keeps what it has. An attached viewer asks five times a second, and a
+    /// full listing is every patch base64'd twice by the owner, inside its gate, and parsed again
+    /// by the reader.
+    /// </summary>
+    public bool Unchanged { get; init; }
+
+    public static ViewerResponse UnchangedSince(string tag) =>
+        new(true, null, [])
+        {
+            Tag = tag,
+            Unchanged = true
+        };
+
     public static ViewerResponse Success(string? message = null) =>
         new(true, message, []);
 
@@ -121,6 +143,12 @@ record ViewerResponse(
         if (Written is { } written)
         {
             builder.Append($"written: {(written ? "true" : "false")}\n");
+        }
+
+        ViewerPayload.Append(builder, "tag", Tag);
+        if (Unchanged)
+        {
+            builder.Append("unchanged: true\n");
         }
 
         foreach (var item in Items)
@@ -172,6 +200,8 @@ record ViewerResponse(
         string? windowKey = null;
         AcceptProgress? progress = null;
         bool? written = null;
+        string? tag = null;
+        var unchanged = false;
         var items = new List<ViewerResponseItem>();
         var moves = new List<ViewerResponseMove>();
         var deletes = new List<ViewerResponseDelete>();
@@ -207,6 +237,16 @@ record ViewerResponse(
                     continue;
                 case "written":
                     written = value == "true";
+                    continue;
+                case "tag":
+                    if (!ViewerPayload.TryDecode(value, out tag))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                case "unchanged":
+                    unchanged = value == "true";
                     continue;
                 case "message":
                     if (!ViewerPayload.TryDecode(value, out message))
@@ -289,7 +329,9 @@ record ViewerResponse(
             Moves = moves,
             Deletes = deletes,
             Progress = progress,
-            Written = written
+            Written = written,
+            Tag = tag,
+            Unchanged = unchanged
         };
         return true;
     }

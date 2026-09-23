@@ -281,6 +281,33 @@ public class TrayViewerSyncTest
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
     }
 
+    /// <summary>
+    /// The tray answers an unchanged listing without it, but its tracked files change on their own
+    /// scan rather than through the queue, and a focus it has stashed only reaches a window on a
+    /// listing. Neither may be taken for unchanged.
+    /// </summary>
+    [Test]
+    public async Task ATrackedFileOrAStashedFocusIsNeverAnsweredUnchanged()
+    {
+        await using var pair = new TrayOwned();
+        var snapshot = pair.Queue(sample, 1);
+        var tag = pair.Send(new(ViewerVerb.ListFull)).Tag;
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull, Body: tag)).Unchanged).IsTrue();
+
+        pair.AddDelete();
+        var withDelete = pair.Send(new(ViewerVerb.ListFull, Body: tag));
+        await Assert.That(withDelete.Unchanged).IsFalse();
+        await Assert.That(withDelete.Deletes).HasSingleItem();
+
+        pair.Host.Focus(snapshot);
+        var focused = pair.Send(new(ViewerVerb.ListFull, Body: withDelete.Tag));
+        await Assert.That(focused.Unchanged).IsFalse();
+        await Assert.That(focused.Window).IsEqualTo(WindowCommand.Focus);
+
+        // Taken by that listing, so the next is unchanged again
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull, Body: focused.Tag)).Unchanged).IsTrue();
+    }
+
     [Test]
     public async Task ViewerDiscardOfOneSnapshotReachesTheTray()
     {

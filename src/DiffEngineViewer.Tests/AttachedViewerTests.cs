@@ -36,6 +36,70 @@ public class AttachedViewerTests
         await Assert.That(queue[0].TotalRows).IsGreaterThan(0);
     }
 
+    /// <summary>
+    /// Asked with the tag of the listing it gave last, an owner whose queue has not moved answers
+    /// that and nothing else, rather than every patch again. Any change makes it answer in full.
+    /// </summary>
+    [Test]
+    public async Task AnUnchangedQueueIsNotSentAgain()
+    {
+        using var owner = new ServerFixture();
+        owner.Send(Inline(Fixtures.Patch()));
+
+        var full = owner.Send(new(ViewerVerb.ListFull));
+        await Assert.That(full.Tag).IsNotNull();
+        await Assert.That(full.Items).HasSingleItem();
+
+        var same = owner.Send(new(ViewerVerb.ListFull, Body: full.Tag));
+        await Assert.That(same.Unchanged).IsTrue();
+        await Assert.That(same.Items).IsEmpty();
+
+        owner.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+        var changed = owner.Send(new(ViewerVerb.ListFull, Body: full.Tag));
+        await Assert.That(changed.Unchanged).IsFalse();
+        await Assert.That(changed.Items.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// What an unchanged answer stands for is the listing held from before it, so the window keeps
+    /// showing it, and still follows the owner once something does change.
+    /// </summary>
+    [Test]
+    public async Task AnAttachedViewerFollowsAChangeAfterAnUnchangedListing()
+    {
+        using var owner = new ServerFixture();
+        owner.Send(Inline(Fixtures.Patch()));
+        var (host, link) = Attach(owner);
+        link.Pump();
+        var shown = host.State;
+
+        link.Pump();
+        await Assert.That(host.State).IsSameReferenceAs(shown);
+
+        owner.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+        link.Pump();
+        await Assert.That(host.State.Queue.Select(_ => _.Name))
+            .IsEquivalentTo(["SampleTests.cs:42", "OtherTests.cs:7"]);
+    }
+
+    /// <summary>
+    /// A send that changes nothing still says so, on a listing that was answered unchanged.
+    /// </summary>
+    [Test]
+    public async Task ARefusalArrivesOnAnUnchangedListing()
+    {
+        using var owner = new ServerFixture();
+        owner.Send(Inline(Fixtures.Patch()));
+        var (host, link) = Attach(owner);
+        link.Pump();
+
+        link.Post(ViewerVerb.Discard, "nothing|1");
+        link.Pump();
+
+        await Assert.That(host.State.Message).IsEqualTo("No pending snapshot for nothing|1");
+        await Assert.That(host.State.Queue).HasSingleItem();
+    }
+
     [Test]
     public async Task AFailedEntryKeepsItsStatus()
     {

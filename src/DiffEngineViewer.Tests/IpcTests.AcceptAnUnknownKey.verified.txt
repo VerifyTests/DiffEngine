@@ -1,4 +1,5 @@
 ﻿{
   Ok: false,
-  Message: No pending snapshot for missing|1
+  Message: No pending snapshot for missing|1,
+  Unchanged: false
 }
