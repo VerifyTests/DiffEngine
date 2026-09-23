@@ -66,7 +66,9 @@ static class SettingsHelper
     /// <summary>
     /// The swap can lose a race with anything holding the settings file open - the tray reading it
     /// at startup, a backup, an indexer - and losing it throws out of an async void click handler.
-    /// Whoever has it will not have it for long, so the save waits rather than failing.
+    /// Whoever has it will not have it for long, so the save waits rather than failing. Up to a
+    /// second: two hundred milliseconds was not enough for a reader that reopens the file as soon
+    /// as it closes it with a virus scanner looking at the fresh temp file.
     /// </summary>
     static async Task Swap(string temp)
     {
@@ -78,7 +80,7 @@ static class SettingsHelper
                 return;
             }
             catch (Exception exception)
-                when (attempt < 10 &&
+                when (attempt < 50 &&
                       exception is IOException or UnauthorizedAccessException)
             {
                 await Task.Delay(20);
