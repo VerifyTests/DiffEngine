@@ -71,9 +71,14 @@ static class ViewerProgram
         {
             // Something else holds the queue, a tray or another viewer, so hand the patch over and
             // get out of the way. Whichever it is will show it.
-            var forwarded = ViewerClient.TrySend(new(ViewerVerb.Inline, Body: payload), out _, port);
-            if (!forwarded)
+            if (!ViewerClient.TrySend(new(ViewerVerb.Inline, Body: payload), out var response, port) ||
+                !response.Ok)
             {
+                // Refused - an owner on its way out, or one too old for the payload - or gone
+                // between the bind and the send. Whoever launched this was told the patch was
+                // taken, and a refusal used to be read as a hand over, so it is staged rather
+                // than dropped: this process is the only place it exists.
+                InlineStaging.Persist([new PendingInline(patch)]);
                 Console.Error.WriteLine("A viewer holds the port but did not accept the patch.");
                 return 1;
             }
@@ -203,14 +208,21 @@ static class ViewerProgram
 
     /// <summary>
     /// A non null <paramref name="link"/> means this window is displaying someone else's queue, so
-    /// commands that change it are forwarded rather than applied here.
+    /// commands that change it are forwarded rather than applied here. Internal so
+    /// ViewerProgramTests can hand it a window that will not open, or one that throws.
     /// </summary>
-    static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
+    internal static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
     {
         var window = open("DiffEngineViewer", 1100, 700, false, out var error);
         if (window is null)
         {
             Console.Error.WriteLine(error);
+            // The port was bound before the window was asked for, so whoever launched this saw an
+            // owner and was told what it sent had been taken - and that is only in this process's
+            // memory. Staged instead, where accept tooling finds it. A display that is not there
+            // or a native library that will not load are both ordinary on Linux, and each used to
+            // cost every inline snapshot of the run.
+            PersistOwned(host.State, link);
             return 4;
         }
 
@@ -232,30 +244,41 @@ static class ViewerProgram
             ? null
             : Task.Run(() => new TrackedWatch(host).Run(cancel.Token), Cancel.None);
 
-        using (window)
-        {
-            Loop(host, window, link, windowCommands, runner);
-        }
-
-        // Closing the window mid batch does not abandon it: clicking Accept all and then closing
-        // used to mean both happened, because the click held the window until it was done. Before
-        // the listener stops, so a drive the tray started finishes answering it.
-        runner?.Finish();
-
-        cancel.Cancel();
+        // Finally, so a loop that throws still ends the way one that returns does. The throw used
+        // to unwind straight past all of this to Main's catch, and the queue went with it.
         try
         {
-            listening?.Wait(TimeSpan.FromSeconds(2));
-            polling?.Wait(TimeSpan.FromSeconds(2));
-            watching?.Wait(TimeSpan.FromSeconds(2));
+            using (window)
+            {
+                Loop(host, window, link, windowCommands, runner);
+            }
         }
-        catch (AggregateException)
+        finally
         {
-            // Cancellation unwinds through both; nothing to report.
-        }
+            // However the loop ended, nothing arriving from here on has a window to be shown in,
+            // and the listener keeps answering until it is cancelled below
+            host.Mutate(_ => _ with { Closing = true });
 
-        // After the listener has stopped, so what is written is the final queue.
-        PersistOwned(host.State, link);
+            // Closing the window mid batch does not abandon it: clicking Accept all and then
+            // closing used to mean both happened, because the click held the window until it was
+            // done. Before the listener stops, so a drive the tray started finishes answering it.
+            runner?.Finish();
+
+            cancel.Cancel();
+            try
+            {
+                listening?.Wait(TimeSpan.FromSeconds(2));
+                polling?.Wait(TimeSpan.FromSeconds(2));
+                watching?.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException)
+            {
+                // Cancellation unwinds through both; nothing to report.
+            }
+
+            // After the listener has stopped, so what is written is the final queue.
+            PersistOwned(host.State, link);
+        }
 
         return 0;
     }
@@ -306,12 +329,17 @@ static class ViewerProgram
                 window.SetHidden(command == WindowCommand.Hide);
             }
 
-            var state = host.State;
-            if (state.Exit)
+            // Committed under the lock rather than read and acted on. Between reading Exit and the
+            // listener stopping, an arrival used to be answered as queued and then leave with the
+            // window. One landing first clears Exit and keeps the window open; one landing after
+            // finds the viewer closing and is refused, so its sender stages it instead.
+            if (host.State.Exit &&
+                host.Mutate(ViewerSession.CommitExit).Closing)
             {
                 return;
             }
 
+            var state = host.State;
             if (!window.Present(ScreenBuilder.Build(state)))
             {
                 return;

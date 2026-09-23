@@ -25,8 +25,9 @@ class MessageHandler(
         // Inline entries only, which is what a tray owner counts. This queue also holds tracked
         // moves and deletes, so counting all of it had the two owners answering the same verb
         // with different numbers
-        var count = host
-            .Mutate(_ => ViewerSession.EnqueueInline(_, patch))
+        var state = host.Mutate(_ => ViewerSession.EnqueueInline(_, patch));
+        RefuseWhenClosing(state);
+        var count = state
             .Queue
             .Count(_ => _.Kind == QueueEntryKind.Inline);
         // Brought forward on the entry that arrived, which is what a tray owner does with one of
@@ -42,13 +43,35 @@ class MessageHandler(
 
     /// <summary>
     /// The files are read here, on the listener thread, so the session stays IO free — the same
-    /// seam <see cref="OwnerLink"/> materializes the tray's tracked files through.
+    /// seam <see cref="OwnerLink"/> materializes the tray's tracked files through. Before the lock
+    /// rather than inside it: building an entry reads both files and diffs them, and the render
+    /// loop takes the same lock every frame.
     /// </summary>
-    void IQueueOwner.TrackMove(string temp, string target) =>
-        host.Mutate(_ => ViewerSession.EnqueueTracked(_, TrackedEntry.ForMove(temp, target)));
+    void IQueueOwner.TrackMove(string temp, string target)
+    {
+        var entry = TrackedEntry.ForMove(temp, target);
+        RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
+    }
 
-    void IQueueOwner.TrackDelete(string file) =>
-        host.Mutate(_ => ViewerSession.EnqueueTracked(_, TrackedEntry.ForDelete(file)));
+    void IQueueOwner.TrackDelete(string file)
+    {
+        var entry = TrackedEntry.ForDelete(file);
+        RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
+    }
+
+    /// <summary>
+    /// Thrown rather than returned, because <see cref="IQueueOwner"/> has no refusal to return for
+    /// these verbs, and a throwing handler is answered with an error: the sender then stages or
+    /// relaunches instead of believing a window that is on its way out took what it sent. See
+    /// <see cref="SessionState.Closing"/>.
+    /// </summary>
+    static void RefuseWhenClosing(SessionState state)
+    {
+        if (state.Closing)
+        {
+            throw new InvalidOperationException("This viewer is closing and can take nothing more. Send it again once it has gone.");
+        }
+    }
 
     /// <summary>
     /// With patches, each item carries the payloads it was queued from — every variant of it —

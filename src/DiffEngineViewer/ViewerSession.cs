@@ -28,6 +28,13 @@ static class ViewerSession
     /// </summary>
     public static SessionState EnqueueInline(SessionState state, InlinePatch patch)
     {
+        // Nothing joins a queue whose window has committed to leaving. Returned as it is, and the
+        // caller answering the wire refuses when it sees that
+        if (state.Closing)
+        {
+            return state;
+        }
+
         var key = InlineKey.For(patch.SourceFile, patch.LineHint);
         var current = state.Current;
         var queue = Rebuild(state, Pending(state).Enqueue(patch));
@@ -52,7 +59,10 @@ static class ViewerSession
             Queue = queue,
             Selected = selected,
             // The open menu indexes the queue it was opened over, which just changed.
-            Menu = null
+            Menu = null,
+            // Something to show again. A settle that emptied the queue a moment ago set this, and
+            // carrying it across the arrival took the new entry out with the window
+            Exit = false
         };
 
         // Nothing on screen before means nobody has been reading this one yet either.
@@ -133,6 +143,12 @@ static class ViewerSession
     /// </summary>
     public static SessionState EnqueueTracked(SessionState state, QueueEntry entry)
     {
+        // As EnqueueInline: refused, by the caller, once the window has committed to leaving
+        if (state.Closing)
+        {
+            return state;
+        }
+
         var replacedCurrent = state.Current?.Key == entry.Key;
         var kept = state.Queue.Where(_ => _.Key != entry.Key);
         var queue = QueueProjection.Order([..kept, entry]);
@@ -142,7 +158,9 @@ static class ViewerSession
         {
             Queue = queue,
             Selected = selected < 0 ? 0 : selected,
-            Menu = null
+            Menu = null,
+            // As EnqueueInline: an arrival is a reason to stay
+            Exit = false
         };
 
         if (currentKey is null ||
@@ -249,6 +267,21 @@ static class ViewerSession
         // is not something the reader did, and "Accepted Foo" disappearing because an unrelated
         // file went away reads as the accept having been undone.
         return Remove(state, queue, state.Message);
+    }
+
+    /// <summary>
+    /// The loop's decision to leave, taken under the host's lock so it cannot cross an arrival:
+    /// <see cref="SessionState.Exit"/> still set means nothing has joined the queue since it
+    /// emptied, and from here nothing can. See <see cref="SessionState.Closing"/>.
+    /// </summary>
+    public static SessionState CommitExit(SessionState state)
+    {
+        if (!state.Exit)
+        {
+            return state;
+        }
+
+        return state with { Closing = true };
     }
 
     /// <summary>
