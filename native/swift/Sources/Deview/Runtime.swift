@@ -139,8 +139,17 @@ final class Runtime {
             return
         }
 
-        view.model = frame
-        view.needsDisplay = true
+        // Drawn only when there is something new to draw. The managed loop presents at 60 fps
+        // whether or not anything changed, and redrawing the whole window every time kept a core
+        // busy for a viewer nobody was touching. What is on screen is the frame plus the pictures
+        // it names, whose files can be rewritten under an unchanged frame. Anything else - a
+        // resize, a splitter drag, a move to a display of another scale - is invalidated by
+        // AppKit or by the view as it happens.
+        if view.model != frame || renderer?.picturesChanged(frame) == true {
+            view.model = frame
+            view.needsDisplay = true
+        }
+
         view.displayIfNeeded()
         // After drawing, because both read where the last frame put the queue rows.
         view.refreshToolTips()
