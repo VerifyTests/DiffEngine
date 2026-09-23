@@ -11,8 +11,4 @@ Open findings from a review of `main` at 4244ebe6 (2026-09-23), rechecked on c37
 
 The repro tests are on the local branch `review-repros`, one class per area: `ReviewReproWindowsTests`, `ReviewReproTrayTests`, `ReviewReproPatcherTests`, `ReviewReproLibraryTests`. The fixed ones have moved into the topic test classes. Each test fails on c37bf9e1 except a control (`ControlSpaceIndentedLocalLeavesTheSiblingAlone`) and a measurement (`HowLongADecodeHoldsTheFile`).
 
-Native
-
-- [ ] **macOS App Nap can stall the loop while the window is covered** (cannot verify here)
-  - Nothing opts out (no `beginActivity`, `NSAppSleepDisabled` or power assertion), the only wait is `nextEvent(until: now + 1/60)` (`Runtime.swift:248-253`), and a Focus queued by an arriving patch waits for the next managed frame.
-  - Check on a Mac: cover the viewer for a minute, confirm Activity Monitor shows App Nap, then time how long a failing inline test takes to bring it forward against an uncovered window.
+Nothing open.
