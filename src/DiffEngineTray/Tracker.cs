@@ -204,7 +204,10 @@ class Tracker :
                 }
                 else
                 {
+                    // Taken off the move it is disposed on, so nothing still holding that move -
+                    // a menu built before this update - reaches a disposed process through it
                     existing.Process?.Dispose();
+                    existing.Process = null;
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
@@ -711,8 +714,12 @@ class Tracker :
 
     bool ShouldKill(TrackedMove move, LockedFiles locked, AcceptBatch batch)
     {
+        // The user's standing answer, read here rather than only by the resolver: an accept that
+        // arrives from the viewer never prompts, so it never reached the resolver, and was refused
+        // as locked with "accept from the tray menu" - where the same accept killed without asking.
         if (move.KillLockingProcess ||
-            batch.KillWithoutPrompt)
+            batch.KillWithoutPrompt ||
+            LockedFilesHandler.AlwaysKill)
         {
             return true;
         }
@@ -884,6 +891,12 @@ class Tracker :
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 
     public ICollection<TrackedMove> Moves => moves.Values;
+
+    /// <summary>
+    /// The move for a received file as it is now, or null once it has gone.
+    /// </summary>
+    public TrackedMove? FindMove(string temp) =>
+        moves.GetValueOrDefault(temp);
 
     IReadOnlyList<ViewerResponseMove> ITrackedFiles.Moves() =>
         moves.Values

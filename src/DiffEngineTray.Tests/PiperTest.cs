@@ -1,3 +1,9 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
+
 public class PiperTest :
     IDisposable
 {
@@ -209,5 +215,177 @@ public class PiperTest :
     {
         public override void Write(string? message) { }
         public override void WriteLine(string? message) => logs.Add(message ?? "");
+    }
+
+    /// <summary>
+    /// A connection that resets while it waits in the backlog - a test process cancelled
+    /// mid send, arriving while the loop is between one accept and the next - surfaces from the
+    /// accept as a bare SocketException. The loop's reset catch is written for an IOException
+    /// wrapping one, which is what a read throws, so it never matches, and the reset is reported as
+    /// "Failed to receive payload" with the open-an-issue box, on the accept loop's own thread.
+    /// </summary>
+    [Test]
+    public async Task AClientThatResetsBeforeItIsAcceptedIsNotReportedAsAnError()
+    {
+        var previousLogger = Log.Logger;
+        var events = new ConcurrentQueue<LogEvent>();
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Sink(new Capture(events))
+            .CreateLogger();
+        // ExceptionHandler follows the log with a modal "open an issue?" box, which here would wait
+        // for a click forever. It asks once per message, so this one is marked as already asked.
+        var asked = (ConcurrentBag<string>) typeof(IssueLauncher)
+            .GetField("recorded", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+        asked.Add("Failed to receive payload");
+
+        using var cancel = new CancelSource();
+        var held = new HeldContext();
+        var second = new TcpClient();
+        try
+        {
+            Task serving;
+            var previousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(held);
+            try
+            {
+                serving = PiperServer.Start(_ => { }, _ => { }, cancel.Token);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previousContext);
+            }
+
+            // Accepting this one completes the loop's pending accept. The loop resuming is held, so
+            // for now nothing is accepting: the gap between one accept and the next, held open
+            using (var first = new TcpClient())
+            {
+                await first.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+            }
+
+            await Assert.That(await held.WaitForPending(TimeSpan.FromSeconds(5))).IsTrue();
+
+            // Connects into the backlog during that gap, and resets there
+            await second.ConnectAsync(IPAddress.Loopback, PiperClient.Port);
+            second.Client.Close(0);
+            await Task.Delay(200);
+
+            // The loop goes on: it handles the first client, then accepts again
+            held.RunFor(TimeSpan.FromSeconds(1));
+
+            await cancel.CancelAsync();
+            held.RunUntil(serving, TimeSpan.FromSeconds(5));
+            await Assert.That(serving.IsCompleted).IsTrue();
+        }
+        finally
+        {
+            second.Dispose();
+            Log.Logger = previousLogger;
+        }
+
+        var errors = events
+            .Where(_ => _.Level >= LogEventLevel.Error)
+            .Select(_ => $"{_.MessageTemplate.Text}: {_.Exception?.GetType().Name} {(_.Exception as SocketException)?.SocketErrorCode}")
+            .ToList();
+        await Assert.That(errors).IsEmpty();
+    }
+
+
+    /// <summary>
+    /// The tray binds the port itself, before serving, so a port something else holds is reported
+    /// at startup rather than faulting a task nobody looks at until exit.
+    /// </summary>
+    [Test]
+    public async Task ABindThatFailsSaysWhy()
+    {
+        var holder = new TcpListener(IPAddress.Loopback, PiperClient.Port);
+        holder.Start();
+        try
+        {
+            var listener = PiperServer.TryBind(out var error);
+
+            await Assert.That(listener).IsNull();
+            await Assert.That(error!.SocketErrorCode).IsEqualTo(SocketError.AddressAlreadyInUse);
+        }
+        finally
+        {
+            holder.Stop();
+        }
+
+        var bound = PiperServer.TryBind(out var none);
+        bound!.Stop();
+        await Assert.That(none).IsNull();
+    }
+
+    /// <summary>
+    /// Queues what is posted to it until told to run it, so a test decides when an awaiting loop
+    /// resumes.
+    /// </summary>
+    sealed class HeldContext :
+        SynchronizationContext
+    {
+        readonly BlockingCollection<(SendOrPostCallback callback, object? state)> queue = [];
+
+        public override void Post(SendOrPostCallback d, object? state) =>
+            queue.Add((d, state));
+
+        public override void Send(SendOrPostCallback d, object? state) =>
+            d(state);
+
+        public async Task<bool> WaitForPending(TimeSpan timeout)
+        {
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                if (queue.Count > 0)
+                {
+                    return true;
+                }
+
+                await Task.Delay(10);
+            }
+
+            return false;
+        }
+
+        public void RunFor(TimeSpan duration) =>
+            Run(() => false, duration);
+
+        public void RunUntil(Task task, TimeSpan timeout) =>
+            Run(() => task.IsCompleted, timeout);
+
+        void Run(Func<bool> done, TimeSpan duration)
+        {
+            var previous = Current;
+            SetSynchronizationContext(this);
+            try
+            {
+                var deadline = DateTime.UtcNow + duration;
+                while (!done())
+                {
+                    var remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        return;
+                    }
+
+                    if (queue.TryTake(out var item, TimeSpan.FromMilliseconds(Math.Min(50, remaining.TotalMilliseconds))))
+                    {
+                        item.callback(item.state);
+                    }
+                }
+            }
+            finally
+            {
+                SetSynchronizationContext(previous);
+            }
+        }
+    }
+
+    sealed class Capture(ConcurrentQueue<LogEvent> events) :
+        ILogEventSink
+    {
+        public void Emit(LogEvent logEvent) =>
+            events.Enqueue(logEvent);
     }
 }

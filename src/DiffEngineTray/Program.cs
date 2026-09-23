@@ -96,7 +96,14 @@ static class Program
         // that is still running, and Task.Dispose throws for one that has not completed - which
         // would replace whatever actually went wrong with an InvalidOperationException. A task
         // needs no disposal anyway; cancelling it is what ends it
-        var task = StartServer(tracker, cancel);
+        var listener = PiperServer.TryBind(out var bindError);
+        if (listener is null)
+        {
+            Log.Error(bindError, "Could not listen on port {Port}", PiperClient.Port);
+            Warn($"Could not listen on port {PiperClient.Port}, so moves and deletes from test runs will not reach the tray. {bindError!.Message}");
+        }
+
+        var task = listener is null ? Task.CompletedTask : StartServer(listener, tracker, cancel);
 
         using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker, Warn);
@@ -195,8 +202,9 @@ static class Program
         }
     }
 
-    static Task StartServer(Tracker tracker, Cancel cancel) =>
-        PiperServer.Start(
+    static Task StartServer(TcpListener listener, Tracker tracker, Cancel cancel) =>
+        PiperServer.Serve(
+            listener,
             payload =>
             {
                 tracker.AddMove(
