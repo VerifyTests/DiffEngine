@@ -48,6 +48,27 @@ public class IpcTests
         await Assert.That(response.Ok).IsFalse();
     }
 
+    /// <summary>
+    /// A viewer on its way out refuses rather than answering. It used to acknowledge a patch or a
+    /// pair and then exit with it, so the sender believed it queued and staged nothing, and a
+    /// pending file was in no window and no tray.
+    /// </summary>
+    [Test]
+    public async Task AClosingViewerRefusesWhatWouldJoinTheQueue()
+    {
+        using var fixture = new ServerFixture();
+        fixture.Host.Mutate(_ => _ with { Closing = true });
+
+        var inline = fixture.Send(Inline(Fixtures.Patch()));
+        var diff = fixture.Send(new(ViewerVerb.Diff, "temp/sample.received.txt", "code/sample.verified.txt"));
+        var delete = fixture.Send(new(ViewerVerb.Delete, "code/extra.verified.txt"));
+
+        await Assert.That(inline.Ok).IsFalse();
+        await Assert.That(diff.Ok).IsFalse();
+        await Assert.That(delete.Ok).IsFalse();
+        await Assert.That(fixture.Host.State.Queue).IsEmpty();
+    }
+
     [Test]
     public async Task SettleDropsTheEntry()
     {

@@ -124,10 +124,31 @@ class RemoteInlineHost : IInlineHost
     /// True only when the queue is empty afterwards, for the reason <see cref="Accept"/> gives —
     /// and matching what an owning tray reports, which is also "is anything still pending". A
     /// conflict counts as not accepted, which is right: it is what a reviewer still has to resolve.
+    /// <para>
+    /// Refused is read back the same way, out of the full listing that follows, since the wire
+    /// carries a message rather than a tally. The owner keeps an entry it could not write and says
+    /// why on it, while one that arrived during the batch carries nothing and a conflict is never
+    /// tried - so a non-conflicted entry with a status is one this batch refused. An owner that
+    /// could not be asked, before or after, counts as refused: what waits on the answer is a
+    /// delete, and a delete is the one thing not safe to guess about.
+    /// </para>
     /// </summary>
-    public bool AcceptAll(out string? message) =>
-        Send(ViewerVerb.AcceptAll, null, acceptAllWait, out message) &&
-        List().Count == 0;
+    public bool AcceptAll(out string? message, out bool refused)
+    {
+        if (!Send(ViewerVerb.AcceptAll, null, acceptAllWait, out message) ||
+            !Exchange(new(ViewerVerb.ListFull), ViewerClient.ShortTimeout, out var response) ||
+            !response.Ok)
+        {
+            refused = true;
+            return false;
+        }
+
+        // A full listing lists a conflicted entry's other variants, and an entry has them exactly
+        // when it is conflicted
+        refused = response.Items.Any(_ => _.Variants.Count == 0 &&
+                                         _.Status is not null);
+        return response.Items.Count == 0;
+    }
 
     /// <summary>
     /// As <see cref="Discard"/>, and the outcome is returned rather than dropped. Discarded on a

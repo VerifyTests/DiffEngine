@@ -25,6 +25,17 @@ record SessionState(
     public bool QuitRequested { get; init; }
 
     /// <summary>
+    /// The loop has committed to leaving, so nothing more may join the queue. Set under the host's
+    /// lock, which is the point of it: a window leaving because its queue emptied used to read
+    /// <see cref="Exit"/> without the lock and keep answering while it went, so a patch or a pair
+    /// that arrived in between was acknowledged to its sender and then left with the process.
+    /// Arrivals that land before this is set clear <see cref="Exit"/> and keep the window; ones
+    /// that land after are refused, and the sender stages what it had rather than believing it
+    /// queued.
+    /// </summary>
+    public bool Closing { get; init; }
+
+    /// <summary>
     /// The group headers that are folded, by <see cref="QueueItem.GroupKey"/>.
     /// <para>
     /// Keyed by name rather than by position, so a fold survives its members being accepted out

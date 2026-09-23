@@ -145,14 +145,14 @@ sealed class OwnedInlineHost :
         }
     }
 
-    public bool AcceptAll(out string? message)
+    public bool AcceptAll(out string? message, out bool refused)
     {
         lock (accepting)
         {
             StartProgress(0);
             try
             {
-                message = AcceptEvery();
+                message = AcceptEvery(0, out refused);
             }
             finally
             {
@@ -357,9 +357,17 @@ sealed class OwnedInlineHost :
 
     /// <summary>
     /// The wire's accept-all sweeps everything this owner shows a viewer: tracked deletes and
-    /// moves as well as the snapshots, mirroring the tray menu's own "Accept all". Files first,
-    /// the order that menu has always used, and never through <see cref="Tracker.AcceptAll"/>,
-    /// whose snapshot half would re-enter this host and whose move path can prompt.
+    /// moves as well as the snapshots, mirroring the tray menu's own "Accept all". Never through
+    /// <see cref="Tracker.AcceptAll"/>, whose snapshot half would re-enter this host and whose move
+    /// path can prompt.
+    /// <para>
+    /// Snapshots first, and the deletes held when one of them was not written. A snapshot moving
+    /// inline arrives as two unrelated entries - the patch that writes the literal, and a delete
+    /// of the verified file it replaces - and files first, the order this used to take, deleted
+    /// that file before finding out the patch would be refused: the snapshot lost both copies at
+    /// once. The viewer's own batch has always run this way round, for that reason; this is the
+    /// same rule for the arrangement where the tray holds the queue, which is the usual one.
+    /// </para>
     /// <para>
     /// The files count towards the progress a listing reports, since a move that is being retried
     /// while a diff tool lets go of it is as much of the wait as any snapshot.
@@ -369,14 +377,17 @@ sealed class OwnedInlineHost :
     {
         (int accepted, int kept)? tracked;
         string message;
+        var held = false;
         lock (accepting)
         {
-            var files = TrackedFiles is { } trackedFiles ? trackedFiles.Moves().Count + trackedFiles.Deletes().Count : 0;
-            StartProgress(files);
+            var moves = TrackedFiles?.Moves().Count ?? 0;
+            var deletes = TrackedFiles?.Deletes().Count ?? 0;
+            StartProgress(moves + deletes);
             try
             {
-                tracked = TrackedFiles?.AcceptAll(Advance);
-                message = AcceptEvery();
+                message = AcceptEvery(moves + deletes, out var refused);
+                tracked = TrackedFiles?.AcceptAll(refused, Advance);
+                held = refused && deletes > 0;
             }
             finally
             {
@@ -394,6 +405,11 @@ sealed class OwnedInlineHost :
         var clause = swept.kept == 0
             ? $"{swept.accepted} files"
             : $"{swept.accepted} files ({swept.kept} kept)";
+        if (held)
+        {
+            return $"{message}, plus {clause}. {Tracker.DeletesHeld}";
+        }
+
         return $"{message}, plus {clause}";
     }
 
@@ -510,34 +526,63 @@ sealed class OwnedInlineHost :
 
     /// <summary>
     /// Every snapshot pending when it starts, applied outside the gate and completed one at a
-    /// time. The list is immutable, so applying over it is safe, and each completion skips an
-    /// entry that changed underneath it. Conflicted entries are never applied: they are counted
-    /// into the message at the end.
+    /// time. Conflicted entries are never applied: they are counted into the message at the end.
+    /// <para>
+    /// Taken as keys, and each looked up again when its turn comes, rather than applied from a
+    /// copy of the queue taken at the start. A batch holds an apply per entry, each of which can
+    /// wait on InlineApplier's mutex, and the queue does not stand still meanwhile: a test that
+    /// started passing settles its entry, a discard empties the queue, a re-run replaces a patch,
+    /// a second framework makes a conflict of one. Applying from the copy wrote every one of those
+    /// into the source regardless - the old failing content over a test that now passed, snapshots
+    /// just discarded - and then ignored the outcome because the entry had changed. The viewer's
+    /// batch claims its entries the same way.
+    /// </para>
     /// <para>
     /// Completed as each lands rather than all together at the end, so a displaying viewer's next
     /// listing shows the queue shrinking and says how far the batch has got. Together they left
     /// the window showing an untouched queue for as long as the batch took.
     /// </para>
     /// </summary>
-    string AcceptEvery()
+    /// <param name="files">
+    /// The tracked files the caller sweeps once the snapshots are done, for the progress total.
+    /// </param>
+    /// <param name="refused">
+    /// A snapshot in this batch was not written, which is what holds the deletes swept after it.
+    /// </param>
+    string AcceptEvery(int files, out bool refused)
     {
-        List<PendingInline> pending;
+        List<string> keys;
         lock (gate)
         {
-            pending = queue.Items
+            keys = queue.Items
                 .Where(_ => !_.Conflicted)
+                .Select(_ => _.Key)
                 .ToList();
-            // Exact now, where the start could only estimate it: the files swept first gave
-            // snapshots time to arrive or settle
+            // Exact now, where the start could only estimate it: anything can arrive or settle
+            // between the two
             if (progress is not null)
             {
-                progress = progress with { Total = progress.Done + pending.Count };
+                progress = progress with { Total = progress.Done + keys.Count + files };
             }
         }
 
         var tally = new AcceptAllTally();
-        foreach (var entry in pending)
+        foreach (var key in keys)
         {
+            PendingInline? entry;
+            lock (gate)
+            {
+                entry = queue.Find(key);
+                if (entry is null ||
+                    entry.Conflicted)
+                {
+                    // Settled, discarded or made a conflict of since the batch began. Nothing to
+                    // apply, and one fewer to wait for
+                    progress = progress?.Advance();
+                    continue;
+                }
+            }
+
             var result = applier(entry.Patch);
             // Together, so no listing can show the entry gone and the count not yet moved past it
             lock (gate)
@@ -551,6 +596,7 @@ sealed class OwnedInlineHost :
 
         lock (gate)
         {
+            refused = tally.Refused;
             return tally.Message(queue.Conflicts);
         }
     }

@@ -124,7 +124,7 @@ static class InlinePatcher
 
         if (mode == InlinePatchMode.Remove)
         {
-            return TryRemove(language, source, scan, lineStarts, lineHint, memberLine, originalExpression, originalValue, eol, ref newSource, ref failReason);
+            return TryRemove(language, source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), originalExpression, originalValue, eol, ref newSource, ref failReason);
         }
 
         var fileUnit = DetectIndentUnit(source, scan, lineStarts);
@@ -144,11 +144,20 @@ static class InlinePatcher
             // still unaccepted.
             // ReSharper disable once RedundantSuppressNullableWarningExpression
             var needle = NormalizeTo(originalExpression!, eol);
-            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
+            var appliedAtHint = false;
+            foreach (var (nameStart, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
             {
+                var onHint = IsOnHint(lineStarts, nameStart, lineHint);
+                if (appliedAtHint &&
+                    !onHint)
+                {
+                    return PatchStatus.AlreadyApplied;
+                }
+
                 if (!TryReadArguments(source, scan, openParen, out var expected) ||
                     !expected.Matches(source, needle))
                 {
+                    appliedAtHint |= onHint && HoldsContent(source, scan, openParen, newContent);
                     continue;
                 }
 
@@ -174,8 +183,16 @@ static class InlinePatcher
             // the same outcome when nothing matches: report, rather than rewrite whichever call
             // the hint happens to land on.
             var previous = SourceLanguage.NormalizeNewlines(originalValue);
-            foreach (var (_, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
+            var appliedAtHint = false;
+            foreach (var (nameStart, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, snapshotName, false))
             {
+                var onHint = IsOnHint(lineStarts, nameStart, lineHint);
+                if (appliedAtHint &&
+                    !onHint)
+                {
+                    return PatchStatus.AlreadyApplied;
+                }
+
                 if (!TryReadArguments(source, scan, openParen, out var expected) ||
                     expected.IsAbsent ||
                     expected.BlockedByName)
@@ -187,6 +204,7 @@ static class InlinePatcher
                 if (!language.TryParse(argument, out var value) ||
                     value != previous)
                 {
+                    appliedAtHint |= onHint && value == newContent;
                     continue;
                 }
 
@@ -205,6 +223,23 @@ static class InlinePatcher
 
         return InsertOrCheck(source, scan, lineStarts, lineHint, memberLine, newContent, eol, fileUnit, alreadyOnly: false, ref newSource, ref failReason);
     }
+
+    /// <summary>
+    /// Whether a call is on the recorded line, which <see cref="FindCalls"/> yields before anything
+    /// else and never again.
+    /// <para>
+    /// It matters to the content search above because a patch can arrive a second time after it
+    /// has been applied: a second target framework's identical patch reaching the queue after the
+    /// first was accepted, or each framework's test process applying the same Remove. The anchor
+    /// has gone from the call it named by then, so the search went looking for it elsewhere - and a
+    /// sibling holding the same literal, which is ordinary for a member verifying two values that
+    /// serialise alike, is exactly where it found it, and rewrote that one. So once the call at
+    /// the recorded line turns out to already hold what the patch would write, the search stops
+    /// there and reports it done, rather than carrying on to the next call that matches.
+    /// </para>
+    /// </summary>
+    static bool IsOnHint(List<int> lineStarts, int nameStart, int lineHint) =>
+        LineOf(lineStarts, nameStart) == Clamp(lineHint, lineStarts.Count);
 
     static PatchStatus InsertOrCheck(
         string source,
@@ -502,12 +537,18 @@ static class InlinePatcher
         List<int> lineStarts,
         int lineHint,
         int? memberLine,
+        string[] entryPoints,
         string? originalExpression,
         string? originalValue,
         string eol,
         ref string newSource,
         ref string failReason)
     {
+        if (RemovedAtHint(source, scan, lineStarts, lineHint, memberLine, entryPoints))
+        {
+            return PatchStatus.AlreadyApplied;
+        }
+
         var anchored = !string.IsNullOrEmpty(originalExpression) || originalValue != null;
         if (!TryFindAnchoredCall(language, source, scan, lineStarts, lineHint, memberLine, originalExpression, originalValue, eol, out var nameStart, out var openParen))
         {
@@ -564,6 +605,70 @@ static class InlinePatcher
 
         newSource = Splice(source, start, closeParen + 1, "");
         return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Whether the Snapshot call the recorded line names has already been removed: the line holds
+    /// no Snapshot call, and the verify statement it belongs to has none chained onto it.
+    /// <para>
+    /// A Remove is applied by the test process itself rather than queued, so a multi-targeted run
+    /// applies the same one once per framework. Every one after the first found the anchor gone
+    /// from the call it named and went looking for it elsewhere, and a sibling holding the same
+    /// literal is exactly where it found it: that snapshot was stripped instead, the way
+    /// <see cref="IsOnHint"/> describes for a Set.
+    /// </para>
+    /// <para>
+    /// The statement is the nearest verify call at or above the line, provided its chain still
+    /// reaches the line or the one above it. Removing a Snapshot call that had a line of its own
+    /// pulls the rest of its statement up onto the line above, so the recorded line then holds
+    /// whatever followed, and the statement it named ends just before it.
+    /// </para>
+    /// </summary>
+    static bool RemovedAtHint(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, string[] entryPoints)
+    {
+        var lineCount = lineStarts.Count;
+        if (lineHint < 1 ||
+            lineHint > lineCount)
+        {
+            return false;
+        }
+
+        var floor = memberLine is null ? 1 : Clamp(memberLine.Value, lineCount);
+        var ceiling = memberLine is null ? lineCount + 1 : NextMemberLine(source, scan, lineStarts, floor);
+        // A hint outside the member has gone stale, and names nothing
+        if (lineHint < floor ||
+            lineHint >= ceiling)
+        {
+            return false;
+        }
+
+        // A Snapshot call still on the line is one to remove, whatever it hangs off
+        if (CallsOnLine(source, scan, lineStarts, lineHint, snapshotName, false).Any())
+        {
+            return false;
+        }
+
+        for (var line = lineHint; line >= floor; line--)
+        {
+            var calls = CallsOnLine(source, scan, lineStarts, line, entryPoints, true).ToList();
+            if (calls.Count == 0)
+            {
+                continue;
+            }
+
+            // The last on the line is the nearest one above the hint
+            var (_, openParen) = calls[calls.Count - 1];
+            if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
+            {
+                return false;
+            }
+
+            var end = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
+            return chained < 0 &&
+                   LineOf(lineStarts, end - 1) >= lineHint - 1;
+        }
+
+        return false;
     }
 
     /// <summary>

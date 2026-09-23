@@ -1155,15 +1155,99 @@ public class InlinePatcherTests
         await Assert.That(reason).Contains("not a chained call");
     }
 
+    /// <summary>
+    /// A verify call with no Snapshot left is what a Remove leaves behind, and what the same
+    /// Remove finds when a second framework's test process applies it. It is done, and saying so
+    /// is what stops the search going on to strip a Snapshot call from somewhere else.
+    /// </summary>
     [Test]
-    public async Task RemoveWithNoSnapshotCall()
+    public async Task RemoveWithNoSnapshotCallIsAlreadyDone()
     {
         var source = Method("        await Verify(value);");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// Nothing at the recorded line at all, and nothing anywhere else either, is still reported.
+    /// </summary>
+    [Test]
+    public async Task RemoveWithNoCallAtAll()
+    {
+        var source = Method("        var value = 1;");
 
         var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out var reason);
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("Could not find a Snapshot call");
+    }
+
+    const string twoIdenticalSnapshots =
+        "class Tests\n{\n    async Task Test()\n    {\n        await Verify(a).Snapshot(\"dup\");\n        await Verify(b).Snapshot(\"dup\");\n    }\n}\n";
+
+    /// <summary>
+    /// A patch applied a second time - a second framework's identical patch reaching the queue
+    /// after the first was accepted. The anchor has gone from the call it named, and the content
+    /// search used to find it in the sibling instead and rewrite that one.
+    /// </summary>
+    [Test]
+    public async Task ReapplyingASetLeavesASiblingWithTheSameLiteral()
+    {
+        TryApply(twoIdenticalSnapshots, 6, InlinePatchMode.Set, "\"dup\"", "new", out var once, out _, memberName: "Test");
+        await Assert.That(once).Contains("Verify(a).Snapshot(\"dup\")");
+
+        var status = TryApply(once, 6, InlinePatchMode.Set, "\"dup\"", "new", out _, out _, memberName: "Test");
+
+        // Done, so the caller writes nothing and the sibling keeps its literal
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <inheritdoc cref="ReapplyingASetLeavesASiblingWithTheSameLiteral"/>
+    [Test]
+    public async Task ReapplyingASetByValueLeavesASiblingWithTheSameLiteral()
+    {
+        TryApply(twoIdenticalSnapshots, 6, InlinePatchMode.Set, null, "new", out var once, out _, originalValue: "dup", memberName: "Test");
+        await Assert.That(once).Contains("Verify(a).Snapshot(\"dup\")");
+
+        var status = TryApply(once, 6, InlinePatchMode.Set, null, "new", out _, out _, originalValue: "dup", memberName: "Test");
+
+        // Done, so the caller writes nothing and the sibling keeps its literal
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The same for a Remove, which each framework's test process applies itself: the second one
+    /// stripped the sibling's Snapshot call.
+    /// </summary>
+    [Test]
+    public async Task ReapplyingARemoveLeavesASiblingWithTheSameLiteral()
+    {
+        TryApply(twoIdenticalSnapshots, 6, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        await Assert.That(once).Contains("Verify(a).Snapshot(\"dup\")");
+
+        var status = TryApply(once, 6, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        // Done, so the caller writes nothing and the sibling keeps its literal
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// A Snapshot call on a line of its own leaves the recorded line holding whatever followed it
+    /// once it is removed, so the statement it named ends on the line above.
+    /// </summary>
+    [Test]
+    public async Task ReapplyingARemoveOfAChainedLineLeavesASiblingWithTheSameLiteral()
+    {
+        var source = Method("        await Verify(a).Snapshot(\"dup\");\n        await Verify(b)\n            .Snapshot(\"dup\");");
+        TryApply(source, 7, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        await Assert.That(once).Contains("await Verify(b);");
+
+        var status = TryApply(once, 7, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        // Done, so the caller writes nothing and the sibling keeps its literal
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
     [Test]

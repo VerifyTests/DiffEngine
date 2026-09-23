@@ -87,6 +87,15 @@ static class ViewerLauncher
 
     static Process? Start(string arguments, bool stdin = false)
     {
+        // With nowhere to draw, a viewer binds the port, fails to open its window and exits, and
+        // to whoever launched it the bind reads as a viewer that took the work. Not starting one
+        // tells the caller no viewer was found instead, which is the answer that has it keep what
+        // it sent.
+        if (!HasDisplay(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), Environment.GetEnvironmentVariable))
+        {
+            return null;
+        }
+
         if (!DiffTools.TryFindByName(DiffTool.DiffEngineViewer, out var tool))
         {
             return null;
@@ -111,4 +120,15 @@ static class ViewerLauncher
             return null;
         }
     }
+
+    /// <summary>
+    /// Whether a window started from this process has anywhere to go. Only Linux can be asked: an
+    /// SSH session or a container has neither variable, while a desktop session, a forwarded X
+    /// connection and WSLg each set one. Windows and macOS are taken to have a desktop, since
+    /// nothing in the environment says otherwise.
+    /// </summary>
+    internal static bool HasDisplay(bool linux, Func<string, string?> variable) =>
+        !linux ||
+        !string.IsNullOrEmpty(variable("DISPLAY")) ||
+        !string.IsNullOrEmpty(variable("WAYLAND_DISPLAY"));
 }

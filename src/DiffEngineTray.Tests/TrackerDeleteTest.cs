@@ -122,6 +122,54 @@ public class TrackerDeleteTest :
         await Assert.That(tracker.Deletes).HasSingleItem();
     }
 
+    /// <summary>
+    /// A snapshot moving inline arrives as a patch plus a delete of the verified file it replaces,
+    /// and "Accept all" used to delete first. The snapshots go first now, while that file is still
+    /// there to fall back on.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllAppliesTheSnapshotsBeforeTheDeletes()
+    {
+        bool? existedWhileAccepting = null;
+        await using var tracker = new RecordingTracker(
+            inline: new StubInlineHost(new PendingSnapshot(@"c:\repo\sample.cs|12", "Sample.cs:12", null))
+            {
+                AcceptingAll = () => existedWhileAccepting = File.Exists(file1)
+            });
+        tracker.AddDelete(file1);
+
+        await tracker.AcceptAll();
+
+        await Assert.That(existedWhileAccepting).IsTrue();
+        await Assert.That(File.Exists(file1)).IsFalse();
+    }
+
+    /// <summary>
+    /// A patch was refused, so the file a delete would remove may be the only copy of that snapshot
+    /// left. The delete stays pending, the file stays where it is, and the balloon says why.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllHoldsTheDeletesWhenASnapshotWasNotWritten()
+    {
+        var warnings = new List<string>();
+        await using var tracker = new RecordingTracker(
+            inlineFailed: warnings.Add,
+            inline: new StubInlineHost(new PendingSnapshot(@"c:\repo\sample.cs|12", "Sample.cs:12", null))
+            {
+                AcceptAllSucceeds = false,
+                AcceptAllRefuses = true,
+                AcceptAllMessage = "Accepted 0, 1 not written"
+            });
+        tracker.AddDelete(file1);
+
+        await tracker.AcceptAll();
+
+        await Assert.That(File.Exists(file1)).IsTrue();
+        await Assert.That(tracker.Deletes).HasSingleItem();
+        await Assert.That(warnings).IsEquivalentTo(
+            [$"Could not accept the pending snapshots. Accepted 0, 1 not written {Tracker.DeletesHeld}"]);
+    }
+
     public void Dispose()
     {
         File.Delete(file1);

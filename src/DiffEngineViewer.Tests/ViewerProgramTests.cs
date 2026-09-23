@@ -35,6 +35,85 @@ public class ViewerProgramTests
         await Assert.That(project.StagedFiles()).IsEmpty();
     }
 
+    /// <summary>
+    /// The port is bound before the window is asked for, so whoever launched the viewer was told
+    /// what it sent had been taken. A window that could not open - no display, a native library
+    /// that would not load - returned before anything was written, and the snapshot existed
+    /// nowhere.
+    /// </summary>
+    [Test]
+    public async Task AViewerWithNoWindowStillStagesWhatItHolds()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var state = Fixtures.Inline(Fixtures.Patch(source: source, framework: "net10.0"));
+
+        var code = ViewerProgram.Run(new(state), server: null, link: null, NoWindow);
+
+        await Assert.That(code).IsEqualTo(4);
+        await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A loop that throws ends the way one that returns does. The throw used to unwind straight to
+    /// Main's catch, past the persist, and the queue went with the process.
+    /// </summary>
+    [Test]
+    public async Task AViewerWhoseLoopThrowsStillStagesWhatItHolds()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var state = Fixtures.Inline(Fixtures.Patch(source: source, framework: "net10.0"));
+
+        Assert.Throws<InvalidOperationException>(
+            () =>
+            {
+                ViewerProgram.Run(new(state), server: null, link: null, ThrowingWindow.Open);
+            });
+
+        await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+    }
+
+    static IViewerWindow? NoWindow(string title, int width, int height, bool hidden, out string? error)
+    {
+        error = "No display.";
+        return null;
+    }
+
+    sealed class ThrowingWindow : IViewerWindow
+    {
+        public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+        {
+            error = null;
+            return new ThrowingWindow();
+        }
+
+        public bool Present(Screen screen) =>
+            throw new InvalidOperationException("The renderer failed.");
+
+        public ViewerInput Poll() =>
+            default;
+
+        public void SetHidden(bool hidden)
+        {
+        }
+
+        public void Focus()
+        {
+        }
+
+        public void SetClipboard(string text)
+        {
+        }
+
+        public bool Capture(Screen screen, int width, int height, string pngPath) =>
+            false;
+
+        public void Dispose()
+        {
+        }
+    }
+
     sealed class TempProject : IDisposable
     {
         readonly string directory = Path.Combine(

@@ -345,18 +345,10 @@ class Tracker :
         {
             try
             {
-                // Live read, not the scan cache: this can be called before the first scan, and
-                // acting on a stale empty cache would silently do nothing. Inside the worker
-                // rather than in front of it, because the caller is a menu click or a hot key and
-                // the read is a round trip whenever a viewer owns the queue.
-                if (inline.List().Count == 0)
+                SweepSnapshots(out var failure);
+                if (failure is not null)
                 {
-                    return;
-                }
-
-                if (!inline.AcceptAll(out var message))
-                {
-                    inlineFailed?.Invoke($"Could not accept the pending snapshots. {message}");
+                    inlineFailed?.Invoke(failure);
                 }
 
                 Refresh();
@@ -366,6 +358,74 @@ class Tracker :
                 ExceptionHandler.Handle("Failed to accept the pending snapshots", exception);
             }
         });
+
+    /// <summary>
+    /// The second half of an accept-all: the snapshots, then the deletes, on a worker for the
+    /// reason <see cref="Accept(PendingSnapshot)"/> gives.
+    /// <para>
+    /// Deletes after the snapshots, and not at all when one of those was not written. A snapshot
+    /// moving inline arrives as a patch plus a delete of the verified file it replaces, and nothing
+    /// ties the two together. Deleting first, which is what this used to do, removed that file
+    /// before finding out the patch would be refused, so the snapshot was in neither place: not in
+    /// the source, and not on disk. The viewer's own accept-all has always held its deletes this
+    /// way, for the same reason.
+    /// </para>
+    /// </summary>
+    Task AcceptSnapshotsThenDeletes() =>
+        Task.Run(() =>
+        {
+            try
+            {
+                if (!SweepSnapshots(out var failure))
+                {
+                    AcceptAllDeletes();
+                }
+                else if (!deletes.IsEmpty)
+                {
+                    failure = failure is null ? DeletesHeld : $"{failure} {DeletesHeld}";
+                }
+
+                if (failure is not null)
+                {
+                    inlineFailed?.Invoke(failure);
+                }
+
+                Refresh();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle("Failed to accept the pending snapshots", exception);
+            }
+        });
+
+    /// <summary>
+    /// What a user is told about the deletes an accept-all left pending, from either surface.
+    /// </summary>
+    public const string DeletesHeld = "Pending deletes were kept, since a snapshot in this batch was not written and a file being deleted may be the only copy of it left. Accept them on their own to delete them anyway.";
+
+    /// <summary>
+    /// Accepts every pending snapshot, and returns whether one it tried was not written.
+    /// </summary>
+    /// <param name="failure">What to tell the user, when something is still pending afterwards.</param>
+    bool SweepSnapshots(out string? failure)
+    {
+        failure = null;
+        // Live read, not the scan cache: this can be called before the first scan, and acting on
+        // a stale empty cache would silently do nothing. Inside the worker rather than in front of
+        // it, because the caller is a menu click or a hot key and the read is a round trip
+        // whenever a viewer owns the queue.
+        if (inline.List().Count == 0)
+        {
+            return false;
+        }
+
+        if (!inline.AcceptAll(out var message, out var refused))
+        {
+            failure = $"Could not accept the pending snapshots. {message}";
+        }
+
+        return refused;
+    }
 
     /// <summary>
     /// Accepts just these snapshots, for a group header: unlike <see cref="AcceptAllSnapshots"/>,
@@ -720,14 +780,14 @@ class Tracker :
     }
 
     /// <summary>
-    /// The returned task covers the snapshot half, which runs on a worker for the reason
-    /// <see cref="Accept(PendingSnapshot)"/> gives. The menu and the hot keys discard it; tests
-    /// await it so what the other surface should now be showing is settled rather than in flight.
+    /// The moves here, on the calling thread, because a locked one can prompt. The returned task
+    /// covers the rest - the snapshots, then the deletes, which have to wait for them - and runs
+    /// on a worker for the reason <see cref="Accept(PendingSnapshot)"/> gives. The menu and the
+    /// hot keys discard it; tests await it so what the other surface should now be showing is
+    /// settled rather than in flight.
     /// </summary>
     public Task AcceptOpen()
     {
-        AcceptAllDeletes();
-
         AcceptMoves(
             moves.Values
                 .Where(_ => _.IsOpen)
@@ -735,24 +795,22 @@ class Tracker :
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
         // has something to show.
-        return AcceptAllSnapshots();
+        return AcceptSnapshotsThenDeletes();
     }
 
     /// <inheritdoc cref="AcceptOpen"/>
     public Task AcceptAll()
     {
-        AcceptAllDeletes();
-
         AcceptMoves(moves.Values);
 
-        return AcceptAllSnapshots();
+        return AcceptSnapshotsThenDeletes();
     }
 
     void AcceptAllDeletes()
     {
         // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
-        // clearing would throw that away. Unguarded, the first bad one also took AcceptMoves and
-        // AcceptAllSnapshots with it, so "Accept all" stopped at the first read-only file
+        // clearing would throw that away. Unguarded, the first bad one also took the rest of the
+        // sweep with it, so "Accept all" stopped at the first read-only file
         foreach (var delete in deletes.Values.ToList())
         {
             Accept(delete);
@@ -866,13 +924,13 @@ class Tracker :
         return (false, null);
     }
 
-    (int accepted, int kept) ITrackedFiles.AcceptAll(Action? advanced)
+    (int accepted, int kept) ITrackedFiles.AcceptAll(bool holdDeletes, Action? advanced)
     {
         var accepted = 0;
         var kept = 0;
-        foreach (var delete in deletes.Values.ToList())
+        foreach (var move in moves.Values.ToList())
         {
-            if (AcceptTracked(delete).ok)
+            if (AcceptWithoutPrompting(move).ok)
             {
                 accepted++;
             }
@@ -884,9 +942,12 @@ class Tracker :
             advanced?.Invoke();
         }
 
-        foreach (var move in moves.Values.ToList())
+        foreach (var delete in deletes.Values.ToList())
         {
-            if (AcceptWithoutPrompting(move).ok)
+            // Held rather than tried, and left tracked, so it can still be accepted on its own by
+            // anyone who knows the file is redundant
+            if (!holdDeletes &&
+                AcceptTracked(delete).ok)
             {
                 accepted++;
             }

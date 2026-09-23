@@ -781,6 +781,56 @@ public class ViewerSessionTests
     }
 
     /// <summary>
+    /// A settle that empties the queue sets Exit, and the loop acts on it a frame later. An arrival
+    /// in between is a reason to stay: carried across, Exit took the new entry out with the window.
+    /// </summary>
+    [Test]
+    public async Task AnArrivalAfterTheQueueEmptiedKeepsTheWindow()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+        var settled = ViewerSession.Settle(state, state.Queue[0].Key);
+        await Assert.That(settled.Exit).IsTrue();
+
+        var inline = ViewerSession.EnqueueInline(settled, Fixtures.Patch("OtherTests.cs", 7));
+        var tracked = ViewerSession.EnqueueTracked(settled, Fixtures.Move());
+
+        await Assert.That(inline.Queue).HasSingleItem();
+        await Assert.That(inline.Exit).IsFalse();
+        await Assert.That(tracked.Queue).HasSingleItem();
+        await Assert.That(tracked.Exit).IsFalse();
+    }
+
+    /// <summary>
+    /// Once the loop has committed to leaving, nothing joins the queue: the handler answering the
+    /// wire sees the state come back unchanged and refuses, rather than acknowledging something
+    /// that is about to leave with the process.
+    /// </summary>
+    [Test]
+    public async Task NothingJoinsAQueueThatHasCommittedToLeaving()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+        var closing = ViewerSession.CommitExit(ViewerSession.Settle(state, state.Queue[0].Key));
+        await Assert.That(closing.Closing).IsTrue();
+
+        await Assert.That(ViewerSession.EnqueueInline(closing, Fixtures.Patch("OtherTests.cs", 7))).IsSameReferenceAs(closing);
+        await Assert.That(ViewerSession.EnqueueTracked(closing, Fixtures.Move())).IsSameReferenceAs(closing);
+    }
+
+    /// <summary>
+    /// Only an Exit that is still standing commits: one an arrival has already cleared leaves the
+    /// window open.
+    /// </summary>
+    [Test]
+    public async Task AnArrivalBeforeTheCommitCancelsIt()
+    {
+        var state = Fixtures.Inline(Fixtures.Patch());
+        var settled = ViewerSession.Settle(state, state.Queue[0].Key);
+        var arrived = ViewerSession.EnqueueInline(settled, Fixtures.Patch("OtherTests.cs", 7));
+
+        await Assert.That(ViewerSession.CommitExit(arrived).Closing).IsFalse();
+    }
+
+    /// <summary>
     /// Owner-mode operations rebuild the inline queue from the display list, and tracked entries
     /// must never leak into it.
     /// </summary>
