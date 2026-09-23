@@ -430,7 +430,7 @@ public class SelectionTests
         var state = Drag(Fixtures.File("\U0001D400ab", "x"), PaneSide.Left, 0, 1, 0, 3);
 
         await Assert.That(Copy(state)).IsEqualTo("ab");
-        await Assert.That(ScreenBuilder.Build(state).Left.Rows[0].Selection).IsEqualTo(new SelectionSpan(1, 2));
+        await Assert.That(ScreenBuilder.Build(state).Left.Rows[0].Selection).IsEqualTo(new(1, 2));
     }
 
     /// <summary>

@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Reflection;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;

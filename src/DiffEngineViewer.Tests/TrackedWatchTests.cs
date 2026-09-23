@@ -182,7 +182,7 @@ public class TrackedWatchTests :
         var (temp, target) = Pair("Other.Test");
         var seen = TrackedEntry.ForMove(temp, target);
         var state = Owned(seen).State;
-        File.WriteAllText(temp, "second run");
+        await File.WriteAllTextAsync(temp, "second run");
         var restaged = TrackedEntry.ForMove(temp, target);
         state = ViewerSession.EnqueueTracked(state, restaged);
 
@@ -201,8 +201,8 @@ public class TrackedWatchTests :
         var (temp, target) = Pair("Locked.Test");
         var host = Owned(TrackedEntry.ForMove(temp, target));
         var watch = new TrackedWatch(host);
-        File.WriteAllText(temp, "rewritten and then held");
-        using (new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.None))
+        await File.WriteAllTextAsync(temp, "rewritten and then held");
+        await using (new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             watch.Pump();
             var held = host.State;

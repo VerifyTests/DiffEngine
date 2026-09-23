@@ -1,5 +1,3 @@
-using System.Drawing.Text;
-
 /// <summary>
 /// The WinForms head's own behaviour, through a real form and canvas: where glyphs land, how big the
 /// first window is, input order, the context menu, modal loops, mouse capture and logoff.
@@ -58,7 +56,7 @@ public class FormsHeadTests
             rows);
 
         // Wide enough that column 66 is on screen in a pane: at 1100 each pane holds about 52.
-        using var host = new CanvasHost(2000, 700);
+        using var host = new CanvasHost(2000);
         var bitmap = host.Draw(ScreenBuilder.Build(state));
         var highlight = Bounds(bitmap, _ => _.ToArgb() == Palette.Selection.ToArgb());
         await Assert.That(highlight).IsNotNull();
@@ -142,8 +140,8 @@ public class FormsHeadTests
         {
             var received = Path.Combine(directory, $"Test{index}.received.png");
             var verified = Path.Combine(directory, $"Test{index}.verified.png");
-            File.WriteAllBytes(received, SamplePng.Build(400, 300, 200, 40, 40));
-            File.WriteAllBytes(verified, SamplePng.Build(400, 300, 40, 40, 200));
+            await File.WriteAllBytesAsync(received, SamplePng.Build(400, 300, 200, 40, 40));
+            await File.WriteAllBytesAsync(verified, SamplePng.Build(400, 300, 40, 40, 200));
             var entry = QueueEntry.ForFiles(received, verified, FileSide.Read(received), FileSide.Read(verified));
             var state = ViewerSession.Resize(
                 ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File, columns, rows), entry),
@@ -177,9 +175,9 @@ public class FormsHeadTests
 
         await Assert.That(host.Canvas.Composed()).IsEqualTo(2);
         // The left picture's colour, which only a drawn picture puts on the canvas
-        var red = Bounds(second, _ => _.R == 198 && _.G == 64 && _.B == 64);
+        var red = Bounds(second, _ => _ is {R: 198, G: 64, B: 64});
         await Assert.That(red).IsNotNull();
-        await Assert.That(Bounds(first, _ => _.R == 198 && _.G == 64 && _.B == 64)).IsEqualTo(red);
+        await Assert.That(Bounds(first, _ => _ is {R: 198, G: 64, B: 64})).IsEqualTo(red);
     }
 
     /// <summary>
@@ -220,10 +218,10 @@ public class FormsHeadTests
     [Test]
     public async Task TheFirstWindowIsSizedForTheDisplay()
     {
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 96, new(1920, 1040))).IsEqualTo(new Size(1100, 700));
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 192, new(3840, 2100))).IsEqualTo(new Size(2200, 1400));
+        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 96, new(1920, 1040))).IsEqualTo(new(1100, 700));
+        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 192, new(3840, 2100))).IsEqualTo(new(2200, 1400));
         // 1050 tall at 150% does not fit a 1080p working area, and is kept inside it
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 144, new(1920, 1040))).IsEqualTo(new Size(1650, 936));
+        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 144, new(1920, 1040))).IsEqualTo(new(1650, 936));
     }
 
     /// <summary>

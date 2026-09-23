@@ -42,12 +42,12 @@ public class CellGridTests
     [Test]
     public async Task EveryOtherClusterIsASegmentOfItsOwn() =>
         await Assert.That(CellGrid.Segments("ab中ćd"))
-            .IsEquivalentTo(
+            .IsEquivalentTo<IReadOnlyList<CellGrid.Segment>, CellGrid.Segment>(
             [
-                new CellGrid.Segment(0, 2, 0),
-                new CellGrid.Segment(2, 1, 2),
-                new CellGrid.Segment(3, 2, 4),
-                new CellGrid.Segment(5, 1, 5)
+                new(0, 2, 0),
+                new(2, 1, 2),
+                new(3, 2, 4),
+                new(5, 1, 5)
             ]);
 
     [Test]

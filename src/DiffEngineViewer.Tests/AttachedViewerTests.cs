@@ -584,7 +584,7 @@ public class AttachedViewerTests
         await File.WriteAllTextAsync(file, "locked away");
         try
         {
-            using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+            await using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
             if (!ViewerServer.TryBind(0, out var server))
             {
                 throw new("Could not bind an ephemeral port.");

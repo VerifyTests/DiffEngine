@@ -32,14 +32,12 @@ static class ViewerLauncher
             // Bytes rather than text, so no preamble: a BOM is exactly what a .NET Framework
             // writer used to put in front of a payload on stdin
             var bytes = Encoding.UTF8.GetBytes(payload);
-            using (var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true))
-            {
+            using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true);
 #if NET6_0_OR_GREATER
-                await stream.WriteAsync(bytes.AsMemory(), cancel);
+            await stream.WriteAsync(bytes.AsMemory(), cancel);
 #else
-                await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
+            await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
 #endif
-            }
         }
         catch (Exception exception)
             when (exception is IOException or UnauthorizedAccessException)

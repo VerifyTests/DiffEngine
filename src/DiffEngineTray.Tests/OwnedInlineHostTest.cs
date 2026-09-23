@@ -763,7 +763,7 @@ public class OwnedInlineHostTest
         held.WaitUntilHeld();
 
         var partway = owner.Send(new(ViewerVerb.ListFull));
-        await Assert.That(partway.Progress).IsEqualTo(new AcceptProgress(1, 2));
+        await Assert.That(partway.Progress).IsEqualTo(new(1, 2));
         await Assert.That(partway.Items).HasSingleItem();
 
         held.Release();
@@ -795,7 +795,7 @@ public class OwnedInlineHostTest
 
         // Snapshots first, so none of the files has been dealt with while one is applying, and
         // the total still counts them
-        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(0, 3));
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new(0, 3));
 
         held.Release();
         await Assert.That((await accepting).Message).IsEqualTo("Accepted 1, plus 2 files");
@@ -892,7 +892,7 @@ public class OwnedInlineHostTest
         var accepting = Task.Run(() => owner.Host.AcceptAll(out _, out _));
         held.WaitUntilHeld();
 
-        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new AcceptProgress(0, 1));
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Progress).IsEqualTo(new(0, 1));
 
         held.Release();
         await Assert.That(await accepting).IsTrue();

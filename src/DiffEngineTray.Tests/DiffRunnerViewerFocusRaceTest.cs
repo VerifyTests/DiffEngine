@@ -27,12 +27,12 @@
 public class DiffRunnerViewerFocusRaceTest
 {
     [Test]
-    public async Task A_sync_launch_raises_a_window_for_a_move_the_tray_has_not_tracked() =>
-        await AssertRaisesAWindow(_ => Task.FromResult(DiffRunner.Launch(Viewer(), _.Temp, _.Target)));
+    public Task A_sync_launch_raises_a_window_for_a_move_the_tray_has_not_tracked() =>
+        AssertRaisesAWindow(_ => Task.FromResult(DiffRunner.Launch(Viewer(), _.Temp, _.Target)));
 
     [Test]
-    public async Task An_async_launch_raises_a_window_for_a_move_the_tray_has_not_tracked() =>
-        await AssertRaisesAWindow(_ => DiffRunner.LaunchAsync(Viewer(), _.Temp, _.Target));
+    public Task An_async_launch_raises_a_window_for_a_move_the_tray_has_not_tracked() =>
+        AssertRaisesAWindow(_ => DiffRunner.LaunchAsync(Viewer(), _.Temp, _.Target));
 
     static async Task AssertRaisesAWindow(Func<Fixture, Task<LaunchResult>> launch)
     {
@@ -65,7 +65,7 @@ public class DiffRunnerViewerFocusRaceTest
         await using var fixture = new Fixture();
         fixture.Track();
 
-        var result = DiffRunner.Launch(Viewer(), fixture.Temp, fixture.Target);
+        var result = await DiffRunner.LaunchAsync(Viewer(), fixture.Temp, fixture.Target);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(fixture.Launches).IsEqualTo(1);
@@ -132,8 +132,8 @@ public class DiffRunnerViewerFocusRaceTest
         public string? TrackedExe() =>
             tracker.Moves.Single().Exe;
 
-        public async Task<MovePayload> PiperMove() =>
-            await move.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        public Task<MovePayload> PiperMove() =>
+            move.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         static int FreePort()
         {

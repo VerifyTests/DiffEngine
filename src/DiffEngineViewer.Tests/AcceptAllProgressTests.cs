@@ -209,7 +209,7 @@ public class AcceptAllProgressTests
         await Assert.That(EnabledQueueButtons(screen)).IsEmpty();
 
         // And the listing after the batch is what gives the window back
-        var after = ViewerSession.Sync(state, Fixtures.Pending(Fixtures.Patch()), [], "Accepted 8", null);
+        var after = ViewerSession.Sync(state, Fixtures.Pending(Fixtures.Patch()), [], "Accepted 8");
         await Assert.That(ScreenBuilder.Build(after).Status).IsEqualTo("Accepted 8");
     }
 
@@ -291,7 +291,7 @@ public class AcceptAllProgressTests
         held.WaitUntilHeld();
 
         var partway = owner.Send(new(ViewerVerb.ListFull));
-        await Assert.That(partway.Progress).IsEqualTo(new AcceptProgress(1, 2));
+        await Assert.That(partway.Progress).IsEqualTo(new(1, 2));
         await Assert.That(partway.Items).HasSingleItem();
         await Assert.That(ScreenBuilder.Build(owner.Host.State).Status).IsEqualTo("Accepting 2 of 2");
 

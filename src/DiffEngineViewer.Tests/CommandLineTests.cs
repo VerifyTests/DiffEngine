@@ -24,7 +24,7 @@ public class CommandLineTests
     public async Task APayloadFileIsReadAndDeleted()
     {
         var file = Path.Combine(Path.GetTempPath(), $"CommandLineTests_{Guid.NewGuid():N}.inlinepatch");
-        await File.WriteAllBytesAsync(file, Encoding.UTF8.GetBytes("payload ☂"));
+        await File.WriteAllBytesAsync(file, "payload ☂"u8.ToArray());
 
         var payload = ViewerProgram.ReadPayload(file);
 

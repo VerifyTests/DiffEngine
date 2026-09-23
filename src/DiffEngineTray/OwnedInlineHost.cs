@@ -421,7 +421,7 @@ sealed class OwnedInlineHost :
     {
         (int accepted, int kept)? tracked;
         string message;
-        var held = false;
+        bool held;
         lock (accepting)
         {
             var moves = TrackedFiles?.Moves().Count ?? 0;

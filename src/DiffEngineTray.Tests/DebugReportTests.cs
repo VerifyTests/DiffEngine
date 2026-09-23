@@ -52,7 +52,7 @@ public class DebugReportTests :
         // A file that exists, as a pending delete's is. The tracker's scan drops a delete whose file
         // has gone, every two seconds, and on a slow runner that scan landed mid test
         var extra = Path.Combine(directory, "Extra.verified.txt");
-        File.WriteAllText(extra, "");
+        await File.WriteAllTextAsync(extra, "");
         tracker.AddDelete(extra);
         tracker.AddMove(
             received,

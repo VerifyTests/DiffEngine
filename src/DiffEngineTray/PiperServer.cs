@@ -23,14 +23,14 @@ static class PiperServer
     /// Binds and serves, with a bind that fails faulting the task. For the tests; the tray binds
     /// with <see cref="TryBind"/> first, so it can say so.
     /// </summary>
-    public static async Task Start(
+    public static Task Start(
         Action<MovePayload> move,
         Action<DeletePayload> delete,
         Cancel cancel = default)
     {
         var listener = new TcpListener(IPAddress.Loopback, PiperClient.Port);
         listener.Start();
-        await Serve(listener, move, delete, cancel);
+        return Serve(listener, move, delete, cancel);
     }
 
     /// <summary>
