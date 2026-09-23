@@ -193,6 +193,18 @@ static class ViewerSession
         var entries = new List<QueueEntry>(Project(state, pending));
         entries.AddRange(changes);
         var queue = QueueProjection.Order(entries);
+
+        // A listing that changed nothing, which is most of them at five a second. Project and
+        // ReadChanges hand back the same entries when nothing moved, so the list can be compared
+        // by reference. Replacing it anyway cleared the open menu on every poll, so an attached
+        // viewer's right-click menu closed within 200ms and a click on it went nowhere.
+        if (message is null &&
+            progress == state.OwnerProgress &&
+            SameEntries(queue, state.Queue))
+        {
+            return state;
+        }
+
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
         var next = state with
@@ -203,8 +215,9 @@ static class ViewerSession
             OwnerProgress = progress,
             // Nothing left to show, and this window is not what is holding the queue.
             Exit = queue.Count == 0,
-            // The open menu indexes the queue it was opened over, which was just replaced.
-            Menu = null
+            // The open menu indexes the queue it was opened over. Kept when the entries are the
+            // same ones in the same places, since its indexes still mean what they did.
+            Menu = SameEntries(queue, state.Queue) ? state.Menu : null
         };
 
         if (selected < 0)
@@ -1383,6 +1396,24 @@ static class ViewerSession
         {
             if (!left[index].Patch.Matches(right[index].Patch) ||
                 !left[index].Origins.SequenceEqual(right[index].Origins))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static bool SameEntries(IReadOnlyList<QueueEntry> left, IReadOnlyList<QueueEntry> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!ReferenceEquals(left[index], right[index]))
             {
                 return false;
             }

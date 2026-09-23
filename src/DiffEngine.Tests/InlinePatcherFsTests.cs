@@ -285,6 +285,20 @@ public class InlinePatcherFsTests
               """);
 
     // A call above TestB's declaration is not inside TestB, whatever the hint says, so the
+    // The usual way an F# test is named. Judged from the name, the backtick in front of it is no
+    // keyword, so the member was never found and the search ran across the whole file
+    [Test]
+    public async Task MemberNameBoundsTheSearchForABacktickedName()
+    {
+        var source = Source("module Tests\n\nlet ``test a`` () =\n    Verifier.Verify(a).Snapshot(\"dup\").ToTask()\n\nlet ``test b`` () =\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()\n");
+
+        var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "dup", memberName: "test b");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("Verify(a).Snapshot(\"dup\")");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
+
     // identical snapshot in the test above is not even a candidate
     [Test]
     public async Task MemberNameBoundsTheSearch()

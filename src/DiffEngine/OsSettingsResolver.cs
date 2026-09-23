@@ -11,17 +11,43 @@ static class OsSettingsResolver
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            envPaths = pathVariable.Split(';');
+            envPaths = ParsePath(pathVariable, ';');
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
                  RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            envPaths = pathVariable.Split(':');
+            envPaths = ParsePath(pathVariable, ':');
         }
         else
         {
             envPaths = [];
         }
+    }
+
+    /// <summary>
+    /// PATH as directories that can be combined with a file name. Windows allows an entry in
+    /// quotes, and some installers write them that way, and .NET Framework's Path.Combine throws
+    /// on the quote - out of this type's static constructor, so every tool lookup in the process
+    /// failed for good. Quotes and surrounding space are taken off, and whatever still holds a
+    /// character no path can is dropped, along with empty entries.
+    /// </summary>
+    internal static string[] ParsePath(string value, char separator)
+    {
+        var invalid = Path.GetInvalidPathChars();
+        var paths = new List<string>();
+        foreach (var entry in value.Split(separator))
+        {
+            var path = entry.Trim().Trim('"').Trim();
+            if (path.Length == 0 ||
+                path.IndexOfAny(invalid) >= 0)
+            {
+                continue;
+            }
+
+            paths.Add(path);
+        }
+
+        return paths.ToArray();
     }
 
     public static bool Resolve(

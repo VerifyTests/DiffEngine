@@ -86,6 +86,13 @@ static class InlinePatcher
         var names = new List<string>(builtInEntryPoints);
         foreach (var name in declared)
         {
+            // An empty name matches everywhere and advances nothing, so the search for it never
+            // ended - while holding the file's mutex. "VerifyDocx," arrives as one from a payload
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
             if (!names.Contains(name, StringComparer.Ordinal))
             {
                 names.Add(name);
@@ -969,7 +976,7 @@ static class InlinePatcher
                 continue;
             }
 
-            if (scan.IsDeclaration(index) &&
+            if (scan.IsDeclaration(DeclarationStart(source, index)) &&
                 LeadingWhitespace(source, lineStarts, index).Length <= memberIndent)
             {
                 return LineOf(lineStarts, index);
@@ -1096,7 +1103,7 @@ static class InlinePatcher
             if (scan.IsCode(index) &&
                 StartsToken(source, scan, index) &&
                 (end >= source.Length || !scan.IsIdentifierChar(source[end])) &&
-                scan.IsDeclaration(index))
+                scan.IsDeclaration(DeclarationStart(source, index)))
             {
                 var line = LineOf(lineStarts, index);
                 if (best < 0 ||
@@ -1110,6 +1117,24 @@ static class InlinePatcher
         }
 
         return best < 0 ? null : best;
+    }
+
+    /// <summary>
+    /// Where a declared name starts for the purpose of asking what declares it: before the opening
+    /// backticks of an F# <c>``test name``</c>, the usual way an F# test is named. Judged from the
+    /// name itself, the backtick in front of it is not a keyword, so no such member was ever found
+    /// and the search it should have bounded ran across the whole file.
+    /// </summary>
+    static int DeclarationStart(string source, int nameStart)
+    {
+        if (nameStart >= 2 &&
+            source[nameStart - 1] == '`' &&
+            source[nameStart - 2] == '`')
+        {
+            return nameStart - 2;
+        }
+
+        return nameStart;
     }
 
     static bool StartsToken(string source, SourceScan scan, int index) =>

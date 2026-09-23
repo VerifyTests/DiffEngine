@@ -81,7 +81,7 @@ public static class InlineApplier
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
-            using var mutex = new Mutex(false, MutexName(normalizedPath));
+            using var mutex = OpenMutex(MutexName(normalizedPath));
             var owned = false;
             try
             {
@@ -395,6 +395,32 @@ public static class InlineApplier
         }
 
         return (new UTF8Encoding(false, true), 0);
+    }
+
+    /// <summary>
+    /// Machine wide off Windows. A name with no prefix is session scoped, and on Linux and macOS a
+    /// session is a POSIX session - every terminal has its own - so an IDE applying a staged patch
+    /// and a viewer started from a terminal's test run each held a mutex of their own, both
+    /// rewrote the file, and one literal was lost. On Windows the session is the logon session,
+    /// which every process involved already shares. Falls back to the session scoped name where
+    /// the global namespace cannot be used.
+    /// </summary>
+    static Mutex OpenMutex(string name)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return new(false, name);
+        }
+
+        try
+        {
+            return new(false, $@"Global\{name}");
+        }
+        catch (Exception exception)
+            when (exception is UnauthorizedAccessException or IOException)
+        {
+            return new(false, name);
+        }
     }
 
     static string MutexName(string normalizedPath)

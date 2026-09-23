@@ -122,31 +122,32 @@ class MessageHandler(
 
     (bool ok, string? message) Act(string key, CommandKind command, string? origin = null)
     {
-        var index = IndexOf(host.State, key);
-        if (index < 0)
-        {
-            return (false, null);
-        }
-
-        // Refused before anything moves, and as a wire error, matching the tray owner: an
-        // un-targeted accept of a conflicted entry has no honest way to pick a side.
-        var entry = host.State.Queue[index];
-        if (command == CommandKind.Accept &&
-            origin is null &&
-            entry.Conflicted)
-        {
-            return (false, new PendingInline(entry.Variants, entry.Status).ConflictRefusal);
-        }
-
+        // Looked up and refused inside the same mutation that acts, rather than on a read taken
+        // before it: the queue can change in between, which threw on an index that had gone, and
+        // let an accept through on an entry a second framework had just made a conflict of.
+        var found = false;
+        string? refusal = null;
         var state = host.Mutate(_ =>
         {
-            var found = IndexOf(_, key);
-            if (found < 0)
+            var index = IndexOf(_, key);
+            if (index < 0)
             {
                 return _;
             }
 
-            var selected = ViewerSession.Apply(_, Command.Select(found));
+            found = true;
+            // Refused before anything moves, and as a wire error, matching the tray owner: an
+            // un-targeted accept of a conflicted entry has no honest way to pick a side.
+            var entry = _.Queue[index];
+            if (command == CommandKind.Accept &&
+                origin is null &&
+                entry.Conflicted)
+            {
+                refusal = new PendingInline(entry.Variants, entry.Status).ConflictRefusal;
+                return _;
+            }
+
+            var selected = ViewerSession.Apply(_, Command.Select(index));
             if (origin is not null)
             {
                 selected = ViewerSession.SelectVariant(selected, origin);
@@ -154,6 +155,16 @@ class MessageHandler(
 
             return ViewerSession.Apply(selected, command, actions);
         });
+
+        if (!found)
+        {
+            return (false, null);
+        }
+
+        if (refusal is not null)
+        {
+            return (false, refusal);
+        }
 
         return (true, state.Message);
     }
