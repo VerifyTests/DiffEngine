@@ -63,6 +63,11 @@ final class Renderer {
         var image: CGImage?
         var modified: Date
         var length: UInt64
+
+        /// The picture scaled down to the device pixels it last filled. Drawing a large picture
+        /// scaled costs a resample of every source pixel, and a window showing one did that on
+        /// every redraw; this is a copy.
+        var scaled: CGImage?
     }
 
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
@@ -402,9 +407,10 @@ final class Renderer {
 
         checker(bounds, in: context)
 
+        let device = context.convertToDeviceSpace(bounds).size
         context.saveGState()
         context.interpolationQuality = .high
-        context.draw(picture, in: bounds)
+        context.draw(fitted(pane.imagePath, picture, device: device), in: bounds)
         context.restoreGState()
 
         // An outline, so a picture whose edges are the colour of the pane still has visible extent.
@@ -436,6 +442,86 @@ final class Renderer {
             y += Renderer.checkerSize
             row += 1
         }
+    }
+
+    /// `picture` scaled down to `device` pixels, kept until the size or the picture changes, or
+    /// `picture` itself where it is not being scaled down: drawing at or above its own size costs
+    /// little, and drawing the original there leaves what a capture shows exactly as it was.
+    private func fitted(_ path: String, _ picture: CGImage, device: CGSize) -> CGImage {
+        let width = Int(abs(device.width).rounded())
+        let height = Int(abs(device.height).rounded())
+        guard width > 0,
+              height > 0,
+              width < picture.width || height < picture.height
+        else {
+            return picture
+        }
+
+        if let scaled = pictures[path]?.scaled,
+           scaled.width == width,
+           scaled.height == height {
+            return scaled
+        }
+
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let bitmap = CGContext(
+                  data: nil,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: 8,
+                  bytesPerRow: 0,
+                  space: space,
+                  bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        else {
+            return picture
+        }
+
+        bitmap.interpolationQuality = .high
+        bitmap.draw(picture, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let scaled = bitmap.makeImage() else {
+            return picture
+        }
+
+        pictures[path]?.scaled = scaled
+        return scaled
+    }
+
+    /// Whether a picture `frame` shows is not the one last drawn: its file was rewritten, has
+    /// appeared, or has gone. `Runtime.present` redraws on this as well as on a changed frame,
+    /// since a re-run can rewrite a received image with the same size and dimensions, which is an
+    /// identical frame.
+    func picturesChanged(_ frame: Frame) -> Bool {
+        for pane in [frame.left, frame.right] {
+            guard !pane.imagePath.isEmpty,
+                  pane.imageWidth > 0,
+                  pane.imageHeight > 0
+            else {
+                continue
+            }
+
+            let cached = pictures[pane.imagePath]
+            let attributes = try? FileManager.default.attributesOfItem(atPath: pane.imagePath)
+            guard let modified = attributes?[.modificationDate] as? Date,
+                  let length = attributes?[.size] as? UInt64
+            else {
+                // Gone: worth a redraw only to take away what was drawn
+                if cached != nil {
+                    return true
+                }
+
+                continue
+            }
+
+            guard let cached else {
+                return true
+            }
+
+            if cached.modified != modified || cached.length != length {
+                return true
+            }
+        }
+
+        return false
     }
 
     private func picture(_ path: String) -> CGImage? {

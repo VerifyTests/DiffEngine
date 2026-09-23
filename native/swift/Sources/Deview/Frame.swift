@@ -5,7 +5,9 @@ import Foundation
 ///
 /// Copied rather than read in place, because the pointers in `DeviewScreen` are only valid for the
 /// duration of the call that carried them, and the view redraws whenever AppKit says so.
-struct Frame {
+///
+/// Equatable so a frame that changes nothing is not drawn: see `Runtime.present`.
+struct Frame: Equatable {
     var title = ""
     var subtitle = ""
     var status = ""
@@ -24,7 +26,7 @@ struct Frame {
     var menu: [String] = []
     var menuRow: Int32 = -1
 
-    struct Row {
+    struct Row: Equatable {
         var kind: Int32 = 0
         var lineNumber: Int32 = -1
         var text = ""
@@ -37,7 +39,7 @@ struct Frame {
         var selectLength: Int32 = 0
     }
 
-    struct Pane {
+    struct Pane: Equatable {
         var header = ""
         var rows: [Row] = []
 
@@ -54,7 +56,7 @@ struct Frame {
         var imageHeight: Int32 = 0
     }
 
-    struct QueueItem {
+    struct QueueItem: Equatable {
         var label = ""
         var selected = false
         var failed = false
@@ -64,7 +66,7 @@ struct Frame {
         var tooltip = ""
     }
 
-    struct Button {
+    struct Button: Equatable {
         var label = ""
         var enabled = false
     }

@@ -37,6 +37,13 @@ final class ViewerView: NSView, NSViewToolTipOwner {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// A move to a display of another scale changes the device pixels a picture fills, and so
+    /// the scaled copy the renderer keeps of it, under a frame that has not changed.
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        needsDisplay = true
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else {
             return
