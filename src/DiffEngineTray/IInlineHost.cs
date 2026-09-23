@@ -29,6 +29,7 @@ interface IInlineHost
     /// <summary>
     /// True when nothing is pending afterwards.
     /// </summary>
+    /// <param name="message">What the owner said the sweep did.</param>
     /// <param name="refused">
     /// A snapshot this sweep tried was not written, or the owner could not be asked. What holds
     /// the tray's pending deletes back, since a snapshot moving inline arrives as a patch plus a

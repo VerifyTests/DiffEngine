@@ -291,6 +291,8 @@ public static class InlineApplier
     static void WriteThroughTemporary(string fullPath, byte[] output) =>
         WriteThroughTemporary(fullPath, output, static (temporary, destination) => File.Replace(temporary, destination, null));
 
+    /// <param name="fullPath">The source file, which the patched bytes replace.</param>
+    /// <param name="output">The whole patched file, preamble included.</param>
     /// <param name="replace">
     /// The swap. Supplied by the tests, because the failure it has to survive is one ReplaceFile
     /// produces on its own schedule - an antivirus or sync client holding the file it was just
