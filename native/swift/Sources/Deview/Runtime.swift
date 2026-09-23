@@ -35,6 +35,9 @@ final class Runtime {
     var input = DeviewInput()
     var initialised = false
 
+    /// Keeps App Nap off for as long as the runtime is open: see `open`.
+    private var activity: NSObjectProtocol?
+
     private init() {
         resetInput()
     }
@@ -48,6 +51,16 @@ final class Runtime {
         size = CGSize(width: CGFloat(width), height: CGFloat(height))
         self.title = title
         initialised = true
+
+        // Out of App Nap for as long as this runs. A napped process has its timers coalesced and
+        // its priority lowered, and this one is a loop driven from outside, waiting on
+        // nextEvent(until:) a frame at a time, with a socket listener beside it: covered, it could
+        // be slow to answer a failing test's inline send and slower to bring its window forward,
+        // and hidden while it owns the queue it still has to answer every send promptly. Idle
+        // sleep stays allowed. The loop only redraws on a change, so staying awake costs a pump.
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Reviewing snapshots and answering the queue")
 
         // A hidden start is capture only, and capture draws into a bitmap of its own making. Not
         // touching AppKit at all in that case is what lets the pixel tests run: NSWindow may only
@@ -287,6 +300,11 @@ final class Runtime {
     }
 
     func shutdown() {
+        if let activity {
+            ProcessInfo.processInfo.endActivity(activity)
+            self.activity = nil
+        }
+
         window?.delegate = nil
         window?.orderOut(nil)
         window?.close()
