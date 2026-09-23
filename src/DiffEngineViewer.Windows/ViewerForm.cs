@@ -357,6 +357,12 @@ sealed class ViewerForm : Form
     }
 
     /// <summary>
+    /// See <see cref="ViewerCanvas.LoadPictures" />.
+    /// </summary>
+    public void LoadPictures() =>
+        canvas.LoadPictures();
+
+    /// <summary>
     /// The bar follows the model rather than owning the position, so it agrees with the keyboard
     /// and the wheel. The left pane, because that is the row count the session clamps against.
     /// </summary>
@@ -414,6 +420,14 @@ sealed class ViewerForm : Form
             var button = new FormsButton
             {
                 AutoSize = true,
+                // Sized to the label it has now. The pool relabels its buttons as the screen
+                // changes, and a button's default, GrowOnly, kept each one as wide as the longest
+                // label it had ever held: the footer's layout was the history of the session, and
+                // the pixel baselines were the history of the test run.
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                // The size a button has by default, which GrowOnly never went under, so a short
+                // label does not make a button smaller than it always was
+                MinimumSize = LogicalToDeviceUnits(new Size(75, 23)),
                 Margin = new(0, 0, 6, 0),
                 // Standard rather than System: WinForms draws these itself, including in dark
                 // mode, so their pixels are pinned to the .NET version rather than to whatever

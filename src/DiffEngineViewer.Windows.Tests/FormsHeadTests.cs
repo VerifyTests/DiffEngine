@@ -120,6 +120,57 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// Through the real canvas: a pair of pictures painted twice at one size is composed once, and
+    /// the second paint copies it. Both paints show the pictures.
+    /// </summary>
+    [Test]
+    public async Task RepaintingAPictureComposesItOnce()
+    {
+        using var host = new CanvasHost();
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Images(), columns, rows));
+        host.Canvas.Draw(screen);
+        host.Canvas.LoadPictures();
+
+        var first = host.Draw(screen);
+        var second = host.Draw(screen);
+
+        await Assert.That(host.Canvas.Composed()).IsEqualTo(2);
+        // The left picture's colour, which only a drawn picture puts on the canvas
+        var red = Bounds(second, _ => _.R == 198 && _.G == 64 && _.B == 64);
+        await Assert.That(red).IsNotNull();
+        await Assert.That(Bounds(first, _ => _.R == 198 && _.G == 64 && _.B == 64)).IsEqualTo(red);
+    }
+
+    /// <summary>
+    /// The footer's buttons are pooled and relabelled as the screen changes, and each is sized to
+    /// the label it has now. At WinForms' default, GrowOnly, a button stayed as wide as the longest
+    /// label it had ever held, so the footer was the history of the session - and the pixel
+    /// baselines the history of the test run, which moved whenever a test was added.
+    /// </summary>
+    [Test]
+    public async Task AFooterButtonIsSizedToItsCurrentLabel()
+    {
+        using var host = new FormHost(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)));
+        host.Frame();
+        var button = FooterButtons(host.Form)[4];
+        var before = (button.Text, button.Width);
+
+        host.Form.Apply(ScreenBuilder.Build(ViewerSession.Apply(host.State, CommandKind.ToggleMinimal)));
+        var after = (button.Text, button.Width);
+
+        Console.WriteLine($"{before} then {after}");
+        await Assert.That(before.Text).IsEqualTo("Changes only");
+        await Assert.That(after.Text).IsEqualTo("All lines");
+        await Assert.That(after.Width).IsLessThan(before.Width);
+        await Assert.That(after.Width).IsGreaterThanOrEqualTo(button.MinimumSize.Width);
+    }
+
+    static List<System.Windows.Forms.Button> FooterButtons(ViewerForm form) =>
+        ((IList) typeof(ViewerForm).GetField("pool", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form)!)
+        .Cast<System.Windows.Forms.Button>()
+        .ToList();
+
+    /// <summary>
     /// The default 1100 by 700 window at the common scales, through the canvas's own layout
     /// code with the cell MonoFont measures at that scale and the chrome the form takes there: the
     /// scrollbar's system width and the footer's LogicalToDeviceUnits(40). The window itself stays
@@ -917,6 +968,9 @@ static class CanvasReflection
 
     public static (int Left, int Half, int Width) Panes(this ViewerCanvas canvas) =>
         ((int, int, int)) typeof(ViewerCanvas).GetMethod("Panes", flags)!.Invoke(canvas, null)!;
+
+    public static int Composed(this ViewerCanvas canvas) =>
+        ((ImageCache) typeof(ViewerCanvas).GetField("images", flags)!.GetValue(canvas)!).Composed;
 
     public static (int Count, long Bytes) CachedImages(this ViewerCanvas canvas)
     {
