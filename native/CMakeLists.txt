@@ -30,9 +30,38 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
+# raylib 6.0 reads every SUPPORT_ flag in its config.h into an option that defaults to ON, the ones
+# config.h defines as 0 included (raysan5/raylib#5844, fixed after 6.0), and CUSTOMIZE_BUILD skips
+# config.h's own values. So each of those is on unless it is switched off here.
+# SUPPORT_CUSTOM_FRAME_CONTROL was: EndDrawing then never put a frame on the screen, never read
+# input and never waited for the next frame, so the Linux window stayed blank, took no keys and
+# spun a core. A capture draws into a texture and never gets that far, which is why the pixel
+# snapshots passed throughout; PixelTests.PresentWaitsForTheNextFrame is what notices. The busy
+# wait loop was on the same way, and would have spun through the whole of every frame's wait once
+# there was one. The rest are formats and features nothing here uses.
+foreach(flag IN ITEMS
+    SUPPORT_CUSTOM_FRAME_CONTROL
+    SUPPORT_BUSY_WAIT_LOOP
+    SUPPORT_GPU_SKINNING
+    SUPPORT_FILEFORMAT_TGA
+    SUPPORT_FILEFORMAT_PSD
+    SUPPORT_FILEFORMAT_HDR
+    SUPPORT_FILEFORMAT_PIC
+    SUPPORT_FILEFORMAT_PNM
+    SUPPORT_FILEFORMAT_KTX
+    SUPPORT_FILEFORMAT_ASTC
+    SUPPORT_FILEFORMAT_PKM
+    SUPPORT_FILEFORMAT_PVR
+    SUPPORT_FILEFORMAT_BDF
+    SUPPORT_FILEFORMAT_FLAC)
+  set(${flag} OFF CACHE BOOL "" FORCE)
+endforeach()
 # raylib spins for the last part of every frame by default, for timing precision nothing here
 # needs: most of a millisecond of a core per frame, for as long as the viewer is open.
 set(SUPPORT_PARTIALBUSY_WAIT_LOOP OFF CACHE BOOL "" FORCE)
+# F12 saves a screenshot into the working directory, which is wherever the test run that started
+# the viewer was launched from. Unreachable while nothing read input; reachable from here on.
+set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
 set(SUPPORT_MODULE_RMODELS OFF CACHE BOOL "" FORCE)
 # The formats the viewer compares as pictures and raylib can decode. WebP and ICO are also

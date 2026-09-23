@@ -183,6 +183,35 @@ public class PixelTests
     public Task Minimal() =>
         Capture(ViewerSession.Apply(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)), CommandKind.ToggleMinimal));
 
+    /// <summary>
+    /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
+    /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
+    /// deview_present did none of them - the window stayed blank and took no keys, and the loop
+    /// drew as fast as it could. A capture draws into a texture and never gets that far, so every
+    /// snapshot above kept passing. The wait is the one of the three that can be timed from here,
+    /// so it stands for all of them. Last in the order, so the frames it draws in the live context
+    /// come after every capture rather than between two of them.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 11)]
+    [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
+    public async Task PresentWaitsForTheNextFrame()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        // So the timing starts on a frame boundary
+        await Assert.That(window!.Present(screen)).IsTrue();
+
+        var watch = Stopwatch.StartNew();
+        for (var frame = 0; frame < 60; frame++)
+        {
+            window.Present(screen);
+        }
+
+        // Sixty frames at sixty a second. Unpaced, a bare loop ran at tens of thousands a second.
+        await Assert.That(watch.Elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
+    }
+
     static async Task Capture(SessionState state)
     {
         var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));

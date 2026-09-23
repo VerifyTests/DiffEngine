@@ -23,8 +23,8 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
   - Fix: `Failed or Capped` → `NoViewerFound`.
   - Related: `MaxInstance.Reached()` increments before `launch()` runs, so a launch that returns false still spends a slot.
 
-- [ ] **Committed Linux native binaries need glibc 2.38** (verified)
-  - **Workflow fixed, binaries not yet rebuilt:** the Linux jobs now build inside `quay.io/pypa/manylinux_2_28_$(uname -m)` via `native/build-linux.sh`, and a "Check glibc floor" step fails the job if `objdump -T` shows anything above `GLIBC_2.28`. Not run locally (no Docker running here). Pushing the workflow change triggers `build-native`, whose propose job opens the PR with the rebuilt `.so` files; tick this once that merges.
+- [x] **Committed Linux native binaries need glibc 2.38** (verified)
+  - **Fixed:** the Linux jobs build inside `quay.io/pypa/manylinux_2_28_$(uname -m)` via `native/build-linux.sh`, and a "Check glibc floor" step fails the job if `objdump -T` shows anything above `GLIBC_2.28`. The binaries rebuilt that way (#882) need at most `GLIBC_2.27` and link `libGL.so.1` rather than `libOpenGL.so.0` (`readelf -V`/`-d` in WSL).
   - Both `src/DiffEngineViewer.Linux/runtimes/linux-{x64,arm64}/native/libdiffengine_viewer.so` reference `GLIBC_2.38` (`__isoc23_sscanf`, `fmod`, `fmodf`), plus 2.35 and 2.34. They are built on `ubuntu-24.04` with no floor (`.github/workflows/build-native.yml:40`).
   - `dlopen` fails on Ubuntu 22.04 (2.35), Debian 12 (2.36), RHEL 8/9 and Amazon Linux 2023. CI only loads them on 24.04.
   - Fix: build in an old-glibc container (e.g. `quay.io/pypa/manylinux_2_28_*`) or with `zig cc -target x86_64-linux-gnu.2.28`, and fail the job if `objdump -T` shows a GLIBC version above the floor.
@@ -63,6 +63,13 @@ Findings from a review of `main` at 4244ebe6 (2026-09-23).
 
 
 ## Bugs
+
+- [x] **The Linux viewer never showed a frame or read input** (repro, found while verifying the items below)
+  - **Fixed:** `native/CMakeLists.txt` switches `SUPPORT_CUSTOM_FRAME_CONTROL` and `SUPPORT_BUSY_WAIT_LOOP` back off, with every other flag raylib's `config.h` defaults to 0. Test: `PixelTests.PresentWaitsForTheNextFrame`, which the Ubuntu job runs under xvfb against the renderer built from source.
+  - raylib 6.0's `cmake/ParseConfigHeader.cmake` turns every `#define SUPPORT_X <value>` in `config.h` into an option defaulting to ON, whatever the value (raysan5/raylib#5844 fixed it after 6.0), and `CUSTOMIZE_BUILD ON` skips `config.h`'s own values. The Linux configure output listed `SUPPORT_CUSTOM_FRAME_CONTROL=ON`, `SUPPORT_BUSY_WAIT_LOOP=ON` and every image format raylib has (build-native run 35812014703).
+  - With custom frame control, `EndDrawing` skips `SwapScreenBuffer`, the `SetTargetFPS` wait and `PollInputEvents`, the only callers of `glfwSwapBuffers` and `glfwPollEvents`, and `deview_present` calls none of them itself. Disassembly of both committed `.so` files shows neither has a call site. So the window never painted and ignored keys, mouse and its close button, while the managed loop, which relies on the present to pace it, spun; and it owned 3493 the whole time, accepting snapshots it could not show.
+  - Measured on the committed linux-x64 `.so` in WSL (python ctypes, hidden window): a bare `deview_present` loop ran at 41,659 fps across 11 cores.
+  - Every committed Linux binary since the first (#733) was built this way. The pixel snapshots never noticed, because `deview_capture` draws into a texture and never calls `EndDrawing`.
 
 - [x] **Attached viewer's right-click menu closes within 200 ms** (repro)
   - `src/DiffEngineViewer/ViewerSession.cs:189`: `Sync` always sets `Menu = null`. `OwnerLink.List` calls it on every poll (`src/DiffEngineViewer/Ipc/OwnerLink.cs:120`), `ViewerForm.ApplyMenu` then closes the popup, and a later click is dropped (`ViewerProgram.cs:385`). Every viewer is attached when the tray owns the queue, which is the default on Windows.
@@ -151,7 +158,8 @@ Tray
 
 Native
 
-- [ ] F12 in the Linux viewer writes `screenshotNNN.png` into the working directory (raylib `SUPPORT_SCREEN_CAPTURE` default; the string is in the committed `.so`). `set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
+- [x] F12 in the Linux viewer writes `screenshotNNN.png` into the working directory (raylib `SUPPORT_SCREEN_CAPTURE` default; the string is in the committed `.so`). `set(SUPPORT_SCREEN_CAPTURE OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
+  - **Fixed** with the frame control above (verified: `EndDrawing` takes `IsKeyPressed(KEY_F12)` to `TakeScreenshot` in the working directory). It could not fire while nothing polled input, and could as soon as something did.
 - [ ] Decoded image caches never evict on Linux (textures) or macOS (CGImages) (`native/src/deview.cpp:140,311-361`, `native/swift/Sources/Deview/Renderer.swift:60,436-452`).
 - [ ] macOS drag-select clamps to the renderer's capacity rather than the rows drawn, so an overshooting drag copies up to three unseen rows (`ViewerView.swift:199-207`).
 - [ ] Selection columns are UTF-16 units but the renderers treat them as glyph cells, so non-BMP characters shift the copy and can split a surrogate pair (`native/include/deview.h:61-69`, `SelectionText.cs`). Count in `Rune`s.
@@ -190,6 +198,7 @@ Library and inline
 - [ ] Windows image panes rescale from full resolution and redraw the checkerboard on every paint (11 to 40 ms per image), and decode on the UI thread (`ViewerCanvas.cs:385-420`, `ImageCache.cs:56-71`). Cache the composited scaled bitmap per path, stamp and size.
 - [x] All three heads lay out each row's full text though only about 35 cells fit (`ViewerCanvas.cs:503-508`, `src/DiffEngineViewer/Native/ScreenPayload.cs:164-177`); a 1 MB minified line costs about 0.8 s per paint on Windows. Truncate to the visible columns before drawing or marshalling.
 - [x] raylib busy-waits the last 5% of every frame: `set(SUPPORT_PARTIALBUSY_WAIT_LOOP OFF CACHE BOOL "" FORCE)` in `native/CMakeLists.txt`.
+  - That line alone changed nothing: `build-native` after #884 produced byte-identical binaries. The misparse behind "The Linux viewer never showed a frame" had `SUPPORT_BUSY_WAIT_LOOP` on too, which takes precedence and would have spun through the whole of every frame's wait once frame control ran it. Both are off now.
 - [x] `InlineStaging.Clear` walks the `obj` tree and re-reads and parses every staged `.inlinepatch` on each verification (`src/DiffEngine/Inline/InlineStaging.cs:94-192`). Cache per directory keyed on `LastWriteTimeUtc`.
 - [x] Tray: `SafeMove`'s 8 × 400 ms retry runs on the UI thread even for failures that cannot clear, such as a read-only target or a missing directory (`src/DiffEngineTray/Tracker.cs:535-585`, `FileEx.cs:73-90`). Retry only sharing violations.
 - [x] Tray: the 2 s scan re-reads every equal-size, different pair from scratch (`Tracker.cs:81-97`, `FileComparer.cs:18-57`). Cache length and write time with the last result.
