@@ -1,3 +1,5 @@
+using DiffPlex;
+using DiffPlex.Chunkers;
 using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
 
@@ -14,13 +16,21 @@ static class DiffRows
         // on indentation or a trailing space came back Unchanged on every row, so the panes drew no
         // markers, NextChange found nothing, and the reviewer was shown a failure with no visible
         // difference. Whitespace is exactly what the F# layout convention is about.
-        var model = SideBySideDiffBuilder.Diff(
+        var model = builder.BuildDiffModel(
             rightText,
             leftText,
-            ignoreWhiteSpace: false,
+            ignoreWhitespace: false,
             ignoreCase: false);
         return (Convert(model.NewText.Lines), Convert(model.OldText.Lines));
     }
+
+    /// <summary>
+    /// Lines chunked into lines, and each line's words into the whole line. The builder diffs the
+    /// words of every modified pair to fill SubPieces, which nothing here reads, and that pass
+    /// grows with the square of the line length - minified JSON, a base64 blob. A line that is its
+    /// own single word leaves the rows identical and the pass trivial.
+    /// </summary>
+    static readonly SideBySideDiffBuilder builder = new(Differ.Instance, LineChunker.Instance, LineChunker.Instance);
 
     static List<Row> Convert(List<DiffPiece> lines)
     {

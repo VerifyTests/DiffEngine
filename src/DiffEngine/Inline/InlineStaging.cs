@@ -166,7 +166,41 @@ public static class InlineStaging
         return staged.All(_ => _.Patch.LineHint == line);
     }
 
+    /// <summary>
+    /// Read again only when the directory has changed since. <see cref="Clear" /> runs once per
+    /// verification and used to read and parse every staged patch each time, so a run with a few
+    /// hundred staged was reading them a few hundred times over. Creating or deleting a trio is
+    /// what changes a directory's write time, and overwriting one keeps the name - which is derived
+    /// from the call site and framework that matching reads - so what is cached still matches.
+    /// </summary>
     static List<(string PatchPath, InlinePatch Patch)> ReadStaged(string directory)
+    {
+        DateTime written;
+        try
+        {
+            written = Directory.GetLastWriteTimeUtc(directory);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        if (stagedCache.TryGetValue(directory, out var cached) &&
+            cached.Written == written)
+        {
+            return cached.Patches;
+        }
+
+        var patches = ReadStagedFiles(directory);
+        stagedCache[directory] = (written, patches);
+        return patches;
+    }
+
+    static readonly ConcurrentDictionary<string, (DateTime Written, List<(string PatchPath, InlinePatch Patch)> Patches)> stagedCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    static List<(string PatchPath, InlinePatch Patch)> ReadStagedFiles(string directory)
     {
         var result = new List<(string, InlinePatch)>();
         string[] files;

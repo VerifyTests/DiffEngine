@@ -10,11 +10,7 @@ Payload:
 "ProcessId":10
 }
 
-Exception:
-System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
-   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
-   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
-   at System.Net.Sockets.TcpClient.CompleteConnectAsync(ValueTask task),
+Nothing is listening on the tray's port.,
   Failed to send payload to DiffEngineTray.
 
 Payload:
@@ -23,9 +19,5 @@ Payload:
 }
 
 
-Exception:
-System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
-   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
-   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
-   at System.Net.Sockets.TcpClient.CompleteConnectAsync(ValueTask task)
+Nothing is listening on the tray's port.
 ]

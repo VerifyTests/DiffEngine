@@ -82,10 +82,27 @@ class Tracker :
         {
             return;
         }
+        // A pair found different, and untouched since, is still different. The scan runs every two
+        // seconds and read both files through again each time, which for a few large same-size
+        // pairs - bitmaps, fixed-size data - was hundreds of megabytes a scan for as long as they
+        // stayed pending.
+        var stamp = Stamp(move);
+        if (stamp is not null &&
+            differing.TryGetValue(move.Temp, out var known) &&
+            known == stamp)
+        {
+            return;
+        }
+
         try
         {
             if (!await FileComparer.FilesAreEqual(move.Temp, move.Target))
             {
+                if (stamp is not null)
+                {
+                    differing[move.Temp] = stamp.Value;
+                }
+
                 return;
             }
         }
@@ -97,6 +114,23 @@ class Tracker :
         }
 
         RemoveAndKill(pair.Value);
+    }
+
+    readonly ConcurrentDictionary<string, (long, DateTime, long, DateTime)> differing = new(StringComparer.OrdinalIgnoreCase);
+
+    static (long, DateTime, long, DateTime)? Stamp(TrackedMove move)
+    {
+        try
+        {
+            var temp = new FileInfo(move.Temp);
+            var target = new FileInfo(move.Target);
+            return (temp.Length, temp.LastWriteTimeUtc, target.Length, target.LastWriteTimeUtc);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     void ToggleActive()
@@ -613,6 +647,15 @@ class Tracker :
                 return true;
             }
 
+            // Nothing waiting will change these, and every retry is another 400ms of a frozen
+            // menu - an accept-all in a read-only workspace sat through all eight for every move
+            if (CannotEverMove(move))
+            {
+                Log.Warning("Could not accept `{Name}`: the target is read-only or its directory is missing. Kept pending", move.Name);
+                acceptFailed?.Invoke(move);
+                return false;
+            }
+
             var locked = FindLockedFiles(move);
             if (locked == null)
             {
@@ -643,6 +686,27 @@ class Tracker :
         Log.Warning("Could not accept `{Name}`: the move keeps failing. Kept pending", move.Name);
         acceptFailed?.Invoke(move);
         return false;
+    }
+
+    static bool CannotEverMove(TrackedMove move)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(move.Target);
+            if (directory is not null &&
+                !Directory.Exists(directory))
+            {
+                return true;
+            }
+
+            return File.Exists(move.Target) &&
+                   new FileInfo(move.Target).IsReadOnly;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     bool ShouldKill(TrackedMove move, LockedFiles locked, AcceptBatch batch)

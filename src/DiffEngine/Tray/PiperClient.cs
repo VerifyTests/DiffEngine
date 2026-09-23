@@ -1,3 +1,4 @@
+﻿using System.Net.NetworkInformation;
 static class PiperClient
 {
     public static int Port = 3492;
@@ -86,6 +87,12 @@ static class PiperClient
     /// </summary>
     static bool Send(string payload)
     {
+        if (!PortIsHeld())
+        {
+            HandleNoListener(payload);
+            return false;
+        }
+
         try
         {
             InnerSend(payload);
@@ -100,6 +107,14 @@ static class PiperClient
 
     static async Task<bool> SendAsync(string payload, Cancel cancel)
     {
+        // Before the listener check, so a cancelled send says so whether or not a tray is there
+        cancel.ThrowIfCancellationRequested();
+        if (!PortIsHeld())
+        {
+            HandleNoListener(payload);
+            return false;
+        }
+
         try
         {
             await InnerSendAsync(payload, cancel);
@@ -122,6 +137,17 @@ static class PiperClient
             return false;
         }
     }
+
+    static void HandleNoListener(string payload) =>
+        Trace.WriteLine(
+            $"""
+             Failed to send payload to DiffEngineTray.
+
+             Payload:
+             {payload}
+
+             Nothing is listening on the tray's port.
+             """);
 
     static void HandleSendException(string payload, Exception exception) =>
         Trace.WriteLine(
@@ -185,6 +211,32 @@ static class PiperClient
         finally
         {
             client.Close();
+        }
+    }
+
+    /// <summary>
+    /// Whether anything is listening, asked of the OS rather than found out by connecting. Whether
+    /// a tray runs is read once per process, so after it exits every move and delete still came
+    /// here, and a connect to a port nobody holds is not refused at once everywhere: where the SYN
+    /// is dropped it runs to its timeout, two seconds a send. The listener table answers in well
+    /// under a millisecond. A table that cannot be read leaves the connect to decide.
+    /// </summary>
+    static bool PortIsHeld()
+    {
+        try
+        {
+            var port = Port;
+            return IPGlobalProperties.GetIPGlobalProperties()
+                .GetActiveTcpListeners()
+                .Any(_ => _.Port == port);
+        }
+        catch (NetworkInformationException)
+        {
+            return true;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return true;
         }
     }
 

@@ -38,12 +38,38 @@ static class QueueProjection
             buckets.Add(null);
         }
 
+        // Each entry's group worked out once, and its mates collected in one pass, rather than every
+        // entry asking every other one for a key built from two new strings. This runs twice per
+        // change to the queue, under the lock the render loop takes, and at a few hundred entries
+        // the pairwise version was tens of milliseconds and megabytes of garbage each time.
+        var groups = new string?[entries.Count];
+        var mates = new Dictionary<(string?, string), List<QueueEntry>>();
+        for (var index = 0; index < entries.Count; index++)
+        {
+            var entry = entries[index];
+            if (TestGroup(entry) is not { } group)
+            {
+                continue;
+            }
+
+            groups[index] = group;
+            var key = (entry.Solution, group);
+            if (!mates.TryGetValue(key, out var list))
+            {
+                list = [];
+                mates[key] = list;
+            }
+
+            list.Add(entry);
+        }
+
         var result = new List<QueueEntry>(entries.Count);
         var emitted = new HashSet<QueueEntry>(ReferenceEqualityComparer.Instance);
         foreach (var bucket in buckets)
         {
-            foreach (var entry in entries)
+            for (var index = 0; index < entries.Count; index++)
             {
+                var entry = entries[index];
                 if (entry.Solution != bucket ||
                     !emitted.Add(entry))
                 {
@@ -51,16 +77,14 @@ static class QueueProjection
                 }
 
                 result.Add(entry);
-                if (TestGroup(entry) is not { } group)
+                if (groups[index] is not { } group)
                 {
                     continue;
                 }
 
-                foreach (var mate in entries)
+                foreach (var mate in mates[(bucket, group)])
                 {
-                    if (mate.Solution == bucket &&
-                        TestGroup(mate) == group &&
-                        emitted.Add(mate))
+                    if (emitted.Add(mate))
                     {
                         result.Add(mate);
                     }
@@ -387,25 +411,26 @@ static class QueueProjection
         return labels;
     }
 
+    /// <summary>
+    /// Counted once per label rather than each entry compared with every other, since this runs
+    /// every frame over the whole queue.
+    /// </summary>
     static List<int> Collisions(IReadOnlyList<QueueEntry> entries, string[] labels)
     {
+        var counts = new Dictionary<(string?, string), int>();
+        for (var index = 0; index < entries.Count; index++)
+        {
+            var key = (entries[index].Solution, labels[index]);
+            counts[key] = counts.TryGetValue(key, out var count) ? count + 1 : 1;
+        }
+
         var collisions = new List<int>();
         for (var index = 0; index < entries.Count; index++)
         {
-            if (LabelPath(entries[index]) is null)
+            if (LabelPath(entries[index]) is not null &&
+                counts[(entries[index].Solution, labels[index])] > 1)
             {
-                continue;
-            }
-
-            for (var other = 0; other < entries.Count; other++)
-            {
-                if (other != index &&
-                    entries[other].Solution == entries[index].Solution &&
-                    labels[other] == labels[index])
-                {
-                    collisions.Add(index);
-                    break;
-                }
+                collisions.Add(index);
             }
         }
 

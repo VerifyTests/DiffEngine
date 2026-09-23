@@ -62,9 +62,29 @@ sealed class FormsViewerWindow : IViewerWindow
             return false;
         }
 
-        Thread.Sleep(frameMilliseconds);
+        Wait();
         return true;
     }
+
+    /// <summary>
+    /// Until the next frame is due or input arrives, whichever is first. Thread.Sleep(16) woke on
+    /// the default 15.6ms timer tick after the one it asked for, so about 31ms: half the frame
+    /// rate, with every key and click waiting out the rest of it. 15 lands on the next tick, and
+    /// input ends the wait at once. Hidden, which a tray keeps it for days, there is nothing to
+    /// draw, so it wakes a few times a second rather than sixty.
+    /// </summary>
+    void Wait()
+    {
+        var timeout = form.Visible ? frameMilliseconds - 1 : hiddenMilliseconds;
+        MsgWaitForMultipleObjectsEx(0, IntPtr.Zero, (uint) timeout, allInput, inputAvailable);
+    }
+
+    const int hiddenMilliseconds = 100;
+    const uint allInput = 0x04FF;
+    const uint inputAvailable = 0x0004;
+
+    [DllImport("user32.dll")]
+    static extern uint MsgWaitForMultipleObjectsEx(uint count, IntPtr handles, uint milliseconds, uint wakeMask, uint flags);
 
     public ViewerInput Poll() =>
         form.IsDisposed ? default : form.Drain();

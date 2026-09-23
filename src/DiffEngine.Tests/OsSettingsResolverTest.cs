@@ -11,7 +11,8 @@ public class OsSettingsResolverTest
     [Test]
     public async Task PathEntriesAreUnquotedAndEmptiesDropped()
     {
-        var paths = OsSettingsResolver.ParsePath(@"C:\one;""C:\Program Files\two"" ; ;C:\thr|ee;", ';');
+        // NUL rather than a character like |, which is only invalid on Windows
+        var paths = OsSettingsResolver.ParsePath(@"C:\one;""C:\Program Files\two"" ; ;C:\thr" + "\0" + "ee;", ';');
 
         await Assert.That(paths).IsEquivalentTo([@"C:\one", @"C:\Program Files\two"]);
     }

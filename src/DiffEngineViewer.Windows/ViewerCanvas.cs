@@ -502,7 +502,8 @@ sealed class ViewerCanvas : Control
             Cellular(bounds.X, bounds.Y, gutter, bounds.Height));
         Painter.Draw(
             graphics,
-            RowText.Flatten(row.Text),
+            // No wider than the pane can show in pixels, which no line of characters can exceed
+            RowText.Clip(RowText.Flatten(row.Text), bounds.Width),
             font,
             Palette.Foreground(row.Kind),
             Cellular(bounds.X + gutter, bounds.Y, bounds.Width - gutter, bounds.Height));
