@@ -439,6 +439,7 @@ public static class InlineStaging
     /// component can still take the path past 260 characters under a deep project.
     /// </para>
     /// </summary>
+    // ReSharper disable once UnusedParameter.Local
     static string BuildName(InlinePatch patch, string? origin, string directory)
     {
         var test = Sanitize(patch.TestName) ?? Path.GetFileNameWithoutExtension(patch.SourceFile);

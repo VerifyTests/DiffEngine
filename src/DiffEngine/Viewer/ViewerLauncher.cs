@@ -32,6 +32,7 @@ static class ViewerLauncher
             // Bytes rather than text, so no preamble: a BOM is exactly what a .NET Framework
             // writer used to put in front of a payload on stdin
             var bytes = Encoding.UTF8.GetBytes(payload);
+            // ReSharper disable once UseAwaitUsing
             using var stream = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true);
 #if NET6_0_OR_GREATER
             await stream.WriteAsync(bytes.AsMemory(), cancel);

@@ -263,7 +263,7 @@ public class FormsHeadTests
     static string Layout(ViewerCanvas canvas)
     {
         var cell = canvas.CellSize();
-        var (left, half, width) = canvas.Panes();
+        var (left, half, _) = canvas.Panes();
         var text = half - 8 * cell.Width;
         return $"canvas {canvas.Size}, cell {cell}, queue column {left} px, pane {half} px, text {text} px = {text / cell.Width} characters a pane, {canvas.BodyCapacity} body rows";
     }

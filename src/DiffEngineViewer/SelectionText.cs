@@ -45,10 +45,10 @@ static class SelectionText
             return Span(selection, side, view.First(row), shown.Text);
         }
 
-        if (selection is not { IsEmpty: false } range ||
-            range.Side != side ||
-            range.Start.Row > view.Last(row) ||
-            range.End.Row < view.First(row))
+        if (selection is not { IsEmpty: false } ||
+            selection.Side != side ||
+            selection.Start.Row > view.Last(row) ||
+            selection.End.Row < view.First(row))
         {
             return default;
         }
@@ -62,14 +62,14 @@ static class SelectionText
     /// </summary>
     public static SelectionSpan Span(TextSelection? selection, PaneSide side, int row, string text)
     {
-        if (selection is not { IsEmpty: false } range ||
-            range.Side != side)
+        if (selection is not { IsEmpty: false } ||
+            selection.Side != side)
         {
             return default;
         }
 
-        var (startRow, startColumn) = range.Start;
-        var (endRow, endColumn) = range.End;
+        var (startRow, startColumn) = selection.Start;
+        var (endRow, endColumn) = selection.End;
         if (row < startRow ||
             row > endRow)
         {
