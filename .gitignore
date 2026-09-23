@@ -8,6 +8,7 @@ obj/
 *.received.*
 nugets/
 .claude/settings.local.json
+.claude/worktrees/
 nul
 /TestResults
 /coverage
