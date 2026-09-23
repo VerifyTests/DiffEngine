@@ -1053,6 +1053,9 @@ public class ViewerProtocolTests
     }
 
     [Test]
+    // Serialised: the port it releases and probes is recorded as unowned process wide, and
+    // the OS may already have handed that number to another test's owner.
+    [NotInParallel]
     public async Task AnAbsentOwnerReportsNoOwner()
     {
         ViewerServer.TryBind(0, out var server);
@@ -1119,6 +1122,8 @@ public class ViewerProtocolTests
     }
 
     [Test]
+    // Serialised for the same reason as AnAbsentOwnerReportsNoOwner.
+    [NotInParallel]
     public async Task AnAbsentOwnerIsNotAnError()
     {
         ViewerServer.TryBind(0, out var server);
