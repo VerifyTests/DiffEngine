@@ -33,10 +33,10 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
             var stamp = new FileStamp(info.LastWriteTimeUtc.Ticks, info.Length);
             if (!ImageExtensions.Is(path))
             {
-                return new(File.ReadAllText(path), stamp, null, null);
+                return new(ReadText(path), stamp, null, null);
             }
 
-            return new("", stamp, null, ImageFile.Read(path, File.ReadAllBytes(path)));
+            return new("", stamp, null, ImageFile.Read(path, ReadBytes(path)));
         }
         catch (Exception exception)
         {
@@ -50,6 +50,32 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
     /// </summary>
     static ImageFile? Unread(string path) =>
         ImageExtensions.Is(path) ? ImageFile.Unread(path) : null;
+
+    /// <summary>
+    /// Every read of a pending file shares it with writers and deleters. A test process rewrites
+    /// or deletes its received file on every run, and an accept moves it: opened with read sharing
+    /// alone, a read that happened to overlap either failed it with "being used by another
+    /// process", and the accept-all worker does not retry.
+    /// </summary>
+    static FileStream OpenShared(string path) =>
+        new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    public static byte[] ReadBytes(string path)
+    {
+        using var stream = OpenShared(path);
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        return memory.ToArray();
+    }
+
+    /// <summary>
+    /// As File.ReadAllText reads, byte order mark included in the detection, over a shared stream.
+    /// </summary>
+    static string ReadText(string path)
+    {
+        using var reader = new StreamReader(OpenShared(path), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
 
     public static FileStamp? StampOf(string path)
     {

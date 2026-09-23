@@ -226,6 +226,16 @@ static class ViewerProgram
             return 4;
         }
 
+        if (window is ILoopHooks hooks)
+        {
+            hooks.Frame = () => ModalFrame(host, window, link);
+            hooks.SessionEnding = () =>
+            {
+                host.Mutate(_ => _ with { Closing = true });
+                PersistOwned(host.State, link);
+            };
+        }
+
         // Whichever of the two produces them; a process either owns the queue or displays one.
         var windowCommands = link?.Windows ?? new();
         using var cancel = new CancelSource();
@@ -281,6 +291,22 @@ static class ViewerProgram
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// A frame from inside a head's modal loop (<see cref="ILoopHooks.Frame"/>): what the loop does
+    /// with input, without the present, which the head is already inside of.
+    /// </summary>
+    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link)
+    {
+        var state = host.State;
+        var input = window.Poll();
+        if (!IsIdle(input, state))
+        {
+            state = host.Mutate(_ => Apply(_, input, link, window));
+        }
+
+        return ScreenBuilder.Build(state);
     }
 
     /// <summary>

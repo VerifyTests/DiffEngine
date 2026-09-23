@@ -29,6 +29,17 @@ static class MonoFont
             Math.Max(1, (int) Math.Ceiling(font.GetHeight(graphics))));
     }
 
+    /// <summary>
+    /// Where one glyph starts after the last, unrounded. <see cref="Cell"/> is whole pixels, which
+    /// is what the grid is laid out in, but Graphics.DrawString places glyphs at this advance. At
+    /// 96 DPI that is 8.8 against a cell of 9, so anything positioned by the cell - the selection
+    /// highlight, and the column a click lands in - was a character off from about column 22 and
+    /// two by column 66, and at 175% more than three. Measured over a run rather than one glyph,
+    /// for the precision a long line needs.
+    /// </summary>
+    public static float Advance(Graphics graphics, Font font) =>
+        graphics.MeasureString(new('M', 100), font, PointF.Empty, Painter.Format).Width / 100;
+
     static FontFamily Register()
     {
         var bytes = EmbeddedFont.Bytes();

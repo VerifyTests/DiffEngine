@@ -91,12 +91,35 @@ sealed class ViewerForm : Form
     Point? menuPoint;
 
     Screen? last;
-    CommandKind key;
-    int clickedButton = -1;
-    int clickedQueueItem = -1;
-    int rightClickedQueueItem = -1;
-    int clickedMenuItem = -1;
-    bool menuClosed;
+
+    /// <summary>
+    /// Keys, clicks and menu events, in the order they happened, one handed over per frame.
+    /// <para>
+    /// A slot per kind used to hold them: two presses of Down between frames scrolled once, and a
+    /// key then a click were applied click first. That is not an edge case when a frame is slow - the
+    /// loop waiting behind an accept on InlineApplier's mutex - and d pressed on the entry being
+    /// read and a click on another row then discarded the clicked one, which the reader had never
+    /// looked at. With a, it would have been accepted into source.
+    /// </para>
+    /// </summary>
+    readonly Queue<Discrete> discrete = new();
+
+    readonly record struct Discrete(
+        CommandKind Key = CommandKind.None,
+        int Button = -1,
+        int QueueItem = -1,
+        int RightClickedQueueItem = -1,
+        int MenuItem = -1,
+        bool MenuClosed = false);
+
+    static readonly Discrete nothing = new(Key: CommandKind.None);
+
+    /// <summary>
+    /// Whether input is waiting for a frame, so the loop takes the next frame now rather than
+    /// sleeping until one is due.
+    /// </summary>
+    public bool Pending => discrete.Count > 0;
+
     int scrollTo = -1;
     int scrollDelta;
     bool closeRequested;
@@ -131,12 +154,34 @@ sealed class ViewerForm : Form
 
         // Scroll rather than ValueChanged, which also fires for this class's own model driven
         // assignment and would turn every wheel notch into a round trip fighting the clamp.
-        scrollBar.Scroll += (_, e) => scrollTo = e.NewValue;
+        scrollBar.Scroll += (_, e) =>
+        {
+            scrollTo = e.NewValue;
+            // The thumb is tracked in the scroll bar's own modal loop, from the first ThumbTrack
+            // until the release
+            if (e.Type == ScrollEventType.ThumbTrack)
+            {
+                EnterModal();
+                return;
+            }
 
-        canvas.QueueItemClicked += _ => clickedQueueItem = _;
+            if (e.Type is ScrollEventType.ThumbPosition or ScrollEventType.EndScroll)
+            {
+                ExitModal();
+            }
+        };
+        modalFrames.Tick += (_, _) =>
+        {
+            if (Frame is { } frame)
+            {
+                Apply(frame());
+            }
+        };
+
+        canvas.QueueItemClicked += _ => discrete.Enqueue(new(QueueItem: _));
         canvas.QueueItemRightClicked += (row, point) =>
         {
-            rightClickedQueueItem = row;
+            discrete.Enqueue(new(RightClickedQueueItem: row));
             menuPoint = point;
         };
         canvas.Scrolled += _ => scrollDelta += _;
@@ -151,7 +196,7 @@ sealed class ViewerForm : Form
             // this is the only thing that brings them back.
             if (e.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
             {
-                menuClosed = true;
+                discrete.Enqueue(new(MenuClosed: true));
             }
         };
     }
@@ -163,13 +208,108 @@ sealed class ViewerForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        if (!sized)
+        {
+            sized = true;
+            ClientSize = InitialClientSize(ClientSize, DeviceDpi, System.Windows.Forms.Screen.FromControl(this).WorkingArea.Size);
+        }
+
         ScaleChrome();
+    }
+
+    bool sized;
+
+    /// <summary>
+    /// The size asked for is in logical pixels, and the window is per monitor aware, so it is
+    /// scaled to the display it opens on - once, before it is shown and centred. Unscaled, it was
+    /// 1100 by 700 device pixels while the text grew with the display: at 200% each pane had room
+    /// for four characters. Moving to another display afterwards is Windows' to scale.
+    /// <para>
+    /// Kept inside the working area, which a scaled window can outgrow: 1100 by 700 at 150% is too
+    /// tall for a 1080p screen once the taskbar is taken off.
+    /// </para>
+    /// </summary>
+    internal static Size InitialClientSize(Size logical, int dpi, Size workingArea)
+    {
+        var width = logical.Width * dpi / 96;
+        var height = logical.Height * dpi / 96;
+        // Room for the frame and title bar, which are outside the client area
+        var maxWidth = workingArea.Width * 9 / 10;
+        var maxHeight = workingArea.Height * 9 / 10;
+        return new(Math.Min(width, maxWidth), Math.Min(height, maxHeight));
     }
 
     protected override void OnDpiChanged(DpiChangedEventArgs e)
     {
         base.OnDpiChanged(e);
         ScaleChrome();
+    }
+
+    /// <summary>
+    /// One frame of the loop, run on <see cref="modalFrames"/> while user32 holds the thread in a
+    /// modal loop of its own. See <see cref="ILoopHooks.Frame"/>.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<Screen>? Frame { get; set; }
+
+    /// <summary>
+    /// See <see cref="ILoopHooks.SessionEnding"/>.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Action? SessionEnding { get; set; }
+
+    /// <summary>
+    /// A WinForms timer because its ticks are window messages, and a modal loop - the scroll bar's
+    /// while the thumb is dragged, the frame's while the window is moved or sized - still
+    /// dispatches those, where it never returns to the loop that called DoEvents.
+    /// </summary>
+    readonly System.Windows.Forms.Timer modalFrames = new()
+    {
+        Interval = 16
+    };
+
+    void EnterModal()
+    {
+        if (Frame is not null &&
+            !modalFrames.Enabled)
+        {
+            modalFrames.Start();
+        }
+    }
+
+    void ExitModal() =>
+        modalFrames.Stop();
+
+    const int enterSizeMove = 0x0231;
+    const int exitSizeMove = 0x0232;
+
+    protected override void WndProc(ref Message message)
+    {
+        if (message.Msg == enterSizeMove)
+        {
+            EnterModal();
+        }
+        else if (message.Msg == exitSizeMove)
+        {
+            ExitModal();
+        }
+
+        base.WndProc(ref message);
+    }
+
+    /// <summary>
+    /// Persisted here, synchronously, when the session is ending. WinForms closes the form inside
+    /// WM_ENDSESSION, and Windows may end the process as soon as that returns - before the loop has
+    /// even noticed the form is gone, let alone got through its own shutdown to the staging.
+    /// </summary>
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        if (EndsTheSession(e.CloseReason))
+        {
+            SessionEnding?.Invoke();
+        }
+
+        base.OnFormClosed(e);
     }
 
     void ScaleChrome()
@@ -262,7 +402,7 @@ sealed class ViewerForm : Form
         }
 
         shownMenu = menu;
-        ViewerMenu.Fill(contextMenu, menu, _ => clickedMenuItem = _);
+        ViewerMenu.Fill(contextMenu, menu, _ => discrete.Enqueue(new(MenuItem: _)));
         contextMenu.Show(canvas, point);
     }
 
@@ -280,7 +420,7 @@ sealed class ViewerForm : Form
                 // the OS build's theme renderer does with a Win32 button.
                 FlatStyle = FlatStyle.Standard
             };
-            button.Click += (_, _) => clickedButton = index;
+            button.Click += (_, _) => discrete.Enqueue(new(Button: index));
             pool.Add(button);
             buttonRow.Controls.Add(button);
         }
@@ -304,19 +444,25 @@ sealed class ViewerForm : Form
     public ViewerInput Drain()
     {
         var drag = canvas.TakeDrag();
+        // Not default: that zeroes every index, and zero is the first button and the first row
+        if (!discrete.TryDequeue(out var next))
+        {
+            next = nothing;
+        }
+
         var input = new ViewerInput(
-            Key: key,
-            ClickedButton: clickedButton,
-            ClickedQueueItem: clickedQueueItem,
+            Key: next.Key,
+            ClickedButton: next.Button,
+            ClickedQueueItem: next.QueueItem,
             ScrollDelta: scrollDelta,
             CloseRequested: closeRequested,
             Columns: canvas.ColumnCapacity,
             // ScreenBuilder subtracts Chrome to get the body, so adding it back asks for exactly
             // the rows the canvas can draw rather than a guess from a fixed cell height.
             Rows: canvas.BodyCapacity + ScreenBuilder.Chrome,
-            RightClickedQueueItem: rightClickedQueueItem,
-            ClickedMenuItem: clickedMenuItem,
-            MenuClosed: menuClosed,
+            RightClickedQueueItem: next.RightClickedQueueItem,
+            ClickedMenuItem: next.MenuItem,
+            MenuClosed: next.MenuClosed,
             ScrollTo: scrollTo,
             DragSide: drag is null ? -1 : (int) drag.Value.Side,
             DragAnchorRow: drag?.AnchorRow ?? 0,
@@ -324,12 +470,6 @@ sealed class ViewerForm : Form
             DragFocusRow: drag?.FocusRow ?? 0,
             DragFocusColumn: drag?.FocusColumn ?? 0);
 
-        key = CommandKind.None;
-        clickedButton = -1;
-        clickedQueueItem = -1;
-        rightClickedQueueItem = -1;
-        clickedMenuItem = -1;
-        menuClosed = false;
         scrollTo = -1;
         scrollDelta = 0;
         closeRequested = false;
@@ -389,7 +529,7 @@ sealed class ViewerForm : Form
             return base.ProcessCmdKey(ref message, keyData);
         }
 
-        key = command;
+        discrete.Enqueue(new(Key: command));
         return true;
     }
 
@@ -457,6 +597,7 @@ sealed class ViewerForm : Form
         if (disposing)
         {
             contextMenu.Dispose();
+            modalFrames.Dispose();
         }
 
         base.Dispose(disposing);
