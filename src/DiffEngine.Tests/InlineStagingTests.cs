@@ -200,6 +200,37 @@ public class InlineStagingTests
     }
 
     /// <summary>
+    /// The same rule on disk. The passing call's clear finds no trio at its own line and falls
+    /// back to the member, which holds one staged call site - the failing sibling's. The value the
+    /// passing call holds is neither that call site's anchor nor its new content, so it stays.
+    /// </summary>
+    [Test]
+    public async Task ClearFromAPassingSiblingKeepsTheFailingSiblingsStagedTrio()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", framework: "net10.0", line: 20, member: "MyTest"))]);
+
+        var cleared = InlineStaging.Clear(source, 10, "MyTest", origin: "net10.0", value: "what the sibling holds");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task ClearByMemberTakesACallSiteTheValueSettles()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", line: 42, member: "MyTest"))]);
+
+        var cleared = InlineStaging.Clear(source, 807, "MyTest", value: "old");
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    /// <summary>
     /// A member holding several inline snapshots cannot say which of them was settled, and
     /// deleting the wrong one discards a snapshot that is still pending.
     /// </summary>

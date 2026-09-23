@@ -90,18 +90,24 @@ public static class InlineStaging
     /// scope it by and leaving it would strand it forever.
     /// </para>
     /// </param>
-    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory = null, string? origin = null)
+    /// <param name="value">
+    /// What the settling call's expected argument holds. Narrows the <paramref name="memberName" />
+    /// fallback to the call site it settles, as <see cref="InlineQueue.Settle(string, string?, string?, string?)" />
+    /// does, since a member holding one staged call site is not one call site: the passing sibling
+    /// beside a failing call used to clear the failing one's trio. Null keeps the member alone.
+    /// </param>
+    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory = null, string? origin = null, string? value = null)
     {
         var cleared = 0;
         foreach (var directory in StagingDirectories(sourceFile, extraDirectory))
         {
-            cleared += ClearIn(directory, sourceFile, line, memberName, origin);
+            cleared += ClearIn(directory, sourceFile, line, memberName, origin, value);
         }
 
         return cleared;
     }
 
-    static int ClearIn(string directory, string sourceFile, int line, string? memberName, string? origin)
+    static int ClearIn(string directory, string sourceFile, int line, string? memberName, string? origin, string? value)
     {
         var staged = ReadStaged(directory)
             .Where(_ => SamePath(_.Patch.SourceFile, sourceFile))
@@ -119,7 +125,8 @@ public static class InlineStaging
             !string.IsNullOrEmpty(memberName))
         {
             var byMember = staged
-                .Where(_ => _.Patch.MemberName == memberName)
+                .Where(_ => _.Patch.MemberName == memberName &&
+                            (value is null || _.Patch.IsSettledBy(value)))
                 .ToList();
             if (IsOneCallSite(byMember))
             {

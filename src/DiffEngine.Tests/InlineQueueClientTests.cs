@@ -369,7 +369,7 @@ public class InlineQueueClientTests
             }
         }
 
-        void IQueueOwner.Settle(string key, string? origin, string? member)
+        void IQueueOwner.Settle(string key, string? origin, string? member, string? value)
         {
             lock (gate)
             {

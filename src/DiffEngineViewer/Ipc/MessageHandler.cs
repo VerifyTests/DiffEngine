@@ -38,8 +38,8 @@ class MessageHandler(
         return count;
     }
 
-    void IQueueOwner.Settle(string key, string? origin, string? member) =>
-        host.Mutate(_ => ViewerSession.Settle(_, key, origin, member));
+    void IQueueOwner.Settle(string key, string? origin, string? member, string? value) =>
+        host.Mutate(_ => ViewerSession.Settle(_, key, origin, member, value));
 
     /// <summary>
     /// The files are read here, on the listener thread, so the session stays IO free — the same

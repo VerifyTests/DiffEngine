@@ -16,7 +16,7 @@ static class ViewerMessageHandler
             case ViewerVerb.Inline:
                 return Inline(owner, message.Body);
             case ViewerVerb.Settle:
-                return Settle(owner, message.Key, message.Body, message.Member);
+                return Settle(owner, message.Key, message.Body, message.Member, message.Value);
             case ViewerVerb.Move:
                 return Move(owner, message.Key, message.Body);
             case ViewerVerb.Diff:
@@ -76,14 +76,14 @@ static class ViewerMessageHandler
         return ViewerResponse.Success($"Queued {owner.Enqueue(patch)}");
     }
 
-    static ViewerResponse Settle(IQueueOwner owner, string? key, string? origin, string? member)
+    static ViewerResponse Settle(IQueueOwner owner, string? key, string? origin, string? member, string? value)
     {
         if (key is null)
         {
             return ViewerResponse.Error("Settle requires a key");
         }
 
-        owner.Settle(key, origin, member);
+        owner.Settle(key, origin, member, value);
         return ViewerResponse.Success();
     }
 

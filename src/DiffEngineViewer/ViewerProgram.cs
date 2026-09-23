@@ -33,7 +33,7 @@ static class ViewerProgram
 
             if (request.Mode == ViewerMode.Inline)
             {
-                return RunInline(open);
+                return RunInline(request.Payload, open);
             }
 
             return RunFile(request, open);
@@ -45,24 +45,13 @@ static class ViewerProgram
         }
     }
 
-    static int RunInline(OpenWindow open)
+    static int RunInline(string? payloadFile, OpenWindow open)
     {
-        // Drained before anything slow. OS pipe buffers are around 64 KB, so a parent writing a
-        // larger payload blocks on the write until this side reads it, and that parent is a test
-        // process that must not hang.
-        //
-        // Read as UTF8 rather than through Console.In, which decodes using the console code page.
-        // A .NET Framework parent writes through Process.StandardInput, whose writer emits a BOM,
-        // and under a non UTF8 code page those bytes decode to mojibake rather than a preamble.
-        // detectEncodingFromByteOrderMarks strips it.
-        using var reader = new StreamReader(
-            Console.OpenStandardInput(),
-            new UTF8Encoding(false),
-            detectEncodingFromByteOrderMarks: true);
-        var payload = reader.ReadToEnd();
-        if (!InlinePatchFile.TryParse(payload, out var patch))
+        var payload = ReadPayload(payloadFile);
+        if (payload is null ||
+            !InlinePatchFile.TryParse(payload, out var patch))
         {
-            Console.Error.WriteLine("Could not read an inline patch payload from stdin.");
+            Console.Error.WriteLine("Could not read an inline patch payload.");
             return 2;
         }
 
@@ -90,6 +79,57 @@ static class ViewerProgram
         {
             var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
             return Run(new(start), server, null, open);
+        }
+    }
+
+    /// <summary>
+    /// The patch a launch handed over: from the file it wrote, which is then deleted, or from
+    /// stdin, which is how a DiffEngine from before <see cref="ViewerRequest.Payload" /> sends it.
+    /// Null when the file cannot be read.
+    /// <para>
+    /// Read before anything slow either way. OS pipe buffers are around 64 KB, so a parent writing
+    /// a larger payload to stdin blocks on the write until this side reads it, and that parent is a
+    /// test process that must not hang.
+    /// </para>
+    /// <para>
+    /// Read as UTF8 rather than through Console.In, which decodes using the console code page. A
+    /// .NET Framework parent writes through Process.StandardInput, whose writer emits a BOM, and
+    /// under a non UTF8 code page those bytes decode to mojibake rather than a preamble.
+    /// detectEncodingFromByteOrderMarks strips it.
+    /// </para>
+    /// </summary>
+    internal static string? ReadPayload(string? payloadFile)
+    {
+        if (payloadFile is null)
+        {
+            using var reader = new StreamReader(
+                Console.OpenStandardInput(),
+                new UTF8Encoding(false),
+                detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
+        }
+
+        try
+        {
+            return File.ReadAllText(payloadFile, new UTF8Encoding(false));
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+        finally
+        {
+            // Whether or not it read: the file exists only to carry this one patch across the
+            // launch, and this is the only process that knows it is finished with it
+            try
+            {
+                File.Delete(payloadFile);
+            }
+            catch (Exception exception)
+                when (exception is IOException or UnauthorizedAccessException)
+            {
+            }
         }
     }
 

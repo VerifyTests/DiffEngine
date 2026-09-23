@@ -215,7 +215,7 @@ sealed class OwnedInlineHost :
     /// discard - only an entry that would otherwise sit on the queue describing a file that is
     /// gone.
     /// </summary>
-    void IQueueOwner.Settle(string key, string? origin, string? member)
+    void IQueueOwner.Settle(string key, string? origin, string? member, string? value)
     {
         if (TrackedKeys.IsTracked(key))
         {
@@ -229,7 +229,7 @@ sealed class OwnedInlineHost :
 
         lock (gate)
         {
-            var settled = queue.Settle(key, origin, member);
+            var settled = queue.Settle(key, origin, member, value);
             if (ReferenceEquals(settled, queue))
             {
                 return;

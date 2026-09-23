@@ -621,7 +621,7 @@ public class ViewerProtocolTests
 
         public int Enqueue(InlinePatch patch) => 1;
 
-        public void Settle(string key, string? origin, string? member)
+        public void Settle(string key, string? origin, string? member, string? value)
         {
         }
 

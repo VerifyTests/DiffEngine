@@ -15,7 +15,12 @@ namespace DiffEngine;
 /// which names a line and so stops being true once an accept inserts a literal above it. Optional,
 /// and read past by an owner that predates it, so an older one still settles by key alone.
 /// </param>
-record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, string? Member = null)
+/// <param name="Value">
+/// What the passing call's expected argument holds, on a <see cref="ViewerVerb.Settle"/>. Narrows
+/// the <paramref name="Member"/> fallback to an entry that value settles: see
+/// <see cref="InlinePatch.IsSettledBy"/>. Optional, and read past by an owner that predates it.
+/// </param>
+record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, string? Member = null, string? Value = null)
 {
     public string Build()
     {
@@ -24,6 +29,7 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, s
         ViewerPayload.Append(builder, "key", Key);
         ViewerPayload.Append(builder, "body", Body);
         ViewerPayload.Append(builder, "member", Member);
+        ViewerPayload.Append(builder, "value", Value);
         return builder.ToString();
     }
 
@@ -40,6 +46,7 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, s
         string? key = null;
         string? body = null;
         string? member = null;
+        string? settledBy = null;
         foreach (var (name, value) in lines)
         {
             switch (name)
@@ -75,6 +82,13 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, s
                     }
 
                     continue;
+                case "value":
+                    if (!ViewerPayload.TryDecode(value, out settledBy))
+                    {
+                        return false;
+                    }
+
+                    continue;
                 default:
                     // Unknown fields are ignored so a newer client can add one without breaking
                     // an older owner, matching how PiperServer tolerates unknown payload types.
@@ -87,7 +101,7 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, s
             return false;
         }
 
-        message = new(verb.Value, key, body, member);
+        message = new(verb.Value, key, body, member, settledBy);
         return true;
     }
 }

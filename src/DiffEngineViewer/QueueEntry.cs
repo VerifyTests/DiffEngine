@@ -54,7 +54,7 @@ record QueueEntry(
     ImageFile? RightImage = null)
 {
     // Computed once, because the diff is a pure function of the two sides and a new entry only
-    // arrives on stdin or the socket. A `with` expression copies this field rather than
+    // arrives by launch or over the socket. A `with` expression copies this field rather than
     // recomputing, so change the content by building a fresh entry, never by `with`.
     readonly (DiffView Full, DiffView Minimal) views = DiffView.Build(
         LeftImage is null && RightImage is null

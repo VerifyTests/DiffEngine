@@ -1,0 +1,9 @@
+﻿{
+  Mode: Inline,
+  Source: Tests.cs,
+  Line: 42,
+  Attach: false,
+  Delete: false,
+  Diff: false,
+  Payload: patch.inlinepatch
+}

@@ -31,9 +31,8 @@ public static partial class DiffRunner
     /// <summary>
     /// Sends a pending inline snapshot to DiffEngineViewer for review.
     /// <para>
-    /// Takes the patch itself rather than a file, so nothing is written to disk: an already
-    /// running viewer receives it over a loopback socket, and a newly launched one receives it on
-    /// stdin.
+    /// Takes the patch itself rather than a file: an already running viewer receives it over a
+    /// loopback socket, and a newly launched one in a temp file it deletes once read.
     /// </para>
     /// <para>
     /// Async only, deliberately. A synchronous overload would have to block on the socket read,
@@ -58,7 +57,7 @@ public static partial class DiffRunner
             return check;
         }
 
-        // Stamped here and nowhere else: the one place both the socket and stdin-launch paths
+        // Stamped here and nowhere else: the one place both the socket and launch paths
         // share, and always the sending process, so a re-parsed patch keeps its birth framework.
         // Onto the payload rather than onto the patch, which belongs to the caller and may be
         // held or sent again
@@ -127,7 +126,14 @@ public static partial class DiffRunner
     /// The member the call site sits in. Optional, and only used where the line no longer names
     /// the entry, which is what happens once an accept inserts a literal above it.
     /// </param>
-    public static void SettleInline(string sourceFile, int line, string? memberName = null)
+    /// <param name="value">
+    /// What the passing call's expected argument holds, as the test library compared it (for F#,
+    /// after <see cref="SourceLanguage.SnapshotValue" />). Optional. Where it is sent, the
+    /// <paramref name="memberName" /> fallback only settles an entry this value settles - one
+    /// waiting to become it, or anchored to it - so a passing call cannot take the entry of a
+    /// failing sibling in the same member. Without it the member alone decides, and it can.
+    /// </param>
+    public static void SettleInline(string sourceFile, int line, string? memberName = null, string? value = null)
     {
         if (Disabled)
         {
@@ -135,7 +141,7 @@ public static partial class DiffRunner
         }
 
         ViewerClient.TrySend(
-            new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current, memberName));
+            new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current, memberName, value));
     }
 
     /// <summary>

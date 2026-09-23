@@ -59,7 +59,7 @@ flowchart LR
 
     Engine -->|"3492 moves, deletes (one way),<br/>when a tray is running"| Tray
     Engine -->|"3493 inline, settle, and diff,<br/>moves and deletes with no tray"| Owner
-    Engine -.->|"launch with patch on stdin, or with<br/>a delete or a pair, when nothing owns 3493"| Window
+    Engine -.->|"launch with a patch file, or with<br/>a delete or a pair, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
     Window <-->|"3493 listfull, accept, discard"| Owner
     Plugin -->|"3493 settle, after accepting"| Owner
@@ -69,8 +69,8 @@ flowchart LR
 
 The failing-inline-snapshot flow: Verify builds an `InlinePatch` and calls
 `DiffRunner.AddInlineAsync`. If something owns 3493 the patch goes over the socket and the owner
-shows or focuses a window; if nothing does, the bundled viewer is launched with the patch on
-stdin and binds the port itself; if no viewer resolves (or `DiffEngine_InlineViewer=false`),
+shows or focuses a window; if nothing does, the bundled viewer is launched with the patch in
+a temp file (`--payload`, which the viewer deletes) and binds the port itself; if no viewer resolves (or `DiffEngine_InlineViewer=false`),
 Verify stages `received`/`expected`/`.inlinepatch` files and the IDE plugin or a text diff tool
 becomes the review surface. Accepting anywhere runs `InlineApplier` against the source file
 (per-file cross-process mutex — safe concurrently from any process). A passing re-run calls
@@ -303,8 +303,14 @@ apart.
   process that started before the tray addresses the queue owner for the rest of its life.
 - A delete starts a viewer when nothing owns the queue; a move does not. A move already has a
   window — the diff tool DiffRunner just launched for that pair — and a delete has no second file
-  to compare against, so no tool ever opens for it. `--delete <file>` is the launch, on the command
-  line rather than stdin because a path fits where snapshot content does not.
+  to compare against, so no tool ever opens for it. `--delete <file>` is the launch, the path on
+  the command line.
+- Every launch from a test host inherits nothing of it (`ViewerLauncher.StartInfo`): ShellExecute
+  on Windows, and all three standard streams redirected and closed elsewhere. A viewer holding
+  the pipe `dotnet test` reads the host's output from kept the run from returning until its
+  window closed. That is why an inline patch goes in a file rather than on stdin, which a
+  ShellExecute launch cannot redirect, and why the Windows head is a `WinExe`: ShellExecute gives
+  a console executable a console window.
 - Unless that diff tool is the viewer, which is the `Diff` verb and `--diff <received> <target>`.
   Then the premise above is false — there is no window for the pair yet — so it is tracked exactly
   as a move and a window is raised over the entry, and `DiffRunner` skips the whole process per

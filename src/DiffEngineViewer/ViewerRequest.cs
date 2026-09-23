@@ -29,4 +29,16 @@ record ViewerRequest(
     /// <see cref="ViewerMode.File"/> would give it.
     /// </summary>
     public bool Diff { get; init; }
+
+    /// <summary>
+    /// The file an inline launch wrote its patch to, which this viewer reads and deletes. Null for
+    /// a launch from a DiffEngine that wrote the patch to stdin instead.
+    /// <para>
+    /// A file rather than stdin because a launch with stdin redirected cannot use ShellExecute,
+    /// and one that does not use it inherits every inheritable handle in the test host - the pipe
+    /// <c>dotnet test</c> reads the host's output from among them. Holding that open kept the
+    /// whole test run from returning until this window was closed.
+    /// </para>
+    /// </summary>
+    public string? Payload { get; init; }
 }

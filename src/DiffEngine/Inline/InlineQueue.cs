@@ -229,13 +229,17 @@ public sealed class InlineQueue
     /// The member the settled call site sits in, used only when <paramref name="key" /> matches
     /// nothing. See <see cref="FindByMember" />.
     /// </param>
-    public InlineQueue Settle(string key, string? origin, string? member)
+    /// <param name="value">
+    /// What the settling call's expected argument holds, which narrows <paramref name="member" />
+    /// to the entry it settles. See <see cref="FindByMember" />.
+    /// </param>
+    public InlineQueue Settle(string key, string? origin, string? member, string? value = null)
     {
         var items = Items.ToList();
         var index = items.FindIndex(_ => _.Key == key);
         if (index < 0)
         {
-            index = FindByMember(items, key, member);
+            index = FindByMember(items, key, member, value);
         }
 
         if (index < 0)
@@ -300,8 +304,14 @@ public sealed class InlineQueue
     /// pending snapshot outright — so an ambiguous member settles nothing, leaving the entries as
     /// they were.
     /// </para>
+    /// <para>
+    /// With a <paramref name="value" />, only an entry that value settles is a candidate
+    /// (<see cref="InlinePatch.IsSettledBy" />). A member with one entry is not one call site: the
+    /// sibling beside a failing call can pass, and its settle took the failing one's entry. Without
+    /// one - a producer that predates it - the member alone still decides, as it did.
+    /// </para>
     /// </remarks>
-    static int FindByMember(List<PendingInline> items, string key, string? member)
+    static int FindByMember(List<PendingInline> items, string key, string? member, string? value)
     {
         if (string.IsNullOrEmpty(member))
         {
@@ -315,6 +325,12 @@ public sealed class InlineQueue
             var entry = items[index];
             if (entry.Patch.MemberName != member ||
                 FileOf(entry.Key) != file)
+            {
+                continue;
+            }
+
+            if (value is not null &&
+                !entry.Variants.Any(_ => _.Patch.IsSettledBy(value)))
             {
                 continue;
             }

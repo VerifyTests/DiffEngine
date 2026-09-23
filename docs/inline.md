@@ -12,7 +12,7 @@ The plumbing DiffEngine provides for reviewing [inline snapshots](https://github
 
 ## The parts
 
-Five parties, three transports: two loopback ports, stdin for a cold launch, and staged files for when no viewer is available.
+Five parties, three transports: two loopback ports, a patch file for a cold launch, and staged files for when no viewer is available.
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
 
     Engine -->|"3492 moves, deletes (one way),<br/>when a tray is running"| Tray
     Engine -->|"3493 inline, settle, and diff,<br/>moves and deletes with no tray"| Owner
-    Engine -.->|"launch with patch on stdin, or with<br/>a delete or a pair, when nothing owns 3493"| Window
+    Engine -.->|"launch with a patch file, or with<br/>a delete or a pair, when nothing owns 3493"| Window
     Tray <-->|"3493 list, accept, focus"| Owner
     Window <-->|"3493 listfull (with the owner's moves<br/>and deletes), accept, discard"| Owner
     Plugin <-->|"3493 listfull, accept, discard,<br/>focus, via InlineQueueClient"| Owner
@@ -53,7 +53,7 @@ sequenceDiagram
         Test->>Owner: inline, over the socket
         Owner->>Window: focus, launching --attach if no window
     else nothing bound, bundled viewer resolves
-        Test->>Window: launch, patch on stdin
+        Test->>Window: launch, patch in a temp file
         Window->>Window: bind 3493, own the queue
     else no viewer, or DiffEngine_InlineViewer=false
         Test->>Test: stage received / expected / patch files
@@ -64,7 +64,7 @@ sequenceDiagram
     Owner->>Owner: drop the entry
 ```
 
-Nothing touches disk on the happy path: a running owner receives the patch over the socket, a newly launched viewer receives it on stdin. Staging only happens in the fallback, where the test library writes three files (Verify: `*.received.txt`, `*.expected.txt`, `*.inlinepatch`) so the snapshot can still be reviewed by an IDE plugin, a plain text diff tool, or by hand:
+Nothing is staged on the happy path: a running owner receives the patch over the socket, and a newly launched viewer receives it in a temp file that it deletes once read. A file rather than stdin, because a launch that redirects stdin hands the viewer the test host's handles, and `dotnet test` then does not return until the viewer is closed. The viewer still reads stdin when it is given no file, which is what the command below does. Staging only happens in the fallback, where the test library writes three files (Verify: `*.received.txt`, `*.expected.txt`, `*.inlinepatch`) so the snapshot can still be reviewed by an IDE plugin, a plain text diff tool, or by hand:
 
 ```
 DiffEngineViewer --inline --source <source file> --line <number> < the.inlinepatch
@@ -76,7 +76,7 @@ DiffEngineViewer --inline --source <source file> --line <number> < the.inlinepat
 For the producing side — a test library with a failing inline snapshot:
 
 * `DiffRunner.AddInlineAsync(patch)` queues a patch with whatever owns the port, launching the bundled viewer when nothing does. Returns `Queued`, `Disabled` (build servers, continuous testing and AI CLIs included), or `NoViewerFound` — the caller's cue to stage files and fall back to a text diff.
-* `DiffRunner.SettleInline(sourceFile, line)` drops the pending entry for a call site, for when a previously failing test passes. Unknown entries and an absent owner are no-ops, so call it freely. The settle carries the running framework, so a multi-targeted run only settles its own variant of a conflicted entry. That framework is the running process's, which makes this the test run's verb and only the test run's: a surface applying a patch of its own wants `SettleAppliedInline`, [below](#applying-a-patch-from-another-surface).
+* `DiffRunner.SettleInline(sourceFile, line)` drops the pending entry for a call site, for when a previously failing test passes. Unknown entries and an absent owner are no-ops, so call it freely. The settle carries the running framework, so a multi-targeted run only settles its own variant of a conflicted entry. That framework is the running process's, which makes this the test run's verb and only the test run's: a surface applying a patch of its own wants `SettleAppliedInline`, [below](#applying-a-patch-from-another-surface). Pass `memberName` and `value` too: `value` is what the passing call's expected argument holds, as the library compared it (for F#, after `SourceLanguage.SnapshotValue`). Once an accept above a call site moves it, its line no longer names its entry and the member is the fallback. `value` narrows that fallback to an entry the value settles, one anchored to it or waiting to become it. Without `value`, a passing call can settle the entry of a failing sibling in the same member.
 * An absent owner is also remembered. A port found with nothing listening is taken as still unowned for ten minutes, and the sends that only tell the owner something — settle, retire, a move or delete to track, the first attempt to queue a patch — return without connecting while that stands. A refused loopback connection is not free on Windows: the firewall's stealth mode, on by default, drops the reset a closed port would answer with, so each refusal takes two seconds, and a green run settling once per inline verification was spending minutes on them. Anything that has to reach an owner probes for itself before launching a viewer, and that probe, like every listing, always connects and corrects the memory with what it finds.
 * `AddInlineAsync` stamps `patch.Framework` with the consuming project's target framework ("net9.0", "net48") unless the caller already set it, which is what lets the owner tell a re-run from another framework disagreeing. The value is the `$(TargetFramework)` the package's build targets stamp into the project's runtimeconfig, read back rather than asked of the process — in a hosted test run the entry assembly is the runner (testhost, ReSharperTestRunner), whose framework is not the project's — with the running runtime's version as the fallback for consumers without the targets. Callers may also set `patch.TestName`, which the viewer uses to group and label the queue; without it, items are labeled by call site.
 * Set `patch.OriginalExpression` from `CallerArgumentExpression` where the language supplies one, and `patch.OriginalValue` — the previous expected argument's value — where it does not. One of the two is what stops a patch rewriting the wrong call site when the file has moved since the run. `patch.MemberName` from `CallerMemberName` narrows it further, and is supported everywhere including F#.

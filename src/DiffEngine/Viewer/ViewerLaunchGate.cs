@@ -145,7 +145,7 @@ static class ViewerLaunchGate
     /// thread is the only one a captured continuation could run on, so a sync caller behind an
     /// async one waited for a gate that could only be released by the thread doing the waiting.
     /// The launch goes to the pool rather than just being awaited without capture, because it
-    /// awaits things of its own (ViewerLauncher's stdin write) and those capture whatever context
+    /// awaits things of its own (ViewerLauncher's payload write) and those capture whatever context
     /// is current when it starts.
     /// </remarks>
     public static async Task<ViewerLaunchOutcome> LaunchAsync(
@@ -194,7 +194,7 @@ static class ViewerLaunchGate
     /// Waits for the launched viewer to be answerable, so the next caller through the gate finds
     /// an owner rather than starting another. Gives up after <see cref="BindWait" /> and reports
     /// the launch all the same, because it did happen: the work went over on the command line or
-    /// on stdin, and the cost of giving up early is one more viewer, which is where this began.
+    /// in a payload file, and the cost of giving up early is one more viewer, which is where this began.
     /// </summary>
     static void WaitForBind(Func<bool> isOwned)
     {

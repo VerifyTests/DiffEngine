@@ -79,6 +79,39 @@ public sealed class InlinePatch(
     /// </summary>
     public string NewContent { get; set; } = newContent;
 
+    /// <summary>
+    /// Whether a passing call whose expected argument holds <paramref name="value" /> is this
+    /// patch's call site, settled: the content it was waiting to be accepted as, written in by
+    /// hand or by another surface, or the content it was anchored to, which the code under test
+    /// produces again.
+    /// <para>
+    /// What a settle that has lost its line is matched by, beside the member. A member is not an
+    /// identity, and matching on it alone took the one entry a member had for whichever call in it
+    /// passed: a sibling that passed settled the failing one's entry, and that snapshot was pending
+    /// nowhere. A passing sibling holds neither of this patch's values unless it is verifying the
+    /// same thing.
+    /// </para>
+    /// </summary>
+    internal bool IsSettledBy(string value)
+    {
+        var normalized = SourceLanguage.NormalizeNewlines(value);
+        if (SourceLanguage.NormalizeNewlines(NewContent) == normalized)
+        {
+            return true;
+        }
+
+        var original = OriginalValue;
+        if (original is null &&
+            OriginalExpression is not null &&
+            SourceLanguage.ForFile(SourceFile).TryParse(OriginalExpression, out var parsed))
+        {
+            original = parsed;
+        }
+
+        return original is not null &&
+               SourceLanguage.NormalizeNewlines(original) == normalized;
+    }
+
     public InlinePatchMode Mode { get; set; } = mode;
 
     /// <summary>

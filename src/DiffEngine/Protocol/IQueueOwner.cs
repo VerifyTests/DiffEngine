@@ -15,10 +15,10 @@ interface IQueueOwner
     /// <summary>
     /// Drop the entry for a key whose test started passing, or is no longer an inline snapshot at
     /// all — or, with an origin, just that framework's variant of it. An unknown key falls back to
-    /// <paramref name="member" />, and is otherwise a no-op, because the entry being gone is the
-    /// goal state.
+    /// <paramref name="member" />, narrowed by <paramref name="value" /> where one is sent, and is
+    /// otherwise a no-op, because the entry being gone is the goal state.
     /// </summary>
-    void Settle(string key, string? origin, string? member);
+    void Settle(string key, string? origin, string? member, string? value);
 
     /// <summary>
     /// Track a pending file move, replacing the entry for the same received file — a re-run

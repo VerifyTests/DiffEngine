@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!--
+    WinExe, stated rather than inferred: the SDK only infers it for a -windows framework, which this
+    is not (see below), so the apphost was a console executable. DiffEngine starts the viewer with
+    ShellExecute so that it inherits none of the test host's handles, and ShellExecute gives a
+    console executable a console window beside the viewer's own.
+    -->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <!--

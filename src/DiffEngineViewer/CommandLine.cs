@@ -2,12 +2,13 @@ static class CommandLine
 {
     public const string Usage = """
         DiffEngineViewer <left> <right>
-        DiffEngineViewer --inline --source <source file> --line <number>
+        DiffEngineViewer --inline --source <source file> --line <number> [--payload <file>]
         DiffEngineViewer --delete <file>
         DiffEngineViewer --diff <received> <target>
         DiffEngineViewer --attach
 
-        Inline mode reads the patch payload from stdin.
+        Inline mode reads the patch payload from the --payload file, which it then deletes, or
+        from stdin when there is none.
         Delete mode takes a file that a passing test no longer produces.
         Diff mode takes a failing pair, and queues it rather than taking a window of its own.
         Attach mode reads nothing, and displays the queue of whoever owns the port.
@@ -76,12 +77,14 @@ static class CommandLine
     static ViewerRequest ParseInline(IReadOnlyList<string> args)
     {
         string? source = null;
+        string? payload = null;
         var line = 0;
         for (var index = 1; index < args.Count; index++)
         {
             var name = args[index];
             if (name != "--source" &&
-                name != "--line")
+                name != "--line" &&
+                name != "--payload")
             {
                 return Error($"Unknown argument: {name}");
             }
@@ -95,6 +98,12 @@ static class CommandLine
             if (name == "--source")
             {
                 source = value;
+                continue;
+            }
+
+            if (name == "--payload")
+            {
+                payload = value;
                 continue;
             }
 
@@ -114,7 +123,10 @@ static class CommandLine
             return Error("--inline requires --line, of 1 or greater.");
         }
 
-        return new(ViewerMode.Inline, null, null, source, line, null);
+        return new(ViewerMode.Inline, null, null, source, line, null)
+        {
+            Payload = payload
+        };
     }
 
     static ViewerRequest Error(string message) =>

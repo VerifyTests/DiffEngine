@@ -8,6 +8,34 @@ public class CommandLineTests
     public Task Inline() =>
         Verify(CommandLine.Parse(["--inline", "--source", "Tests.cs", "--line", "42"]));
 
+    /// <summary>
+    /// How DiffEngine launches an inline viewer: the patch in a file, because a launch that
+    /// redirects stdin cannot use ShellExecute and so hands the viewer the test host's handles.
+    /// </summary>
+    [Test]
+    public Task InlineWithPayload() =>
+        Verify(CommandLine.Parse(["--inline", "--source", "Tests.cs", "--line", "42", "--payload", "patch.inlinepatch"]));
+
+    /// <summary>
+    /// The payload file exists only to carry one patch across the launch, so the viewer deletes it
+    /// once read.
+    /// </summary>
+    [Test]
+    public async Task APayloadFileIsReadAndDeleted()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"CommandLineTests_{Guid.NewGuid():N}.inlinepatch");
+        await File.WriteAllBytesAsync(file, Encoding.UTF8.GetBytes("payload ☂"));
+
+        var payload = ViewerProgram.ReadPayload(file);
+
+        await Assert.That(payload).IsEqualTo("payload ☂");
+        await Assert.That(File.Exists(file)).IsFalse();
+    }
+
+    [Test]
+    public async Task AMissingPayloadFileIsNoPayload() =>
+        await Assert.That(ViewerProgram.ReadPayload(Path.Combine(Path.GetTempPath(), $"CommandLineTests_{Guid.NewGuid():N}.inlinepatch"))).IsNull();
+
     [Test]
     public Task InlineArgumentsReordered() =>
         Verify(CommandLine.Parse(["--inline", "--line", "42", "--source", "Tests.cs"]));

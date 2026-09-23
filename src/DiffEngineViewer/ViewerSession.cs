@@ -98,7 +98,7 @@ static class ViewerSession
     /// Drops the item for a key, used when a previously failing test starts passing — or, with an
     /// origin, just that framework's variant of it.
     /// </summary>
-    public static SessionState Settle(SessionState state, string key, string? origin = null, string? member = null)
+    public static SessionState Settle(SessionState state, string key, string? origin = null, string? member = null, string? value = null)
     {
         // Nothing can settle a file comparison: settles arrive over the socket, and file mode runs
         // without one. Guarded rather than assumed, because Pending would dereference the null
@@ -123,7 +123,7 @@ static class ViewerSession
         }
 
         var pending = Pending(state);
-        var settled = pending.Settle(key, origin, member);
+        var settled = pending.Settle(key, origin, member, value);
         if (ReferenceEquals(settled, pending))
         {
             return state;

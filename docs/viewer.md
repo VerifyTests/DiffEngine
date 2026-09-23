@@ -51,10 +51,10 @@ Comparing a failing pair, which DiffEngine sends when the diff tool it resolved 
 DiffEngineViewer --diff <received> <target>
 ```
 
-Reviewing an inline snapshot, where the patch payload arrives on stdin:
+Reviewing an inline snapshot, where the patch payload arrives in a file the viewer deletes once read, or on stdin when no file is given:
 
 ```
-DiffEngineViewer --inline --source <source file> --line <number>
+DiffEngineViewer --inline --source <source file> --line <number> [--payload <file>]
 ```
 
 Reviewing a file a passing test no longer produces, which DiffEngine sends when no tray is running:
@@ -69,7 +69,7 @@ Displaying a queue held by another process, which is how [DiffEngineTray](/docs/
 DiffEngineViewer --attach
 ```
 
-Nothing is written to disk for inline review. The patch travels over stdin, or over a loopback socket when something is already holding the queue.
+Nothing is staged for inline review. A newly launched viewer gets the patch in a temp file, which it deletes once read, and one already holding the queue gets it over a loopback socket.
 
 
 ## Keys

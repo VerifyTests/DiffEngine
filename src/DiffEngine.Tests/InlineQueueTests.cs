@@ -113,6 +113,76 @@ public class InlineQueueTests
     }
 
     /// <summary>
+    /// One member, two Snapshot calls: line 20 fails and is queued, line 10 passes. The passing
+    /// call's settle names no entry by its line, and the member names exactly one, the failing
+    /// sibling's. The value it carries is what tells them apart: the passing call holds neither
+    /// the failing entry's anchor nor its new content.
+    /// </summary>
+    [Test]
+    public async Task SettleFromAPassingSiblingKeepsTheFailingSiblingsEntry()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(line: 20, framework: "net10.0", member: "MyTest"));
+
+        var settled = queue.Settle(InlineKey.For("Sample.cs", 10), "net10.0", "MyTest", "what the sibling holds");
+
+        await Assert.That(settled).IsSameReferenceAs(queue);
+    }
+
+    /// <summary>
+    /// The moved line again, with the value the settle now carries. Passing with the value it was
+    /// anchored to is the code under test producing that again.
+    /// </summary>
+    [Test]
+    public async Task SettleByMemberTakesAnEntryAnchoredToTheValue()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 42, member: "MyTest"))
+            .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest", "old");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// Passing with the value the entry was waiting to be accepted as: written in by hand, or by
+    /// another surface.
+    /// </summary>
+    [Test]
+    public async Task SettleByMemberTakesAnEntryWaitingForTheValue()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 42, member: "MyTest"))
+            .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest", "new");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A value also picks out one entry of several in a member, which the member alone cannot.
+    /// </summary>
+    [Test]
+    public async Task SettleByMemberWithAValueChoosesAmongSeveral()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 42, content: "first", member: "MyTest"))
+            .Enqueue(Patch(line: 48, content: "second", member: "MyTest"))
+            .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest", "second");
+
+        await Assert.That(queue.Items.Single().Patch.NewContent).IsEqualTo("first");
+    }
+
+    /// <summary>
+    /// The value crosses the wire, and an owner that predates it reads past it.
+    /// </summary>
+    [Test]
+    public async Task ASettleValueRoundTrips()
+    {
+        var message = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("Sample.cs", 1), "net10.0", "MyTest", "line one\nline \"two\"");
+
+        await Assert.That(ViewerMessage.TryParse(message.Build(), out var parsed)).IsTrue();
+        await Assert.That(parsed).IsEqualTo(message);
+    }
+
+    /// <summary>
     /// A member holding several inline snapshots cannot say which of them the settle was for, and
     /// dropping the wrong one loses a pending snapshot outright.
     /// </summary>

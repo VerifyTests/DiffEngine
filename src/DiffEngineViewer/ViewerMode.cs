@@ -6,7 +6,7 @@ enum ViewerMode
     File,
 
     /// <summary>
-    /// Inline snapshot review. Single instance, queued, patches arrive on stdin or the socket.
+    /// Inline snapshot review. Single instance, queued, patches arrive by launch or over the socket.
     /// </summary>
     Inline
 }
