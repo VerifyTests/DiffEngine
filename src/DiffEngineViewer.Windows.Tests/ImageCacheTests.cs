@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 /// <summary>
 /// The decode the WinForms head puts under an image pane's rows.
 /// <para>
@@ -66,6 +68,71 @@ public class ImageCacheTests
 
         await Assert.That(cache.Get(path, null)).IsNull();
         await Assert.That(cache.Get(path, null)).IsNull();
+    }
+
+    /// <summary>
+    /// The window's decode runs on the pool and comes back through the post the window gives the
+    /// cache, which is BeginInvoke there and a queue here. Until it does, the pane has no picture
+    /// and the window is free to paint its rows.
+    /// </summary>
+    [Test]
+    public async Task ADecodeWithSomewhereToPostItIsHandedBack()
+    {
+        var path = Write("posted.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        var loaded = 0;
+
+        await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        handBack!();
+
+        await Assert.That(loaded).IsEqualTo(1);
+        await Assert.That(cache.Get(path, null, () => loaded++)!.Width).IsEqualTo(8);
+    }
+
+    /// <summary>
+    /// A decode that finishes after its picture left the screen is thrown away rather than cached,
+    /// or navigating quickly through a queue of pictures would hold every one of them.
+    /// </summary>
+    [Test]
+    public async Task ADecodeForAPictureNoLongerOnScreenIsDropped()
+    {
+        var path = Write("left-behind.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        var loaded = 0;
+        cache.Keep([path]);
+
+        cache.Get(path, null, () => loaded++);
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        cache.Keep([]);
+        handBack!();
+
+        await Assert.That(loaded).IsEqualTo(0);
+        await Assert.That(cache.Composite(path, new(8, 6), (_, size) => new(size.Width, size.Height))).IsNull();
+    }
+
+    /// <summary>
+    /// A pane paints the picture over its checkerboard, scaled, once per size, and copies that on
+    /// every paint after. Scaling it on every paint cost 46 to 66 ms a paint for a pair of 2000 by
+    /// 1500 pictures, on every wheel notch.
+    /// </summary>
+    [Test]
+    public async Task APictureIsComposedOncePerSize()
+    {
+        var path = Write("composed.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var cache = new ImageCache();
+        await Assert.That(cache.Get(path, null)).IsNotNull();
+        Func<Image, Size, Bitmap> build = (_, size) => new(size.Width, size.Height);
+
+        var first = cache.Composite(path, new(4, 3), build);
+        var again = cache.Composite(path, new(4, 3), build);
+        var resized = cache.Composite(path, new(6, 4), build);
+
+        await Assert.That(ReferenceEquals(first, again)).IsTrue();
+        await Assert.That(resized!.Size).IsEqualTo(new Size(6, 4));
+        await Assert.That(cache.Composed).IsEqualTo(2);
     }
 
     [Test]

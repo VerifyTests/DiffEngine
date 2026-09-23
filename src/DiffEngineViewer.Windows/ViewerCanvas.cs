@@ -54,7 +54,7 @@ sealed class ViewerCanvas : Control
 
     readonly QueueTips tips = new();
 
-    readonly ImageCache images = new();
+    readonly ImageCache images;
 
     Screen? screen;
 
@@ -105,7 +105,15 @@ sealed class ViewerCanvas : Control
             ControlStyles.ResizeRedraw,
             true);
         BackColor = Palette.Background;
+        images = new(Post);
     }
+
+    /// <summary>
+    /// Hands a finished background decode back to this thread. Throws when the handle has gone,
+    /// which the cache takes as the window having closed under the decode.
+    /// </summary>
+    void Post(Action action) =>
+        BeginInvoke(action);
 
     public event Action<int>? QueueItemClicked;
 
@@ -147,9 +155,46 @@ sealed class ViewerCanvas : Control
     {
         screen = value;
         images.Keep(PicturesOn(value));
+        // Started now rather than at the first paint, which is at least a pump away. The pane
+        // draws its rows meanwhile, and the picture under them once it is decoded
+        foreach (var image in ImagesOn(value))
+        {
+            images.Get(image.Path, image.Hash, Invalidate);
+        }
+
         // A new screen renumbers the rows, so a kept index would describe a different entry.
         tips.Forget(this);
         Invalidate();
+    }
+
+    /// <summary>
+    /// Decodes whatever the current screen shows, here and now. For a capture, which draws one frame
+    /// and has no later paint for a background decode to arrive in time for.
+    /// </summary>
+    public void LoadPictures()
+    {
+        if (screen is null)
+        {
+            return;
+        }
+
+        foreach (var image in ImagesOn(screen))
+        {
+            images.Get(image.Path, image.Hash);
+        }
+    }
+
+    static IEnumerable<ImagePane> ImagesOn(Screen screen)
+    {
+        if (screen.Left.Image is { } left)
+        {
+            yield return left;
+        }
+
+        if (screen.Right.Image is { } right)
+        {
+            yield return right;
+        }
     }
 
     static List<string> PicturesOn(Screen screen)
@@ -387,8 +432,7 @@ sealed class ViewerCanvas : Control
             return;
         }
 
-        var picture = images.Get(image.Path, image.Hash);
-        if (picture is null)
+        if (images.Get(image.Path, image.Hash, Invalidate) is null)
         {
             return;
         }
@@ -421,13 +465,19 @@ sealed class ViewerCanvas : Control
             drawn.Width,
             drawn.Height);
 
-        DrawChecker(graphics, bounds);
+        // Copied rather than drawn: the checkerboard and the scaled picture are composed once per
+        // picture and size, and every paint after that is a copy of the result
+        var composite = images.Composite(image.Path, drawn, Compose);
+        if (composite is null)
+        {
+            return;
+        }
 
         var interpolation = graphics.InterpolationMode;
         var offset = graphics.PixelOffsetMode;
-        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        graphics.DrawImage(picture, bounds);
+        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        graphics.DrawImage(composite, bounds);
         // Put back, because the text drawing this shares a Graphics with is set up once by Painter
         // and would otherwise inherit whichever picture was drawn last.
         graphics.InterpolationMode = interpolation;
@@ -436,6 +486,23 @@ sealed class ViewerCanvas : Control
         // An outline, so a picture whose edges are the colour of the pane still has visible extent.
         using var pen = new Pen(Palette.Rule);
         graphics.DrawRectangle(pen, bounds.X - 1, bounds.Y - 1, bounds.Width + 1, bounds.Height + 1);
+    }
+
+    /// <summary>
+    /// The picture as a pane shows it at <paramref name="size"/>: over the checkerboard, so an image
+    /// with transparency reads as one, and scaled with the high quality filter a downscale needs.
+    /// Premultiplied, which is what the double buffer it is copied into holds.
+    /// </summary>
+    static Bitmap Compose(Image picture, Size size)
+    {
+        var composite = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppPArgb);
+        using var graphics = Graphics.FromImage(composite);
+        var bounds = new Rectangle(Point.Empty, size);
+        DrawChecker(graphics, bounds);
+        graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        graphics.DrawImage(picture, bounds);
+        return composite;
     }
 
     static void DrawChecker(Graphics graphics, Rectangle bounds)
