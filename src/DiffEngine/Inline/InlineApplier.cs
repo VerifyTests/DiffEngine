@@ -81,7 +81,21 @@ public static class InlineApplier
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
-            using var mutex = OpenMutex(MutexName(normalizedPath));
+            // Answered rather than thrown, as everything else here is. A mutex this process may
+            // not open - one an elevated applier created for the same file - threw out of Apply,
+            // and a viewer's single or group accept let that unwind its loop: the queue was staged
+            // and the window vanished mid review.
+            Mutex opened;
+            try
+            {
+                opened = OpenMutex(MutexName(normalizedPath));
+            }
+            catch (Exception exception)
+            {
+                return InlineApplyResult.Failed($"Could not open the inline patch mutex for: {fullPath}", exception);
+            }
+
+            using var mutex = opened;
             var owned = false;
             try
             {
@@ -149,19 +163,31 @@ public static class InlineApplier
             return InlineApplyResult.Failed($"Failed to decode: {fullPath}", exception);
         }
 
-        var status = InlinePatcher.TryApply(
-            SourceLanguage.ForFile(fullPath),
-            source,
-            patch.LineHint,
-            patch.Mode,
-            patch.OriginalExpression,
-            patch.OriginalValue,
-            patch.MemberName,
-            patch.EntryPoints,
-            anchorOnly,
-            newContent,
-            out var newSource,
-            out var failReason);
+        PatchStatus status;
+        string newSource;
+        string failReason;
+        try
+        {
+            status = InlinePatcher.TryApply(
+                SourceLanguage.ForFile(fullPath),
+                source,
+                patch.LineHint,
+                patch.Mode,
+                patch.OriginalExpression,
+                patch.OriginalValue,
+                patch.MemberName,
+                patch.EntryPoints,
+                anchorOnly,
+                newContent,
+                out newSource,
+                out failReason);
+        }
+        catch (Exception exception)
+        {
+            // A patcher defect on some shape of source, reported against the file it met it in
+            // rather than thrown at whichever surface was accepting
+            return InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
+        }
 
         switch (status)
         {

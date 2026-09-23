@@ -2199,4 +2199,135 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("Re-run the test.");
     }
+
+    /// <summary>
+    /// Two nested types each declaring Works, the scenario-per-class layout. The hint is
+    /// A.Works's call on line 11. A.Works is declared six lines above it and B.Works five below,
+    /// so the nearest declaration is the wrong one, the floor lands past the hint, and the only
+    /// call left in reach is B's - which holds the same literal, so it is rewritten instead.
+    /// </summary>
+    [Test]
+    public async Task ASameNamedMemberInTheNextNestedTypeDoesNotTakeThePatch()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                public class A
+                {
+                    public async Task Works()
+                    {
+                        var value = Build();
+                        value.Add(1);
+                        value.Add(2);
+                        value.Add(3);
+                        await Verify(value).Snapshot("dup");
+                    }
+                }
+                public class B
+                {
+                    public Task Works() =>
+                        Verify(other).Snapshot("dup");
+                }
+            }
+            """);
+
+        var status = TryApply(source, 11, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out var reason, memberName: "Works");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("await Verify(value).Snapshot(\"new\");");
+        await Assert.That(newSource).Contains("Verify(other).Snapshot(\"dup\");");
+    }
+
+    /// <summary>
+    /// The same layout with different literals. Nothing in B's span matches the anchor, and A's
+    /// call is never looked at, so the accept is a miss - and the same miss on every re-run, since
+    /// the re-run sends the same hint and member.
+    /// </summary>
+    [Test]
+    public async Task ASameNamedMemberInTheNextNestedTypeDoesNotHideTheCall()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                public class A
+                {
+                    public async Task Works()
+                    {
+                        var value = Build();
+                        value.Add(1);
+                        value.Add(2);
+                        value.Add(3);
+                        await Verify(value).Snapshot("old");
+                    }
+                }
+                public class B
+                {
+                    public Task Works() =>
+                        Verify(other).Snapshot("other");
+                }
+            }
+            """);
+
+        var status = TryApply(source, 11, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason, memberName: "Works");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("await Verify(value).Snapshot(\"new\");");
+    }
+
+
+    // Built by hand, because the subject is tabs: a space indented member whose body is tabs
+    static string SpaceMemberTabBody(string body) =>
+        "class Tests\n{\n    public async Task Test()\n    {\n" + body + "\n    }\n}\n";
+
+    /// <summary>
+    /// "\t\t" is two characters and the member's four spaces are four, so the local at line 5
+    /// reads as the next member and ends this one before the call at line 6. The call the hint
+    /// names is then outside the span, and the accept is a miss on every re-run.
+    /// </summary>
+    [Test]
+    public async Task ATabIndentedLocalDoesNotEndASpaceIndentedMember()
+    {
+        var source = SpaceMemberTabBody("\t\tvar value = Build();\n\t\tawait Verify(value).Snapshot(\"old\");");
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("await Verify(value).Snapshot(\"new\");");
+    }
+
+    /// <summary>
+    /// The same cut with a sibling above it holding the same literal, which is ordinary for a
+    /// member verifying two values that serialise alike. The hint names line 7, the truncated span
+    /// ends at line 6, and the sibling on line 5 is the only match left, so it is rewritten.
+    /// </summary>
+    [Test]
+    public async Task ATabIndentedLocalDoesNotSendThePatchToTheSiblingAboveIt()
+    {
+        var source = SpaceMemberTabBody(
+            "\t\tawait Verify(a).Snapshot(\"dup\");\n\t\tvar b = Build();\n\t\tawait Verify(b).Snapshot(\"dup\");");
+
+        var status = TryApply(source, 7, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("Verify(a).Snapshot(\"dup\")");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
+
+    /// <summary>
+    /// Control: the same source with the body indented by eight spaces instead of two tabs.
+    /// </summary>
+    [Test]
+    public async Task ControlSpaceIndentedLocalLeavesTheSiblingAlone()
+    {
+        var source = SpaceMemberTabBody(
+            "        await Verify(a).Snapshot(\"dup\");\n        var b = Build();\n        await Verify(b).Snapshot(\"dup\");");
+
+        var status = TryApply(source, 7, InlinePatchMode.Set, "\"dup\"", "new", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("Verify(a).Snapshot(\"dup\")");
+        await Assert.That(newSource).Contains("Verify(b).Snapshot(\"new\")");
+    }
 }

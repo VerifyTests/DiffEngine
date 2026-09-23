@@ -387,7 +387,7 @@ public static class InlineStaging
             // merged into carries both labels while the patch keeps its birth framework, and the
             // label is what a reader shows.
             var origin = origins.Count > 0 ? origins[0] : patch.Framework;
-            var baseName = BuildName(patch, origin);
+            var baseName = BuildName(patch, origin, directory);
 
             var encoding = new UTF8Encoding(false);
             File.WriteAllText(
@@ -419,12 +419,75 @@ public static class InlineStaging
     /// overwrites, and the framework last, which is the segment conflict labels are read from.
     /// The framework's dots become underscores for the same reason Verify writes DotNet10_0
     /// rather than a versioned moniker: the last dot has to be the one before it.
+    /// <para>
+    /// The test name is cut to fit. A file name component is 255 characters on NTFS and 255 bytes
+    /// on ext4 and APFS, and a long F# sentence name with the rest of this added went past it: the
+    /// write threw, <see cref="TryPersist" /> took that for a file it could not write, and the
+    /// snapshot was staged nowhere. Cut by UTF-8 bytes, which is the tighter of the two limits for
+    /// the same name. The call site hash keeps two names that are cut to the same prefix apart.
+    /// </para>
+    /// <para>
+    /// On .NET Framework the whole path is cut to fit as well. It holds a path to MAX_PATH unless
+    /// the machine has opted in to long paths, which most have not, and a name that fits its
+    /// component can still take the path past 260 characters under a deep project.
+    /// </para>
     /// </summary>
-    static string BuildName(InlinePatch patch, string? origin)
+    static string BuildName(InlinePatch patch, string? origin, string directory)
     {
         var test = Sanitize(patch.TestName) ?? Path.GetFileNameWithoutExtension(patch.SourceFile);
         var runtime = Sanitize(origin)?.Replace('.', '_') ?? "unknown";
-        return $"{test}.{Hash($"{patch.SourceFile}:{patch.LineHint}")}.{runtime}";
+        var rest = $".{Hash($"{patch.SourceFile}:{patch.LineHint}")}.{runtime}";
+        var bytes = maxComponentBytes - Encoding.UTF8.GetByteCount(rest + longestExtension);
+#if NETFRAMEWORK
+        // One for the separator the name is joined to the directory with
+        var characters = maxFrameworkPath - directory.Length - 1 - rest.Length - longestExtension.Length;
+#else
+        var characters = int.MaxValue;
+#endif
+        return Truncate(test, bytes, characters) + rest;
+    }
+
+    const int maxComponentBytes = 255;
+
+#if NETFRAMEWORK
+    /// <summary>
+    /// MAX_PATH less the terminating null.
+    /// </summary>
+    const int maxFrameworkPath = 259;
+#endif
+
+    /// <summary>
+    /// The longest of the three extensions a staged entry is written with.
+    /// </summary>
+    const string longestExtension = ".received.txt";
+
+    /// <summary>
+    /// The longest prefix of <paramref name="value" /> that is at most <paramref name="bytes" /> in
+    /// UTF-8 and <paramref name="characters" /> long, never splitting a surrogate pair.
+    /// </summary>
+    static string Truncate(string value, int bytes, int characters)
+    {
+        var used = 0;
+        var index = 0;
+        while (index < value.Length)
+        {
+            var length = char.IsHighSurrogate(value[index]) &&
+                         index + 1 < value.Length &&
+                         char.IsLowSurrogate(value[index + 1])
+                ? 2
+                : 1;
+            var size = Encoding.UTF8.GetByteCount(value.ToCharArray(index, length));
+            if (used + size > bytes ||
+                index + length > characters)
+            {
+                break;
+            }
+
+            used += size;
+            index += length;
+        }
+
+        return value.Substring(0, index);
     }
 
     /// <summary>

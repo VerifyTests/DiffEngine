@@ -354,7 +354,7 @@ static class StringLiteral
     /// An escape only one of the languages has, or has its own rule for. Called with
     /// <paramref name="index"/> just past the escape character, and free to move it: F#'s
     /// trigraph and line continuation both read further. False means the escape is not one this
-    /// language knows, which makes the literal unreadable.
+    /// language knows: an unreadable literal in C#, and in F# a backslash kept as text.
     /// </summary>
     public delegate bool TryLanguageEscape(string text, ref int index, char escape, StringBuilder builder);
 
@@ -364,13 +364,23 @@ static class StringLiteral
     /// Written once because it was written twice, and the copies had to be kept in step by hand -
     /// the guard against a lone surrogate in <c>\U</c> was a fix that had to be made in both, and
     /// could as easily have been made in one. What genuinely differs is passed in: whether a
-    /// newline ends the literal (C# yes, F# no), and the escapes that are one language's own.
+    /// newline ends the literal (C# yes, F# no), the escapes that are one language's own, and what
+    /// a malformed escape means.
+    /// </para>
+    /// <para>
+    /// <paramref name="malformedEscapeIsText"/> is F#'s rule, checked against fsi: a backslash
+    /// that starts no escape it defines, or one cut short (<c>\x4</c>, <c>\u12</c>, <c>\12</c>), is
+    /// kept as a backslash, and what follows it is read as ordinary text. <c>"\d+"</c> is the
+    /// three characters it looks like, with no warning. C# rejects the same literals at compile
+    /// time, so for C# a malformed escape is still an unreadable literal. A code point that is
+    /// well formed and out of range is unreadable in both.
     /// </para>
     /// </summary>
     public static bool TryScanRegular(
         string text,
         int start,
         bool newlineEndsLiteral,
+        bool malformedEscapeIsText,
         TryLanguageEscape tryLanguageEscape,
         out string? value,
         out int end)
@@ -408,6 +418,7 @@ static class StringLiteral
                 return false;
             }
 
+            var escapeAt = index;
             var escape = text[index];
             index++;
             switch (escape)
@@ -445,14 +456,32 @@ static class StringLiteral
                 case 'u':
                     if (!TryReadHex(text, ref index, 4, 4, out var utf16))
                     {
-                        return false;
+                        if (!malformedEscapeIsText)
+                        {
+                            return false;
+                        }
+
+                        builder.Append('\\');
+                        index = escapeAt;
+                        continue;
                     }
 
                     builder.Append((char) utf16);
                     continue;
                 case 'U':
-                    if (!TryReadHex(text, ref index, 8, 8, out var codePoint) ||
-                        !IsScalarValue(codePoint))
+                    if (!TryReadHex(text, ref index, 8, 8, out var codePoint))
+                    {
+                        if (!malformedEscapeIsText)
+                        {
+                            return false;
+                        }
+
+                        builder.Append('\\');
+                        index = escapeAt;
+                        continue;
+                    }
+
+                    if (!IsScalarValue(codePoint))
                     {
                         return false;
                     }
@@ -461,9 +490,17 @@ static class StringLiteral
                     continue;
             }
 
+            var length = builder.Length;
             if (!tryLanguageEscape(text, ref index, escape, builder))
             {
-                return false;
+                if (!malformedEscapeIsText)
+                {
+                    return false;
+                }
+
+                builder.Length = length;
+                builder.Append('\\');
+                index = escapeAt;
             }
         }
 

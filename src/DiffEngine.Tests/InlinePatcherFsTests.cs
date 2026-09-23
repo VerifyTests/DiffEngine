@@ -852,4 +852,68 @@ public class InlinePatcherFsTests
         await Assert.That(newSource).Contains("#nowarn \"0044\"");
         await Assert.That(newSource).Contains("#if INTERACTIVE");
     }
+
+    /// <summary>
+    /// An F# local shadowing the test's own name, declared one line below the hint while the test
+    /// is declared two above it. The local becomes the member, so the call at the hint is out of
+    /// bounds; with the anchor matching nothing past it, the accept is a miss.
+    /// </summary>
+    [Test]
+    public async Task AnFsLocalNamedLikeTheTestDoesNotFloorTheSearchPastTheHint()
+    {
+        var source = Source(
+            """
+            module Tests
+
+            [<Test>]
+            let result () =
+                task {
+                    do! Verifier.Verify(1).Snapshot("one").ToTask()
+                    let result = 2
+                    do! Verifier.Verify(result).Snapshot("two").ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, null, "uno", out var newSource, out var reason, originalValue: "one", memberName: "result");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("Verify(1).Snapshot(\"uno\")");
+    }
+
+    /// <summary>
+    /// A regular literal whose value is in the layout shape, as a writer that did not wrap it left
+    /// it. The test library compares against the stripped value and fails, and sends that value as
+    /// the anchor. A patcher that read the literal without stripping found it equal to the new
+    /// content and reported AlreadyApplied - so the entry was dropped, the next run failed the
+    /// same way, and it went round again.
+    /// </summary>
+    [Test]
+    public async Task FsPatcherDoesNotCallALayoutShapedRegularLiteralAlreadyApplied()
+    {
+        const string content = "\nx = \"\"\"\n";
+        var source = Source("module Tests\n\n[<Test>]\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\\nx = \\\"\\\"\\\"\\n\").ToTask()\n");
+        // What F# hands the test library for that literal is the content itself (fsi), and this is
+        // what the library compares against and sends as the anchor
+        var seen = SourceLanguage.FSharp.SnapshotValue(content);
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, content, out _, out _, originalValue: seen, memberName: "MyTest");
+
+        await Assert.That(status).IsNotEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// What that costs an accept: a hand-written regex snapshot can never be updated. The anchor
+    /// matches nothing because the literal does not parse, and the insert path then refuses the
+    /// call as not holding a string literal.
+    /// </summary>
+    [Test]
+    public async Task FsPatcherUpdatesALiteralHoldingAnUnknownEscape()
+    {
+        var source = Source("module Tests\n\n[<Test>]\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\\d+\").ToTask()\n");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "\\d+x", out var newSource, out var reason, originalValue: "\\d+", memberName: "MyTest");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("Snapshot(\"\\\\d+x\")");
+    }
 }

@@ -347,4 +347,40 @@ public class InlineStagingTests
             }
         }
     }
+
+    /// <summary>
+    /// A 242 character test name makes a 272 character received file name, past the 255 every
+    /// file system here allows per component. The write throws IOException, TryPersist catches it,
+    /// and the entry is reported as not written with nothing said anywhere.
+    /// </summary>
+    [Test]
+    public async Task ALongTestNameIsStillPersisted()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"InlineStagingTests_long_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, "Sample.csproj"), "<Project />");
+            var source = Path.Combine(directory, "SampleTests.cs");
+            File.WriteAllText(source, "// sample");
+
+            var patch = new InlinePatch(source, 42, "\"old\"", "new")
+            {
+                TestName = $"SampleTests.{new string('a', 230)}",
+                OriginalValue = "old",
+                Framework = "net10.0"
+            };
+
+            var written = InlineStaging.Persist([new(patch)]);
+
+            var staging = Path.Combine(directory, "obj", InlineStaging.DirectoryName);
+            var files = Directory.Exists(staging) ? Directory.GetFiles(staging).Length : 0;
+            await Assert.That(written).IsEqualTo(1);
+            await Assert.That(files).IsEqualTo(3);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
 }

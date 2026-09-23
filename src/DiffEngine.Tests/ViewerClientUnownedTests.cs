@@ -234,4 +234,161 @@ public class ViewerClientUnownedTests
             cancel.Dispose();
         }
     }
+
+    /// <summary>
+    /// Network UPS Tools' upsd holds 3493, which IANA assigns it. It answers every line it does
+    /// not understand with an error and closes once the client has finished sending, which is
+    /// what this does. The composition is AddInlineAsync's, with the port made explicit and the
+    /// launch observed rather than performed.
+    /// </summary>
+    [Test]
+    public async Task ANonViewerOnThePortIsReportedRatherThanTakenForAnOwner()
+    {
+        ViewerClient.ForgetUnowned();
+        using var upsd = new FakeUpsd();
+        var port = upsd.Port;
+        var trace = new CapturingListener();
+        Trace.Listeners.Add(trace);
+        try
+        {
+            var settle = new ViewerMessage(ViewerVerb.Settle, InlineKey.For("Tests.cs", 1));
+            for (var index = 0; index < 5; index++)
+            {
+                ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
+            }
+
+            var settleConnections = upsd.Connections;
+
+            var patch = new InlinePatch(Path.Combine(Path.GetTempPath(), "ViewerClientNoProject", "Tests.cs"), 1, "\"old\"", "new")
+            {
+                TestName = "Tests.Method"
+            };
+            var payload = InlinePatchFile.Build(patch, "net10.0");
+            var inline = new ViewerMessage(ViewerVerb.Inline, Body: payload);
+            var sent = await ViewerClient.SendAsync(inline, Cancel.None, port, skipIfUnowned: true);
+            var launches = 0;
+            var gated = ViewerLaunchGate.LaunchAsync(
+                async () => await ViewerClient.SendAsync(inline, Cancel.None, port) == SendOutcome.Accepted,
+                () =>
+                {
+                    launches++;
+                    return Task.FromResult(true);
+                },
+                Cancel.None,
+                isOwned: () => ViewerClient.IsOwned(port));
+            var first = await Task.WhenAny(gated, Task.Delay(TimeSpan.FromSeconds(30)));
+            await Assert.That(first == gated).IsTrue();
+            var outcome = await gated;
+
+            Console.WriteLine($"settle connections: {settleConnections}, inline send: {sent}, gate: {outcome}, launches: {launches}, result: {DiffRunner.InlineResultFor(outcome)}");
+
+            using (Assert.Multiple())
+            {
+                // Either a hint that names the variable to move off the port...
+                await Assert.That(trace.Text).Contains(ViewerClient.PortVariable);
+                // ...or at least not paying a connect per settle for a port with no viewer on it
+                await Assert.That(settleConnections).IsEqualTo(1);
+            }
+        }
+        finally
+        {
+            Trace.Listeners.Remove(trace);
+            ViewerClient.ForgetUnowned();
+        }
+    }
+
+    sealed class CapturingListener : TraceListener
+    {
+        readonly StringBuilder builder = new();
+
+        public string Text
+        {
+            get
+            {
+                lock (builder)
+                {
+                    return builder.ToString();
+                }
+            }
+        }
+
+        public override void Write(string? message)
+        {
+            lock (builder)
+            {
+                builder.Append(message);
+            }
+        }
+
+        public override void WriteLine(string? message)
+        {
+            lock (builder)
+            {
+                builder.AppendLine(message);
+            }
+        }
+    }
+
+    /// <summary>
+    /// What upsd does with a client that is not speaking its protocol: one error per line, and the
+    /// connection closed at end of input. One connection at a time, as its select loop is.
+    /// </summary>
+    sealed class FakeUpsd : IDisposable
+    {
+        readonly TcpListener listener = new(IPAddress.Loopback, 0);
+        int connections;
+
+        public FakeUpsd()
+        {
+            listener.Start();
+            new Thread(Serve)
+            {
+                IsBackground = true
+            }.Start();
+        }
+
+        public int Port => ((IPEndPoint) listener.LocalEndpoint).Port;
+
+        public int Connections => Volatile.Read(ref connections);
+
+        void Serve()
+        {
+            while (true)
+            {
+                TcpClient client;
+                try
+                {
+                    client = listener.AcceptTcpClient();
+                }
+                catch (Exception exception)
+                    when (exception is SocketException or ObjectDisposedException or InvalidOperationException)
+                {
+                    return;
+                }
+
+                Interlocked.Increment(ref connections);
+                using (client)
+                {
+                    try
+                    {
+                        var stream = client.GetStream();
+                        using var reader = new StreamReader(stream, Encoding.ASCII);
+                        using var writer = new StreamWriter(stream, Encoding.ASCII);
+                        writer.NewLine = "\n";
+                        writer.AutoFlush = true;
+                        while (reader.ReadLine() != null)
+                        {
+                            writer.WriteLine("ERR UNKNOWN-COMMAND");
+                        }
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            }
+        }
+
+        public void Dispose() =>
+            listener.Stop();
+    }
 }

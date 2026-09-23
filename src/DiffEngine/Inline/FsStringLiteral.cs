@@ -42,10 +42,32 @@ public static class FsStringLiteral
             // delimiter past the way C# can (FS1232), or a line terminator, which no delimiter
             // helps with. A regular literal on one source line always works, whatever it costs in
             // escapes
-            return StringLiteral.RenderRegular(SourceLanguage.NormalizeNewlines(content));
+            return StringLiteral.RenderRegular(Wrapped(SourceLanguage.NormalizeNewlines(content)));
         }
 
         return StringLiteral.RenderMultiLine(content, indent, eol, "\"\"\"");
+    }
+
+    /// <summary>
+    /// Content for a regular literal, wrapped in layout when it would otherwise read as layout.
+    /// <para>
+    /// The reader's half of the convention sees values, not literals, so it strips a value in the
+    /// layout shape whichever kind of literal held it. Content in that shape written as it is -
+    /// starting with a blank line and ending with a newline, say - was read back as something
+    /// else, and the patcher, reading the literal as it stood, called the next accept already
+    /// applied: the queue dropped it and the next run failed the same way. A blank line either
+    /// side is layout that strips to exactly this content, since the closing indentation is
+    /// empty and every line starts with it.
+    /// </para>
+    /// </summary>
+    static string Wrapped(string content)
+    {
+        if (StringLiteral.TryStripLayout(content, out _))
+        {
+            return $"\n{content}\n";
+        }
+
+        return content;
     }
 
     /// <summary>
@@ -124,7 +146,7 @@ public static class FsStringLiteral
         {
             // There is no verbatim triple-quoted form, so a run of quotes after @" is an escaped
             // quote and the rest of the string, not a delimiter
-            return StringLiteral.TryScanVerbatim(text, index + 1, out value, out end);
+            return Snapshot(StringLiteral.TryScanVerbatim(text, index + 1, out value, out end), ref value);
         }
 
         var quotes = StringLiteral.QuoteRunLength(text, index);
@@ -143,17 +165,36 @@ public static class FsStringLiteral
             return true;
         }
 
-        return TryScanRegular(text, index + 1, out value, out end);
+        return Snapshot(TryScanRegular(text, index + 1, out value, out end), ref value);
+    }
+
+    /// <summary>
+    /// A regular or verbatim literal's value as the snapshot it holds, which is the value with
+    /// <see cref="StripLayout" /> applied: what a test library's <see cref="SourceLanguage.SnapshotValue" />
+    /// does with it, having no way to tell what kind of literal it came from. Read without it, the
+    /// patcher and the test library disagreed about any value in the layout shape, and an accept
+    /// the library still failed on was reported as already applied. The triple-quoted scan strips
+    /// as it reads, so it does not come through here.
+    /// </summary>
+    static bool Snapshot(bool scanned, ref string? value)
+    {
+        if (scanned)
+        {
+            value = StripLayout(value!);
+        }
+
+        return scanned;
     }
 
     // An ordinary F# string may span lines, so a newline in one is content
     static bool TryScanRegular(string text, int start, out string? value, out int end) =>
-        StringLiteral.TryScanRegular(text, start, false, TryEscape, out value, out end);
+        StringLiteral.TryScanRegular(text, start, false, true, TryEscape, out value, out end);
 
     /// <summary>
     /// What F# spells its own way: <c>\x</c> is exactly two hex digits, a backslash before a line
     /// break continues the string, and a backslash before three digits is a trigraph. F# has no
-    /// <c>\0</c> or <c>\e</c>, so those fall through to being no escape at all.
+    /// <c>\0</c> or <c>\e</c>, so those are no escape at all, and the scanner keeps the backslash
+    /// as text, as F# does.
     /// </summary>
     static bool TryEscape(string text, ref int index, char escape, StringBuilder builder)
     {
@@ -213,12 +254,9 @@ public static class FsStringLiteral
 
         var value = (first - '0') * 100 + (text[index] - '0') * 10 + (text[index + 1] - '0');
         index += 2;
-        if (value > 255)
-        {
-            return false;
-        }
-
-        result = (char) value;
+        // Past 255 F# wraps into the byte range, with warning FS1252 saying a later version will
+        // make it an error. What it compiles to today is what the literal holds.
+        result = (char) (value % 256);
         return true;
     }
 }

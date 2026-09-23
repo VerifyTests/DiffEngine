@@ -144,8 +144,59 @@ static class ViewerClient
     /// <summary>
     /// For tests, which share this process and its memory with every other test's ports.
     /// </summary>
-    internal static void ForgetUnowned() =>
+    internal static void ForgetUnowned()
+    {
         unownedAt.Clear();
+        reportedForeign.Clear();
+    }
+
+    /// <summary>
+    /// Ports already reported as held by something that is not a viewer, so the hint is written
+    /// once per process rather than once per send.
+    /// </summary>
+    static readonly ConcurrentDictionary<int, byte> reportedForeign = new();
+
+    /// <summary>
+    /// A connection accepted and answered with something that is not this protocol: another
+    /// program holds the port. 3493 is IANA's for Network UPS Tools, whose upsd answers every
+    /// line it does not understand with an error.
+    /// <para>
+    /// Remembered as unowned, because for every purpose here it is: nothing on it will ever take
+    /// a settle, a move or a delete. Taken for an owner instead, every telling send connected to
+    /// it, and nothing said why inline snapshots had stopped reaching a viewer. The hint names
+    /// the variable that moves DiffEngine off the port, which is the only fix - a viewer
+    /// launched to take the queue cannot bind a port something else holds either.
+    /// </para>
+    /// <para>
+    /// An empty reply is not this. That is an owner that closed without answering, shutting down
+    /// or wedged, which is an owner behaving badly rather than no owner at all.
+    /// </para>
+    /// </summary>
+    static void NotAViewer(int port, string reply)
+    {
+        if (string.IsNullOrWhiteSpace(reply))
+        {
+            return;
+        }
+
+        Found(port, false);
+        if (!reportedForeign.TryAdd(port, 0))
+        {
+            return;
+        }
+
+        var first = reply.Split('\n')[0].Trim();
+        if (first.Length > 80)
+        {
+            first = first.Substring(0, 80);
+        }
+
+        // Trace rather than Logging, because this file is linked into the viewer too
+        Trace.WriteLine(
+            $"Port {port} is held by something that is not a DiffEngine viewer: it answered \"{first}\". " +
+            "Inline snapshots and pending files cannot reach a viewer there. " +
+            $"Set the {PortVariable} environment variable to a free port to move DiffEngine off it.");
+    }
 
     /// <summary>
     /// Whether anything is listening, without sending it anything. For a caller that has just
@@ -238,7 +289,14 @@ static class ViewerClient
             stream.Flush();
             HalfClose(client);
             using var reader = new StreamReader(stream, Encoding.UTF8);
-            return ViewerResponse.TryParse(reader.ReadToEnd(), out response);
+            var text = reader.ReadToEnd();
+            if (ViewerResponse.TryParse(text, out response))
+            {
+                return true;
+            }
+
+            NotAViewer(endpointPort, text);
+            return false;
         }
         catch (Exception exception)
             when (Ignorable(exception))
@@ -344,6 +402,7 @@ static class ViewerClient
 #endif
             if (!ViewerResponse.TryParse(text, out var response))
             {
+                NotAViewer(endpointPort, text);
                 return SendOutcome.NoOwner;
             }
 

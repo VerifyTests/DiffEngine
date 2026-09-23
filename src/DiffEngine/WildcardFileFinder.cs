@@ -29,8 +29,7 @@
             {
                 if (segment.Contains('*'))
                 {
-                    newRoots.AddRange(Directory.EnumerateDirectories(root, segment)
-                        .OrderByDescending(Directory.GetLastWriteTime));
+                    newRoots.AddRange(Children(root, segment));
                 }
                 else
                 {
@@ -51,6 +50,36 @@
         }
 
         return currentRoots;
+    }
+
+    /// <summary>
+    /// The directories under <paramref name="root" /> matching a wildcard segment, or none when the
+    /// root cannot be listed.
+    /// <para>
+    /// A root that does not exist is ordinary here, not an error: a variable the machine does not
+    /// define, such as <c>%ProgramW6432%</c> on 32 bit Windows, is left as written by
+    /// ExpandEnvironmentVariables and becomes a relative root. Thrown, it escaped through
+    /// DiffTools' static constructor, and every later use of DiffTools in the process was a
+    /// TypeInitializationException.
+    /// </para>
+    /// </summary>
+    static IEnumerable<string> Children(string root, string segment)
+    {
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+
+        try
+        {
+            return Directory.EnumerateDirectories(root, segment)
+                .OrderByDescending(Directory.GetLastWriteTime)
+                .ToList();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     public static bool TryFind(
