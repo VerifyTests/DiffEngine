@@ -138,6 +138,16 @@ static class ViewerLaunchGate
     }
 
     /// <inheritdoc cref="Launch" />
+    /// <remarks>
+    /// Nothing done while the gate is held resumes on the caller's context: the launch runs on the
+    /// pool, and the waits do not capture. The sync <see cref="Launch" /> blocks its thread on the
+    /// gate, and on a single threaded context - xUnit v2's with one worker, or a UI thread - that
+    /// thread is the only one a captured continuation could run on, so a sync caller behind an
+    /// async one waited for a gate that could only be released by the thread doing the waiting.
+    /// The launch goes to the pool rather than just being awaited without capture, because it
+    /// awaits things of its own (ViewerLauncher's stdin write) and those capture whatever context
+    /// is current when it starts.
+    /// </remarks>
     public static async Task<ViewerLaunchOutcome> LaunchAsync(
         Func<Task<bool>> retry,
         Func<Task<bool>> launch,
@@ -148,7 +158,7 @@ static class ViewerLaunchGate
         isOwned ??= () => ViewerClient.IsOwned();
         canLaunch ??= () => !MaxInstance.Reached();
         bool owned;
-        await gate.WaitAsync(cancel);
+        await gate.WaitAsync(cancel).ConfigureAwait(false);
         try
         {
             owned = isOwned();
@@ -159,12 +169,12 @@ static class ViewerLaunchGate
                     return ViewerLaunchOutcome.Capped;
                 }
 
-                if (!await launch())
+                if (!await Task.Run(launch, cancel).ConfigureAwait(false))
                 {
                     return ViewerLaunchOutcome.Failed;
                 }
 
-                await WaitForBindAsync(isOwned, cancel);
+                await WaitForBindAsync(isOwned, cancel).ConfigureAwait(false);
             }
         }
         finally
@@ -211,7 +221,7 @@ static class ViewerLaunchGate
                 return;
             }
 
-            await Task.Delay(Poll, cancel);
+            await Task.Delay(Poll, cancel).ConfigureAwait(false);
         }
     }
 

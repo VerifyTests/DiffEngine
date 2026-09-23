@@ -232,6 +232,19 @@ public class FsStringLiteralTests
     [Arguments("\"\"\"a\"b\"\"\"", "a\"b")]
     // Ordinary F# strings may span lines
     [Arguments("\"a\nb\"", "a\nb")]
+    // A backslash that starts no F# escape, or one cut short, is kept with what follows it, as
+    // fsi keeps it and with no warning: a trigraph is three digits, \x two hex digits, \u four,
+    // \U eight, and F# has no \0, \d or \e
+    [Arguments("\"\\d+\"", "\\d+")]
+    [Arguments("\"\\0\"", "\\0")]
+    [Arguments("\"\\12\"", "\\12")]
+    [Arguments("\"\\e\"", "\\e")]
+    [Arguments("\"\\x4\"", "\\x4")]
+    [Arguments("\"\\u12\"", "\\u12")]
+    [Arguments("\"\\U0041\"", "\\U0041")]
+    [Arguments("\"a\\qb\"", "a\\qb")]
+    // Past 255 a trigraph wraps into the byte range, which fsi does with warning FS1252
+    [Arguments("\"\\999\"", "\u00e7")]
     public async Task Parse(string expression, string expected)
     {
         var parsed = FsStringLiteral.TryParse(expression, out var value);
@@ -289,11 +302,6 @@ public class FsStringLiteralTests
     // A byte string is not a string
     [Arguments("\"bytes\"B")]
     [Arguments("@\"bytes\"B")]
-    // A trigraph is three digits or nothing
-    [Arguments("\"\\0\"")]
-    [Arguments("\"\\12\"")]
-    // Not an F# escape
-    [Arguments("\"\\e\"")]
     public async Task ParseRejects(string expression)
     {
         var parsed = FsStringLiteral.TryParse(expression, out _);

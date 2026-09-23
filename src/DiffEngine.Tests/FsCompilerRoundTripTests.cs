@@ -43,6 +43,11 @@ public class FsCompilerRoundTripTests
         "\"starts with a quote\nsecond",
         "ends with a quote\nsecond\"",
         "has \"\"\" inside\nsecond",
+        // Content only a regular literal can hold that is also in the layout shape: a blank first
+        // line and nothing but indentation after the last newline. The reader strips a value in
+        // that shape whatever literal held it, so it has to be written wrapped in layout of its own
+        "\nx = \"\"\"\n",
+        "\n  x = \"\"\"\n  ",
         "(* not a comment *)\nsecond",
         "// not a comment\nsecond",
         "'ticked'\nsecond",

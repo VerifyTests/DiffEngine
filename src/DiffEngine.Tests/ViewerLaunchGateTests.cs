@@ -300,4 +300,116 @@ public class ViewerLaunchGateTests
         public bool IsUp() =>
             elapsed.Elapsed.Ticks >= Interlocked.Read(ref upAt);
     }
+
+    /// <summary>
+    /// DiffRunner.AddDeleteAsync's shape and then DiffRunner.AddDelete's, on the only thread a
+    /// single threaded context has, which is where xUnit v2 puts a second test once the first is
+    /// awaiting. The async launch holds the gate across WaitForBindAsync, whose delay resumes on
+    /// the captured context; the sync one blocks that context's thread waiting for the gate.
+    /// </summary>
+    [Test]
+    public Task SyncLaunchBehindAnAsyncDeleteOnTheSameContextFinishes() =>
+        SyncBehindAsync(() => Task.FromResult(true));
+
+    /// <summary>
+    /// AddInlineAsync's shape: the launch is ViewerLauncher.LaunchAsync, whose stdin write and
+    /// flush are awaited on whatever context the caller had. So ConfigureAwait(false) inside the
+    /// gate alone does not help it: the gate is held until the launch task completes, and that
+    /// needs the context too.
+    /// </summary>
+    [Test]
+    public Task SyncLaunchBehindAnAsyncInlineOnTheSameContextFinishes() =>
+        SyncBehindAsync(async () =>
+        {
+            await Task.Delay(10);
+            return true;
+        });
+
+    static async Task SyncBehindAsync(Func<Task<bool>> launch)
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        ViewerLaunchGate.BindWait = TimeSpan.FromMilliseconds(300);
+        var context = new SingleThreadContext();
+        Task<ViewerLaunchOutcome>? asyncLaunch = null;
+        ViewerLaunchOutcome? syncOutcome = null;
+        var thread = new Thread(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            asyncLaunch = ViewerLaunchGate.LaunchAsync(
+                retry: () => Task.FromResult(true),
+                launch,
+                Cancel.None,
+                isOwned: () => false,
+                canLaunch: () => true);
+            syncOutcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => true,
+                isOwned: () => false,
+                canLaunch: () => true);
+        })
+        {
+            IsBackground = true
+        };
+
+        bool finished;
+        try
+        {
+            thread.Start();
+            // Ten bind waits, which is ten times what the two launches need between them
+            finished = thread.Join(TimeSpan.FromSeconds(3));
+        }
+        finally
+        {
+            // Run what the context queued, from a thread that is not blocked, so the static gate is
+            // not left held for whatever runs in this process next
+            var pump = new Thread(() => context.Pump(() => !thread.IsAlive, TimeSpan.FromSeconds(10)))
+            {
+                IsBackground = true
+            };
+            pump.Start();
+            pump.Join();
+            ViewerLaunchGate.BindWait = previous;
+        }
+
+        await Assert.That(finished).IsTrue();
+        await Assert.That(syncOutcome).IsEqualTo(ViewerLaunchOutcome.Launched);
+        await Assert.That(asyncLaunch!.IsCompleted).IsTrue();
+    }
+
+    /// <summary>
+    /// One thread, and a queue of what was posted to it. What xUnit v2's MaxConcurrencySyncContext
+    /// is with a single worker, and what a WinForms or WPF thread is.
+    /// </summary>
+    sealed class SingleThreadContext : SynchronizationContext
+    {
+        readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> queue = new();
+
+        public override void Post(SendOrPostCallback d, object? state) =>
+            queue.Add((d, state));
+
+        public override void Send(SendOrPostCallback d, object? state) =>
+            throw new NotSupportedException();
+
+        public void Pump(Func<bool> done, TimeSpan timeout)
+        {
+            var previous = Current;
+            SetSynchronizationContext(this);
+            try
+            {
+                var elapsed = Stopwatch.StartNew();
+                while (!done() &&
+                       elapsed.Elapsed < timeout)
+                {
+                    if (queue.TryTake(out var item, TimeSpan.FromMilliseconds(20)))
+                    {
+                        item.Callback(item.State);
+                    }
+                }
+            }
+            finally
+            {
+                SetSynchronizationContext(previous);
+            }
+        }
+    }
 }

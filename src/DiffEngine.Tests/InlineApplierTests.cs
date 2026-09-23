@@ -1,3 +1,7 @@
+#if NET
+using System.Security.AccessControl;
+#endif
+
 public class InlineApplierTests
 {
     static string WriteTemp(byte[] bytes, string extension = ".cs")
@@ -1246,4 +1250,60 @@ public class InlinePatchFileTests
 
         await Assert.That(read).IsFalse();
     }
+
+#if NET
+    /// <summary>
+    /// The per file mutex already exists and this process may not open it, which is what a
+    /// non elevated applier meets while an elevated one (an IDE run as administrator, say) is
+    /// applying to the same file: an elevated token's default DACL grants Administrators and
+    /// SYSTEM, and a filtered token has Administrators as deny only. Modelled with an empty DACL.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AMutexThisProcessCannotOpenFailsTheApplyRatherThanThrowing()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(Path.GetTempPath(), $"InlineApplierTests_mutex_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var source = Path.Combine(directory, "Sample.cs");
+            File.WriteAllText(source, "class C\n{\n    void M() => Verify(\"old\");\n}\n");
+
+            var name = (string) typeof(InlineApplier)
+                .GetMethod("MutexName", BindingFlags.NonPublic | BindingFlags.Static)!
+                .Invoke(null, [Path.GetFullPath(source).ToLowerInvariant()])!;
+            var security = new MutexSecurity();
+            security.SetSecurityDescriptorSddlForm("D:P");
+            using var held = MutexAcl.Create(false, name, out var created, security);
+            await Assert.That(created).IsTrue();
+
+            InlineApplyResult? result = null;
+            Exception? thrown = null;
+            try
+            {
+                result = InlineApplier.Apply(
+                    new(source, 3, "\"old\"", "new")
+                    {
+                        TestName = null
+                    });
+            }
+            catch (Exception exception)
+            {
+                thrown = exception;
+            }
+
+            await Assert.That(thrown).IsNull();
+            await Assert.That(result!.Status).IsEqualTo(InlineApplyStatus.Failed);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+#endif
 }

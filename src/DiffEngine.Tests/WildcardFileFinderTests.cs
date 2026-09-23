@@ -75,4 +75,43 @@ public class WildcardFileFinderTests
         await Assert.That(WildcardFileFinder.TryFind(path, out var result)).IsFalse();
         await Assert.That(result).IsNull();
     }
+
+    /// <summary>
+    /// ExamDiff's search directory, <c>%ProgramFiles%\ExamDiff Pro*\</c>, as ExpandProgramFiles
+    /// rewrites it for <c>%ProgramW6432%</c> and <c>%ProgramFiles(x86)%</c>. A variable nothing
+    /// defines stands in for one of those on a machine that lacks it: ExpandEnvironmentVariables
+    /// leaves it as written, and the wildcard segment right after it is then enumerated under a
+    /// relative directory that does not exist.
+    /// </summary>
+    [Test]
+    public async Task AnUndefinedVariableBeforeAWildcardIsNotFoundRatherThanThrown()
+    {
+        var path = Path.Combine("%DiffEngine_TestUndefined%", "ExamDiff Pro*", "ExamDiff.exe");
+
+        await Assert.That(WildcardFileFinder.TryFind(path, out var result)).IsFalse();
+        await Assert.That(result).IsNull();
+    }
+
+    /// <summary>
+    /// The same thing one level up, through the call DiffTools' static constructor makes for every
+    /// definition. Thrown there, it is a TypeInitializationException for every later use of
+    /// DiffTools in the process.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task ResolvingATwoLevelWildcardUnderAnUndefinedVariableIsNotFound()
+    {
+        var windows = Definitions.Tools
+            .Single(_ => _.Tool == DiffTool.ExamDiff)
+            .OsSupport
+            .Windows!;
+        var support = new OsSupport(
+            Windows: windows with
+            {
+                SearchDirectories = [@"%DiffEngine_TestUndefined%\ExamDiff Pro*\"]
+            });
+
+        await Assert.That(OsSettingsResolver.Resolve("UndefinedExamDiff", support, out var path, out _)).IsFalse();
+        await Assert.That(path).IsNull();
+    }
 }

@@ -756,6 +756,29 @@ static class InlinePatcher
         return source.Substring(lineStart, index - lineStart);
     }
 
+    /// <summary>
+    /// The column indentation reaches, with a tab advancing to the next multiple of four. Four
+    /// rather than eight because that is what the tab indented C# this has to measure is written
+    /// with. F# rejects tabs outright (FS1161), so only C# ever gets here with one.
+    /// </summary>
+    static int IndentWidth(string whitespace)
+    {
+        var width = 0;
+        foreach (var character in whitespace)
+        {
+            if (character == '\t')
+            {
+                width += 4 - width % 4;
+            }
+            else
+            {
+                width++;
+            }
+        }
+
+        return width;
+    }
+
     static readonly string[] snapshotName = [methodName];
 
     /// <summary>
@@ -955,6 +978,12 @@ static class InlinePatcher
     /// for the ordinary shape of a test: a local, then a verify call on it. A sibling shares the
     /// member's own indentation, so the comparison is inclusive.
     /// </para>
+    /// <para>
+    /// Compared as columns (<see cref="IndentWidth" />) rather than characters. Two tabs are two
+    /// characters and four spaces are four, so a tab indented body under a space indented member
+    /// read as a sibling and ended the member at its first local: the call the hint named fell
+    /// outside the span, and a same literal call above it was patched instead.
+    /// </para>
     /// </summary>
     static int NextMemberLine(string source, SourceScan scan, List<int> lineStarts, int memberLine)
     {
@@ -964,7 +993,7 @@ static class InlinePatcher
             return lineCount + 1;
         }
 
-        var memberIndent = LeadingWhitespace(source, lineStarts, lineStarts[memberLine - 1]).Length;
+        var memberIndent = IndentWidth(LeadingWhitespace(source, lineStarts, lineStarts[memberLine - 1]));
         var start = lineStarts[memberLine];
         var end = source.Length;
         for (var index = start; index < end; index++)
@@ -977,7 +1006,7 @@ static class InlinePatcher
             }
 
             if (scan.IsDeclaration(DeclarationStart(source, index)) &&
-                LeadingWhitespace(source, lineStarts, index).Length <= memberIndent)
+                IndentWidth(LeadingWhitespace(source, lineStarts, index)) <= memberIndent)
             {
                 return LineOf(lineStarts, index);
             }
@@ -1077,7 +1106,12 @@ static class InlinePatcher
     /// <see cref="FindCalls"/>.
     /// </para>
     /// <para>
-    /// The declaration nearest the hint wins, so overloads and partials pick the plausible one.
+    /// A declaration whose span holds the hint wins over one that is merely nearer: in the
+    /// scenario per class layout two nested types each declare the same test, and the one below
+    /// the hint can be the nearer, which put the floor past the hint and handed the patch to the
+    /// other type's call. Where several spans hold it - an F# local named like the test, inside
+    /// the test - the outermost is the member. Where none does, the nearest wins, so overloads and
+    /// partials still pick the plausible one.
     /// </para>
     /// </summary>
     static int? MemberLine(string source, SourceScan scan, List<int> lineStarts, int lineHint, string? memberName)
@@ -1087,7 +1121,9 @@ static class InlinePatcher
             return null;
         }
 
-        var best = -1;
+        var nearest = -1;
+        var holding = -1;
+        var holdingIndent = int.MaxValue;
         var index = 0;
         while (true)
         {
@@ -1106,17 +1142,39 @@ static class InlinePatcher
                 scan.IsDeclaration(DeclarationStart(source, index)))
             {
                 var line = LineOf(lineStarts, index);
-                if (best < 0 ||
-                    Math.Abs(line - lineHint) < Math.Abs(best - lineHint))
+                if (nearest < 0 ||
+                    Math.Abs(line - lineHint) < Math.Abs(nearest - lineHint))
                 {
-                    best = line;
+                    nearest = line;
+                }
+
+                if (line <= lineHint &&
+                    lineHint < NextMemberLine(source, scan, lineStarts, line))
+                {
+                    var indent = IndentWidth(LeadingWhitespace(source, lineStarts, index));
+                    if (indent < holdingIndent ||
+                        (indent == holdingIndent && line > holding))
+                    {
+                        holding = line;
+                        holdingIndent = indent;
+                    }
                 }
             }
 
             index = end;
         }
 
-        return best < 0 ? null : best;
+        if (holding >= 0)
+        {
+            return holding;
+        }
+
+        if (nearest >= 0)
+        {
+            return nearest;
+        }
+
+        return null;
     }
 
     /// <summary>

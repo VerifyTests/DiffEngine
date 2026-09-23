@@ -122,7 +122,7 @@ public static class CsStringLiteral
 
     // A regular literal cannot span lines
     static bool TryScanRegular(string text, int start, out string? value, out int end) =>
-        StringLiteral.TryScanRegular(text, start, true, TryEscape, out value, out end);
+        StringLiteral.TryScanRegular(text, start, true, false, TryEscape, out value, out end);
 
     /// <summary>
     /// The escapes C# has that F# does not, plus <c>\x</c>, which both have and size differently:
