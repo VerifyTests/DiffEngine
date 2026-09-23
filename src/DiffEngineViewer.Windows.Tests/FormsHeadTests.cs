@@ -150,7 +150,7 @@ public class FormsHeadTests
                 columns,
                 rows);
             host.Draw(ScreenBuilder.Build(state));
-            File.Move(received, verified, true);
+            ViewerActions.Real.MoveFile(received, verified);
         }
 
         host.Draw(ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows)));

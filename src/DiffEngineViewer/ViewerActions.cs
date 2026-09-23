@@ -57,8 +57,33 @@ record ViewerActions(
     /// </summary>
     static void Move(string temp, string target)
     {
-        File.Move(temp, target, true);
+        Replace(temp, target);
         Sweep(Path.GetDirectoryName(temp));
+    }
+
+    /// <summary>
+    /// Windows refuses to move over a file anything has open, delete sharing or not, and this
+    /// viewer is one of the things that opens it: an image entry is decoded off the UI thread, so
+    /// an accept right after the entry opened can land mid read, as can a virus scanner looking at
+    /// a file the test just wrote. Whoever has it will not have it for long, so wait up to a second
+    /// rather than failing the accept.
+    /// </summary>
+    static void Replace(string temp, string target)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Move(temp, target, true);
+                return;
+            }
+            catch (Exception exception)
+                when (attempt < 50 &&
+                      exception is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(20);
+            }
+        }
     }
 
     /// <summary>
