@@ -6,7 +6,7 @@ Tracking: True
 Deletes (1)
 -----------
 [1] Extra.verified.txt
-    File:               {Directory}\Extra.verified.txt (missing)
+    File:               {Directory}\Extra.verified.txt (exists)
     Group:              <null>
 
 Moves (1)

@@ -49,7 +49,11 @@ public class DebugReportTests :
         // view is where the whole message is readable rather than the menu's "!"
         viewer.Queue.Add(new(@"c:\repo\failed.cs|7", "Failed.cs:7", "the file is locked"));
         await using var tracker = new RecordingTracker();
-        tracker.AddDelete(Path.Combine(directory, "Extra.verified.txt"));
+        // A file that exists, as a pending delete's is. The tracker's scan drops a delete whose file
+        // has gone, every two seconds, and on a slow runner that scan landed mid test
+        var extra = Path.Combine(directory, "Extra.verified.txt");
+        File.WriteAllText(extra, "");
+        tracker.AddDelete(extra);
         tracker.AddMove(
             received,
             verified,
