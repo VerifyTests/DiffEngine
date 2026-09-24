@@ -45,7 +45,7 @@ jobs:
             os: macos-14
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # In a manylinux_2_28 container rather than on the runner, for its glibc 2.28: the floor
       # .NET 10 itself supports, which is RHEL 8. A library records the glibc symbol versions of
@@ -150,7 +150,7 @@ jobs:
           ls -lhR artifacts
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.rid }}
           path: artifacts/
@@ -176,7 +176,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download
         uses: actions/download-artifact@v4

@@ -1,18 +1,13 @@
 name: merge-dependabot
 
-# Merges a Dependabot pull request once the Test workflow has passed on it. No personal access
-# token: GITHUB_TOKEN gets write access through the permissions block below, which GitHub allows
-# for Dependabot triggered runs since 2022.
-#
-# Triggered by the Test run finishing rather than by the pull request opening, because main has
-# no required status checks and auto-merge is not enabled, so `gh pr merge --auto` would merge
-# immediately. Waiting for the run makes a red build unmergeable whatever the settings.
-#
-# Major version bumps are left for a person. Grouped updates have no single version in the title
-# and are left too.
+# Merges minor and patch Dependabot pull requests once the Build workflow has passed on them.
+# Triggering on workflow_run rather than pull_request means an untested bump is never merged, and
+# no branch protection is needed (a required check would also block the docs workflow's pushes).
+# No personal access token: GITHUB_TOKEN gets write access through the permissions block below.
+# Major version bumps are left for a person.
 on:
   workflow_run:
-    workflows: [Test]
+    workflows: [Build]
     types: [completed]
 
 permissions:
@@ -22,25 +17,29 @@ permissions:
 jobs:
   merge:
     runs-on: ubuntu-latest
-    if: >-
+    if: >
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
-      github.event.workflow_run.pull_requests[0] != null
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
     steps:
+      # Dependabot records the update type in its commit message metadata, for example
+      # "update-type: version-update:semver-minor". A grouped bump lists one per dependency.
+      # --match-head-commit refuses the merge if the branch moved after this build ran.
       - name: Merge when the bump is minor or patch
         env:
           GH_TOKEN: ${{ github.token }}
-          NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
         run: |
-          title=$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json title --jq .title)
-          echo "$title"
-          if [[ "$title" =~ from\ ([0-9]+)\.[0-9A-Za-z.-]+\ to\ ([0-9]+)\.[0-9A-Za-z.-]+ ]]; then
-            if [ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ]; then
-              echo "Major bump, leaving for review."
-              exit 0
-            fi
-          else
-            echo "No single version bump in the title, leaving for review."
+          if grep -q 'update-type: version-update:semver-major' <<< "$MESSAGE"; then
+            echo "Major version bump, leaving for review"
             exit 0
           fi
-          gh pr merge "$NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            echo "::warning::No open pull request for $BRANCH"
+            exit 0
+          fi
+          gh pr merge "$pr" --squash --match-head-commit "$HEAD_SHA"

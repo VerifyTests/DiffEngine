@@ -1,14 +1,19 @@
-name: Test
+name: Build
 
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
+# Read only by default. The publish job asks for the OIDC token it needs itself.
+permissions:
+  contents: read
+
 # Cancel in-progress runs if a new push lands on the same branch.
 concurrency:
-  group: test-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -23,17 +28,25 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
+      # The tag is the version: tag 1.2.3 (or v1.2.3) builds 1.2.3. Other builds use the
+      # Version in Directory.Build.props.
+      - name: Resolve the version from the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: echo "VERSION_ARGUMENT=-p:Version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       # A plain build is also the pack step: ProjectDefaults sets GeneratePackageOnBuild for every
-      # Release package project, so this produces ./nugets as a side effect.
+      # Release package project, so this produces ./nugets as a side effect. Windows is the job
+      # that packs, because DiffEngineTray is WinForms and is excluded from Release-NotWindows.
       - name: Build
-        run: dotnet build src --configuration Release
+        run: dotnet build src --configuration Release ${{ env.VERSION_ARGUMENT }}
 
       - name: Test
         run: dotnet test --solution src/DiffEngine.slnx --configuration Release --no-build --no-restore
@@ -43,16 +56,37 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-windows
           path: '**/*.received.*'
           if-no-files-found: ignore
           retention-days: 14
 
+      # DE0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
+      # platform it claims to support is worse than failing the release.
+      - name: Verify every RID has a native renderer
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          missing=0
+          check() {
+            directory="src/$1/runtimes/$2/native"
+            if [ -z "$(ls -A "$directory" 2>/dev/null)" ]; then
+              echo "::error::No native renderer for $2. Run the build-native workflow."
+              missing=1
+            fi
+          }
+          # No Windows RIDs: that head renders with WinForms and loads no native library.
+          check DiffEngineViewer.Linux linux-x64
+          check DiffEngineViewer.Linux linux-arm64
+          check DiffEngineViewer.Mac osx-x64
+          check DiffEngineViewer.Mac osx-arm64
+          exit $missing
+
       - name: Upload packages
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nupkgs
           path: nugets/*.nupkg
@@ -71,10 +105,10 @@ jobs:
         os: [ubuntu-latest, macos-14]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -94,7 +128,7 @@ jobs:
       # Keyed on the shim's own sources, which is what actually changes.
       - name: Cache native build
         if: runner.os == 'Linux'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: native/build
           key: native-linux-x64-${{ hashFiles('native/CMakeLists.txt', 'native/src/**', 'native/include/**') }}
@@ -164,7 +198,7 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-${{ matrix.os }}
           path: '**/*.received.*'
@@ -206,10 +240,10 @@ jobs:
             os: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -244,9 +278,42 @@ jobs:
 
       - name: Upload received on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: received-${{ matrix.rid }}
           path: '**/*.received.*'
           if-no-files-found: ignore
           retention-days: 14
+
+  # Trusted publishing: no stored API key. nuget.org validates GitHub's OIDC token against the
+  # policy naming this repository and this workflow file, and returns a key good for an hour.
+  # Waits on every job, so a package only ships once all platforms and the committed native
+  # binaries have passed.
+  publish:
+    needs: [windows, unix, native]
+    environment: nuget
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: nupkgs
+          path: packages
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: SimonCropp
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "packages/**/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
