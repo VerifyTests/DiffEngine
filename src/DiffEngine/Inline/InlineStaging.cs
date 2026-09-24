@@ -49,6 +49,11 @@ public static class InlineStaging
         return written;
     }
 
+    // The 20.4.0 signature, kept for binary compatibility with callers compiled against it.
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public static int Clear(string sourceFile, int line, string? memberName, string? extraDirectory, string? origin) =>
+        Clear(sourceFile, line, memberName, extraDirectory, origin, null);
+
     /// <summary>
     /// Deletes the staged files for a call site, for a run that has just settled or retired it.
     /// Returns how many trios were cleared.
@@ -174,7 +179,7 @@ public static class InlineStaging
     }
 
     /// <summary>
-    /// Read again only when the directory has changed since. <see cref="Clear" /> runs once per
+    /// Read again only when the directory has changed since. <see cref="Clear(string, int, string?, string?, string?, string?)" /> runs once per
     /// verification and used to read and parse every staged patch each time, so a run with a few
     /// hundred staged was reading them a few hundred times over. Creating or deleting a trio is
     /// what changes a directory's write time, and overwriting one keeps the name - which is derived
@@ -499,7 +504,7 @@ public static class InlineStaging
     }
 
     /// <summary>
-    /// Answers for source files already asked about. <see cref="Clear" /> runs once per
+    /// Answers for source files already asked about. <see cref="Clear(string, int, string?, string?, string?, string?)" /> runs once per
     /// verification, and the walk below is a directory enumeration per level of the path — paid
     /// on every one of them, including the overwhelmingly common case where nothing is staged and
     /// the answer is thrown away.

@@ -144,12 +144,18 @@ public static partial class DiffRunner
             new(ViewerVerb.Settle, InlineKey.For(sourceFile, line), RuntimeMoniker.Current, memberName, value));
     }
 
+    // The 20.4.0 signature, kept for binary compatibility: Verify 33.1.2 and earlier were compiled
+    // against it and fail with MissingMethodException when run against a DiffEngine without it.
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public static void SettleInline(string sourceFile, int line, string? memberName) =>
+        SettleInline(sourceFile, line, memberName, null);
+
     /// <summary>
     /// Drops a pending inline snapshot for a call site that is no longer an inline snapshot at
     /// all: the verification opted out, the global switch declined it, or its literal outgrew the
     /// size limit and moved to a file.
     /// <para>
-    /// Unlike <see cref="SettleInline" /> this carries no framework, because the statement is not
+    /// Unlike <see cref="SettleInline(string, int, string?, string?)" /> this carries no framework, because the statement is not
     /// "this framework now passes" but "there is no inline snapshot here for any of them". A
     /// per-framework settle would strip one label and leave the entry standing on the others,
     /// pending against a call site that can never produce a snapshot again.
@@ -178,7 +184,7 @@ public static partial class DiffRunner
     /// </para>
     /// </summary>
     /// <remarks>
-    /// <see cref="SettleInline" /> is the wrong verb here and fails silently at it. That one stamps
+    /// <see cref="SettleInline(string, int, string?, string?)" /> is the wrong verb here and fails silently at it. That one stamps
     /// the running process's own framework as the origin, which is right for the test run it was
     /// written for and wrong for an applier, because an applier is not the test run: an IDE backend
     /// or a dotnet tool reports its own moniker while the entry is labelled with the test project's.

@@ -217,6 +217,11 @@ public sealed class InlineQueue
     public InlineQueue Settle(string key, string? origin) =>
         Settle(key, origin, null);
 
+    // The 20.4.0 signature, kept for binary compatibility with callers compiled against it.
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public InlineQueue Settle(string key, string? origin, string? member) =>
+        Settle(key, origin, member, null);
+
     /// <summary>
     /// Origin-scoped settle. A framework that starts passing removes only its own label; a variant
     /// with no labels left is dropped, and the entry goes when its last variant does, so the other

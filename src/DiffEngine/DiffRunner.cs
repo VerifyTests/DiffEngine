@@ -198,7 +198,7 @@ public static partial class DiffRunner
     /// Nothing is deleted.
     /// <para>
     /// Does nothing when no tray or viewer holds the queue - and cheaply, the way
-    /// <see cref="SettleInline" /> does, since a port found with nothing listening is not
+    /// <see cref="SettleInline(string, int, string?, string?)" /> does, since a port found with nothing listening is not
     /// connected to again for a while.
     /// </para>
     /// </summary>
