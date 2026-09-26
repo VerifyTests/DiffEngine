@@ -19,15 +19,15 @@ static partial class Implementation
                 Windows: new(
                     "DiffEngineViewer.exe",
                     launchArguments,
-                    SearchDirectories(@"%USERPROFILE%\.dotnet\tools\")),
+                    SearchDirectories(@"%USERPROFILE%\.dotnet\tools\", FallbackViewerDirectories.Tray(), FallbackViewerDirectories.Windows())),
                 Linux: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("%HOME%/.dotnet/tools/")),
+                    SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Linux())),
                 Osx: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("%HOME%/.dotnet/tools/"))),
+                    SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Osx()))),
             UseShellExecute: false,
             // Console subsystem, so without this a window flashes on every launch.
             CreateNoWindow: true,
@@ -46,21 +46,24 @@ static partial class Implementation
     }
 
     /// <summary>
-    /// The bundled copy is preferred over a globally installed tool, because it is always version
-    /// matched to the library that is about to launch it.
+    /// A globally installed tool is preferred, because installing one is an explicit choice of
+    /// which viewer to run. Then the tray's copy, then the bundled copy, which is version matched to
+    /// the library that is about to launch it, then the NuGet cache's.
     /// </summary>
-    static string[] SearchDirectories(string toolsDirectory)
+    static string[] SearchDirectories(string toolsDirectory, IEnumerable<string> tray, IEnumerable<string> nuGet)
     {
-        var bundled = BundledViewerDirectory.Find();
-        if (bundled == null)
+        var directories = new List<string>
         {
-            return [toolsDirectory];
+            toolsDirectory
+        };
+        directories.AddRange(tray);
+        var bundled = BundledViewerDirectory.Find();
+        if (bundled != null)
+        {
+            directories.Add(bundled);
         }
 
-        return
-        [
-            bundled,
-            toolsDirectory
-        ];
+        directories.AddRange(nuGet);
+        return directories.ToArray();
     }
 }
