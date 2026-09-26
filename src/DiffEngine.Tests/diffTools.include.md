@@ -172,6 +172,11 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%USERPROFILE%\.dotnet\tools\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray\*\tools\*\any\viewer\win-x64\DiffEngineViewer.exe`
+    * `%NUGET_PACKAGES%\diffengine\20.5.1\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%NUGET_PACKAGES%\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.nuget\packages\diffengine\20.5.1\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.nuget\packages\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%PATH%DiffEngineViewer.exe`
 
 #### OSX settings:
@@ -186,6 +191,10 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/20.5.1/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/20.5.1/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
 #### Linux settings:
@@ -200,6 +209,10 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/20.5.1/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/20.5.1/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
 ### [Diffinity](https://truehumandesign.se/s_diffinity.php)

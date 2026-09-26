@@ -217,4 +217,6 @@ Set `DiffEngine_InlineViewer` to `false` to stop inline snapshots opening a wind
 
 ## Platforms
 
-Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`. On a platform with no matching build, resolution falls through to a globally installed DiffEngineViewer tool, and then to whatever other diff tool is available.
+Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`.
+
+The viewer is resolved from, in order: a globally installed DiffEngineViewer tool, the copy installed beside DiffEngineTray (Windows only), the copy bundled in the DiffEngine package, and the DiffEngine package in the NuGet cache (this library's version first, then any other). With none of those, resolution falls through to whatever other diff tool is available.

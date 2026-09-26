@@ -139,14 +139,7 @@ static class BundledViewerDirectory
     {
 #endif
 
-        var architecture = RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X64 => "x64",
-            Architecture.Arm64 => "arm64",
-            Architecture.X86 => "x86",
-            _ => null
-        };
-
+        var architecture = Architecture();
         if (architecture == null)
         {
             yield break;
@@ -165,4 +158,26 @@ static class BundledViewerDirectory
             yield return $"linux-{architecture}";
         }
     }
+
+    /// <summary>
+    /// The architecture part of a RID, or null for one no viewer is built for.
+    /// </summary>
+    internal static string? Architecture() =>
+        RuntimeInformation.OSArchitecture switch
+        {
+            System.Runtime.InteropServices.Architecture.X64 => "x64",
+            System.Runtime.InteropServices.Architecture.Arm64 => "arm64",
+            System.Runtime.InteropServices.Architecture.X86 => "x86",
+            _ => null
+        };
+
+    /// <summary>
+    /// Whether this process runs against musl, which no bundled viewer is built for.
+    /// </summary>
+    internal static bool IsMusl() =>
+#if NET6_0_OR_GREATER
+        RuntimeInformation.RuntimeIdentifier.Contains("-musl-", StringComparison.Ordinal);
+#else
+        false;
+#endif
 }
