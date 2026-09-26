@@ -3,7 +3,7 @@
 public static class ProcessCleanup
 {
     static List<ProcessCommand> commands;
-    static readonly object gate = new();
+    static object gate = new();
     static Func<HashSet<string>?, List<ProcessCommand>> findAll;
     static Func<int, bool> tryTerminateProcess;
 

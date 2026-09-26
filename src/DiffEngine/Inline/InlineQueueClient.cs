@@ -63,7 +63,7 @@ public static class InlineQueueClient
     /// applies the patch through <see cref="InlineApplier" />, which waits up to ten seconds on its
     /// cross process mutex. A shorter wait reads a busy owner as an absent one.
     /// </summary>
-    static readonly TimeSpan acceptWait = TimeSpan.FromSeconds(15);
+    static TimeSpan acceptWait = TimeSpan.FromSeconds(15);
 
     /// <summary>
     /// Every pending inline snapshot the owner holds, with the patches that produced them, so a

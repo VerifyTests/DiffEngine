@@ -48,7 +48,7 @@ static class InlinePatcher
     /// <see cref="InlinePatch.EntryPoints"/>.
     /// </para>
     /// </summary>
-    static readonly string[] builtInEntryPoints =
+    static string[] builtInEntryPoints =
     [
         "Verify",
         "VerifyJson",
@@ -779,7 +779,7 @@ static class InlinePatcher
         return width;
     }
 
-    static readonly string[] snapshotName = [methodName];
+    static string[] snapshotName = [methodName];
 
     /// <summary>
     /// The call the anchor names, rather than whichever one sits nearest the hint.

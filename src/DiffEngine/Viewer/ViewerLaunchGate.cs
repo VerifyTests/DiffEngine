@@ -68,7 +68,7 @@ enum ViewerLaunchOutcome
 /// </summary>
 static class ViewerLaunchGate
 {
-    static readonly SemaphoreSlim gate = new(1, 1);
+    static SemaphoreSlim gate = new(1, 1);
 
     /// <summary>
     /// How long the caller that launched holds the gate waiting for its viewer to answer. Long
@@ -206,7 +206,7 @@ static class ViewerLaunchGate
                 return;
             }
 
-            Thread.Sleep(Poll);
+            Thread.Sleep(poll);
         }
     }
 
@@ -221,9 +221,9 @@ static class ViewerLaunchGate
                 return;
             }
 
-            await Task.Delay(Poll, cancel).ConfigureAwait(false);
+            await Task.Delay(poll, cancel).ConfigureAwait(false);
         }
     }
 
-    static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(50);
+    static TimeSpan poll = TimeSpan.FromMilliseconds(50);
 }

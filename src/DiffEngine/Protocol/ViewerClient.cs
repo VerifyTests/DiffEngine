@@ -61,7 +61,7 @@ static class ViewerClient
         }
     }
 
-    static readonly TimeSpan timeout = TimeSpan.FromSeconds(3);
+    static TimeSpan timeout = TimeSpan.FromSeconds(3);
 
     /// <summary>
     /// The deadline for the async exchange. Longer than the synchronous one because the owner
@@ -72,7 +72,7 @@ static class ViewerClient
     /// default from DiffRunner.AddInlineAsync - Verify passes none. An owner that accepted the
     /// connection and then stopped answering hung the failing test for good.
     /// </summary>
-    static readonly TimeSpan asyncTimeout = TimeSpan.FromSeconds(30);
+    static TimeSpan asyncTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// For callers on a clock or an interactive path, such as the tray's scan timer and its menu.
@@ -111,7 +111,7 @@ static class ViewerClient
     /// because tests talk to ephemeral ports of their own, in parallel, and what happened on
     /// those says nothing about the one live port on a developer machine.
     /// </summary>
-    static readonly ConcurrentDictionary<int, long> unownedAt = new();
+    static ConcurrentDictionary<int, long> unownedAt = new();
 
     static bool RecentlyUnowned(int port)
     {
@@ -154,7 +154,7 @@ static class ViewerClient
     /// Ports already reported as held by something that is not a viewer, so the hint is written
     /// once per process rather than once per send.
     /// </summary>
-    static readonly ConcurrentDictionary<int, byte> reportedForeign = new();
+    static ConcurrentDictionary<int, byte> reportedForeign = new();
 
     /// <summary>
     /// A connection accepted and answered with something that is not this protocol: another

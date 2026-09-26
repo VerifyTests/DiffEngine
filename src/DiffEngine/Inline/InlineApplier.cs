@@ -11,7 +11,7 @@
 /// </summary>
 public static class InlineApplier
 {
-    static readonly ConcurrentDictionary<string, object> gates = new(StringComparer.OrdinalIgnoreCase);
+    static ConcurrentDictionary<string, object> gates = new(StringComparer.OrdinalIgnoreCase);
 
     public static InlineApplyResult Apply(InlinePatch patch) =>
         Run(patch, write: true);

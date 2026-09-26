@@ -118,7 +118,7 @@ sealed class CsLanguage : SourceLanguage
     /// The keywords that can sit immediately before a call. Anything else that reads as an
     /// identifier there is a return type or a modifier, which makes what follows a declaration.
     /// </summary>
-    static readonly HashSet<string> callablePredecessors =
+    static HashSet<string> callablePredecessors =
     [
         with(StringComparer.Ordinal),
         "and", "as", "await", "by", "case", "catch", "checked", "default", "do", "else",

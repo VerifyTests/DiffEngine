@@ -31,7 +31,7 @@ public static class InlineKey
     internal static string FoldPath(string path) =>
         caseInsensitivePaths ? path.ToLowerInvariant() : path;
 
-    static readonly bool caseInsensitivePaths =
+    static bool caseInsensitivePaths =
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
         RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 }

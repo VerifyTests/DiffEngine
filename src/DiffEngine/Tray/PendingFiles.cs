@@ -258,7 +258,7 @@ static class PendingFiles
     // Read off the definition rather than spelled again here, so renaming the executable cannot
     // leave this matching the old name. Every OS's name, because the string being tested arrived
     // from another process rather than from this one.
-    static readonly HashSet<string> viewerExeNames = ViewerExeNames();
+    static HashSet<string> viewerExeNames = ViewerExeNames();
 
     static HashSet<string> ViewerExeNames()
     {

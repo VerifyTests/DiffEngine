@@ -209,7 +209,7 @@ public static class InlineStaging
         return patches;
     }
 
-    static readonly ConcurrentDictionary<string, (DateTime Written, List<(string PatchPath, InlinePatch Patch)> Patches)> stagedCache =
+    static ConcurrentDictionary<string, (DateTime Written, List<(string PatchPath, InlinePatch Patch)> Patches)> stagedCache =
         new(StringComparer.OrdinalIgnoreCase);
 
     static List<(string PatchPath, InlinePatch Patch)> ReadStagedFiles(string directory)
@@ -514,7 +514,7 @@ public static class InlineStaging
     /// creates one as it goes, and a cached "nothing here" would then miss what it wrote.
     /// </para>
     /// </summary>
-    static readonly ConcurrentDictionary<string, string?> projectDirectories =
+    static ConcurrentDictionary<string, string?> projectDirectories =
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -567,7 +567,7 @@ public static class InlineStaging
         return builder.ToString();
     }
 
-    static readonly char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
+    static char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
 
     /// <summary>
     /// FNV-1a, for a name that is the same every run without carrying a whole path in it.

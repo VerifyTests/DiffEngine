@@ -6,13 +6,13 @@ static class SolutionDirectoryFinder
         public string Name { get; } = name;
     }
 
-    static readonly ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
+    static ConcurrentDictionary<string, Result?> cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Directories already known to hold a solution, which is what lets the walk stop early
     /// without asking the disk again.
     /// </summary>
-    static readonly ConcurrentDictionary<string, Result> directories = new(StringComparer.OrdinalIgnoreCase);
+    static ConcurrentDictionary<string, Result> directories = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The solution a file belongs to, or null when it has none.
