@@ -6,10 +6,10 @@ public class FallbackViewerDirectoriesTests
     [Test]
     public async Task Library_version_is_the_cache_folder_name()
     {
-        var version = FallbackViewerDirectories.LibraryVersion();
+        var version = FallbackViewerDirectories.LibraryVersion()!;
 
         await Assert.That(version).IsNotNull();
-        await Assert.That(version!).DoesNotContain("+");
+        await Assert.That(version).DoesNotContain("+");
         await Assert.That(version).IsEqualTo(version.ToLowerInvariant());
     }
 
