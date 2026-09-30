@@ -455,7 +455,7 @@ public class ViewerLaunchTests
             await cancel.CancelAsync();
             await holding;
 
-            var left = sources.Sum(_ => Unaccepted(_));
+            var left = sources.Sum(Unaccepted);
             Console.WriteLine();
             Console.WriteLine($"{total - left} of {total} call sites rewritten, and {Unaccepted(conflicted)} of {conflicts} conflicted ones left alone.");
             // One class in full, for what the accepts wrote. The other nineteen are the same shape.

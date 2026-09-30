@@ -89,7 +89,7 @@ public class HeldDeleteTests
         var deleted = new List<string>();
         var actions = Fixtures.Applied with
         {
-            DeleteFile = _ => deleted.Add(_)
+            DeleteFile = deleted.Add
         };
         var visible = QueueProjection.Visible(state, ScreenBuilder.BodyRows(state), out _).ToList();
         state = ViewerSession.OpenMenu(state, visible.FindIndex(_ => _.GroupName == "SolutionA"));
@@ -114,7 +114,7 @@ public class HeldDeleteTests
         var deleted = new List<string>();
         var actions = Fixtures.Applying(InlineApplyResult.Failed("Failed to write: ATests.cs")) with
         {
-            DeleteFile = _ => deleted.Add(_)
+            DeleteFile = deleted.Add
         };
         var visible = QueueProjection.Visible(state, ScreenBuilder.BodyRows(state), out _).ToList();
         state = ViewerSession.OpenMenu(state, visible.FindIndex(_ => _.GroupName == "SolutionA"));

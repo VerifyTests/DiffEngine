@@ -69,7 +69,7 @@ public class DiffViewTests
         var full = entry.View(false);
         var minimal = entry.View(true);
 
-        var mapped = minimal.Changes.Select(_ => minimal.First(_));
+        var mapped = minimal.Changes.Select(minimal.First);
 
         await Assert.That(string.Join(", ", mapped)).IsEqualTo(string.Join(", ", full.Changes));
         await Assert.That(string.Join(", ", full.Changes)).IsEqualTo("2, 16, 32");

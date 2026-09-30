@@ -82,7 +82,7 @@ public class ViewerProgramTests
 
     sealed class ThrowingWindow : IViewerWindow
     {
-        public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+        public static IViewerWindow Open(string title, int width, int height, bool hidden, out string? error)
         {
             error = null;
             return new ThrowingWindow();
@@ -136,9 +136,12 @@ public class ViewerProgramTests
         public IReadOnlyList<string> StagedFiles()
         {
             var staging = Path.Combine(directory, "obj", InlineStaging.DirectoryName);
-            return Directory.Exists(staging)
-                ? Directory.GetFiles(staging)
-                : [];
+            if (Directory.Exists(staging))
+            {
+                return Directory.GetFiles(staging);
+            }
+
+            return (string[])[];
         }
 
         public void Dispose()

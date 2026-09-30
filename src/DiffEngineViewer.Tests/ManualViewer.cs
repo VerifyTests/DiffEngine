@@ -43,7 +43,7 @@ static class ManualViewer
         var executable = Executable();
         if (File.Exists(executable))
         {
-            Environment.SetEnvironmentVariable(EnvironmentVariable, executable);
+            Environment.SetEnvironmentVariable(environmentVariable, executable);
         }
     }
 
@@ -75,7 +75,7 @@ static class ManualViewer
         EngineRunner.Disabled = false;
     }
 
-    const string EnvironmentVariable = "DiffEngine_DiffEngineViewer";
+    const string environmentVariable = "DiffEngine_DiffEngineViewer";
 
     /// <summary>
     /// The head for this OS, from the same configuration and framework this test assembly was
@@ -139,7 +139,7 @@ static class ManualViewer
     {
         // Short, because a window that has not appeared in this long is not coming, and waiting
         // out the full patience to say so wastes the run.
-        if (!await Until(() => Showing(), DateTime.UtcNow + TimeSpan.FromSeconds(30)))
+        if (!await Until(Showing, DateTime.UtcNow + TimeSpan.FromSeconds(30)))
         {
             throw new("The viewer never showed a window within 30 seconds.");
         }
