@@ -1,55 +1,81 @@
-using DiffPlex;
-using DiffPlex.Chunkers;
-using DiffPlex.DiffBuilder;
-using DiffPlex.DiffBuilder.Model;
-
 /// <summary>
 /// Turns two texts into two equal length row lists, padded with <see cref="RowKind.Filler"/> so
 /// the panes stay vertically aligned.
 /// </summary>
 static class DiffRows
 {
+    /// <summary>
+    /// Left is the received side and right the expected one. Within a changed block the removed
+    /// and added lines pair up as <see cref="RowKind.Modified"/>, and whichever side has more
+    /// carries the rest against filler.
+    /// <para>
+    /// Lines compare exactly. A snapshot that fails only on indentation or a trailing space has to
+    /// come back as a change, or the panes draw no markers, NextChange finds nothing, and the
+    /// reviewer is shown a failure with no visible difference. Whitespace is exactly what the F#
+    /// layout convention is about.
+    /// </para>
+    /// </summary>
     public static (IReadOnlyList<Row> Left, IReadOnlyList<Row> Right) Build(string leftText, string rightText)
     {
-        // DiffPlex is old/new oriented. Left is the received (new) side, right the expected (old).
-        // ignoreWhiteSpace defaults to true, which is wrong for a snapshot: a test that fails only
-        // on indentation or a trailing space came back Unchanged on every row, so the panes drew no
-        // markers, NextChange found nothing, and the reviewer was shown a failure with no visible
-        // difference. Whitespace is exactly what the F# layout convention is about.
-        var model = builder.BuildDiffModel(
-            rightText,
-            leftText,
-            ignoreWhitespace: false,
-            ignoreCase: false);
-        return (Convert(model.NewText.Lines), Convert(model.OldText.Lines));
+        var lines = TextDiff.Compute(expected: rightText, received: leftText);
+        var left = new List<Row>(lines.Count);
+        var right = new List<Row>(lines.Count);
+        var index = 0;
+        while (index < lines.Count)
+        {
+            var line = lines[index];
+            if (line.Kind == DiffLineKind.Unchanged)
+            {
+                left.Add(new(line.ReceivedLine, RowKind.Unchanged, line.Text));
+                right.Add(new(line.ExpectedLine, RowKind.Unchanged, line.Text));
+                index++;
+                continue;
+            }
+
+            var removedStart = index;
+            while (index < lines.Count &&
+                   lines[index].Kind == DiffLineKind.Removed)
+            {
+                index++;
+            }
+
+            var addedStart = index;
+            while (index < lines.Count &&
+                   lines[index].Kind == DiffLineKind.Added)
+            {
+                index++;
+            }
+
+            var removed = addedStart - removedStart;
+            var added = index - addedStart;
+            for (var row = 0; row < Math.Max(removed, added); row++)
+            {
+                left.Add(Side(lines, addedStart, row, added, removed, RowKind.Added));
+                right.Add(Side(lines, removedStart, row, removed, added, RowKind.Removed));
+            }
+        }
+
+        return (left, right);
     }
 
     /// <summary>
-    /// Lines chunked into lines, and each line's words into the whole line. The builder diffs the
-    /// words of every modified pair to fill SubPieces, which nothing here reads, and that pass
-    /// grows with the square of the line length - minified JSON, a base64 blob. A line that is its
-    /// own single word leaves the rows identical and the pass trivial.
+    /// One side's row of a changed block: modified while the other side still has a line to pair
+    /// with, then added or removed, then filler once this side has run out.
     /// </summary>
-    static readonly SideBySideDiffBuilder builder = new(Differ.Instance, LineChunker.Instance, LineChunker.Instance);
-
-    static List<Row> Convert(List<DiffPiece> lines)
+    static Row Side(IReadOnlyList<DiffLine> lines, int start, int row, int count, int otherCount, RowKind unpaired)
     {
-        var rows = new List<Row>(lines.Count);
-        foreach (var line in lines)
+        if (row >= count)
         {
-            rows.Add(new(line.Position, Kind(line.Type), line.Text ?? ""));
+            return new(null, RowKind.Filler, "");
         }
 
-        return rows;
-    }
-
-    static RowKind Kind(ChangeType type) =>
-        type switch
+        var line = lines[start + row];
+        var number = line.ReceivedLine ?? line.ExpectedLine;
+        if (row < otherCount)
         {
-            ChangeType.Inserted => RowKind.Added,
-            ChangeType.Deleted => RowKind.Removed,
-            ChangeType.Modified => RowKind.Modified,
-            ChangeType.Imaginary => RowKind.Filler,
-            _ => RowKind.Unchanged
-        };
+            return new(number, RowKind.Modified, line.Text);
+        }
+
+        return new(number, unpaired, line.Text);
+    }
 }
