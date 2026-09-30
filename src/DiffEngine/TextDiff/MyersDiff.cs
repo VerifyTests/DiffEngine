@@ -49,6 +49,10 @@ static class MyersDiff
     static int VectorLength(int n, int m) =>
         2 * ((n + m + 1) / 2) + 2;
 
+    /// <summary>
+    /// Recurses into the half before the middle snake and loops on the half after it, so the
+    /// stack only grows with the halves still waiting on their second part.
+    /// </summary>
     static void Recurse(
         ReadOnlySpan<int> a,
         ReadOnlySpan<int> b,
@@ -57,53 +61,59 @@ static class MyersDiff
         Span<int> forward,
         Span<int> reverse)
     {
-        var prefix = 0;
-        while (prefix < a.Length &&
-               prefix < b.Length &&
-               a[prefix] == b[prefix])
+        while (true)
         {
-            prefix++;
+            var prefix = 0;
+            while (prefix < a.Length &&
+                   prefix < b.Length &&
+                   a[prefix] == b[prefix])
+            {
+                prefix++;
+            }
+
+            a = a[prefix..];
+            b = b[prefix..];
+            changedA = changedA[prefix..];
+            changedB = changedB[prefix..];
+
+            var suffix = 0;
+            while (suffix < a.Length &&
+                   suffix < b.Length &&
+                   a[a.Length - 1 - suffix] == b[b.Length - 1 - suffix])
+            {
+                suffix++;
+            }
+
+            a = a[..^suffix];
+            b = b[..^suffix];
+            changedA = changedA[..^suffix];
+            changedB = changedB[..^suffix];
+
+            if (a.Length == 0)
+            {
+                changedB.Fill(true);
+                return;
+            }
+
+            if (b.Length == 0)
+            {
+                changedA.Fill(true);
+                return;
+            }
+
+            if (!TryMiddleSnake(a, b, forward, reverse, out var x, out var y))
+            {
+                changedA.Fill(true);
+                changedB.Fill(true);
+                return;
+            }
+
+            Recurse(a[..x], b[..y], changedA[..x], changedB[..y], forward, reverse);
+            a = a[x..];
+            b = b[y..];
+            changedA = changedA[x..];
+            changedB = changedB[y..];
         }
-
-        a = a[prefix..];
-        b = b[prefix..];
-        changedA = changedA[prefix..];
-        changedB = changedB[prefix..];
-
-        var suffix = 0;
-        while (suffix < a.Length &&
-               suffix < b.Length &&
-               a[a.Length - 1 - suffix] == b[b.Length - 1 - suffix])
-        {
-            suffix++;
-        }
-
-        a = a[..^suffix];
-        b = b[..^suffix];
-        changedA = changedA[..^suffix];
-        changedB = changedB[..^suffix];
-
-        if (a.Length == 0)
-        {
-            changedB.Fill(true);
-            return;
-        }
-
-        if (b.Length == 0)
-        {
-            changedA.Fill(true);
-            return;
-        }
-
-        if (!TryMiddleSnake(a, b, forward, reverse, out var x, out var y))
-        {
-            changedA.Fill(true);
-            changedB.Fill(true);
-            return;
-        }
-
-        Recurse(a[..x], b[..y], changedA[..x], changedB[..y], forward, reverse);
-        Recurse(a[x..], b[y..], changedA[x..], changedB[y..], forward, reverse);
     }
 
     /// <summary>
