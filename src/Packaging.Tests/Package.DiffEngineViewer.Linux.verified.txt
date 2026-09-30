@@ -9,7 +9,6 @@ tools/net10.0/any/DiffEngineViewer.Core.dll
 tools/net10.0/any/DiffEngineViewer.deps.json
 tools/net10.0/any/DiffEngineViewer.dll
 tools/net10.0/any/DiffEngineViewer.runtimeconfig.json
-tools/net10.0/any/DiffPlex.dll
 tools/net10.0/any/DotnetToolSettings.xml
 tools/net10.0/any/runtimes/linux-arm64/native/libdiffengine_viewer.so
 tools/net10.0/any/runtimes/linux-x64/native/libdiffengine_viewer.so

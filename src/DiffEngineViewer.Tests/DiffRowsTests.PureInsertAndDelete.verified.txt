@@ -1,0 +1,5 @@
+﻿1 Unchanged 'a'      | 1 Unchanged 'a'
+2 Added 'new'        | . Filler ''
+3 Unchanged 'b'      | 2 Unchanged 'b'
+. Filler ''          | 3 Removed 'old'
+4 Unchanged 'd'      | 4 Unchanged 'd'

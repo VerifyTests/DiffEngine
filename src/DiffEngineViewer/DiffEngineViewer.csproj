@@ -23,6 +23,7 @@
     <Compile Include="..\DiffEngine\Inline\*.cs" LinkBase="Inline" />
     <Compile Include="..\DiffEngine\Protocol\*.cs" LinkBase="Protocol" />
     <Compile Include="..\DiffEngine\Tray\TrayDetector.cs" LinkBase="Tray" />
+    <Compile Include="..\DiffEngine\TextDiff\*.cs" LinkBase="TextDiff" />
     <!--
     Which extensions are pictures has to be the same answer on both sides: DiffEngine registers the
     viewer as the diff tool for them, and the viewer decides how to render them.
@@ -32,7 +33,8 @@
     <!-- What the linked Protocol files expect, declared the same way DiffEngine declares them. -->
     <Using Include="System.Net" />
     <Using Include="System.Net.Sockets" />
-    <PackageReference Include="DiffPlex" />
+    <!-- What the linked TextDiff files expect. -->
+    <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <EmbeddedResource Include="Assets\JetBrainsMono-Regular.ttf" LogicalName="DiffEngineViewer.JetBrainsMono-Regular.ttf" />

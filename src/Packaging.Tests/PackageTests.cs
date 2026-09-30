@@ -124,7 +124,7 @@ public class PackageTests
 
     /// <summary>
     /// A bundled head is only worth carrying if it can start, which takes the apphost, the managed
-    /// assembly, both config files, DiffPlex and the one native renderer for that RID.
+    /// assembly, both config files and the one native renderer for that RID.
     /// </summary>
     [Test]
     [PackageTest]
@@ -150,8 +150,7 @@ public class PackageTests
                          "DiffEngineViewer.dll",
                          "DiffEngineViewer.Core.dll",
                          "DiffEngineViewer.deps.json",
-                         $"DiffEngineViewer{runtimeConfig}",
-                         "DiffPlex.dll"
+                         $"DiffEngineViewer{runtimeConfig}"
                      ])
             {
                 if (!names.Contains(required))

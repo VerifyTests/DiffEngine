@@ -7,7 +7,6 @@
     <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />
     <Using Include="DiffEngine" />
     <PackageReference Include="Argon" />
-    <PackageReference Include="Verify.DiffPlex" />
     <PackageReference Include="Verify.TUnit" />
     <PackageReference Include="SimpleInfoName" />
     <PackageReference Include="Verify" />

@@ -1,0 +1,3 @@
+﻿1 Unchanged 'a'      | 1 Unchanged 'a'
+2 Modified '  b'     | 2 Modified 'b'
+3 Modified 'c '      | 3 Modified 'c'

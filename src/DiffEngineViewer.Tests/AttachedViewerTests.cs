@@ -16,7 +16,7 @@ public class AttachedViewerTests
 
     /// <summary>
     /// Only the patch crosses the wire. Every pane, header and row is derived on this side, which
-    /// is what keeps DiffPlex out of whatever process owns the queue.
+    /// is what keeps diffing out of whatever process owns the queue.
     /// </summary>
     [Test]
     public async Task TheQueueIsRebuiltFromTheOwner()
