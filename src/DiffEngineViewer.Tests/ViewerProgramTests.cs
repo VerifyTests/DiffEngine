@@ -82,7 +82,7 @@ public class ViewerProgramTests
 
     sealed class ThrowingWindow : IViewerWindow
     {
-        public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+        public static IViewerWindow Open(string title, int width, int height, bool hidden, out string? error)
         {
             error = null;
             return new ThrowingWindow();

@@ -248,7 +248,7 @@ public class TextDiffTests
     /// minimal, and each side must be exactly its lines in order.
     /// </summary>
     [Test]
-    public async Task MatchesLongestCommonSubsequence()
+    public void MatchesLongestCommonSubsequence()
     {
         var random = new Random(1);
         for (var iteration = 0; iteration < 3000; iteration++)
@@ -256,7 +256,7 @@ public class TextDiffTests
             var alphabet = 1 + iteration % 6;
             var expected = RandomLines(random, random.Next(0, 40), alphabet);
             var received = RandomLines(random, random.Next(0, 40), alphabet);
-            await AssertMinimal(expected, received);
+            AssertMinimal(expected, received);
         }
     }
 
@@ -265,14 +265,14 @@ public class TextDiffTests
     /// distinct lines that the interner's table has to probe past collisions.
     /// </summary>
     [Test]
-    public async Task LargeRandom()
+    public void LargeRandom()
     {
         var random = new Random(2);
         for (var iteration = 0; iteration < 10; iteration++)
         {
             var expected = RandomLines(random, 600, 400);
             var received = RandomLines(random, 700, 400);
-            await AssertMinimal(expected, received);
+            AssertMinimal(expected, received);
         }
     }
 
@@ -296,7 +296,7 @@ public class TextDiffTests
     static List<string> RandomLines(Random random, int count, int alphabet) =>
         Enumerable.Range(0, count).Select(_ => "l" + random.Next(alphabet)).ToList();
 
-    static async Task AssertMinimal(List<string> expected, List<string> received)
+    static void AssertMinimal(List<string> expected, List<string> received)
     {
         var lines = TextDiff.Compute(string.Join("\n", expected), string.Join("\n", received));
 
@@ -309,8 +309,6 @@ public class TextDiffTests
         {
             Assert.Fail($"expected: {string.Join(",", expected)} received: {string.Join(",", received)}");
         }
-
-        await Task.CompletedTask;
     }
 
     static int LongestCommonSubsequence(List<string> a, List<string> b)
