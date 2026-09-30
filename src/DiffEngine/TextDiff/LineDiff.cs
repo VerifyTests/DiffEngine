@@ -87,8 +87,13 @@ sealed class LineDiff
     /// <summary>
     /// Walks both sides together. Lines neither side changed are matched in order, so the
     /// unchanged lines pair up and everything between them is one changed block.
+    /// <para>
+    /// Sides that disagree on how many lines are unchanged would leave the walk unable to move, so
+    /// that throws rather than looping forever. Myers never produces it, and internal only so the
+    /// guard can be tested.
+    /// </para>
     /// </summary>
-    static List<LineEntry> Walk(ReadOnlySpan<bool> changedExpected, ReadOnlySpan<bool> changedReceived)
+    internal static List<LineEntry> Walk(ReadOnlySpan<bool> changedExpected, ReadOnlySpan<bool> changedReceived)
     {
         var entries = new List<LineEntry>(Math.Max(changedExpected.Length, changedReceived.Length));
         var expected = 0;

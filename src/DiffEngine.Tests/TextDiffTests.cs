@@ -239,6 +239,18 @@ public class TextDiffTests
             "+ a ");
 
     [Test]
+    public async Task FormatUnknown() =>
+        await Assert.That(() => TextDiff.Format("a", "b", (TextDiffFormat)99)).Throws<ArgumentOutOfRangeException>();
+
+    /// <summary>
+    /// An unchanged line on one side with nothing left on the other cannot be walked past, and
+    /// must throw rather than loop.
+    /// </summary>
+    [Test]
+    public async Task WalkThrowsWhenTheSidesDisagree() =>
+        await Assert.That(() => LineDiff.Walk([false], [])).Throws<InvalidOperationException>();
+
+    [Test]
     public async Task FormatIdentical() =>
         await Assert.That(TextDiff.Format("a\nb", "a\nb")).IsEqualTo("");
 
