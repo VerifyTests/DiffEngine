@@ -528,10 +528,23 @@ static class ScreenBuilder
     }
 
     /// <summary>
-    /// Without its closing full stop, since it is one clause of a status line joined by commas.
+    /// Its first line, without its closing full stop: it is one clause of a status line joined by
+    /// commas, and a status line is one line. A first line ending in a colon only introduces the
+    /// lines that cannot follow it, so its last sentence goes with them: Morph names a font it could
+    /// not find, then "Checked:" and every folder it looked in.
     /// </summary>
-    static string Reason(string reason) =>
-        reason.TrimEnd('.', ' ');
+    static string Reason(string reason)
+    {
+        var end = reason.AsSpan().IndexOfAny('\r', '\n');
+        var line = (end < 0 ? reason : reason[..end]).TrimEnd();
+        if (line.EndsWith(':'))
+        {
+            var sentence = line.LastIndexOf(". ", StringComparison.Ordinal);
+            line = sentence < 0 ? line.TrimEnd(':') : line[..sentence];
+        }
+
+        return line.TrimEnd('.', ' ');
+    }
 
     static IEnumerable<string> PageStatus(SessionState state, QueueEntry current, bool drawn)
     {

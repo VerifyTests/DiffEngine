@@ -66,6 +66,20 @@ public class DocumentRendererTests :
         await Assert.That(Render(path)).IsNotEmpty();
     }
 
+    /// <summary>
+    /// A family the machine lacks is drawn in a stand-in rather than failing the page. Morph fails
+    /// one outright, and Calibri, which most Word documents are set in, is missing from Linux and
+    /// from macOS without Office.
+    /// </summary>
+    [Test]
+    public async Task AFontTheMachineLacksIsDrawnInAStandIn()
+    {
+        var path = Path.Combine(directory, "missing-font.docx");
+        File.WriteAllBytes(path, SampleDocx.Build("No Such Family Anywhere", "alpha"));
+        await Assert.That(Plugin.Text(path)).Contains("alpha");
+        await Assert.That(Render(path)).IsNotEmpty();
+    }
+
     [Test]
     public async Task ASpreadsheetReadsAsMarkdown()
     {

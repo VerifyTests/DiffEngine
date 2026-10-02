@@ -23,18 +23,18 @@ public class DocumentScreenTests
     /// </summary>
     [Test]
     public Task TextAndPicture() =>
-        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText))));
+        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText))));
 
     [Test]
     public Task PictureOnly() =>
-        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText)) with
+        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)) with
         {
             Drawing = DrawingView.Picture
         }));
 
     [Test]
     public Task TextOnly() =>
-        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText)) with
+        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)) with
         {
             Drawing = DrawingView.Text
         }));
@@ -46,7 +46,7 @@ public class DocumentScreenTests
     [Test]
     public Task Drawing()
     {
-        var state = State(Left, Right,LeftText, RightText);
+        var state = State(Left, Right, LeftText, RightText);
         state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], false));
         state = ViewerSession.Rendered(state, Right.Hash!, Rendering.Started);
         return Verify(Fixtures.Render(state));
@@ -70,10 +70,27 @@ public class DocumentScreenTests
     [Test]
     public Task CouldNotDraw()
     {
-        var state = State(Left, Right,LeftText, RightText);
+        var state = State(Left, Right, LeftText, RightText);
         state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
         state = ViewerSession.Rendered(state, Right.Hash!, new([], true, "PDFium could not open it."));
         return Verify(Fixtures.Render(state));
+    }
+
+    /// <summary>
+    /// A status line is one line, and Morph's reasons can run to several: a font it could not find
+    /// is followed by every folder it looked in.
+    /// </summary>
+    [Test]
+    public async Task AReasonIsOneLine()
+    {
+        var state = State(Left, Right, LeftText, RightText);
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
+        state = ViewerSession.Rendered(
+            state,
+            Right.Hash!,
+            new([], true, "Font 'Calibri' not found. Checked:\n  /usr/share/fonts\n  (Morph embedded fonts)"));
+        await Assert.That(ScreenBuilder.Build(state).Status)
+            .EndsWith("could not draw sample.verified.pdf: Font 'Calibri' not found");
     }
 
     /// <summary>
@@ -83,7 +100,7 @@ public class DocumentScreenTests
     [Test]
     public Task PageOnlyOneSideHas()
     {
-        var state = State(Left, Right,LeftText, RightText);
+        var state = State(Left, Right, LeftText, RightText);
         state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1"), Page("L2"), Page("L3")], true));
         state = ViewerSession.Rendered(state, Right.Hash!, new([Page("L1"), Page("L2")], true));
         return Verify(Fixtures.Render(state));
@@ -113,7 +130,7 @@ public class DocumentScreenTests
     [Test]
     public async Task PanesCarryThePage()
     {
-        var screen = ScreenBuilder.Build(Drawn(State(Left, Right,LeftText, RightText)));
+        var screen = ScreenBuilder.Build(Drawn(State(Left, Right, LeftText, RightText)));
         await Assert.That(screen.Left.Image).IsEqualTo(new("render/L2.png", 625, 417, "L2"));
         await Assert.That(screen.Right.Image).IsEqualTo(new("render/R2.png", 625, 417, "R2"));
     }
@@ -121,7 +138,7 @@ public class DocumentScreenTests
     [Test]
     public async Task TheTextViewDrawsNothing()
     {
-        var screen = ScreenBuilder.Build(Drawn(State(Left, Right,LeftText, RightText)) with
+        var screen = ScreenBuilder.Build(Drawn(State(Left, Right, LeftText, RightText)) with
         {
             Drawing = DrawingView.Text
         });
@@ -150,7 +167,7 @@ public class DocumentScreenTests
     [Test]
     public async Task ThePageIsNotPartOfTheEntryHeader()
     {
-        var state = Drawn(State(Left, Right,LeftText, RightText));
+        var state = Drawn(State(Left, Right, LeftText, RightText));
         await Assert.That(ScreenBuilder.Build(state).Left.Header).IsEqualTo("sample.received.pdf (page 2 of 3)");
         await Assert.That(state.Current!.LeftHeader).IsEqualTo("sample.received.pdf");
     }
