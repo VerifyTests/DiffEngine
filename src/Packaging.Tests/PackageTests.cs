@@ -178,9 +178,109 @@ public class PackageTests
         await Assert.That(problems).IsEmpty();
     }
 
+    /// <summary>
+    /// The documents folder is what makes the dotnet tool and the tray's viewer read PDFs and Office
+    /// files, and is tens of MB per RID. The copy DiffEngine bundles must stay without it, which is
+    /// what keeps the DiffEngine package the size it was.
+    /// </summary>
+    [Test]
+    [PackageTest]
+    public async Task TheBundleCarriesNoDocuments()
+    {
+        await using var archive = Packages.Open("DiffEngine");
+        var documents = Packages.Entries(archive)
+            .Where(_ => _.Contains("/documents/", StringComparison.Ordinal) ||
+                        _.Contains("DiffEngineViewer.Documents", StringComparison.Ordinal))
+            .ToList();
+
+        await Assert.That(documents).IsEmpty();
+    }
+
+    /// <summary>
+    /// A documents folder loads only when its deps.json and its files agree for the running RID:
+    /// AssemblyDependencyResolver refuses one naming an asset that is not there. So every native
+    /// it names for a RID the package ships has to be in the package, and nothing for any other RID
+    /// should be. And no .pdb, which SkiaSharp puts beside its Windows natives at 120 MB a RID.
+    /// </summary>
+    [Test]
+    [PackageTest]
+    [Arguments("DiffEngineViewer.Windows", tool, "win-x64;win-arm64")]
+    [Arguments("DiffEngineViewer.Mac", tool, "osx;osx-x64;osx-arm64")]
+    [Arguments("DiffEngineViewer.Linux", tool, "linux-x64;linux-arm64")]
+    [Arguments("DiffEngineTray", trayDocuments, "win-x64;win-arm64")]
+    public async Task EveryDocumentsFolderIsComplete(string id, string root, string rids)
+    {
+        await using var archive = Packages.Open(id);
+        var paths = Packages.Entries(archive)
+            .Where(_ => _.StartsWith(root, StringComparison.Ordinal))
+            .Select(_ => _[root.Length..])
+            .ToHashSet(StringComparer.Ordinal);
+        var shipped = rids.Split(';').ToHashSet(StringComparer.Ordinal);
+
+        var problems = new List<string>();
+        foreach (var required in (string[]) ["DiffEngineViewer.Documents.dll", depsJson])
+        {
+            if (!paths.Contains(required))
+            {
+                problems.Add($"no {required}");
+            }
+        }
+
+        problems.AddRange(paths
+            .Where(_ => _.EndsWith(".pdb", StringComparison.Ordinal))
+            .Select(_ => $"a pdb: {_}"));
+
+        var folders = paths
+            .Where(_ => _.StartsWith("runtimes/", StringComparison.Ordinal))
+            .Select(_ => _.Split('/')[1])
+            .ToHashSet(StringComparer.Ordinal);
+        if (!folders.SetEquals(shipped))
+        {
+            problems.Add($"natives for {string.Join(", ", folders.Order(StringComparer.Ordinal))}, expected {rids}");
+        }
+
+        if (paths.Contains(depsJson))
+        {
+            await using var stream = archive.GetEntry(root + depsJson)!.Open();
+            var document = await JsonDocument.ParseAsync(stream);
+            foreach (var library in document.RootElement.GetProperty("targets").EnumerateObject().SelectMany(_ => _.Value.EnumerateObject()))
+            {
+                if (!library.Value.TryGetProperty("runtimeTargets", out var targets))
+                {
+                    continue;
+                }
+
+                foreach (var target in targets.EnumerateObject())
+                {
+                    if (shipped.Contains(target.Value.GetProperty("rid").GetString()!) &&
+                        !paths.Contains(target.Name))
+                    {
+                        problems.Add($"deps.json names {target.Name}, which is not in the package");
+                    }
+                }
+            }
+        }
+
+        await Assert.That(problems).IsEmpty();
+    }
+
+    const string tool = "tools/net10.0/any/documents/";
+
+    /// <summary>
+    /// One folder beside the tray's two RID copies of the viewer, which each find one directory up.
+    /// </summary>
+    const string trayDocuments = "tools/net10.0/any/viewer/documents/";
+
+    const string depsJson = "DiffEngineViewer.Documents.deps.json";
+
+    /// <summary>
+    /// The viewer copies under <paramref name="root"/>, by RID. Not the tray's documents folder,
+    /// which sits beside them and is not a RID.
+    /// </summary>
     static List<IGrouping<string, string>> Rids(ZipArchive archive, string root) =>
         Packages.Entries(archive)
             .Where(_ => _.StartsWith(root, StringComparison.Ordinal))
             .GroupBy(_ => _[root.Length..].Split('/')[0])
+            .Where(_ => _.Key != "documents")
             .ToList();
 }

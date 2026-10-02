@@ -12,23 +12,23 @@
 /// </summary>
 static class TrackedEntry
 {
-    public static QueueEntry ForMove(string temp, string target) =>
+    public static QueueEntry ForMove(string temp, string target, DocumentPlugin? documents = null) =>
         QueueEntry.ForMove(
             TrackedKeys.ForMove(temp),
             $"{Name(target)} ({Extension(target)})",
             SolutionDirectoryFinder.Find(target),
             temp,
             target,
-            FileSide.Read(temp),
-            FileSide.Read(target));
+            FileSide.Read(temp, documents),
+            FileSide.Read(target, documents));
 
-    public static QueueEntry ForDelete(string file) =>
+    public static QueueEntry ForDelete(string file, DocumentPlugin? documents = null) =>
         QueueEntry.ForDelete(
             TrackedKeys.ForDelete(file),
             Path.GetFileName(file),
             SolutionDirectoryFinder.Find(file),
             file,
-            FileSide.Read(file));
+            FileSide.Read(file, documents));
 
     /// <summary>
     /// Twice, because a verified file carries two: <c>Sample.Test.verified.txt</c> is the test

@@ -216,7 +216,12 @@ enum DeviewKey {
     /* Ctrl+A, which is why plain A must be reported as accept only when no modifier is held. */
     DEVIEW_KEY_SELECT_ALL = 17,
     /* M: every line, or only the changes and the lines around them. */
-    DEVIEW_KEY_TOGGLE_MINIMAL = 18
+    DEVIEW_KEY_TOGGLE_MINIMAL = 18,
+    /* R: a document's text, its text with its page under it, or its page alone. */
+    DEVIEW_KEY_TOGGLE_DRAWING = 19,
+    /* [ and ]: a document's previous and next page. */
+    DEVIEW_KEY_PREVIOUS_PAGE = 20,
+    DEVIEW_KEY_NEXT_PAGE = 21
 };
 
 typedef struct DeviewInput {

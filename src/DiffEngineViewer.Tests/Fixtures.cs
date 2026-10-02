@@ -247,6 +247,29 @@ static class Fixtures
             QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right)));
     }
 
+    /// <summary>
+    /// A document with its page drawn under its text, the one layout only a document has: the text
+    /// in the top half of each pane, and the page in the bottom half by the heads' own rule of
+    /// drawing a picture under whatever rows a pane has. Real pngs for the pages, as
+    /// <see cref="Images"/> has, since a head draws from the path.
+    /// </summary>
+    public static SessionState Document()
+    {
+        var leftPage = WriteImage("page.received.png", SamplePng.Build(200, 260, 198, 64, 64));
+        var rightPage = WriteImage("page.verified.png", SamplePng.Build(200, 260, 64, 150, 198));
+        var left = new DocumentFile("sample.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
+        var right = new DocumentFile("sample.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
+        var state = ViewerSession.EnqueueFile(
+            SessionState.Start(ViewerMode.File, Columns, Rows),
+            QueueEntry.ForFiles(
+                "sample.received.pdf",
+                "sample.verified.pdf",
+                new(Long(false), null, null, null, left),
+                new(Long(true), null, null, null, right)));
+        state = ViewerSession.Rendered(state, "AA", new([new(leftPage, 200, 260, "LEFT")], true));
+        return ViewerSession.Rendered(state, "BB", new([new(rightPage, 200, 260, "RIGHT")], true));
+    }
+
     static string WriteImage(string name, byte[] content)
     {
         // A fixed directory and a fixed name: only the file name reaches a pane header, and a

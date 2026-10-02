@@ -42,6 +42,10 @@ static partial class Implementation
                    macOS, Dear ImGui through raylib on Linux
                  * Compares images by format, dimensions and content, and draws them, with
                    whichever formats each platform's own decoder reads
+                 * The standalone tool and the copy installed with DiffEngineTray also read PDF,
+                   docx, xlsx and pptx files - as text, as pages drawn, or both - and draw SVGs
+                   beside their text. Offered for those files only when the copy found is one of
+                   these, never the bundled one, which stays small
                 """);
     }
 

@@ -337,7 +337,7 @@ sealed class ViewerCanvas : Control
         }
 
         var row = (point.Y - BodyTop) / Cell.Height;
-        if (row >= BodyCapacity)
+        if (row >= SelectableRows)
         {
             return null;
         }
@@ -362,7 +362,26 @@ sealed class ViewerCanvas : Control
     /// above or below the rows means the first or last of them rather than nothing.
     /// </summary>
     int DraggedRow(int y) =>
-        Math.Clamp((y - BodyTop) / Cell.Height, 0, Math.Max(0, BodyCapacity - 1));
+        Math.Clamp((y - BodyTop) / Cell.Height, 0, Math.Max(0, SelectableRows - 1));
+
+    /// <summary>
+    /// The rows a pointer selects in: all the body has room for, or with a picture drawn under a
+    /// pane's rows only those rows, since below them is the picture. A document's text and page
+    /// share a pane, and a drag over the page selecting text rows nobody can see was the result.
+    /// </summary>
+    int SelectableRows
+    {
+        get
+        {
+            if (screen!.Left.Image is null &&
+                screen.Right.Image is null)
+            {
+                return BodyCapacity;
+            }
+
+            return Math.Min(BodyCapacity, Math.Max(screen.Left.Rows.Count, screen.Right.Rows.Count));
+        }
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {

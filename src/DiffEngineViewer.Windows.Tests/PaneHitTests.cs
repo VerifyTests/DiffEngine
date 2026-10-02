@@ -71,6 +71,53 @@ public class PaneHitTests
     }
 
     /// <summary>
+    /// A document with its page under its text shows the text in the top half of the pane, and
+    /// below that is the page: a press there is not a press on a row nobody can see.
+    /// </summary>
+    [Test]
+    public async Task ThePageUnderTheTextIsNotText()
+    {
+        var left = new DocumentFile("temp/sample.received.pdf", 10, DocumentFormat.Pdf, "AA");
+        var right = new DocumentFile("code/sample.verified.pdf", 11, DocumentFormat.Pdf, "BB");
+        var entry = QueueEntry.ForFiles(
+            "temp/sample.received.pdf",
+            "code/sample.verified.pdf",
+            new(Fixtures.Long(false), null, null, null, left),
+            new(Fixtures.Long(true), null, null, null, right));
+        var state = ViewerSession.Resize(
+            ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry),
+            columns,
+            rows);
+        RenderedPage[] page = [new("render/page_0001.png", 600, 800, "PAGE")];
+        state = ViewerSession.Rendered(state, "AA", new(page, true));
+        state = ViewerSession.Rendered(state, "BB", new(page, true));
+
+        using var host = new Host();
+        host.Draw(ScreenBuilder.Build(state with { Drawing = DrawingView.Text }));
+        var lowest = LowestCell(host.Canvas);
+        await Assert.That(lowest).IsNotNull();
+
+        host.Draw(ScreenBuilder.Build(state));
+        await Assert.That(host.Canvas.PaneCellAt(new(width / 4, lowest!.Value))).IsNull();
+    }
+
+    /// <summary>
+    /// The lowest y in the received pane that is a cell of the text.
+    /// </summary>
+    static int? LowestCell(ViewerCanvas canvas)
+    {
+        for (var y = canvas.Height - 1; y >= 0; y--)
+        {
+            if (canvas.PaneCellAt(new(width / 4, y)) is not null)
+            {
+                return y;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// The top left pixel of the first run drawn in <paramref name="colour"/>, or null. Scanned
     /// top down and then left to right, so it is the corner rather than any pixel of the run.
     /// </summary>

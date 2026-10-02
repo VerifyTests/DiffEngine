@@ -3,6 +3,9 @@
 *.bin binary
 *.png binary
 *.docx binary
+*.xlsx binary
+*.pptx binary
+*.pdf binary
 *.dll binary
 *.so binary
 *.dylib binary

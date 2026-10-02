@@ -1,0 +1,72 @@
+DiffEngineViewer documents folder: third party notices
+
+This folder carries the libraries DiffEngineViewer reads and draws documents with. Each is used
+under the license named below.
+
+
+Morph and Morph.Skia
+  https://github.com/Papyrine/Morph
+  Source: MIT License, Copyright (c) Brandt Vavasour and Simon Cropp
+  Binary release: Open Source Maintenance Fee EULA, https://github.com/Papyrine/Morph/blob/main/OsmfEula.txt
+
+Morph.PDFium
+  https://github.com/Papyrine/Morph.PDFium
+  MIT License
+
+PDFium binaries (bblanchon.PDFium)
+  https://github.com/bblanchon/pdfium-binaries
+  Apache License 2.0, Copyright (c) Benoit Blanchon 2017-2025
+  PDFium itself: BSD 3-Clause License, Copyright 2014 The PDFium Authors, https://pdfium.googlesource.com/pdfium
+
+SkiaSharp and HarfBuzzSharp
+  https://github.com/mono/SkiaSharp
+  MIT License, (c) Microsoft Corporation
+  Skia: BSD 3-Clause License, Copyright (c) 2011 Google Inc., https://skia.org
+  HarfBuzz: MIT ("Old MIT") License, https://github.com/harfbuzz/harfbuzz
+
+Svg.Skia, Svg.Model, Svg.SceneGraph, Svg.Animation and ShimSkiaSharp
+  https://github.com/wieslawsoltes/Svg.Skia
+  MIT License, Copyright (c) Wieslaw Soltes
+
+Svg.Custom
+  https://github.com/wieslawsoltes/Svg.Skia
+  Microsoft Public License (MS-PL), a build of SVG.NET, https://github.com/svg-net/SVG
+
+ExCSS
+  https://github.com/TylerBrinks/ExCSS
+  MIT License
+
+AngleSharp
+  https://anglesharp.github.io
+  MIT License, Copyright 2013-2026, AngleSharp
+
+DocumentFormat.OpenXml and DocumentFormat.OpenXml.Framework
+  https://github.com/dotnet/Open-XML-SDK
+  MIT License, (c) Microsoft Corporation
+
+System.IO.Packaging
+  https://github.com/dotnet/runtime
+  MIT License, (c) Microsoft Corporation
+
+
+The MIT License, as it applies to each MIT licensed component above with that component's own
+copyright line:
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+  associated documentation files (the "Software"), to deal in the Software without restriction,
+  including without limitation the rights to use, copy, modify, merge, publish, distribute,
+  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or
+  substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+  OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The full texts of the Apache License 2.0, the BSD 3-Clause License and the Microsoft Public License
+are at https://www.apache.org/licenses/LICENSE-2.0, https://opensource.org/license/bsd-3-clause and
+https://opensource.org/license/ms-pl.

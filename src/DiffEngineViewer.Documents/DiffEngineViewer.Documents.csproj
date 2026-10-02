@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!--
+    Loaded by DiffEngineViewer.Core into an AssemblyLoadContext of its own, from a documents folder
+    beside the viewer. EnableDynamicLoading copies every dependency, natives under runtimes/{rid},
+    into the output along with a deps.json, which is what AssemblyDependencyResolver reads.
+
+    Only the dotnet tool packages and the copy inside DiffEngineTray carry it. The copy bundled in
+    DiffEngine does not, which is the point of it being a separate assembly: Skia, PDFium and the
+    OpenXml SDK are tens of MB per RID, against one to three for the viewer itself.
+    -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Morph" />
+    <PackageReference Include="Morph.Skia" />
+    <PackageReference Include="Morph.PDFium" />
+    <!--
+    SkiaSharp's net10.0 group brings the Windows and macOS natives only. NoDependencies rather than
+    the plain Linux package, so the renderer needs no fontconfig on the machine: Morph finds fonts
+    by scanning font folders itself.
+    -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <!-- Into the output, and so into every documents folder, beside what it describes. -->
+    <None Include="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+  The RIDs a viewer ships for, plus osx, which is where SkiaSharp and HarfBuzzSharp keep their
+  universal macOS binaries. Everything else NuGet hands over (musl, x86, arm, riscv, bionic) is for a
+  machine no viewer head runs on.
+  -->
+  <ItemGroup>
+    <DocumentsRid Include="win-x64;win-arm64;osx;osx-x64;osx-arm64;linux-x64;linux-arm64" />
+  </ItemGroup>
+
+  <!--
+  Trimmed here rather than by whoever copies the output, because deps.json is generated from these
+  same items. AssemblyDependencyResolver refuses a component whose deps.json names an asset for the
+  running RID that is not on disk, so a folder trimmed after the fact would stop loading the moment
+  it lost a file its deps.json still listed - and the files worth losing include the 120 MB of .pdb
+  per Windows RID that SkiaSharp and HarfBuzzSharp put beside their natives.
+
+  Only runtimes/{rid} is touched: every RID specific asset in this graph is a native.
+  -->
+  <Target Name="TrimDocumentsRuntimeTargets" AfterTargets="ResolvePackageAssets">
+    <PropertyGroup>
+      <_DocumentsRids>;@(DocumentsRid);</_DocumentsRids>
+    </PropertyGroup>
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+                                    Condition="'%(Extension)' == '.pdb' or !$(_DocumentsRids.Contains(';%(RuntimeIdentifier);'))" />
+    </ItemGroup>
+  </Target>
+</Project>

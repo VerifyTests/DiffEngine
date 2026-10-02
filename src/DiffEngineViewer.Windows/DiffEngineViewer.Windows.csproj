@@ -42,6 +42,8 @@
     its own icon from managed resources.
     -->
     <ApplicationIcon>viewer.ico</ApplicationIcon>
+    <!-- The architectures this package's apphost runs on, the ones DiffEngine bundles for. -->
+    <DocumentsRids>win-x64;win-arm64</DocumentsRids>
   </PropertyGroup>
 
   <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
@@ -75,4 +77,6 @@
     <None Remove="viewer.ico" />
     <EmbeddedResource Include="viewer.ico" LogicalName="DiffEngineViewer.viewer.ico" />
   </ItemGroup>
+
+  <Import Project="..\DiffEngineViewer.Documents\Documents.targets" />
 </Project>

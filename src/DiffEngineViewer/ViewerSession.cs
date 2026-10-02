@@ -417,6 +417,14 @@ static class ViewerSession
             return state;
         }
 
+        // Rows describing a document are not its text, and a selection is held in rows of the text:
+        // one made here would come back over different rows after switching view. Still the user
+        // moving on, so an open menu still closes.
+        if (state.ShowsProperties)
+        {
+            return state.Menu is null ? state : state with { Menu = null };
+        }
+
         var ends = current
             .View(state.Minimal)
             .Unfold(anchorRow, anchorColumn, focusRow, focusColumn);
@@ -460,7 +468,8 @@ static class ViewerSession
     /// </summary>
     static SessionState SelectAll(SessionState state)
     {
-        if (state.Current is not { } current)
+        if (state.Current is not { } current ||
+            state.ShowsProperties)
         {
             return state;
         }
@@ -502,7 +511,7 @@ static class ViewerSession
         }
 
         var inline = state.Mode == ViewerMode.Inline;
-        var body = ScreenBuilder.BodyRows(state);
+        var body = ScreenBuilder.PaneRows(state);
         switch (command.Kind)
         {
             case CommandKind.AcceptGroup:
@@ -528,11 +537,27 @@ static class ViewerSession
             case CommandKind.ScrollTo:
                 return Scroll(state, command.Index);
             case CommandKind.NextChange:
+                if (ScreenBuilder.TurnsPages(state, out _))
+                {
+                    return TurnToChange(state, forward: true);
+                }
+
                 return Scroll(state, state.View?.Next(state.ScrollTop, body) ?? state.ScrollTop);
             case CommandKind.PreviousChange:
+                if (ScreenBuilder.TurnsPages(state, out _))
+                {
+                    return TurnToChange(state, forward: false);
+                }
+
                 return Scroll(state, state.View?.Previous(state.ScrollTop, body) ?? state.ScrollTop);
             case CommandKind.ToggleMinimal:
                 return ToggleMinimal(state, body);
+            case CommandKind.ToggleDrawing:
+                return ToggleDrawing(state);
+            case CommandKind.PreviousPage:
+                return Turn(state, -1);
+            case CommandKind.NextPage:
+                return Turn(state, 1);
             case CommandKind.NextItem:
                 return Step(state, 1);
             case CommandKind.PreviousItem:
@@ -1507,7 +1532,16 @@ static class ViewerSession
     /// through here - selecting, stepping, a re-run that rewrote the text, a variant cycled to,
     /// the entry on screen going - so an entry is met the same way however it got there.
     /// </summary>
-    static SessionState Open(SessionState state)
+    static SessionState Open(SessionState state) =>
+        // A document opens at its opening page too, which is the first that differs.
+        ScrollToOpening(state with { Page = null });
+
+    /// <summary>
+    /// The text scrolled to its first change, leaving the page where it is: for a document whose
+    /// text arrived, or whose rows on screen switched between its text and its properties, the
+    /// reader is still on the same page.
+    /// </summary>
+    static SessionState ScrollToOpening(SessionState state)
     {
         state = Clamp(state);
         if (state.View is not { } view)
@@ -1515,7 +1549,7 @@ static class ViewerSession
             return state;
         }
 
-        return state with { ScrollTop = view.Opening(ScreenBuilder.BodyRows(state)) };
+        return state with { ScrollTop = view.Opening(ScreenBuilder.PaneRows(state)) };
     }
 
     /// <summary>
@@ -1681,13 +1715,160 @@ static class ViewerSession
         var selected = state.Queue.Count == 0
             ? -1
             : Math.Clamp(state.Selected, 0, state.Queue.Count - 1);
-        // The rows on screen, which in the minimal view are fewer than the entry has.
-        var total = selected < 0 ? 0 : state.Queue[selected].View(state.Minimal).Count;
-        var maxScroll = Math.Max(0, total - ScreenBuilder.BodyRows(state));
+        state = state with { Selected = selected };
+        // The rows on screen, which in the minimal view are fewer than the entry has, and for a
+        // document seen as its pages are the rows describing it.
+        var total = state.View?.Count ?? 0;
+        var maxScroll = Math.Max(0, total - ScreenBuilder.PaneRows(state));
         return state with
         {
-            Selected = selected,
             ScrollTop = Math.Clamp(state.ScrollTop, 0, maxScroll)
         };
+    }
+
+    /// <summary>
+    /// Text, text with the page under it, and the page alone, in turn. Between the two that show
+    /// the text the rows are the same, so the reader keeps their place; to or from the page alone
+    /// they are different rows, so the text opens at its first change the way an entry does.
+    /// </summary>
+    static SessionState ToggleDrawing(SessionState state)
+    {
+        if (state.Current is not { IsDocument: true })
+        {
+            return state;
+        }
+
+        var toggled = state with
+        {
+            Drawing = state.Drawing switch
+            {
+                DrawingView.Both => DrawingView.Picture,
+                DrawingView.Picture => DrawingView.Text,
+                _ => DrawingView.Both
+            }
+        };
+
+        if (state.ShowsProperties != toggled.ShowsProperties)
+        {
+            return ScrollToOpening(toggled);
+        }
+
+        return Clamp(toggled);
+    }
+
+    /// <summary>
+    /// The next or previous page, from wherever the reader is, the opening page included. Kept
+    /// inside the pages drawn so far, so turning past the last of them waits on it rather than
+    /// showing nothing.
+    /// </summary>
+    static SessionState Turn(SessionState state, int delta)
+    {
+        if (state.Current is not { IsDocument: true } current ||
+            state.Drawing == DrawingView.Text)
+        {
+            return state;
+        }
+
+        var (left, right) = DocumentPages.Of(state, current);
+        var count = DocumentPages.Count(left, right);
+        if (count == 0)
+        {
+            return state;
+        }
+
+        var page = Math.Clamp(DocumentPages.Current(state) + delta, 0, count - 1);
+        return state.Page == page ? state : state with { Page = page };
+    }
+
+    /// <summary>
+    /// The next or previous page that differs, which is what a change is when only the pages are on
+    /// screen.
+    /// </summary>
+    static SessionState TurnToChange(SessionState state, bool forward)
+    {
+        if (state.Current is not { IsDocument: true } current)
+        {
+            return state;
+        }
+
+        var (left, right) = DocumentPages.Of(state, current);
+        var differing = DocumentPages.Differing(current, left, right);
+        var page = DocumentPages.Current(state);
+        var target = forward
+            ? differing.FirstOrDefault(_ => _ > page, -1)
+            : differing.LastOrDefault(_ => _ < page, -1);
+        return target < 0 ? state : state with { Page = target };
+    }
+
+    /// <summary>
+    /// What one document draws as so far, from <see cref="DocumentWatch"/>. Dropped when no entry
+    /// still holds those bytes, so a render finishing for a file that went or was rewritten in the
+    /// meantime leaves nothing behind.
+    /// </summary>
+    public static SessionState Rendered(SessionState state, string hash, Rendering rendering)
+    {
+        if (!Holds(state.Queue, hash))
+        {
+            return state;
+        }
+
+        var renders = new Dictionary<string, Rendering>(state.Renders)
+        {
+            [hash] = rendering
+        };
+        return state with { Renders = renders };
+    }
+
+    /// <summary>
+    /// Drops what documents no longer in the queue drew as. The identical state when there is
+    /// nothing to drop, which is almost every pass.
+    /// </summary>
+    public static SessionState Forget(SessionState state)
+    {
+        if (state.Renders.Keys.All(_ => Holds(state.Queue, _)))
+        {
+            return state;
+        }
+
+        var renders = state.Renders
+            .Where(_ => Holds(state.Queue, _.Key))
+            .ToDictionary(_ => _.Key, _ => _.Value);
+        return state with { Renders = renders };
+    }
+
+    static bool Holds(IReadOnlyList<QueueEntry> queue, string hash) =>
+        queue.Any(_ => _.LeftDocument?.Hash == hash || _.RightDocument?.Hash == hash);
+
+    /// <summary>
+    /// A document's text has been read, so its entry is replaced by one built with it. By the entry
+    /// that was read rather than by key, and skipped when that one has gone since: whatever replaced
+    /// it is newer than this. An entry on screen opens its text at the first change, on the page
+    /// the reader is already on.
+    /// </summary>
+    public static SessionState TextRead(SessionState state, QueueEntry seen, QueueEntry fresh)
+    {
+        var index = -1;
+        for (var position = 0; position < state.Queue.Count; position++)
+        {
+            if (ReferenceEquals(state.Queue[position], seen))
+            {
+                index = position;
+                break;
+            }
+        }
+
+        if (index < 0)
+        {
+            return state;
+        }
+
+        // Same key, same place, so the open menu's members still index what they did.
+        var next = state with { Queue = Replace(state.Queue, index, fresh) };
+        if (index == state.Selected)
+        {
+            return ScrollToOpening(next);
+        }
+
+        return Clamp(next);
     }
 }

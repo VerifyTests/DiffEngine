@@ -29,6 +29,7 @@
     viewer as the diff tool for them, and the viewer decides how to render them.
     -->
     <Compile Include="..\DiffEngine\Viewer\ImageExtensions.cs" LinkBase="Images" />
+    <Compile Include="..\DiffEngine\Viewer\DocumentExtensions.cs" LinkBase="Documents" />
     <Using Include="DiffEngine" />
     <!-- What the linked Protocol files expect, declared the same way DiffEngine declares them. -->
     <Using Include="System.Net" />

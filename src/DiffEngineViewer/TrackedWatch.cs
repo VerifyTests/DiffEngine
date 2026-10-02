@@ -18,7 +18,7 @@
 /// is not measurable.
 /// </para>
 /// </summary>
-sealed class TrackedWatch(SessionHost host)
+sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
 {
     /// <summary>
     /// The same cadence an attached viewer reads at, so a re-run that rewrites a received file
@@ -120,8 +120,8 @@ sealed class TrackedWatch(SessionHost host)
                 entry.Solution,
                 temp,
                 target,
-                FileSide.Read(temp),
-                FileSide.Read(target)),
+                FileSide.Read(temp, documents),
+                FileSide.Read(target, documents)),
             changed);
     }
 
@@ -142,7 +142,7 @@ sealed class TrackedWatch(SessionHost host)
 
         Changed(
             entry,
-            () => QueueEntry.ForDelete(entry.Key, entry.Name, entry.Solution, file, FileSide.Read(file)),
+            () => QueueEntry.ForDelete(entry.Key, entry.Name, entry.Solution, file, FileSide.Read(file, documents)),
             changed);
     }
 

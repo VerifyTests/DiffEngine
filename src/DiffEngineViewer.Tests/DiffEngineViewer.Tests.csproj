@@ -30,5 +30,14 @@
     <None Include="..\DiffEngineViewer.Linux\runtimes\**\*;..\DiffEngineViewer.Mac\runtimes\**\*;..\DiffEngineViewer.Windows\runtimes\**\*"
           CopyToOutputDirectory="PreserveNewest"
           Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Office files for the real renderer. PDFs are built by SamplePdf, so a test controls each page. -->
+    <None Include="DocumentSamples\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!--
+  The documents folder with every RID's natives, since this runs on all three platforms in CI.
+  Present beside the tests, so DocumentPlugin.Find is exercised the way a viewer runs it; nothing in
+  the viewer picks it up unless handed it, which is why the rest of these tests are unaffected.
+  -->
+  <Import Project="..\DiffEngineViewer.Documents\Documents.targets" />
 </Project>

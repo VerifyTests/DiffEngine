@@ -5,12 +5,12 @@
 readonly record struct FileStamp(long WriteTicksUtc, long Length);
 
 /// <summary>
-/// One guarded read of a file a side of the diff points at, as whichever of text or picture its
-/// extension says it is. Never throws: the poller that materializes these must survive a file
-/// vanishing mid-pump — a throw there closes the window as "owner gone" — so a missing or locked
-/// file degrades to an empty side plus a warning.
+/// One guarded read of a file a side of the diff points at, as whichever of text, picture or
+/// document its extension says it is. Never throws: the poller that materializes these must survive
+/// a file vanishing mid-pump — a throw there closes the window as "owner gone" — so a missing or
+/// locked file degrades to an empty side plus a warning.
 /// </summary>
-readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, ImageFile? Image)
+readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, ImageFile? Image, DocumentFile? Document = null)
 {
     /// <summary>
     /// Text that never came off a disk, which is what every test and every in-memory caller has.
@@ -18,7 +18,11 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
     public static FileSide OfText(string text) =>
         new(text, null, null, null);
 
-    public static FileSide Read(string path)
+    /// <param name="documents">
+    /// The viewer's documents folder, or null for a viewer without one, which reads a PDF or an
+    /// Office file as the text it always did and an SVG as nothing but text.
+    /// </param>
+    public static FileSide Read(string path, DocumentPlugin? documents = null)
     {
         try
         {
@@ -31,6 +35,12 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
             }
 
             var stamp = new FileStamp(info.LastWriteTimeUtc.Ticks, info.Length);
+            if (documents is not null &&
+                DocumentExtensions.Is(path))
+            {
+                return ReadDocument(path, stamp, documents);
+            }
+
             if (!ImageExtensions.Is(path))
             {
                 return new(ReadText(path), stamp, null, null);
@@ -40,8 +50,34 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
         }
         catch (Exception exception)
         {
-            return new("", null, $"Could not read {path}. {exception.Message}", Unread(path));
+            return new("", null, $"Could not read {path}. {exception.Message}", Unread(path), UnreadDocument(path, documents));
         }
+    }
+
+    /// <summary>
+    /// The bytes and their hash, and whatever text is already known for them. Reading the text of
+    /// a PDF or an Office file is slow enough to hold a test process waiting on the listener, so
+    /// it is never done here: a document whose text has not been read yet arrives
+    /// <see cref="DocumentFile.Reading"/>, and <see cref="DocumentWatch"/> reads it.
+    /// </summary>
+    static FileSide ReadDocument(string path, FileStamp stamp, DocumentPlugin documents)
+    {
+        var bytes = ReadBytes(path);
+        var hash = Convert.ToHexString(SHA256.HashData(bytes));
+        var document = new DocumentFile(path, bytes.Length, DocumentFile.FormatOf(path), hash);
+        if (document.IsDrawn)
+        {
+            // Its text is the file, read as any text file is.
+            using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return new(reader.ReadToEnd(), stamp, null, null, document);
+        }
+
+        if (!documents.TryGetText(hash, out var extraction))
+        {
+            return new("", stamp, null, null, document with { Reading = true });
+        }
+
+        return new(extraction.Text ?? "", stamp, null, null, document with { Unreadable = extraction.Failure });
     }
 
     /// <summary>
@@ -50,6 +86,12 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
     /// </summary>
     static ImageFile? Unread(string path) =>
         ImageExtensions.Is(path) ? ImageFile.Unread(path) : null;
+
+    /// <summary>
+    /// And a document likewise, for a viewer that reads documents.
+    /// </summary>
+    static DocumentFile? UnreadDocument(string path, DocumentPlugin? documents) =>
+        documents is not null && DocumentExtensions.Is(path) ? DocumentFile.Unread(path) : null;
 
     /// <summary>
     /// Every read of a pending file shares it with writers and deleters. A test process rewrites

@@ -547,7 +547,7 @@ public class ViewerLaunchTests
     /// </summary>
     static string PatchMutex(string source)
     {
-        var hash = System.Security.Cryptography.SHA256.HashData(
+        var hash = SHA256.HashData(
             Encoding.UTF8.GetBytes(Path.GetFullPath(source).ToLowerInvariant()));
         return $"DiffEngineInline_{Convert.ToHexString(hash)}";
     }

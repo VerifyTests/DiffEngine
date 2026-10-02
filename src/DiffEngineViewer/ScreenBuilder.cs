@@ -1,3 +1,5 @@
+using System.Globalization;
+
 /// <summary>
 /// Projects a <see cref="SessionState"/> into the frame to draw. Owns the viewport slicing, so
 /// the text and pixel renderers never disagree about what is on screen.
@@ -12,26 +14,46 @@ static class ScreenBuilder
     public static int BodyRows(SessionState state) =>
         Math.Max(1, state.Rows - Chrome);
 
+    /// <summary>
+    /// The rows of text a pane has room for: the whole body, or its top half when a document's page
+    /// is drawn under its text. The heads place a picture under whatever rows a pane has, so
+    /// slicing fewer is all it takes to give the page the rest. Everything that scrolls a pane
+    /// counts these; the queue column keeps the whole body.
+    /// </summary>
+    public static int PaneRows(SessionState state)
+    {
+        var body = BodyRows(state);
+        if (state.Drawing == DrawingView.Both &&
+            state.Current is { IsDocument: true } &&
+            !state.ShowsProperties)
+        {
+            return Math.Max(1, body / 2);
+        }
+
+        return body;
+    }
+
     public static Screen Build(SessionState state)
     {
         var body = BodyRows(state);
+        var paneRows = PaneRows(state);
         var current = state.Current;
         var view = state.View;
         var selection = state.LiveSelection;
         var left = BuildPane(
-            current?.LeftHeader ?? "received",
+            Header(state, current, PaneSide.Left),
             view,
             state.ScrollTop,
-            body,
-            current?.LeftImage,
+            paneRows,
+            Picture(state, current, PaneSide.Left),
             selection,
             PaneSide.Left);
         var right = BuildPane(
-            current?.RightHeader ?? "expected",
+            Header(state, current, PaneSide.Right),
             view,
             state.ScrollTop,
-            body,
-            current?.RightImage,
+            paneRows,
+            Picture(state, current, PaneSide.Right),
             selection,
             PaneSide.Right);
 
@@ -43,8 +65,8 @@ static class ScreenBuilder
             Queue: queue,
             Left: left,
             Right: right,
-            Buttons: BuildButtons(state, body),
-            Status: BuildStatus(state, current, body),
+            Buttons: BuildButtons(state, paneRows),
+            Status: BuildStatus(state, current, paneRows),
             Columns: state.Columns,
             Rows: state.Rows,
             PendingCount: state.Mode == ViewerMode.File ? 0 : state.Queue.Count,
@@ -77,13 +99,13 @@ static class ScreenBuilder
         DiffView? view,
         int scrollTop,
         int body,
-        ImageFile? image,
+        ImagePane? picture,
         TextSelection? selection,
         PaneSide side)
     {
         if (view is null)
         {
-            return new(header, [], scrollTop, 0, BuildImage(image));
+            return new(header, [], scrollTop, 0, picture);
         }
 
         var rows = view.Side(side);
@@ -99,8 +121,102 @@ static class ScreenBuilder
             visible.Add(span.Length == 0 ? row : row with { Selection = span });
         }
 
-        return new(header, visible, scrollTop, rows.Count, BuildImage(image));
+        return new(header, visible, scrollTop, rows.Count, picture);
     }
+
+    /// <summary>
+    /// What a side draws as: its image, or the page of its document being read. A document is only
+    /// drawn once a page of it has landed, and never in the text view.
+    /// </summary>
+    static ImagePane? Picture(SessionState state, QueueEntry? entry, PaneSide side)
+    {
+        if (entry is null)
+        {
+            return null;
+        }
+
+        if (!entry.IsDocument)
+        {
+            return BuildImage(side == PaneSide.Left ? entry.LeftImage : entry.RightImage);
+        }
+
+        if (state.Drawing == DrawingView.Text ||
+            DocumentPages.Of(state, Document(entry, side)) is not { } rendering)
+        {
+            return null;
+        }
+
+        var index = DocumentPages.Current(state);
+        if (index >= rendering.Pages.Count)
+        {
+            return null;
+        }
+
+        var page = rendering.Pages[index];
+        return new(page.Path, page.Width, page.Height, page.Hash);
+    }
+
+    /// <summary>
+    /// The side's own header, and while its pages are on screen which one is showing, in the form a
+    /// variant's framework takes. Built here rather than carried by the entry, so the copy menu,
+    /// which names a pane by the entry's header, still names the file.
+    /// </summary>
+    static string Header(SessionState state, QueueEntry? entry, PaneSide side)
+    {
+        if (entry is null)
+        {
+            return side == PaneSide.Left ? "received" : "expected";
+        }
+
+        var header = side == PaneSide.Left ? entry.LeftHeader : entry.RightHeader;
+        if (state.Drawing == DrawingView.Text ||
+            Document(entry, side) is not { Hash: not null } document ||
+            PageLabel(document, DocumentPages.Of(state, document), DocumentPages.Current(state)) is not { } label)
+        {
+            return header;
+        }
+
+        return $"{header} ({label})";
+    }
+
+    static string? PageLabel(DocumentFile document, Rendering? rendering, int index)
+    {
+        if (rendering is null)
+        {
+            return "drawing";
+        }
+
+        if (index < rendering.Pages.Count)
+        {
+            // One picture, so naming its page says nothing.
+            if (document.IsDrawn)
+            {
+                return null;
+            }
+
+            if (rendering.Complete)
+            {
+                return $"page {index + 1} of {rendering.Pages.Count}";
+            }
+
+            return $"page {index + 1}";
+        }
+
+        if (rendering.Failure is not null)
+        {
+            return "not drawn";
+        }
+
+        if (!rendering.Complete)
+        {
+            return "drawing";
+        }
+
+        return $"no page {index + 1}";
+    }
+
+    static DocumentFile? Document(QueueEntry entry, PaneSide side) =>
+        side == PaneSide.Left ? entry.LeftDocument : entry.RightDocument;
 
     /// <summary>
     /// Offered to a head only once the bytes have been read and recognized. A file that could not
@@ -142,7 +258,8 @@ static class ScreenBuilder
             [
                 new("Accept", enabled, CommandKind.Accept),
                 new("Close", true, CommandKind.Quit),
-                ..ViewButtons(state, body)
+                ..ViewButtons(state, body),
+                ..DocumentButtons(state)
             ];
         }
 
@@ -166,6 +283,7 @@ static class ScreenBuilder
         // Ahead of the variant button, which comes and goes with the entry selected, so these
         // keep their place in the footer whatever is on screen.
         buttons.AddRange(ViewButtons(state, body));
+        buttons.AddRange(DocumentButtons(state));
 
         if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
         {
@@ -190,19 +308,79 @@ static class ScreenBuilder
     /// </summary>
     static IEnumerable<Button> ViewButtons(SessionState state, int body)
     {
-        var view = state.View;
-        yield return new(
-            "Prev change",
-            view?.Previous(state.ScrollTop, body) is not null,
-            CommandKind.PreviousChange);
-        yield return new(
-            "Next change",
-            view?.Next(state.ScrollTop, body) is not null,
-            CommandKind.NextChange);
+        if (TurnsPages(state, out var current))
+        {
+            // A document seen as its pages changes page by page, so that is what moving between
+            // changes moves between.
+            var page = DocumentPages.Current(state);
+            var (left, right) = DocumentPages.Of(state, current);
+            var differing = DocumentPages.Differing(current, left, right);
+            yield return new("Prev change", differing.Any(_ => _ < page), CommandKind.PreviousChange);
+            yield return new("Next change", differing.Any(_ => _ > page), CommandKind.NextChange);
+        }
+        else
+        {
+            var view = state.View;
+            yield return new(
+                "Prev change",
+                view?.Previous(state.ScrollTop, body) is not null,
+                CommandKind.PreviousChange);
+            yield return new(
+                "Next change",
+                view?.Next(state.ScrollTop, body) is not null,
+                CommandKind.NextChange);
+        }
+
         yield return new(
             state.Minimal ? "All lines" : "Changes only",
-            state.Current is { IsImage: false },
+            state.Current is { IsImage: false } && !state.ShowsProperties,
             CommandKind.ToggleMinimal);
+    }
+
+    /// <summary>
+    /// Whether the current entry is a document shown as its pages alone, which is when moving
+    /// between changes moves between pages rather than rows.
+    /// </summary>
+    public static bool TurnsPages(SessionState state, [NotNullWhen(true)] out QueueEntry? current)
+    {
+        current = state.Current;
+        return current is { IsDocument: true } &&
+               state.Drawing == DrawingView.Picture;
+    }
+
+    /// <summary>
+    /// For a document: the view switch, labelled with what it switches to, and the page buttons.
+    /// Those stay in the footer whenever a paged document is on screen, disabled when there is no
+    /// page to turn to, so a click resolved by position cannot land on a button that moved under
+    /// it as pages arrived.
+    /// </summary>
+    static IEnumerable<Button> DocumentButtons(SessionState state)
+    {
+        if (state.Current is not { IsDocument: true } current)
+        {
+            yield break;
+        }
+
+        yield return new(
+            state.Drawing switch
+            {
+                DrawingView.Both => "Picture only",
+                DrawingView.Picture => "Text only",
+                _ => "Text and picture"
+            },
+            true,
+            CommandKind.ToggleDrawing);
+
+        if ((current.LeftDocument ?? current.RightDocument)?.IsDrawn == true)
+        {
+            yield break;
+        }
+
+        var pages = state.Drawing != DrawingView.Text;
+        var page = DocumentPages.Current(state);
+        var (left, right) = DocumentPages.Of(state, current);
+        yield return new("Prev page", pages && page > 0, CommandKind.PreviousPage);
+        yield return new("Next page", pages && page < DocumentPages.Count(left, right) - 1, CommandKind.NextPage);
     }
 
     static string BuildSubtitle(SessionState state)
@@ -260,6 +438,16 @@ static class ScreenBuilder
             return ImageStatus(current);
         }
 
+        if (current.IsDocument)
+        {
+            return DocumentStatus(state, current, body);
+        }
+
+        return Lines(state, current, body);
+    }
+
+    static string Lines(SessionState state, QueueEntry current, int body)
+    {
         // Rows of the entry rather than of the view. In the minimal view the rows on screen run from
         // one line to another with folds between, and which stretch of the file that is says more
         // than how far down a list of rows it is - "lines 1-1 of 1" beside a fold of forty lines
@@ -273,6 +461,143 @@ static class ScreenBuilder
         var top = Math.Clamp(state.ScrollTop, 0, view.Count - 1);
         var bottom = Math.Min(top + body, view.Count) - 1;
         return $"lines {view.First(top) + 1}-{view.Last(bottom) + 1} of {current.TotalRows}";
+    }
+
+    /// <summary>
+    /// The pair first, as for an image, then whatever the view on screen can add: where the text
+    /// is, and which page is showing and which differ. Everything a renderer with no picture can
+    /// say about the pages is said here, which is what keeps the ASCII snapshots a description of
+    /// every head rather than of the ones that draw.
+    /// </summary>
+    static string DocumentStatus(SessionState state, QueueEntry current, int body)
+    {
+        if (current.LeftDocument is not { } left)
+        {
+            return $"only {current.RightHeader} exists";
+        }
+
+        if (current.RightDocument is not { } right)
+        {
+            return $"only {current.LeftHeader} exists";
+        }
+
+        if (left.Hash is null ||
+            right.Hash is null)
+        {
+            return "documents could not be compared";
+        }
+
+        if (left.Hash == right.Hash)
+        {
+            return "documents are identical";
+        }
+
+        var parts = new List<string>(3);
+        if (state.Drawing != DrawingView.Picture)
+        {
+            parts.Add(TextStatus(state, current, left, right, body));
+        }
+
+        if (state.Drawing != DrawingView.Text)
+        {
+            parts.AddRange(PageStatus(state, current, left.IsDrawn));
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    static string TextStatus(SessionState state, QueueEntry current, DocumentFile left, DocumentFile right, int body)
+    {
+        if (left.Reading ||
+            right.Reading)
+        {
+            return "reading text";
+        }
+
+        if (left.Unreadable is { } leftReason)
+        {
+            return $"could not read the text of {current.LeftHeader}: {Reason(leftReason)}";
+        }
+
+        if (right.Unreadable is { } rightReason)
+        {
+            return $"could not read the text of {current.RightHeader}: {Reason(rightReason)}";
+        }
+
+        return Lines(state, current, body);
+    }
+
+    /// <summary>
+    /// Its first line, without its closing full stop: it is one clause of a status line joined by
+    /// commas, and a status line is one line. A first line ending in a colon only introduces the
+    /// lines that cannot follow it, so its last sentence goes with them: Morph names a font it could
+    /// not find, then "Checked:" and every folder it looked in.
+    /// </summary>
+    static string Reason(string reason)
+    {
+        var end = reason.AsSpan().IndexOfAny('\r', '\n');
+        var line = (end < 0 ? reason : reason[..end]).TrimEnd();
+        if (line.EndsWith(':'))
+        {
+            var sentence = line.LastIndexOf(". ", StringComparison.Ordinal);
+            line = sentence < 0 ? line.TrimEnd(':') : line[..sentence];
+        }
+
+        return line.TrimEnd('.', ' ');
+    }
+
+    static IEnumerable<string> PageStatus(SessionState state, QueueEntry current, bool drawn)
+    {
+        var (left, right) = DocumentPages.Of(state, current);
+        if ((Failure(current.LeftHeader, left) ?? Failure(current.RightHeader, right)) is { } failure)
+        {
+            yield return failure;
+            yield break;
+        }
+
+        var count = DocumentPages.Count(left, right);
+        if (left is not { Complete: true } ||
+            right is not { Complete: true })
+        {
+            yield return count == 0 ? "drawing" : $"drawing page {count + 1}";
+            yield break;
+        }
+
+        var differing = DocumentPages.Differing(current, left, right);
+        if (drawn)
+        {
+            yield return differing.Count == 0 ? "drawn the same" : "drawings differ";
+            yield break;
+        }
+
+        yield return $"page {DocumentPages.Current(state) + 1} of {count}";
+        yield return differing.Count switch
+        {
+            0 => "every page draws the same",
+            1 => $"page {differing[0] + 1} differs",
+            _ => $"pages {Pages(differing)} differ"
+        };
+    }
+
+    static string? Failure(string header, Rendering? rendering) =>
+        rendering is { Failure: { } reason } ? $"could not draw {header}: {Reason(reason)}" : null;
+
+    /// <summary>
+    /// "2, 5 and 9", and past a handful how many more, so the status line still fits a footer.
+    /// </summary>
+    static string Pages(IReadOnlyList<int> pages)
+    {
+        const int shown = 5;
+        var names = pages
+            .Take(shown)
+            .Select(_ => (_ + 1).ToString(CultureInfo.InvariantCulture))
+            .ToList();
+        if (pages.Count > shown)
+        {
+            return $"{string.Join(", ", names)} and {pages.Count - shown} more";
+        }
+
+        return $"{string.Join(", ", names[..^1])} and {names[^1]}";
     }
 
     static string ImageStatus(QueueEntry entry)
