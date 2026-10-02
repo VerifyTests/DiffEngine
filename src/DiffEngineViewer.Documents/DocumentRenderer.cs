@@ -81,7 +81,10 @@ public static class DocumentRenderer
         {
             Dpi = dpi,
             DeterministicRendering = true,
-            FontFallback = StandIn
+            // A family the machine lacks fails the whole document otherwise, and Calibri, which most
+            // Word documents are set in, is missing from Linux and from macOS without Office. Aptos
+            // ships inside Morph, so it resolves everywhere, and both sides of a diff get it.
+            FontFallback = _ => "Aptos"
         };
         return Extension(path) switch
         {
@@ -195,55 +198,6 @@ public static class DocumentRenderer
         landed(file);
         return 1;
     }
-
-    /// <summary>
-    /// The family a page is drawn in when the machine lacks the one its document names. Morph fails
-    /// the whole document over one missing family, and Calibri, which most Word documents are set
-    /// in, is missing from Linux and from macOS without Office. Both sides of a diff get the same
-    /// stand-in, so a page drawn in one still shows what changed.
-    /// <para>
-    /// Morph asks about every family, found or not, and only uses the answer for one it could not
-    /// find. So a family the machine has gets null, and stays as Morph found it.
-    /// </para>
-    /// </summary>
-    static string? StandIn(string family)
-    {
-        var families = installed.Value;
-        if (families.Contains(family))
-        {
-            return null;
-        }
-
-        if (metricCompatible.TryGetValue(family, out var compatible) &&
-            families.Contains(compatible))
-        {
-            return compatible;
-        }
-
-        var fallback = sans.FirstOrDefault(families.Contains) ?? SKTypeface.Default.FamilyName;
-        return fallback.Length == 0 ? null : fallback;
-    }
-
-    static Lazy<HashSet<string>> installed = new(() => new(SKFontManager.Default.FontFamilies, StringComparer.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Faces drawn to the metrics of the ones they stand in for, so a page lays out line for line as
-    /// it would in the original: the substitutions LibreOffice makes, taken where installed.
-    /// </summary>
-    static Dictionary<string, string> metricCompatible = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Calibri"] = "Carlito",
-        ["Cambria"] = "Caladea",
-        ["Arial"] = "Liberation Sans",
-        ["Times New Roman"] = "Liberation Serif",
-        ["Courier New"] = "Liberation Mono"
-    };
-
-    /// <summary>
-    /// Otherwise a sans face, which is what most documents are set in, then the platform's default
-    /// face when none of these is installed either.
-    /// </summary>
-    static string[] sans = ["Arial", "Helvetica", "Liberation Sans", "DejaVu Sans"];
 
     /// <summary>
     /// The name Morph gives its own pages, so every format's pages read the same in a directory.

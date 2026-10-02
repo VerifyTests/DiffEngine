@@ -67,12 +67,12 @@ public class DocumentRendererTests :
     }
 
     /// <summary>
-    /// A family the machine lacks is drawn in a stand-in rather than failing the page. Morph fails
-    /// one outright, and Calibri, which most Word documents are set in, is missing from Linux and
-    /// from macOS without Office.
+    /// A family the machine lacks is drawn in Aptos rather than failing the page. Morph fails one
+    /// outright, and Calibri, which most Word documents are set in, is missing from Linux and from
+    /// macOS without Office.
     /// </summary>
     [Test]
-    public async Task AFontTheMachineLacksIsDrawnInAStandIn()
+    public async Task AFontTheMachineLacksIsDrawnInAptos()
     {
         var path = Path.Combine(directory, "missing-font.docx");
         File.WriteAllBytes(path, SampleDocx.Build("No Such Family Anywhere", "alpha"));
