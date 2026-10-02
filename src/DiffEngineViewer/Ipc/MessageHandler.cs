@@ -8,11 +8,13 @@
 /// The window's, when there is one, so an accept-all from the tray and one clicked in the window
 /// take turns rather than claiming the same entries. A handler with no window makes its own.
 /// </param>
+/// <param name="documents">The viewer's documents folder, which the files of a pair are read with.</param>
 class MessageHandler(
     SessionHost host,
     ViewerActions actions,
     Action<WindowCommand> window,
-    AcceptAllRunner? runner = null) :
+    AcceptAllRunner? runner = null,
+    DocumentPlugin? documents = null) :
     IQueueOwner
 {
     readonly AcceptAllRunner runner = runner ?? new(host, actions);
@@ -49,13 +51,13 @@ class MessageHandler(
     /// </summary>
     void IQueueOwner.TrackMove(string temp, string target)
     {
-        var entry = TrackedEntry.ForMove(temp, target);
+        var entry = TrackedEntry.ForMove(temp, target, documents);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
     }
 
     void IQueueOwner.TrackDelete(string file)
     {
-        var entry = TrackedEntry.ForDelete(file);
+        var entry = TrackedEntry.ForDelete(file, documents);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
     }
 

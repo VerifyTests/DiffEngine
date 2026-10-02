@@ -67,6 +67,16 @@ public static partial class DiffTools
             return null;
         }
 
+        var extensions = binaries.ToList();
+        // Offered for documents only when the copy resolved can read them, which DiffEngine's
+        // bundled copy never can: decided here, where the executable is known, rather than in the
+        // definition, which cannot know which copy will be found.
+        if (diffTool == DiffTool.DiffEngineViewer &&
+            ViewerDocuments.Beside(resolvedExePath))
+        {
+            extensions.AddRange(DocumentExtensions.Paged.Except(extensions, StringComparer.OrdinalIgnoreCase));
+        }
+
         var tool = new ResolvedTool(
             name,
             diffTool,
@@ -74,7 +84,7 @@ public static partial class DiffTools
             launchArguments,
             isMdi,
             autoRefresh,
-            binaries.ToList(),
+            extensions,
             requiresTarget,
             supportsText,
             useShellExecute,

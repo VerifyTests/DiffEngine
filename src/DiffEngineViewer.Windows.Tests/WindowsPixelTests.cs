@@ -107,6 +107,15 @@ public class WindowsPixelTests
         Capture(Fixtures.Images());
 
     /// <summary>
+    /// A document's page under its text. Nothing about it is new to this head - the slice is half
+    /// the body and the page is an ordinary picture under it - which is the point: no head learns
+    /// what a document is.
+    /// </summary>
+    [Test]
+    public Task DocumentPage() =>
+        Capture(Fixtures.Document());
+
+    /// <summary>
     /// A selection dragged across three rows of the received pane. Mirrored in the native suite
     /// over the same range, because the highlight is the one part of a selection the ASCII
     /// snapshots cannot describe - a character grid has no way to invert part of a line without

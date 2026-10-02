@@ -203,5 +203,13 @@ enum DeviewKey
     /// m. A shim built before the key existed never reports it, and the footer button still
     /// reaches the same command.
     /// </summary>
-    ToggleMinimal = 18
+    ToggleMinimal = 18,
+
+    /// <summary>
+    /// r, [ and ]. As for <see cref="ToggleMinimal"/>: an older shim never reports them, and the
+    /// footer buttons reach the same commands.
+    /// </summary>
+    ToggleDrawing = 19,
+    PreviousPage = 20,
+    NextPage = 21
 }

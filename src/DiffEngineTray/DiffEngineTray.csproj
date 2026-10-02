@@ -58,7 +58,9 @@
   solution builds, so MSBuild either runs the target once here or hands back the result of having
   already run it. Passing properties would fork a second instance and reintroduce the race.
   -->
-  <Target Name="PublishTrayViewer" Condition="'$(BundleTrayViewer)' == 'true'">
+  <Target Name="PublishTrayViewer"
+          Condition="'$(BundleTrayViewer)' == 'true'"
+          DependsOnTargets="CollectDocuments">
     <MSBuild Projects="$(MSBuildThisFileDirectory)..\DiffEngine\DiffEngine.csproj"
              Targets="PublishViewerHeads" />
     <ItemGroup>
@@ -84,6 +86,9 @@
     <Copy SourceFiles="@(_TrayViewerFile)"
           DestinationFolder="$(OutDir)viewer\%(_TrayViewerFile.Rid)\%(RecursiveDir)"
           SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DocumentsFile)"
+          DestinationFiles="@(DocumentsFile->'$(OutDir)viewer\documents\%(DocumentsPath)')"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <Target Name="AddViewerToTrayPackage"
@@ -101,6 +106,21 @@
       <_PackageFiles Include="$(TrayViewerStageDir)win-arm64\**\*"
                      BuildAction="None"
                      PackagePath="tools\$(TargetFramework)\any\viewer\win-arm64" />
+      <!--
+      Beside the two RID folders rather than inside each, which a viewer finds one directory up: the
+      natives are already per RID inside it, so a copy per folder would be the managed half twice.
+      A whole path rather than a folder, so NuGet has no wildcard root to append to it.
+      -->
+      <_PackageFiles Include="@(DocumentsFile)"
+                     BuildAction="None"
+                     PackagePath="tools\$(TargetFramework)\any\viewer\documents\%(DocumentsFile.DocumentsPath)" />
     </ItemGroup>
   </Target>
+
+  <PropertyGroup>
+    <DocumentsRids>win-x64;win-arm64</DocumentsRids>
+    <!-- Beside the viewer the tray bundles, by the targets above, rather than beside the tray. -->
+    <DocumentsBesideOutput>false</DocumentsBesideOutput>
+  </PropertyGroup>
+  <Import Project="..\DiffEngineViewer.Documents\Documents.targets" />
 </Project>

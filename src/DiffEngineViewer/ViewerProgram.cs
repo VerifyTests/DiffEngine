@@ -14,29 +14,33 @@ static class ViewerProgram
             return 2;
         }
 
+        // The dotnet tool and the copy inside DiffEngineTray carry a documents folder; the copy
+        // bundled in DiffEngine does not, and for it this is null all the way down. Only looked
+        // for here: loading it waits for the first document, on the thread that reads them.
+        using var documents = DocumentPlugin.Find();
         try
         {
             if (request.Attach)
             {
-                return RunAttached(open);
+                return RunAttached(open, documents);
             }
 
             if (request.Delete)
             {
-                return RunDelete(request.Left!, open);
+                return RunDelete(request.Left!, open, documents);
             }
 
             if (request.Diff)
             {
-                return RunDiff(request.Left!, request.Right!, open);
+                return RunDiff(request.Left!, request.Right!, open, documents);
             }
 
             if (request.Mode == ViewerMode.Inline)
             {
-                return RunInline(request.Payload, open);
+                return RunInline(request.Payload, open, documents);
             }
 
-            return RunFile(request, open);
+            return RunFile(request, open, documents);
         }
         catch (Exception exception)
         {
@@ -45,7 +49,7 @@ static class ViewerProgram
         }
     }
 
-    static int RunInline(string? payloadFile, OpenWindow open)
+    static int RunInline(string? payloadFile, OpenWindow open, DocumentPlugin? documents)
     {
         var payload = ReadPayload(payloadFile);
         if (payload is null ||
@@ -78,7 +82,7 @@ static class ViewerProgram
         using (server)
         {
             var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
-            return Run(new(start), server, null, open);
+            return Run(new(start), server, null, open, documents);
         }
     }
 
@@ -141,7 +145,7 @@ static class ViewerProgram
     /// the same resolution <see cref="RunInline"/> reaches for a second patch.
     /// </para>
     /// </summary>
-    static int RunDelete(string file, OpenWindow open)
+    static int RunDelete(string file, OpenWindow open, DocumentPlugin? documents)
     {
         var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
@@ -160,8 +164,8 @@ static class ViewerProgram
         {
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
-                TrackedEntry.ForDelete(file));
-            return Run(new(start), server, null, open);
+                TrackedEntry.ForDelete(file, documents));
+            return Run(new(start), server, null, open, documents);
         }
     }
 
@@ -179,7 +183,7 @@ static class ViewerProgram
     /// nothing else can add to is the whole intent.
     /// </para>
     /// </summary>
-    static int RunDiff(string temp, string target, OpenWindow open)
+    static int RunDiff(string temp, string target, OpenWindow open, DocumentPlugin? documents)
     {
         var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
@@ -198,8 +202,8 @@ static class ViewerProgram
         {
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
-                TrackedEntry.ForMove(temp, target));
-            return Run(new(start), server, null, open);
+                TrackedEntry.ForMove(temp, target, documents));
+            return Run(new(start), server, null, open, documents);
         }
     }
 
@@ -208,10 +212,10 @@ static class ViewerProgram
     /// and forwards commands. Launched this way by DiffEngineTray, which owns the queue itself and
     /// so can never be the window.
     /// </summary>
-    static int RunAttached(OpenWindow open)
+    static int RunAttached(OpenWindow open, DocumentPlugin? documents)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
-        var link = new OwnerLink(host, ViewerClient.Port);
+        var link = new OwnerLink(host, ViewerClient.Port, documents);
 
         // Read once before anything is shown, so an owner that has gone or has nothing pending
         // means no window at all rather than one that closes itself a frame later.
@@ -226,10 +230,10 @@ static class ViewerProgram
             return 0;
         }
 
-        return Run(host, null, link, open);
+        return Run(host, null, link, open, documents);
     }
 
-    static int RunFile(ViewerRequest request, OpenWindow open)
+    static int RunFile(ViewerRequest request, OpenWindow open, DocumentPlugin? documents)
     {
         var left = request.Left!;
         var right = request.Right!;
@@ -241,9 +245,9 @@ static class ViewerProgram
 
         // A missing target is normal: DiffEngine creates an empty one for tools that need it, and a
         // brand new snapshot has nothing on the right yet.
-        var entry = QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right));
+        var entry = QueueEntry.ForFiles(left, right, FileSide.Read(left, documents), FileSide.Read(right, documents));
         var start = ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry);
-        return Run(new(start), null, null, open);
+        return Run(new(start), null, null, open, documents);
     }
 
     /// <summary>
@@ -251,7 +255,8 @@ static class ViewerProgram
     /// commands that change it are forwarded rather than applied here. Internal so
     /// ViewerProgramTests can hand it a window that will not open, or one that throws.
     /// </summary>
-    internal static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open)
+    /// <param name="documents">The documents folder, or null for a viewer without one.</param>
+    internal static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open, DocumentPlugin? documents = null)
     {
         var window = open("DiffEngineViewer", 1100, 700, false, out var error);
         if (window is null)
@@ -283,7 +288,7 @@ static class ViewerProgram
         // file mode's is the one comparison it shows.
         var runner = server is null ? null : new AcceptAllRunner(host, ViewerActions.Real);
         var listening = server?.Listen(
-            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue, runner).Handle,
+            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue, runner, documents).Handle,
             cancel.Token);
         var polling = link is null
             ? null
@@ -292,7 +297,13 @@ static class ViewerProgram
         // its files belong to the owner, which is what decides when an entry stops being pending.
         var watching = server is null
             ? null
-            : Task.Run(() => new TrackedWatch(host).Run(cancel.Token), Cancel.None);
+            : Task.Run(() => new TrackedWatch(host, documents).Run(cancel.Token), Cancel.None);
+        // Whoever owns the queue: every viewer reads and draws the documents it shows itself, since
+        // the files are on this machine and the wire carries only their paths.
+        var reader = documents is null ? null : new DocumentWatch(host, documents);
+        var reading = reader is null
+            ? null
+            : Task.Run(() => reader.Run(cancel.Token), Cancel.None);
 
         // Finally, so a loop that throws still ends the way one that returns does. The throw used
         // to unwind straight past all of this to Main's catch, and the queue went with it.
@@ -300,7 +311,7 @@ static class ViewerProgram
         {
             using (window)
             {
-                Loop(host, window, link, windowCommands, runner);
+                Loop(host, window, link, reader, windowCommands, runner);
             }
         }
         finally
@@ -320,6 +331,7 @@ static class ViewerProgram
                 listening?.Wait(TimeSpan.FromSeconds(2));
                 polling?.Wait(TimeSpan.FromSeconds(2));
                 watching?.Wait(TimeSpan.FromSeconds(2));
+                reading?.Wait(TimeSpan.FromSeconds(2));
             }
             catch (AggregateException)
             {
@@ -372,6 +384,7 @@ static class ViewerProgram
         SessionHost host,
         IViewerWindow window,
         OwnerLink? link,
+        DocumentWatch? reader,
         ConcurrentQueue<WindowCommand> windowCommands,
         AcceptAllRunner? runner)
     {
@@ -389,6 +402,7 @@ static class ViewerProgram
                 var hide = command == WindowCommand.Hide;
                 // A focus shows the window as well as raising it
                 link?.Hidden = hide;
+                reader?.Hidden = hide;
 
                 if (command == WindowCommand.Focus)
                 {
@@ -465,6 +479,7 @@ static class ViewerProgram
             {
                 window.SetHidden(true);
                 link?.Hidden = true;
+                reader?.Hidden = true;
 
                 continue;
             }

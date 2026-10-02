@@ -24,6 +24,9 @@
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
     <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
     <Verify_SponsorshipExemptionUntil>2027-08</Verify_SponsorshipExemptionUntil>
+    <!-- Morph, behind DiffEngineViewer.Documents, runs the same check. Renewed with the pair above. -->
+    <Papyrine_SponsorshipExemption>OpenSource</Papyrine_SponsorshipExemption>
+    <Papyrine_SponsorshipExemptionUntil>2027-08</Papyrine_SponsorshipExemptionUntil>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System.Runtime.CompilerServices" />

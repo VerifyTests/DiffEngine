@@ -1,0 +1,97 @@
+<Project>
+
+  <!--
+  The documents folder: DiffEngineViewer.Documents' build output, which a viewer finds beside itself
+  or one directory up (DocumentPlugin.Find). The dotnet tool packages and DiffEngineTray carry it.
+  DiffEngine's bundled copy does not, which is why nothing here runs for a build with a
+  RuntimeIdentifier: the bundle is the only thing published per RID, and the tool is RID agnostic.
+  It is the same switch the Mac and Linux heads already use to keep their own natives out of the
+  bundle.
+
+  Imported by each head, by DiffEngineTray and by DiffEngineViewer.Tests. Each says in DocumentsRids
+  which RIDs it ships natives for. The other runtimes folders are left out, which is safe because the
+  running RID is the only one probed: deps.json still naming a folder for another OS costs nothing,
+  while a missing asset for the running one would stop the folder loading.
+  -->
+
+  <PropertyGroup>
+    <_DocumentsAllRids>win-x64;win-arm64;osx;osx-x64;osx-arm64;linux-x64;linux-arm64</_DocumentsAllRids>
+    <DocumentsRids Condition="'$(DocumentsRids)' == ''">$(_DocumentsAllRids)</DocumentsRids>
+    <!-- False for DiffEngineTray, which puts the folder beside the viewer it bundles, not itself. -->
+    <DocumentsBesideOutput Condition="'$(DocumentsBesideOutput)' == ''">true</DocumentsBesideOutput>
+  </PropertyGroup>
+
+  <!--
+  For build order and for finding the output, nothing else: nothing of it is referenced, copied or
+  restored into whoever imports this. Conditioned rather than left for the RID agnostic library to
+  ignore a RuntimeIdentifier, because restore still walks every reference with the RID it was given,
+  and each of DiffEngine's per-RID publishes would otherwise rewrite the documents project's assets
+  while the rest of the solution reads them.
+  -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)DiffEngineViewer.Documents.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all"
+                      OutputItemType="DocumentsAssembly" />
+  </ItemGroup>
+
+  <!--
+  The payload as DocumentsFile items, each with DocumentsPath: where it goes inside the documents
+  folder. Globbed here rather than at evaluation, since on a clean build the output does not exist
+  until the reference has built. Found through the reference's own target path, because the pack's
+  inner publish does not build references, but does still ask them where their output is.
+  -->
+  <Target Name="CollectDocuments"
+          DependsOnTargets="ResolveProjectReferences"
+          Condition="'$(RuntimeIdentifier)' == ''">
+    <ItemGroup>
+      <_DocumentsOtherRid Include="$(_DocumentsAllRids)" Exclude="$(DocumentsRids)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_DocumentsDirectory>@(DocumentsAssembly->'%(RootDir)%(Directory)')</_DocumentsDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- Not runtimeconfig.json: the assembly is loaded into a viewer, never started as an app. -->
+      <_DocumentsGlob Include="$(_DocumentsDirectory)**\*"
+                      Exclude="@(_DocumentsOtherRid->'$(_DocumentsDirectory)runtimes\%(Identity)\**');$(_DocumentsDirectory)*.runtimeconfig.json" />
+      <DocumentsFile Include="@(_DocumentsGlob)"
+                     DocumentsPath="%(_DocumentsGlob.RecursiveDir)%(_DocumentsGlob.Filename)%(_DocumentsGlob.Extension)" />
+    </ItemGroup>
+    <Error Condition="'@(DocumentsFile)' == ''"
+           Code="DE0003"
+           Text="No DiffEngineViewer.Documents output under '$(_DocumentsDirectory)'. The reference should have built it." />
+  </Target>
+
+  <!--
+  Copied rather than added as content items. Content flows on into every project that references
+  this one (MSBuildCopyContentTransitively), which for a head is DiffEngineViewer.Windows.Tests:
+  sixty MB it has no use for, and a documents folder present in a test run that did not ask for one.
+  -->
+  <Target Name="CopyDocumentsToOutput"
+          AfterTargets="CopyFilesToOutputDirectory"
+          DependsOnTargets="CollectDocuments"
+          Condition="'$(RuntimeIdentifier)' == '' And '$(DocumentsBesideOutput)' == 'true'">
+    <Copy SourceFiles="@(DocumentsFile)"
+          DestinationFiles="@(DocumentsFile->'$(OutDir)documents\%(DocumentsPath)')"
+          SkipUnchangedFiles="true">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+    </Copy>
+  </Target>
+
+  <!--
+  Into the publish rather than the pack: PackAsTool packages the whole publish directory into
+  tools/net10.0/any, so a file named again in the pack is a duplicate, and one added after publish
+  never reaches it.
+  -->
+  <Target Name="PublishDocuments"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          DependsOnTargets="CollectDocuments"
+          Condition="'$(RuntimeIdentifier)' == '' And '$(DocumentsBesideOutput)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(DocumentsFile)"
+                             RelativePath="documents\%(DocumentsFile.DocumentsPath)"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

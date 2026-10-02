@@ -22,6 +22,19 @@ enum CommandKind
     /// file, and applies locally even when the queue belongs to someone else.
     /// </summary>
     ToggleMinimal,
+
+    /// <summary>
+    /// Cycle a document between its text with its page under it, its page alone, and its text
+    /// alone. View only, like <see cref="ToggleMinimal"/>, and a setting of the window rather than
+    /// of the entry, so it holds while moving through the queue.
+    /// </summary>
+    ToggleDrawing,
+
+    /// <summary>
+    /// Show a document's previous or next page, on both sides at once. View only.
+    /// </summary>
+    PreviousPage,
+    NextPage,
     NextItem,
     PreviousItem,
     SelectItem,

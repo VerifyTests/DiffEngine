@@ -36,6 +36,9 @@
   <Project Path="DiffEngineViewer/DiffEngineViewer.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <Project Path="DiffEngineViewer.Documents/DiffEngineViewer.Documents.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="DiffEngineViewer.Windows/DiffEngineViewer.Windows.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

@@ -592,6 +592,9 @@ int ReadKey()
             case 'n': return DEVIEW_KEY_NEXT_CHANGE;
             case 'p': return DEVIEW_KEY_PREVIOUS_CHANGE;
             case 'm': return DEVIEW_KEY_TOGGLE_MINIMAL;
+            case 'r': return DEVIEW_KEY_TOGGLE_DRAWING;
+            case '[': return DEVIEW_KEY_PREVIOUS_PAGE;
+            case ']': return DEVIEW_KEY_NEXT_PAGE;
             default: break;
         }
     }
@@ -988,13 +991,15 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         pane.imageWidth <= 0 ||
         pane.imageHeight <= 0 ||
         bounds.width <= 0.0f ||
-        bounds.first < 0.0f ||
-        bounds.pitch <= 0.0f)
+        bounds.first < 0.0f)
     {
         return;
     }
 
-    const float top = bounds.first + static_cast<float>(pane.rowCount + 1) * bounds.pitch;
+    /* A table of one row has no second row to measure the pitch from: a one line document with
+     * its page under it, in a window with no queue column. The line height RowAt falls back to. */
+    const float pitch = bounds.pitch > 0.0f ? bounds.pitch : ImGui::GetTextLineHeightWithSpacing();
+    const float top = bounds.first + static_cast<float>(pane.rowCount + 1) * pitch;
     const float available = bottom - top;
     if (available <= 0.0f)
     {

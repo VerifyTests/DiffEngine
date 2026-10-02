@@ -1,0 +1,232 @@
+/// <summary>
+/// How a document comparison reads, in each of its three views.
+/// <para>
+/// Snapshotted through <see cref="AsciiRenderer"/> like every other screen. The page is drawn by a
+/// head and never by this renderer, so everything a reader can learn from the pages - which one is
+/// showing, which differ, that they are still being drawn - has to be in the headers and the status
+/// line, and these are what pin it there.
+/// </para>
+/// <para>
+/// Sides and pages are numbers and fake paths, as an image side is in <see cref="ImageScreenTests"/>:
+/// no document or png is ever opened to build a screen.
+/// </para>
+/// </summary>
+public class DocumentScreenTests
+{
+    [Test]
+    public Task ReadingText() =>
+        Verify(Fixtures.Render(State(Reading(Left), Reading(Right))));
+
+    /// <summary>
+    /// The default view: the text in the top half of each pane, the opening page under it, which is
+    /// the first that differs.
+    /// </summary>
+    [Test]
+    public Task TextAndPicture() =>
+        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText))));
+
+    [Test]
+    public Task PictureOnly() =>
+        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText)) with
+        {
+            Drawing = DrawingView.Picture
+        }));
+
+    [Test]
+    public Task TextOnly() =>
+        Verify(Fixtures.Render(Drawn(State(Left, Right,LeftText, RightText)) with
+        {
+            Drawing = DrawingView.Text
+        }));
+
+    /// <summary>
+    /// Pages still landing: those drawn are shown, and nothing is said to differ until both sides
+    /// have drawn the page.
+    /// </summary>
+    [Test]
+    public Task Drawing()
+    {
+        var state = State(Left, Right,LeftText, RightText);
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], false));
+        state = ViewerSession.Rendered(state, Right.Hash!, Rendering.Started);
+        return Verify(Fixtures.Render(state));
+    }
+
+    [Test]
+    public Task Identical() =>
+        Verify(Fixtures.Render(State(Left, Left with { Path = Right.Path }, LeftText, LeftText)));
+
+    /// <summary>
+    /// A brand new document snapshot: nothing committed to compare against yet.
+    /// </summary>
+    [Test]
+    public Task NewDocument() =>
+        Verify(Fixtures.Render(State(Left, null, LeftText, "")));
+
+    [Test]
+    public Task CouldNotReadTheText() =>
+        Verify(Fixtures.Render(State(Left, Right with { Unreadable = "it is encrypted." }, LeftText, "")));
+
+    [Test]
+    public Task CouldNotDraw()
+    {
+        var state = State(Left, Right,LeftText, RightText);
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
+        state = ViewerSession.Rendered(state, Right.Hash!, new([], true, "PDFium could not open it."));
+        return Verify(Fixtures.Render(state));
+    }
+
+    /// <summary>
+    /// One side has a page the other has not, which is a page that differs, and the side without
+    /// it says so in its header rather than drawing nothing silently.
+    /// </summary>
+    [Test]
+    public Task PageOnlyOneSideHas()
+    {
+        var state = State(Left, Right,LeftText, RightText);
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1"), Page("L2"), Page("L3")], true));
+        state = ViewerSession.Rendered(state, Right.Hash!, new([Page("L1"), Page("L2")], true));
+        return Verify(Fixtures.Render(state));
+    }
+
+    [Test]
+    public Task SvgTextAndPicture() =>
+        Verify(Fixtures.Render(DrawnSvg(SvgState())));
+
+    [Test]
+    public Task SvgPictureOnly() =>
+        Verify(Fixtures.Render(DrawnSvg(SvgState()) with
+        {
+            Drawing = DrawingView.Picture
+        }));
+
+    [Test]
+    public Task SvgTextOnly() =>
+        Verify(Fixtures.Render(DrawnSvg(SvgState()) with
+        {
+            Drawing = DrawingView.Text
+        }));
+
+    /// <summary>
+    /// The enrichment a head draws under the rows: the page being read, as an ordinary picture.
+    /// </summary>
+    [Test]
+    public async Task PanesCarryThePage()
+    {
+        var screen = ScreenBuilder.Build(Drawn(State(Left, Right,LeftText, RightText)));
+        await Assert.That(screen.Left.Image).IsEqualTo(new("render/L2.png", 625, 417, "L2"));
+        await Assert.That(screen.Right.Image).IsEqualTo(new("render/R2.png", 625, 417, "R2"));
+    }
+
+    [Test]
+    public async Task TheTextViewDrawsNothing()
+    {
+        var screen = ScreenBuilder.Build(Drawn(State(Left, Right,LeftText, RightText)) with
+        {
+            Drawing = DrawingView.Text
+        });
+        await Assert.That(screen.Left.Image).IsNull();
+        await Assert.That(screen.Right.Image).IsNull();
+    }
+
+    /// <summary>
+    /// The page takes the bottom half, by the text taking only the top half: the heads place a
+    /// picture under whatever rows a pane has.
+    /// </summary>
+    [Test]
+    public async Task TheTextTakesTheTopHalf()
+    {
+        var state = Drawn(State(Left, Right,Fixtures.Long(false), Fixtures.Long(true)));
+        var screen = ScreenBuilder.Build(state);
+        await Assert.That(screen.Left.Rows.Count).IsEqualTo(ScreenBuilder.BodyRows(state) / 2);
+        await Assert.That(ScreenBuilder.Build(state with { Drawing = DrawingView.Text }).Left.Rows.Count)
+            .IsEqualTo(ScreenBuilder.BodyRows(state));
+    }
+
+    /// <summary>
+    /// The copy menu names a pane by the entry's own header, which stays the file's name whatever
+    /// page is showing.
+    /// </summary>
+    [Test]
+    public async Task ThePageIsNotPartOfTheEntryHeader()
+    {
+        var state = Drawn(State(Left, Right,LeftText, RightText));
+        await Assert.That(ScreenBuilder.Build(state).Left.Header).IsEqualTo("sample.received.pdf (page 2 of 3)");
+        await Assert.That(state.Current!.LeftHeader).IsEqualTo("sample.received.pdf");
+    }
+
+    internal const string LeftText =
+        """
+        --- page 1 ---
+        alpha
+        --- page 2 ---
+        bravo
+        --- page 3 ---
+        charlie
+        """;
+
+    internal const string RightText =
+        """
+        --- page 1 ---
+        alpha
+        --- page 2 ---
+        BRAVO
+        --- page 3 ---
+        charlie
+        """;
+
+    internal static DocumentFile Left { get; } = new("temp/sample.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
+    internal static DocumentFile Right { get; } = new("code/sample.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
+
+    static DocumentFile Reading(DocumentFile file) =>
+        file with { Reading = true };
+
+    internal static RenderedPage Page(string name) =>
+        new($"render/{name}.png", 625, 417, name);
+
+    /// <summary>
+    /// Three pages a side, the second drawing differently.
+    /// </summary>
+    internal static SessionState Drawn(SessionState state)
+    {
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1"), Page("L2"), Page("L3")], true));
+        return ViewerSession.Rendered(state, Right.Hash!, new([Page("L1"), Page("R2"), Page("L3")], true));
+    }
+
+    /// <summary>
+    /// Wider than <see cref="Fixtures.Columns"/>: a document's footer carries its view and page
+    /// buttons as well, and a footer that runs out of room cuts the status line short.
+    /// </summary>
+    const int columns = 180;
+
+    internal static SessionState State(DocumentFile? left, DocumentFile? right, string leftText = "", string rightText = "") =>
+        ViewerSession.EnqueueFile(
+            SessionState.Start(ViewerMode.File, columns, Fixtures.Rows),
+            QueueEntry.ForFiles(
+                "temp/sample.received.pdf",
+                "code/sample.verified.pdf",
+                new(leftText, null, null, null, left),
+                new(rightText, null, null, null, right)));
+
+    static SessionState SvgState() =>
+        ViewerSession.EnqueueFile(
+            SessionState.Start(ViewerMode.File, columns, Fixtures.Rows),
+            QueueEntry.ForFiles(
+                "temp/logo.received.svg",
+                "code/logo.verified.svg",
+                new(Svg("red"), null, null, null, new("temp/logo.received.svg", 120, DocumentFormat.Svg, "S1")),
+                new(Svg("blue"), null, null, null, new("code/logo.verified.svg", 121, DocumentFormat.Svg, "S2"))));
+
+    static SessionState DrawnSvg(SessionState state)
+    {
+        state = ViewerSession.Rendered(state, "S1", new([new("render/S1.png", 1024, 1024, "S1P")], true));
+        return ViewerSession.Rendered(state, "S2", new([new("render/S2.png", 1024, 1024, "S2P")], true));
+    }
+
+    static string Svg(string colour) =>
+        $"""
+         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+           <circle cx="12" cy="12" r="10" fill="{colour}" />
+         </svg>
+         """;
+}

@@ -365,10 +365,15 @@ sealed class ViewerForm : Form
     /// <summary>
     /// The bar follows the model rather than owning the position, so it agrees with the keyboard
     /// and the wheel. The left pane, because that is the row count the session clamps against.
+    /// <para>
+    /// Visible is the slice the model cut, as the macOS and Linux bars read it, rather than the
+    /// body: a document with its page under its text shows half the rows the body has room for.
+    /// A slice shorter than the body only ever means everything fits, which needs no bar either way.
+    /// </para>
     /// </summary>
     void ApplyScroll(Screen screen)
     {
-        var visible = Math.Max(1, screen.Rows - ScreenBuilder.Chrome);
+        var visible = Math.Max(1, Math.Min(screen.Rows - ScreenBuilder.Chrome, screen.Left.Rows.Count));
         var range = PaneScroll.For(screen.Left.TotalRows, visible, screen.Left.ScrollTop);
         // Maximum first: lowering it clamps Value, and LargeChange is itself clamped to the range.
         scrollBar.Maximum = range.Maximum;
@@ -575,6 +580,9 @@ sealed class ViewerForm : Form
             Keys.N => CommandKind.NextChange,
             Keys.P => CommandKind.PreviousChange,
             Keys.M => CommandKind.ToggleMinimal,
+            Keys.R => CommandKind.ToggleDrawing,
+            Keys.OemOpenBrackets => CommandKind.PreviousPage,
+            Keys.OemCloseBrackets => CommandKind.NextPage,
             Keys.Tab => shift ? CommandKind.PreviousItem : CommandKind.NextItem,
             Keys.A => shift ? CommandKind.AcceptAll : CommandKind.Accept,
             Keys.D => CommandKind.Discard,

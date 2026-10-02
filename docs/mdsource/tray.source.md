@@ -52,6 +52,8 @@ A delete is withdrawn when a later test run verifies against its file again, sin
 
 When the tray holds it, the window becomes disposable. A viewer that is closed, killed or crashes takes nothing pending with it, and the tray opens a new one on the same queue. A snapshot arriving with no window open starts one.
 
+The viewer installed with the tray also reads [documents](/docs/viewer.md#documents): PDF, Word, Excel and PowerPoint files as text, as their pages drawn, or both, and SVGs drawn beside their text. The copy bundled in the DiffEngine package does not. On a machine with the tray installed, test runs resolve the tray's copy ahead of the bundled one, so pending documents open in a viewer that can read them.
+
 "Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
 
 Exiting the tray writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. A kill or a crash skips that, and loses the queue as it loses pending moves and deletes; re-run the tests.

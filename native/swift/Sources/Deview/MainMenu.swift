@@ -106,6 +106,9 @@ enum MainMenu {
             command("Next Change (n)", DEVIEW_KEY_NEXT_CHANGE, target),
             command("Previous Change (p)", DEVIEW_KEY_PREVIOUS_CHANGE, target),
             command("Toggle Changes Only (m)", DEVIEW_KEY_TOGGLE_MINIMAL, target),
+            command("Cycle Text and Picture (r)", DEVIEW_KEY_TOGGLE_DRAWING, target),
+            command("Previous Page ([)", DEVIEW_KEY_PREVIOUS_PAGE, target),
+            command("Next Page (])", DEVIEW_KEY_NEXT_PAGE, target),
             .separator(),
             command("Next Pending (⇥)", DEVIEW_KEY_NEXT_ITEM, target),
             command("Previous Pending (⇧⇥)", DEVIEW_KEY_PREVIOUS_ITEM, target)

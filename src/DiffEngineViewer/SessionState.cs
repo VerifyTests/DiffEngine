@@ -64,11 +64,38 @@ record SessionState(
     public bool Minimal { get; init; }
 
     /// <summary>
-    /// The current entry's rows as <see cref="Minimal"/> lays them out. Everything that scrolls
-    /// reads these rather than the entry's own, so the scroll, the scrollbar and change navigation
-    /// all count the rows that are on screen.
+    /// How a document is shown: its text, its text with its page under it, or its page alone. A
+    /// view setting like <see cref="Minimal"/>, and both at once by default, since a document's
+    /// change is often only visible drawn.
     /// </summary>
-    public DiffView? View => Current?.View(Minimal);
+    public DrawingView Drawing { get; init; } = DrawingView.Both;
+
+    /// <summary>
+    /// What the queue's documents draw as, by the hash of the bytes each was drawn from. Filled a
+    /// page at a time by <see cref="DocumentWatch"/>, and dropped once no entry has those bytes.
+    /// </summary>
+    public IReadOnlyDictionary<string, Rendering> Renders { get; init; } = new Dictionary<string, Rendering>();
+
+    /// <summary>
+    /// The page of the current document being shown, on both sides at once. Null is the opening
+    /// page: the first that differs once that is known, the way an entry opens at its first change,
+    /// and the first page until then. Set by the reader turning pages, and cleared by every path
+    /// that opens an entry.
+    /// </summary>
+    public int? Page { get; init; }
+
+    /// <summary>
+    /// The current entry's rows as <see cref="Minimal"/> and <see cref="Drawing"/> lay them out.
+    /// Everything that scrolls reads these rather than the entry's own, so the scroll, the
+    /// scrollbar and change navigation all count the rows that are on screen.
+    /// </summary>
+    public DiffView? View => Current?.View(Minimal, Drawing);
+
+    /// <summary>
+    /// Whether the rows on screen describe the current document rather than its text. Nothing can
+    /// be selected in them: a selection is held in rows of the text.
+    /// </summary>
+    public bool ShowsProperties => Current?.ShowsProperties(Drawing) == true;
 
     /// <summary>
     /// The selection, but only while it still describes what is on screen. Everything that reads
@@ -76,7 +103,7 @@ record SessionState(
     /// so it stops existing.
     /// </summary>
     public TextSelection? LiveSelection =>
-        Selection != null && Selection.Describes(Current) ? Selection : null;
+        Selection != null && Selection.Describes(Current) && !ShowsProperties ? Selection : null;
 
     /// <summary>
     /// The accept-all this process is carrying out over a queue it owns, or null.

@@ -177,6 +177,38 @@ apart.
   three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
   line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
   (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
+- Documents (PDF, docx, xlsx, pptx, and SVG drawn beside its text) need **`src/DiffEngineViewer.Documents`**,
+  a separate assembly with Morph, Morph.PDFium, Skia and the OpenXml SDK behind it: tens of MB per
+  RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
+  at `viewer/documents/`, which each RID copy finds one directory up), never in DiffEngine's bundle.
+  `Documents.targets` adds it, and only to RID-less builds - the bundle is the only per-RID publish -
+  which is the same switch the Mac and Linux heads use for their own natives. Its natives and `.pdb`s
+  are trimmed inside that project, from the items `deps.json` is generated from, because
+  `AssemblyDependencyResolver` refuses a folder whose `deps.json` names a missing asset for the
+  running RID.
+  - `DocumentPlugin.Find()` looks for the folder; absent, it is null all the way down and every
+    file reads exactly as before. Present, it loads on first use into a `DocumentLoadContext`, one
+    per process (PDFium's lock is a static of its assembly), through two methods bound by name with
+    BCL types only. It is **handed** to every reader from `ViewerProgram` - `FileSide.Read(path,
+    documents)`, `TrackedEntry`, `TrackedWatch`, `OwnerLink`, `MessageHandler` - never found by
+    each, so a test process does not read with whatever folder sits beside it.
+  - In process, by choice: a native fault in PDFium or Skia ends the window. A hang is given up on
+    after `DocumentWatch.Timeout`, and a PDF left behind holds PDFium's lock, so PDFs then fail at once.
+  - `FileSide.Read` only hashes a document, because it runs on the listener thread a test process
+    waits on. `DocumentWatch` (owned, attached and file modes) does the slow part from a copy taken
+    under the cache's hash directory, checked against the hash, so nothing holds a lock on the user's
+    file and what is drawn is what the hash says. Text replaces the entry once both sides are read
+    (`ViewerSession.TextRead`, by reference, as `Refresh` does); pages go into
+    `SessionState.Renders` by content hash a page at a time, so they never rebuild an entry or close
+    a menu, and `Sync` never undoes them.
+  - A page is an ordinary `ImagePane` pointing at a png, so no head and no ABI field knows what a
+    document is. Both view halves `ScreenBuilder.PaneRows` and the heads place the page under the rows
+    that are left; everything that scrolls a pane uses `PaneRows`, the queue column `BodyRows`.
+    Which page shows and which differ is said in the headers and status line, for the reason above.
+    `r`, `[` and `]` are additive `DeviewKey` values, as `m` was: no `DEVIEW_VERSION` bump, and the
+    footer buttons reach the same commands from a shim built before them.
+  - DiffEngine offers the viewer `DocumentExtensions.Paged` only when `ViewerDocuments.Beside` finds
+    the folder by the resolved exe (beside, one up, or in the tool store behind a shim).
 - Text selection is a view, and makes the same bargain images do. A drag arrives as both of its
   ends at once, in rows of the whole side rather than of the visible slice: a head knows the scroll
   top it drew the press with, so only it can resolve one that spans a wheel notch, and reporting
@@ -339,7 +371,8 @@ apart.
 **Packaging.Tests (`src/Packaging.Tests/`):**
 - Opens each `.nupkg` a Release build drops in `nugets` and snapshots its entry list, plus a few
   invariants a snapshot states poorly: an apphost with no assembly beside it, a viewer file in the
-  tray package, an incomplete bundled head.
+  tray package, an incomplete bundled head, a documents folder in DiffEngine's bundle, and a
+  documents folder whose `deps.json` names a native it does not carry.
 - Exists because package content is assembled by several unrelated MSBuild mechanisms and nothing
   else asserts the result. The failure mode it was written for is stale build output: `PackAsTool`
   packages the publish directory wholesale, and MSBuild never removes a file that stopped being

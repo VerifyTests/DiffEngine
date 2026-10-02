@@ -378,6 +378,26 @@ public class FormsHeadTests
         }
     }
 
+    /// <summary>
+    /// The bar counts the rows the pane shows, which for a document with its page under its text is
+    /// the top half of the body, so the thumb and the keyboard agree on where the text ends.
+    /// </summary>
+    [Test]
+    public async Task TheBarCountsTheRowsThePaneShows()
+    {
+        var entry = QueueEntry.ForFiles(
+            "temp/sample.received.pdf",
+            "code/sample.verified.pdf",
+            new(Lines(400), null, null, null, new DocumentFile("temp/sample.received.pdf", 10, DocumentFormat.Pdf, "AA")),
+            new(Lines(400, 3), null, null, null, new DocumentFile("code/sample.verified.pdf", 11, DocumentFormat.Pdf, "BB")));
+        using var host = new FormHost(ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry));
+        host.Settle();
+
+        var bar = Field<VScrollBar>(host.Form, "scrollBar");
+        await Assert.That(ScreenBuilder.PaneRows(host.State)).IsEqualTo(ScreenBuilder.BodyRows(host.State) / 2);
+        await Assert.That(bar.LargeChange).IsEqualTo(ScreenBuilder.PaneRows(host.State));
+    }
+
     static async Task DragTheThumb()
     {
         using var host = new FormHost(Fixtures.File(Lines(400, 3), Lines(400)));

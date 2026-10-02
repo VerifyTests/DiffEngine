@@ -28,7 +28,7 @@ All three draw the same screen model, and the layout, scrolling and keyboard han
  * https://www.nuget.org/packages/DiffEngineViewer.Mac
  * https://www.nuget.org/packages/DiffEngineViewer.Linux
 
-Only needed to use the viewer outside a project that references DiffEngine, since DiffEngine already bundles it.
+Only needed to use the viewer outside a project that references DiffEngine, since DiffEngine already bundles it, or to read [documents](#documents), which only these packages and the copy installed with [DiffEngineTray](/docs/tray.md) do.
 
 ```
 dotnet tool install -g DiffEngineViewer.Windows
@@ -79,6 +79,8 @@ Nothing is staged for inline review. A newly launched viewer gets the patch in a
 | `Up` `Down` `PgUp` `PgDn` `Home` `End` | Scroll |
 | `n` `p` | Next and previous change (also the **Next change** and **Prev change** buttons) |
 | `m` | Show only the changes, or every line (also the **Changes only** button) |
+| `r` | Cycle a [document](#documents) between text and picture, picture only, and text only (also the button naming the next view) |
+| `[` `]` | Previous and next page of a document (also **Prev page** and **Next page**) |
 | `Tab` `Shift+Tab` | Next and previous pending item |
 | `a` | Accept |
 | `Shift+A` | Accept all |
@@ -188,6 +190,37 @@ Which formats can be drawn is the platform's answer rather than the viewer's, be
 A format a head cannot decode draws nothing, and the comparison is still there in the rows above it. That is why those rows are the description and the picture is an addition to it.
 
 Accepting is the same act it is for text — copy the received file over the expected one, or forward the move to the tray — so nothing about reviewing an image changes what accepting one does.
+
+
+## Documents
+
+The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files. The copy bundled in the DiffEngine package does not, to stay small: the folder is about 16 MB of libraries and 22 MB of natives per platform. That copy reads these files exactly as it always has, an SVG as text.
+
+A document is shown one of three ways, and `r`, or the button naming the next one, cycles between them:
+
+| View | Shows |
+| --- | --- |
+| Text and picture | The text in the top half of each pane, and the page being read drawn under it. The default. |
+| Picture only | The page, under two rows saying what each file is. |
+| Text only | The text, as any text file is shown. |
+
+What the text is depends on the format:
+
+ * SVG: the file itself.
+ * PDF: each page's text under a `--- page N ---` line, read with [PDFium](https://pdfium.googlesource.com/pdfium) through [Morph.PDFium](https://github.com/Papyrine/Morph.PDFium).
+ * Word, Excel and PowerPoint: the document as Markdown, from [Morph](https://github.com/Papyrine/Morph). Embedded pictures become `image-N` references rather than lines of base64.
+
+Pages are drawn by PDFium for a PDF, by Morph for an Office file and by [Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia) for an SVG. A spreadsheet's pages are its printed pages rather than its sheets. Drawing is deterministic, so the same page always draws to the same bytes, which is how the viewer knows which pages differ. A small SVG is drawn at a reviewable size rather than its own, since a picture is never enlarged on screen.
+
+A document opens at its first page that differs, the way a text comparison opens at its first change. `[` and `]`, or **Prev page** and **Next page**, turn the page on both sides at once. With only the pictures on screen, **Prev change** and **Next change** move between the pages that differ.
+
+The status line says what is known about the pair as it becomes known: `reading text` and `drawing` while that happens, which page is showing and which differ, `every page draws the same` when the files differ only where nothing shows, and `documents are identical` when the bytes match. Each pane's header names the page it shows, `received.pdf (page 2 of 5)`, or `(no page 6)` when that side has fewer.
+
+Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: a document that hangs is given up on after two minutes, but one that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
+
+An SVG is drawn with scripts, external images and external elements turned off. A snapshot is test output, and nothing in one gets to reach the network or the disk.
+
+DiffEngine offers the viewer for `.pdf`, `.docx`, `.xlsx` and `.pptx` only when the copy it resolved carries the folder. The viewer is last in the default tool order, so Word, Excel, Beyond Compare or DeltaWalker are still preferred where installed.
 
 
 ## With DiffEngineTray

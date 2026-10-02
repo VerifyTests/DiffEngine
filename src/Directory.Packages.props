@@ -8,6 +8,16 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="EmptyFiles" Version="8.19.0" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.5.0" />
+    <PackageVersion Include="Morph" Version="1.17.0" />
+    <PackageVersion Include="Morph.PDFium" Version="1.4.0" />
+    <PackageVersion Include="Morph.Skia" Version="1.17.0" />
+    <!--
+    Pinned with its Linux natives, which DiffEngineViewer.Documents references directly: SkiaSharp
+    refuses a native library from another version, and the managed half arrives transitively
+    through Morph.Skia, so without this the two could drift apart.
+    -->
+    <PackageVersion Include="SkiaSharp" Version="4.152.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.152.1" />
     <PackageVersion Include="Polyfill" Version="11.4.1" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.182" />
     <PackageVersion Include="Sbom" Version="0.3.1" />

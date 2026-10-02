@@ -31,6 +31,11 @@ enum QueueEntryKind
 /// Set when this side is a picture rather than text, which makes the whole entry an image
 /// comparison. Null on the side of an image comparison that has no file yet.
 /// </param>
+/// <param name="LeftDocument">
+/// Set when this side is a document - a PDF, an Office file or an SVG - read by a viewer with its
+/// documents folder, which makes the whole entry a document comparison. Its text, once read, is
+/// <paramref name="LeftText"/>, so the text views are any text entry's.
+/// </param>
 record QueueEntry(
     string Key,
     string Name,
@@ -51,16 +56,44 @@ record QueueEntry(
     FileStamp? LeftStamp,
     FileStamp? RightStamp,
     ImageFile? LeftImage = null,
-    ImageFile? RightImage = null)
+    ImageFile? RightImage = null,
+    DocumentFile? LeftDocument = null,
+    DocumentFile? RightDocument = null)
 {
     // Computed once, because the diff is a pure function of the two sides and a new entry only
     // arrives by launch or over the socket. A `with` expression copies this field rather than
     // recomputing, so change the content by building a fresh entry, never by `with`.
-    readonly (DiffView Full, DiffView Minimal) views = DiffView.Build(
-        LeftImage is null && RightImage is null
-            ? DiffRows.Build(LeftText, RightText)
-            : ImageRows.Build(LeftImage, RightImage),
-        fold: LeftImage is null && RightImage is null);
+    readonly (DiffView Full, DiffView Minimal) views = Views(LeftText, RightText, LeftImage, RightImage, LeftDocument, RightDocument);
+
+    // What a document is when its pages are being looked at: the rows describing the two files.
+    readonly DiffView? properties = LeftDocument is null && RightDocument is null
+        ? null
+        : DiffView.Build(DocumentRows.Build(LeftDocument, RightDocument), fold: false).Full;
+
+    static (DiffView Full, DiffView Minimal) Views(
+        string leftText,
+        string rightText,
+        ImageFile? leftImage,
+        ImageFile? rightImage,
+        DocumentFile? leftDocument,
+        DocumentFile? rightDocument)
+    {
+        if (leftImage is not null ||
+            rightImage is not null)
+        {
+            return DiffView.Build(ImageRows.Build(leftImage, rightImage), fold: false);
+        }
+
+        // A document whose text is not there to diff - still being read, or unreadable - shows what
+        // the file is instead of diffing nothing against its other side.
+        if (leftDocument is { HasText: false } ||
+            rightDocument is { HasText: false })
+        {
+            return DiffView.Build(DocumentRows.Build(leftDocument, rightDocument), fold: false);
+        }
+
+        return DiffView.Build(DiffRows.Build(leftText, rightText), fold: true);
+    }
 
     public IReadOnlyList<Row> LeftRows => views.Full.Left;
     public IReadOnlyList<Row> RightRows => views.Full.Right;
@@ -81,12 +114,50 @@ record QueueEntry(
     }
 
     /// <summary>
+    /// The rows on screen under a drawing view: a document's properties while its pages are being
+    /// looked at, and the text views otherwise.
+    /// </summary>
+    public DiffView View(bool minimal, DrawingView drawing)
+    {
+        if (properties is not null &&
+            ShowsProperties(drawing))
+        {
+            return properties;
+        }
+
+        return View(minimal);
+    }
+
+    /// <summary>
     /// A picture on either side makes the whole entry one, because the two sides of a comparison
     /// are the same file under two names and cannot be a picture and a text file at once.
     /// </summary>
     public bool IsImage =>
         LeftImage is not null ||
         RightImage is not null;
+
+    /// <summary>
+    /// A document on either side makes the whole entry one, as a picture does.
+    /// </summary>
+    public bool IsDocument =>
+        LeftDocument is not null ||
+        RightDocument is not null;
+
+    /// <summary>
+    /// Whether the text is all there to diff: false while either side's is still being read, and
+    /// when either side's could not be.
+    /// </summary>
+    public bool HasText =>
+        LeftDocument is not { HasText: false } &&
+        RightDocument is not { HasText: false };
+
+    /// <summary>
+    /// Whether the panes show what the files are rather than what they say: always for the
+    /// pictures alone, and until the text is there to diff otherwise.
+    /// </summary>
+    public bool ShowsProperties(DrawingView drawing) =>
+        IsDocument &&
+        (drawing == DrawingView.Picture || !HasText);
 
     public bool Conflicted => Variants.Count > 1;
 
@@ -143,7 +214,9 @@ record QueueEntry(
             LeftStamp: left.Stamp,
             RightStamp: right.Stamp,
             LeftImage: left.Image,
-            RightImage: right.Image);
+            RightImage: right.Image,
+            LeftDocument: left.Document,
+            RightDocument: right.Document);
 
     public static QueueEntry ForMove(
         string key,
@@ -175,7 +248,9 @@ record QueueEntry(
             LeftStamp: tempSide.Stamp,
             RightStamp: targetSide.Stamp,
             LeftImage: tempSide.Image,
-            RightImage: targetSide.Image);
+            RightImage: targetSide.Image,
+            LeftDocument: tempSide.Document,
+            RightDocument: targetSide.Document);
 
     public static QueueEntry ForDelete(
         string key,
@@ -207,7 +282,8 @@ record QueueEntry(
             RightStamp: null,
             // The file on the right is the one that goes, so a picture being deleted is the right
             // side's picture. Nothing is on the left, which is the point of the entry.
-            RightImage: current.Image);
+            RightImage: current.Image,
+            RightDocument: current.Document);
 
     static (string header, string text, string? warning) Expected(InlinePatch patch)
     {

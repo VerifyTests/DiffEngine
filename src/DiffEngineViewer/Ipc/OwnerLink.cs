@@ -12,7 +12,7 @@
 /// viewer a server as well, needing a second port and an order to discover them in.
 /// </para>
 /// </summary>
-sealed class OwnerLink(SessionHost host, int port)
+sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = null)
 {
     /// <summary>
     /// What the owner asked be done to the window, for the render loop to drain. Owned here rather
@@ -365,8 +365,8 @@ sealed class OwnerLink(SessionHost host, int port)
                     move.Group,
                     move.Temp,
                     move.Target,
-                    FileSide.Read(move.Temp),
-                    FileSide.Read(move.Target))));
+                    FileSide.Read(move.Temp, documents),
+                    FileSide.Read(move.Target, documents))));
         }
 
         foreach (var delete in response.Deletes)
@@ -385,7 +385,7 @@ sealed class OwnerLink(SessionHost host, int port)
                     delete.Name,
                     delete.Group,
                     delete.File,
-                    FileSide.Read(delete.File))));
+                    FileSide.Read(delete.File, documents))));
         }
 
         return changes;
