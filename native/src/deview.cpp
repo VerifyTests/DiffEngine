@@ -471,6 +471,11 @@ struct State
         float centreY = 0.5f;
         float across = 1.0f;
         float down = 1.0f;
+
+        /* Whether there is more of it across, and down, than the space shows: whether the space
+         * cut it short that way, which is the only way it can be moved. */
+        bool movesAcross = false;
+        bool movesDown = false;
     };
 
     PictureSpace pictureSpaces[2];
@@ -481,6 +486,7 @@ struct State
      * would drift by whatever each frame's clamp took off it.
      */
     bool panning = false;
+    int32_t panSide = 0;
     ImVec2 panStart{};
     PictureSpace panFrom{};
 
@@ -2875,6 +2881,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         space.centreY = centreY;
         space.across = across;
         space.down = down;
+        space.movesAcross = std::floor(whole.x) > size.x;
+        space.movesDown = std::floor(whole.y) > size.y;
     }
 
     /*
@@ -2946,8 +2954,9 @@ bool UpdatePan(const DeviewScreen* screen)
             return false;
         }
 
-        for (const State::PictureSpace& space : state.pictureSpaces)
+        for (int32_t side = 0; side < 2; side++)
         {
+            const State::PictureSpace& space = state.pictureSpaces[side];
             if (space.present &&
                 space.enlarged &&
                 mouse.x >= space.left &&
@@ -2956,6 +2965,7 @@ bool UpdatePan(const DeviewScreen* screen)
                 mouse.y < space.top + space.height)
             {
                 state.panning = true;
+                state.panSide = side;
                 state.panStart = mouse;
                 state.panFrom = space;
                 break;
@@ -2968,12 +2978,33 @@ bool UpdatePan(const DeviewScreen* screen)
         }
     }
 
-    /* The picture follows the pointer, so the point at the middle moves the other way. */
+    if (state.panSide >= screen->paneCount)
+    {
+        state.panning = false;
+        return false;
+    }
+
+    /*
+     * The picture follows the pointer, so the point at the middle moves the other way, as far as
+     * this pane's picture can go.
+     *
+     * Only the way it can go at all. The centre is one point for both panes, and the two pictures
+     * need not be the same shape: one that is all in view from top to bottom has nowhere to go
+     * that way, and clamped like the other axis its report was the middle, every frame of the
+     * drag. So dragging it sideways took the other pane's picture back to its middle row, from
+     * wherever it had been dragged to. An axis this pane's picture cannot move on is reported as
+     * the frame's own centre, the one the managed side handed over, which leaves it where it is.
+     */
     const State::PictureSpace& from = state.panFrom;
+    const DeviewPane& pane = screen->panes[state.panSide];
     const float x = from.centreX - (mouse.x - state.panStart.x) / from.wholeWidth;
     const float y = from.centreY - (mouse.y - state.panStart.y) / from.wholeHeight;
-    state.input.panX = std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f);
-    state.input.panY = std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f);
+    state.input.panX = from.movesAcross
+        ? std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f)
+        : pane.imageCenterX;
+    state.input.panY = from.movesDown
+        ? std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f)
+        : pane.imageCenterY;
 
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
