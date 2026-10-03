@@ -2,16 +2,16 @@
 
 Findings from a review of `main` at 991bc480 (2026-10-03). The list from the review at 4244ebe6 is closed, so this one weights what has landed since: documents and maps, the text diff, zoom and pan, the remembered window and views, and pictures decoded off the UI thread.
 
-Most of it came from six reviews run alongside, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. Every bug found is fixed and gone from this list: the five in the viewer's model, and the twenty seven the six reviews found. What is left is what those fixes did not reach, the performance items, and the smaller ones.
+Most of it came from six reviews run alongside, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. Every bug found is fixed and gone from this list: the five in the viewer's model, and the twenty seven the six reviews found. So is every performance item, all fourteen. What is left is what those fixes did not reach, and the smaller ones.
 
-File and line references are as of a01dfc1d, before the second round of fixes. The code they point at is unchanged, but lines below an edit have moved, so go by the names.
+File and line references are as of a01dfc1d, before the second round of fixes and before the performance ones. The code they point at is unchanged, but lines below an edit have moved, so go by the names.
 
 - **reproduced**: run and seen by me. Either the API involved, or the repo's own sources compiled into a scratch console project outside the repo. No test in the repo yet.
 - **measured**: timed by me in that same project. Release, net10.0, this machine.
 - **read**: confirmed by me reading the code path, not run.
 - **reported**: found by one of the six reviews and not rerun by me. What follows the word is the reviewer's own evidence: *ran* is a probe of theirs outside the repo, *measured* a timing of theirs, *read* a trace through the code, and *plausible* a reading that rests on something they could not run, with what would settle it. For each of these I checked that the code it quotes is in the tree as quoted, and nothing more.
 - **left by the fix**: said by whoever fixed the bug it sits under, about the part the fix did not reach.
-- Nothing under a macOS heading has been run by a person: the Swift cannot be built from Windows. CI's `macos-14` job compiles it and runs the suite and the pixel snapshots, and it passes there. The Linux fixes were built and run in an `ubuntu:24.04` container, and pass on CI's Linux job too.
+- Nothing under a macOS heading has been run by a person: the Swift cannot be built from Windows. CI's `macos-14` job compiles it and runs the suite and the pixel snapshots, and it passes there. The Linux fixes were built and run in an `ubuntu:24.04` container, and pass on CI's Linux job too. The two macOS performance changes are in the same position as the fixes, and have not been measured either.
 
 
 ## Bugs
@@ -64,88 +64,62 @@ Nothing that was found as a bug is open. What follows is what the fixes left.
 
 ## Performance
 
+Nothing that was found as a performance item is open. Each was measured before and after by a benchmark that is now in the repository, in `src/DiffEngine.Benchmarks`, `src/DiffEngineViewer.Benchmarks` and `src/DiffEngineViewer.Windows.Benchmarks`, and the numbers are in the commits that made the changes. The two Linux items were measured in the `ubuntu:24.04` container, by `NativeFrameBenchmarks` and `NativeIdleBenchmarks`, which are left out of a run anywhere else. Two were not measured, because nothing here can run them: both macOS items. What follows is what the fixes left.
+
 ### Viewer model
 
-- [ ] **The screen is rebuilt every frame, including frames where the state is the same object** (measured)
-  - `src/DiffEngineViewer/ViewerProgram.cs:464-465` (and `ModalFrame`, `:380`): `ScreenBuilder.Build(host.State)` runs sixty times a second, ten when hidden. `SessionState` is immutable and only replaced by `SessionHost.Mutate`, so an unchanged reference is an unchanged screen.
-  - `QueueProjection.Rows` builds a label, a group key and a tooltip for every entry in the queue before `Visible` slices out the few on screen (`src/DiffEngineViewer/QueueProjection.cs:102-199`, `:237`). Per call: 100 entries 0.1 ms and 123 KB, 500 entries 0.57 ms and 618 KB, 2,000 entries 0.72 ms and 2.3 MB. At sixty frames that is 7, 36 and 136 MB of garbage a second from a window nobody is touching.
-  - `SelectionText.Summary` walks every selected row every frame (`src/DiffEngineViewer/SelectionText.cs:146`), flattening each twice. Ctrl+A on a tab indented file: 20,000 lines 3.1 ms and 5.6 MB a frame (330 MB a second), 100,000 lines 15.8 ms and 28 MB a frame, which is the whole frame budget for as long as the selection stands. Nothing selected: 0.001 ms.
-  - Downstream of it, the WinForms head compares the new screen with the last field by field (`src/DiffEngineViewer.Windows/ViewerForm.cs:789`) and the native heads re-encode it (`src/DiffEngineViewer/Native/NativeViewerWindow.cs:101`).
-  - Fix: keep the last state and its screen in the loop and rebuild only when the reference changed. `ViewerForm.Same` and `ScreenPayload.Build` can then return early on the same screen reference. That removes all of the above without touching what any of it computes.
-
-- [ ] **The text diff is quadratic when the two sides share little, and the viewer runs it before it answers** (measured)
-  - `src/DiffEngine/TextDiff/MyersDiff.cs:159`: the search runs to `maxD` with no bound, and `LineDiff.Build` (`src/DiffEngine/TextDiff/LineDiff.cs:68`) hands it every line. Nothing in common: 10,000 lines a side 226 ms, 20,000 866 ms, 40,000 3.5 s. One percent changed, 400,000 lines: 175 ms.
-  - "Nothing in common" is an ordinary snapshot change: a serializer setting that re-indents every line. A 40,000 line re-indented JSON takes `TrackedEntry.ForMove` 3.5 s, and 80,000 lines 14 s.
-  - `MessageHandler.TrackMove` builds the entry, diff included, before the `Diff` or `Move` is answered (`src/DiffEngineViewer/Ipc/MessageHandler.cs:54`). The synchronous client gives up at 3 s (`src/DiffEngine/Protocol/ViewerClient.cs:64`), so `PendingFiles.AddDiff` (`src/DiffEngine/Tray/PendingFiles.cs:134-144`) falls to the launch gate, finds the port owned, sends again, times out again and returns `NoDiffToolFound`, while the viewer diffs the pair twice on two pool threads and then replaces the first entry with the second. The async path has 30 s.
-  - Fix, in order of value:
-    - Before Myers, drop the lines that occur on one side only and mark them changed. `LineInterner` already says which: a received id of `expectedLines.Length` or more never occurs in expected, and one pass over the received ids marks the expected ones that do occur. The longest common subsequence is unchanged, so the result is still minimal. Both cases above become linear.
-    - A cost cap for what is left. The same lines in another order (40,000 lines: 6.9 s) have nothing unique to drop. Past the cap, report the remaining block as removed then added.
-    - Answer the pair before diffing it: queue the entry with its sides unread and fill it in on `TrackedWatch`'s thread, the way a document arrives `Reading`.
-
-- [ ] **"Accept all in" a group still applies the whole group in one transition on the render thread** (read)
-  - `src/DiffEngineViewer/ViewerProgram.cs:700-711`: only `AcceptAll` is handed to `AcceptAllRunner`. `AcceptGroup` goes to `ViewerSession.Apply` inside `host.Mutate`, where `AcceptGroup` (`src/DiffEngineViewer/ViewerSession.cs:789`) runs `InlineApplier` for every member and `SweepTracked` (`:1277`) moves or deletes every file, each move retrying for up to a second when the target is held (`src/DiffEngineViewer/ViewerActions.cs:71-87`).
-  - In a queue with one solution, that header's "Accept all in" is the whole queue: the freeze `AcceptBatch` was written to remove, with the lock held so every arriving `Inline`, `Diff` and listing waits behind it.
-  - Fix: let `BeginAcceptAll` take the keys to sweep, and send a group through the same runner.
-
-- [ ] **The right side of a document waits for every page of the left** (measured)
-  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:235-243`: `Draw` renders the first side without pages to completion and returns. The right side starts on the next pass.
-  - 100 A4 pages take 4.3 s here and the first lands after 87 ms. So the left page is on screen at once, and the right pane spins for 4.3 s, and which pages differ is unknown until both are done.
-  - Fix: draw both sides at once on two tasks. Two PDFs then take turns at PDFium's lock a page at a time, and two Office files use two cores. The timeout, its `progressed` clock and `generation` become per job.
-
-- [ ] **Every pending file is statted five times a second, and the owning watch never slows down** (measured)
-  - `src/DiffEngineViewer/TrackedWatch.cs:27-55` and `src/DiffEngineViewer/Ipc/OwnerLink.cs:344-432`. One pass over 1,000 pending moves is 2,000 stats and takes 25 ms here, so 125 ms of every second. The class doc's "a queue is small enough that the difference is not measurable" holds to about a hundred.
-  - `OwnerLink` drops to one pass a second when the window is hidden and `DocumentWatch` stops. `TrackedWatch` has no `Hidden`, and an owning viewer hidden behind a tray keeps its 200 ms for days.
-  - Fix: give `TrackedWatch` the hidden interval. If large queues matter, stat the entry on screen every pass and the rest in turn.
+- [ ] Past its budget a diff is correct and may not be the smallest: two texts of more than 10,000 lines between them with 8,000 or more of the lines they share out of place. A block moved whole is found whatever its size. The same lines shuffled come out as nearly everything changed, where the longest run still in order could be kept: anchoring on the lines that occur once on each side, by the longest increasing run of them, would find it in the time of a sort. (left by the fix)
+- [ ] A pair is still read and diffed before the viewer answers the test process that sent it (`MessageHandler.TrackMove`). The diff is bounded now, so what is left is two reads: a million lines a side, shuffled, is about two of the sender's three seconds. Answering first and filling the entry in afterwards, as a document arrives `Reading`, was not done. (left by the fix)
+- [ ] A screen is built when the state changes, which a scroll or a drag does every frame, and `QueueProjection.Rows` describes every row of the queue to draw the forty that fit: 1.1 ms and 3.2 MB at 2,000 entries, for each such frame. Slicing before describing would make it the visible rows'. (left by the fix)
+- [ ] `ScreenPayload` clips a row to the window's width in cells rather than the pane's, so about twice what a pane can show is encoded for the macOS and Linux heads: 4.6 ms a changed frame for a 4K window of 300 character CJK lines. `RowText.Shown`, which the WinForms head now cuts with, would serve, once the model knows how many cells a pane has. (left by the fix)
+- [ ] A queue of more than a hundred pending files is looked at a hundred a pass, so a row that is not on screen follows its file within `count / 100` passes: two seconds for a thousand, and five times that while the window is hidden. The entry on screen is still looked at every pass. (left by the fix)
+- [ ] Only a batch's record step stopped rebuilding the whole list from the whole queue. Every arrival (`EnqueueInline`), settle and single accept still does, under the lock: a dictionary of the queue, two orderings and a key an entry. The two `Smaller` items on `QueueProjection.Order` and `PendingInline.Key` are parts of it. (left by the fix)
+- [ ] The bulk discards are still one transition on the render thread: `DiscardGroup` and `DiscardAll` delete each received file under the lock. A discard waits on nothing, so they were left. (left by the fix)
+- [ ] A snapshot discarded, or settled by a test that started passing, while its own source file is being written by a bulk accept was handed over with the rest of the file and is written with them. It is not counted, and a discard still takes it out of the queue. Before, that moment was the snapshot's own apply rather than its file's. Closing it would take the applier asking, before its one write, which of the patches are still wanted. (left by the fix)
+- [ ] Both sides of a document are drawn at once, and four things about that are as they are for a reason and could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it now could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`. (left by the fix)
+- [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back. (left by the fix)
 
 ### Library
 
-- [ ] **The refused connect is still paid once per test process, and half a second per gated call while nothing can be launched** (reported: measured)
-  - `src/DiffEngine/Protocol/ViewerClient.cs:211-228`, `:257-281`, `:455-469` and `ViewerLaunchGate.cs:111`, `:164`, `:199-226`. A refused loopback connect is 2,029 ms on Windows. `IPGlobalProperties.GetActiveTcpListeners()` is 0.2 to 0.4 ms and reports a loopback listener correctly.
-  - The unowned memory is per process and starts empty, so with no tray or viewer the first telling send of every test process blocks its thread for 2 s: 2 s on a one test inner loop that otherwise takes one, per framework, and again every ten minutes. `IsOwned` always connects and waits `ShortTimeout`, so a gated call with nothing owning the queue and nothing launchable costs 0.5 s under the gate, as does each `WaitForBind` poll.
-  - Fix: ask the listener table before connecting, as `PiperClient.PortIsHeld` does for 3492, falling back to the connect when the table cannot be read.
+- [ ] The listener table is every connection the machine has, filtered, so reading it grows with them: 0.45 ms at 86 connections and 7.9 ms at 3,102. `ViewerClient` skips it for a port that answered in the last second; `PiperClient.PortIsHeld` reads it on every send, as it did before. A listener-only table by P/Invoke would not grow. (left by the fix)
+- [ ] `RecheckUnownedAfter` is still ten minutes, though a recheck on Windows is now a read of the table rather than two seconds, and could come down. (left by the fix)
+- [ ] Off Windows the connect is still the only question asked, since a refusal there is immediate. Whether the table reads as empty under WSL1 was not checked. (left by the fix)
+- [ ] `PiperClient.PortIsHeld` now takes any exception from the table as "may be held", where it took two kinds. (left by the fix)
 
 ### Inline snapshots
 
-- [ ] **Every accept re-reads, re-lexes and rewrites the whole file** (reported: measured, in a simulation of the applier's IO and allocations)
-  - `InlineApplier.cs:139-231`, `:327-375`, `SourceScan.cs:20`, `InlinePatcher.cs:127-130,137`. 500 applies to one 10,000 line, 633 KB file took 3.8 s with 499 gen2 collections, about 4 MB on the large object heap each. It bites on accept-all over a large test file, and once per new call site per run through `CanAnchor`.
-  - Fix: a batch apply per file that reads once, applies in memory and writes once, still reporting each outcome. Short of that, pool the scan arrays.
-
-- [ ] **`InlineStaging.Clear` walks the whole `obj` tree for every passing inline verification** (reported: measured)
-  - `InlineStaging.cs:104-113`, `:288-360`. Per Clear, warm: 2.8 ms for Verify.Tests' obj (151 directories), 0.95 ms for DiffEngine.Tests', so one to three seconds per thousand passing inline verifications.
-  - Fix: cache the directory list per `obj`, invalidated in process from `InlinePatchFile.Write` and `Persist` and with a short life for other processes. The comment at `:506-516` says why "nothing staged" is not cached, and a fix has to respect it.
+- [ ] Lexing is still once a patch, in a batch as well: each patch is applied to what the one before it left, and one scan for all of them would not give the outcomes of applying in turn. 500 patches to a 600 KB file are 0.8 s of patching around one write. (left by the fix)
+- [ ] `CanAnchor` still reads and lexes the whole file for each call site a run has not seen before: 955 ms for 500 call sites in the 600 KB file. (left by the fix)
+- [ ] A batch's one write that fails fails every patch from the first edit on, including one judged already applied or not found after it, and the file's mutex is held from the read to the write. (left by the fix)
+- [ ] A `VerifyInline` directory another process creates can be found up to a second late by `InlineStaging.Clear`. (left by the fix)
+- [ ] Two Windows-only tests assert that a send to a free port returns in under a second, where the refusal it avoids takes two. (left by the fix)
 
 ### Viewer, Windows head
 
-- [ ] **Rows are clipped to the pane's width in pixels, counted as characters** (reported: measured)
-  - `src/DiffEngineViewer.Windows/ViewerCanvas.cs:917-933`: `RowText.Clip(..., bounds.Right - left)` keeps as many characters as the pane has pixels, and GDI+ lays out every one. 72 rows of 400 character lines cost 11.0 ms a paint against 2.2 ms clipped to the 54 that show, and at 1600 px a pane 48.2 ms against 8.7 ms. Every wheel notch and every frame of a selection drag is one such paint, so files with long lines scroll at 20 frames a second or worse.
-  - Segmenting runs over the whole line before anything is clipped: a 1 MB line holding one non-ASCII character costs 52 ms a row a paint.
-  - Fix: clip to `ceil((bounds.Right - left) / Advance) + 1` characters, and cut the flattened text at `CellGrid.Index(text, visibleCells)` before calling `Segments`.
-
-- [ ] **An enlarged picture below its own size is rescaled from full resolution on every paint** (reported: measured)
-  - `ViewerCanvas.cs:614-656`: a 4000x3000 pair costs 44.5 ms a paint at 150% and 30.5 ms at 200%, on every frame of a pan and every wheel notch over a document's text. `HighQualityBilinear` prefilters, so it costs by source pixels.
-  - Fix: when the placement is narrower than the picture, compose and cache it as the fitted one is. Cheaper: plain `Bilinear` when the reduction is under two times.
+- [ ] Between half its own size and its own size an enlarged picture is still scaled on every paint: 17 ms for a 4000 by 3000 pair at 400%. A copy there would cost up to the decoded picture again, 96 MB for that pair. Decoding premultiplied (`Format32bppPArgb` in `ImageCache.Load`) measured 9 ms, and was left out because it moves translucent pixels by one level in five pixel scenes. (left by the fix)
+- [ ] A picture drawn from its scaled copy sits on whole pixels, up to half a pixel from its exact placement, so two pictures of different sizes can be a pixel apart relative to each other while zoomed below half size. (left by the fix)
+- [ ] `Uncomposable` is a picture's rather than a size's, so a scale that failed also stops the fitted copy being made again at a new size. (left by the fix)
+- [ ] `RowText.Shown`'s tests are in `DiffEngineViewer.Windows.Tests`, beside its one caller. They belong beside `CellGridTests`. (left by the fix)
+- [ ] One of the fixes changes what is drawn. A character of two UTF-16 units whose first column of pixels is its pane's last, an emoji at the very edge, used to be cut to nothing and is now drawn. (left by the fix)
 
 ### Viewer, Linux head
 
-- [ ] **The checkerboard behind a picture is tessellated again as thousands of quads every frame** (reported: read; the cost is an estimate)
-  - `deview.cpp:1334-1355`, drawn through `RenderTriangles` (`:817-851`): one dark quad per 128 square pixels, about 4,400 for two panes at the default window and about 53,000 maximised at 4K, sixty times a second, for opaque pictures too.
-  - Fix: one quad with a small two tone texture set to repeat, skipped when the decoded image has no alpha.
-
-- [ ] **Everything is rebuilt, marshalled and redrawn at 60 Hz when nothing changed** (reported: read; the managed part measured)
-  - `deview.cpp:2114` (`SetTargetFPS(60)`), `:2146-2191`, with `ViewerProgram.cs:464-470` and `ScreenPayload.cs:171-237`. Under llvmpipe or a remote session each swap is a full window software raster.
-  - `ScreenPayload.AddSegments` recounts the bytes before each segment with `Encoding.UTF8.GetByteCount(text.AsSpan(0, segment.Start))`, which is quadratic in a row's segments: rows of CJK cost 6.5 ms a frame at 4K, 2 ms of it that scan. This one is shared with the macOS head.
-  - Fix: skip `ScreenBuilder.Build` and `payload.Build` when the state is the one last presented, which the first item under Viewer model does. In `deview_present`, skip the frame when its bytes match the last, no input arrived and nothing is pending. Carry a running byte offset in `AddSegments`.
+- [ ] An idle window still turns sixty times a second. Each turn compares the screen's bytes with the last one's, asks after the files behind the pictures on it and waits out its sixtieth: 3 to 11 ms of processor a second, where it was half a second to seven and a half. Waiting on the window system instead would take the managed loop, which also asks after its owner and its files each turn, being told when to wake. (left by the fix)
+- [ ] What is not built rests on the list of what a frame is built from being whole: the screen, the pointer, the keys, the window, the decoder, the font finder, a tooltip's delay and the files behind the pictures. Anything `BuildFrame` comes to read that is none of those has to be asked in `deview_present` before a window is left alone, or the window shows the frame before until something else arrives. A frame that is built and comes out the same is not drawn whatever it read, so that half needs no such care. (left by the fix)
+- [ ] Nothing in `DiffEngineViewer.Tests` fails if the window goes back to drawing every frame. `NativeIdleBenchmarks` shows it, in its Drawn column, and is run by hand in the container. (left by the fix)
+- [ ] A hidden window is still built and drawn when its screen changes, which an arrival in the queue does. (left by the fix)
+- [ ] Run only under Xvfb with Mesa's software rasteriser, with no window manager and under openbox. Not on a GPU, under a compositor, on Wayland or over forwarded X, where what the window system keeps of a window that is not being drawn may differ, and where leaving one alone matters most. (left by the fix)
+- [ ] `deview_capture` makes its ImGui context without `ImGuiBackendFlags_RendererHasVtxOffset`, which the window's declares, so a capture whose draw list passes 65,535 vertices comes out scrambled. The old checkerboard took a 4K capture of two large pictures past it, which is how it was found. Nothing captures at that size, and the checkerboard no longer takes a capture there, but dense text could. (left by the fix: ran, with the flag added to the shim from before the fix)
 
 ### Viewer, macOS head
 
-- [ ] **A spinner tick runs the whole draw again, and text outside Latin costs one CTLine per character** (reported: read; the cost is an estimate)
-  - `Runtime.swift:227-237`, `ViewerView.swift:54-65`, `Renderer.swift:443-455`, `:914-931`, `:952-963`: only the spinner's rectangle is repainted, but `renderer.draw` still builds about 150 attributed strings and lines roughly twenty times a second while a page is being drawn. `CellGrid.Simple` leaves out box drawing, arrows, typographic punctuation and CJK, so each such character is its own segment and its own line.
-  - Fix: skip work outside the context's clip, cache the lines of single clusters, and widen `Simple` to ranges the embedded font draws one cell wide.
-
-- [ ] **An enlarged picture below its own size is resampled at `.high` on every pan frame** (reported: plausible)
-  - `Renderer.swift:598-605`: `context.draw(picture, in: all)` with no cached copy. A 2880 wide screenshot at 150% is resampled for both panes on each frame of a drag.
-  - What would settle it: Instruments on a Mac.
-  - Fix: below its own size, build a scaled copy on the work queue as the fitted one is, or draw at `.low` while dragging.
+- [ ] Neither macOS change has been compiled by a person or run at all. CI's `macos-14` job compiles them, and its captures draw text from the kept lines. Nothing there runs the clip test or the scaled copy. What would confirm each on a Mac:
+  - The premise: break in `Renderer.draw` while a spinner turns and print `context.boundingBoxOfClipPath`. The spinner's 44 pt square, or the whole view.
+  - A turn: Time Profiler on a pair with a long PDF. `CTLineCreateWithAttributedString` under `Renderer.draw` for each turn: about 150 before, none after, whichever clip AppKit hands over.
+  - Text outside Latin: `--diff` two files of Chinese and hold Down. The same symbol for each frame: every character before, the new row alone after.
+  - An enlarged picture: `--diff` two 2880 by 1800 screenshots, `+` once, and drag. Time under `Renderer.enlarged` for each frame: a `.high` resample of both panes before, a blit after, and one 1560 by 975 bitmap a pane about a tenth of a second after the step.
+- [ ] Since macOS 11 a view with an automatic backing store is handed its whole bounds whatever was invalidated, clip included, so the clip test is safe and probably leaves nothing out on any supported macOS. What makes a spinner's turn cheap there is the kept lines. Two routes would make the clip test pay: `layer.contentsFormat = .RGBA8Uint` in `viewWillDraw`, which changes how the whole window is stored, or a view of the spinner's own. (left by the fix: read, in Apple's developer forums)
+- [ ] A byte-equal pair of documents names one page's png in both panes. With one scaled copy a picture and panes a point apart in width, `fitted` looks to make the copy again for each pane in turn without end. The enlarged path stays out of it by drawing such a pair from the picture. (left by the fix: read, not run)
 
 
 ## Smaller
@@ -190,18 +164,17 @@ Nothing that was found as a bug is open. What follows is what the fixes left.
 
 ### Viewer, Linux head
 
-- [ ] Input is sampled as state once a frame, so a press and release that arrive together are never seen and several wheel events collapse into one: `deview.cpp:909-923`, `:2217-2220`. A touchpad two finger tap would never open a context menu. What would settle it: raylib 6.0's callbacks, and a tap on a real touchpad. Fix: chain GLFW's mouse button and scroll callbacks and feed ImGui from them. (reported: plausible)
+- [ ] Input is sampled as state once a frame, so a press and release that arrive together are not seen and several wheel events collapse into one: `deview.cpp:909-923`, `:2217-2220`. Sent together by xdotool under Xvfb, none of ten clicks was seen and three of ten key presses were. A touchpad two finger tap would not open a context menu, which a tap on a real touchpad would confirm. Fix: chain GLFW's mouse button and scroll callbacks and feed ImGui from them. (reported: plausible, and since run in the container)
 - [ ] Ctrl+A and Ctrl+C are still by US key position, arrows and paging do not repeat when held, and no letter shortcut matches on a non-Latin layout: `deview.cpp:929-944`, `:976-985`. Fix: `IsKeyPressedRepeat` for navigation, and resolve the chords through `GetKeyName`. (reported: read)
 - [ ] No display scale handling: no `FLAG_WINDOW_HIGHDPI` and no `GetWindowScaleDPI()`, so on a HiDPI X11 display everything is about half size (`deview.cpp:2075-2091`, `:2137`). What would settle it: a display with `Xft.dpi` 192. (reported: plausible)
 - [ ] A queue row's context menu is not kept inside the window: the clamp at `deview.cpp:1929-1944` is inside `if (paneMenu)`, so the last row's menu is cut off at the default size. (reported: read)
 - [ ] Hover never ends when the pointer leaves the window: `io.AddMousePosEvent(mouse.x, mouse.y)` is unconditional (`deview.cpp:915-916`), so a row stays highlighted and its tooltip appears with the pointer elsewhere. (reported: plausible)
 - [ ] A picture larger than `GL_MAX_TEXTURE_SIZE` draws as a black box rather than as nothing (`deview.cpp:613-621`, `:706-712`), and pictures shrunk more than two times are sampled bilinear with no mipmaps (`:464-469`, `:1457-1464`), so thin lines and small text drop out. (reported: plausible, and read)
 - [ ] Labels containing `##` are cut short, since ImGui hides everything from there on: pane headers, queue rows, menu items and buttons (`deview.cpp:1687-1688`, `:1716`, `:1738`, `:1961`, `:2003`). (reported: read)
-- [ ] `GetWindowPosition()` every frame is a synchronous X round trip (`deview.cpp:299-320`), one network round trip a frame over forwarded X. (reported: plausible)
 
 ### Viewer, macOS head
 
-- [ ] A picture landing during a repaint of the spinner alone is drawn clipped to the spinner's rectangle and never completed: `Renderer.swift:245`, `Runtime.swift:223-239`. A few in a thousand large images. Fix: have `draw` report that something landed, and turn that into a full redraw. (reported: read)
+- [ ] A picture landing during a repaint of the spinner alone is drawn clipped to the spinner's rectangle and never completed: `Renderer.swift:245`, `Runtime.swift:223-239`. A few in a thousand large images. The scaled copy of an enlarged picture lands the same way, and one that lands then leaves the picture drawn at `.low`. Fix: have `draw` report that something landed, and turn that into a full redraw. (reported: read)
 - [ ] `[` and `]` never match on layouts where they need Option, since `charactersIgnoringModifiers` yields the digit (`ViewerView.swift:412-433`): German, French, Nordic, Spanish and Italian layouts cannot turn pages by key. Fix: match symbols on `event.characters` first. (reported: read)
 - [ ] A pan drag in a pane that cannot move on an axis resets that axis for the other pane: the report is clamped with the dragged pane's own extents (`Renderer.swift:164-174`, `ViewerView.swift:180-187`, and `deview.cpp:1587-1591` on Linux). Fix: report the frame's own centre unchanged on an axis the pane cannot move on. (reported: read)
 - [ ] `picturesChanged` never settles when a picture has no room, so a window shorter than about 176 pt redraws at sixty frames a second (`Renderer.swift:485-489`, `:846-848`). Fix: a `contentMinSize`, or record the stamp when nothing is drawn. (reported: read)

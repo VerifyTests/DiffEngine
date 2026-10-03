@@ -31,7 +31,7 @@ dotnet run -c Release --project src/DiffEngineViewer.Benchmarks -- --filter "*Fr
 dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --filter "*"
 ```
 
-**Benchmarks:** BenchmarkDotNet, run in process with a short job, both set in each project's `Program.cs`. Its default toolchain generates a project under `bin/` and builds it with one `OutDir` for everything it references; DiffEngine references the three viewer heads for build ordering, all three are named `DiffEngineViewer`, and they overwrite one another there, so the default cannot build. Three projects because of what each has to see inside: the library, the viewer's core (which links the library's sources, so one project referencing both finds every shared type ambiguous), and the WinForms head (which only builds for Windows). Each is signed and named in `InternalsVisibleTo`. A benchmark measures the product's own code path, and where a fix replaces a path rather than adding one, the benchmark is committed before the fix so the earlier number can be had again from history. Three iterations settle a cost that is out by multiples and not one that is out by a tenth: pass `--iterationCount` for that.
+**Benchmarks:** BenchmarkDotNet, run in process with a short job, both set in each project's `Program.cs`. Its default toolchain generates a project under `bin/` and builds it with one `OutDir` for everything it references; DiffEngine references the three viewer heads for build ordering, all three are named `DiffEngineViewer`, and they overwrite one another there, so the default cannot build. Three projects because of what each has to see inside: the library, the viewer's core (which links the library's sources, so one project referencing both finds every shared type ambiguous), and the WinForms head (which only builds for Windows). Each is signed and named in `InternalsVisibleTo`. A benchmark measures the product's own code path, and where a fix replaces a path rather than adding one, the benchmark is committed before the fix so the earlier number can be had again from history. Three iterations settle a cost that is out by multiples and not one that is out by a tenth: pass `--iterationCount` for that. The viewer project's `Native` classes turn the Linux head's real window, so they are left out of a run wherever there is no shim or no display, which is every run on Windows: they run in the `ubuntu:24.04` container the pixel snapshots reproduce in, under `xvfb-run`, by the command in `NativeFrameBenchmarks`' summary. The clock says little there, since the shim holds a turn to a sixtieth of a second, so they report processor time, the X server's, and what OpenGL counted as drawn.
 
 **Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest, which changes two things about the commands above. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5, so a filtered run that reports no failures may have run no tests. And `--nologo` makes any run report "Zero tests ran" and exit 5, whatever else is on the command line, so leave it off.
 
@@ -229,7 +229,21 @@ the comment there about not caching "nothing staged" asks for.
   only once a character on screen needs it. A capture never uses them: it draws with the embedded
   font alone, so no baseline depends on what is installed (`PixelTests.OutsideTheFont`).
   Accept-all is `a` with Shift held, read from the key rather than from the case of the letter,
-  which Caps Lock also changes.
+  which Caps Lock also changes. A turn of the loop is not a frame on the screen. `deview_present`
+  builds a frame only when something one is built from has arrived - another screen by its bytes,
+  the pointer, a key, the window, a decode, a font, a tooltip's delay, a picture's file written
+  again - or a second of built frames has yet to come out the same, which is what a spinner fails.
+  It draws a built frame only when its draw lists differ from those of the frame on the screen
+  (`Fingerprint`), or the window cannot be taken to show what was last drawn (`stale`: resized,
+  shown again, or asked for by the window system through GLFW's refresh callback, which raylib
+  leaves unset). Every turn ends in `Rest`, the wait and the event read `EndDrawing` did for a
+  frame it had drawn, so the loop still turns sixty times a second and `EndDrawing` is not called.
+  Drawn every turn, an idle window under a software rasteriser took more than half a core, and all
+  four of the rasteriser's threads at 4K. Anything new that `BuildFrame` reads has to be asked
+  about in `deview_present` before a window is left alone, or the window keeps the frame before.
+  The checkerboard is one quad of a two by two texture set to repeat, behind a picture that has a
+  pixel to see through, which the decoder looks for as it decodes: it was a quad a dark square,
+  113,000 triangles a frame at 4K, behind opaque pictures too.
 - Group headers fold. `SessionState.Collapsed` holds `QueueItem.GroupKey`s and `QueueProjection`
   skips their members, so the marker rides in the label and no head or ABI field knows about it.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
@@ -282,7 +296,8 @@ the comment there about not caching "nothing staged" asks for.
   one frame that has to come out the same every time (`ViewerCanvas.Synchronous`, the Swift
   renderer's `capturing`, `state.capturing` in the shim). A spinner turns by repainting only its own
   rectangle: WinForms and macOS redraw only when something changed, and the frame is otherwise
-  unchanged for as long as a page takes.
+  unchanged for as long as a page takes. On Linux it turns by being there: a frame with a spinner
+  in it differs from the one before, so frames go on being built and drawn while one is up.
 - Documents (PDF, docx, xlsx, pptx, and SVG and maps drawn beside their text) need **`src/DiffEngineViewer.Documents`**,
   a separate assembly with Morph, Morph.PDFium, Skia, GeoConvert and the OpenXml SDK behind it: tens of MB per
   RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
