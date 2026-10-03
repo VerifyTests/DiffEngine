@@ -217,18 +217,31 @@ struct CachedTexture
 
     /* Some of it can be seen through, so it is drawn over a checkerboard: see SeeThrough. */
     bool translucent = false;
+
+    /*
+     * A texture is made with reduced copies of the picture only for a picture that is drawn at
+     * under three quarters of its size, which is the only one sampled from them (see WantsCopies):
+     * they are a third again of a picture's memory, and a picture that is no larger than its pane
+     * is never drawn that small. One that comes to be, in a
+     * window made smaller, is decoded a second time with them while the texture it has goes on
+     * being drawn, which is what `reducing` says is on its way. And `unreducible` is a picture
+     * that came back from that without them, which is not asked again. See Reduce.
+     */
+    bool reducing = false;
+    bool unreducible = false;
 };
 
 /*
- * One picture to decode, or decoded: the path, the stamp the decode was asked for, and once it is
- * done the pixels, which are empty when raylib could not read the file, and whether any of them
- * can be seen through.
+ * One picture to decode, or decoded: the path, the stamp the decode was asked for, whether its
+ * reduced copies are wanted with it, and once it is done the pixels, which are empty when raylib
+ * could not read the file, and whether any of them can be seen through.
  */
 struct Decode
 {
     std::string path;
     std::uintmax_t length = 0;
     std::filesystem::file_time_type written{};
+    bool reduced = false;
     Image image{};
     bool translucent = false;
 };
@@ -893,7 +906,7 @@ char RowMarker(int kind)
 /* ---- pictures ---- */
 
 /*
- * The three ways a picture's texture is sampled, by the size it is drawn at.
+ * The four ways a picture's texture is sampled, by the size it is drawn at.
  *
  * Smoothed between its own pixels, which is all a picture drawn at its own size or a little under
  * needs. As the pixels it has, once it is enlarged past its own size, which is what zooming that
@@ -904,10 +917,54 @@ char RowMarker(int kind)
  * them, and its small text came apart. The reduced copies are each half the size of the one
  * before, every pixel of them an average of the ones it stands for, so a thin line is fainter
  * there and not gone.
+ *
+ * And from whichever one of those copies is nearest in size, between half its size and three
+ * quarters. Under about seven tenths that is the half size copy, in which a grid of one pixel
+ * lines is even, where smoothed between its own pixels at two thirds of its size some of its lines
+ * are dark and some faint. From seven tenths up it is the picture itself, and the same pixels as
+ * smoothed.
+ *
+ * The last is what raylib makes of "bilinear" for any texture that has reduced copies, and every
+ * picture not under half its size was sampled that way, at its own size as well. Which copy is
+ * worked out for every pixel drawn, and where the answer is always the picture itself that was a
+ * tenth of a frame of two pictures under a software rasteriser, for nothing. So smoothed is set
+ * here by the filters themselves, and is asked for from three quarters up: clear of the seven
+ * tenths where the answer changes, so what is drawn is what was drawn at every size.
  */
 constexpr int sampleSmoothed = 0;
 constexpr int sampleAsPixels = 1;
 constexpr int sampleReduced = 2;
+constexpr int sampleNearestCopy = 3;
+
+/* Whether a picture drawn so wide is sampled from its reduced copies, either way, and so wants a
+ * texture that has them: under three quarters of the width it has. */
+bool WantsCopies(float drawnWidth, float ownWidth)
+{
+    return drawnWidth * 4.0f < ownWidth * 3.0f;
+}
+
+int SamplingOf(float drawnWidth, float ownWidth, bool enlarged)
+{
+    return enlarged && drawnWidth >= ownWidth ? sampleAsPixels :
+           drawnWidth * 2.0f < ownWidth ? sampleReduced :
+           WantsCopies(drawnWidth, ownWidth) ? sampleNearestCopy :
+           sampleSmoothed;
+}
+
+void Filter(const Texture2D& texture, int sampling)
+{
+    rlTextureParameters(
+        texture.id,
+        RL_TEXTURE_MIN_FILTER,
+        sampling == sampleAsPixels ? RL_TEXTURE_FILTER_NEAREST :
+        sampling == sampleReduced ? RL_TEXTURE_FILTER_MIP_LINEAR :
+        sampling == sampleNearestCopy ? RL_TEXTURE_FILTER_LINEAR_MIP_NEAREST :
+        RL_TEXTURE_FILTER_LINEAR);
+    rlTextureParameters(
+        texture.id,
+        RL_TEXTURE_MAG_FILTER,
+        sampling == sampleAsPixels ? RL_TEXTURE_FILTER_NEAREST : RL_TEXTURE_FILTER_LINEAR);
+}
 
 /*
  * How a picture's texture is sampled as it is made: smoothed. Clamped at its edges rather than
@@ -917,13 +974,14 @@ constexpr int sampleReduced = 2;
  */
 void PrepareTexture(CachedTexture& entry)
 {
-    SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+    Filter(entry.texture, sampleSmoothed);
     SetTextureWrap(entry.texture, TEXTURE_WRAP_CLAMP);
     entry.sampling = sampleSmoothed;
 }
 
 /* Changed only when it has to be, since it is a texture parameter and this is asked every
- * frame. A picture whose reduced copies could not be made is smoothed instead. */
+ * frame. A picture whose reduced copies could not be made, or have yet to land, is smoothed
+ * instead. */
 void Sample(const std::string& path, int sampling)
 {
     const auto found = state.pictures.find(path);
@@ -934,7 +992,7 @@ void Sample(const std::string& path, int sampling)
     }
 
     CachedTexture& entry = found->second;
-    if (sampling == sampleReduced &&
+    if ((sampling == sampleReduced || sampling == sampleNearestCopy) &&
         entry.texture.mipmaps <= 1)
     {
         sampling = sampleSmoothed;
@@ -945,11 +1003,7 @@ void Sample(const std::string& path, int sampling)
         return;
     }
 
-    SetTextureFilter(
-        entry.texture,
-        sampling == sampleAsPixels ? TEXTURE_FILTER_POINT :
-        sampling == sampleReduced ? TEXTURE_FILTER_TRILINEAR :
-        TEXTURE_FILTER_BILINEAR);
+    Filter(entry.texture, sampling);
     entry.sampling = sampling;
 }
 
@@ -1042,16 +1096,17 @@ bool SeeThrough(const Image& image)
 
 /*
  * A picture read off the disk and made ready to be a texture: whether any of it can be seen
- * through, and its reduced copies, which are made here because here is off the window's thread
- * for every picture but a capture's. The file, stb_image and raylib's resampling, and nothing
- * that touches GL. A picture no texture can hold is left as it was read, since nothing will be
- * made of it.
+ * through, and its reduced copies where they are wanted, which are made here because here is off
+ * the window's thread for every picture but a capture's. The file, stb_image and raylib's
+ * resampling, and nothing that touches GL. A picture no texture can hold is left as it was read,
+ * since nothing will be made of it.
  */
-Image ReadPicture(const std::string& path, int textureLimit, bool& translucent)
+Image ReadPicture(const std::string& path, int textureLimit, bool reduced, bool& translucent)
 {
     Image image = LoadImage(path.c_str());
     translucent = SeeThrough(image);
-    if (image.data != nullptr &&
+    if (reduced &&
+        image.data != nullptr &&
         FitsATexture(image, textureLimit))
     {
         ImageMipmaps(&image);
@@ -1086,6 +1141,31 @@ bool MakeTexture(const Image& image, bool translucent, CachedTexture& entry)
     return true;
 }
 
+/*
+ * Puts a texture with reduced copies in the place of the one a picture has, from the picture read
+ * a second time with them. One that came back without them, or that no texture could be made of,
+ * leaves the picture with the texture it had, smoothed, and is not asked for again.
+ */
+bool ReplaceTexture(const Image& image, bool translucent, CachedTexture& entry)
+{
+    CachedTexture made;
+    if (image.mipmaps <= 1 ||
+        !MakeTexture(image, translucent, made))
+    {
+        entry.unreducible = true;
+        return false;
+    }
+
+    UnloadTexture(entry.texture);
+    entry.texture = made.texture;
+    entry.translucent = made.translucent;
+    entry.sampling = made.sampling;
+
+    /* Another texture behind the picture, which may have been given the name of the last. */
+    state.stale = true;
+    return true;
+}
+
 void DecodeLoop(std::shared_ptr<Decoder> decoder)
 {
     std::unique_lock<std::mutex> lock(decoder->mutex);
@@ -1101,7 +1181,7 @@ void DecodeLoop(std::shared_ptr<Decoder> decoder)
         decoder->requests.pop_front();
         lock.unlock();
 
-        decode.image = ReadPicture(decode.path, decoder->textureLimit, decode.translucent);
+        decode.image = ReadPicture(decode.path, decoder->textureLimit, decode.reduced, decode.translucent);
 
         lock.lock();
         if (decoder->stopping)
@@ -1114,7 +1194,7 @@ void DecodeLoop(std::shared_ptr<Decoder> decoder)
     }
 }
 
-void RequestDecode(const std::string& path, std::uintmax_t length, std::filesystem::file_time_type written)
+void RequestDecode(const std::string& path, std::uintmax_t length, std::filesystem::file_time_type written, bool reduced)
 {
     if (!state.decoder)
     {
@@ -1129,6 +1209,7 @@ void RequestDecode(const std::string& path, std::uintmax_t length, std::filesyst
         decode.path = path;
         decode.length = length;
         decode.written = written;
+        decode.reduced = reduced;
         state.decoder->requests.push_back(std::move(decode));
     }
 
@@ -1221,6 +1302,16 @@ bool TakeDecoded()
                 state.stale = true;
             }
         }
+        else if (found != state.pictures.end() &&
+                 found->second.reducing &&
+                 /* Not a decode without them that an entry forgotten since had asked for. */
+                 decode.reduced &&
+                 found->second.written == decode.written &&
+                 found->second.length == decode.length)
+        {
+            found->second.reducing = false;
+            landed = ReplaceTexture(decode.image, decode.translucent, found->second) || landed;
+        }
 
         UnloadImage(decode.image);
     }
@@ -1241,7 +1332,8 @@ void ForgetPicture(const std::string& path)
         UnloadTexture(found->second.texture);
     }
 
-    if (found->second.decoding)
+    if (found->second.decoding ||
+        found->second.reducing)
     {
         CancelDecode(path);
     }
@@ -1291,6 +1383,40 @@ bool PicturesRewritten()
 }
 
 /*
+ * Asks for the reduced copies of a picture whose texture was made without them, now that a frame
+ * draws it small enough to want them. Off the window's thread, as the picture was decoded, with
+ * the texture it has drawn smoothed until they land: making them here would hold the window for
+ * as long as a large picture takes to be halved over and over. A capture has no later frame for
+ * them to land in, and makes them there and then, as it decodes.
+ */
+void Reduce(const std::string& path, CachedTexture& entry)
+{
+    if (!entry.loaded ||
+        entry.texture.mipmaps > 1 ||
+        entry.unreducible)
+    {
+        return;
+    }
+
+    if (state.capturing)
+    {
+        bool translucent = false;
+        const Image image = ReadPicture(path, TextureLimit(), true, translucent);
+        ReplaceTexture(image, translucent, entry);
+        UnloadImage(image);
+        return;
+    }
+
+    if (entry.reducing)
+    {
+        return;
+    }
+
+    entry.reducing = true;
+    RequestDecode(path, entry.length, entry.written, true);
+}
+
+/*
  * The decoded picture for a path, or null when there is none to draw: either this build cannot
  * read it, or it is still being decoded, which `loading` says so the pane can show that it is coming
  * rather than nothing. A capture decodes here and now, since it draws one frame and has no later one
@@ -1299,8 +1425,11 @@ bool PicturesRewritten()
  * Invalidated by the file's write time and length, which is the same freshness test the managed
  * queue poller uses: a re-run that rewrites a received image has to refresh the pane rather than
  * leave the previous one up.
+ *
+ * `reduced` is whether the frame draws it small enough to want its reduced copies: see
+ * CachedTexture::reducing.
  */
-const CachedTexture* Picture(const std::string& path, bool& loading)
+const CachedTexture* Picture(const std::string& path, bool reduced, bool& loading)
 {
     loading = false;
     if (path.empty())
@@ -1331,6 +1460,11 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
             !(found->second.decoding && state.capturing))
         {
             found->second.used = true;
+            if (reduced)
+            {
+                Reduce(path, found->second);
+            }
+
             loading = found->second.decoding;
             return found->second.loaded ? &found->second : nullptr;
         }
@@ -1346,7 +1480,7 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
     {
         /* What the decoder's thread and then TakeDecoded do, here and now. */
         bool translucent = false;
-        const Image image = ReadPicture(path, TextureLimit(), translucent);
+        const Image image = ReadPicture(path, TextureLimit(), reduced, translucent);
         MakeTexture(image, translucent, entry);
         UnloadImage(image);
     }
@@ -1354,7 +1488,7 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
     {
         entry.decoding = true;
         loading = true;
-        RequestDecode(path, length, written);
+        RequestDecode(path, length, written, reduced);
     }
 
     const auto inserted = state.pictures.emplace(path, entry).first;
@@ -1385,7 +1519,8 @@ void ForgetUnusedPictures()
             UnloadTexture(entry->second.texture);
         }
 
-        if (entry->second.decoding)
+        if (entry->second.decoding ||
+            entry->second.reducing)
         {
             CancelDecode(entry->first);
         }
@@ -2921,20 +3056,6 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         return;
     }
 
-    bool loading = false;
-    const std::string path = Copy(screen, pane.imagePathOffset, pane.imagePathLength);
-    const CachedTexture* decoded = Picture(path, loading);
-    if (decoded == nullptr)
-    {
-        /* Nothing at all for a picture this build cannot decode: the rows have said what it is. */
-        if (loading)
-        {
-            DrawSpinner(list, centre, pitch, bounds.width, available);
-        }
-
-        return;
-    }
-
     /*
      * Fitted, and never enlarged past its own size: a snapshot is judged against the pixels it has,
      * and an eight pixel icon stretched across a pane is an interpolation of them rather than a
@@ -2951,6 +3072,23 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     const ImVec2 fitted(
         std::max(1.0f, static_cast<float>(pane.imageWidth) * scale),
         std::max(1.0f, static_cast<float>(pane.imageHeight) * scale));
+    const float drawnWidth = fitted.x * (pane.imageZoom > 1.0f ? pane.imageZoom : 1.0f);
+
+    /* Asked for with its reduced copies only if it is drawn small enough to be sampled from
+     * them, which is known before it is decoded, from the size the model carries. */
+    bool loading = false;
+    const std::string path = Copy(screen, pane.imagePathOffset, pane.imagePathLength);
+    const CachedTexture* decoded = Picture(path, WantsCopies(drawnWidth, static_cast<float>(pane.imageWidth)), loading);
+    if (decoded == nullptr)
+    {
+        /* Nothing at all for a picture this build cannot decode: the rows have said what it is. */
+        if (loading)
+        {
+            DrawSpinner(list, centre, pitch, bounds.width, available);
+        }
+
+        return;
+    }
 
     /*
      * Past that only by the reader asking, and then cut off at the edges of the space rather than
@@ -2961,13 +3099,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     ImVec2 size = fitted;
     ImVec2 uvMin(0.0f, 0.0f);
     ImVec2 uvMax(1.0f, 1.0f);
-    const float drawnWidth = fitted.x * (pane.imageZoom > 1.0f ? pane.imageZoom : 1.0f);
     const float ownWidth = static_cast<float>(decoded->texture.width);
-    Sample(
-        path,
-        pane.imageZoom > 1.0f && drawnWidth >= ownWidth ? sampleAsPixels :
-        drawnWidth * 2.0f < ownWidth ? sampleReduced :
-        sampleSmoothed);
+    Sample(path, SamplingOf(drawnWidth, ownWidth, pane.imageZoom > 1.0f));
     if (pane.imageZoom > 1.0f)
     {
         const ImVec2 whole(fitted.x * pane.imageZoom, fitted.y * pane.imageZoom);
