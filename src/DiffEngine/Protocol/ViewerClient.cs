@@ -404,6 +404,10 @@ static class ViewerClient
         TimeSpan? wait = null,
         bool skipIfUnowned = false)
     {
+        // Said here, before anything is made. Left to the connect, a send already cancelled was
+        // a client closed by the abort below before it was ever connected, and on the modern
+        // frameworks what that threw was read as a port with nobody on it
+        cancel.ThrowIfCancellationRequested();
         var endpointPort = port ?? Port;
         if (skipIfUnowned &&
             RecentlyUnowned(endpointPort))
@@ -411,10 +415,7 @@ static class ViewerClient
             return SendOutcome.NoOwner;
         }
 
-        // A send the caller has already cancelled is left to the connect, which is where each
-        // framework says so in its own way
-        if (!cancel.IsCancellationRequested &&
-            NothingListening(endpointPort))
+        if (NothingListening(endpointPort))
         {
             Found(endpointPort, false);
             return SendOutcome.NoOwner;
@@ -492,6 +493,21 @@ static class ViewerClient
                 (connected ? "The owner is present but unresponsive. " : "Nothing accepted the connection. ") +
                 exception.GetType().Name);
             return SendOutcome.NoOwner;
+        }
+        // The caller cancelling, which reaches the exchange as its socket closing under it, and
+        // so as whatever a closed socket throws where the call in hand takes no token: all of
+        // them on .NET Framework, the read before net7. It says nothing about the port. Taken
+        // for a connect that failed, it was remembered as unowned with the owner still
+        // listening, and every settle and move after it went unsent until the memory ran out
+        catch (Exception exception)
+            when (cancel.IsCancellationRequested &&
+                  exception is not OperationCanceledException &&
+                  Ignorable(exception))
+        {
+            throw new OperationCanceledException(
+                $"The send to the inline queue owner on port {endpointPort} was cancelled.",
+                exception,
+                cancel);
         }
         // Cancellation is the caller's business; a missing owner is not.
         catch (Exception exception)
