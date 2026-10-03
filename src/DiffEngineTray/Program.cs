@@ -105,6 +105,11 @@ static class Program
             owned.Start();
         }
 
+        // A logoff or a shutdown does not come back through Application.Run(), so the staging the
+        // unwind below performs never happens for one. Only for a queue held here: a viewer that
+        // owns it stages its own
+        using var sessionEnd = owned is null ? null : new SessionEndWindow(owned.SessionEnding);
+
         // Not a using. Anything throwing between here and the await below would dispose a task
         // that is still running, and Task.Dispose throws for one that has not completed - which
         // would replace whatever actually went wrong with an InvalidOperationException. A task

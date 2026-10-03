@@ -15,8 +15,9 @@
 /// </para>
 /// <para>
 /// A clean tray exit stages what is still pending back to disk (<see cref="InlineStaging"/>), so
-/// a restart no longer silently discards the queue. A kill or a crash still loses it, exactly as
-/// it loses tracked moves and deletes, and the recovery is the same: re-run the tests.
+/// a restart no longer silently discards the queue. So does the session ending, which never gets
+/// as far as a clean exit: see <see cref="SessionEnding"/>. A kill or a crash still loses it,
+/// exactly as it loses tracked moves and deletes, and the recovery is the same: re-run the tests.
 /// </para>
 /// </summary>
 sealed class OwnedInlineHost :
@@ -208,6 +209,15 @@ sealed class OwnedInlineHost :
         int count;
         lock (gate)
         {
+            if (sessionEnding)
+            {
+                // Thrown rather than returned, as an owning viewer's is once it is closing: the
+                // interface has no refusal for this verb, and a handler that throws is answered
+                // with an error, so the sender stages the patch itself instead of believing a
+                // process on its way out took it
+                throw new InvalidOperationException("This tray is going with the session and can take nothing more.");
+            }
+
             queue = queue.Enqueue(patch);
             count = queue.Count;
         }
@@ -795,4 +805,33 @@ sealed class OwnedInlineHost :
     /// </summary>
     void Persist() =>
         InlineStaging.Persist(queue.Items);
+
+    /// <summary>
+    /// The session is ending: take nothing more, and stage what the queue holds, before returning.
+    /// <para>
+    /// A logoff or a shutdown never reaches <see cref="DisposeAsync"/>. The message loop does not
+    /// return for one, and Windows may end the process as soon as its windows have answered, so
+    /// the queue was lost every time the session ended with something pending - which, for a tray
+    /// started at login, is how it usually stops. See <see cref="SessionEndWindow"/>, which calls
+    /// this from inside the message.
+    /// </para>
+    /// <para>
+    /// Refusing first, under the gate, is what makes the staged queue the final one, the way
+    /// stopping the listener does for a clean exit: a patch acknowledged after this would be in
+    /// neither place.
+    /// </para>
+    /// </summary>
+    public void SessionEnding()
+    {
+        IReadOnlyList<PendingInline> pending;
+        lock (gate)
+        {
+            sessionEnding = true;
+            pending = queue.Items;
+        }
+
+        InlineStaging.Persist(pending);
+    }
+
+    bool sessionEnding;
 }

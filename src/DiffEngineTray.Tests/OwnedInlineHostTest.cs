@@ -98,6 +98,25 @@ public class OwnedInlineHostTest
         // an exception out of Dispose is the point.
     }
 
+    /// <summary>
+    /// What is staged as the session ends is the last of the queue anything will see, so a patch
+    /// taken after it would be acknowledged to its sender and in neither place. It is refused
+    /// instead, which is what makes the sender stage it, and everything else still answers.
+    /// </summary>
+    [Test]
+    public async Task APatchArrivingOnceTheSessionIsEndingIsRefused()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+
+        owner.Host.SessionEnding();
+        var response = owner.Queue(@"c:\repo\OtherTests.cs", 7);
+
+        await Assert.That(response.Ok).IsFalse();
+        await Assert.That(response.Message).IsEqualTo("This tray is going with the session and can take nothing more.");
+        await Assert.That(owner.Send(new(ViewerVerb.List)).Items.Select(_ => _.Name)).IsEquivalentTo(["SampleTests.cs:42"]);
+    }
+
     [Test]
     public async Task AQueuedPatchIsHeldHereAndShown()
     {
