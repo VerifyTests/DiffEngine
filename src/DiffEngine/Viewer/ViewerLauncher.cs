@@ -16,6 +16,14 @@ namespace DiffEngine;
 /// close-on-exec, so only the three standard streams pass to a child, and redirecting all three
 /// and closing this side of them is enough.
 /// </para>
+/// <para>
+/// Nor is the host's working directory, which a child takes unless it is given another. For a
+/// test host that is usually the test project's output folder, and on Windows a directory some
+/// process is in cannot be deleted. A viewer hidden behind a tray lives for the session, so
+/// <c>git clean -xdf</c>, or removing a worktree, failed with nothing on screen to say what was
+/// holding it. A viewer is started in its own folder instead, which it holds by running from it
+/// whatever its working directory is.
+/// </para>
 /// </summary>
 static class ViewerLauncher
 {
@@ -99,7 +107,7 @@ static class ViewerLauncher
     /// </para>
     /// </summary>
     public static bool LaunchDelete(string file) =>
-        Start($"--delete \"{file}\"") is not null;
+        Start($"--delete \"{Rooted(file)}\"") is not null;
 
     /// <summary>
     /// Starts a viewer holding one failing pair, for when the tool resolved for that pair is the
@@ -107,7 +115,35 @@ static class ViewerLauncher
     /// for the same reason: the pair joins a queue that later pairs can join too.
     /// </summary>
     public static bool LaunchDiff(string temp, string target) =>
-        Start(DiffArguments(temp, target)) is not null;
+        Start(DiffArguments(Rooted(temp), Rooted(target))) is not null;
+
+    /// <summary>
+    /// A path as the viewer has to be handed it now that it no longer starts in the host's
+    /// directory, which is what a relative one was relative to.
+    /// <para>
+    /// One that is already rooted goes over exactly as it was given, not normalised: the entry is
+    /// settled later by a key built from the caller's own spelling of the path, and a viewer told
+    /// a tidier one would hold a row that settle never finds.
+    /// </para>
+    /// </summary>
+    internal static string Rooted(string path)
+    {
+        try
+        {
+            if (Path.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            return Path.GetFullPath(path);
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or NotSupportedException or IOException)
+        {
+            // Not a path this process can resolve, so not one it can improve on either
+            return path;
+        }
+    }
 
     /// <summary>
     /// Built here rather than at each caller, because the tray stores these arguments against the
@@ -133,9 +169,18 @@ static class ViewerLauncher
             return null;
         }
 
+        return Start(tool.ExePath, arguments);
+    }
+
+    /// <summary>
+    /// The launch itself, apart from deciding which copy to start, so a test can hand it a
+    /// stand-in rather than whichever viewer the machine running it has installed.
+    /// </summary>
+    internal static Process? Start(string exePath, string arguments)
+    {
         try
         {
-            return Start(StartInfo(tool.ExePath, arguments, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)));
+            return Start(StartInfo(exePath, arguments, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)));
         }
         catch (Exception exception)
         {
@@ -150,11 +195,15 @@ static class ViewerLauncher
     /// </summary>
     internal static ProcessStartInfo StartInfo(string exePath, string arguments, bool windows)
     {
+        // The resolved path is always a full one. A bare file name has no directory to name, and
+        // an empty working directory is the one a child inherits, which is no worse than before
+        var directory = Path.GetDirectoryName(exePath) ?? "";
         if (windows)
         {
             return new(exePath, arguments)
             {
-                UseShellExecute = true
+                UseShellExecute = true,
+                WorkingDirectory = directory
             };
         }
 
@@ -164,7 +213,8 @@ static class ViewerLauncher
             CreateNoWindow = true,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            WorkingDirectory = directory
         };
     }
 
