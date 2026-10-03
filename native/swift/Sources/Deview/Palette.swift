@@ -56,14 +56,23 @@ enum Palette {
     static let checkerLight = grey(64)
     static let checkerDark = grey(48)
 
+    /// What a changed row's text is drawn in, and the label of an entry that failed. One of each
+    /// for the life of the process, where `foreground` made one for every call, which was every
+    /// segment of every changed row. It has to be one of each: `Renderer` finds a line it has kept
+    /// by its text and by which colour object it was drawn in, so a colour made afresh would find
+    /// nothing.
+    private static let added = rgb(126, 214, 139)
+    private static let removed = rgb(233, 129, 129)
+    private static let modified = rgb(231, 197, 113)
+
     static func foreground(_ kind: Int32) -> CGColor {
         switch kind {
         case DEVIEW_ROW_ADDED.value:
-            return rgb(126, 214, 139)
+            return added
         case DEVIEW_ROW_REMOVED.value:
-            return rgb(233, 129, 129)
+            return removed
         case DEVIEW_ROW_MODIFIED.value:
-            return rgb(231, 197, 113)
+            return modified
         // Dimmed like the gutter, since what it says is about the file rather than from it.
         case DEVIEW_ROW_FOLDED.value:
             return dim

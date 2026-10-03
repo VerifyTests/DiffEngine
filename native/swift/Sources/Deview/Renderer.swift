@@ -51,6 +51,24 @@ final class Renderer {
     /// view because this is what lays the rule out, and the drag has to land where it was drawn.
     private var queueWidth: CGFloat = 0
 
+    /// What the draw in progress can reach, or nil for everything: the bounds of the context's
+    /// clip, outside which nothing is painted whatever is asked for. What lies wholly outside it is
+    /// not laid out either: see `shows`.
+    ///
+    /// A spinner turns by invalidating its own rectangle, some twenty times a second for as long
+    /// as a page takes. Where AppKit narrows the clip to that rectangle, a turn lays out the
+    /// spinner and nothing else, where it used to lay out every line of text in the window to
+    /// paint none of it.
+    ///
+    /// It does not always narrow it, which is why the clip is read at each draw and never worked
+    /// out from what was invalidated. Since macOS 11 a view whose backing store AppKit manages can
+    /// be handed its whole bounds whatever was invalidated, clip included, and later versions ask
+    /// for the whole of a view when they see fit. Then all of it is drawn, as it has to be, and
+    /// what keeps that cheap is `lines`.
+    ///
+    /// Set as a draw begins and read only during it.
+    private var dirty: CGRect?
+
     /// Decoded pictures, keyed by the path the screen model handed over and invalidated by the
     /// file's write time and length — the same freshness test the queue poller uses, so a re-run
     /// that rewrites a received image refreshes the pane rather than leaving the previous one up.
@@ -106,6 +124,50 @@ final class Renderer {
     private enum Finished {
         case decoded(path: String, modified: Date, length: UInt64, image: CGImage?)
         case scaled(path: String, modified: Date, length: UInt64, size: Pixels, image: CGImage?)
+    }
+
+    /// The lines the last two draws drew, by what each was made from.
+    ///
+    /// Every piece of text is an attributed string and a line, and each was made again on every
+    /// draw: about a hundred and fifty for a window of plain text, and one more for every
+    /// character the managed side sends as a segment of its own, which is most of a pane of
+    /// Chinese. Yet most draws draw what the one before drew. A turn of a spinner or a dragged
+    /// picture changes none of the text, and a scroll keeps all but a row of it. So a line is
+    /// kept for as long as it goes on being drawn.
+    ///
+    /// `lines` is what this draw has drawn so far, and `earlier` what the last draw to draw any
+    /// text drew. A line found in `earlier` is carried into `lines`, and what is still only in
+    /// `earlier` when `lines` takes its place was not drawn again and goes with it. That is the
+    /// bound: two draws' worth of lines, however long the session.
+    ///
+    /// A line is made from its text, its colour and the font. The first two are the key, and the
+    /// font is this renderer's for as long as it lives, so a line kept here is never one that
+    /// would be made differently now. A capture draws from here too: it is the same line.
+    private var lines: [LineKey: CTLine] = [:]
+    private var earlier: [LineKey: CTLine] = [:]
+
+    /// What a kept line was made from. Two texts are the same when their bytes are, rather than
+    /// as Swift compares strings, which holds a composed character equal to the same one
+    /// decomposed: Core Text is handed different characters for the two, and need not draw them
+    /// alike.
+    ///
+    /// The colour by which object it is, which `Palette` makes the same as which colour it is by
+    /// handing out one object each. Asking Core Foundation whether two are equal instead would
+    /// rest on Core Graphics hashing equal colours alike, which nothing here can check, and a key
+    /// whose hash and equality disagree is one a dictionary can trap on. The colour is held as
+    /// well as compared, so nothing else can be at its address while a line is kept under it.
+    private struct LineKey: Hashable {
+        let text: String
+        let colour: CGColor
+
+        static func == (left: LineKey, right: LineKey) -> Bool {
+            left.colour === right.colour && left.text.utf8.elementsEqual(right.text.utf8)
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(text)
+            hasher.combine(ObjectIdentifier(colour))
+        }
     }
 
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
@@ -260,9 +322,23 @@ final class Renderer {
 
     /// `capturing` decodes and scales pictures here and now, and stands a spinner still: a capture
     /// draws one frame, which has to have its pictures in it and come out the same every time.
+    ///
+    /// The layout that comes back is the whole window's whatever is being repainted. What a
+    /// repaint of part of it leaves out is the drawing, and a capture leaves out nothing.
     @discardableResult
     func draw(_ frame: Frame, in context: CGContext, size: CGSize, capturing: Bool = false) -> Layout {
         takeFinished()
+        dirty = capturing ? nil : context.boundingBoxOfClipPath
+        // The lines the last draw drew are the ones this one may use again, and what the draw
+        // before it drew and it did not goes here. A draw that reached no text is passed over:
+        // where the clip is a spinner, a turn would otherwise leave nothing kept for whatever is
+        // drawn after it.
+        if !lines.isEmpty {
+            earlier = lines
+            lines = [:]
+        }
+
+        lines.reserveCapacity(earlier.count)
         var layout = Layout()
         context.setFillColor(Palette.background)
         context.fill(CGRect(origin: .zero, size: size))
@@ -474,7 +550,7 @@ final class Renderer {
     }
 
     private func queueItem(_ frame: Frame, _ index: Int, _ bounds: CGRect, _ context: CGContext) {
-        guard index < frame.queue.count else {
+        guard index < frame.queue.count, shows(bounds) else {
             return
         }
 
@@ -510,6 +586,13 @@ final class Renderer {
             return
         }
 
+        // Left alone when none of it is being repainted. Asked of the row with its gutter, which a
+        // pane narrower than one draws past the row's own edge.
+        let width = Renderer.gutterCells * cell.width
+        guard shows(CGRect(x: bounds.minX, y: bounds.minY, width: max(bounds.width, width), height: bounds.height)) else {
+            return
+        }
+
         let row = pane.rows[index]
         if let background = Palette.rowBackground(row.kind) {
             context.setFillColor(background)
@@ -523,7 +606,6 @@ final class Renderer {
         // A folded row has no number, and printing the -1 standing in for one put it in the gutter.
         let number = row.lineNumber < 0 ? "" : String(row.lineNumber)
         let gutter = "\(Palette.marker(row.kind)) \(String(repeating: " ", count: max(0, 4 - number.count)))\(number)"
-        let width = Renderer.gutterCells * cell.width
 
         // Behind the text rather than over it, and the text keeps its own colour: what kind of
         // change a line is has to survive being selected.
@@ -636,6 +718,12 @@ final class Renderer {
             return
         }
 
+        // Left alone when none of it is being repainted, as when the clip is the other pane's
+        // spinner. Asked of the picture with its outline, which is the point outside it.
+        guard shows(bounds.insetBy(dx: -1, dy: -1)) else {
+            return
+        }
+
         checker(bounds, in: context)
 
         context.saveGState()
@@ -696,6 +784,22 @@ final class Renderer {
             width: whole.width,
             height: whole.height)
 
+        // The last one appended is this pane's, by `image`, before it knew the picture was there.
+        // Said before anything is drawn, because where the picture is does not turn on how much of
+        // the window this draw is for.
+        if !layout.pictures.isEmpty {
+            layout.pictures[layout.pictures.count - 1].enlarged = true
+            layout.pictures[layout.pictures.count - 1].whole = whole
+            layout.pictures[layout.pictures.count - 1].centre = centre
+            layout.pictures[layout.pictures.count - 1].across = across
+            layout.pictures[layout.pictures.count - 1].down = down
+        }
+
+        // Left alone when none of it is being repainted, as a fitted one is
+        guard shows(bounds.insetBy(dx: -1, dy: -1)) else {
+            return
+        }
+
         checker(bounds, in: context)
 
         context.saveGState()
@@ -710,15 +814,6 @@ final class Renderer {
         context.setStrokeColor(Palette.rule)
         context.setLineWidth(1)
         context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
-
-        // The last one appended is this pane's, by `image`, before it knew the picture was there
-        if !layout.pictures.isEmpty {
-            layout.pictures[layout.pictures.count - 1].enlarged = true
-            layout.pictures[layout.pictures.count - 1].whole = whole
-            layout.pictures[layout.pictures.count - 1].centre = centre
-            layout.pictures[layout.pictures.count - 1].across = across
-            layout.pictures[layout.pictures.count - 1].down = down
-        }
     }
 
     /// Something turning, centred in `space`, while the picture that will be centred there is on
@@ -1013,24 +1108,58 @@ final class Renderer {
     }
 
     /// Clipped to its own rect, so a long line stops at its column instead of running into the
-    /// next one.
+    /// next one. Which is also what lets it be left out when that rect is not being repainted:
+    /// none of it could have landed anywhere else.
     private func text(_ string: String, in bounds: CGRect, _ colour: CGColor, _ context: CGContext) {
-        guard !string.isEmpty, bounds.width > 0 else {
+        guard !string.isEmpty, bounds.width > 0, shows(bounds) else {
             return
         }
-
-        let attributed = NSAttributedString(
-            string: RowText.flatten(string),
-            attributes: [
-                .font: font,
-                .foregroundColor: colour
-            ])
 
         context.saveGState()
         context.clip(to: bounds)
         context.textPosition = CGPoint(x: bounds.minX, y: bounds.minY + descent)
-        CTLineDraw(CTLineCreateWithAttributedString(attributed), context)
+        CTLineDraw(typeset(string, colour), context)
         context.restoreGState()
+    }
+
+    /// `string` as a line in `colour`: the one this draw or the last one drew it with, or else a
+    /// new one, as every line used to be.
+    private func typeset(_ string: String, _ colour: CGColor) -> CTLine {
+        let flat = RowText.flatten(string)
+        let key = LineKey(text: flat, colour: colour)
+        if let kept = lines[key] {
+            return kept
+        }
+
+        let line = earlier[key] ?? lay(flat, colour)
+        lines[key] = line
+        return line
+    }
+
+    private func lay(_ flat: String, _ colour: CGColor) -> CTLine {
+        let attributed = NSAttributedString(
+            string: flat,
+            attributes: [
+                .font: font,
+                .foregroundColor: colour
+            ])
+        return CTLineCreateWithAttributedString(attributed)
+    }
+
+    /// Whether anything drawn in `bounds` can reach the screen in the draw in progress: always in
+    /// a capture, and in a window when what is being repainted touches `bounds`, by however
+    /// little.
+    ///
+    /// Asked only with a rect that holds everything the caller would paint. The background, the
+    /// rules, a button's face and a spinner are not asked about at all: each is a call or two, and
+    /// the clip sees to them. And asked only about drawing: where things are goes into the layout
+    /// whatever is being repainted, since the view resolves clicks against it afterwards.
+    private func shows(_ bounds: CGRect) -> Bool {
+        guard let dirty else {
+            return true
+        }
+
+        return dirty.intersects(bounds)
     }
 
     private func rule(top: CGFloat, width: CGFloat, in context: CGContext, _ size: CGSize) {
