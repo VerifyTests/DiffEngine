@@ -113,14 +113,14 @@ public class MapProjectionTests :
     public async Task TheButtonNamesTheProjectionOnScreen()
     {
         var state = Map();
-        await Assert.That(Projection(state)).IsEqualTo(new Button("Projection: Auto", true, CommandKind.NextProjection));
+        await Assert.That(Projection(state)).IsEqualTo(new("Projection: Auto", true, CommandKind.NextProjection));
 
         state = ViewerSession.Apply(state, CommandKind.NextProjection);
         await Assert.That(Projection(state)!.Label).IsEqualTo("Projection: Equirectangular");
 
         // Still there in the text view, so the buttons after it do not move, and no use
         var textOnly = Projection(state.Showing(DrawingView.Text));
-        await Assert.That(textOnly).IsEqualTo(new Button("Projection: Equirectangular", false, CommandKind.NextProjection));
+        await Assert.That(textOnly).IsEqualTo(new("Projection: Equirectangular", false, CommandKind.NextProjection));
     }
 
     [Test]
@@ -163,7 +163,7 @@ public class MapProjectionTests :
         await Assert.That(second.Path).IsNotEqualTo(first.Path);
         await Assert.That(Path.GetFileName(Path.GetDirectoryName(second.Path))).IsEqualTo("PlateCarree");
         await Assert.That(File.Exists(first.Path)).IsTrue();
-        await Assert.That(second.Hash).IsNotEqualTo(first.Hash);
+        await Assert.That(second.Hash)!.IsNotEqualTo(first.Hash);
     }
 
     [Test]

@@ -16,8 +16,8 @@ public class PicturePlacementTests
     {
         var placement = PicturePlacement.Of(space, Picture(80, 60));
 
-        await Assert.That(placement.Bounds).IsEqualTo(new Rectangle(260, 170, 80, 60));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0, 0, 1, 1));
+        await Assert.That(placement.Bounds).IsEqualTo(new(260, 170, 80, 60));
+        await Assert.That(placement.Source).IsEqualTo(new(0, 0, 1, 1));
     }
 
     [Test]
@@ -25,8 +25,8 @@ public class PicturePlacementTests
     {
         var placement = PicturePlacement.Of(space, Picture(1600, 600));
 
-        await Assert.That(placement.Bounds).IsEqualTo(new Rectangle(100, 125, 400, 150));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0, 0, 1, 1));
+        await Assert.That(placement.Bounds).IsEqualTo(new(100, 125, 400, 150));
+        await Assert.That(placement.Source).IsEqualTo(new(0, 0, 1, 1));
     }
 
     /// <summary>
@@ -37,8 +37,8 @@ public class PicturePlacementTests
     {
         var placement = PicturePlacement.Of(space, Picture(80, 60, zoom: 2));
 
-        await Assert.That(placement.Bounds).IsEqualTo(new Rectangle(220, 140, 160, 120));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0, 0, 1, 1));
+        await Assert.That(placement.Bounds).IsEqualTo(new(220, 140, 160, 120));
+        await Assert.That(placement.Source).IsEqualTo(new(0, 0, 1, 1));
     }
 
     /// <summary>
@@ -51,8 +51,8 @@ public class PicturePlacementTests
         var placement = PicturePlacement.Of(space, Picture(200, 100, zoom: 8));
 
         await Assert.That(placement.Bounds).IsEqualTo(space);
-        await Assert.That(placement.Size).IsEqualTo(new SizeF(1600, 800));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0.375f, 0.3125f, 0.25f, 0.375f));
+        await Assert.That(placement.Size).IsEqualTo(new(1600, 800));
+        await Assert.That(placement.Source).IsEqualTo(new(0.375f, 0.3125f, 0.25f, 0.375f));
     }
 
     /// <summary>
@@ -63,8 +63,8 @@ public class PicturePlacementTests
     {
         var placement = PicturePlacement.Of(space, Picture(200, 50, zoom: 4));
 
-        await Assert.That(placement.Bounds).IsEqualTo(new Rectangle(100, 100, 400, 200));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0.25f, 0, 0.5f, 1));
+        await Assert.That(placement.Bounds).IsEqualTo(new(100, 100, 400, 200));
+        await Assert.That(placement.Source).IsEqualTo(new(0.25f, 0, 0.5f, 1));
     }
 
     /// <summary>
@@ -77,8 +77,8 @@ public class PicturePlacementTests
     {
         var placement = PicturePlacement.Of(space, Picture(200, 100, zoom: 8, x: 1, y: 0));
 
-        await Assert.That(placement.Centre).IsEqualTo(new PanPoint(0.875, 0.1875));
-        await Assert.That(placement.Source).IsEqualTo(new RectangleF(0.75f, 0, 0.25f, 0.375f));
+        await Assert.That(placement.Centre).IsEqualTo(new(0.875, 0.1875));
+        await Assert.That(placement.Source).IsEqualTo(new(0.75f, 0, 0.25f, 0.375f));
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public class PicturePlacementTests
 
         var dragged = placement.Dragged(new(160, -80));
 
-        await Assert.That(dragged).IsEqualTo(new PanPoint(0.4, 0.6));
+        await Assert.That(dragged).IsEqualTo(new(0.4, 0.6));
     }
 
     [Test]
@@ -102,7 +102,7 @@ public class PicturePlacementTests
 
         var dragged = placement.Dragged(new(100_000, -100_000));
 
-        await Assert.That(dragged).IsEqualTo(new PanPoint(0.125, 0.8125));
+        await Assert.That(dragged).IsEqualTo(new(0.125, 0.8125));
     }
 
     static ImagePane Picture(int width, int height, double zoom = 1, double x = 0.5, double y = 0.5) =>

@@ -1032,8 +1032,8 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            $$"""
-                      await {{entryPoint}}(() => Method(value))
+            $"""
+                      await {entryPoint}(() => Method(value))
                           .Snapshot("new");
               """);
     }
@@ -1604,8 +1604,8 @@ public class InlinePatcherTests
         var body = "        await Snapshot(\"old\");";
         var source = Method(body);
         TryApply(source, 5, InlinePatchMode.Set, "\"old\"", "new", out var newSource, out _);
-        var prefix = source.Substring(0, source.IndexOf("\"old\"", StringComparison.Ordinal));
-        var suffix = source.Substring(source.IndexOf("\"old\"", StringComparison.Ordinal) + 5);
+        var prefix = source[..source.IndexOf("\"old\"", StringComparison.Ordinal)];
+        var suffix = source[(source.IndexOf("\"old\"", StringComparison.Ordinal) + 5)..];
         await Assert.That(newSource.StartsWith(prefix)).IsTrue();
         await Assert.That(newSource.EndsWith(suffix)).IsTrue();
     }

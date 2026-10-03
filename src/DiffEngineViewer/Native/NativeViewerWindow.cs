@@ -68,25 +68,23 @@ sealed class NativeViewerWindow : IViewerWindow
         Deview.SetPlacement(&native);
     }
 
-    WindowPlacement? placement;
-
     public unsafe WindowPlacement? Placement
     {
         get
         {
             if (disposed)
             {
-                return placement;
+                return field;
             }
 
             DeviewPlacement native;
             if (Deview.GetPlacement(&native) == 1 &&
                 native is {Width: > 0, Height: > 0})
             {
-                placement = new(native.X, native.Y, native.Width, native.Height, native.Maximized != 0);
+                field = new(native.X, native.Y, native.Width, native.Height, native.Maximized != 0);
             }
 
-            return placement;
+            return field;
         }
     }
 

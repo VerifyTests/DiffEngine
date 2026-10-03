@@ -22,12 +22,12 @@ public class InlinePatcherFsTests
     // Line 5 is the first line of the body
     static string Test(string body) =>
         Source(
-            $$"""
+            $"""
               module Tests
 
               [<Fact>]
               let MyTest () =
-              {{body}}
+              {body}
 
               """);
 

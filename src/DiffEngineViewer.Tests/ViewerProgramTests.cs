@@ -113,7 +113,7 @@ public class ViewerProgramTests
             Window = new(10, 20, 900, 600, true)
         };
 
-        IViewerWindow Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
+        static IViewerWindow Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
         {
             error = null;
             return new PlacedWindow(null);

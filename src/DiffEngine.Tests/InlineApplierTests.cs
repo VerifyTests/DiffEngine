@@ -1180,11 +1180,11 @@ public class InlinePatchFileTests
     public async Task UndefinedNumericModeFails(string mode)
     {
         var read = InlinePatchFile.TryParse(
-            $$"""
+            $"""
               version: 2
               sourceFile: x
               lineHint: 1
-              mode: {{mode}}
+              mode: {mode}
               originalExpression:
               newContent: YQ==
 
@@ -1198,11 +1198,11 @@ public class InlinePatchFileTests
     public async Task DefinedNumericModeReads()
     {
         var read = InlinePatchFile.TryParse(
-            $$"""
+            $"""
               version: 2
               sourceFile: x
               lineHint: 1
-              mode: {{(int) InlinePatchMode.Append}}
+              mode: {(int) InlinePatchMode.Append}
               originalExpression:
               newContent: YQ==
 

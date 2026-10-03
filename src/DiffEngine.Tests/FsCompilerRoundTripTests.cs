@@ -147,8 +147,8 @@ public class FsCompilerRoundTripTests
             // would land left of the statement and the layout would not survive it
             builder.Append(
                 Patch(
-                    $$"""
-                      let deep{{index}} () =
+                    $"""
+                      let deep{index} () =
                           let inner () =
                               Verify("x").Snapshot().ToTask()
                           inner ()
@@ -162,8 +162,8 @@ public class FsCompilerRoundTripTests
             // A chain across lines, where the call after the literal is on the line below it
             builder.Append(
                 Patch(
-                    $$"""
-                      let chain{{index}} () =
+                    $"""
+                      let chain{index} () =
                           Verify("x")
                               .Snapshot()
                               .ToTask()

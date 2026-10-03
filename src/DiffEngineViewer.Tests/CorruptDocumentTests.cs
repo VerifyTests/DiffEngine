@@ -40,7 +40,7 @@ public class CorruptDocumentTests :
     [Arguments(".kmz", "KMZ map")]
     public async Task AnArchiveThatIsNotOneSaysSo(string extension, string kind)
     {
-        var path = Write($"text{extension}", Encoding.UTF8.GetBytes("an error page, saved under the wrong name"));
+        var path = Write($"text{extension}", "an error page, saved under the wrong name"u8.ToArray());
 
         await Assert.That(Failure(() => Render(path)))
             .IsEqualTo($"Not a readable {kind}: it is not a zip archive, or was cut short.");
@@ -212,7 +212,7 @@ public class CorruptDocumentTests :
         damage switch
         {
             "empty" => [],
-            "other text" => Encoding.UTF8.GetBytes("not what the extension says at all"),
+            "other text" => "not what the extension says at all"u8.ToArray(),
             "other bytes" => Enumerable.Range(0, 4096).Select(_ => (byte) (_ * 31 + 7)).ToArray(),
             _ => valid[..(valid.Length / 2)]
         };

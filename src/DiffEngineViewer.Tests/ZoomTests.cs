@@ -78,7 +78,7 @@ public class ZoomTests
         state = ViewerSession.PanTo(state, 0.1, 0.9);
 
         var out1 = ViewerSession.Apply(state, CommandKind.ZoomOut);
-        await Assert.That(out1.Pan).IsEqualTo(new PanPoint(0.1, 0.9));
+        await Assert.That(out1.Pan).IsEqualTo(new(0.1, 0.9));
 
         var reset = ViewerSession.Apply(state, CommandKind.ZoomReset);
         await Assert.That(reset.Zoom).IsEqualTo(0);
@@ -96,7 +96,7 @@ public class ZoomTests
         await Assert.That(ViewerSession.PanTo(fitted, 0.2, 0.2)).IsSameReferenceAs(fitted);
 
         var zoomed = ViewerSession.Apply(fitted, CommandKind.ZoomIn);
-        await Assert.That(ViewerSession.PanTo(zoomed, -3, 7).Pan).IsEqualTo(new PanPoint(0, 1));
+        await Assert.That(ViewerSession.PanTo(zoomed, -3, 7).Pan).IsEqualTo(new(0, 1));
         await Assert.That(ViewerSession.PanTo(zoomed, 0.5, 0.5)).IsSameReferenceAs(zoomed);
     }
 
@@ -178,8 +178,8 @@ public class ZoomTests
     public async Task TheButtonsSayWhichWayThereIsToGo()
     {
         var state = Images;
-        await Assert.That(Button(state, CommandKind.ZoomOut)).IsEqualTo(new Button("Zoom out", false, CommandKind.ZoomOut));
-        await Assert.That(Button(state, CommandKind.ZoomIn)).IsEqualTo(new Button("Zoom in", true, CommandKind.ZoomIn));
+        await Assert.That(Button(state, CommandKind.ZoomOut)).IsEqualTo(new("Zoom out", false, CommandKind.ZoomOut));
+        await Assert.That(Button(state, CommandKind.ZoomIn)).IsEqualTo(new("Zoom in", true, CommandKind.ZoomIn));
 
         state = ViewerSession.Apply(state, CommandKind.ZoomIn);
         await Assert.That(Button(state, CommandKind.ZoomOut)!.Enabled).IsTrue();
@@ -198,8 +198,8 @@ public class ZoomTests
         await Assert.That(Button(Fixtures.File(), CommandKind.ZoomIn)).IsNull();
 
         var textOnly = Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Text);
-        await Assert.That(Button(textOnly, CommandKind.ZoomIn)).IsEqualTo(new Button("Zoom in", false, CommandKind.ZoomIn));
-        await Assert.That(Button(textOnly, CommandKind.ZoomOut)).IsEqualTo(new Button("Zoom out", false, CommandKind.ZoomOut));
+        await Assert.That(Button(textOnly, CommandKind.ZoomIn)).IsEqualTo(new("Zoom in", false, CommandKind.ZoomIn));
+        await Assert.That(Button(textOnly, CommandKind.ZoomOut)).IsEqualTo(new("Zoom out", false, CommandKind.ZoomOut));
     }
 
     /// <summary>
@@ -219,7 +219,7 @@ public class ZoomTests
         var drag = Input(panX: 0.8, panY: 0.3);
         await Assert.That(ViewerProgram.IsIdle(drag, state)).IsFalse();
         state = ViewerProgram.Apply(state, drag, link: null, new Window());
-        await Assert.That(state.Pan).IsEqualTo(new PanPoint(0.8, 0.3));
+        await Assert.That(state.Pan).IsEqualTo(new(0.8, 0.3));
 
         state = ViewerProgram.Apply(state, Input(zoom: -1), link: null, new Window());
         await Assert.That(state.Zoom).IsEqualTo(1);

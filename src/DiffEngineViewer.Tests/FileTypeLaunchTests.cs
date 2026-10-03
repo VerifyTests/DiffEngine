@@ -183,9 +183,9 @@ public class FileTypeLaunchTests
         for (var round = 1; round <= 3; round++)
         {
             pairs.Add(($"Report{round}", ".pdf", LongPdf(round, changed: true), LongPdf(round, changed: false)));
-            pairs.Add(($"Letter{round}", ".docx", Edited(".docx", "Hello World!", $"Hello World {round}!"), File.ReadAllBytes(Sample(".docx"))));
-            pairs.Add(($"Sheet{round}", ".xlsx", Edited(".xlsx", "Dulce", $"Dulce {round}"), File.ReadAllBytes(Sample(".xlsx"))));
-            pairs.Add(($"Slides{round}", ".pptx", Edited(".pptx", "Hello, PowerPoint!", $"Hello, PowerPoint {round}!"), File.ReadAllBytes(Sample(".pptx"))));
+            pairs.Add(($"Letter{round}", ".docx", Edited(".docx", "Hello World!", $"Hello World {round}!"), await File.ReadAllBytesAsync(Sample(".docx"))));
+            pairs.Add(($"Sheet{round}", ".xlsx", Edited(".xlsx", "Dulce", $"Dulce {round}"), await File.ReadAllBytesAsync(Sample(".xlsx"))));
+            pairs.Add(($"Slides{round}", ".pptx", Edited(".pptx", "Hello, PowerPoint!", $"Hello, PowerPoint {round}!"), await File.ReadAllBytesAsync(Sample(".pptx"))));
             pairs.Add(($"Survey{round}", ".fgb", BusyMap(round, moved: true), BusyMap(round, moved: false)));
             pairs.Add(($"Photo{round}", ".jpg", SampleImages.Photo(220, 120, 60), SampleImages.Photo(60, 120, 220)));
             pairs.Add(($"Logo{round}", ".svg", Encoding.UTF8.GetBytes(SvgOf("red")), Encoding.UTF8.GetBytes(SvgOf("blue"))));

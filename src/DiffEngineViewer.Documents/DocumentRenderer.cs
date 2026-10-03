@@ -216,12 +216,14 @@ public static class DocumentRenderer
     /// rather than putting it into words again. Marked rather than a type of its own, because
     /// InvalidDataException is the type for it and is sealed.
     /// </summary>
-    static InvalidDataException Said(string message, Exception? inner = null)
-    {
-        var exception = new InvalidDataException(message, inner);
-        exception.Data[said] = true;
-        return exception;
-    }
+    static InvalidDataException Said(string message, Exception? inner = null) =>
+        new(message, inner)
+        {
+            Data =
+            {
+                [said] = true
+            }
+        };
 
     const string said = "DiffEngineViewer.Said";
 
