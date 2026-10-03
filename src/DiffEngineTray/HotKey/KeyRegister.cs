@@ -11,10 +11,28 @@ public class KeyRegister :
 
     IntPtr handle;
     Dictionary<int, Action> bindings = [];
+    Func<IntPtr, int, KeyModifiers, Keys, bool> register;
+    Func<IntPtr, int, bool> unregister;
 
-    public KeyRegister(IntPtr handle)
+    public KeyRegister(IntPtr handle) :
+        this(handle, RegisterHotKey, UnregisterHotKey)
+    {
+    }
+
+    /// <summary>
+    /// With something other than the desktop to register with, for the tests that are about what
+    /// happens once a key is pressed. A hot key is taken from the whole desktop, so a test that
+    /// registers one for real fails wherever something else already holds it, and takes it from
+    /// whatever would have wanted it while the test runs.
+    /// </summary>
+    internal KeyRegister(
+        IntPtr handle,
+        Func<IntPtr, int, KeyModifiers, Keys, bool> register,
+        Func<IntPtr, int, bool> unregister)
     {
         this.handle = handle;
+        this.register = register;
+        this.unregister = unregister;
 
         Application.AddMessageFilter(this);
     }
@@ -50,9 +68,9 @@ public class KeyRegister :
 
     public bool TryAddBinding(int id, KeyModifiers modifiers, Keys keys, Action action)
     {
-        UnregisterHotKey(handle, id);
+        unregister(handle, id);
 
-        if (!RegisterHotKey(handle, id, modifiers, keys))
+        if (!register(handle, id, modifiers, keys))
         {
             return false;
         }
@@ -64,7 +82,7 @@ public class KeyRegister :
     public void ClearBinding(int id)
     {
         bindings.Remove(id);
-        UnregisterHotKey(handle, id);
+        unregister(handle, id);
     }
 
     public bool PreFilterMessage(ref Message message)
@@ -107,7 +125,7 @@ public class KeyRegister :
 
         foreach (var id in bindings.Keys)
         {
-            UnregisterHotKey(handle, id);
+            unregister(handle, id);
         }
     }
 }
