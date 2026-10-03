@@ -20,6 +20,10 @@
     -->
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" Aliases="engine" />
     <PackageReference Include="TUnit" />
+    <!-- For FileTypeLaunchTests: maps in every format, and JPEG and WebP images. -->
+    <PackageReference Include="GeoConvert" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
 
   <!--
