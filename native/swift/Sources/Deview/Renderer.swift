@@ -182,7 +182,7 @@ final class Renderer {
     }
 
     init(fontData: Data?, size: CGFloat) {
-        font = Renderer.load(fontData, size)
+        font = Renderer.withoutLigatures(Renderer.load(fontData, size), size)
         ascent = CTFontGetAscent(font)
         descent = CTFontGetDescent(font)
 
@@ -230,6 +230,26 @@ final class Renderer {
         _ = CTFontManagerRegisterGraphicsFont(cgFont, &error)
         error?.release()
         return CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
+    }
+
+    /// `font` with its ligatures off, so every character of a snapshot is drawn as itself.
+    ///
+    /// JetBrains Mono draws `<>`, `!=`, `<=`, `=>`, `->`, `==` and a good many more as one glyph
+    /// each, and closes up `...`, all through its `calt` feature, which Core Text applies unless
+    /// told not to. The other two heads draw a glyph a character, so the same title read `<>` on
+    /// Windows and Linux and as one diamond here, in a tool whose whole job is to show which
+    /// characters a snapshot holds.
+    ///
+    /// `liga` goes off with it. The embedded font has no such feature, but the face taken when
+    /// nothing is embedded might, and the answer should not turn on which font is in use.
+    private static func withoutLigatures(_ font: CTFont, _ size: CGFloat) -> CTFont {
+        let features: [[CFString: Any]] = [
+            [kCTFontOpenTypeFeatureTag: "calt", kCTFontOpenTypeFeatureValue: 0],
+            [kCTFontOpenTypeFeatureTag: "liga", kCTFontOpenTypeFeatureValue: 0]
+        ]
+        let attributes: [CFString: Any] = [kCTFontFeatureSettingsAttribute: features]
+        let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
+        return CTFontCreateCopyWithAttributes(font, size, nil, descriptor)
     }
 
     /// The window size in character cells, which is what version 2 of the ABI reports. Net of the
