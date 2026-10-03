@@ -764,8 +764,17 @@ sealed class ViewerForm : Form
         return true;
     }
 
-    static CommandKind Map(Keys keyData)
+    internal static CommandKind Map(Keys keyData)
     {
+        // No command is an Alt chord, and the switch below reads only the key code, so Alt+A was
+        // accept, Alt+D discard and Alt+Q quit: a reach for a menu that is not there wrote a
+        // snapshot into source. Ahead of Control, because Alt Gr arrives as both, and a character
+        // typed with it is not a Control chord either.
+        if ((keyData & Keys.Alt) == Keys.Alt)
+        {
+            return CommandKind.None;
+        }
+
         var shift = (keyData & Keys.Shift) == Keys.Shift;
         var code = keyData & Keys.KeyCode;
         // Answered on its own rather than folded into the switch, which reads only the key code:
