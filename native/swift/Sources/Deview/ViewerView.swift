@@ -445,6 +445,68 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     }
 }
 
+/// The pane scrollbar, with a drag of its knob followed here rather than in AppKit's own loop.
+///
+/// `NSScroller` tracks a press on its knob in a loop of its own, inside `mouseDown`, and returns
+/// when the button comes up. That is inside `Runtime.pump`, so `deview_present` did not return
+/// for the length of the drag: the knob moved under the pointer, every move was reported, and the
+/// managed loop that scrolls the panes in answer ran once, at the release. The WinForms head has
+/// the same loop under its scroll bar and is handed frames from inside it, which this ABI has no
+/// way to ask for.
+///
+/// So the drag is three ordinary events instead, as a selection is in `ViewerView`. The window
+/// sends the moves and the release to the view that took the press, each comes through the pump
+/// on its own, and there is a frame between one and the next.
+///
+/// Only a press on the knob. One in the slot is still AppKit's: what it means is the reader's
+/// setting, a page or the place that was pressed, and it is over in a click.
+final class PaneScroller: NSScroller {
+    /// A knob being dragged: where in the window the pointer took hold of it, where the knob was
+    /// then, as the fraction of its travel `doubleValue` is, and how long that travel is.
+    private var dragging = false
+    private var heldAt: CGFloat = 0
+    private var heldValue = 0.0
+    private var travel: CGFloat = 0
+
+    override func mouseDown(with event: NSEvent) {
+        let knob = rect(for: .knob)
+        let room = rect(for: .knobSlot).height - knob.height
+        guard room > 0, knob.contains(convert(event.locationInWindow, from: nil)) else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        dragging = true
+        heldAt = event.locationInWindow.y
+        heldValue = doubleValue
+        travel = room
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard dragging else {
+            super.mouseDragged(with: event)
+            return
+        }
+
+        // Measured from the press rather than from the last move, as a picture's drag is, and in
+        // the window's coordinates, which count up the screen while the document runs down it.
+        // The knob is not moved here. It goes where the frame that answers this puts it, which
+        // is the row the panes are showing.
+        let moved = Double((heldAt - event.locationInWindow.y) / travel)
+        Runtime.shared.knobDragged(to: min(max(heldValue + moved, 0), 1))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard dragging else {
+            super.mouseUp(with: event)
+            return
+        }
+
+        // Nothing to report: the last move already said where it is.
+        dragging = false
+    }
+}
+
 /// Closing is the managed side's decision: with a tray to reopen from it hides, without one it
 /// exits. So the request is recorded and the close refused, and the answer comes back as either
 /// `deview_set_hidden` or `deview_shutdown`.

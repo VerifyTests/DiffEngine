@@ -28,6 +28,14 @@ rather than handing control to `NSApplication.run`. That is what keeps the scrol
 the button lookup and the close-means-hide rule in `ViewerProgram` for every platform. It also
 means the deadline is the frame throttle: without it the managed loop would spin a core.
 
+**AppKit keeps loops of its own**, and each runs inside that pump, so the managed loop waits it
+out. A menu while it is open, which is deliberate: that loop is what buys the keyboard, Escape and
+VoiceOver. A window while it is being resized, which is not: the panes keep the rows they were
+sliced for until the mouse comes up, drawn into the new size, and it takes a way to ask the managed
+side for a frame from inside the loop to do better, which the ABI does not have. The scroller's
+knob used to be a third. `PaneScroller` follows a drag of it as three ordinary events instead, so
+the panes scroll as it moves.
+
 **No app bundle.** `setActivationPolicy(.regular)` plus `finishLaunching()` is enough to get a
 window that takes focus and appears in the dock, which is the same thing GLFW does for the Linux
 build.

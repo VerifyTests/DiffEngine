@@ -217,9 +217,15 @@ final class Runtime {
     /// which has no window and so no scroller — is not left with a gap where one would be.
     private func makeScroller(in view: ViewerView, _ renderer: Renderer) {
         let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
-        let scroller = NSScroller(frame: NSRect(x: 0, y: 0, width: width, height: view.bounds.height))
+        let scroller = PaneScroller(
+            frame: NSRect(x: view.bounds.maxX - width, y: 0, width: width, height: view.bounds.height))
         scroller.scrollerStyle = .legacy
         scroller.knobStyle = .light
+        // Kept against the right edge and as tall as the window leaves it by AppKit, as well as by
+        // `position`. A window being resized is a loop of AppKit's own, inside the pump, so
+        // `position` does not run until the mouse comes up, and until then the scroller stayed
+        // where the last frame had put it: out in the right hand pane of a window being widened.
+        scroller.autoresizingMask = [.minXMargin, .height]
         scroller.target = target
         scroller.action = #selector(ControlTarget.scrolled(_:))
         view.addSubview(scroller)
@@ -289,8 +295,9 @@ final class Runtime {
             width: scrollerWidth,
             height: max(1, body.height))
 
-        // Assigned rather than guarded against a drag in progress, because there cannot be one:
-        // a legacy scroller tracks in a loop of its own, inside the pump this runs before.
+        // Assigned during a drag of the knob as at any other time. `PaneScroller` reports where a
+        // drag has got to without moving the knob, so this is what moves it: to the row the panes
+        // are showing, which is where the WinForms bar's thumb sits too.
         let visible = max(1, frame.left.rows.count)
         let total = max(Int(frame.left.totalRows), visible)
         let maximum = total - visible
@@ -298,7 +305,20 @@ final class Runtime {
         scroller.doubleValue = maximum <= 0 ? 0 : Double(frame.left.scrollTop) / Double(maximum)
     }
 
-    /// Translates wherever the scroller was grabbed into a first visible row.
+    /// The knob dragged to `value` of the way along its travel, as a first visible row. From
+    /// `PaneScroller`, which follows that drag itself.
+    func knobDragged(to value: Double) {
+        guard let frame = view?.model else {
+            return
+        }
+
+        let visible = max(1, frame.left.rows.count)
+        let maximum = max(0, Int(frame.left.totalRows) - visible)
+        input.scrollTo = Int32((value * Double(maximum)).rounded())
+    }
+
+    /// Translates wherever the scroller was grabbed into a first visible row. What reaches here is
+    /// what AppKit tracked itself, which is a press in the slot.
     func scrolled(_ scroller: NSScroller) {
         guard let frame = view?.model else {
             return
