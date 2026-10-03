@@ -118,6 +118,21 @@ final class Renderer {
         var unscalable = false
     }
 
+    /// The pictures the last draw had no room for, each with its file as it was then.
+    ///
+    /// Nothing is decoded for one, so it is not in `pictures`, and `picturesChanged` took a picture
+    /// that is not there for one that has just appeared: a window too short for its picture, about
+    /// 176 points, was redrawn sixty times a second to draw none of it. Kept apart from `pictures`
+    /// because an entry there with no image is one ImageIO could not read, which is never tried
+    /// again, and this one is to be decoded as soon as there is room.
+    private var unplaced: [String: Stamp] = [:]
+
+    /// A file as it was when it was last looked at, which is how a rewritten one is told.
+    private struct Stamp: Equatable {
+        var modified: Date
+        var length: UInt64
+    }
+
     /// A size in device pixels, which is what a scaled copy is made at and matched by.
     private struct Pixels: Equatable {
         var width: Int
@@ -440,6 +455,7 @@ final class Renderer {
         let shown: Set<String> = [frame.left.imagePath, frame.right.imagePath]
         shared = !frame.left.imagePath.isEmpty && frame.left.imagePath == frame.right.imagePath
         pictures = pictures.filter { shown.contains($0.key) }
+        unplaced = [:]
         gate.lock()
         wanted = shown
         gate.unlock()
@@ -710,6 +726,10 @@ final class Renderer {
         let imageTop = top + CGFloat(pane.rows.count + 1) * line
         let available = CGSize(width: width - Renderer.gap, height: bottom - imageTop)
         guard available.width > 0, available.height > 0 else {
+            if hasPicture {
+                leftOut(pane.imagePath)
+            }
+
             return
         }
 
@@ -1166,29 +1186,48 @@ final class Renderer {
                 continue
             }
 
-            let cached = pictures[pane.imagePath]
+            // As the last draw saw the file: decoded or on its way, or passed over for want of room
+            let seen = pictures[pane.imagePath].map { Stamp(modified: $0.modified, length: $0.length) }
+                ?? unplaced[pane.imagePath]
             let attributes = try? FileManager.default.attributesOfItem(atPath: pane.imagePath)
             guard let modified = attributes?[.modificationDate] as? Date,
                   let length = attributes?[.size] as? UInt64
             else {
                 // Gone: worth a redraw only to take away what was drawn
-                if cached != nil {
+                if seen != nil {
                     return true
                 }
 
                 continue
             }
 
-            guard let cached else {
+            guard let seen else {
                 return true
             }
 
-            if cached.modified != modified || cached.length != length {
+            if seen.modified != modified || seen.length != length {
                 return true
             }
         }
 
         return false
+    }
+
+    /// Notes a picture this draw has no room for, so that `picturesChanged` knows it was seen and
+    /// asks for a redraw only when its file is written again. A copy decoded from the file as it
+    /// was before goes, since it is stale and would otherwise say so on every frame.
+    private func leftOut(_ path: String) {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attributes[.modificationDate] as? Date,
+              let length = attributes[.size] as? UInt64
+        else {
+            return
+        }
+
+        unplaced[path] = Stamp(modified: modified, length: length)
+        if let cached = pictures[path], cached.modified != modified || cached.length != length {
+            pictures.removeValue(forKey: path)
+        }
     }
 
     /// The decoded picture at `path`, and whether it is still on its way: being decoded on `work`,
