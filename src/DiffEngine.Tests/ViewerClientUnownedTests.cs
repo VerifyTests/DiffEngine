@@ -401,6 +401,59 @@ public class ViewerClientUnownedTests
     }
 
     /// <summary>
+    /// The memory is of ports nobody is on, and only two failures of a connect say that: it was
+    /// refused, or it was never answered. A machine with no ports left to connect from fails
+    /// every connect too, with an owner listening the whole time, and remembering that as an
+    /// empty port silenced every settle and move for ten minutes.
+    /// </summary>
+    [Test]
+    public async Task OnlyARefusalSaysNobodyIsThere()
+    {
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.ConnectionRefused))).IsTrue();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.TimedOut))).IsTrue();
+        // How the synchronous connect reports it, which waits on a task
+        await Assert.That(ViewerClient.NobodyThere(new AggregateException(Failed(SocketError.ConnectionRefused)))).IsTrue();
+
+        // What running out looks like: the first two on Windows, the third on Linux
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.NoBufferSpaceAvailable))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.AddressAlreadyInUse))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.AddressNotAvailable))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.TooManyOpenSockets))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(new AggregateException(Failed(SocketError.NoBufferSpaceAvailable)))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(new ObjectDisposedException("socket"))).IsFalse();
+
+        static SocketException Failed(SocketError error) =>
+            new((int) error);
+    }
+
+    /// <summary>
+    /// The same through a real connect that fails without being refused, which a machine out of
+    /// ports cannot be made to give without running the machine out. Port zero does: Windows
+    /// fails a connect to it at once, as an address that is not valid, and that is no more a
+    /// statement about who is listening than a full port table is. The table is made unreadable
+    /// so that the connect is reached at all.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AConnectThatCouldNotBeMadeSaysNothingAboutThePort()
+    {
+        using var unreadable = new Lookup(0)
+        {
+            Unreadable = true
+        };
+
+        await Assert.That(ViewerClient.TrySend(settle, out _, 0, skipIfUnowned: true)).IsFalse();
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+
+        await Assert.That(await ViewerClient.SendAsync(settle, Cancel.None, 0, skipIfUnowned: true))
+            .IsEqualTo(SendOutcome.NoOwner);
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+
+        await Assert.That(ViewerClient.IsOwned(0)).IsFalse();
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+    }
+
+    /// <summary>
     /// Stands in front of the listener table for the ports a test names, counting how often each
     /// was asked about and, when told to, failing the way a table that cannot be read does, or
     /// saying nobody listens there whoever does. Every other port goes through untouched, since

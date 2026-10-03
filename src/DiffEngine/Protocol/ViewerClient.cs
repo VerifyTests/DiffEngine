@@ -308,11 +308,36 @@ static class ViewerClient
         catch (Exception exception)
             when (Ignorable(exception))
         {
-            owned = false;
+            if (NobodyThere(exception))
+            {
+                Found(endpointPort, false);
+            }
+
+            return false;
         }
 
         Found(endpointPort, owned);
         return owned;
+    }
+
+    /// <summary>
+    /// Whether a connect that failed says nobody is on the port, which is the only failure the
+    /// memory of an unowned port is for: the port refused it, or never answered.
+    /// <para>
+    /// A connect also fails when the machine cannot make one at all - it has no ports left to
+    /// connect from, or no buffers - and that says nothing of who is listening. Taken for an
+    /// empty port, it had every settle and move after it skipped for ten minutes with the owner
+    /// still there, on exactly the machine a kept connection was meant to help. Which error a
+    /// machine gives when it runs out differs by platform and was never pinned down for Windows,
+    /// so this names the two that do mean nobody and takes everything else as not known.
+    /// </para>
+    /// </summary>
+    internal static bool NobodyThere(Exception exception)
+    {
+        var socket = exception as SocketException ??
+                     exception.InnerException as SocketException ??
+                     exception.InnerException?.InnerException as SocketException;
+        return socket?.SocketErrorCode is SocketError.ConnectionRefused or SocketError.TimedOut;
     }
 
     /// <summary>
@@ -595,9 +620,11 @@ static class ViewerClient
         catch (Exception exception)
             when (Ignorable(exception))
         {
-            // Only a connect that failed says the port is unowned. A connection that was accepted
-            // and then torn down is an owner behaving badly, which is not what the memory records
-            if (!connected)
+            // Only a connect that was refused says the port is unowned. A connection that was
+            // accepted and then torn down is an owner behaving badly, and a connect the machine
+            // could not make is no answer about the port, neither of which the memory records
+            if (!connected &&
+                NobodyThere(exception))
             {
                 Found(endpointPort, false);
             }
@@ -752,9 +779,11 @@ static class ViewerClient
         catch (Exception exception)
             when (exception is not OperationCanceledException && Ignorable(exception))
         {
-            // As on the synchronous overload: a connect that failed is an unowned port, and an
-            // accepted connection that fell over afterwards is not
-            if (!connected)
+            // As on the synchronous overload: a connect that was refused is an unowned port, and
+            // neither an accepted connection that fell over afterwards nor a connect the machine
+            // could not make is
+            if (!connected &&
+                NobodyThere(exception))
             {
                 Found(endpointPort, false);
             }
