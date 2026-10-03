@@ -18,7 +18,7 @@ public class FileTypeSampleTests :
         var red = SampleImages.Build(extension, 220, 40, 40);
         var blue = SampleImages.Build(extension, 40, 80, 220);
         await Assert.That(ImageHeader.TryRead(red, out var header)).IsTrue();
-        await Assert.That(header).IsEqualTo(new ImageHeader(Enum.Parse<ImageFormat>(format), width, height));
+        await Assert.That(header).IsEqualTo(new(Enum.Parse<ImageFormat>(format), width, height));
         await Assert.That(red).IsNotEquivalentTo(blue);
     }
 
