@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- This project and BenchmarkDotNet's auto-generated runner project (nested under bin/)
+         must not inherit the repo-wide settings from ../Directory.Build.props:
+         - signing fails because the generated project can't resolve ..\key.snk from its nested
+           location, and a benchmark assembly is never shipped so it needn't be signed;
+         - BenchmarkDotNet requires public instance benchmark methods, which permanently
+           conflicts with CA1822 being elevated to an error by the repo .editorconfig.
+         This file does not import the parent, so those settings simply do not apply here. -->
+    <SignAssembly>false</SignAssembly>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+</Project>

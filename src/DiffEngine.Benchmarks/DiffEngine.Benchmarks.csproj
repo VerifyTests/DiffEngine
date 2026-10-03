@@ -5,6 +5,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <!--
+    Signed, so DiffEngine can name this assembly in InternalsVisibleTo: most of what is worth
+    measuring is internal. Stated here rather than in this folder's Directory.Build.props, and with
+    a path that does not depend on where the project sits, because BenchmarkDotNet's generated
+    runner project is nested under bin/ and inherits that file but not this one.
+    -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\key.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>
