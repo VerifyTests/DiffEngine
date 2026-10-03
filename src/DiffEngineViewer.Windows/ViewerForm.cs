@@ -760,9 +760,25 @@ sealed class ViewerForm : Form
             return base.ProcessCmdKey(ref message, keyData);
         }
 
+        // A key held past the repeat delay arrives again thirty times a second, and each one is
+        // queued. That is what a held Down is for. A held a accepted the entry on screen and then
+        // every one that took its place, into source, none of them read. So what changes the
+        // queue takes a press each. Swallowed rather than passed on: it is still this key.
+        if (ViewerSession.ChangesQueue(command) &&
+            IsRepeat(message))
+        {
+            return true;
+        }
+
         discrete.Enqueue(new(Key: command));
         return true;
     }
+
+    /// <summary>
+    /// Bit 30 of a key message's LParam: the key was already down when this was sent.
+    /// </summary>
+    static bool IsRepeat(Message message) =>
+        (message.LParam.ToInt64() & 1L << 30) != 0;
 
     internal static CommandKind Map(Keys keyData)
     {

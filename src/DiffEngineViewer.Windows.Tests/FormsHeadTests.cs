@@ -572,6 +572,52 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// d held down past the repeat delay, with three snapshots queued. The press discards the one
+    /// on screen. The repeats would each have discarded whichever took its place, which nobody had
+    /// read.
+    /// </summary>
+    [Test]
+    public async Task AHeldDiscardIsOneDiscard()
+    {
+        using var host = new FormHost(
+            Fixtures.Inline(
+                Fixtures.Patch("ATests.cs", 10, content: "one"),
+                Fixtures.Patch("BTests.cs", 20, content: "two"),
+                Fixtures.Patch("CTests.cs", 30, content: "three")));
+        host.Settle();
+        var onScreen = host.State.Current!.Key;
+
+        host.PostHeld(Keys.D, repeats: 4);
+        for (var frame = 0; frame < 6; frame++)
+        {
+            host.Frame();
+        }
+
+        var left = host.State.Queue.Select(_ => _.Key).ToList();
+        await Assert.That(left.Count).IsEqualTo(2);
+        await Assert.That(left).DoesNotContain(onScreen);
+    }
+
+    /// <summary>
+    /// Down held: every repeat is a row, which is what holding it is for.
+    /// </summary>
+    [Test]
+    public async Task AHeldScrollKeepsItsRepeats()
+    {
+        using var host = new FormHost(Fixtures.File(Lines(300, 3), Lines(300)));
+        host.Settle();
+        var before = ScreenBuilder.Build(host.State).Left.ScrollTop;
+
+        host.PostHeld(Keys.Down, repeats: 4);
+        for (var frame = 0; frame < 6; frame++)
+        {
+            host.Frame();
+        }
+
+        await Assert.That(ScreenBuilder.Build(host.State).Left.ScrollTop - before).IsEqualTo(5);
+    }
+
+    /// <summary>
     /// Right click a row, which opens its menu, then right click the same row again.
     /// </summary>
     [Test]
@@ -1286,6 +1332,21 @@ public class FormsHeadTests
         public void PostKey(Keys key)
         {
             PostMessage(Canvas.Handle, keyDown, new((int) key), new(1));
+            PostMessage(Canvas.Handle, keyUp, new((int) key), new(unchecked((int) 0xC0000001)));
+        }
+
+        /// <summary>
+        /// A key pressed and held: the press, then what the keyboard sends for as long as it stays
+        /// down, which is the same message with bit 30 saying the key was already down.
+        /// </summary>
+        public void PostHeld(Keys key, int repeats)
+        {
+            PostMessage(Canvas.Handle, keyDown, new((int) key), new(1));
+            for (var index = 0; index < repeats; index++)
+            {
+                PostMessage(Canvas.Handle, keyDown, new((int) key), new(0x40000001));
+            }
+
             PostMessage(Canvas.Handle, keyUp, new((int) key), new(unchecked((int) 0xC0000001)));
         }
 
