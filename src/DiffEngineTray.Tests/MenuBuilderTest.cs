@@ -100,6 +100,75 @@ public class MenuBuilderTest :
     }
 
     /// <summary>
+    /// A delete "Accept all" passes over, because a move was accepted onto its file. It was listed
+    /// like every other delete, under a button that had just been pressed without removing it, and
+    /// only the log said why. Marked and given its reason the way a snapshot that was not written
+    /// is.
+    /// <para>
+    /// The items are built without the menu being opened, so nothing is put on the desktop.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task ADeleteAcceptAllWouldKeepCarriesItsReason()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"MenuBuilderTest_{Guid.NewGuid():N}");
+        var staged = Path.Combine(directory, "staged");
+        Directory.CreateDirectory(staged);
+        try
+        {
+            var received = Path.Combine(staged, "Sample.Test.received.txt");
+            var verified = Path.Combine(directory, "Sample.Test.verified.txt");
+            var plain = Path.Combine(directory, "Plain.verified.txt");
+            await File.WriteAllTextAsync(received, "received");
+            await File.WriteAllTextAsync(verified, "verified");
+            await File.WriteAllTextAsync(plain, "plain");
+            await using var tracker = new RecordingTracker();
+            tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+            tracker.AddDelete(verified);
+            tracker.AddDelete(plain);
+            await tracker.AcceptAll();
+            // The plain delete went with the sweep, and is tracked again for something to compare
+            await File.WriteAllTextAsync(plain, "plain");
+            tracker.AddDelete(plain);
+
+            var items = MenuBuilder.BuildTrackingMenuItems(tracker).ToList();
+            try
+            {
+                var deletes = items
+                    .OfType<System.Windows.Forms.ToolStripDropDownButton>()
+                    .ToList();
+                var held = deletes.Single(_ => _.Text!.StartsWith("Sample.Test.verified.txt"));
+                await Assert.That(held.Text).IsEqualTo("Sample.Test.verified.txt !");
+                await Assert.That(held.ToolTipText).IsEqualTo(Tracker.WroteItsFile);
+                var label = held.DropDownItems
+                    .OfType<System.Windows.Forms.ToolStripMenuItem>()
+                    .Single(_ => !_.Enabled);
+                await Assert.That(label.ToolTipText).IsEqualTo(Tracker.WroteItsFile);
+                await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(60);
+                await Assert.That(label.Text).StartsWith("Kept by 'Accept all': a move was accepted onto this file");
+
+                var other = deletes.Single(_ => _.Text!.StartsWith("Plain.verified.txt"));
+                await Assert.That(other.Text).IsEqualTo("Plain.verified.txt");
+                await Assert.That(other.DropDownItems
+                        .OfType<System.Windows.Forms.ToolStripMenuItem>()
+                        .Where(_ => !_.Enabled))
+                    .IsEmpty();
+            }
+            finally
+            {
+                foreach (var item in items)
+                {
+                    item.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// The same item with its drop down open, which is where the reason lives. The menu images
     /// elsewhere in this file stop at the top level and show only the marker, so nothing here saw
     /// how wide the reason made the menu - the thing that decides whether putting it on the item

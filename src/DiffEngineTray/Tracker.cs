@@ -469,7 +469,14 @@ class Tracker :
             {
                 if (!SweepSnapshots(out var failure))
                 {
-                    AcceptDeletes(pending, written);
+                    // Said, as the deletes held for a snapshot are below. Only the log knew, so
+                    // the menu went on listing a delete "Accept all" had just been pressed over
+                    // with nothing to say it had been left on purpose
+                    var kept = AcceptDeletes(pending, written);
+                    if (kept.Count > 0)
+                    {
+                        failure = failure is null ? DeletesKept(kept) : $"{failure} {DeletesKept(kept)}";
+                    }
                 }
                 else if (pending.Any(_ => deletes.ContainsKey(_.File)))
                 {
@@ -590,8 +597,62 @@ class Tracker :
             updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
+                // Raised again, so by a run that looked at the file as it is now. Whatever a move
+                // wrote there since the delete was first raised, this is the later statement
+                existing.Written = false;
                 return existing;
             });
+
+    /// <summary>
+    /// Why an accept-all leaves a delete pending, where it would: null when it would carry it
+    /// out. For the menu and the debug view, which say it beside the delete, and for the sweeps,
+    /// which act on it.
+    /// </summary>
+    public string? HeldReason(TrackedDelete delete)
+    {
+        if (delete.Written)
+        {
+            return WroteItsFile;
+        }
+
+        if (moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)))
+        {
+            return AwaitsItsFile;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A move was accepted onto the file while its delete was pending.
+    /// <para>
+    /// <see cref="AddMove"/> withdraws the delete a move finds waiting for its target, so the two
+    /// are only pending together when the delete arrived second, and which of them is the stale
+    /// one is then not knowable from here. The move is the snapshot arriving and the delete is the
+    /// last copy leaving, so the move goes ahead and the delete waits to be accepted on its own.
+    /// </para>
+    /// <para>
+    /// Remembered on the delete, rather than only for the sweep that wrote the file. The sweep
+    /// held the delete and forgot why as it ended, so the delete sat in the menu looking like any
+    /// other, and a second "Accept all" deleted the snapshot the first had just accepted. The same
+    /// went for a move accepted on its own and an accept-all after it.
+    /// </para>
+    /// </summary>
+    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway, or run the tests again.";
+
+    /// <summary>
+    /// A move still pending is going to write the file. Not remembered: it is true for as long as
+    /// the move is there, and stops being true if the move is discarded.
+    /// </summary>
+    public const string AwaitsItsFile = "Kept by 'Accept all': a pending move is still to be accepted onto this file. Accept the delete on its own to delete the file anyway.";
+
+    void MarkWritten(string target)
+    {
+        if (deletes.TryGetValue(target, out var delete))
+        {
+            delete.Written = true;
+        }
+    }
 
     /// <summary>
     /// Through <see cref="AcceptTracked(TrackedDelete)"/>, which is what the wire path has always
@@ -750,6 +811,7 @@ class Tracker :
             if (FileEx.SafeMove(move.Temp, move.Target))
             {
                 batch.Written.Add(move.Target);
+                MarkWritten(move.Target);
                 DeleteTempDirectory(move);
                 return true;
             }
@@ -1013,8 +1075,12 @@ class Tracker :
         return AcceptSnapshotsThenDeletes(pending, written);
     }
 
-    void AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
+    /// <returns>
+    /// The deletes left pending because of a move onto their file, for the caller to say so.
+    /// </returns>
+    List<TrackedDelete> AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
     {
+        var kept = new List<TrackedDelete>();
         // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
         // clearing would throw that away. Unguarded, the first bad one also took the rest of the
         // sweep with it, so "Accept all" stopped at the first read-only file
@@ -1029,23 +1095,35 @@ class Tracker :
             if (WrittenOrAwaited(delete, written))
             {
                 Log.Information("Kept the pending delete of `{Name}`: a move wrote that file, or is still pending onto it", delete.Name);
+                kept.Add(delete);
                 continue;
             }
 
             Accept(delete);
         }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// What a user is told about deletes an accept-all kept because of a move onto their file.
+    /// The menu says the same beside each of them, for whoever missed the balloon.
+    /// </summary>
+    internal static string DeletesKept(IReadOnlyList<TrackedDelete> kept)
+    {
+        var which = kept.Count == 1
+            ? $"The pending delete of '{kept[0].Name}' was kept"
+            : $"{kept.Count} pending deletes were kept";
+        return $"{which}, since a move was accepted onto the same file, or is still to be, and deleting it would remove what the move put there. Accept a delete on its own to delete its file anyway.";
     }
 
     /// <summary>
     /// Whether a sweep must leave this delete pending, because the file it would remove is one a
     /// move in the same sweep has just written or one a move still pending is going to write.
     /// <para>
-    /// <see cref="AddMove"/> withdraws the delete a move finds waiting for its target, so the two
-    /// are only pending together when the delete arrived second, and which of them is the stale
-    /// one is then not knowable from here. The move is the snapshot arriving and the delete is the
-    /// last copy leaving, so the move goes ahead and the delete waits to be accepted on its own:
-    /// carried out, it removed the received file a moment after that file had been moved into
-    /// place, and neither was left.
+    /// Carried out, it removed the received file a moment after that file had been moved into
+    /// place, and neither was left: see <see cref="WroteItsFile"/>, which is also why a delete
+    /// whose file an earlier accept wrote is held by every sweep after it.
     /// </para>
     /// <para>
     /// By what was written rather than by what was swept. A move whose received file has gone is
@@ -1054,7 +1132,7 @@ class Tracker :
     /// </summary>
     bool WrittenOrAwaited(TrackedDelete delete, HashSet<string> written) =>
         written.Contains(delete.File) ||
-        moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase));
+        HeldReason(delete) is not null;
 
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 

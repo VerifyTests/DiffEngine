@@ -48,6 +48,11 @@ static class DebugReport
             AppendEntry(builder, index, delete.Name);
             AppendField(builder, "File", WithExistence(delete.File));
             AppendField(builder, "Group", delete.Group);
+            // Only where there is one: why "Accept all" would leave this delete pending
+            if (tracker.HeldReason(delete) is { } held)
+            {
+                AppendField(builder, "Held", held);
+            }
         }
 
         AppendHeading(builder, "Moves", moves.Count);

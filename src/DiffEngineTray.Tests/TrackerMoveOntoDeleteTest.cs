@@ -77,6 +77,143 @@ public class TrackerMoveOntoDeleteTest :
     }
 
     /// <summary>
+    /// The sweep that held the delete forgot why as it ended. The delete sat in the menu looking
+    /// like any other, and pressing "Accept all" again, which is what a delete still listed after
+    /// an accept-all invites, deleted the snapshot the first press had just accepted.
+    /// </summary>
+    [Test]
+    public async Task ASecondAcceptAllStillHoldsTheDelete()
+    {
+        var warnings = new ConcurrentQueue<string>();
+        await using var tracker = new RecordingTracker(inlineFailed: warnings.Enqueue);
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+
+        await tracker.AcceptAll();
+
+        await Assert.That(await File.ReadAllTextAsync(verified)).IsEqualTo("received");
+        await Assert.That(tracker.Deletes.Select(_ => _.File)).IsEquivalentTo([verified]);
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.WroteItsFile);
+        // Said each time, since each press was an accept-all that left something undone
+        await Assert.That(warnings).IsEquivalentTo(
+        [
+            Tracker.DeletesKept([delete]),
+            Tracker.DeletesKept([delete])
+        ]);
+    }
+
+    /// <summary>
+    /// The same loss with no sweep in the first half of it: the move accepted from its own menu
+    /// item, and then "Accept all" for what was left.
+    /// </summary>
+    [Test]
+    public async Task AMoveAcceptedOnItsOwnHoldsTheDeleteFromALaterAcceptAll()
+    {
+        await using var tracker = new RecordingTracker();
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        tracker.AddDelete(verified);
+        tracker.Accept(move);
+
+        await tracker.AcceptAll();
+
+        await Assert.That(await File.ReadAllTextAsync(verified)).IsEqualTo("received");
+        await Assert.That(tracker.Deletes).HasSingleItem();
+    }
+
+    [Test]
+    public async Task ASecondWireSweepStillHoldsTheDelete()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        tracker.AddDelete(verified);
+        tracked.AcceptAllTracked(holdDeletes: false);
+
+        var (accepted, kept) = tracked.AcceptAllTracked(holdDeletes: false);
+
+        await Assert.That(accepted).IsEqualTo(0);
+        await Assert.That(kept).IsEqualTo(1);
+        await Assert.That(await File.ReadAllTextAsync(verified)).IsEqualTo("received");
+    }
+
+    /// <summary>
+    /// Held from a sweep, and no more than that. Whoever knows the file is redundant accepts the
+    /// delete itself, from its own item or from the header over the deletes, or over the wire by
+    /// its key.
+    /// </summary>
+    [Test]
+    public async Task AHeldDeleteIsCarriedOutWhenAcceptedOnItsOwn()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+
+        tracker.Accept(delete);
+
+        await Assert.That(File.Exists(verified)).IsFalse();
+        await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// A test run that raises the delete again has looked at the file the move wrote and still
+    /// says nothing produces it. That is the later statement, and the next sweep carries it out.
+    /// </summary>
+    [Test]
+    public async Task ADeleteRaisedAgainAfterTheWriteIsCarriedOut()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+
+        tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await tracker.AcceptAll();
+
+        await Assert.That(File.Exists(verified)).IsFalse();
+        await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// A delete waiting on a move that is still pending is held for as long as the move is, and
+    /// no longer: discarded, the move is never going to write the file.
+    /// </summary>
+    [Test]
+    public async Task ADeleteWaitingOnAMoveIsCarriedOutOnceTheMoveIsDiscarded()
+    {
+        await using var tracker = new RecordingTracker();
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.AwaitsItsFile);
+
+        tracker.Discard(move);
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await tracker.AcceptAll();
+
+        await Assert.That(File.Exists(verified)).IsFalse();
+        await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// Where the reason is read by somebody who was not looking when the balloon went by: beside
+    /// the delete in the debug view, as it is in the menu.
+    /// </summary>
+    [Test]
+    public async Task TheDebugViewSaysWhyADeleteIsHeld()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        tracker.AddDelete(verified);
+        await Assert.That(DebugReport.Build(tracker, DateTime.Now)).DoesNotContain(Tracker.WroteItsFile);
+
+        await tracker.AcceptAll();
+
+        await Assert.That(DebugReport.Build(tracker, DateTime.Now)).Contains(Tracker.WroteItsFile);
+    }
+
+    /// <summary>
     /// The sweep a viewer displaying the tray's queue asks for, which has the same two halves in
     /// the same order.
     /// </summary>

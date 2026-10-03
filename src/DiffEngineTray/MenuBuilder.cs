@@ -57,7 +57,7 @@ static class MenuBuilder
             .Where(_ => !fixedItems.Contains(_))
             .ToList();
 
-    static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
+    internal static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
     {
         // Read everything first and decide from the counts. TrackingAny is backed by the scan
         // cache, which drives the icon, and the snapshot half of it can be up to one scan behind
@@ -163,7 +163,7 @@ static class MenuBuilder
                 Images.Delete);
             foreach (var delete in deletes)
             {
-                yield return BuildDelete(delete, () => tracker.Accept(delete));
+                yield return BuildDelete(delete, tracker.HeldReason(delete), () => tracker.Accept(delete));
             }
         }
 
@@ -255,15 +255,34 @@ static class MenuBuilder
             status = status[prefix.Length..];
         }
 
-        return status.Length <= 60 ? status : $"{status[..59].TrimEnd()}…";
+        return Shortened(status);
     }
 
-    static ToolStripDropDownButton BuildDelete(TrackedDelete delete, Action accept)
+    static string Shortened(string text) =>
+        text.Length <= 60 ? text : $"{text[..59].TrimEnd()}…";
+
+    /// <param name="held">
+    /// Why "Accept all" leaves this delete pending, when it does. Marked and said the way a
+    /// snapshot that was not written is: a delete an accept-all had just passed over looked like
+    /// every other, and pressing "Accept all" again was the natural thing to try.
+    /// </param>
+    static ToolStripDropDownButton BuildDelete(TrackedDelete delete, string? held, Action accept)
     {
-        var menu = new ToolStripDropDownButton($"{delete.Name}")
+        var marker = held == null ? "" : " !";
+        var menu = new ToolStripDropDownButton($"{delete.Name}{marker}")
         {
             DropDownDirection = ToolStripDropDownDirection.Left
         };
+        if (held != null)
+        {
+            menu.ToolTipText = held;
+            menu.DropDownItems.Add(new ToolStripMenuItem(Shortened(held))
+            {
+                Enabled = false,
+                ToolTipText = held
+            });
+        }
+
         menu.DropDownItems.Add(new MenuButton("Accept delete", accept));
         menu.DropDownItems.Add(BuildShowInExplorer(delete.File));
         return menu;
