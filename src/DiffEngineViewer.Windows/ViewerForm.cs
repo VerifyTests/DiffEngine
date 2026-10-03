@@ -25,6 +25,12 @@ sealed class ViewerForm : Form
         TextAlign = ContentAlignment.MiddleRight,
         ForeColor = Palette.Dim,
         AutoSize = false,
+        // A status too long for what the buttons leave wraps, and the label has the height for two
+        // lines. The rest was cut with nothing to say so, and the status line is where the model
+        // says what no picture can. With this the cut ends in an ellipsis, and the label shows the
+        // whole status as a tip when the pointer rests on it. It is cut from the end either way:
+        // the lines kept are the first two, so right aligned still keeps the start.
+        AutoEllipsis = true,
         // The status line is built from paths, solution names and whatever the applier said, and a
         // Label reads an ampersand in any of those as a mnemonic: "R&D" drew as "R_D" with D live
         // as an accelerator.
