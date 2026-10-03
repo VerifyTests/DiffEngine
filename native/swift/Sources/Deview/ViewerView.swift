@@ -126,6 +126,17 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // click that dismisses it never reaches here, which is the platform's behaviour and the
         // reason the first click after a menu no longer also selects a row.
         let point = convert(event.locationInWindow, from: nil)
+
+        // Control held makes it the click that asks for a menu, as it is everywhere on a Mac.
+        // AppKit sees to that itself only for a view it can ask for an NSMenu, and this one's
+        // menus are the managed side's, popped a frame later: with none to give, the click came
+        // here as an ordinary press and selected a row or began a selection. Nothing else when
+        // there is no menu under it, as a right click there does nothing.
+        if event.modifierFlags.contains(.control) {
+            _ = contextClick(at: point)
+            return
+        }
+
         if let index = layout.buttons.firstIndex(where: { $0.contains(point) }) {
             Runtime.shared.post(.button(Int32(index)))
             return
@@ -278,11 +289,18 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
+        if !contextClick(at: convert(event.locationInWindow, from: nil)) {
+            super.rightMouseDown(with: event)
+        }
+    }
+
+    /// A click that asks for a menu: the right button, or the left with control held. Says
+    /// whether there was anything under it to ask one for.
+    private func contextClick(at point: NSPoint) -> Bool {
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
             Runtime.shared.post(.rightClickedQueueItem(Int32(index)))
-            return
+            return true
         }
 
         // Anywhere in a pane, its text or under it: the menu is the pane's, and a file of three
@@ -296,10 +314,10 @@ final class ViewerView: NSView, NSViewToolTipOwner {
            point.x <= layout.body.maxX {
             Runtime.shared.post(.rightClickedPane(point.x >= layout.panes[1].cellLeft ? 1 : 0))
             Runtime.shared.paneMenuPoint = point
-            return
+            return true
         }
 
-        super.rightMouseDown(with: event)
+        return false
     }
 
     /// A notch of a wheel, in the points a precise device reports one movement of it as.
@@ -315,11 +333,29 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     private var scrollRemainder = 0.0
 
     override func scrollWheel(with event: NSEvent) {
-        scrollRemainder += event.hasPreciseScrollingDeltas
-            ? event.scrollingDeltaY / ViewerView.pointsPerNotch
-            : event.scrollingDeltaY
-        let notches = scrollRemainder.rounded(.towardZero)
-        scrollRemainder -= notches
+        let notches: Double
+        if event.hasPreciseScrollingDeltas {
+            scrollRemainder += Double(event.scrollingDeltaY) / ViewerView.pointsPerNotch
+            notches = scrollRemainder.rounded(.towardZero)
+            scrollRemainder -= notches
+        } else {
+            // A wheel with notches: an event is a click of it. Its delta is in lines, scaled by
+            // how fast the wheel is turning, and for one click turned slowly that is a tenth of
+            // a line. Added up as a trackpad's are, ten such clicks went by before anything
+            // moved. So at least one notch the way it turned, and more only when it says more.
+            let lines = Double(event.scrollingDeltaY).rounded()
+            if event.scrollingDeltaY > 0 {
+                notches = max(1, lines)
+            } else if event.scrollingDeltaY < 0 {
+                notches = min(-1, lines)
+            } else {
+                // Turned sideways, which nothing here answers
+                notches = 0
+            }
+
+            scrollRemainder = 0
+        }
+
         guard notches != 0 else {
             return
         }
