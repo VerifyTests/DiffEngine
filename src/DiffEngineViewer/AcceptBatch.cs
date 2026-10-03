@@ -17,6 +17,17 @@
 record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
 {
     /// <summary>
+    /// The keys a group's batch is over, conflicted members included, or null for a batch over the
+    /// whole queue. "Accept all in" a header is the same batch with fewer entries in it, and what
+    /// it reports as still needing review is its own members and nobody else's.
+    /// </summary>
+    public IReadOnlySet<string>? Only { get; init; }
+
+    public bool Covers(string key) =>
+        Only is null ||
+        Only.Contains(key);
+
+    /// <summary>
     /// How the snapshots have gone, which is the first half of what the batch says when it is done.
     /// </summary>
     public AcceptAllTally Tally { get; init; }

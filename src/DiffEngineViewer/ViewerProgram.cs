@@ -709,11 +709,19 @@ static class ViewerProgram
         if (link is null)
         {
             // Only begun here. Applying every entry inside this frame held the window for as long
-            // as the queue was long; the loop hands the batch to a worker instead.
-            if (command.Kind == CommandKind.AcceptAll &&
-                state.Mode == ViewerMode.Inline)
+            // as the queue was long; the loop hands the batch to a worker instead. A group's
+            // accept the same, since in a queue of one solution its header's group is the queue.
+            if (state.Mode == ViewerMode.Inline)
             {
-                return ViewerSession.BeginAcceptAll(state);
+                if (command.Kind == CommandKind.AcceptAll)
+                {
+                    return ViewerSession.BeginAcceptAll(state);
+                }
+
+                if (command.Kind == CommandKind.AcceptGroup)
+                {
+                    return ViewerSession.BeginAcceptGroup(state);
+                }
             }
 
             return ViewerSession.Apply(state, command, ViewerActions.Real);
