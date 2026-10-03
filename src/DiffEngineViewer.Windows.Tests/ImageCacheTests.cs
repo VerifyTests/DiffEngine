@@ -356,6 +356,44 @@ public class ImageCacheTests
         await Assert.That(attempts).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// What failed was that size made that way, and nothing else is held against the picture. An
+    /// enlarged copy there was no memory for used to stop the fitted one being made again too, so
+    /// after the next resize the pane had the old size stretched into place for good.
+    /// </summary>
+    [Test]
+    public async Task AComposeThatFailsLeavesTheOtherSizesToBeMade()
+    {
+        var path = Write("uncomposable-at-one-size.png", SamplePng.Build(8, 6, 200, 40, 40));
+        var posted = new Posts();
+        using var cache = new ImageCache(posted.Add);
+        cache.Get(path, null);
+        var attempts = 0;
+        Func<Image, Size, Bitmap> enlarged = (_, _) =>
+        {
+            attempts++;
+            throw new InvalidOperationException("Out of memory.");
+        };
+        cache.Composite(path, new(4, 3), Build, () => { });
+        (await posted.Take())();
+
+        cache.Composite(path, new(400, 300), enlarged, () => { });
+        (await posted.Take())();
+
+        // The fitted copy at a new size, which is what a resize asks for
+        cache.Composite(path, new(6, 4), Build, () => { });
+        (await posted.Take())();
+        await Assert.That(cache.Composite(path, new(6, 4), Build, () => { })!.Size).IsEqualTo(new(6, 4));
+
+        // And the one that failed is still not tried again, while another size of it is
+        cache.Composite(path, new(400, 300), enlarged, () => { });
+        await Assert.That(posted.Count).IsEqualTo(0);
+        await Assert.That(attempts).IsEqualTo(1);
+        cache.Composite(path, new(200, 150), enlarged, () => { });
+        (await posted.Take())();
+        await Assert.That(attempts).IsEqualTo(2);
+    }
+
     static Bitmap Build(Image picture, Size size) =>
         new(size.Width, size.Height);
 

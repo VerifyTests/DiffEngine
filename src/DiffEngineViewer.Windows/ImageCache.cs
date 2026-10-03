@@ -92,11 +92,23 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         public Size? Composing { get; set; }
 
         /// <summary>
-        /// A compose on the pool failed, so none is started again: the pane would ask on every
-        /// step of its spinner, which would turn for good. Drawn as nothing, as a picture that
-        /// cannot be decoded is.
+        /// The composes on the pool that failed, each a size and a way of building it, so the
+        /// same one is not started again: the pane would ask on every step of its spinner, which
+        /// would turn for good. Drawn as nothing, as a picture that cannot be decoded is.
+        /// <para>
+        /// A size's rather than the picture's. What fails is nearly always the memory for one
+        /// size, the whole of a large picture at half its own, and held against the picture that
+        /// also stopped the fitted copy being made again when the window was next resized, so
+        /// the one from before the resize was stretched into place for good.
+        /// </para>
         /// </summary>
-        public bool Uncomposable { get; set; }
+        readonly HashSet<(Size Size, Func<Image, Size, Bitmap> Build)> uncomposable = [];
+
+        public bool Uncomposable(Size size, Func<Image, Size, Bitmap> build) =>
+            uncomposable.Contains((size, build));
+
+        public void Failed(Size size, Func<Image, Size, Bitmap> build) =>
+            uncomposable.Add((size, build));
 
         /// <summary>
         /// Composes reading <see cref="Image"/> on the pool, and whether the cache has let go of
@@ -343,7 +355,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         }
 
         if (entry.Composing is null &&
-            !entry.Uncomposable &&
+            !entry.Uncomposable(size, build) &&
             entry.TryRead())
         {
             entry.Composing = size;
@@ -360,13 +372,13 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
                         entry.EndRead();
                     }
                 },
-                built => Landed(path, entry, built, build, loaded));
+                built => Landed(path, entry, size, built, build, loaded));
         }
 
         return entry.Composite;
     }
 
-    void Landed(string path, Entry entry, Bitmap? built, Func<Image, Size, Bitmap> build, Action loaded)
+    void Landed(string path, Entry entry, Size size, Bitmap? built, Func<Image, Size, Bitmap> build, Action loaded)
     {
         entry.Composing = null;
         // Only into the entry it was made from. One the cache has since let go of, for a picture
@@ -381,7 +393,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
 
         if (built is null)
         {
-            entry.Uncomposable = true;
+            entry.Failed(size, build);
             // Repainted, so the spinner it was showing goes
             loaded();
             return;
