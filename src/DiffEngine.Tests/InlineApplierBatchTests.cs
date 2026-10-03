@@ -135,6 +135,35 @@ public class InlineApplierBatchTests
     }
 
     /// <summary>
+    /// A patch after the first edit that made no edit of its own is told what is true of the file
+    /// as it still is, and not that the write failed: its snapshot was in the source all along,
+    /// or its call site was never there. They used to report the write with the rest, so the
+    /// first stayed queued as a failure and the second was not told to re-run. The duplicate
+    /// still reports the write, since the literal it found was one the write was carrying.
+    /// </summary>
+    [Test]
+    public async Task AWriteThatFailsLeavesAPatchThatDidNotNeedItItsOwnAnswer()
+    {
+        using var file = new TempSource(Members(4));
+        var before = file.Text;
+
+        var results = InlineApplier.ApplyAll(
+            [
+                Set(file.FullName, 0),
+                Set(file.FullName, 2, anchor: "\"not in the source\""),
+                Set(file.FullName, 1, content: "old 1"),
+                Set(file.FullName, 0),
+                Set(file.FullName, 3)
+            ],
+            (_, _) => throw new IOException("The process cannot access the file."));
+
+        await Assert.That(Statuses(results)).IsEqualTo("Failed, NotFound, AlreadyApplied, Failed, Failed");
+        await Assert.That(results[1].Message!).Contains("Re-run the test");
+        await Assert.That(results[3].Message!).Contains("Failed to write");
+        await Assert.That(file.Text).IsEqualTo(before);
+    }
+
+    /// <summary>
     /// A batch in which nothing applies writes nothing, as a single patch that is already applied
     /// writes nothing: the file an editor has open is not touched for no reason.
     /// </summary>

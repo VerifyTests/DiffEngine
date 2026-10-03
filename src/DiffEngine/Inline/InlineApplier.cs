@@ -36,9 +36,10 @@ public static class InlineApplier
     /// each edit after that (<see cref="PatchInTurn"/>).
     /// </para>
     /// <para>
-    /// So a write that fails fails every patch it was carrying, and each says so. The patches
-    /// after the first of those say so too, whatever they were judged to be, because what they
-    /// were judged against was never written. The file is left as it was.
+    /// So a write that fails fails every patch it was carrying, and each says so. A patch after
+    /// the first of those that made no edit was judged against source that was never written, so
+    /// it is asked again of the file as it was read, and says the write failed only where it would
+    /// have had to edit that. The file is left as it was.
     /// </para>
     /// </summary>
     public static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches) =>
@@ -307,6 +308,7 @@ public static class InlineApplier
         }
 
         var results = new InlineApplyResult[patches.Count];
+        var read = source;
         var firstToWrite = PatchInTurn(language, ref source, patches, fullPath, results);
         if (firstToWrite < 0)
         {
@@ -333,19 +335,73 @@ public static class InlineApplier
         }
         catch (Exception exception)
         {
-            // Nothing from the first edit on reached the file, and every answer after it was about
-            // source that held that edit: one already applied only because an earlier patch here
-            // had written the same literal, one not found only because an earlier patch had taken
-            // its anchor. So they all report the write, and an entry that reports a failure is
-            // kept for another try
-            var failed = InlineApplyResult.Failed($"Failed to write: {fullPath}", exception);
+            AfterAFailedWrite(
+                language,
+                read,
+                patches,
+                fullPath,
+                results,
+                firstToWrite,
+                InlineApplyResult.Failed($"Failed to write: {fullPath}", exception));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// What each patch from the first edit on is told when the one write failed.
+    /// <para>
+    /// Nothing from that edit on reached the file, and every answer after it was about source
+    /// that held it: one already applied only because an earlier patch here had written the same
+    /// literal, one not found only because an earlier patch had taken its anchor. So a patch that
+    /// edited reports the write, and an entry that reports a failure is kept for another try.
+    /// </para>
+    /// <para>
+    /// One that made no edit is asked again, of the file as it was read, which is the file as it
+    /// still is. Already applied there, or not found there, is true whatever became of the write
+    /// and is what it is told: they all used to report the write, so a snapshot that was in the
+    /// source all along stayed queued as a failure, and one whose call site had gone was not
+    /// told to re-run. Where it would have had to edit that file, it needed the write as much as
+    /// the others, and reports it.
+    /// </para>
+    /// </summary>
+    static void AfterAFailedWrite(
+        SourceLanguage language,
+        string read,
+        IReadOnlyList<InlinePatch> patches,
+        string fullPath,
+        InlineApplyResult[] results,
+        int firstToWrite,
+        InlineApplyResult failed)
+    {
+        SourceScan? scan = null;
+        try
+        {
+            for (var index = firstToWrite; index < results.Length; index++)
+            {
+                if (results[index].Status == InlineApplyStatus.Applied)
+                {
+                    results[index] = failed;
+                    continue;
+                }
+
+                scan ??= language.Scan(read);
+                var asRead = Judge(scan, patches[index], false, fullPath, out _);
+                results[index] = asRead.Status == InlineApplyStatus.Applied ? failed : asRead;
+            }
+        }
+        catch (Exception)
+        {
+            // The source could not be lexed again, which leaves the write as all there is to say
             for (var index = firstToWrite; index < results.Length; index++)
             {
                 results[index] = failed;
             }
         }
-
-        return results;
+        finally
+        {
+            scan?.Dispose();
+        }
     }
 
     /// <summary>
