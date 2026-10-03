@@ -78,6 +78,33 @@ public class EngineDiffTests :
     }
 
     /// <summary>
+    /// And one that says what the last said, which is what a test that keeps failing the same way
+    /// sends on every run, leaves the reader where they are. It used to open the entry again, at
+    /// its first change, under whoever was half way down it.
+    /// </summary>
+    [Test]
+    public async Task ARepeatOfAnUnchangedPairLeavesTheReaderWhereTheyAre()
+    {
+        using var scope = new EngineScope();
+        var received = Path.Combine(directory, "Deep.Test.received.txt");
+        var target = Path.Combine(directory, "Deep.Test.verified.txt");
+        await File.WriteAllTextAsync(received, Fixtures.Deep(true));
+        await File.WriteAllTextAsync(target, Fixtures.Deep(false));
+        await EngineRunner.LaunchAsync(Viewer(), received, target);
+        var host = scope.Fixture.Host;
+        var opened = host.State.ScrollTop;
+        var scrolled = host.Mutate(_ => ViewerSession.Apply(_, CommandKind.PageDown)).ScrollTop;
+        await Assert.That(scrolled).IsNotEqualTo(opened);
+
+        // The next run writes what the last one wrote
+        await File.WriteAllTextAsync(received, Fixtures.Deep(true));
+        await EngineRunner.LaunchAsync(Viewer(), received, target);
+
+        await Assert.That(host.State.ScrollTop).IsEqualTo(scrolled);
+        await Assert.That(host.State.Queue).HasSingleItem();
+    }
+
+    /// <summary>
     /// Settling is what replaces killing the window for a tool that had one per pair, and it names
     /// one entry: the pair beside it stays.
     /// </summary>
@@ -97,6 +124,39 @@ public class EngineDiffTests :
             .IsEqualTo(TrackedKeys.ForMove(second.Received));
     }
 
+    /// <summary>
+    /// The first run of a snapshot has no verified file, and the pair reaches the viewer as that.
+    /// <para>
+    /// The viewer was declared as needing a target, so EmptyFiles wrote a placeholder before the
+    /// viewer heard of the pair, and the viewer compared against it as though it were the expected
+    /// file: a blank page, or an empty PDF it could not open. An extension EmptyFiles has no file
+    /// for stopped the launch there, which is every map but one, so nothing was raised over a new
+    /// map snapshot at all.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Arguments(".txt")]
+    [Arguments(".png")]
+    [Arguments(".pdf")]
+    [Arguments(".geojson")]
+    public async Task ANewSnapshotArrivesWithNoPlaceholderWritten(string extension)
+    {
+        using var scope = new EngineScope();
+        var received = Path.Combine(directory, $"New.Test.received{extension}");
+        var target = Path.Combine(directory, $"New.Test.verified{extension}");
+        await File.WriteAllTextAsync(received, "received");
+
+        var result = await EngineRunner.LaunchAsync(Viewer(), received, target);
+
+        await Assert.That(result).IsEqualTo(EngineLaunchResult.AlreadyRunningAndSupportsRefresh);
+        await Assert.That(File.Exists(target)).IsFalse();
+        var entry = scope.Fixture.Host.State.Queue.Single();
+        await Assert.That(entry.Key).IsEqualTo(TrackedKeys.ForMove(received));
+        // Nothing on the expected side, rather than a file that happens to be empty
+        await Assert.That(entry.RightStamp).IsNull();
+        await Assert.That(scope.Fixture.Windows).IsEquivalentTo([WindowCommand.Focus]);
+    }
+
     static EngineResolvedTool Viewer() =>
         new(
             nameof(EngineTool.DiffEngineViewer),
@@ -109,7 +169,11 @@ public class EngineDiffTests :
             isMdi: false,
             autoRefresh: false,
             binaryExtensions: [],
-            requiresTarget: true,
+            // As the viewer that ships is declared, since whether a target is written first is
+            // part of the route being covered
+            requiresTarget: engine::DiffEngine.Definitions.Tools
+                .Single(_ => _.Tool == EngineTool.DiffEngineViewer)
+                .RequiresTarget,
             supportsText: true,
             useShellExecute: false);
 

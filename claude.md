@@ -204,7 +204,13 @@ apart.
     documents)`, `TrackedEntry`, `TrackedWatch`, `OwnerLink`, `MessageHandler` - never found by
     each, so a test process does not read with whatever folder sits beside it.
   - In process, by choice: a native fault in PDFium or Skia ends the window. A hang is given up on
-    after `DocumentWatch.Timeout`, and a PDF left behind holds PDFium's lock, so PDFs then fail at once.
+    once `DocumentWatch.Timeout` passes with nothing coming of it - counted from the last page to
+    land, not from the start, so a long document that keeps landing pages is never left behind. A
+    PDF left behind holds PDFium's lock until its call returns, so PDFs wait for that
+    (`AwaitPdfium`) rather than failing: nothing is recorded against a document for a reason that
+    is not about it. The same goes for a copy that could not be written. Both throw out of `Pump`
+    before anything is marked as started, and `Turn` says why, once, and tries again - the loop
+    never ends on a fault, which used to stop every document until the viewer was restarted.
   - `FileSide.Read` only hashes a document, because it runs on the listener thread a test process
     waits on. `DocumentWatch` (owned, attached and file modes) does the slow part, for the entry on
     screen only - never the next one ahead of time, because a call into Morph or PDFium cannot be

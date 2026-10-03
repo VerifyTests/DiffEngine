@@ -12,7 +12,12 @@ static partial class Implementation
             AutoRefresh: false,
             IsMdi: false,
             SupportsText: true,
-            RequiresTarget: true,
+            // A new snapshot has no verified file, and the viewer says so: it reads a missing
+            // target as an empty side. Asking for one meant EmptyFiles wrote a placeholder first,
+            // which the viewer then compared against as though it were the expected file - an
+            // empty PDF it could not open, a blank page - and for the maps, which EmptyFiles has
+            // no file for, that the pair never reached the viewer at all.
+            RequiresTarget: false,
             BinaryExtensions: ImageExtensions.All,
             Cost: "Free",
             OsSupport: new(

@@ -10,40 +10,7 @@ Findings from a review of `main` at 991bc480 (2026-10-03). The list from the rev
 
 ## Bugs
 
-- [ ] **A new snapshot of a document or a map never gets a real comparison** (reproduced)
-  - `src/DiffEngine/Implementation/DiffEngineViewer.cs:15` declares the viewer `RequiresTarget: true`, so for a snapshot with no verified file `DiffRunner.TryCreate` (`src/DiffEngine/DiffRunner.cs:357`) asks EmptyFiles for a placeholder before the viewer is told anything. The viewer does not need one: `FileSide.Read` gives a missing target an empty side (`src/DiffEngineViewer/FileSide.cs:30`), and `TrackedWatch` already treats "no target" as a new snapshot.
-  - EmptyFiles 8.19.0 has no template for `.geojson`, `.gpx`, `.kml`, `.topojson`, `.wkt`, `.wkb`, `.fgb` or `.geoparquet` (`AllFiles.TryCreateFile` returns false for all eight). `ShouldExitLaunch` (`DiffRunner.cs:347`) then returns `NoEmptyFileForExtension`: no window, and only a plain `AddMove`. Every map format except `.kmz` cannot be reviewed the first time it is verified.
-  - Where a placeholder is created, it is then read as the expected document:
-    - `.pdf`: the 212 byte template is refused by PDFium ("Not a readable PDF: file is not a PDF or is corrupt"). The right side is `Unreadable`, so `QueueEntry.HasText` is false and both panes show the two property rows instead of the received text (`src/DiffEngineViewer/QueueEntry.cs:89`). The header says `verified.pdf (not drawn)`. With the target deleted, the same entry shows every received line as added.
-    - `.svg`: three bytes, a BOM. "Not a readable SVG: Root element is missing."
-    - `.kmz`: "The map has no features to draw."
-    - `.docx`, `.xlsx`, `.pptx` draw one blank page, and an image gets a tiny valid one, so those read "differ" where "only the received file exists" is the truth.
-  - `FileTypeLaunchTests` writes a verified file in every case (`:220`, `:285`, `:344`), so nothing launches the viewer on a pair with no target.
-  - Fix: `RequiresTarget: false` for the viewer. Then add a no-target case per extension to `FileTypeLaunchTests`.
-
-- [ ] **A failing file snapshot that runs again throws the reader back to its first change** (reproduced)
-  - `src/DiffEngineViewer/ViewerSession.cs:152-170` (`EnqueueTracked`): an entry replacing the one on screen always goes through `Open`, which resets the scroll, the page and the zoom, and the menu is cleared either way. `MessageHandler.TrackMove` (`src/DiffEngineViewer/Ipc/MessageHandler.cs:54`) builds a fresh entry for every `Diff` or `Move`, whether or not anything changed.
-  - Reader scrolled to row 0 of a pair that opens at row 147, with its menu open. The same pair arrives again, byte for byte: row 147, menu closed. The selection goes too, since it is tied to the entry's view.
-  - `EnqueueInline` avoids exactly this (`ViewerSession.cs:48-55`, "a continuous runner re-sending the same failing snapshot every few seconds used to bounce the reader to the top on every run"), and the same inline patch sent twice keeps the reader at row 179. A watch runner, or re-running one failing test while reading its diff, does this for file snapshots.
-  - `TrackedWatch` already follows a rewritten file without moving the reader (`Refresh` clamps), so the re-send adds nothing but the reset, plus a second read and diff of both files.
-  - Fix: when the key is already queued and both texts (or image and document hashes) are equal, keep the existing entry with the new stamps, and open only when the content changed.
-
-- [ ] **One failed write to the document cache ends document reading for the life of the window** (read)
-  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:64-72`: any exception out of `Pump` sets a message and returns from `Run`. Nothing restarts it, and the message is replaced by the next thing the status line says.
-  - `Copy` guards only the read (`:260-268`). `File.WriteAllBytes(partial)` and `File.Move(partial, source)` (`:276-278`) are bare, as are `Cache.For` and, in `Prune`, `RenderCache.Hashes`. A scanner holding the file just written, a full temp drive, or a cleaner that removed the cache directory under a viewer hidden for days all throw there.
-  - After that every document stepped to shows "reading text" and a spinner until the viewer is restarted.
-  - Fix: catch inside the loop, say it, wait `Interval` and carry on. For the copy, treat a failed write as "not copied this pass" the way a failed read is.
-
-- [ ] **A PDF that takes longer than two minutes disables PDFs until restart, even once it finishes** (read)
-  - `DocumentWatch.cs:286-316` (`Run`): the timeout is on the whole document, and `pdfiumHeld` is set when it passes and never cleared. The reason given is that the call left behind still holds PDFium's lock, which stops being true when that call returns.
-  - A page of one line of text takes 43 ms to draw here (measured, 100 A4 pages in 4.3 s), so the limit is a few hundred dense pages on a slow machine. The render was making progress the whole time; pages had been landing.
-  - Fix: clear the flag in a continuation on the abandoned task, and measure the timeout from the last page that landed rather than from the start.
-
-- [ ] **A setting one viewer put back to its default is restored by another viewer's next write** (reproduced)
-  - `src/DiffEngineViewer/ViewerPreferences.cs:68-72`: `Set` merges what this process holds over a fresh read with `TryAdd`. `Auto` and `Both` are stored as the key being absent, so a key another viewer removed is one this viewer adds back.
-  - Two `ViewerPreferences` on one file holding `projection=Goode`. The second sets `Auto`: the file is empty. The first remembers its window: the file is `projection=Goode; window=...`.
-  - Needs two viewers alive at once, which a viewer hidden behind the tray plus a `DiffEngineViewer left right` is.
-  - Fix: keep the set of keys this instance has changed, and lay only those over the fresh read.
+Nothing open. The five this review found are fixed, each with tests that fail without the fix: a new snapshot reaching the viewer with no placeholder written, a re-sent pair leaving the reader where they are, document reading surviving a copy that could not be written, PDFs read again once a slow one returns, and a setting put back to its default staying there.
 
 
 ## Performance
@@ -65,14 +32,14 @@ Findings from a review of `main` at 991bc480 (2026-10-03). The list from the rev
     - Answer the pair before diffing it: queue the entry with its sides unread and fill it in on `TrackedWatch`'s thread, the way a document arrives `Reading`.
 
 - [ ] **"Accept all in" a group still applies the whole group in one transition on the render thread** (read)
-  - `src/DiffEngineViewer/ViewerProgram.cs:700-711`: only `AcceptAll` is handed to `AcceptAllRunner`. `AcceptGroup` goes to `ViewerSession.Apply` inside `host.Mutate`, where `AcceptGroup` (`src/DiffEngineViewer/ViewerSession.cs:705-764`) runs `InlineApplier` for every member and `SweepTracked` (`:1193`) moves or deletes every file, each move retrying for up to a second when the target is held (`src/DiffEngineViewer/ViewerActions.cs:71-87`).
+  - `src/DiffEngineViewer/ViewerProgram.cs:700-711`: only `AcceptAll` is handed to `AcceptAllRunner`. `AcceptGroup` goes to `ViewerSession.Apply` inside `host.Mutate`, where `AcceptGroup` (`src/DiffEngineViewer/ViewerSession.cs:789`) runs `InlineApplier` for every member and `SweepTracked` (`:1277`) moves or deletes every file, each move retrying for up to a second when the target is held (`src/DiffEngineViewer/ViewerActions.cs:71-87`).
   - In a queue with one solution, that header's "Accept all in" is the whole queue: the freeze `AcceptBatch` was written to remove, with the lock held so every arriving `Inline`, `Diff` and listing waits behind it.
   - Fix: let `BeginAcceptAll` take the keys to sweep, and send a group through the same runner.
 
 - [ ] **The right side of a document waits for every page of the left** (measured)
-  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:160-168`: `Draw` renders the first side without pages to completion and returns. The right side starts on the next pass.
+  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:218-226`: `Draw` renders the first side without pages to completion and returns. The right side starts on the next pass.
   - 100 A4 pages take 4.3 s here and the first lands after 87 ms. So the left page is on screen at once, and the right pane spins for 4.3 s, and which pages differ is unknown until both are done.
-  - Fix: draw both sides at once on two tasks. Two PDFs then take turns at PDFium's lock a page at a time, and two Office files use two cores. The timeout and `generation` become per job.
+  - Fix: draw both sides at once on two tasks. Two PDFs then take turns at PDFium's lock a page at a time, and two Office files use two cores. The timeout, its `progressed` clock and `generation` become per job.
 
 - [ ] **Every pending file is statted five times a second, and the owning watch never slows down** (measured)
   - `src/DiffEngineViewer/TrackedWatch.cs:27-55` and `src/DiffEngineViewer/Ipc/OwnerLink.cs:344-432`. One pass over 1,000 pending moves is 2,000 stats and takes 25 ms here, so 125 ms of every second. The class doc's "a queue is small enough that the difference is not measurable" holds to about a hundred.
@@ -82,6 +49,7 @@ Findings from a review of `main` at 991bc480 (2026-10-03). The list from the rev
 
 ## Smaller
 
-- [ ] `QueueProjection.Order` runs twice per transition: `Project` orders (`ViewerSession.cs:1446`) and `Rebuild` (`:1406`) and `Sync` (`:195`) order its result again. (read)
+- [ ] A pair sent again unchanged is still read and diffed before it is found to be unchanged: `MessageHandler.TrackMove` builds the whole entry, and `ViewerSession.EnqueueTracked` compares after. The reader is no longer moved, but a large pair pays the diff on every run. Fix: read the two sides, compare them with the queued entry's, and build an entry only when they differ. (read)
+- [ ] `QueueProjection.Order` runs twice per transition: `Project` orders (`ViewerSession.cs:1530`) and `Rebuild` (`:1490`) and `Sync` (`:279`) order its result again. (read)
 - [ ] Opening a context menu builds each side's whole text to ask whether it is empty: `SelectionText.All(entry, side).Length > 0` in `src/DiffEngineViewer/MenuState.cs:98` and `:117`. Megabytes per right-click on a large file. (read)
 - [ ] `FileSide.ReadBytes` copies every file twice, through a growing `MemoryStream` and then `ToArray` (`src/DiffEngineViewer/FileSide.cs:105`). The length is known. (read)

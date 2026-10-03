@@ -92,6 +92,19 @@ public class DefinitionsTest
         await Assert.That(definitionsOrder).IsEqualTo(enumOrder);
     }
 
+    /// <summary>
+    /// The viewer reads a missing target as the empty side of a new snapshot, so it is the one
+    /// tool here that must not be handed a placeholder: it compares against whatever is written,
+    /// and EmptyFiles has nothing to write for most of the map formats the viewer is the only
+    /// tool for, which ended the launch.
+    /// </summary>
+    [Test]
+    public async Task TheViewerDoesNotNeedATarget()
+    {
+        var viewer = Definitions.Tools.Single(_ => _.Tool == DiffTool.DiffEngineViewer);
+        await Assert.That(viewer.RequiresTarget).IsFalse();
+    }
+
     [Test]
     public void WriteDefaultOrder()
     {

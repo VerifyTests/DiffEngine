@@ -248,6 +248,224 @@ public class DocumentWatchTests :
     }
 
     /// <summary>
+    /// A long document lands a page every so often for longer than the timeout, which is how long
+    /// it may go with nothing coming of it, not how long it may take. Counted from its start, it
+    /// was given up on part way through with pages still arriving.
+    /// </summary>
+    [Test]
+    public async Task ADocumentThatKeepsLandingPagesIsNotGivenUpOn()
+    {
+        var (host, documents) = Owned("alpha\nbravo\ncharlie", "alpha");
+        var watch = new DocumentWatch(host, documents.Plugin)
+        {
+            Timeout = TimeSpan.FromSeconds(2)
+        };
+        watch.Pump();
+        // Three pages at 0.8 seconds each: longer than the timeout in all, well inside it apiece
+        documents.Landing = () => Thread.Sleep(800);
+
+        watch.Pump();
+
+        var rendering = DocumentPages.Of(host.State, host.State.Current!.LeftDocument)!;
+        await Assert.That(rendering.Failure).IsNull();
+        await Assert.That(rendering.Pages.Count).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// PDFium reads one document at a time, so while a PDF that was left behind is still inside it
+    /// the next one waits, and is read when that call returns. It used to fail at once, and so did
+    /// every PDF after it until the viewer was restarted, however long PDFium had been free.
+    /// </summary>
+    [Test]
+    public async Task APdfWaitsForTheOneLeftBehindAndIsThenRead()
+    {
+        var release = new ManualResetEventSlim();
+        try
+        {
+            var (host, documents) = Owned("alpha", "bravo");
+            var watch = new DocumentWatch(host, documents.Plugin)
+            {
+                Timeout = TimeSpan.FromMilliseconds(200)
+            };
+            watch.Pump();
+            documents.Landing = release.Wait;
+            watch.Pump();
+            documents.Landing = null;
+            var right = host.State.Current!.RightDocument;
+
+            var wait = watch.Turn();
+
+            // Not a job done and not a failure of this document: nothing is recorded against it
+            await Assert.That(wait).IsNotNull();
+            await Assert.That(host.State.Message!).Contains("sample.verified.pdf is waiting for an earlier PDF");
+            await Assert.That(DocumentPages.Of(host.State, right)).IsNull();
+
+            release.Set();
+            await Until(() =>
+            {
+                watch.Turn();
+                return DocumentPages.Of(host.State, right) is { Complete: true };
+            });
+
+            var rendering = DocumentPages.Of(host.State, right)!;
+            await Assert.That(rendering.Failure).IsNull();
+            await Assert.That(rendering.Pages.Count).IsEqualTo(1);
+            await Assert.That(host.State.Message).IsNull();
+        }
+        finally
+        {
+            release.Set();
+        }
+    }
+
+    /// <summary>
+    /// The viewer's own copy of a document could not be written: something had the file, the disk
+    /// was full. That says nothing about the document, so nothing is recorded against it. The
+    /// reason is said, and the next turn tries again.
+    /// </summary>
+    [Test]
+    public async Task ACopyThatCannotBeWrittenIsSaidAndTriedAgain()
+    {
+        var (host, documents) = Owned("alpha", "bravo");
+        var watch = new DocumentWatch(host, documents.Plugin);
+        var blocked = Block(documents, host.State.Current!.LeftDocument);
+
+        var wait = watch.Turn();
+
+        await Assert.That(wait).IsNotNull();
+        await Assert.That(host.State.Message!).StartsWith("Could not read the documents: ");
+        await Assert.That(host.State.Current!.LeftDocument!.Value.Reading).IsTrue();
+        await Assert.That(documents.Texts).IsEqualTo(0);
+
+        Directory.Delete(blocked);
+        while (watch.Turn() is null)
+        {
+        }
+
+        var entry = host.State.Current!;
+        await Assert.That(entry.LeftText).IsEqualTo("alpha");
+        await Assert.That(entry.LeftDocument!.Value.Unreadable).IsNull();
+        var rendering = DocumentPages.Of(host.State, entry.LeftDocument)!;
+        await Assert.That(rendering.Failure).IsNull();
+        await Assert.That(rendering.Pages.Count).IsEqualTo(1);
+        // And the status line stops giving a reason for a document that has now been read
+        await Assert.That(host.State.Message).IsNull();
+    }
+
+    /// <summary>
+    /// A drawing is marked as started so that it is never started twice, which made one whose copy
+    /// then could not be written a spinner for as long as its entry stayed in the queue. An SVG's
+    /// text is the file itself, so drawing it is the first thing to want the copy.
+    /// </summary>
+    [Test]
+    public async Task ADrawingWhoseCopyCouldNotBeWrittenIsNotLeftAsStarted()
+    {
+        var (host, documents) = Owned("alpha", "bravo", ".svg");
+        var watch = new DocumentWatch(host, documents.Plugin);
+        var left = host.State.Current!.LeftDocument;
+        var blocked = Block(documents, left);
+
+        watch.Turn();
+
+        await Assert.That(host.State.Message!).StartsWith("Could not read the documents: ");
+        await Assert.That(DocumentPages.Of(host.State, left)).IsNull();
+
+        Directory.Delete(blocked);
+        while (watch.Turn() is null)
+        {
+        }
+
+        var rendering = DocumentPages.Of(host.State, left)!;
+        await Assert.That(rendering.Complete).IsTrue();
+        await Assert.That(rendering.Pages.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// The turn comes round again for as long as the copy cannot be written, and says why once:
+    /// said on each, it took the status line back from whatever the reader did in between.
+    /// </summary>
+    [Test]
+    public async Task WhatIsInTheWayIsSaidOnce()
+    {
+        var (host, documents) = Owned("alpha", "bravo");
+        var watch = new DocumentWatch(host, documents.Plugin);
+        var blocked = Block(documents, host.State.Current!.LeftDocument);
+        watch.Turn();
+        host.Mutate(_ => _ with { Message = "Copied 3 lines" });
+
+        watch.Turn();
+
+        await Assert.That(host.State.Message).IsEqualTo("Copied 3 lines");
+
+        // Nor does it take the line back as what was in the way goes: that clears only its own
+        Directory.Delete(blocked);
+        while (watch.Turn() is null)
+        {
+        }
+
+        await Assert.That(host.State.Current!.HasText).IsTrue();
+        await Assert.That(host.State.Message).IsEqualTo("Copied 3 lines");
+    }
+
+    /// <summary>
+    /// The loop itself, on its own thread as the viewer runs it. A turn that failed used to be its
+    /// last: the reason was said and the loop returned, and no document was read or drawn again
+    /// until the viewer was restarted.
+    /// </summary>
+    [Test]
+    public async Task TheLoopOutlivesATurnThatFailed()
+    {
+        var (host, documents) = Owned("alpha", "bravo");
+        var blocked = Block(documents, host.State.Current!.LeftDocument);
+        using var cancel = new CancelSource();
+        var watch = new DocumentWatch(host, documents.Plugin);
+        var loop = Task.Run(() => watch.Run(cancel.Token));
+        try
+        {
+            await Until(() => host.State.Message is not null);
+            await Assert.That(host.State.Message!).StartsWith("Could not read the documents: ");
+
+            Directory.Delete(blocked);
+            await Until(() =>
+                host.State.Current!.HasText &&
+                DocumentPages.Of(host.State, host.State.Current.RightDocument) is { Complete: true });
+
+            await Assert.That(loop.IsCompleted).IsFalse();
+        }
+        finally
+        {
+            cancel.Cancel();
+            await loop;
+        }
+    }
+
+    /// <summary>
+    /// A directory where a side's copy is written aside before it is moved into place, which is
+    /// what a file that cannot be written looks like on every platform. Returned to be deleted,
+    /// which is whatever was in the way going.
+    /// </summary>
+    static string Block(FakeDocuments documents, DocumentFile? side)
+    {
+        var extension = Path.GetExtension(side!.Value.Path);
+        var partial = Path.Combine(documents.Cache.For(side.Value.Hash!), $"source{extension}.partial");
+        return Directory.CreateDirectory(partial).FullName;
+    }
+
+    static async Task Until(Func<bool> condition)
+    {
+        var timer = Stopwatch.StartNew();
+        while (!condition())
+        {
+            if (timer.Elapsed > TimeSpan.FromSeconds(30))
+            {
+                throw new("Still waiting after 30 seconds.");
+            }
+
+            await Task.Delay(20);
+        }
+    }
+
+    /// <summary>
     /// Replacing an entry an accept-all has claimed would lose what it records about it, so the
     /// text waits for the batch to finish.
     /// </summary>
@@ -262,12 +480,12 @@ public class DocumentWatchTests :
         await Assert.That(host.State.Current!.LeftDocument!.Value.Reading).IsTrue();
     }
 
-    (SessionHost Host, FakeDocuments Documents) Owned(string left, string right)
+    (SessionHost Host, FakeDocuments Documents) Owned(string left, string right, string extension = ".pdf")
     {
         var documents = new FakeDocuments();
         disposables.Add(documents);
-        var leftFile = Write("sample.received.pdf", left);
-        var rightFile = Write("sample.verified.pdf", right);
+        var leftFile = Write($"sample.received{extension}", left);
+        var rightFile = Write($"sample.verified{extension}", right);
         var entry = QueueEntry.ForFiles(
             leftFile,
             rightFile,

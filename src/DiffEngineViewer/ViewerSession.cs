@@ -140,6 +140,12 @@ static class ViewerSession
     /// <see cref="TrackedEntry"/> does that on the listener thread, which is the same seam
     /// <see cref="Sync"/> takes the tray's through.
     /// </para>
+    /// <para>
+    /// A re-send of what is already queued leaves the reader where they are, as
+    /// <see cref="EnqueueInline"/> does. A test that keeps failing the same way sends its pair on
+    /// every run, and each one used to open the entry again: back to its first change and its
+    /// first page, fitted, with the menu closed.
+    /// </para>
     /// </summary>
     public static SessionState EnqueueTracked(SessionState state, QueueEntry entry)
     {
@@ -147,6 +153,13 @@ static class ViewerSession
         if (state.Closing)
         {
             return state;
+        }
+
+        var existing = IndexOf(state.Queue, entry.Key);
+        if (existing >= 0 &&
+            SameContent(state.Queue[existing], entry))
+        {
+            return Restaged(state, existing, entry);
         }
 
         var replacedCurrent = state.Current?.Key == entry.Key;
@@ -170,6 +183,77 @@ static class ViewerSession
         }
 
         return Clamp(next);
+    }
+
+    /// <summary>
+    /// The entry already queued for a pair that arrived again saying the same thing, with the
+    /// files' new stamps and nothing else about the window changed.
+    /// <para>
+    /// A new entry all the same, never the one that was there. <see cref="TrackedWatch"/> applies
+    /// what a pass found by reference, and a pass that looked while the run had cleared its
+    /// received file found it gone: that must not take the pair the run has since staged again.
+    /// </para>
+    /// <para>
+    /// The queued entry's content rather than the arrival's, because it can be further along: a
+    /// document's text is read after it arrives, and the arrival may not have it yet.
+    /// </para>
+    /// </summary>
+    static SessionState Restaged(SessionState state, int index, QueueEntry entry)
+    {
+        var queue = new List<QueueEntry>(state.Queue);
+        queue[index] = queue[index] with
+        {
+            LeftStamp = entry.LeftStamp,
+            RightStamp = entry.RightStamp
+        };
+        return Clamp(state with
+        {
+            Queue = queue,
+            // As any arrival: a reason to stay
+            Exit = false
+        });
+    }
+
+    /// <summary>
+    /// Whether two entries for one key show the same thing: the same files, holding the same
+    /// text, pictures or documents. Stamps are left out, since a run that rewrites a file with
+    /// what it already held changes those and nothing a reader can see.
+    /// </summary>
+    static bool SameContent(QueueEntry queued, QueueEntry arrived) =>
+        queued.Kind == arrived.Kind &&
+        queued.Name == arrived.Name &&
+        queued.Solution == arrived.Solution &&
+        queued.LeftFile == arrived.LeftFile &&
+        queued.TargetFile == arrived.TargetFile &&
+        queued.LeftHeader == arrived.LeftHeader &&
+        queued.RightHeader == arrived.RightHeader &&
+        queued.Warning == arrived.Warning &&
+        SameSide(queued.LeftText, queued.LeftImage, queued.LeftDocument, arrived.LeftText, arrived.LeftImage, arrived.LeftDocument) &&
+        SameSide(queued.RightText, queued.RightImage, queued.RightDocument, arrived.RightText, arrived.RightImage, arrived.RightDocument);
+
+    static bool SameSide(
+        string text,
+        ImageFile? image,
+        DocumentFile? document,
+        string arrivedText,
+        ImageFile? arrivedImage,
+        DocumentFile? arrivedDocument)
+    {
+        if (document is { } held &&
+            arrivedDocument is { } sent)
+        {
+            // By its bytes. Its text follows from them, and is read after the entry arrives, so
+            // one of the two may hold it while the other is still waiting for it.
+            return held.Path == sent.Path &&
+                   held.Format == sent.Format &&
+                   held.Length == sent.Length &&
+                   held.Hash == sent.Hash;
+        }
+
+        return document is null &&
+               arrivedDocument is null &&
+               image == arrivedImage &&
+               text == arrivedText;
     }
 
     /// <summary>

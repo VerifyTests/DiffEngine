@@ -10,6 +10,8 @@ Behavior depends on if an [EmptyFiles](https://github.com/SimonCropp/EmptyFiles)
  * If an EmptyFiles can be found matching the current extension, then the tool will be launched to compare the input to that empty file.
  * If no EmptyFiles can be found no tool will be launched.
 
+The bundled [DiffEngineViewer](/docs/viewer.md) is the exception. It needs no file to compare against, so none is written: the input is shown against an empty side, and stays that way until it is accepted. That holds for every extension, including those with no EmptyFiles.
+
 
 ## Detected difference behavior
 

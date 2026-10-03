@@ -17,13 +17,24 @@ sealed class ViewerPreferences
 {
     readonly string? path;
     readonly Lock gate = new();
-    Dictionary<string, string> values;
+
+    /// <summary>
+    /// What this viewer holds: what the file said when it started, and what it has set since. Its
+    /// own view rather than the file's, which another viewer can have changed.
+    /// </summary>
+    readonly Dictionary<string, string> values;
+
+    /// <summary>
+    /// The keys set here that are not in the file yet, because the write that would have put them
+    /// there failed. Empty whenever the file can be written.
+    /// </summary>
+    readonly HashSet<string> unsaved = new(StringComparer.Ordinal);
 
     /// <param name="path">The file to keep them in, or null to keep them for this process only.</param>
     public ViewerPreferences(string? path = null)
     {
         this.path = path;
-        values = Read();
+        values = Read() ?? new(StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -53,6 +64,14 @@ sealed class ViewerPreferences
     /// <summary>
     /// Null forgets the key. Nothing is written when the value is the one already held, which is
     /// every close of a window nobody moved.
+    /// <para>
+    /// What is written is the file as it is now with this one key changed, since two viewers can
+    /// be open at once and each knows only what the file said when it started. Everything held
+    /// here used to be laid back over the file as well, wherever the file had no value for it -
+    /// and a setting at its default is stored as no value. So one viewer putting the projection
+    /// back to automatic was undone by the next thing the other remembered, its window's position
+    /// say, which wrote back the projection it had read hours before.
+    /// </para>
     /// </summary>
     public void Set(string key, string? value)
     {
@@ -63,25 +82,33 @@ sealed class ViewerPreferences
                 return;
             }
 
-            // Read again first, so what another viewer wrote since this one started is kept: two
-            // can be open at once, and each writes only the keys it changed.
-            var merged = Read();
-            foreach (var (held, heldValue) in values)
+            Store(values, key, value);
+            unsaved.Add(key);
+
+            // With no file to read - none kept, or one that cannot be read just now - what is
+            // held here is all there is to go on
+            var merged = Read() ?? new(values, StringComparer.Ordinal);
+            foreach (var name in unsaved)
             {
-                merged.TryAdd(held, heldValue);
+                Store(merged, name, values.GetValueOrDefault(name));
             }
 
-            if (value is null)
+            if (Write(merged))
             {
-                merged.Remove(key);
+                unsaved.Clear();
             }
-            else
-            {
-                merged[key] = value;
-            }
+        }
+    }
 
-            values = merged;
-            Write();
+    static void Store(Dictionary<string, string> target, string key, string? value)
+    {
+        if (value is null)
+        {
+            target.Remove(key);
+        }
+        else
+        {
+            target[key] = value;
         }
     }
 
@@ -196,14 +223,19 @@ sealed class ViewerPreferences
         return null;
     }
 
-    Dictionary<string, string> Read()
+    /// <summary>
+    /// The file as it is now. Empty when there is no file, which is nothing remembered. Null when
+    /// there is nowhere to keep one, or when it could not be read, which says nothing about what
+    /// it holds.
+    /// </summary>
+    Dictionary<string, string>? Read()
     {
-        var read = new Dictionary<string, string>(StringComparer.Ordinal);
         if (path is null)
         {
-            return read;
+            return null;
         }
 
+        var read = new Dictionary<string, string>(StringComparer.Ordinal);
         string[] lines;
         try
         {
@@ -217,7 +249,7 @@ sealed class ViewerPreferences
         catch (Exception exception)
             when (exception is IOException or UnauthorizedAccessException)
         {
-            return read;
+            return null;
         }
 
         foreach (var line in lines)
@@ -234,13 +266,13 @@ sealed class ViewerPreferences
 
     /// <summary>
     /// Beside the file and moved over it, so a viewer killed part way through leaves the last
-    /// whole file rather than half of this one.
+    /// whole file rather than half of this one. False when it could not be written.
     /// </summary>
-    void Write()
+    bool Write(Dictionary<string, string> content)
     {
         if (path is null)
         {
-            return;
+            return true;
         }
 
         // Named for the process, so two viewers writing at once do not write the same one
@@ -250,10 +282,11 @@ sealed class ViewerPreferences
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllLines(
                 temp,
-                values
+                content
                     .OrderBy(_ => _.Key, StringComparer.Ordinal)
                     .Select(_ => $"{_.Key}={_.Value}"));
             File.Move(temp, path, overwrite: true);
+            return true;
         }
         catch (Exception exception)
             when (exception is IOException or UnauthorizedAccessException)
@@ -266,6 +299,8 @@ sealed class ViewerPreferences
                 when (cleanup is IOException or UnauthorizedAccessException)
             {
             }
+
+            return false;
         }
     }
 }
