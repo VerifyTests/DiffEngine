@@ -2,7 +2,20 @@ using NotifyIcon = System.Windows.Forms.NotifyIcon;
 
 static class Program
 {
-    static async Task Main()
+    /// <summary>
+    /// Synchronous, so that the attribute is on the method the runtime starts. For an
+    /// <c>async Task Main</c> that is a method the compiler writes, which carries none, and the
+    /// thread every window here lives on came up MTA: Clipboard.SetText throws ThreadStateException
+    /// there, so "Copy" in the debug view never copied anything.
+    /// <para>
+    /// Blocking on <see cref="Inner"/> is what that compiler written method did as well. Nothing
+    /// in it awaits until <c>Application.Run()</c> has returned, by which time WinForms has taken
+    /// its synchronization context back off this thread, so what follows continues on the pool
+    /// rather than waiting on a loop that is no longer pumping.
+    /// </para>
+    /// </summary>
+    [STAThread]
+    static void Main()
     {
         TrayViewerDirectory.Register();
         Logging.Init();
@@ -12,7 +25,7 @@ static class Program
 
         try
         {
-            await Inner();
+            Inner().GetAwaiter().GetResult();
         }
         catch (Exception exception)
         {
