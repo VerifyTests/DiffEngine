@@ -970,6 +970,109 @@ public class InlineApplierTests
         await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Failed);
     }
 
+    const string twoCallSites =
+        """
+        class C
+        {
+            void First() => Verify(first);
+            void Other() => Verify(other).Snapshot("old");
+        }
+        """;
+
+    /// <summary>
+    /// A run asks once for each call site, and each asking read and lexed the whole file. The
+    /// file is held open here with nothing shared, so a second asking that reads it fails to:
+    /// what it is told comes from the first one's reading. <c>CanApply</c> is a dry run too.
+    /// </summary>
+    [Test]
+    public async Task ASecondProbeOfAFileDoesNotReadItAgain()
+    {
+        var path = WriteTemp(Utf8(twoCallSites, bom: false));
+        try
+        {
+            // As a source file is by the time a run asks: not written in the last few seconds
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
+
+            var first = InlineApplier.CanAnchor(Append(path));
+            InlineApplyResult second;
+            InlineApplyResult set;
+            using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                second = InlineApplier.CanAnchor(Patch(path, 4, null, "new", InlinePatchMode.Append));
+                set = InlineApplier.CanApply(Patch(path, 4, "\"old\"", "new"));
+            }
+
+            await Assert.That(first.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(second.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(set.Status).IsEqualTo(InlineApplyStatus.Applied);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// What was read stands only while the file does. The same length written at another time is
+    /// another file, and so is one an accept has just written.
+    /// </summary>
+    [Test]
+    public async Task AProbeReadsAFileThatHasChangedSinceTheLast()
+    {
+        var path = WriteTemp(Utf8(twoCallSites, bom: false));
+        try
+        {
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-2));
+            var set = Patch(path, 4, "\"old\"", "new");
+            var before = InlineApplier.CanApply(set);
+
+            // The same length, so only the time says it is not the file that was read
+            await File.WriteAllTextAsync(path, twoCallSites.Replace("\"old\"", "\"new\""));
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
+            var after = InlineApplier.CanApply(set);
+
+            var applied = InlineApplier.Apply(Patch(path, 3, null, "appended", InlinePatchMode.Append));
+            var anchored = InlineApplier.CanApply(Patch(path, 3, null, "appended", InlinePatchMode.Append));
+
+            await Assert.That(before.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(after.Status).IsEqualTo(InlineApplyStatus.AlreadyApplied);
+            await Assert.That(applied.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(anchored.Status).IsEqualTo(InlineApplyStatus.AlreadyApplied);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    /// <summary>
+    /// A file written a moment ago is not kept: a second write inside the same tick of the file
+    /// system's clock leaves it the same length with the same time, which is arranged here. So
+    /// the second asking reads it, and is told about what it now holds.
+    /// </summary>
+    [Test]
+    public async Task AProbeOfAFileJustWrittenIsNotKept()
+    {
+        var path = WriteTemp(Utf8(twoCallSites, bom: false));
+        try
+        {
+            var written = File.GetLastWriteTimeUtc(path);
+            var set = Patch(path, 4, "\"old\"", "new");
+            var before = InlineApplier.CanApply(set);
+
+            await File.WriteAllTextAsync(path, twoCallSites.Replace("\"old\"", "\"new\""));
+            File.SetLastWriteTimeUtc(path, written);
+            var after = InlineApplier.CanApply(set);
+
+            await Assert.That(before.Status).IsEqualTo(InlineApplyStatus.Applied);
+            await Assert.That(after.Status).IsEqualTo(InlineApplyStatus.AlreadyApplied);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     static InlinePatch Append(string path) =>
         Patch(path, 3, null, "new", InlinePatchMode.Append);
 

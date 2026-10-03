@@ -39,6 +39,9 @@ public class InlineAcceptBenchmarks
         source = text;
         pristine = new UTF8Encoding(false).GetBytes(text);
         File.WriteAllBytes(path, pristine);
+        // As a source file is when a test run asks about it: written at the last save, and not
+        // in the last few seconds, which is the file a probe keeps what it read of
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
         patches = new InlinePatch[CallSites];
         appends = new InlinePatch[CallSites];
         for (var index = 0; index < CallSites; index++)
@@ -120,7 +123,7 @@ public class InlineAcceptBenchmarks
     {
         var current = source;
         var results = new InlineApplyResult[patches.Length];
-        InlineApplier.PatchInTurn(SourceLanguage.CSharp, ref current, patches, true, false, path, results);
+        InlineApplier.PatchInTurn(SourceLanguage.CSharp, ref current, patches, path, results);
         return Every(results.Count(_ => _.Status == InlineApplyStatus.Applied));
     }
 

@@ -234,7 +234,7 @@ public class InlineApplierBatchTests
 
             var carried = source;
             var results = new InlineApplyResult[patches.Count];
-            InlineApplier.PatchInTurn(language, ref carried, patches, true, false, path, results);
+            InlineApplier.PatchInTurn(language, ref carried, patches, path, results);
 
             var lexedAgain = source;
             for (var index = 0; index < patches.Count; index++)
