@@ -63,4 +63,10 @@ public class ListenerTableBenchmarks
     [Benchmark]
     public bool NobodyListening() =>
         ListenerTable.IsHeld(port);
+
+    // What IsHeld read before the listeners were asked for alone, and still reads where they
+    // cannot be
+    [Benchmark]
+    public bool NobodyListeningOutOfEveryRow() =>
+        ListenerTable.Enumerated(port);
 }
