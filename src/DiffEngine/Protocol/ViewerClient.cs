@@ -226,9 +226,14 @@ static class ViewerClient
     {
         lastFound.Clear();
         reportedForeign.Clear();
-        lock (keptGate)
+        lock (telling.Gate)
         {
-            DropKept();
+            telling.Drop();
+        }
+
+        lock (listing.Gate)
+        {
+            listing.Drop();
         }
     }
 
@@ -363,22 +368,22 @@ static class ViewerClient
     /// </summary>
     internal static bool Tell(ViewerMessage message, int port)
     {
-        switch (SendKept(message, port, out var ok))
+        switch (SendKept(telling, message, port, timeout, out var response))
         {
             case KeptSend.Answered:
-                return ok;
+                return response!.Ok;
             case KeptSend.Unanswered:
                 return false;
         }
 
-        if (!Exchange(message, out var response, out var keeps, port, null, skipIfUnowned: true))
+        if (!Exchange(message, out response, out var keeps, port, null, skipIfUnowned: true))
         {
             return false;
         }
 
         if (keeps)
         {
-            KeepConnection(port);
+            KeepConnection(telling, port);
         }
 
         return response.Ok;
@@ -388,7 +393,8 @@ static class ViewerClient
     {
         /// <summary>
         /// No connection is kept to that port, or the one that was has gone, as it does when its
-        /// owner exits. The ordinary exchange is what finds out who is there now.
+        /// owner exits. The ordinary exchange is what finds out who is there now. Or the one
+        /// kept is in the middle of someone else's exchange and this send does not wait for it.
         /// </summary>
         NotKept,
 
@@ -409,40 +415,104 @@ static class ViewerClient
         public NetworkStream Stream { get; } = client.GetStream();
         public StreamReader Reader { get; } = new(client.GetStream(), Encoding.UTF8);
 
+        /// <summary>
+        /// How long the next request waits to be written and answered, which is its caller's to
+        /// say: a tray's timer asks with half a second and a window's listing with fifteen.
+        /// </summary>
+        public void Allow(TimeSpan wait) =>
+            Configure(client, wait);
+
         public void Dispose() =>
             client.Close();
     }
 
     /// <summary>
-    /// Held for the whole of an exchange on the kept connection, which is one request and its
-    /// answer at a time. A parallel run's settles take turns at it, each for about as long as
-    /// the owner takes to answer.
+    /// A connection that is kept, and whose turn it is on it.
+    /// <para>
+    /// The gate is held for the whole of an exchange on the connection, which is one request and
+    /// its answer at a time. <see cref="Queues"/> is what a send does when it finds the gate held.
+    /// </para>
     /// </summary>
-    static readonly object keptGate = new();
+    sealed class KeptSlot(bool queues)
+    {
+        public readonly object Gate = new();
 
-    static KeptConnection? kept;
+        public KeptConnection? Connection;
+
+        /// <summary>
+        /// Whether a send waits its turn, or leaves the connection to whoever has it and makes
+        /// one of its own.
+        /// </summary>
+        public bool Queues { get; } = queues;
+
+        /// <summary>
+        /// Called with the gate held.
+        /// </summary>
+        public void Drop()
+        {
+            Connection?.Dispose();
+            Connection = null;
+        }
+    }
 
     /// <summary>
-    /// The socket of the kept connection, or null with none kept. For the test of whether a
-    /// child process would be handed it, which is a property of the handle and of nothing an
+    /// The connection the telling sends go down. A parallel run's settles take turns at it, each
+    /// for about as long as the owner takes to answer.
+    /// </summary>
+    static readonly KeptSlot telling = new(queues: true);
+
+    /// <summary>
+    /// The connection the listings go down: see <see cref="Lists"/>. One of its own, because the
+    /// owner answers a connection's requests in turn, and a listing an owner is slow to answer
+    /// would otherwise stand in front of every settle the process sent behind it. And not waited
+    /// for, because the callers are a timer and a window that each list on their own clock, with
+    /// waits of their own: a listing that finds another in flight is a connection each, as every
+    /// listing used to be.
+    /// </summary>
+    static readonly KeptSlot listing = new(queues: false);
+
+    /// <summary>
+    /// The socket of the kept telling connection, or null with none kept. For the test of whether
+    /// a child process would be handed it, which is a property of the handle and of nothing an
     /// exchange shows.
     /// </summary>
     internal static IntPtr? KeptHandle
     {
         get
         {
-            lock (keptGate)
+            lock (telling.Gate)
             {
-                return kept?.Handle;
+                return telling.Connection?.Handle;
             }
         }
     }
 
-    static KeptSend SendKept(ViewerMessage message, int port, out bool ok)
+    static KeptSend SendKept(
+        KeptSlot slot,
+        ViewerMessage message,
+        int port,
+        TimeSpan wait,
+        out ViewerResponse? response)
     {
-        ok = false;
-        lock (keptGate)
+        response = null;
+        var entered = false;
+        try
         {
+            if (slot.Queues)
+            {
+                Monitor.Enter(slot.Gate, ref entered);
+            }
+            else
+            {
+                Monitor.TryEnter(slot.Gate, ref entered);
+            }
+
+            if (!entered)
+            {
+                return KeptSend.NotKept;
+            }
+
+            var kept = slot.Connection;
             if (kept is null)
             {
                 return KeptSend.NotKept;
@@ -450,12 +520,13 @@ static class ViewerClient
 
             if (kept.Port != port)
             {
-                DropKept();
+                slot.Drop();
                 return KeptSend.NotKept;
             }
 
             try
             {
+                kept.Allow(wait);
                 var bytes = Encoding.UTF8.GetBytes($"{message.Build()}\n");
                 kept.Stream.Write(bytes, 0, bytes.Length);
                 kept.Stream.Flush();
@@ -468,23 +539,29 @@ static class ViewerClient
                 }
 
                 if (line is not null &&
-                    ViewerResponse.TryParse(reply.ToString(), out var response))
+                    ViewerResponse.TryParse(reply.ToString(), out response))
                 {
                     Found(port, true);
-                    ok = response.Ok;
                     return KeptSend.Answered;
                 }
 
                 // Closed by the owner, which is an owner that stopped or exited since the last
                 // send. Whoever holds the port now is for the ordinary exchange to find
-                DropKept();
+                slot.Drop();
                 return KeptSend.NotKept;
             }
             catch (Exception exception)
                 when (Ignorable(exception))
             {
-                DropKept();
+                slot.Drop();
                 return TimedOut(exception) ? KeptSend.Unanswered : KeptSend.NotKept;
+            }
+        }
+        finally
+        {
+            if (entered)
+            {
+                Monitor.Exit(slot.Gate);
             }
         }
     }
@@ -499,22 +576,38 @@ static class ViewerClient
         };
 
     /// <summary>
-    /// Opens the connection the telling sends after this one go down, to an owner whose reply
-    /// has just said it keeps one. Failing to is nothing: the next send is an ordinary exchange,
-    /// and tries again on the strength of its own reply.
+    /// Opens the connection the sends after this one go down, to an owner whose reply has just
+    /// said it keeps one. Failing to is nothing: the next send is an ordinary exchange, and
+    /// tries again on the strength of its own reply. So is finding the gate held, on a slot
+    /// nothing waits for: whoever holds it has the connection, or is opening it.
     /// </summary>
-    static void KeepConnection(int port)
+    static void KeepConnection(KeptSlot slot, int port)
     {
-        lock (keptGate)
+        var entered = false;
+        try
         {
-            if (kept is not null)
+            if (slot.Queues)
             {
-                if (kept.Port == port)
+                Monitor.Enter(slot.Gate, ref entered);
+            }
+            else
+            {
+                Monitor.TryEnter(slot.Gate, ref entered);
+            }
+
+            if (!entered)
+            {
+                return;
+            }
+
+            if (slot.Connection is not null)
+            {
+                if (slot.Connection.Port == port)
                 {
                     return;
                 }
 
-                DropKept();
+                slot.Drop();
             }
 
             var client = new TcpClient();
@@ -537,7 +630,7 @@ static class ViewerClient
                 var bytes = Encoding.UTF8.GetBytes($"{ViewerServer.Keep}\n");
                 connection.Stream.Write(bytes, 0, bytes.Length);
                 connection.Stream.Flush();
-                kept = connection;
+                slot.Connection = connection;
             }
             catch (Exception exception)
                 when (Ignorable(exception))
@@ -545,13 +638,30 @@ static class ViewerClient
                 client.Close();
             }
         }
+        finally
+        {
+            if (entered)
+            {
+                Monitor.Exit(slot.Gate);
+            }
+        }
     }
 
-    static void DropKept()
-    {
-        kept?.Dispose();
-        kept = null;
-    }
+    /// <summary>
+    /// Whether a message only reads the queue, so that it can go down a kept connection as the
+    /// telling sends do.
+    /// <para>
+    /// The listings are the asking sends there are many of: a window showing an owner's queue
+    /// lists five times a second for as long as it is open, and a tray driving one lists on a
+    /// timer, each a connection whose port then waited out TIME_WAIT. And they are the ones that
+    /// can be asked again. A request written to a kept connection whose owner has just gone is
+    /// sent a second time as an ordinary exchange, since nothing says whether the first was
+    /// acted on, and for a listing that is harmless. An accept or a discard asked twice is not,
+    /// so everything that changes the queue, and the async send, is still a connection each.
+    /// </para>
+    /// </summary>
+    static bool Lists(ViewerMessage message) =>
+        message.Verb is ViewerVerb.List or ViewerVerb.ListFull;
 
 #if NETFRAMEWORK
     /// <summary>
@@ -605,14 +715,44 @@ static class ViewerClient
     /// and a listing answered from what was found ten minutes ago is a listing that misses one.
     /// The library's own sends pass true.
     /// </para>
+    /// <para>
+    /// A listing goes down a connection that is kept, where the owner keeps one and no other
+    /// listing is using it: see <see cref="Lists"/>. Everything else is a connection of its own.
+    /// </para>
     /// </summary>
     public static bool TrySend(
         ViewerMessage message,
         [NotNullWhen(true)] out ViewerResponse? response,
         int? port = null,
         TimeSpan? wait = null,
-        bool skipIfUnowned = false) =>
-        Exchange(message, out response, out _, port, wait, skipIfUnowned);
+        bool skipIfUnowned = false)
+    {
+        if (!Lists(message))
+        {
+            return Exchange(message, out response, out _, port, wait, skipIfUnowned);
+        }
+
+        var endpointPort = port ?? Port;
+        switch (SendKept(listing, message, endpointPort, wait ?? timeout, out response))
+        {
+            case KeptSend.Answered:
+                return response is not null;
+            case KeptSend.Unanswered:
+                return false;
+        }
+
+        if (!Exchange(message, out response, out var keeps, port, wait, skipIfUnowned))
+        {
+            return false;
+        }
+
+        if (keeps)
+        {
+            KeepConnection(listing, endpointPort);
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// The ordinary exchange: a connection of its own, the request ended by closing the sending
