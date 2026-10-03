@@ -459,7 +459,8 @@ class Tracker :
     public const string DeletesHeld = "Pending deletes were kept, since a snapshot in this batch was not written and a file being deleted may be the only copy of it left. Accept them on their own to delete them anyway.";
 
     /// <summary>
-    /// Accepts every pending snapshot, and returns whether one it tried was not written.
+    /// Accepts every pending snapshot, and returns whether one it tried was not written, or the
+    /// queue could not be asked whether it holds any.
     /// </summary>
     /// <param name="failure">What to tell the user, when something is still pending afterwards.</param>
     bool SweepSnapshots(out string? failure)
@@ -469,7 +470,17 @@ class Tracker :
         // a stale empty cache would silently do nothing. Inside the worker rather than in front of
         // it, because the caller is a menu click or a hot key and the read is a round trip
         // whenever a viewer owns the queue.
-        if (inline.List().Count == 0)
+        if (!inline.TryList(out var pending))
+        {
+            // Something holds the queue and did not say what is in it, which is not the queue
+            // being empty. Reported the way a snapshot that was not written is, because the same
+            // thing waits on the answer: a patch held over there may be the one a delete here
+            // belongs to, and reading silence as nothing pending carried that delete out
+            failure = "Could not accept the pending snapshots. The snapshot viewer did not answer.";
+            return true;
+        }
+
+        if (pending.Count == 0)
         {
             return false;
         }

@@ -49,14 +49,33 @@ class RemoteInlineHost : IInlineHost
     public string Description => $"owned by another process on port {ViewerClient.Port}";
 
     public IReadOnlyList<PendingSnapshot> List() =>
-        TryList(out var pending) ? pending : [];
+        TryAsk(out var pending) ? pending : [];
+
+    /// <summary>
+    /// No owner is nothing pending here as well: the viewer has gone, and its queue went with it.
+    /// An owner that holds the port and did not answer is another matter. It is cold starting, or
+    /// wedged, and may be holding a patch whose delete this tray has. "Accept all" read that
+    /// silence as an empty queue and carried its deletes out, so the verified file went with the
+    /// patch that replaces it never tried.
+    /// </summary>
+    public bool TryList(out IReadOnlyList<PendingSnapshot> pending)
+    {
+        if (TryAsk(out pending))
+        {
+            return true;
+        }
+
+        // Decided now rather than from what was known going in, so an owner that exited while it
+        // was being asked reads as the absent one it has become
+        return !OwnerPresent();
+    }
 
     /// <summary>
     /// False when the owner could not be asked, which <see cref="List"/> flattens to nothing
     /// pending — right for a menu, and wrong for anything reading the answer as a statement about
     /// a particular entry.
     /// </summary>
-    static bool TryList(out IReadOnlyList<PendingSnapshot> pending)
+    static bool TryAsk(out IReadOnlyList<PendingSnapshot> pending)
     {
         if (!Exchange(new(ViewerVerb.List), ViewerClient.ShortTimeout, out var response) ||
             !response.Ok)
@@ -99,7 +118,7 @@ class RemoteInlineHost : IInlineHost
             return AcceptOutcome.Failed;
         }
 
-        if (!TryList(out var pending))
+        if (!TryAsk(out var pending))
         {
             // The owner took the accept and then could not be asked what became of it. Applied is
             // a guess, and the one that tells the user a snapshot landed that may not have
@@ -192,7 +211,9 @@ class RemoteInlineHost : IInlineHost
 
     static bool Exchange(ViewerMessage message, TimeSpan wait, [NotNullWhen(true)] out ViewerResponse? response)
     {
-        if (!PortIsHeld())
+        // Only a table that says nothing holds the port skips the round trip. With no table to
+        // read, the connect decides as it always did
+        if (PortIsHeld() == false)
         {
             response = null;
             return false;
@@ -200,6 +221,23 @@ class RemoteInlineHost : IInlineHost
 
         return ViewerClient.TrySend(message, out response, wait: wait);
     }
+
+    /// <summary>
+    /// Whether an owner is there to be asked, for telling one that did not answer from there being
+    /// none. Asked once an exchange has failed, which <see cref="Exchange"/> reports the same way
+    /// for both.
+    /// <para>
+    /// The table says when nothing holds the port. When something does, or there is no table to
+    /// read, the exchange got as far as connecting and <see cref="ViewerClient"/> recorded what it
+    /// found: a refused connection, or a reply that is not this protocol, is no owner. The second
+    /// matters because the default port is registered to another program. A tray that could not
+    /// bind the port over one drives it remotely for good, and taking that program for a viewer
+    /// that does not answer would hold every delete on that machine.
+    /// </para>
+    /// </summary>
+    static bool OwnerPresent() =>
+        PortIsHeld() != false &&
+        !ViewerClient.FoundUnowned();
 
     /// <summary>
     /// Whether anything holds the port, asked of the OS rather than found out by connecting to it.
@@ -220,8 +258,11 @@ class RemoteInlineHost : IInlineHost
     /// found by the next call, and one that exits just after it costs the timeout exactly as
     /// before.
     /// </para>
+    /// <para>
+    /// Null when there is no table to read.
+    /// </para>
     /// </summary>
-    static bool PortIsHeld()
+    static bool? PortIsHeld()
     {
         var port = ViewerClient.Port;
         try
@@ -232,8 +273,7 @@ class RemoteInlineHost : IInlineHost
         }
         catch (NetworkInformationException)
         {
-            // No table to read, so let the connect decide as it always did
-            return true;
+            return null;
         }
     }
 }

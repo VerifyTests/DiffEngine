@@ -16,6 +16,14 @@ interface IInlineHost
     IReadOnlyList<PendingSnapshot> List();
 
     /// <summary>
+    /// The listing, for a caller that acts on the answer rather than showing it. False when
+    /// something holds the queue and could not be asked what is in it, which
+    /// <see cref="List"/> flattens to nothing pending. Nothing holding the queue at all is nothing
+    /// pending, and true.
+    /// </summary>
+    bool TryList(out IReadOnlyList<PendingSnapshot> pending);
+
+    /// <summary>
     /// The queued patches themselves, for the debug view, and null when the queue is not in this
     /// process. What the tray holds then is the listing and nothing more: the patch is in the
     /// owning process's memory, and that process has its own view of it.

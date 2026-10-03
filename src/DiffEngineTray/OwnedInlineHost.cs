@@ -128,6 +128,15 @@ sealed class OwnedInlineHost :
     }
 
     /// <summary>
+    /// Held in this process, so there is nobody to fail to reach.
+    /// </summary>
+    public bool TryList(out IReadOnlyList<PendingSnapshot> pending)
+    {
+        pending = List();
+        return true;
+    }
+
+    /// <summary>
     /// The queue is immutable, so the list can be handed out under the gate without copying it.
     /// </summary>
     public IReadOnlyList<PendingInline> Queued()

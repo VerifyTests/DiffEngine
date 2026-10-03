@@ -142,6 +142,15 @@ static class ViewerClient
     }
 
     /// <summary>
+    /// Whether the port stands as unowned: nothing was listening at the last connect, or what
+    /// answered was not a viewer. For a caller whose exchange has just failed and has to tell an
+    /// owner that did not answer from there being none, which a failed exchange reports the same
+    /// way. The exchange is what makes this current, since every connect records what it found.
+    /// </summary>
+    public static bool FoundUnowned(int? port = null) =>
+        RecentlyUnowned(port ?? Port);
+
+    /// <summary>
     /// For tests, which share this process and its memory with every other test's ports.
     /// </summary>
     internal static void ForgetUnowned()

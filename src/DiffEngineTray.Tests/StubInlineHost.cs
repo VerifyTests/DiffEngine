@@ -15,6 +15,18 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
     public IReadOnlyList<PendingSnapshot> List() =>
         snapshots;
 
+    /// <summary>
+    /// Whether the queue says what it holds when asked. False stands in for a viewer that holds
+    /// the port and does not answer, without the half second a real one takes to time out.
+    /// </summary>
+    public bool Answers { get; init; } = true;
+
+    public bool TryList(out IReadOnlyList<PendingSnapshot> pending)
+    {
+        pending = Answers ? snapshots : [];
+        return Answers;
+    }
+
 #pragma warning disable CA1822
     public IReadOnlyList<PendingInline>? Queued() =>
 #pragma warning restore CA1822
