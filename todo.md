@@ -11,7 +11,7 @@ File and line references are as of a01dfc1d, before the second round of fixes. T
 - **read**: confirmed by me reading the code path, not run.
 - **reported**: found by one of the six reviews and not rerun by me. What follows the word is the reviewer's own evidence: *ran* is a probe of theirs outside the repo, *measured* a timing of theirs, *read* a trace through the code, and *plausible* a reading that rests on something they could not run, with what would settle it. For each of these I checked that the code it quotes is in the tree as quoted, and nothing more.
 - **left by the fix**: said by whoever fixed the bug it sits under, about the part the fix did not reach.
-- Nothing under a macOS heading has been run by anyone: the Swift cannot be built from Windows, and its fixes are first compiled by CI. The Linux fixes were built and run in an `ubuntu:24.04` container.
+- Nothing under a macOS heading has been run by a person: the Swift cannot be built from Windows. CI's `macos-14` job compiles it and runs the suite and the pixel snapshots, and it passes there. The Linux fixes were built and run in an `ubuntu:24.04` container, and pass on CI's Linux job too.
 
 
 ## Bugs
@@ -51,12 +51,12 @@ Nothing that was found as a bug is open. What follows is what the fixes left.
 
 ### Viewer, macOS head
 
-- [ ] None of the four macOS fixes has been run. What would confirm each on a Mac:
+- [ ] The four macOS fixes compile and the suite passes on CI, but none has been run by a person, and two are event handling that no capture exercises. What would confirm each on a Mac:
   - Keys and clicks queued: with three entries queued, `pkill -STOP -x DiffEngineViewer`, press Down twice, `pkill -CONT`: the panes scroll two rows. Stopped, Tab then `a`: the second entry is the one accepted.
   - The scroller's knob: dragging it scrolls the panes while the button is down, and the scroller stays on the right edge through a resize.
   - The footer: `DiffEngineViewer --diff a.png b.png` at the default size has "images differ" on a line of its own with nothing over "Zoom in"; a PDF pair has two rows of buttons, all of which click.
   - Ligatures: `!= <= => -> == ...` in a text file are each drawn as separate characters.
-- [ ] Turning ligatures off moves five OSX baselines, which can only be approved from the `received-macos-14` artifact of a CI run: `FileDiff`, `Images`, `ImagesEnlarged`, `Selection` and `Minimal`, each at the title's `<>`, and `Minimal` at the `...` of its folded rows too. If none of the five fails, the setting did not take. If all ten scenes fail, the copy is not the embedded font. (left by the fix)
+- [ ] Four OSX baselines still show the title's `<>` as the one glyph it was drawn as before ligatures were turned off: `FileDiff`, `Images`, `ImagesEnlarged` and `Selection`. Each differs from what the head now draws by that glyph alone, which is inside the pixel tests' SSIM threshold of 0.999, so they pass and CI uploads no image to approve. `Minimal` did fail, at 0.9982, and its baseline is the image from that run: it changed at the title's `<>` and at the `...` of its folded rows, and nowhere else. To bring the four up to date, delete them for one run and approve what it uploads. (read: the run's log and its one received image)
 - [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. That half of the tracking loop bug needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too. (left by the fix)
 - [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. (left by the fix)
 - [ ] Every auto-repeat of a held `a` or `d` is now handed over, including ones queued during a stall. `event.isARepeat` would drop them. The Windows item under Smaller is the same hazard. (left by the fix)
