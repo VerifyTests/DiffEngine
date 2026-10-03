@@ -99,21 +99,44 @@ static class QueueProjection
     /// The full row list: headers inserted, labels indented, collisions disambiguated, conflicts
     /// marked. Assumes the queue is already <see cref="Order"/>ed, which every mutation ensures.
     /// </summary>
-    public static IReadOnlyList<QueueItem> Rows(SessionState state) =>
-        Rows(state, described: true);
+    public static IReadOnlyList<QueueItem> Rows(SessionState state)
+    {
+        var slots = Walk(state);
+        return Describe(state, slots, 0, slots.Count);
+    }
+
+    /// <summary>
+    /// Where a row is, before anything is said about it: which entry it is, or which run of
+    /// entries its header stands over.
+    /// </summary>
+    /// <param name="Kind">What the row is.</param>
+    /// <param name="Start">The entry, or the first of a header's.</param>
+    /// <param name="End">One past the last of a header's entries.</param>
+    /// <param name="Indented">Whether the row sits under a solution's header.</param>
+    /// <param name="Folded">For a header, whether its entries are hidden.</param>
+    readonly record struct Slot(SlotKind Kind, int Start, int End, bool Indented, bool Folded);
+
+    enum SlotKind : byte
+    {
+        Solution,
+        Test,
+        Entry,
+        // An entry under a test's header
+        Member
+    }
 
     /// <summary>
     /// The one walk that decides which rows there are: what gets a header, and what a fold hides.
+    /// <para>
+    /// It says where each row is and nothing about it. A label, a tooltip and a header's members
+    /// are a kilobyte and more an entry, and two things ask for the rows without wanting them:
+    /// <see cref="VisibleEntries"/>, which is asked on every step through the queue and after
+    /// every entry a batch records, and <see cref="Visible"/>, which draws the forty rows that fit
+    /// out of however many there are. The same walk for all of them, so what is visible cannot be
+    /// decided twice.
+    /// </para>
     /// </summary>
-    /// <param name="state">The state whose queue is projected.</param>
-    /// <param name="described">
-    /// Whether the rows are to be drawn, and so want their labels, tooltips and group members. Not
-    /// for <see cref="VisibleEntries"/>, which asks only which entries have a row: that is asked
-    /// on every step through the queue and after every entry a batch records, and describing every
-    /// row to answer it was a kilobyte and more an entry each time. The same walk either way, so
-    /// what is visible cannot be decided twice.
-    /// </param>
-    static IReadOnlyList<QueueItem> Rows(SessionState state, bool described)
+    static List<Slot> Walk(SessionState state)
     {
         var entries = state.Queue;
         if (state.Mode == ViewerMode.File ||
@@ -122,24 +145,25 @@ static class QueueProjection
             return [];
         }
 
-        var solutions = new List<string?>();
-        foreach (var entry in entries)
+        // The queue is in order, so a second solution is wherever the first one's run ends
+        var showSolutions = false;
+        for (var index = 1; index < entries.Count; index++)
         {
-            if (!solutions.Contains(entry.Solution))
+            if (entries[index].Solution != entries[0].Solution)
             {
-                solutions.Add(entry.Solution);
+                showSolutions = true;
+                break;
             }
         }
 
-        var showSolutions = solutions.Count >= 2;
-        var labels = described ? Labels(entries) : null;
-
-        var rows = new List<QueueItem>();
-        var index = 0;
-        while (index < entries.Count)
+        // Nothing folded is nearly every queue, and then no header's key needs making to ask
+        var folds = state.Collapsed.Count > 0;
+        var slots = new List<Slot>(entries.Count + 1);
+        var position = 0;
+        while (position < entries.Count)
         {
-            var bucket = entries[index].Solution;
-            var bucketEnd = index;
+            var bucket = entries[position].Solution;
+            var bucketEnd = position;
             while (bucketEnd < entries.Count &&
                    entries[bucketEnd].Solution == bucket)
             {
@@ -147,33 +171,21 @@ static class QueueProjection
             }
 
             var header = showSolutions && bucket is not null;
-            var bucketKey = $"solution|{bucket}";
             if (header)
             {
-                var folded = state.Collapsed.Contains(bucketKey);
-                rows.Add(
-                    described
-                        ? new($"{Marker(folded)} {bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
-                        {
-                            GroupName = bucket,
-                            GroupKey = bucketKey,
-                            GroupMembers = Enumerable.Range(index, bucketEnd - index).ToList()
-                        }
-                        : undescribedHeader);
-
+                var folded = folds && state.Collapsed.Contains(SolutionKey(bucket));
+                slots.Add(new(SlotKind.Solution, position, bucketEnd, false, folded));
                 if (folded)
                 {
-                    index = bucketEnd;
+                    position = bucketEnd;
                     continue;
                 }
             }
 
-            // Two, so an entry sits under its header's text rather than under the header's marker.
-            var indent = header ? "  " : "";
-            while (index < bucketEnd)
+            while (position < bucketEnd)
             {
-                var group = TestGroup(entries[index]);
-                var groupEnd = index;
+                var group = TestGroup(entries[position]);
+                var groupEnd = position;
                 while (group is not null &&
                        groupEnd < bucketEnd &&
                        TestGroup(entries[groupEnd]) == group)
@@ -181,55 +193,92 @@ static class QueueProjection
                     groupEnd++;
                 }
 
-                if (groupEnd - index >= 2)
+                if (groupEnd - position >= 2)
                 {
-                    var groupKey = $"test|{group}";
-                    var folded = state.Collapsed.Contains(groupKey);
-                    rows.Add(
-                        described
-                            ? new($"{indent}{Marker(folded)} {entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
-                            {
-                                GroupName = entries[index].TestName,
-                                GroupKey = groupKey,
-                                GroupMembers = Enumerable.Range(index, groupEnd - index).ToList()
-                            }
-                            : undescribedHeader);
+                    var folded = folds && state.Collapsed.Contains(TestKey(group));
+                    slots.Add(new(SlotKind.Test, position, groupEnd, header, folded));
                     if (folded)
                     {
-                        index = groupEnd;
+                        position = groupEnd;
                         continue;
                     }
 
-                    for (; index < groupEnd; index++)
+                    for (; position < groupEnd; position++)
                     {
-                        // Under a test header the test name would repeat, so the entry falls back
-                        // to its call site — and its tip leaves the name out for the same reason.
-                        rows.Add(
-                            labels is null
-                                ? Undescribed(index)
-                                : EntryRow(entries[index], index, $"{indent}  ", entries[index].Name, state, true));
+                        slots.Add(new(SlotKind.Member, position, position + 1, header, false));
                     }
 
                     continue;
                 }
 
-                rows.Add(
-                    labels is null
-                        ? Undescribed(index)
-                        : EntryRow(entries[index], index, indent, labels[index], state));
-                index++;
+                slots.Add(new(SlotKind.Entry, position, position + 1, header, false));
+                position++;
+            }
+        }
+
+        return slots;
+    }
+
+    static string SolutionKey(string? solution) =>
+        $"solution|{solution}";
+
+    static string TestKey(string? group) =>
+        $"test|{group}";
+
+    /// <summary>
+    /// The rows for a run of slots: headers with their counts and members, entries with their
+    /// labels, tooltips and marks.
+    /// <para>
+    /// A row says the same thing whether it is described with every other row or with the few on
+    /// screen. What a label grows to tell it from another is decided over the whole queue either
+    /// way (<see cref="LabelsOf"/>), and nothing else a row says depends on any row but its own.
+    /// </para>
+    /// </summary>
+    static List<QueueItem> Describe(SessionState state, List<Slot> slots, int from, int to)
+    {
+        var entries = state.Queue;
+        var rows = new List<QueueItem>(Math.Max(0, to - from));
+        string[]? labels = null;
+        for (var index = from; index < to; index++)
+        {
+            var slot = slots[index];
+            // Two, so an entry sits under its header's text rather than under the header's marker.
+            var indent = slot.Indented ? "  " : "";
+            var entry = entries[slot.Start];
+            switch (slot.Kind)
+            {
+                case SlotKind.Solution:
+                    rows.Add(
+                        new($"{Marker(slot.Folded)} {entry.Solution} ({slot.End - slot.Start})", false, null, QueueRowKind.Header)
+                        {
+                            GroupName = entry.Solution,
+                            GroupKey = SolutionKey(entry.Solution),
+                            GroupMembers = Enumerable.Range(slot.Start, slot.End - slot.Start).ToList()
+                        });
+                    break;
+                case SlotKind.Test:
+                    rows.Add(
+                        new($"{indent}{Marker(slot.Folded)} {entry.TestName} ({slot.End - slot.Start})", false, null, QueueRowKind.Header)
+                        {
+                            GroupName = entry.TestName,
+                            GroupKey = TestKey(TestGroup(entry)),
+                            GroupMembers = Enumerable.Range(slot.Start, slot.End - slot.Start).ToList()
+                        });
+                    break;
+                case SlotKind.Member:
+                    // Under a test header the test name would repeat, so the entry falls back to
+                    // its call site — and its tip leaves the name out for the same reason.
+                    rows.Add(EntryRow(entry, slot.Start, $"{indent}  ", entry.Name, state, true));
+                    break;
+                default:
+                    labels ??= LabelsOf(entries);
+                    rows.Add(EntryRow(entry, slot.Start, indent, labels[slot.Start], state));
+                    break;
             }
         }
 
         return rows;
     }
-
-    // What a walk that is not to be drawn puts where a row would be: that there is one, and for
-    // an entry which.
-    static readonly QueueItem undescribedHeader = new("", false, null, QueueRowKind.Header);
-
-    static QueueItem Undescribed(int index) =>
-        new("", false, null, QueueRowKind.Entry, index);
 
     /// <summary>
     /// A disclosure marker, in both states. One that appeared only when folded would leave nothing
@@ -250,11 +299,11 @@ static class QueueProjection
     public static List<int> VisibleEntries(SessionState state)
     {
         var visible = new List<int>();
-        foreach (var row in Rows(state, described: false))
+        foreach (var slot in Walk(state))
         {
-            if (row.EntryIndex >= 0)
+            if (slot.Kind is SlotKind.Entry or SlotKind.Member)
             {
-                visible.Add(row.EntryIndex);
+                visible.Add(slot.Start);
             }
         }
 
@@ -266,20 +315,26 @@ static class QueueProjection
     /// stay visible, until the selection walks below the fold, then shifted to keep the selected
     /// row second from the bottom. <paramref name="top"/> is where the slice starts in the full
     /// projection, which is what maps a full-row anchor — the open menu's — into the slice.
+    /// <para>
+    /// Sliced before anything is described. A state is another one on every frame of a scroll or
+    /// a drag, each of which builds a screen, and describing every row of the queue to draw the
+    /// ones that fit was half a millisecond and a megabyte a frame at 2,000 entries.
+    /// </para>
     /// </summary>
     public static IReadOnlyList<QueueItem> Visible(SessionState state, int body, out int top)
     {
-        var rows = Rows(state);
+        var slots = Walk(state);
         top = 0;
-        if (rows.Count <= body)
+        if (slots.Count <= body)
         {
-            return rows;
+            return Describe(state, slots, 0, slots.Count);
         }
 
         var selected = 0;
-        for (var index = 0; index < rows.Count; index++)
+        for (var index = 0; index < slots.Count; index++)
         {
-            if (rows[index].Selected)
+            if (slots[index].Kind is SlotKind.Entry or SlotKind.Member &&
+                slots[index].Start == state.Selected)
             {
                 selected = index;
                 break;
@@ -288,14 +343,8 @@ static class QueueProjection
 
         top = selected < body
             ? 0
-            : Math.Min(selected - (body - 2), rows.Count - body);
-        var slice = new List<QueueItem>(body);
-        for (var index = top; index < top + body && index < rows.Count; index++)
-        {
-            slice.Add(rows[index]);
-        }
-
-        return slice;
+            : Math.Min(selected - (body - 2), slots.Count - body);
+        return Describe(state, slots, top, Math.Min(top + body, slots.Count));
     }
 
     // The conflict marker leads rather than trails, because trailing decorations are the first
@@ -396,6 +445,21 @@ static class QueueProjection
             QueueEntryKind.Delete => entry.LeftFile,
             _ => null
         };
+
+    /// <summary>
+    /// <see cref="Labels"/> for a queue, worked out once for as long as the queue is that one.
+    /// <para>
+    /// A label depends on every other entry's, so it cannot be had for the rows on screen alone:
+    /// the collisions are counted over the whole queue. But a queue is a list that is replaced and
+    /// never changed, and a scroll, a drag, a selection or a fold leaves it the list it was, so the
+    /// labels are kept against the list itself. Weakly, so they go when it does.
+    /// </para>
+    /// </summary>
+    static string[] LabelsOf(IReadOnlyList<QueueEntry> entries) =>
+        labelled.GetValue(entries, labelsOf);
+
+    static readonly ConditionalWeakTable<IReadOnlyList<QueueEntry>, string[]> labelled = new();
+    static readonly ConditionalWeakTable<IReadOnlyList<QueueEntry>, string[]>.CreateValueCallback labelsOf = Labels;
 
     /// <summary>
     /// The label an entry shows when it stands alone: the test name when one is known, else the

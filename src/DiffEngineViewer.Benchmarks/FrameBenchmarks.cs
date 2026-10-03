@@ -36,10 +36,17 @@ public class FrameBenchmarks
 
     readonly ScreenCache screens = new();
 
-    // One screen from one state: what every frame paid, and what a change to the state still does.
+    // One screen from one state: what every frame paid, and what a change to the state that leaves
+    // the queue the list it was still does. A scroll and a drag are that, every frame they last.
     [Benchmark(Baseline = true)]
     public object BuildScreen() =>
         ScreenBuilder.Build(state);
+
+    // And the screen of a queue that is another list, which is what an arrival, an accept or a
+    // settle leaves: the labels are worked out again, over every entry.
+    [Benchmark]
+    public object BuildScreenOfAChangedQueue() =>
+        ScreenBuilder.Build(state with { Queue = [..state.Queue] });
 
     // What the loop asks for each frame now: the screen of the state, which is the one in hand
     // whenever the state is the one the last frame had.
