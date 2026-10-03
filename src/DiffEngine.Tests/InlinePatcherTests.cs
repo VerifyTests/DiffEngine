@@ -933,6 +933,152 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
+    const string acceptedThenNew =
+        """
+        class Tests
+        {
+            async Task Test()
+            {
+                await Verify(a)
+                    .Snapshot("A");
+                await Verify(b);
+            }
+        }
+
+        """;
+
+    /// <summary>
+    /// Two verify calls in one test, the first already accepted, and a hint an accept higher in
+    /// the file left pointing past the member. The walk starts over from the declaration and meets
+    /// the accepted call first. Stopping there refused the patch over a Snapshot call that was
+    /// never in its way, with the call it was for two lines below.
+    /// </summary>
+    [Test]
+    public async Task AppendPassesOverACallThatAlreadyHasASnapshot()
+    {
+        var status = TryApply(Source(acceptedThenNew), 12, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Source(
+                """
+                class Tests
+                {
+                    async Task Test()
+                    {
+                        await Verify(a)
+                            .Snapshot("A");
+                        await Verify(b)
+                            .Snapshot("B");
+                    }
+                }
+
+                """));
+    }
+
+    /// <summary>
+    /// The hint lands on the accepted call this time, which is what a second framework's patch for
+    /// that same call site looks like once the first has been accepted. It names that call, so the
+    /// call after it is not somewhere else to put the snapshot.
+    /// </summary>
+    [Test]
+    public async Task AppendStopsAtACallOnTheRecordedLineThatAlreadyHasASnapshot()
+    {
+        var status = TryApply(Source(acceptedThenNew), 5, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    /// <summary>
+    /// With no member there is nothing to say where the test ends, so the call nearest the hint
+    /// still decides: the next one without a Snapshot call could be anybody's.
+    /// </summary>
+    [Test]
+    public async Task AppendWithNoMemberStopsAtTheNearestCall()
+    {
+        var status = TryApply(Source(acceptedThenNew), 4, InlinePatchMode.Append, null, "B", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    // Nothing left to take it, and nothing holding it either
+    [Test]
+    public async Task AppendIsRefusedWhenEveryCallInTheMemberHasASnapshot()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Verify(a).Snapshot("A");
+                    await Verify(b).Snapshot("other");
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    /// <summary>
+    /// The second framework's append again, but with a hint gone stale: the call that holds the
+    /// content is no longer the first one the walk meets, and the first one holding something
+    /// else used to make this a refusal over source that was already right.
+    /// </summary>
+    [Test]
+    public async Task AppendFindsItsContentAlreadyOnACallPastTheFirst()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Verify(a).Snapshot("A");
+                    await Verify(b).Snapshot("B");
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out _, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// An entry point inside the arguments of the call that was passed over. It has no Snapshot
+    /// call chained onto it, and reads as the next candidate, but it is part of a call that has.
+    /// </summary>
+    [Test]
+    public async Task AppendDoesNotLandInsideACallItPassedOver()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Throws(() => Verify(a)).Snapshot("A");
+                    await Verify(b);
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Throws(() => Verify(a)).Snapshot(\"A\");\n");
+        await Assert.That(newSource).Contains("await Verify(b)\n            .Snapshot(\"B\");");
+    }
+
     [Test]
     public async Task AppendWithNoVerifyCall()
     {

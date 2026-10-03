@@ -438,6 +438,14 @@ static class InlinePatcher
     /// already chained onto the invocation rather than the invocation's own closing paren - except
     /// where the chain ends in something Snapshot has to precede, which <see cref="WalkChain"/>
     /// answers.
+    /// <para>
+    /// The call is the first entry point the search yields that has no Snapshot call chained onto
+    /// it, not the first it yields. A hint goes stale the moment an accept higher in the file
+    /// inserts a literal, and the walk then starts over from the member's declaration - so the
+    /// first call it meets is the first in the test, which is the one most likely to have been
+    /// accepted already. Stopping there answered "already has a Snapshot call" for a patch whose
+    /// own call sat two lines further down, and a single accept dropped the entry.
+    /// </para>
     /// </summary>
     static PatchStatus TryAppend(
         string source,
@@ -453,7 +461,60 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, entryPoints, true, out var nameStart, out var openParen))
+        var found = false;
+        // Whether a call passed over for having a Snapshot call was holding this very content
+        var held = false;
+        List<(int Open, int Close)>? passedOver = null;
+        foreach (var (nameStart, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, entryPoints, true))
+        {
+            // An entry point in the argument list of a call that was passed over is part of that
+            // call. Throws(() => Verify(value)).Snapshot(...) has its Snapshot, and the Verify
+            // inside it is not a second place to hang one
+            if (passedOver is not null &&
+                passedOver.Any(_ => nameStart > _.Open && nameStart < _.Close))
+            {
+                continue;
+            }
+
+            found = true;
+            if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
+            {
+                failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
+                return PatchStatus.NotFound;
+            }
+
+            // Everything a call site needs to host a snapshot has now been established, which is
+            // all an anchor probe asked
+            if (anchorOnly)
+            {
+                return PatchStatus.Applied;
+            }
+
+            var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
+            if (chained < 0)
+            {
+                newSource = AppendCall(source, scan, lineStarts, nameStart, insertAt, newContent, eol, fileUnit);
+                return PatchStatus.Applied;
+            }
+
+            held |= HoldsContent(source, scan, chained, newContent);
+
+            // Two things end the search at a call that has one. The recorded line: a hint that
+            // lands on a call names it, and a Snapshot call already there holding other content is
+            // another framework's accept of the same call site, so carrying on would hang this
+            // snapshot on the test's next verify call instead. And having no member: nothing bounds
+            // the walk then, and the next call without one is as likely to be in another test
+            if (memberLine is null ||
+                IsOnHint(lineStarts, nameStart, lineHint))
+            {
+                break;
+            }
+
+            passedOver ??= [];
+            passedOver.Add((openParen, closeParen));
+        }
+
+        if (!found)
         {
             // Short, because every surface that shows it is one line: a status bar, a balloon, a
             // menu tooltip. Both clauses earn their place there because they are the two causes a
@@ -462,39 +523,31 @@ static class InlinePatcher
             return PatchStatus.NotFound;
         }
 
-        if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
+        // Every call that could have taken it has a Snapshot call. Another process may have
+        // appended one between the run and the accept, and two frameworks failing the same call
+        // site is the ordinary way that happens: each queues an append, and accepting the first
+        // leaves the second with nowhere to put a literal that is already there. Only the content
+        // tells the two apart. The same snapshot is done, and saying so matters - a refusal reads
+        // as a failure, and the reader who sent two identical snapshots and got one applied and
+        // one rejected has no way to see that their source is already right. A different one is a
+        // call site that cannot say what it wants until it has been re-run against the literal it
+        // now has.
+        if (held)
         {
-            failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
-            return PatchStatus.NotFound;
+            return PatchStatus.AlreadyApplied;
         }
 
-        // Everything a call site needs to host a snapshot has now been established, which is all
-        // an anchor probe asked
-        if (anchorOnly)
-        {
-            return PatchStatus.Applied;
-        }
+        failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
+        return PatchStatus.NotFound;
+    }
 
-        var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
-        // Another process may have appended one between the run and the accept, and two
-        // frameworks failing the same call site is the ordinary way that happens: each queues an
-        // append, and accepting the first leaves the second with nowhere to put a literal that is
-        // already there. Only the content tells the two apart. The same snapshot is done, and
-        // saying so matters - a refusal reads as a failure, and the reader who sent two identical
-        // snapshots and got one applied and one rejected has no way to see that their source is
-        // already right. A different one is a call site that cannot say what it wants until it has
-        // been re-run against the literal it now has.
-        if (chained >= 0)
-        {
-            if (HoldsContent(source, scan, chained, newContent))
-            {
-                return PatchStatus.AlreadyApplied;
-            }
-
-            failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
-            return PatchStatus.NotFound;
-        }
-
+    /// <summary>
+    /// The source with a Snapshot call holding <paramref name="newContent"/> spliced in at
+    /// <paramref name="insertAt"/>, on a line of its own under the call at
+    /// <paramref name="nameStart"/>.
+    /// </summary>
+    static string AppendCall(string source, SourceScan scan, List<int> lineStarts, int nameStart, int insertAt, string newContent, string eol, string fileUnit)
+    {
         var statementIndent = LeadingWhitespace(source, lineStarts, nameStart);
         var unit = UnitFor(fileUnit, statementIndent);
         // Line up with the existing chain when there is one, otherwise start it one level in
@@ -504,8 +557,7 @@ static class InlinePatcher
         var contentIndent = callIndent + unit;
         var rendered = scan.Language.Render(newContent, contentIndent, eol);
         var argument = OnOwnLine(rendered, contentIndent, eol);
-        newSource = Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
-        return PatchStatus.Applied;
+        return Splice(source, insertAt, insertAt, $"{eol}{callIndent}.{methodName}({argument})");
     }
 
     /// <summary>

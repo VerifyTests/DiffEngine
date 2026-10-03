@@ -543,6 +543,31 @@ public class InlinePatcherFsTests
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
     }
 
+    // The first call in the test was accepted, which is what left the hint stale, so the walk from
+    // the member's declaration meets it before the call the patch is for
+    [Test]
+    public async Task AppendPassesOverACallThatAlreadyHasASnapshot()
+    {
+        var source = Test(
+            """
+                Verifier.Verify(a).Snapshot("A").ToTask() |> ignore
+                Verifier.Verify(b).ToTask() |> ignore
+                printfn "done"
+            """);
+
+        var status = TryApply(source, 7, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "MyTest");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(a).Snapshot("A").ToTask() |> ignore
+                    Verifier.Verify(b)
+                        .Snapshot("B").ToTask() |> ignore
+                    printfn "done"
+                """));
+    }
+
     [Test]
     public async Task AppendingTheSameContentTwiceIsAlreadyApplied()
     {
