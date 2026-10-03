@@ -49,12 +49,33 @@ sealed class ViewerServer : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// How long a failed accept is waited out before the next, once two have failed in a row.
+    /// See <see cref="Serve"/>.
+    /// </summary>
+    internal static readonly TimeSpan FailedAcceptWait = TimeSpan.FromMilliseconds(100);
+
     public async Task Listen(Func<ViewerMessage, ViewerResponse> handle, Cancel cancel = default)
     {
         // Sync dispose: CancellationTokenRegistration is only IAsyncDisposable from net6, and
         // waiting for an in flight Stop callback buys nothing here.
         // ReSharper disable once UseAwaitUsing
         using var registration = cancel.Register(listener.Stop);
+        await Serve(
+                Accept,
+                _ => Task.Run(() => Handle(_, handle, cancel), Cancel.None),
+                cancel)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The accept loop, with the accept and what is done with a connection handed in: a test has
+    /// no way to make a real listener's accept fail, and how the loop takes a failure is the
+    /// part of it that has gone wrong.
+    /// </summary>
+    internal static async Task Serve(Func<Cancel, Task<TcpClient>> accept, Action<TcpClient> serve, Cancel cancel)
+    {
+        var failedInARow = 0;
         while (!cancel.IsCancellationRequested)
         {
             TcpClient client;
@@ -65,7 +86,8 @@ sealed class ViewerServer : IDisposable
                 // waited for the render loop to pump: every connection went unanswered for as long
                 // as that thread was busy, which an accept holding InlineApplier's mutex makes up
                 // to ten seconds. Both awaits, because the first Accept runs on the caller's thread.
-                client = await Accept(cancel).ConfigureAwait(false);
+                client = await accept(cancel).ConfigureAwait(false);
+                failedInARow = 0;
             }
             catch (OperationCanceledException)
             {
@@ -92,14 +114,44 @@ sealed class ViewerServer : IDisposable
                 // its connection sits in the backlog surfaces exactly this way - WSAECONNRESET on
                 // Windows, ECONNABORTED on BSD and macOS - and returning gave the queue away for
                 // the life of the process: the socket stays bound, so nobody else can take it,
-                // and every later client lands in a backlog nothing is draining
+                // and every later client lands in a backlog nothing is draining.
+                //
+                // That one is over as soon as it is reported, so the first failure is retried at
+                // once. One that fails again is not that. A process out of descriptors is refused
+                // every accept, at once, with the connection left waiting in the backlog, until
+                // something is closed: retried straight away that was ten thousand failed accepts
+                // a second and a whole core, for as long as it lasted. So from the second on there
+                // is a wait between them
+                failedInARow++;
+                if (failedInARow > 1 &&
+                    !await Pause(cancel).ConfigureAwait(false))
+                {
+                    return;
+                }
+
                 continue;
             }
 
             // Each connection on its own task, so one slow exchange does not stop the next from
             // being answered. Accepting an inline snapshot legitimately takes seconds, and a
             // client whose listing goes unanswered for that long concludes the owner has died.
-            _ = Task.Run(() => Handle(client, handle, cancel), Cancel.None);
+            serve(client);
+        }
+    }
+
+    /// <summary>
+    /// False when the listener was stopped during the wait.
+    /// </summary>
+    static async Task<bool> Pause(Cancel cancel)
+    {
+        try
+        {
+            await Task.Delay(FailedAcceptWait, cancel).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 

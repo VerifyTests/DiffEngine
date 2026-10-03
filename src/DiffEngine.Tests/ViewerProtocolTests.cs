@@ -1042,6 +1042,41 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// An accept that keeps failing, which is what a process out of descriptors gets: each one
+    /// refused at once, with the connection left in the backlog, until something is closed.
+    /// Retried with nothing between them that was ten thousand failed accepts a second, measured
+    /// on Linux under a low descriptor limit, and a core for as long as it went on.
+    /// <para>
+    /// Half a second of nothing but failures is the first, the retry it gets at once, and then
+    /// one each <see cref="ViewerServer.FailedAcceptWait"/>. The bound is several times that and
+    /// thousands of times under what the loop made of it before.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AnAcceptThatKeepsFailingIsWaitedOut()
+    {
+        using var cancel = new CancelSource();
+        var accepts = 0;
+
+        async Task<TcpClient> Accept(Cancel token)
+        {
+            Interlocked.Increment(ref accepts);
+            // So the loop is left between failures, as a real accept leaves it, rather than
+            // holding the thread that started it
+            await Task.Yield();
+            throw new SocketException((int) SocketError.TooManyOpenSockets);
+        }
+
+        var serving = ViewerServer.Serve(Accept, _ => _.Dispose(), cancel.Token);
+        await Task.Delay(500);
+        cancel.Cancel();
+        await Wait(serving);
+
+        await Assert.That(Volatile.Read(ref accepts)).IsGreaterThan(1);
+        await Assert.That(Volatile.Read(ref accepts)).IsLessThan(30);
+    }
+
+    /// <summary>
     /// An owner that answers with an error is not an absent one. Collapsing the two into false
     /// meant a refused inline was read as "nobody is there", so a second viewer was launched, it
     /// could not bind the port, and the snapshot was reported as Queued while being held by
