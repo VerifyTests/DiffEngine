@@ -551,6 +551,111 @@ public class PixelTests
         await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
     }
 
+    /// <summary>
+    /// A window nothing is happening to is left alone: the Linux head builds no frame for it and
+    /// draws nothing into it, where it used to draw the frame already there sixty times a second,
+    /// which under a software rasteriser was more than half a core for a viewer left open. Nothing
+    /// a capture does can tell the two apart, so this is asked of the window itself, shown for
+    /// as long as the test takes: the same screen is presented a second at a time until a second
+    /// goes by in which nothing was drawn.
+    /// <para>
+    /// A second, and not the first one. The frame after a window is shown is drawn, and the head
+    /// goes on building frames for a second after anything changes before it leaves a window
+    /// alone, so the first second draws and a later one does not. Which later one is not asserted:
+    /// the window system may ask for the window again, and a runner may be slow. A head that has
+    /// gone back to drawing every frame never has such a second.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 21)]
+    [SkipOnMac("A capture host never creates the macOS window, and the counts are asked of OpenGL, which that head does not draw with.")]
+    public async Task AWindowLeftAloneIsNotDrawn()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        var (first, rested) = await OnShimThread(
+            () =>
+            {
+                window!.SetHidden(false);
+                try
+                {
+                    var first = Drawn(60, screen);
+                    var watch = Stopwatch.StartNew();
+                    var rested = false;
+                    while (!rested &&
+                           watch.Elapsed < TimeSpan.FromSeconds(30))
+                    {
+                        rested = Drawn(60, screen) == 0;
+                    }
+
+                    return (first, rested);
+                }
+                finally
+                {
+                    window.SetHidden(true);
+                }
+            });
+
+        // Or the count is of nothing, and a second with none drawn says nothing either
+        await Assert.That(first).IsGreaterThan(0);
+        await Assert.That(rested).IsTrue();
+    }
+
+    static uint drawnQuery;
+
+    /// <summary>
+    /// How many of so many presents, of the screens given in turn, put anything on the screen.
+    /// Asked of OpenGL, as <c>NativeHead</c> in the benchmarks asks it: the primitives generated
+    /// between the start of a present and its end are the triangles the shim submitted, whichever
+    /// rasteriser then filled them, and a present that generated none drew nothing. On the shim's
+    /// thread, which is the one the GL context belongs to.
+    /// </summary>
+    static int Drawn(int presents, params Screen[] screens)
+    {
+        if (drawnQuery == 0)
+        {
+            Gl.GenQueries(1, out drawnQuery);
+        }
+
+        var drawn = 0;
+        for (var present = 0; present < presents; present++)
+        {
+            Gl.BeginQuery(Gl.PrimitivesGenerated, drawnQuery);
+            window!.Present(screens[present % screens.Length]);
+            Gl.EndQuery(Gl.PrimitivesGenerated);
+            Gl.GetQueryObject(drawnQuery, Gl.QueryResult, out var primitives);
+            if (primitives > 0)
+            {
+                drawn++;
+            }
+        }
+
+        return drawn;
+    }
+
+    /// <summary>
+    /// The four OpenGL calls a query takes, from the library the shim's own context came from.
+    /// </summary>
+    static class Gl
+    {
+        const string library = "libGL.so.1";
+
+        public const uint PrimitivesGenerated = 0x8C87;
+        public const uint QueryResult = 0x8866;
+
+        [DllImport(library, EntryPoint = "glGenQueries")]
+        public static extern void GenQueries(int count, out uint id);
+
+        [DllImport(library, EntryPoint = "glBeginQuery")]
+        public static extern void BeginQuery(uint target, uint id);
+
+        [DllImport(library, EntryPoint = "glEndQuery")]
+        public static extern void EndQuery(uint target);
+
+        [DllImport(library, EntryPoint = "glGetQueryObjectuiv")]
+        public static extern void GetQueryObject(uint id, uint name, out uint value);
+    }
+
     static async Task Capture(SessionState state, int gridRows = rows)
     {
         var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, gridRows));
