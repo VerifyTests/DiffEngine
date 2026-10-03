@@ -129,11 +129,15 @@ struct CachedTexture
 
     /* Sampled as its own pixels rather than smoothed: see SampleAsPixels. */
     bool point = false;
+
+    /* Some of it can be seen through, so it is drawn over a checkerboard: see SeeThrough. */
+    bool translucent = false;
 };
 
 /*
  * One picture to decode, or decoded: the path, the stamp the decode was asked for, and once it is
- * done the pixels, which are empty when raylib could not read the file.
+ * done the pixels, which are empty when raylib could not read the file, and whether any of them
+ * can be seen through.
  */
 struct Decode
 {
@@ -141,6 +145,7 @@ struct Decode
     std::uintmax_t length = 0;
     std::filesystem::file_time_type written{};
     Image image{};
+    bool translucent = false;
 };
 
 /*
@@ -254,6 +259,14 @@ struct State
 
     /* Started with the first picture asked for, so a window that never shows one never has it. */
     std::shared_ptr<Decoder> decoder;
+
+    /*
+     * The checkerboard behind a picture that can be seen through: two squares by two, a texel
+     * each, which the picture's texture coordinates repeat across it. Made with the first picture
+     * to need it, and once, whether or not that worked: see Checker.
+     */
+    Texture2D checker{};
+    bool checkerMade = false;
 
     /* Inside deview_capture, which draws one frame that has to come out the same every time: its
      * pictures are decoded there and then, and a spinner stands still. */
@@ -553,6 +566,58 @@ void SampleAsPixels(const std::string& path, bool point)
     found->second.point = point;
 }
 
+/*
+ * Whether any of a decoded picture can be seen through: whether it has a pixel that is less than
+ * opaque. That is what the checkerboard behind a picture is for, and behind a picture with no such
+ * pixel every square of it is covered, so it is not drawn.
+ *
+ * Asked of the pixels rather than of the format. A screenshot or a drawn page of a document is
+ * usually saved with an alpha channel that is 255 throughout, and those are most of the pictures
+ * there are. One pass over them as they are decoded, which is off the window's thread for every
+ * picture but a capture's.
+ */
+bool SeeThrough(const Image& image)
+{
+    if (image.data == nullptr)
+    {
+        return false;
+    }
+
+    size_t stride = 0;
+    size_t alpha = 0;
+    switch (image.format)
+    {
+        case PIXELFORMAT_UNCOMPRESSED_GRAYSCALE:
+        case PIXELFORMAT_UNCOMPRESSED_R8G8B8:
+        case PIXELFORMAT_UNCOMPRESSED_R5G6B5:
+            return false;
+        case PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA:
+            stride = 2;
+            alpha = 1;
+            break;
+        case PIXELFORMAT_UNCOMPRESSED_R8G8B8A8:
+            stride = 4;
+            alpha = 3;
+            break;
+        /* Not one the decoders built here hand back for a picture the viewer shows. Taken to have
+         * something to see through, which costs one quad where it has not. */
+        default:
+            return true;
+    }
+
+    const unsigned char* pixels = static_cast<const unsigned char*>(image.data);
+    const size_t count = static_cast<size_t>(image.width) * static_cast<size_t>(image.height);
+    for (size_t pixel = 0; pixel < count; pixel++)
+    {
+        if (pixels[pixel * stride + alpha] != 255)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void DecodeLoop(std::shared_ptr<Decoder> decoder)
 {
     std::unique_lock<std::mutex> lock(decoder->mutex);
@@ -570,6 +635,7 @@ void DecodeLoop(std::shared_ptr<Decoder> decoder)
 
         /* The file and stb_image under it, and nothing that touches GL. */
         decode.image = LoadImage(decode.path.c_str());
+        decode.translucent = SeeThrough(decode.image);
 
         lock.lock();
         if (decoder->stopping)
@@ -682,6 +748,7 @@ void TakeDecoded()
                 {
                     entry.texture = texture;
                     entry.loaded = true;
+                    entry.translucent = decode.translucent;
                     PrepareTexture(entry);
                 }
             }
@@ -722,7 +789,7 @@ void ForgetPicture(const std::string& path)
  * queue poller uses: a re-run that rewrites a received image has to refresh the pane rather than
  * leave the previous one up.
  */
-const Texture2D* Picture(const std::string& path, bool& loading)
+const CachedTexture* Picture(const std::string& path, bool& loading)
 {
     loading = false;
     if (path.empty())
@@ -756,7 +823,7 @@ const Texture2D* Picture(const std::string& path, bool& loading)
         {
             found->second.used = true;
             loading = found->second.decoding;
-            return found->second.loaded ? &found->second.texture : nullptr;
+            return found->second.loaded ? &found->second : nullptr;
         }
 
         ForgetPicture(path);
@@ -768,12 +835,20 @@ const Texture2D* Picture(const std::string& path, bool& loading)
     entry.used = true;
     if (state.capturing)
     {
-        const Texture2D texture = LoadTexture(path.c_str());
-        if (IsTextureValid(texture))
+        /* What LoadTexture does, taken apart so the pixels can be looked at on the way through. */
+        const Image image = LoadImage(path.c_str());
+        if (image.data != nullptr)
         {
-            entry.texture = texture;
-            entry.loaded = true;
-            PrepareTexture(entry);
+            const Texture2D texture = LoadTextureFromImage(image);
+            if (IsTextureValid(texture))
+            {
+                entry.texture = texture;
+                entry.loaded = true;
+                entry.translucent = SeeThrough(image);
+                PrepareTexture(entry);
+            }
+
+            UnloadImage(image);
         }
     }
     else
@@ -784,7 +859,7 @@ const Texture2D* Picture(const std::string& path, bool& loading)
     }
 
     const auto inserted = state.pictures.emplace(path, entry).first;
-    return inserted->second.loaded ? &inserted->second.texture : nullptr;
+    return inserted->second.loaded ? &inserted->second : nullptr;
 }
 
 /*
@@ -820,6 +895,40 @@ void ForgetUnusedPictures()
     }
 }
 
+/*
+ * The checkerboard's texture, or null on a context that would not make one, where a picture is
+ * drawn over the lighter of the two tones instead.
+ *
+ * Sampled as its two tones and nothing between them, and repeating, which is what lets one quad
+ * the size of the picture stand for every square behind it.
+ */
+const Texture2D* Checker()
+{
+    if (!state.checkerMade)
+    {
+        state.checkerMade = true;
+
+        /* Light where the row and the column are both even or both odd, and dark elsewhere. */
+        unsigned char pixels[] = {
+            64, 64, 64, 255, 48, 48, 48, 255,
+            48, 48, 48, 255, 64, 64, 64, 255};
+        Image image{};
+        image.data = pixels;
+        image.width = 2;
+        image.height = 2;
+        image.mipmaps = 1;
+        image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        state.checker = LoadTextureFromImage(image);
+        if (IsTextureValid(state.checker))
+        {
+            SetTextureFilter(state.checker, TEXTURE_FILTER_POINT);
+            SetTextureWrap(state.checker, TEXTURE_WRAP_REPEAT);
+        }
+    }
+
+    return IsTextureValid(state.checker) ? &state.checker : nullptr;
+}
+
 void UnloadPictures()
 {
     StopDecoder();
@@ -832,6 +941,14 @@ void UnloadPictures()
     }
 
     state.pictures.clear();
+
+    if (IsTextureValid(state.checker))
+    {
+        UnloadTexture(state.checker);
+    }
+
+    state.checker = Texture2D{};
+    state.checkerMade = false;
 }
 
 /* ---- fonts ---- */
@@ -1968,27 +2085,32 @@ void RecordPaneImage(PaneImage& bounds, const DeviewPane& pane, int index)
     bounds.pitch = cursor.y - bounds.first;
 }
 
+/*
+ * The checkerboard behind a picture, as one quad: the texture is two squares across and two down,
+ * so texture coordinates that run to the picture's size over two squares repeat it at the size of
+ * a square, counted from the picture's own top left corner.
+ *
+ * It was a quad a dark square, tessellated again every frame: about 4,500 for two pictures at the
+ * size the window opens at and over 56,000 for two in a maximised 4K window, sixty times a second.
+ * The pixels are the same ones. A square's edge falls on a whole pixel, half a pixel from the
+ * nearest pixel centre either side, which is where the texture is sampled.
+ */
 void DrawChecker(ImDrawList* list, const ImVec2& min, const ImVec2& max)
 {
-    list->AddRectFilled(min, max, IM_COL32(64, 64, 64, 255));
-    const ImU32 dark = IM_COL32(48, 48, 48, 255);
-    int row = 0;
-    for (float y = min.y; y < max.y; y += checkerSize, row++)
+    const Texture2D* checker = Checker();
+    if (checker == nullptr)
     {
-        int column = 0;
-        for (float x = min.x; x < max.x; x += checkerSize, column++)
-        {
-            if ((row & 1) == (column & 1))
-            {
-                continue;
-            }
-
-            list->AddRectFilled(
-                ImVec2(x, y),
-                ImVec2(std::min(x + checkerSize, max.x), std::min(y + checkerSize, max.y)),
-                dark);
-        }
+        list->AddRectFilled(min, max, IM_COL32(64, 64, 64, 255));
+        return;
     }
+
+    const float repeat = checkerSize * 2.0f;
+    list->AddImage(
+        static_cast<ImTextureID>(checker->id),
+        min,
+        max,
+        ImVec2(0.0f, 0.0f),
+        ImVec2((max.x - min.x) / repeat, (max.y - min.y) / repeat));
 }
 
 /*
@@ -2071,8 +2193,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
 
     bool loading = false;
     const std::string path = Copy(screen, pane.imagePathOffset, pane.imagePathLength);
-    const Texture2D* texture = Picture(path, loading);
-    if (texture == nullptr)
+    const CachedTexture* decoded = Picture(path, loading);
+    if (decoded == nullptr)
     {
         /* Nothing at all for a picture this build cannot decode: the rows have said what it is. */
         if (loading)
@@ -2112,7 +2234,7 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     SampleAsPixels(
         path,
         pane.imageZoom > 1.0f &&
-        fitted.x * pane.imageZoom >= static_cast<float>(texture->width));
+        fitted.x * pane.imageZoom >= static_cast<float>(decoded->texture.width));
     if (pane.imageZoom > 1.0f)
     {
         const ImVec2 whole(fitted.x * pane.imageZoom, fitted.y * pane.imageZoom);
@@ -2146,8 +2268,14 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         top + (available - size.y) * 0.5f));
     const ImVec2 max(min.x + size.x, min.y + size.y);
 
-    DrawChecker(list, min, max);
-    list->AddImage(static_cast<ImTextureID>(texture->id), min, max, uvMin, uvMax);
+    /* Only behind a picture some of it would show through. Behind any other every square is under
+     * an opaque pixel, and filling them costs a software rasteriser the picture's area again. */
+    if (decoded->translucent)
+    {
+        DrawChecker(list, min, max);
+    }
+
+    list->AddImage(static_cast<ImTextureID>(decoded->texture.id), min, max, uvMin, uvMax);
     /* An outline, so a picture whose edges are the colour of the pane still has visible extent. */
     list->AddRect(
         ImVec2(min.x - 1.0f, min.y - 1.0f),
