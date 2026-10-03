@@ -228,6 +228,10 @@ final class Runtime {
         scroller.autoresizingMask = [.minXMargin, .height]
         scroller.target = target
         scroller.action = #selector(ControlTarget.scrolled(_:))
+        // Said rather than left to whatever a scroller starts as. A scroll view sees to this for
+        // its own scrollers and there is none here, and a scroller that is not enabled draws its
+        // slot with no knob in it to take hold of.
+        scroller.isEnabled = true
         view.addSubview(scroller)
 
         self.scroller = scroller
