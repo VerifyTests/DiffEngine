@@ -439,6 +439,33 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A pair whose diff tool is the viewer, sent to the tray again as a Diff: what "Open diff tool"
+    /// on it does, since the viewer that starts cannot bind the port and forwards the pair here.
+    /// The verb carries no tool, and the tray replaced the one it had recorded with its own choice
+    /// for the extension, so the pair stopped counting as open and "Accept open" passed over it
+    /// while it was on screen in the viewer.
+    /// </summary>
+    [Test]
+    public async Task ADiffForAPairTheTrayTracksLeavesItOpenInTheViewer()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        var viewerExe = Path.Combine(Path.GetTempPath(), "some-other-package", "viewer", "DiffEngineViewer.exe");
+        // The piper move DiffEngine sends for a pair it resolved the viewer for
+        pair.Tracker.AddMove(move.Temp, move.Target, viewerExe, $"--diff \"{move.Temp}\" \"{move.Target}\"", false, null);
+
+        var response = pair.Send(new(ViewerVerb.Diff, move.Temp, move.Target));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(pair.Tracker.Moves.Single().Exe).IsEqualTo(viewerExe);
+
+        await pair.Tracker.AcceptOpen();
+
+        await Assert.That(pair.Tracker.Moves).IsEmpty();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+    }
+
+    /// <summary>
     /// The tray menu is built from the last scan, so an item can outlive its entry: the test
     /// re-ran and passed, or the viewer accepted it first. Clicking it accepts nothing, and there
     /// is nothing to tell the user — a failure balloon there names a snapshot that is already in

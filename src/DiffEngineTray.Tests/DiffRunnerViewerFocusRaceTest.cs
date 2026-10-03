@@ -69,9 +69,10 @@ public class DiffRunnerViewerFocusRaceTest
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(fixture.Launches).IsEqualTo(1);
-        // Focus raised the window over the entry that was already there, so nothing re-tracked it:
-        // a Diff would have replaced the move, losing the exe and arguments the piper send carries.
-        await Assert.That(fixture.TrackedExe()).IsEqualTo(exe);
+        // Focus raised the window over the entry that was already there, so nothing re-tracked it.
+        // A Diff would have: it keeps the exe and arguments the piper send carried, but every
+        // arrival for a tracked pair replaces its entry.
+        await Assert.That(fixture.IsStillTheMoveTracked()).IsTrue();
     }
 
     sealed class Fixture :
@@ -124,13 +125,15 @@ public class DiffRunnerViewerFocusRaceTest
         /// that always worked.
         /// </summary>
         public void Track() =>
-            tracker.AddMove(Temp, Target, exe, "--diff", false, null);
+            tracked = tracker.AddMove(Temp, Target, exe, "--diff", false, null);
+
+        TrackedMove? tracked;
 
         public bool Tracks(string key) =>
             ((ITrackedFiles) tracker).Has(key);
 
-        public string? TrackedExe() =>
-            tracker.Moves.Single().Exe;
+        public bool IsStillTheMoveTracked() =>
+            ReferenceEquals(tracker.Moves.Single(), tracked);
 
         public Task<MovePayload> PiperMove() =>
             move.Task.WaitAsync(TimeSpan.FromSeconds(10), piperCancel.Token);

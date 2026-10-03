@@ -222,7 +222,9 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
+                var move = exe == null
+                    ? Retarget(existing, target, process)
+                    : BuildTrackedMove(temp, exe, arguments, canKill, target, process);
 
                 if (exeFile == null)
                 {
@@ -236,6 +238,32 @@ class Tracker :
                 return move;
             });
     }
+
+    /// <summary>
+    /// A move that arrives for a pair already tracked and names no tool: what it says is the
+    /// target, and everything recorded about the tool stays as it was.
+    /// <para>
+    /// A move with no tool is one over the viewer port, which carries the two paths and nothing
+    /// else, or one from a run that launched nothing. Neither says anything about the tool the
+    /// pair was first tracked with, and filling the gap from the extension, as a move seen for the
+    /// first time has to, replaced that tool with this tray's own choice. "Open diff tool" on a
+    /// viewer pair is how it happened by hand: the viewer it starts cannot bind the port and
+    /// forwards the pair here as a Diff. The pair then read as another tool's with no window, so
+    /// "Accept open" passed over it while it was on screen, and it had become killable.
+    /// </para>
+    /// </summary>
+    static TrackedMove Retarget(TrackedMove existing, string target, Process? process) =>
+        new(
+            existing.Temp,
+            target,
+            existing.Exe,
+            existing.Arguments,
+            existing.CanKill,
+            process,
+            SolutionDirectoryFinder.Find(target),
+            Path.GetExtension(target).TrimStart('.'),
+            existing.KillLockingProcess,
+            existing.IsViewer);
 
     static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool? canKill, string target, Process? process)
     {

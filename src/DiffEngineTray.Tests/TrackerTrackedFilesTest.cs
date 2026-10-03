@@ -251,6 +251,92 @@ public class TrackerTrackedFilesTest :
         await Assert.That(File.Exists(temp)).IsFalse();
     }
 
+    /// <summary>
+    /// A pair the tray already tracks, arriving again over the viewer port. That message carries
+    /// the two paths and nothing about the tool, and the tray filled the gap with its own choice
+    /// for the extension - over a move that already said which tool was showing the pair. "Open
+    /// diff tool" on a viewer pair does exactly this: it starts DiffEngineViewer --diff, which
+    /// cannot bind the port and forwards the pair to the tray. The pair then read as some other
+    /// tool's with no window open, and "Accept open" skipped it while it sat on screen.
+    /// </summary>
+    [Test]
+    public async Task AMoveArrivingAgainOverTheViewerPortKeepsItsTool()
+    {
+        await using var tracker = new RecordingTracker();
+        await File.WriteAllTextAsync(temp, "content");
+        var arguments = $"--diff \"{temp}\" \"{target}\"";
+        tracker.AddMove(temp, target, viewerExe, arguments, false, null);
+
+        ((ITrackedFiles) tracker).AddMove(temp, target);
+
+        var move = tracker.Moves.Single();
+        await Assert.That(move.Exe).IsEqualTo(viewerExe);
+        await Assert.That(move.Arguments).IsEqualTo(arguments);
+        await Assert.That(move.CanKill).IsFalse();
+        await Assert.That(move.IsViewer).IsTrue();
+        await Assert.That(move.IsOpen).IsTrue();
+    }
+
+    /// <summary>
+    /// The same for any other tool: what the sender said about it, and the process it started,
+    /// are still the tool showing the pair.
+    /// </summary>
+    [Test]
+    public async Task AMoveArrivingAgainOverTheViewerPortKeepsAnotherToolAndItsProcess()
+    {
+        await using var tracker = new RecordingTracker();
+        await File.WriteAllTextAsync(temp, "content");
+        // Stands in for the diff tool the sender started for the pair. A process of its own,
+        // since the tray kills the tool of a move it may kill
+        var tool = FileLockUtils.StartFileLockProcess(file);
+        try
+        {
+            tracker.AddMove(temp, target, "theExe", "theArguments", true, tool.Id);
+
+            ((ITrackedFiles) tracker).AddMove(temp, target);
+
+            var move = tracker.Moves.Single();
+            await Assert.That(move.Exe).IsEqualTo("theExe");
+            await Assert.That(move.Arguments).IsEqualTo("theArguments");
+            await Assert.That(move.CanKill).IsTrue();
+            await Assert.That(move.IsViewer).IsFalse();
+            await Assert.That(move.Process!.Id).IsEqualTo(tool.Id);
+            await Assert.That(move.IsOpen).IsTrue();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(tool);
+        }
+    }
+
+    /// <summary>
+    /// What that message does say is taken: the target, and what is derived from it.
+    /// </summary>
+    [Test]
+    public async Task AMoveArrivingAgainOverTheViewerPortTakesItsTarget()
+    {
+        await using var tracker = new RecordingTracker();
+        await File.WriteAllTextAsync(temp, "content");
+        tracker.AddMove(temp, target, viewerExe, "--diff", false, null);
+        var moved = Path.Combine(Path.GetTempPath(), $"TrackedFilesTest_{Guid.NewGuid():N}.Other.verified.bin");
+
+        ((ITrackedFiles) tracker).AddMove(temp, moved);
+
+        var move = tracker.Moves.Single();
+        await Assert.That(move.Target).IsEqualTo(moved);
+        await Assert.That(move.Extension).IsEqualTo("bin");
+        await Assert.That(move.Exe).IsEqualTo(viewerExe);
+        await Assert.That(move.IsViewer).IsTrue();
+    }
+
+    // The copy bundled in some other project's DiffEngine package, which is where a sender's
+    // viewer is and a path this process has never resolved
+    static readonly string viewerExe = Path.Combine(
+        Path.GetTempPath(),
+        "some-other-package",
+        "viewer",
+        "DiffEngineViewer.exe");
+
     public void Dispose()
     {
         File.Delete(file);
