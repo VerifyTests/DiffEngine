@@ -122,13 +122,36 @@ static class InlinePatcher
         out string newSource,
         out string failReason)
     {
-        newSource = "";
-        failReason = "";
-        var eol = DetectEol(source);
-        var lineStarts = BuildLineStarts(source);
         // Everything that reads the scan does so before this returns, the searches that are
         // enumerated lazily included, so its map goes back to the pool on the way out
         using var scan = language.Scan(source);
+        return TryApply(scan, lineHint, mode, originalExpression, originalValue, memberName, entryPoints, anchorOnly, newContent, out newSource, out failReason);
+    }
+
+    /// <summary>
+    /// The same, over source that has been lexed already. For a caller with more than one thing
+    /// to ask of the same text: a probe of each call site in a file, or a batch, which carries
+    /// the scan from each patch to the next (<see cref="SourceScan.Edited"/>).
+    /// </summary>
+    public static PatchStatus TryApply(
+        SourceScan scan,
+        int lineHint,
+        InlinePatchMode mode,
+        string? originalExpression,
+        string? originalValue,
+        string? memberName,
+        string[]? entryPoints,
+        bool anchorOnly,
+        string newContent,
+        out string newSource,
+        out string failReason)
+    {
+        newSource = "";
+        failReason = "";
+        var language = scan.Language;
+        var source = scan.Source;
+        var eol = scan.Eol;
+        var lineStarts = scan.LineStarts;
         var memberLine = MemberLine(source, scan, lineStarts, lineHint, memberName);
 
         if (mode == InlinePatchMode.Remove)
@@ -136,12 +159,14 @@ static class InlinePatcher
             return TryRemove(language, source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), originalExpression, originalValue, eol, ref newSource, ref failReason);
         }
 
-        var fileUnit = DetectIndentUnit(source, scan, lineStarts);
-
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), anchorOnly, newContent, eol, fileUnit, ref newSource, ref failReason);
+            // Not asked for a probe, which writes nothing
+            var appendUnit = anchorOnly ? "" : scan.IndentUnit;
+            return TryAppend(source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), anchorOnly, newContent, eol, appendUnit, ref newSource, ref failReason);
         }
+
+        var fileUnit = scan.IndentUnit;
 
         if (!string.IsNullOrEmpty(originalExpression))
         {
@@ -2212,123 +2237,9 @@ static class InlinePatcher
             .ToString();
 #endif
 
-    static string DetectEol(string source)
-    {
-        var crlf = 0;
-        var lf = 0;
-        for (var index = 0; index < source.Length; index++)
-        {
-            if (source[index] != '\n')
-            {
-                continue;
-            }
-
-            if (index > 0 && source[index - 1] == '\r')
-            {
-                crlf++;
-            }
-            else
-            {
-                lf++;
-            }
-        }
-
-        if (crlf >= lf && crlf > 0)
-        {
-            return "\r\n";
-        }
-
-        if (lf > 0)
-        {
-            return "\n";
-        }
-
-        return Environment.NewLine;
-    }
-
     /// <summary>
-    /// What one level of indentation is made of in this file: the most common run of whitespace a
-    /// line adds to the one above it.
-    /// <para>
-    /// Read off the source rather than taken from a convention, because a splice has to match the
-    /// code it lands in, and files disagree with their repo's settings often enough - vendored,
-    /// generated, or last edited by someone configured differently - that following the convention
-    /// would make the patch look more out of place, not less. It answers the one question a single
-    /// call site cannot: a line shows which characters it is indented with, but not how wide a
-    /// level is, and hard coding four spaces is wrong in every two space repo.
-    /// </para>
-    /// Returns "" when the file is too small to show a step, which leaves the choice to
-    /// <see cref="UnitFor"/>.
-    /// </summary>
-    static string DetectIndentUnit(string source, SourceScan scan, List<int> lineStarts)
-    {
-        Dictionary<string, int> counts = new(StringComparer.Ordinal);
-        var previous = "";
-        foreach (var lineStart in lineStarts)
-        {
-            // Inside a comment or a literal the leading whitespace is content, not indentation.
-            // A snapshot literal in particular is arbitrary text, and counting its lines would
-            // measure the snapshot rather than the file
-            if (!scan.IsCode(lineStart))
-            {
-                continue;
-            }
-
-            var index = lineStart;
-            while (index < source.Length &&
-                   (source[index] == ' ' || source[index] == '\t'))
-            {
-                index++;
-            }
-
-            // A blank line has no indentation of its own, and must not break the run either
-            if (index >= source.Length ||
-                source[index] == '\r' ||
-                source[index] == '\n')
-            {
-                continue;
-            }
-
-            var lead = source.Substring(lineStart, index - lineStart);
-            // Only a line that indents further than the one above, by adding to what it already
-            // had. Anything else is a dedent, or whitespace of a different kind, and neither
-            // measures a step
-            if (lead.Length > previous.Length &&
-                lead.StartsWith(previous, StringComparison.Ordinal))
-            {
-                var step = lead.Substring(previous.Length);
-                counts.TryGetValue(step, out var count);
-                counts[step] = count + 1;
-            }
-
-            previous = lead;
-        }
-
-        var best = "";
-        var bestCount = 0;
-        foreach (var pair in counts)
-        {
-            if (bestCount == 0 ||
-                pair.Value > bestCount ||
-                pair.Value == bestCount && Closer(pair.Key, best))
-            {
-                best = pair.Key;
-                bestCount = pair.Value;
-            }
-        }
-
-        return best;
-
-        // A tie goes to the shorter step, since a longer one is two levels taken at once, and
-        // then to ordinal order so the answer cannot depend on enumeration order
-        static bool Closer(string candidate, string current) =>
-            candidate.Length == current.Length
-                ? string.CompareOrdinal(candidate, current) < 0
-                : candidate.Length < current.Length;
-    }
-
-    /// <summary>
-    /// One level of indentation for a splice at a site indented with <paramref name="lead"/>.
+    /// One level of indentation for a splice at a site indented with <paramref name="lead"/>,
+    /// given the file's own (<see cref="SourceScan.IndentUnit"/>).
     /// <para>
     /// The character comes from the site and the width from the file, so a file that indents
     /// inconsistently still gets a splice consistent with its own surroundings, while a file that
@@ -2364,20 +2275,6 @@ static class InlinePatcher
             .Replace("\r\n", "\n")
             .Replace('\r', '\n')
             .Replace("\n", eol);
-
-    static List<int> BuildLineStarts(string source)
-    {
-        List<int> starts = [0];
-        for (var index = 0; index < source.Length; index++)
-        {
-            if (source[index] == '\n' && index + 1 < source.Length)
-            {
-                starts.Add(index + 1);
-            }
-        }
-
-        return starts;
-    }
 
     static int LineOf(List<int> lineStarts, int offset)
     {

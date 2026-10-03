@@ -32,8 +32,8 @@ public static class InlineApplier
     /// at a time, the whole file is read, lexed and written again for every patch, and the write
     /// is where the time goes. A file that has just been written is scanned by whatever watches
     /// the drive before the next thing can open it, and for five hundred snapshots in one ten
-    /// thousand line file that came to half a minute. The lexing is still once per patch, since
-    /// each starts from different source.
+    /// thousand line file that came to half a minute. The lexing is once a file too, and around
+    /// each edit after that (<see cref="PatchInTurn"/>).
     /// </para>
     /// <para>
     /// So a write that fails fails every patch it was carrying, and each says so. The patches
@@ -275,66 +275,7 @@ public static class InlineApplier
 
         var language = SourceLanguage.ForFile(fullPath);
         var results = new InlineApplyResult[patches.Count];
-        // The first patch whose edit the write below has to carry, or -1 while there is none
-        var firstToWrite = -1;
-        for (var index = 0; index < results.Length; index++)
-        {
-            var patch = patches[index];
-            PatchStatus status;
-            string newSource;
-            string failReason;
-            try
-            {
-                status = InlinePatcher.TryApply(
-                    language,
-                    source,
-                    patch.LineHint,
-                    patch.Mode,
-                    patch.OriginalExpression,
-                    patch.OriginalValue,
-                    patch.MemberName,
-                    patch.EntryPoints,
-                    anchorOnly,
-                    SourceLanguage.NormalizeNewlines(patch.NewContent),
-                    out newSource,
-                    out failReason);
-            }
-            catch (Exception exception)
-            {
-                // A patcher defect on some shape of source, reported against the file it met it in
-                // rather than thrown at whichever surface was accepting
-                results[index] = InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
-                continue;
-            }
-
-            switch (status)
-            {
-                case PatchStatus.AlreadyApplied:
-                    results[index] = InlineApplyResult.AlreadyApplied;
-                    continue;
-                case PatchStatus.NotFound:
-                    results[index] = InlineApplyResult.NotFound(failReason);
-                    continue;
-            }
-
-            // Every reason a patch can be refused for has been asked by this point and none of
-            // them held. All that remains is the write, which is the one step a dry run may not
-            // take
-            results[index] = InlineApplyResult.Applied;
-            if (!write)
-            {
-                continue;
-            }
-
-            // The next patch is applied to this one's result, as it would have been to the file
-            // this one had written
-            source = newSource;
-            if (firstToWrite < 0)
-            {
-                firstToWrite = index;
-            }
-        }
-
+        var firstToWrite = PatchInTurn(language, ref source, patches, write, anchorOnly, fullPath, results);
         if (firstToWrite < 0)
         {
             return results;
@@ -373,6 +314,124 @@ public static class InlineApplier
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Applies the patches of one file to its source in memory, each to what the one before it
+    /// left, and says what became of each. Returns the first patch whose edit a write has to
+    /// carry, or -1 when none made one.
+    /// <para>
+    /// The source is lexed once, for the first patch, and the scan is carried from each patch
+    /// that edits to the next (<see cref="SourceScan.Edited"/>), which lexes only around the
+    /// edit. Lexed whole for every patch, five hundred snapshots in a 600 KB file were most of a
+    /// second of patching around their one write. What each patch is told is what it would have
+    /// been told over a scan of the whole text, since the scan it is given is that scan.
+    /// </para>
+    /// </summary>
+    /// <param name="language">The language the source is in.</param>
+    /// <param name="source">The source, replaced by each patch that edits when writing.</param>
+    /// <param name="patches">The patches, in the order they are to be applied.</param>
+    /// <param name="write">False for a dry run, where every patch is asked of the same source.</param>
+    /// <param name="anchorOnly">Whether only a call site is being asked for.</param>
+    /// <param name="fullPath">The file, for a failure to name.</param>
+    /// <param name="results">Filled with an outcome for each patch.</param>
+    internal static int PatchInTurn(
+        SourceLanguage language,
+        ref string source,
+        IReadOnlyList<InlinePatch> patches,
+        bool write,
+        bool anchorOnly,
+        string fullPath,
+        InlineApplyResult[] results)
+    {
+        // The first patch whose edit the write has to carry, or -1 while there is none
+        var firstToWrite = -1;
+        SourceScan? scan = null;
+        try
+        {
+            for (var index = 0; index < results.Length; index++)
+            {
+                var patch = patches[index];
+                PatchStatus status;
+                string newSource;
+                string failReason;
+                try
+                {
+                    scan ??= language.Scan(source);
+                    status = InlinePatcher.TryApply(
+                        scan,
+                        patch.LineHint,
+                        patch.Mode,
+                        patch.OriginalExpression,
+                        patch.OriginalValue,
+                        patch.MemberName,
+                        patch.EntryPoints,
+                        anchorOnly,
+                        SourceLanguage.NormalizeNewlines(patch.NewContent),
+                        out newSource,
+                        out failReason);
+                }
+                catch (Exception exception)
+                {
+                    // A patcher defect on some shape of source, reported against the file it met
+                    // it in rather than thrown at whichever surface was accepting
+                    results[index] = InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
+                    continue;
+                }
+
+                switch (status)
+                {
+                    case PatchStatus.AlreadyApplied:
+                        results[index] = InlineApplyResult.AlreadyApplied;
+                        continue;
+                    case PatchStatus.NotFound:
+                        results[index] = InlineApplyResult.NotFound(failReason);
+                        continue;
+                }
+
+                // Every reason a patch can be refused for has been asked by this point and none
+                // of them held. All that remains is the write, which is the one step a dry run
+                // may not take
+                results[index] = InlineApplyResult.Applied;
+                if (!write)
+                {
+                    continue;
+                }
+
+                // The next patch is applied to this one's result, as it would have been to the
+                // file this one had written
+                source = newSource;
+                if (firstToWrite < 0)
+                {
+                    firstToWrite = index;
+                }
+
+                var previous = scan;
+                scan = null;
+                try
+                {
+                    if (index + 1 < results.Length)
+                    {
+                        scan = previous.Edited(newSource);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Left for the next patch to lex whole, which is what it used to do. A scan
+                    // that could not be carried is no reason to fail a patch that has applied
+                }
+                finally
+                {
+                    previous.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            scan?.Dispose();
+        }
+
+        return firstToWrite;
     }
 
     /// <summary>

@@ -22,12 +22,19 @@ sealed class CsLanguage : SourceLanguage
     internal override bool IsIdentifierChar(char ch) =>
         char.IsLetterOrDigit(ch) || ch == '_';
 
-    internal override SourceScan Scan(string source)
+    internal override void Lex(SourceScan scan, int from)
     {
-        var scan = new SourceScan(this, source);
-        var index = 0;
+        var source = scan.Source;
+        var rejoinFrom = scan.RejoinFrom;
+        var index = from;
         while (index < source.Length)
         {
+            if (index >= rejoinFrom &&
+                scan.TryRejoin(index))
+            {
+                return;
+            }
+
             var start = index;
             switch (source[index])
             {
@@ -81,8 +88,6 @@ sealed class CsLanguage : SourceLanguage
             // Code, which is whatever the map was not told otherwise about
             index++;
         }
-
-        return scan;
     }
 
     /// <summary>

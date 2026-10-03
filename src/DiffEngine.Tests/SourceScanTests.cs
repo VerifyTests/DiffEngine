@@ -80,6 +80,177 @@ public class SourceScanTests
         await Assert.That(spans).IsGreaterThan(10);
     }
 
+    /// <summary>
+    /// What an edit is made of here: everything that opens, closes or escapes a comment or a
+    /// literal in either language, line breaks of both kinds, and a backslash in front of one,
+    /// which is the one thing a lexer reads across a line break from in front of it.
+    /// </summary>
+    static readonly string[] pieces =
+    [
+        "\"", "\"\"\"", "\"\"\"\"", "'", "\\", "\n", "\r\n", "\\\n", "'\\\n", "//", "/*", "*/", "(*", "*)", "(*)",
+        "#", "#if X", "$\"", "$$\"\"\"", "@\"", "{", "}", "{{", "}}", "``", " ", "    ", "\t", "x", "'x'", "u8", "B",
+        "Verify(value)", ".Snapshot(\"old\")", ";"
+    ];
+
+    /// <summary>
+    /// A scan made from another by <see cref="SourceScan.Edited" /> is the scan of the whole
+    /// text: every answer it gives, at every offset, after each of a run of edits made at random.
+    /// A batch carries its scan from patch to patch this way, so anything the two disagree on is
+    /// a patch told something other than what applying it by itself would have told it.
+    /// </summary>
+    [Test]
+    [Arguments("cs")]
+    [Arguments("fs")]
+    public async Task AScanMadeFromAnotherIsTheScanOfTheWholeText(string extension)
+    {
+        var language = SourceLanguage.ForFile($"file.{extension}");
+        var problems = new List<string>();
+        for (var seed = 0; seed < 400 && problems.Count < 5; seed++)
+        {
+            var random = new Random(seed);
+            // Each language's sample, and the other's, which is mostly not this one's syntax
+            var other = seed % 4 == 3;
+            var text = SourceLanguage.NormalizeNewlines(other == (extension == "cs") ? fsharp : csharp);
+            var scan = language.Scan(text);
+            try
+            {
+                for (var step = 0; step < 25; step++)
+                {
+                    // The line starts are carried only once they have been asked for
+                    if (random.Next(2) == 0)
+                    {
+                        _ = scan.LineStarts;
+                    }
+
+                    var edited = Edit(random, text);
+                    var next = scan.Edited(edited);
+                    scan.Dispose();
+                    scan = next;
+                    text = edited;
+                    using var whole = language.Scan(text);
+                    if (Difference(scan, whole) is { } difference)
+                    {
+                        problems.Add($"seed {seed}, step {step}: {difference}");
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                scan.Dispose();
+            }
+        }
+
+        await Assert.That(problems).IsEmpty();
+    }
+
+    /// <summary>
+    /// The same over a file of thousands of lines, where most of the scan is carried and the
+    /// lexer has a long way to go to rejoin it when an edit opens something.
+    /// </summary>
+    [Test]
+    [Arguments("InlinePatcherTests.cs")]
+    [Arguments("FsCompilerRoundTripTests.cs")]
+    public async Task AScanMadeFromAnotherOfTheSuitesOwnSourceIsTheScanOfTheWholeText(string file)
+    {
+        var text = await File.ReadAllTextAsync(Path.Combine(SourceDirectory, file));
+        var random = new Random(file.Length);
+        var problems = new List<string>();
+        var scan = SourceLanguage.CSharp.Scan(text);
+        try
+        {
+            for (var step = 0; step < 60; step++)
+            {
+                if (step == 20)
+                {
+                    _ = scan.LineStarts;
+                }
+
+                var edited = Edit(random, text);
+                var next = scan.Edited(edited);
+                scan.Dispose();
+                scan = next;
+                text = edited;
+                using var whole = SourceLanguage.CSharp.Scan(text);
+                if (Difference(scan, whole) is { } difference)
+                {
+                    problems.Add($"step {step}: {difference}");
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            scan.Dispose();
+        }
+
+        await Assert.That(problems).IsEmpty();
+    }
+
+    static string Edit(Random random, string text)
+    {
+        var start = random.Next(text.Length + 1);
+        var length = random.Next(3) == 0 ? 0 : random.Next(Math.Min(12, text.Length - start) + 1);
+        var replacement = new StringBuilder();
+        for (var count = random.Next(4); count > 0; count--)
+        {
+            replacement.Append(pieces[random.Next(pieces.Length)]);
+        }
+
+        return text[..start] + replacement + text[(start + length)..];
+    }
+
+    /// <summary>
+    /// The first thing two scans of one text answer differently, or null when there is none.
+    /// </summary>
+    static string? Difference(SourceScan made, SourceScan whole)
+    {
+        for (var offset = 0; offset <= whole.Source.Length + 1; offset++)
+        {
+            if (made.IsCode(offset) != whole.IsCode(offset))
+            {
+                return $"{offset} is code to one and not the other";
+            }
+
+            if (made.TryGetSkip(offset, out var madeEnd) != whole.TryGetSkip(offset, out var wholeEnd) ||
+                madeEnd != wholeEnd)
+            {
+                return $"the span starting at {offset} ends at {madeEnd} and at {wholeEnd}";
+            }
+
+            if (made.TryGetCommentSkip(offset, out madeEnd) != whole.TryGetCommentSkip(offset, out wholeEnd) ||
+                madeEnd != wholeEnd)
+            {
+                return $"the comment starting at {offset} ends at {madeEnd} and at {wholeEnd}";
+            }
+
+            if (made.TryGetSkipEndingAt(offset, out var madeStart) != whole.TryGetSkipEndingAt(offset, out var wholeStart) ||
+                madeStart != wholeStart)
+            {
+                return $"the span ending at {offset} starts at {madeStart} and at {wholeStart}";
+            }
+
+            if (made.TryGetCommentEndingAt(offset, out madeStart) != whole.TryGetCommentEndingAt(offset, out wholeStart) ||
+                madeStart != wholeStart)
+            {
+                return $"the comment ending at {offset} starts at {madeStart} and at {wholeStart}";
+            }
+        }
+
+        if (!made.LineStarts.SequenceEqual(whole.LineStarts))
+        {
+            return "the lines start in different places";
+        }
+
+        if (made.Eol != whole.Eol ||
+            made.IndentUnit != whole.IndentUnit)
+        {
+            return "the line break or the indentation differs";
+        }
+
+        return null;
+    }
+
     static string SourceDirectory { get; } = Path.GetDirectoryName(GetSourceFile())!;
 
     static string GetSourceFile([CallerFilePath] string path = "") => path;

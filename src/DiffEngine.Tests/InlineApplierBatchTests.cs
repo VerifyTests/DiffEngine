@@ -211,6 +211,163 @@ public class InlineApplierBatchTests
     public async Task AnEmptyBatchIsNoResults() =>
         await Assert.That(InlineApplier.ApplyAll([])).IsEmpty();
 
+    /// <summary>
+    /// A batch lexes its file once and carries the scan from each patch to the next. What each
+    /// patch is told, and what the source comes to, has to be what lexing the whole text again
+    /// for every patch gives. Patches of every mode, in an order made at random: literals that
+    /// grow and move every call site under them, calls appended and removed, the same patch
+    /// twice, an anchor that is in no call, and hints that are stale from the first edit on.
+    /// </summary>
+    [Test]
+    [Arguments("cs")]
+    [Arguments("fs")]
+    public async Task ACarriedScanTellsEachPatchWhatLexingAgainWould(string extension)
+    {
+        var language = SourceLanguage.ForFile($"Sample.{extension}");
+        var path = Path.Combine(Path.GetTempPath(), $"Sample.{extension}");
+        var problems = new List<string>();
+        var seen = new HashSet<InlineApplyStatus>();
+        for (var seed = 0; seed < 60 && problems.Count < 3; seed++)
+        {
+            var random = new Random(seed);
+            var (source, patches) = MixedBatch(random, extension, path, seed % 2 == 0 ? "\n" : "\r\n");
+
+            var carried = source;
+            var results = new InlineApplyResult[patches.Count];
+            InlineApplier.PatchInTurn(language, ref carried, patches, true, false, path, results);
+
+            var lexedAgain = source;
+            for (var index = 0; index < patches.Count; index++)
+            {
+                var patch = patches[index];
+                var status = InlinePatcher.TryApply(
+                    language,
+                    lexedAgain,
+                    patch.LineHint,
+                    patch.Mode,
+                    patch.OriginalExpression,
+                    patch.OriginalValue,
+                    patch.MemberName,
+                    patch.EntryPoints,
+                    false,
+                    patch.NewContent,
+                    out var patched,
+                    out var reason);
+                if (status == PatchStatus.Applied)
+                {
+                    lexedAgain = patched;
+                }
+
+                var expected = status switch
+                {
+                    PatchStatus.Applied => InlineApplyResult.Applied,
+                    PatchStatus.AlreadyApplied => InlineApplyResult.AlreadyApplied,
+                    _ => InlineApplyResult.NotFound(reason)
+                };
+                if (results[index].Status != expected.Status ||
+                    results[index].Message != expected.Message)
+                {
+                    problems.Add($"seed {seed}, patch {index} ({patch.Mode} at {patch.LineHint}): {results[index].Status} {results[index].Message}, and lexed again {expected.Status} {expected.Message}");
+                    break;
+                }
+            }
+
+            if (carried != lexedAgain)
+            {
+                problems.Add($"seed {seed}: the source differs");
+            }
+
+            seen.UnionWith(results.Select(_ => _.Status));
+        }
+
+        await Assert.That(problems).IsEmpty();
+        // Or the batches were all refusals, and agreed about nothing much
+        await Assert.That(seen).IsEquivalentTo([InlineApplyStatus.Applied, InlineApplyStatus.AlreadyApplied, InlineApplyStatus.NotFound]);
+    }
+
+    /// <summary>
+    /// A file of members, each with a call that has a snapshot and one that has none, and a
+    /// shuffled batch of patches for them.
+    /// </summary>
+    static (string source, List<InlinePatch> patches) MixedBatch(Random random, string extension, string path, string eol)
+    {
+        var fsharp = extension == "fs";
+        var builder = new StringBuilder();
+        var patches = new List<InlinePatch>();
+        var line = 0;
+
+        void Add(string text)
+        {
+            builder.Append(text);
+            builder.Append(eol);
+            line++;
+        }
+
+        Add(fsharp ? "module Tests" : "class Tests");
+        Add(fsharp ? "" : "{");
+        var members = 6 + random.Next(6);
+        for (var member = 0; member < members; member++)
+        {
+            Add(fsharp ? $"let member{member} () =" : $"    async Task Member{member}()");
+            Add(fsharp ? "    // a comment with a \" in it" : "    {");
+            Add($"        {(fsharp ? "let" : "var")} text{member} = \"a string // with (* things */ in it\"{(fsharp ? "" : ";")}");
+            Add($"        Verify(first{member})");
+            Add($"            .Snapshot(\"old {member}\"){(fsharp ? ".ToTask() |> ignore" : ";")}");
+            var snapshotLine = line;
+            Add($"        Verify(second{member}){(fsharp ? ".ToTask() |> ignore" : ";")}");
+            var verifyLine = line;
+            Add(fsharp ? "" : "    }");
+
+            var name = fsharp ? $"member{member}" : $"Member{member}";
+            InlinePatch Patch(int hint, string? expression, string? value, string content, InlinePatchMode mode) =>
+                new(path, hint, fsharp ? null : expression, content, mode)
+                {
+                    TestName = null,
+                    MemberName = name,
+                    OriginalValue = fsharp ? value : null
+                };
+
+            var content = random.Next(3) switch
+            {
+                0 => $"new {member}",
+                1 => $"new {member}\nsecond \"line\"\n    third",
+                _ => $"// {member}\n(* \"\"\" *)\n"
+            };
+            switch (random.Next(5))
+            {
+                case 0:
+                    patches.Add(Patch(snapshotLine, $"\"old {member}\"", $"old {member}", content, InlinePatchMode.Set));
+                    break;
+                case 1:
+                    patches.Add(Patch(snapshotLine, $"\"old {member}\"", $"old {member}", "", InlinePatchMode.Remove));
+                    break;
+                case 2:
+                    patches.Add(Patch(verifyLine, null, null, content, InlinePatchMode.Append));
+                    break;
+                case 3:
+                    // Both of a member's calls, and the first of them twice
+                    patches.Add(Patch(snapshotLine, $"\"old {member}\"", $"old {member}", content, InlinePatchMode.Set));
+                    patches.Add(Patch(verifyLine, null, null, content, InlinePatchMode.Append));
+                    patches.Add(Patch(snapshotLine, $"\"old {member}\"", $"old {member}", content, InlinePatchMode.Set));
+                    break;
+                default:
+                    patches.Add(Patch(snapshotLine, "\"in no call\"", "in no call", content, InlinePatchMode.Set));
+                    break;
+            }
+        }
+
+        Add(fsharp ? "" : "}");
+
+        // Queue order is not file order
+        for (var index = patches.Count - 1; index > 0; index--)
+        {
+            var other = random.Next(index + 1);
+            (patches[index], patches[other]) = (patches[other], patches[index]);
+        }
+
+        return (builder.ToString(), patches);
+    }
+
     // Joined, because the order is the point and the collection assertions do not check it
     static string Statuses(IEnumerable<InlineApplyResult> results) =>
         string.Join(", ", results.Select(_ => _.Status));
