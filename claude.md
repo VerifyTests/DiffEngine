@@ -378,6 +378,13 @@ apart.
   move key rather than killing anything, since the row is drawn in a window shared with every other
   pending pair. That is what makes ten failing image snapshots one window instead of ten, and it is
   only available to the viewer because no other tool can be told to drop one pair.
+- An arrival raises the window but does not take the selection: the first of a run is the one on
+  screen, and the rest join the queue behind it. So `Diff` and an inline `Enqueue` raise with no
+  key, on both owners, and the tray route's `Focus` is marked `ViewerMessage.Arrived`, which an
+  owner answers the same way (an older one reads past the body and selects, as before). It matters
+  beyond tidiness because `DocumentWatch` draws whatever is on screen: following each arrival in
+  drew every document of a run as it landed. A plain `Focus` still selects, since that is the tray
+  menu or an editor asking for that entry, and an arrival into an empty queue is on screen anyway.
 - The catch that shape creates: every inline transition rebuilds its half of the queue from
   `InlineQueue`, so `ViewerSession.Rebuild` carries the tracked entries across it. Without that,
   accepting one snapshot silently drops the files pending beside it. `Sync` is the one caller that

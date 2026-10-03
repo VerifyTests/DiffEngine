@@ -150,4 +150,31 @@ static class SampleImages
         using var data = image.Encode(format, 90);
         return data.ToArray();
     }
+
+    /// <summary>
+    /// A JPEG the size of a photograph, 4000 by 3000: big enough that decoding it and scaling it to
+    /// a pane take long enough to see. A gradient out from the colour rather than the colour alone,
+    /// which JPEG would reduce to almost nothing to decode.
+    /// </summary>
+    public static byte[] Photo(byte red, byte green, byte blue)
+    {
+        const int photoWidth = 4000;
+        const int photoHeight = 3000;
+        using var bitmap = new SKBitmap(photoWidth, photoHeight);
+        using (var canvas = new SKCanvas(bitmap))
+        using (var shader = SKShader.CreateRadialGradient(
+                   new(photoWidth / 2f, photoHeight / 2f),
+                   photoWidth / 2f,
+                   [new(red, green, blue), SKColors.Black],
+                   SKShaderTileMode.Clamp))
+        using (var paint = new SKPaint())
+        {
+            paint.Shader = shader;
+            canvas.DrawRect(0, 0, photoWidth, photoHeight, paint);
+        }
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+        return data.ToArray();
+    }
 }

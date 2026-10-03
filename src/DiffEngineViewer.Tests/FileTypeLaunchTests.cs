@@ -1,4 +1,5 @@
 extern alias engine;
+using System.Globalization;
 using EngineLaunch = engine::DiffEngine.LaunchResult;
 using EngineRunner = engine::DiffEngine.DiffRunner;
 using EngineTool = engine::DiffEngine.DiffTool;
@@ -151,6 +152,110 @@ public class FileTypeLaunchTests
             "The text is GeoJSON, indented, the point's coordinates differing",
             "A map drawn under the text, the point further east on the left",
             "No page buttons, and the status line says the drawings differ");
+
+    /// <summary>
+    /// What a run that fails a lot of document snapshots at once leaves the viewer with: one window
+    /// holding long PDFs, Office files, maps that take a while to draw, photograph sized pictures
+    /// and SVGs, three of each. For watching what happens while they draw.
+    /// <para>
+    /// Every one of them is drawn off the window's thread, so the window has to answer the whole
+    /// time, with a spinner standing in for each picture until it lands. And only the entry on
+    /// screen is read and drawn. The first to arrive is on screen, and the rest join the queue
+    /// without taking the selection, so each waits to be read and drawn until it is selected.
+    /// </para>
+    /// </summary>
+    [Test]
+    [Explicit]
+    public async Task ManyDocuments()
+    {
+        var pairs = new List<(string Name, string Extension, byte[] Received, byte[] Verified)>();
+        for (var round = 1; round <= 3; round++)
+        {
+            pairs.Add(($"Report{round}", ".pdf", LongPdf(round, changed: true), LongPdf(round, changed: false)));
+            pairs.Add(($"Letter{round}", ".docx", Edited(".docx", "Hello World!", $"Hello World {round}!"), File.ReadAllBytes(Sample(".docx"))));
+            pairs.Add(($"Sheet{round}", ".xlsx", Edited(".xlsx", "Dulce", $"Dulce {round}"), File.ReadAllBytes(Sample(".xlsx"))));
+            pairs.Add(($"Slides{round}", ".pptx", Edited(".pptx", "Hello, PowerPoint!", $"Hello, PowerPoint {round}!"), File.ReadAllBytes(Sample(".pptx"))));
+            pairs.Add(($"Survey{round}", ".fgb", BusyMap(round, moved: true), BusyMap(round, moved: false)));
+            pairs.Add(($"Photo{round}", ".jpg", SampleImages.Photo(220, 120, 60), SampleImages.Photo(60, 120, 220)));
+            pairs.Add(($"Logo{round}", ".svg", Encoding.UTF8.GetBytes(SvgOf("red")), Encoding.UTF8.GetBytes(SvgOf("blue"))));
+        }
+
+        foreach (var extension in pairs.Select(_ => _.Extension).Distinct())
+        {
+            await Assert.That(EngineTools.IsDetectedForExtension(EngineTool.DiffEngineViewer, extension)).IsTrue();
+        }
+
+        var directory = ManualViewer.TempDirectory();
+        var first = pairs[0];
+        ManualViewer.Expect(
+            "A lot of documents at once",
+            $"One window, Pending ({pairs.Count}), with the first to arrive, {first.Name} ({first.Extension.TrimStart('.')}), on screen throughout: the rest join the queue without taking the selection",
+            $"Only {first.Name} is read and drawn; the others wait until they are selected",
+            "Where a page or picture is still to come, a spinner turns in its place, and the status line says drawing",
+            "A long PDF draws its left side first, a page at a time, with the right side's spinner turning until its turn comes, and it moves to the page that differs once both sides have drawn it",
+            "The window answers throughout: scroll the text, Tab through the queue, drag the splitter, resize the window",
+            "Step to an entry not opened yet: reading text, then spinners, then its pages",
+            "Step back to one already drawn: its pages come back without waiting on drawing again",
+            "Step quickly past several: only the one stopped on is drawn, once whatever was under way has finished",
+            "The 4000 by 3000 photos show a spinner briefly while they are decoded and scaled, and resizing the window rescales them without it stalling");
+
+        var results = new List<EngineLaunch>();
+        foreach (var (name, extension, received, verified) in pairs)
+        {
+            var temp = Path.Combine(directory.FullName, $"{name}.received{extension}");
+            var target = Path.Combine(directory.FullName, $"{name}.verified{extension}");
+            await File.WriteAllBytesAsync(temp, received);
+            await File.WriteAllBytesAsync(target, verified);
+            results.Add(await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target));
+        }
+
+        // One window: the first pair starts it, and every pair after is handed to it
+        await Assert.That(results.Count(_ => _ == EngineLaunch.StartedNewInstance)).IsEqualTo(1);
+        await Assert.That(results.Count(_ => _ == EngineLaunch.AlreadyRunningAndSupportsRefresh)).IsEqualTo(pairs.Count - 1);
+        await ManualViewer.WaitForClose();
+    }
+
+    /// <summary>
+    /// A hundred and twenty pages, one of them differing, so a side takes long enough to draw to
+    /// watch its pages land and the other side's spinner turn while they do.
+    /// </summary>
+    internal static byte[] LongPdf(int round, bool changed) =>
+        SamplePdf.Build(
+            Enumerable.Range(1, 120)
+                .Select(_ => changed && _ == round * 30 ? $"Report {round}, page {_}, changed" : $"Report {round}, page {_}")
+                .ToArray());
+
+    /// <summary>
+    /// Four hundred large squares overlapping, each blended over much of the map: GeoConvert takes a
+    /// while to draw them, where a map of that many vertices would be text too long to diff. The last
+    /// square is moved on the moved side.
+    /// </summary>
+    internal static byte[] BusyMap(int round, bool moved)
+    {
+        const int squares = 400;
+        var builder = new StringBuilder("""{"type":"FeatureCollection","features":[""");
+        for (var index = 0; index < squares; index++)
+        {
+            if (index > 0)
+            {
+                builder.Append(',');
+            }
+
+            // Two degrees a side, with corners walking round a circle a degree across
+            var angle = index * Math.Tau / squares;
+            var left = 150 + round + Math.Cos(angle) + (moved && index == squares - 1 ? 0.5 : 0);
+            var bottom = -34 + Math.Sin(angle);
+            builder.Append(
+                CultureInfo.InvariantCulture,
+                $$$"""{"type":"Feature","properties":{"index":{{{index}}}},"geometry":{"type":"Polygon","coordinates":[[[{{{left}}},{{{bottom}}}],[{{{left + 2}}},{{{bottom}}}],[{{{left + 2}}},{{{bottom + 2}}}],[{{{left}}},{{{bottom + 2}}}],[{{{left}}},{{{bottom}}}]]]}}""");
+        }
+
+        builder.Append("]}");
+        var features = GeoConvert.GeoJson.ReadString(builder.ToString());
+        using var stream = new MemoryStream();
+        GeoConvert.GeoConverter.Write(features, stream, GeoConvert.GeoFormat.FlatGeobuf);
+        return stream.ToArray();
+    }
 
     /// <summary>
     /// Through <see cref="EngineRunner"/>, which is what a test run calls, after asking DiffEngine

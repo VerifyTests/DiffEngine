@@ -22,6 +22,13 @@ namespace DiffEngine;
 /// </param>
 record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, string? Member = null, string? Value = null)
 {
+    /// <summary>
+    /// The <see cref="Body"/> of a <see cref="ViewerVerb.Focus"/> sent for an entry that has just
+    /// joined the queue: raise the window, and leave the selection on whatever is being read. An
+    /// owner that predates it reads past the body and selects the entry, as every focus used to.
+    /// </summary>
+    public const string Arrived = "arrived";
+
     public string Build()
     {
         var builder = new StringBuilder($"version: {ViewerPayload.Version}\n");

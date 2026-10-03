@@ -164,14 +164,33 @@ public class IpcTests
         using var fixture = new ServerFixture();
         fixture.Send(Inline(Fixtures.Patch()));
         fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
-        // A patch that arrives is selected, so the newest is what is in view
-        await Assert.That(fixture.Host.State.Selected).IsEqualTo(1);
+        // A patch that arrives joins the queue rather than taking the selection, so the first is
+        // what is in view
+        await Assert.That(fixture.Host.State.Current!.Name).IsEqualTo("SampleTests.cs:42");
 
         // The one that is not
-        fixture.Send(new(ViewerVerb.Accept, QueueEntry.KeyForInline("SampleTests.cs", 42)));
+        fixture.Send(new(ViewerVerb.Accept, QueueEntry.KeyForInline("OtherTests.cs", 7)));
 
         await Assert.That(fixture.Host.State.Queue.Count).IsEqualTo(1);
-        await Assert.That(fixture.Host.State.Queue[0].Name).IsEqualTo("OtherTests.cs:7");
+        await Assert.That(fixture.Host.State.Queue[0].Name).IsEqualTo("SampleTests.cs:42");
+    }
+
+    /// <summary>
+    /// What arrives joins the queue behind whatever is being read rather than taking the selection:
+    /// the first of a run stays on screen, and a document is not drawn for having arrived. The
+    /// window is still raised for each, so one left behind the editor comes forward.
+    /// </summary>
+    [Test]
+    public async Task AnArrivalJoinsTheQueueWithoutTakingTheSelection()
+    {
+        using var fixture = new ServerFixture();
+        fixture.Send(new(ViewerVerb.Diff, "temp/first.received.txt", "code/first.verified.txt"));
+        fixture.Send(new(ViewerVerb.Diff, "temp/second.received.txt", "code/second.verified.txt"));
+        fixture.Send(Inline(Fixtures.Patch()));
+
+        await Assert.That(fixture.Host.State.Queue.Count).IsEqualTo(3);
+        await Assert.That(fixture.Host.State.Current!.Key).IsEqualTo(TrackedKeys.ForMove("temp/first.received.txt"));
+        await Assert.That(fixture.Windows).IsEquivalentTo([WindowCommand.Focus, WindowCommand.Focus, WindowCommand.Focus]);
     }
 
     [Test]

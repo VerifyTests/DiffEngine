@@ -545,8 +545,8 @@ public class ViewerProtocolTests
 
     /// <summary>
     /// The pair whose diff tool is the viewer itself: tracked exactly as a move, and then raised,
-    /// which is the whole difference between the two verbs. The focus names the entry just
-    /// tracked, so an owner with a window selects it and one without starts a viewer over it.
+    /// which is the whole difference between the two verbs. The focus names no entry, so the pair
+    /// joins the queue behind whatever is being read rather than taking the selection.
     /// </summary>
     [Test]
     public async Task ADiffTracksThePairAndRaisesAWindow()
@@ -557,7 +557,41 @@ public class ViewerProtocolTests
 
         await Assert.That(response.Ok).IsTrue();
         await Assert.That(owner.Tracked).IsEquivalentTo([@"move c:\temp\a.received.txt > c:\code\a.verified.txt"]);
-        await Assert.That(owner.Windowed).IsEquivalentTo([$"{WindowCommand.Focus} {TrackedKeys.ForMove(@"c:\temp\a.received.txt")}"]);
+        await Assert.That(owner.Windowed).IsEquivalentTo([$"{WindowCommand.Focus}"]);
+    }
+
+    /// <summary>
+    /// A focus for an entry that has just arrived raises the window and names nothing, as a diff
+    /// does. One without the mark is the tray menu or an editor asking for that entry, and still
+    /// selects it.
+    /// </summary>
+    [Test]
+    public async Task AFocusForAnArrivalRaisesWithoutSelecting()
+    {
+        var owner = new FakeOwner((true, null));
+
+        ViewerMessageHandler.Handle(owner, new(ViewerVerb.Focus, "move:a", ViewerMessage.Arrived));
+        ViewerMessageHandler.Handle(owner, new(ViewerVerb.Focus, "move:a"));
+
+        await Assert.That(owner.Windowed).IsEquivalentTo([$"{WindowCommand.Focus}", $"{WindowCommand.Focus} move:a"]);
+    }
+
+    /// <summary>
+    /// Still refused for a key the owner does not hold, which is what sends DiffEngine on to send
+    /// the pair itself when the tray has not tracked its move yet.
+    /// </summary>
+    [Test]
+    public async Task AFocusForAnArrivalNotTrackedYetIsRefused()
+    {
+        var owner = new FakeOwner((true, null))
+        {
+            Holds = false
+        };
+
+        var response = ViewerMessageHandler.Handle(owner, new(ViewerVerb.Focus, "move:a", ViewerMessage.Arrived));
+
+        await Assert.That(response.Ok).IsFalse();
+        await Assert.That(owner.Windowed).IsEmpty();
     }
 
     /// <summary>
@@ -639,7 +673,9 @@ public class ViewerProtocolTests
 
         public string? ListingTag() => Tag;
 
-        public bool Has(string key) => true;
+        public bool Holds { get; init; } = true;
+
+        public bool Has(string key) => Holds;
 
         public (bool ok, string? message, bool written) Accept(string key, string? origin)
         {
@@ -656,7 +692,7 @@ public class ViewerProtocolTests
         public List<string> Windowed { get; } = [];
 
         public void Window(WindowCommand command, string? key) =>
-            Windowed.Add($"{command} {key}");
+            Windowed.Add(key is null ? $"{command}" : $"{command} {key}");
     }
 
     /// <summary>

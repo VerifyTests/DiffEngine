@@ -35,7 +35,7 @@ static class ViewerMessageHandler
             case ViewerVerb.DiscardAll:
                 return ViewerResponse.Success(owner.DiscardAll());
             case ViewerVerb.Focus:
-                return Focus(owner, message.Key);
+                return Focus(owner, message.Key, message.Body);
             case ViewerVerb.Show:
                 owner.Window(WindowCommand.Show, null);
                 return ViewerResponse.Success();
@@ -107,8 +107,14 @@ static class ViewerMessageHandler
 
     /// <summary>
     /// The same tracking <see cref="Move"/> performs, plus the window it deliberately withholds.
-    /// The focus names the entry just tracked, so an owner with a window selects it and an owner
-    /// without one - a tray - starts a viewer and hands it the same selection.
+    /// <para>
+    /// The window is raised without naming the entry, so the pair joins the queue rather than
+    /// taking the selection. A run failing twenty snapshots leaves its first on screen and the rest
+    /// waiting their turn, where the window used to follow each one in as it landed - and a
+    /// document, which is only drawn while it is on screen, was drawn for having arrived. An owner
+    /// with nothing else pending shows the pair anyway, it being the whole queue, and an owner
+    /// without a window - a tray - starts a viewer onto its queue.
+    /// </para>
     /// </summary>
     static ViewerResponse Diff(IQueueOwner owner, string? temp, string? target)
     {
@@ -119,7 +125,7 @@ static class ViewerMessageHandler
         }
 
         owner.TrackMove(temp, target);
-        owner.Window(WindowCommand.Focus, TrackedKeys.ForMove(temp));
+        owner.Window(WindowCommand.Focus, null);
         return ViewerResponse.Success();
     }
 
@@ -192,7 +198,14 @@ static class ViewerMessageHandler
         return ViewerResponse.Success(result.message);
     }
 
-    static ViewerResponse Focus(IQueueOwner owner, string? key)
+    /// <summary>
+    /// Raises the window over an entry and selects it: the tray menu, or an editor, asking for that
+    /// entry. Not for <see cref="ViewerMessage.Arrived"/>, a focus for an entry that has just joined
+    /// the queue, which raises the window and leaves the selection where it is, as <see cref="Diff"/>
+    /// does. The key is checked either way, because a sender whose focus is refused falls back to
+    /// sending the pair itself.
+    /// </summary>
+    static ViewerResponse Focus(IQueueOwner owner, string? key, string? body)
     {
         if (key is not null &&
             !owner.Has(key))
@@ -200,7 +213,7 @@ static class ViewerMessageHandler
             return ViewerResponse.Error($"No pending snapshot for {key}");
         }
 
-        owner.Window(WindowCommand.Focus, key);
+        owner.Window(WindowCommand.Focus, body == ViewerMessage.Arrived ? null : key);
         return ViewerResponse.Success();
     }
 }
