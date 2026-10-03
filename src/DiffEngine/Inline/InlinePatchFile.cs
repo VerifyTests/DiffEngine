@@ -6,6 +6,18 @@ namespace DiffEngine;
 /// </summary>
 public static class InlinePatchFile
 {
+    /// <summary>
+    /// Stages a patch as a file, stamped with the framework this process is running as where the
+    /// patch carries none, as <see cref="DiffRunner.AddInlineAsync" /> stamps one it sends.
+    /// <para>
+    /// A test run that finds no viewer stages through here, and a multi-targeted one stages a file
+    /// per framework for the same call site. Written with no framework, none of them could be
+    /// told from the others: <see cref="InlineStaging.Clear(string, int, string?, string?, string?, string?)" />
+    /// takes an unlabeled trio whichever framework is clearing, so the framework that passed
+    /// deleted the snapshot of the one still failing. The process writing the file is the one
+    /// that produced the patch, which is the same reason the send stamps it there.
+    /// </para>
+    /// </summary>
     public static void Write(string path, InlinePatch patch)
     {
         var directory = Path.GetDirectoryName(path);
@@ -14,7 +26,10 @@ public static class InlinePatchFile
             Directory.CreateDirectory(directory);
         }
 
-        File.WriteAllText(path, Build(patch), new UTF8Encoding(false));
+        File.WriteAllText(path, Build(patch, patch.Framework ?? RuntimeMoniker.Current), new UTF8Encoding(false));
+        // The directory may be one no clear has listed yet, and the next clear this process makes
+        // has to find what is now in it
+        InlineStaging.Staged();
     }
 
     /// <summary>

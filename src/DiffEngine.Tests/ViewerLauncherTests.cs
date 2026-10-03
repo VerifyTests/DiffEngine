@@ -60,6 +60,112 @@ public class ViewerLauncherTests
     }
 
     /// <summary>
+    /// A viewer took its working directory from the test host, which is usually the test project's
+    /// output folder, and held it for as long as it lived. It is started in its own folder, which
+    /// it holds by running from it whatever its working directory is.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task TheViewerStartsInItsOwnFolder(bool windows)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "viewer folder");
+
+        var info = ViewerLauncher.StartInfo(Path.Combine(directory, "DiffEngineViewer.exe"), "--attach", windows);
+
+        await Assert.That(info.WorkingDirectory).IsEqualTo(directory);
+    }
+
+    /// <summary>
+    /// The same thing as Windows sees it, which is where it mattered: the directory the host was in
+    /// when it started a viewer could not be deleted until that viewer exited, so
+    /// <c>git clean -xdf</c> failed behind a viewer nobody could see.
+    /// <para>
+    /// The one test that moves this process's current directory, so it runs alone and puts it back
+    /// before anything else is asked.
+    /// </para>
+    /// </summary>
+    [Test]
+    [NotInParallel]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task ARunningViewerDoesNotHoldTheHostsDirectory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"DiffEngine.HostDirectory.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var previous = Environment.CurrentDirectory;
+        Process? viewer;
+        Environment.CurrentDirectory = directory;
+        try
+        {
+            // FakeDiffTool stands in for the viewer: no window, and gone by itself in five seconds
+            viewer = ViewerLauncher.Start(FakeDiffTool.Exe, "");
+        }
+        finally
+        {
+            Environment.CurrentDirectory = previous;
+        }
+
+        try
+        {
+            await Assert.That(viewer).IsNotNull();
+            // Still running, or the delete below says nothing about what a running one holds
+            await Assert.That(viewer!.HasExited).IsFalse();
+            await Assert.That(() => Directory.Delete(directory)).ThrowsNothing();
+        }
+        finally
+        {
+            if (viewer is not null)
+            {
+                using (viewer)
+                {
+                    try
+                    {
+                        viewer.Kill();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Already gone, which is all the kill was for
+                    }
+
+                    viewer.WaitForExit(5000);
+                }
+            }
+
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A relative path meant relative to the host's directory, which is no longer where the viewer
+    /// starts.
+    /// </summary>
+    [Test]
+    public async Task ARelativePathIsHandedOverRooted()
+    {
+        var rooted = ViewerLauncher.Rooted("Sample.received.txt");
+
+        // Not compared with a path built from the current directory here, which the test above
+        // moves for a moment
+        await Assert.That(Path.IsPathRooted(rooted)).IsTrue();
+        await Assert.That(Path.GetFileName(rooted)).IsEqualTo("Sample.received.txt");
+    }
+
+    /// <summary>
+    /// And one that is already rooted goes over as the caller spelt it, tidied or not: the row is
+    /// settled later by a key built from that spelling.
+    /// </summary>
+    [Test]
+    public async Task ARootedPathIsHandedOverAsGiven()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "one", "..", "Sample.received.txt");
+
+        await Assert.That(ViewerLauncher.Rooted(path)).IsEqualTo(path);
+    }
+
+    /// <summary>
     /// The patch goes in a file named on the command line, because a launch that redirects stdin
     /// cannot use ShellExecute.
     /// </summary>

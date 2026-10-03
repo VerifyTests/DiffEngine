@@ -51,6 +51,31 @@ final class Renderer {
     /// view because this is what lays the rule out, and the drag has to land where it was drawn.
     private var queueWidth: CGFloat = 0
 
+    /// What the draw in progress can reach, or nil for everything: the bounds of the context's
+    /// clip, outside which nothing is painted whatever is asked for. What lies wholly outside it is
+    /// not laid out either: see `shows`.
+    ///
+    /// A spinner turns by invalidating its own rectangle, some twenty times a second for as long
+    /// as a page takes. Where AppKit narrows the clip to that rectangle, a turn lays out the
+    /// spinner and nothing else, where it used to lay out every line of text in the window to
+    /// paint none of it.
+    ///
+    /// It does not always narrow it, which is why the clip is read at each draw and never worked
+    /// out from what was invalidated. Since macOS 11 a view whose backing store AppKit manages can
+    /// be handed its whole bounds whatever was invalidated, clip included, and later versions ask
+    /// for the whole of a view when they see fit. Then all of it is drawn, as it has to be, and
+    /// what keeps that cheap is `lines`.
+    ///
+    /// Set as a draw begins and read only during it.
+    private var dirty: CGRect?
+
+    /// Both panes name the one picture in the draw in progress, as a byte equal pair of documents
+    /// does: their pages are kept under the hash of the document. There is one scaled copy a
+    /// picture and the two panes can be a point apart in width, so each would have the copy made
+    /// for its own size in turn, without end. An enlarged pair is not given the chance: it is
+    /// drawn from the picture, as every enlarged picture was before it had a copy.
+    private var shared = false
+
     /// Decoded pictures, keyed by the path the screen model handed over and invalidated by the
     /// file's write time and length — the same freshness test the queue poller uses, so a re-run
     /// that rewrites a received image refreshes the pane rather than leaving the previous one up.
@@ -70,9 +95,14 @@ final class Renderer {
         var modified: Date
         var length: UInt64
 
-        /// The picture scaled down to the device pixels it last filled. Drawing a large picture
-        /// scaled costs a resample of every source pixel, and a window showing one did that on
-        /// every redraw; this is a copy.
+        /// The picture scaled down to the device pixels it was last drawn at: the ones it fills
+        /// when it is fitted, and the ones the whole of it takes, shown or not, when it is enlarged
+        /// and still below its own size. Drawing a large picture scaled costs a resample of every
+        /// source pixel, and a window showing one did that on every redraw; this is a copy.
+        ///
+        /// One copy, for whichever size was asked for last. It is only made narrower than the
+        /// picture or shorter, so at its largest it is about the size the picture is itself. It
+        /// goes when a copy for another size lands, and with the picture.
         var scaled: CGImage?
 
         /// Being decoded on `work`. The pane shows a spinner until it lands.
@@ -106,6 +136,50 @@ final class Renderer {
     private enum Finished {
         case decoded(path: String, modified: Date, length: UInt64, image: CGImage?)
         case scaled(path: String, modified: Date, length: UInt64, size: Pixels, image: CGImage?)
+    }
+
+    /// The lines the last two draws drew, by what each was made from.
+    ///
+    /// Every piece of text is an attributed string and a line, and each was made again on every
+    /// draw: about a hundred and fifty for a window of plain text, and one more for every
+    /// character the managed side sends as a segment of its own, which is most of a pane of
+    /// Chinese. Yet most draws draw what the one before drew. A turn of a spinner or a dragged
+    /// picture changes none of the text, and a scroll keeps all but a row of it. So a line is
+    /// kept for as long as it goes on being drawn.
+    ///
+    /// `lines` is what this draw has drawn so far, and `earlier` what the last draw to draw any
+    /// text drew. A line found in `earlier` is carried into `lines`, and what is still only in
+    /// `earlier` when `lines` takes its place was not drawn again and goes with it. That is the
+    /// bound: two draws' worth of lines, however long the session.
+    ///
+    /// A line is made from its text, its colour and the font. The first two are the key, and the
+    /// font is this renderer's for as long as it lives, so a line kept here is never one that
+    /// would be made differently now. A capture draws from here too: it is the same line.
+    private var lines: [LineKey: CTLine] = [:]
+    private var earlier: [LineKey: CTLine] = [:]
+
+    /// What a kept line was made from. Two texts are the same when their bytes are, rather than
+    /// as Swift compares strings, which holds a composed character equal to the same one
+    /// decomposed: Core Text is handed different characters for the two, and need not draw them
+    /// alike.
+    ///
+    /// The colour by which object it is, which `Palette` makes the same as which colour it is by
+    /// handing out one object each. Asking Core Foundation whether two are equal instead would
+    /// rest on Core Graphics hashing equal colours alike, which nothing here can check, and a key
+    /// whose hash and equality disagree is one a dictionary can trap on. The colour is held as
+    /// well as compared, so nothing else can be at its address while a line is kept under it.
+    private struct LineKey: Hashable {
+        let text: String
+        let colour: CGColor
+
+        static func == (left: LineKey, right: LineKey) -> Bool {
+            left.colour === right.colour && left.text.utf8.elementsEqual(right.text.utf8)
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(text)
+            hasher.combine(ObjectIdentifier(colour))
+        }
     }
 
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
@@ -182,7 +256,7 @@ final class Renderer {
     }
 
     init(fontData: Data?, size: CGFloat) {
-        font = Renderer.load(fontData, size)
+        font = Renderer.withoutLigatures(Renderer.load(fontData, size), size)
         ascent = CTFontGetAscent(font)
         descent = CTFontGetDescent(font)
 
@@ -232,6 +306,26 @@ final class Renderer {
         return CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
     }
 
+    /// `font` with its ligatures off, so every character of a snapshot is drawn as itself.
+    ///
+    /// JetBrains Mono draws `<>`, `!=`, `<=`, `=>`, `->`, `==` and a good many more as one glyph
+    /// each, and closes up `...`, all through its `calt` feature, which Core Text applies unless
+    /// told not to. The other two heads draw a glyph a character, so the same title read `<>` on
+    /// Windows and Linux and as one diamond here, in a tool whose whole job is to show which
+    /// characters a snapshot holds.
+    ///
+    /// `liga` goes off with it. The embedded font has no such feature, but the face taken when
+    /// nothing is embedded might, and the answer should not turn on which font is in use.
+    private static func withoutLigatures(_ font: CTFont, _ size: CGFloat) -> CTFont {
+        let features: [[CFString: Any]] = [
+            [kCTFontOpenTypeFeatureTag: "calt", kCTFontOpenTypeFeatureValue: 0],
+            [kCTFontOpenTypeFeatureTag: "liga", kCTFontOpenTypeFeatureValue: 0]
+        ]
+        let attributes: [CFString: Any] = [kCTFontFeatureSettingsAttribute: features]
+        let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
+        return CTFontCreateCopyWithAttributes(font, size, nil, descriptor)
+    }
+
     /// The window size in character cells, which is what version 2 of the ABI reports. Net of the
     /// scroller, because a column the scroller is sitting on is not a column the diff can use.
     func grid(for size: CGSize) -> (columns: Int32, rows: Int32) {
@@ -240,9 +334,23 @@ final class Renderer {
 
     /// `capturing` decodes and scales pictures here and now, and stands a spinner still: a capture
     /// draws one frame, which has to have its pictures in it and come out the same every time.
+    ///
+    /// The layout that comes back is the whole window's whatever is being repainted. What a
+    /// repaint of part of it leaves out is the drawing, and a capture leaves out nothing.
     @discardableResult
     func draw(_ frame: Frame, in context: CGContext, size: CGSize, capturing: Bool = false) -> Layout {
         takeFinished()
+        dirty = capturing ? nil : context.boundingBoxOfClipPath
+        // The lines the last draw drew are the ones this one may use again, and what the draw
+        // before it drew and it did not goes here. A draw that reached no text is passed over:
+        // where the clip is a spinner, a turn would otherwise leave nothing kept for whatever is
+        // drawn after it.
+        if !lines.isEmpty {
+            earlier = lines
+            lines = [:]
+        }
+
+        lines.reserveCapacity(earlier.count)
         var layout = Layout()
         context.setFillColor(Palette.background)
         context.fill(CGRect(origin: .zero, size: size))
@@ -279,8 +387,10 @@ final class Renderer {
         rule(top: headerTop + line + Renderer.gap, width: size.width, in: context, size)
 
         let bodyTop = Renderer.padding + (line + Renderer.gap) * 2 + Renderer.gap * 2
-        let footerHeight = line + Renderer.gap * 2
-        let capacity = max(1, Int((size.height - bodyTop - footerHeight - Renderer.padding) / line))
+        // Before the body, which ends where the footer begins. The footer is as tall as its
+        // buttons take, and that is more than one row of them once they are wider than the window.
+        let placed = place(frame, width: size.width, line: line)
+        let capacity = max(1, Int((size.height - bodyTop - placed.height - Renderer.padding) / line))
         let rows = min(capacity, max(frame.queue.count, max(frame.left.rows.count, frame.right.rows.count)))
 
         for index in 0 ..< rows {
@@ -301,6 +411,7 @@ final class Renderer {
         // path was asked for again and had changed or gone, so every image reviewed in a session
         // was held until the session ended.
         let shown: Set<String> = [frame.left.imagePath, frame.right.imagePath]
+        shared = !frame.left.imagePath.isEmpty && frame.left.imagePath == frame.right.imagePath
         pictures = pictures.filter { shown.contains($0.key) }
         gate.lock()
         wanted = shown
@@ -339,39 +450,120 @@ final class Renderer {
                 textLeft: panesLeft + half + gutter,
                 width: panesWidth - half)
         ]
-        layout.buttons = footer(frame, size: size, height: footerHeight, line: line, in: context)
+        layout.buttons = footer(frame, placed, size: size, line: line, in: context)
         return layout
     }
 
-    private func footer(_ frame: Frame, size: CGSize, height: CGFloat, line: CGFloat, in context: CGContext) -> [CGRect] {
-        let top = size.height - height - Renderer.padding
+    /// Where the footer's buttons go and how tall that makes it. Worked out before anything is
+    /// drawn, because the body ends where the footer begins.
+    private struct Footer {
+        /// One for each of the frame's buttons, in their order.
+        var slots: [Slot] = []
+
+        /// How many rows the buttons take: one, unless they are wider than the window.
+        var rows = 1
+
+        /// The status has a line of its own above the buttons, for want of room beside them.
+        var statusAbove = false
+
+        var height: CGFloat = 0
+
+        struct Slot {
+            var row = 0
+            var left: CGFloat = 0
+            var width: CGFloat = 0
+        }
+    }
+
+    /// Lays the footer out: the buttons left to right, onto another row where the next would pass
+    /// the window's edge, and the status right of the last of them where there is room for it.
+    ///
+    /// One row used to be all there was. A paged document has eleven buttons, wider together than
+    /// the window opens, so the last of them were off it and could not be clicked. And the status
+    /// was drawn from the right edge whatever was already there, which for an image pair in a
+    /// queue was the last button. A status with no room beside the buttons has a line of its own
+    /// instead, because it is where the page, the zoom, a selection and a failed accept are said.
+    ///
+    /// Where a button goes turns on the buttons and the window's width and nothing else. Not on
+    /// the status, which changes while the pointer is on its way to a button: its line is above
+    /// the buttons for that reason, so they stay where they are as it comes and goes.
+    private func place(_ frame: Frame, width: CGFloat, line: CGFloat) -> Footer {
+        var placed = Footer()
+        let edge = width - Renderer.padding
+        var left = Renderer.padding
+        var end = Renderer.padding
+        for button in frame.buttons {
+            let span = CGFloat(button.label.count + 4) * cell.width
+            // Never the first of its row, which has nowhere better to go however wide it is
+            if left > Renderer.padding, left + span > edge {
+                placed.rows += 1
+                left = Renderer.padding
+            }
+
+            placed.slots.append(Footer.Slot(row: placed.rows - 1, left: left, width: span))
+            end = left + span
+            left = end + Renderer.gap
+        }
+
+        // Room is room right up to the last button, with no gap asked for: a conflicted entry's
+        // line count has always sat two points off its variant button, and reads.
+        let statusWidth = CGFloat(frame.status.count) * cell.width
+        placed.statusAbove = !frame.status.isEmpty && edge - statusWidth < end
+        let row = line + Renderer.gap * 2
+        placed.height = row * CGFloat(placed.rows) + Renderer.gap * CGFloat(placed.rows - 1)
+        if placed.statusAbove {
+            placed.height += line + Renderer.gap
+        }
+
+        return placed
+    }
+
+    private func footer(_ frame: Frame, _ placed: Footer, size: CGSize, line: CGFloat, in context: CGContext) -> [CGRect] {
+        let top = size.height - placed.height - Renderer.padding
         rule(top: top - Renderer.gap, width: size.width, in: context, size)
 
+        let height = line + Renderer.gap * 2
+        let first = placed.statusAbove ? top + line + Renderer.gap : top
         var rects: [CGRect] = []
-        var left = Renderer.padding
-        for button in frame.buttons {
-            let width = CGFloat(button.label.count + 4) * cell.width
-            let bounds = rect(top: top, left: left, width: width, height: height, size)
+        for (button, slot) in zip(frame.buttons, placed.slots) {
+            let bounds = rect(
+                top: first + CGFloat(slot.row) * (height + Renderer.gap),
+                left: slot.left,
+                width: slot.width,
+                height: height,
+                size)
             rects.append(bounds)
 
             context.setFillColor(button.enabled ? Palette.buttonFace : Palette.buttonDisabled)
             context.fill(bounds)
             let label = bounds.insetBy(dx: cell.width * 2, dy: (height - line) / 2)
             text(button.label, in: label, button.enabled ? Palette.text : Palette.dim, context)
-            left += width + Renderer.gap
         }
 
-        if !frame.status.isEmpty {
-            let width = CGFloat(frame.status.count) * cell.width
-            let bounds = rect(top: top + (height - line) / 2, left: size.width - Renderer.padding - width, width: width, height: line, size)
-            text(frame.status, in: bounds, Palette.dim, context)
+        guard !frame.status.isEmpty else {
+            return rects
         }
 
+        let edge = size.width - Renderer.padding
+        let width = CGFloat(frame.status.count) * cell.width
+        if placed.statusAbove {
+            // From the left edge once it is wider than the window, so that what is cut off is its
+            // end, which is the end the text renderer loses.
+            let left = max(Renderer.padding, edge - width)
+            let above = rect(top: top, left: left, width: edge - left, height: line, size)
+            text(frame.status, in: above, Palette.dim, context)
+            return rects
+        }
+
+        // Beside the last row of buttons, against the right edge
+        let last = first + CGFloat(placed.rows - 1) * (height + Renderer.gap)
+        let beside = rect(top: last + (height - line) / 2, left: edge - width, width: width, height: line, size)
+        text(frame.status, in: beside, Palette.dim, context)
         return rects
     }
 
     private func queueItem(_ frame: Frame, _ index: Int, _ bounds: CGRect, _ context: CGContext) {
-        guard index < frame.queue.count else {
+        guard index < frame.queue.count, shows(bounds) else {
             return
         }
 
@@ -407,6 +599,13 @@ final class Renderer {
             return
         }
 
+        // Left alone when none of it is being repainted. Asked of the row with its gutter, which a
+        // pane narrower than one draws past the row's own edge.
+        let width = Renderer.gutterCells * cell.width
+        guard shows(CGRect(x: bounds.minX, y: bounds.minY, width: max(bounds.width, width), height: bounds.height)) else {
+            return
+        }
+
         let row = pane.rows[index]
         if let background = Palette.rowBackground(row.kind) {
             context.setFillColor(background)
@@ -420,7 +619,6 @@ final class Renderer {
         // A folded row has no number, and printing the -1 standing in for one put it in the gutter.
         let number = row.lineNumber < 0 ? "" : String(row.lineNumber)
         let gutter = "\(Palette.marker(row.kind)) \(String(repeating: " ", count: max(0, 4 - number.count)))\(number)"
-        let width = Renderer.gutterCells * cell.width
 
         // Behind the text rather than over it, and the text keeps its own colour: what kind of
         // change a line is has to survive being selected.
@@ -516,7 +714,7 @@ final class Renderer {
             width: max(1, (CGFloat(pane.imageWidth) * scale).rounded(.down)),
             height: max(1, (CGFloat(pane.imageHeight) * scale).rounded(.down)))
         if pane.imageZoom > 1 {
-            enlarged(pane, picture, fitted: drawn, top: imageTop, left: left, available: available, in: context, size, &layout)
+            enlarged(pane, picture, fitted: drawn, top: imageTop, left: left, available: available, capturing: capturing, in: context, size, &layout)
             return
         }
 
@@ -530,6 +728,12 @@ final class Renderer {
         let device = context.convertToDeviceSpace(bounds).size
         guard let scaled = self.fitted(pane.imagePath, picture, device: device, capturing: capturing) else {
             spinner(in: space, line: line, capturing: capturing, context, &layout)
+            return
+        }
+
+        // Left alone when none of it is being repainted, as when the clip is the other pane's
+        // spinner. Asked of the picture with its outline, which is the point outside it.
+        guard shows(bounds.insetBy(dx: -1, dy: -1)) else {
             return
         }
 
@@ -555,8 +759,11 @@ final class Renderer {
     /// part around the centre the managed side asked for, moved in as far as it takes to keep the
     /// space full: it does not know how many points a pane has, so it can ask for one at the edge.
     ///
-    /// Drawn straight from the decoded picture, clipped, rather than from a copy scaled to that
-    /// size, which at the last step would be hundreds of megabytes to show one corner of it.
+    /// Past its own size it is drawn straight from the decoded picture, clipped, rather than from a
+    /// copy scaled to that size, which at the last step would be hundreds of megabytes to show one
+    /// corner of it. Below its own size a copy is about the size of the picture at the most, and
+    /// the window draws from one: see `reduced`. A capture draws from the picture at any size, as
+    /// it always has.
     private func enlarged(
         _ pane: Frame.Pane,
         _ picture: CGImage,
@@ -564,6 +771,7 @@ final class Renderer {
         top: CGFloat,
         left: CGFloat,
         available: CGSize,
+        capturing: Bool,
         in context: CGContext,
         _ size: CGSize,
         _ layout: inout Layout
@@ -593,22 +801,9 @@ final class Renderer {
             width: whole.width,
             height: whole.height)
 
-        checker(bounds, in: context)
-
-        context.saveGState()
-        context.clip(to: bounds)
-        // Its pixels as they are once it is past its own size, which is what zooming that far in
-        // is for: smoothed, a one pixel difference between the two sides is a blur on both.
-        let device = context.convertToDeviceSpace(all).size
-        context.interpolationQuality = abs(device.width) >= CGFloat(picture.width) ? .none : .high
-        context.draw(picture, in: all)
-        context.restoreGState()
-
-        context.setStrokeColor(Palette.rule)
-        context.setLineWidth(1)
-        context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
-
-        // The last one appended is this pane's, by `image`, before it knew the picture was there
+        // The last one appended is this pane's, by `image`, before it knew the picture was there.
+        // Said before anything is drawn, because where the picture is does not turn on how much of
+        // the window this draw is for.
         if !layout.pictures.isEmpty {
             layout.pictures[layout.pictures.count - 1].enlarged = true
             layout.pictures[layout.pictures.count - 1].whole = whole
@@ -616,6 +811,97 @@ final class Renderer {
             layout.pictures[layout.pictures.count - 1].across = across
             layout.pictures[layout.pictures.count - 1].down = down
         }
+
+        // Below its own size the window draws it from a copy scaled to the pixels the whole of it
+        // takes: see `reduced`. Asked for here rather than past the test below, as a fitted
+        // picture's copy is, so that a draw which leaves the picture out has still started the
+        // copy the next one will want. Not for a capture, which is one frame with no later one
+        // for a copy to land in, and not when both panes name the one picture.
+        let device = context.convertToDeviceSpace(all).size
+        let reducing = !capturing && !shared && abs(device.width) < CGFloat(picture.width)
+        let made = reducing ? self.fitted(pane.imagePath, picture, device: device, capturing: false) : nil
+
+        // Left alone when none of it is being repainted, as a fitted one is
+        guard shows(bounds.insetBy(dx: -1, dy: -1)) else {
+            return
+        }
+
+        checker(bounds, in: context)
+
+        context.saveGState()
+        context.clip(to: bounds)
+        if reducing {
+            reduced(made, picture, at: all, device: device, in: context)
+        } else {
+            // Its pixels as they are once it is past its own size, which is what zooming that far
+            // in is for: smoothed, a one pixel difference between the two sides is a blur on both.
+            context.interpolationQuality = abs(device.width) >= CGFloat(picture.width) ? .none : .high
+            context.draw(picture, in: all)
+        }
+
+        context.restoreGState()
+
+        context.setStrokeColor(Palette.rule)
+        context.setLineWidth(1)
+        context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+    }
+
+    /// The whole of an enlarged picture that is still below its own size, at `all`, for the
+    /// window. The caller has clipped to the part of it that shows, and `made` is what `fitted`
+    /// had for the pixels the whole of it takes.
+    ///
+    /// Drawn from a copy scaled to those pixels, made on `work` and kept as the fitted one is, in
+    /// its place. Drawn from the picture itself, this was a resample at `.high` of every source
+    /// pixel under the clip on every redraw, and a drag is a redraw a frame: both panes of a pair
+    /// of screenshots, to move them. Where the picture has been dragged to is no part of the copy,
+    /// so a drag is the same copy drawn somewhere else.
+    ///
+    /// Only where the whole of it is narrower than the picture, so the copy is about the picture's
+    /// own size at the most. Until it lands the picture itself is drawn, quickly rather than well,
+    /// and drawn again when it does.
+    private func reduced(_ made: CGImage?, _ picture: CGImage, at all: CGRect, device: CGSize, in context: CGContext) {
+        guard let scaled = made,
+              scaled !== picture,
+              scaled.width == Int(abs(device.width).rounded()),
+              scaled.height == Int(abs(device.height).rounded())
+        else {
+            // The picture itself. As well as it ever was drawn when it is not one to make a copy
+            // of, being within a pixel of its own size or having failed to scale. Quickly
+            // otherwise: the copy for this size is on its way, and whatever `fitted` had to hand
+            // back in the meantime was made for another.
+            context.interpolationQuality = made === picture ? .high : .low
+            context.draw(picture, in: all)
+            return
+        }
+
+        // A pixel of the copy to a pixel of the screen. `all` starts wherever the drag left it,
+        // which is seldom on a pixel, and is the copy's size only to the nearest one. Drawn into
+        // `all` as it stands the copy would be sampled again on every frame: smoothed, each pane
+        // softening its own by a different fraction of a pixel, or not, and losing or doubling a
+        // row or a column of it where the two sizes part. So it goes on the pixel nearest to where
+        // `all` starts, at its own size, which leaves every part of it within about a pixel of
+        // where `all` has it.
+        let target = context.convertToDeviceSpace(all)
+        let placed = context.convertToUserSpace(
+            CGRect(
+                x: Renderer.pixel(target.minX),
+                y: Renderer.pixel(target.minY),
+                width: CGFloat(scaled.width),
+                height: CGFloat(scaled.height)))
+        context.interpolationQuality = .none
+        context.draw(scaled, in: placed)
+    }
+
+    /// The pixel a device coordinate is put on: the nearest, with two things seen to first.
+    ///
+    /// Where a picture has been dragged to goes to the managed side and back as a Float, which
+    /// leaves a coordinate a few ten thousandths of a pixel either side of where it should be,
+    /// and where it should be is often exactly half way between two pixels. So it is taken to the
+    /// nearest eighth of a pixel first. And a half goes up whatever its sign, where `rounded()`
+    /// takes it away from zero and so the other way once a picture's edge has left the window.
+    /// Without the two, a picture dragged a pixel at a time moved by none or by two.
+    private static func pixel(_ value: CGFloat) -> CGFloat {
+        ((value * 8).rounded() / 8 + 0.5).rounded(.down)
     }
 
     /// Something turning, centred in `space`, while the picture that will be centred there is on
@@ -685,6 +971,11 @@ final class Renderer {
     /// For the window the copy is made on `work`, and meanwhile this is the copy made for the size
     /// the pane last had, for the caller to stretch into place, or nil when there has never been
     /// one, which the pane shows a spinner for.
+    ///
+    /// `device` is the size the picture fills when it is fitted, and the size the whole of it
+    /// takes when `enlarged` asks, for one that is still below its own size. Either way it is the
+    /// one copy, so going from one to the other makes it again. Nil is no spinner there: `reduced`
+    /// draws the picture itself until the copy lands.
     private func fitted(_ path: String, _ picture: CGImage, device: CGSize, capturing: Bool) -> CGImage? {
         let width = Int(abs(device.width).rounded())
         let height = Int(abs(device.height).rounded())
@@ -910,24 +1201,58 @@ final class Renderer {
     }
 
     /// Clipped to its own rect, so a long line stops at its column instead of running into the
-    /// next one.
+    /// next one. Which is also what lets it be left out when that rect is not being repainted:
+    /// none of it could have landed anywhere else.
     private func text(_ string: String, in bounds: CGRect, _ colour: CGColor, _ context: CGContext) {
-        guard !string.isEmpty, bounds.width > 0 else {
+        guard !string.isEmpty, bounds.width > 0, shows(bounds) else {
             return
         }
-
-        let attributed = NSAttributedString(
-            string: RowText.flatten(string),
-            attributes: [
-                .font: font,
-                .foregroundColor: colour
-            ])
 
         context.saveGState()
         context.clip(to: bounds)
         context.textPosition = CGPoint(x: bounds.minX, y: bounds.minY + descent)
-        CTLineDraw(CTLineCreateWithAttributedString(attributed), context)
+        CTLineDraw(typeset(string, colour), context)
         context.restoreGState()
+    }
+
+    /// `string` as a line in `colour`: the one this draw or the last one drew it with, or else a
+    /// new one, as every line used to be.
+    private func typeset(_ string: String, _ colour: CGColor) -> CTLine {
+        let flat = RowText.flatten(string)
+        let key = LineKey(text: flat, colour: colour)
+        if let kept = lines[key] {
+            return kept
+        }
+
+        let line = earlier[key] ?? lay(flat, colour)
+        lines[key] = line
+        return line
+    }
+
+    private func lay(_ flat: String, _ colour: CGColor) -> CTLine {
+        let attributed = NSAttributedString(
+            string: flat,
+            attributes: [
+                .font: font,
+                .foregroundColor: colour
+            ])
+        return CTLineCreateWithAttributedString(attributed)
+    }
+
+    /// Whether anything drawn in `bounds` can reach the screen in the draw in progress: always in
+    /// a capture, and in a window when what is being repainted touches `bounds`, by however
+    /// little.
+    ///
+    /// Asked only with a rect that holds everything the caller would paint. The background, the
+    /// rules, a button's face and a spinner are not asked about at all: each is a call or two, and
+    /// the clip sees to them. And asked only about drawing: where things are goes into the layout
+    /// whatever is being repainted, since the view resolves clicks against it afterwards.
+    private func shows(_ bounds: CGRect) -> Bool {
+        guard let dirty else {
+            return true
+        }
+
+        return dirty.intersects(bounds)
     }
 
     private func rule(top: CGFloat, width: CGFloat, in context: CGContext, _ size: CGSize) {

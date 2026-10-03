@@ -172,6 +172,17 @@ class Tracker :
     {
         var exeFile = Path.GetFileName(exe);
         var targetFile = Path.GetFileName(target);
+
+        // A move onto a file is a run that verified against it, so a delete an earlier run raised
+        // for that file no longer describes a stale one. DiffRunner.SettleDelete says the same
+        // thing, but not from a library that predates it, not while a viewer holds the queue the
+        // settle is sent to, and not while that port is remembered as unowned. The delete stayed,
+        // and "Accept all" moved the received file into place and then deleted it
+        if (deletes.TryRemove(target, out _))
+        {
+            Log.Information("DeleteWithdrawn. A move now targets the file. File:{file}", target);
+        }
+
         return moves.AddOrUpdate(
             temp,
             addValueFactory: temp =>
@@ -211,7 +222,9 @@ class Tracker :
                     ProcessEx.TryGet(processId.Value, out process);
                 }
 
-                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
+                var move = exe == null
+                    ? Retarget(existing, target, process)
+                    : BuildTrackedMove(temp, exe, arguments, canKill, target, process);
 
                 if (exeFile == null)
                 {
@@ -225,6 +238,32 @@ class Tracker :
                 return move;
             });
     }
+
+    /// <summary>
+    /// A move that arrives for a pair already tracked and names no tool: what it says is the
+    /// target, and everything recorded about the tool stays as it was.
+    /// <para>
+    /// A move with no tool is one over the viewer port, which carries the two paths and nothing
+    /// else, or one from a run that launched nothing. Neither says anything about the tool the
+    /// pair was first tracked with, and filling the gap from the extension, as a move seen for the
+    /// first time has to, replaced that tool with this tray's own choice. "Open diff tool" on a
+    /// viewer pair is how it happened by hand: the viewer it starts cannot bind the port and
+    /// forwards the pair here as a Diff. The pair then read as another tool's with no window, so
+    /// "Accept open" passed over it while it was on screen, and it had become killable.
+    /// </para>
+    /// </summary>
+    static TrackedMove Retarget(TrackedMove existing, string target, Process? process) =>
+        new(
+            existing.Temp,
+            target,
+            existing.Exe,
+            existing.Arguments,
+            existing.CanKill,
+            process,
+            SolutionDirectoryFinder.Find(target),
+            Path.GetExtension(target).TrimStart('.'),
+            existing.KillLockingProcess,
+            existing.IsViewer);
 
     static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool? canKill, string target, Process? process)
     {
@@ -408,16 +447,23 @@ class Tracker :
     /// way, for the same reason.
     /// </para>
     /// </summary>
-    Task AcceptSnapshotsThenDeletes() =>
+    /// <param name="pending">
+    /// The deletes that were pending when the accept-all began, which are the only ones it carries
+    /// out: see <see cref="AcceptOpen"/>.
+    /// </param>
+    /// <param name="written">
+    /// The files the moves accepted ahead of this were moved onto, which no delete here may remove.
+    /// </param>
+    Task AcceptSnapshotsThenDeletes(List<TrackedDelete> pending, HashSet<string> written) =>
         Task.Run(() =>
         {
             try
             {
                 if (!SweepSnapshots(out var failure))
                 {
-                    AcceptAllDeletes();
+                    AcceptDeletes(pending, written);
                 }
-                else if (!deletes.IsEmpty)
+                else if (pending.Any(_ => deletes.ContainsKey(_.File)))
                 {
                     failure = failure is null ? DeletesHeld : $"{failure} {DeletesHeld}";
                 }
@@ -441,7 +487,8 @@ class Tracker :
     public const string DeletesHeld = "Pending deletes were kept, since a snapshot in this batch was not written and a file being deleted may be the only copy of it left. Accept them on their own to delete them anyway.";
 
     /// <summary>
-    /// Accepts every pending snapshot, and returns whether one it tried was not written.
+    /// Accepts every pending snapshot, and returns whether one it tried was not written, or the
+    /// queue could not be asked whether it holds any.
     /// </summary>
     /// <param name="failure">What to tell the user, when something is still pending afterwards.</param>
     bool SweepSnapshots(out string? failure)
@@ -451,7 +498,17 @@ class Tracker :
         // a stale empty cache would silently do nothing. Inside the worker rather than in front of
         // it, because the caller is a menu click or a hot key and the read is a round trip
         // whenever a viewer owns the queue.
-        if (inline.List().Count == 0)
+        if (!inline.TryList(out var pending))
+        {
+            // Something holds the queue and did not say what is in it, which is not the queue
+            // being empty. Reported the way a snapshot that was not written is, because the same
+            // thing waits on the answer: a patch held over there may be the one a delete here
+            // belongs to, and reading silence as nothing pending carried that delete out
+            failure = "Could not accept the pending snapshots. The snapshot viewer did not answer.";
+            return true;
+        }
+
+        if (pending.Count == 0)
         {
             return false;
         }
@@ -569,9 +626,14 @@ class Tracker :
         // Wire-driven accepts run on a listener thread with no user attached, so the locked-files
         // dialog must never be raised for them.
         public bool NeverPrompt;
+
+        // The files this batch moved a received file onto, for the deletes swept after it: see
+        // WrittenOrAwaited.
+        public readonly HashSet<string> Written = new(StringComparer.OrdinalIgnoreCase);
     }
 
-    void AcceptMoves(IEnumerable<TrackedMove> toAccept)
+    /// <returns>The files a received file was moved onto.</returns>
+    HashSet<string> AcceptMoves(IEnumerable<TrackedMove> toAccept)
     {
         var batch = new AcceptBatch();
         foreach (var move in toAccept)
@@ -586,6 +648,8 @@ class Tracker :
                 AcceptMove(move, batch);
             }
         }
+
+        return batch.Written;
     }
 
     void AcceptMove(TrackedMove move, AcceptBatch batch)
@@ -646,6 +710,7 @@ class Tracker :
 
             if (FileEx.SafeMove(move.Temp, move.Target))
             {
+                batch.Written.Add(move.Target);
                 DeleteTempDirectory(move);
                 return true;
             }
@@ -856,37 +921,80 @@ class Tracker :
     /// on a worker for the reason <see cref="Accept(PendingSnapshot)"/> gives. The menu and the
     /// hot keys discard it; tests await it so what the other surface should now be showing is
     /// settled rather than in flight.
+    /// <para>
+    /// The deletes are listed here, before anything is accepted, and only those are carried out. A
+    /// snapshot moving inline can land while a batch is applying. Whoever owns the queue took its
+    /// snapshots as the sweep began, so that patch is not in the batch, and the deletes were read
+    /// when their turn came, so its delete was: the verified file went while the patch replacing
+    /// it was only pending. Ahead of the snapshots rather than beside them, because Verify raises
+    /// the delete and then queues the patch, so a delete listed this early has a patch that was
+    /// there to be taken unless the batch began between the two.
+    /// </para>
     /// </summary>
     public Task AcceptOpen()
     {
-        AcceptMoves(
+        var pending = deletes.Values.ToList();
+        var written = AcceptMoves(
             moves.Values
                 .Where(_ => _.IsOpen)
                 .ToList());
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
         // has something to show.
-        return AcceptSnapshotsThenDeletes();
+        return AcceptSnapshotsThenDeletes(pending, written);
     }
 
     /// <inheritdoc cref="AcceptOpen"/>
     public Task AcceptAll()
     {
-        AcceptMoves(moves.Values);
+        var pending = deletes.Values.ToList();
+        var written = AcceptMoves(moves.Values);
 
-        return AcceptSnapshotsThenDeletes();
+        return AcceptSnapshotsThenDeletes(pending, written);
     }
 
-    void AcceptAllDeletes()
+    void AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
     {
         // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
         // clearing would throw that away. Unguarded, the first bad one also took the rest of the
         // sweep with it, so "Accept all" stopped at the first read-only file
-        foreach (var delete in deletes.Values.ToList())
+        foreach (var delete in pending)
         {
+            // Settled, withdrawn or accepted on its own since the batch began
+            if (!deletes.ContainsKey(delete.File))
+            {
+                continue;
+            }
+
+            if (WrittenOrAwaited(delete, written))
+            {
+                Log.Information("Kept the pending delete of `{Name}`: a move wrote that file, or is still pending onto it", delete.Name);
+                continue;
+            }
+
             Accept(delete);
         }
     }
+
+    /// <summary>
+    /// Whether a sweep must leave this delete pending, because the file it would remove is one a
+    /// move in the same sweep has just written or one a move still pending is going to write.
+    /// <para>
+    /// <see cref="AddMove"/> withdraws the delete a move finds waiting for its target, so the two
+    /// are only pending together when the delete arrived second, and which of them is the stale
+    /// one is then not knowable from here. The move is the snapshot arriving and the delete is the
+    /// last copy leaving, so the move goes ahead and the delete waits to be accepted on its own:
+    /// carried out, it removed the received file a moment after that file had been moved into
+    /// place, and neither was left.
+    /// </para>
+    /// <para>
+    /// By what was written rather than by what was swept. A move whose received file has gone is
+    /// dropped without writing anything, and the delete beside that one is the newer statement.
+    /// </para>
+    /// </summary>
+    bool WrittenOrAwaited(TrackedDelete delete, HashSet<string> written) =>
+        written.Contains(delete.File) ||
+        moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase));
 
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 
@@ -1001,13 +1109,18 @@ class Tracker :
         return (false, null);
     }
 
-    (int accepted, int kept) ITrackedFiles.AcceptAll(bool holdDeletes, Action? advanced)
+    (int accepted, int kept) ITrackedFiles.AcceptAll(IReadOnlyCollection<string> deleteKeys, bool holdDeletes, Action? advanced)
     {
         var accepted = 0;
         var kept = 0;
+        // One batch for the whole sweep, so the deletes below know what its moves wrote
+        var batch = new AcceptBatch
+        {
+            NeverPrompt = true
+        };
         foreach (var move in moves.Values.ToList())
         {
-            if (AcceptWithoutPrompting(move).ok)
+            if (AcceptWithoutPrompting(move, batch).ok)
             {
                 accepted++;
             }
@@ -1019,11 +1132,21 @@ class Tracker :
             advanced?.Invoke();
         }
 
-        foreach (var delete in deletes.Values.ToList())
+        foreach (var key in deleteKeys)
         {
+            // Settled, withdrawn or accepted on its own since the batch began. Nothing to carry
+            // out, and one fewer to wait for
+            if (!TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) ||
+                !deletes.TryGetValue(file, out var delete))
+            {
+                advanced?.Invoke();
+                continue;
+            }
+
             // Held rather than tried, and left tracked, so it can still be accepted on its own by
             // anyone who knows the file is redundant
             if (!holdDeletes &&
+                !WrittenOrAwaited(delete, batch.Written) &&
                 AcceptTracked(delete).ok)
             {
                 accepted++;
@@ -1083,17 +1206,22 @@ class Tracker :
         return (true, $"Deleted {removed.Name}");
     }
 
-    (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move)
+    (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move) =>
+        AcceptWithoutPrompting(
+            move,
+            new()
+            {
+                NeverPrompt = true
+            });
+
+    (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move, AcceptBatch batch)
     {
         if (!moves.TryRemove(move.Temp, out var removed))
         {
             return (false, null);
         }
 
-        if (InnerMove(removed, new()
-            {
-                NeverPrompt = true
-            }))
+        if (InnerMove(removed, batch))
         {
             return (true, $"Accepted {removed.Name}");
         }

@@ -267,6 +267,57 @@ public class FileTypeLaunchTests
         await ManualViewer.WaitForClose();
     }
 
+    /// <summary>
+    /// The first run of a snapshot: a received file and nothing verified beside it, for every type
+    /// the viewer is offered. What DiffEngine does about the missing file is decided per extension
+    /// before the viewer hears of the pair, and it used to write a placeholder there, or give up
+    /// where it had none to write, which was most of the maps.
+    /// </summary>
+    [Test]
+    [Explicit]
+    [Arguments(".png")]
+    [Arguments(".jpg")]
+    [Arguments(".pdf")]
+    [Arguments(".docx")]
+    [Arguments(".xlsx")]
+    [Arguments(".pptx")]
+    [Arguments(".svg")]
+    [Arguments(".geojson")]
+    [Arguments(".topojson")]
+    [Arguments(".kml")]
+    [Arguments(".gpx")]
+    [Arguments(".wkt")]
+    [Arguments(".kmz")]
+    [Arguments(".wkb")]
+    [Arguments(".fgb")]
+    [Arguments(".geoparquet")]
+    public async Task NewSnapshot(string extension)
+    {
+        await Assert.That(EngineTools.IsDetectedForExtension(EngineTool.DiffEngineViewer, extension)).IsTrue();
+
+        var directory = ManualViewer.TempDirectory();
+        var temp = Path.Combine(directory.FullName, $"Sample.received{extension}");
+        var target = Path.Combine(directory.FullName, $"Sample.verified{extension}");
+        var image = extension is ".png" or ".jpg";
+        await File.WriteAllBytesAsync(temp, image ? SampleImages.Build(extension, 220, 40, 40) : Whole(extension));
+
+        ManualViewer.Expect(
+            $"New snapshot {extension}",
+            $"Headers Sample.received{extension} and Sample.verified{extension}",
+            "The right pane is empty, with no picture, no page and no spinner left turning",
+            image
+                ? "The left pane has the picture's rows, each marked added, and the picture under them"
+                : "The left pane has the document's text, every line marked added, and its drawing under it",
+            $"The status line says only Sample.received{extension} exists, and nothing about a file that could not be read",
+            $"No Sample.verified{extension} is written beside the received file until Accept is pressed");
+
+        var result = await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
+
+        await Assert.That(result).IsEqualTo(EngineLaunch.StartedNewInstance);
+        await Assert.That(File.Exists(target)).IsFalse();
+        await ManualViewer.WaitForClose();
+    }
+
     static byte[] Whole(string extension) =>
         extension switch
         {

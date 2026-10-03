@@ -40,15 +40,48 @@ public sealed class InlineQueue
     /// An unlabeled patch cannot be told apart from a re-run, so it replaces the whole entry, which
     /// is also the pre-variant behaviour.
     /// </para>
+    /// <para>
+    /// The key is the line, and a line stops naming a call site as soon as an accept above it
+    /// inserts a literal: the re-run reports every later call site in that file a few lines
+    /// further down. Folding by key alone queued each of those a second time beside the entry it
+    /// should have updated, and where the run's content had changed, a bulk accept applied the
+    /// stale one and then refused the fresh. So a patch whose key names nothing looks for the
+    /// entry of its own call site (<see cref="FindMoved" />) and takes that one with it to the
+    /// line it is at now, and a patch whose key names another member's entry does not fold into it.
+    /// </para>
     /// </summary>
     public InlineQueue Enqueue(InlinePatch patch)
     {
         var key = InlineKey.For(patch.SourceFile, patch.LineHint);
         var items = Items.ToList();
-        var existing = items.FindIndex(_ => _.Key == key);
-        if (existing >= 0)
+        var atKey = items.FindIndex(_ => _.Key == key);
+        if (atKey >= 0 &&
+            !items[atKey].Patch.IsAnotherMembers(patch.MemberName))
         {
-            items[existing] = Fold(items[existing], patch);
+            items[atKey] = Fold(items[atKey], patch);
+            return new(items);
+        }
+
+        var moved = FindMoved(items, patch);
+        if (moved >= 0)
+        {
+            // Where the key is free the entry takes it, and is back to being named by the line
+            // its call site is on. Where another call site's entry is still sitting there, left
+            // behind by the same move, this one keeps the key it has: a queue holds one entry to a
+            // key, and both entries are still found by their members, here and when they settle
+            items[moved] = atKey < 0
+                ? Fold(At(items[moved], patch.LineHint), patch)
+                : Fold(items[moved], patch.At(items[moved].Patch.LineHint));
+            return new(items);
+        }
+
+        if (atKey >= 0)
+        {
+            // Another member's entry, under a line that is this patch's now. Folding the two
+            // presented one call site's snapshot as a variant of another's, or swapped it in under
+            // the other's name. Its own call site is elsewhere in the file, and the run that finds
+            // it still failing queues it again from there
+            items[atKey] = new(patch);
         }
         else
         {
@@ -57,6 +90,69 @@ public sealed class InlineQueue
 
         return new(items);
     }
+
+    /// <summary>
+    /// The entry for the call site a patch came from, where that entry is queued under another
+    /// line: the call site has moved since.
+    /// <para>
+    /// Recognised by what a call site keeps when it moves (<see cref="InlinePatch.IsSameCallSite" />),
+    /// and only in an entry this patch's framework already has content in. A test stops at the
+    /// first verification that fails, so a framework reporting a call site has nothing else
+    /// failing in that member: an entry of its own there under another line is this call site
+    /// before it moved, or an earlier one it has since passed, which is no loss either. Another
+    /// framework's entry is not held to that. It can have stopped at an earlier call in the same
+    /// test, one this framework passed, and two calls holding the same literal read alike.
+    /// </para>
+    /// <para>
+    /// And only when exactly one entry answers to it. With more than one, nothing here says which
+    /// of them moved, and folding into the wrong one replaces a snapshot that is still pending,
+    /// so the patch is queued beside them, as it always was.
+    /// </para>
+    /// <para>
+    /// What this gives up is a test that carries on past a failed verification and has two call
+    /// sites nothing but the line tells apart, both new or both holding the same literal: the
+    /// second is taken for the first one moved, and the queue holds whichever reported last.
+    /// </para>
+    /// </summary>
+    static int FindMoved(List<PendingInline> items, InlinePatch patch)
+    {
+        var found = -1;
+        for (var index = 0; index < items.Count; index++)
+        {
+            var entry = items[index];
+            if (!entry.Patch.IsSameCallSite(patch) ||
+                !HasOrigin(entry, patch.Framework))
+            {
+                continue;
+            }
+
+            if (found >= 0)
+            {
+                return -1;
+            }
+
+            found = index;
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// Whether an entry already holds content from <paramref name="origin" />. An unlabeled entry
+    /// or an unlabeled arrival counts, on the reasoning <see cref="Fold" /> gives: neither can be
+    /// told apart from a re-run.
+    /// </summary>
+    static bool HasOrigin(PendingInline entry, string? origin) =>
+        origin is null ||
+        entry.Variants.All(_ => _.Origins.Count == 0) ||
+        entry.Variants.Any(_ => _.Origins.Contains(origin));
+
+    /// <summary>
+    /// An entry at another line. Every variant goes, since they are one call site, and as copies:
+    /// see <see cref="InlinePatch.At" />.
+    /// </summary>
+    static PendingInline At(PendingInline entry, int line) =>
+        new(entry.Variants.Select(_ => _ with { Patch = _.Patch.At(line) }).ToList(), entry.Status);
 
     /// <summary>
     /// What a bulk accept reports. Both surfaces say this - the tray out of its own queue, the
@@ -231,8 +327,9 @@ public sealed class InlineQueue
     /// <param name="key">The entry's key, naming its source file and recorded line.</param>
     /// <param name="origin">The framework moniker of the run that started passing.</param>
     /// <param name="member">
-    /// The member the settled call site sits in, used only when <paramref name="key" /> matches
-    /// nothing. See <see cref="FindByMember" />.
+    /// The member the settled call site sits in. It finds the entry when <paramref name="key" />
+    /// matches nothing (<see cref="FindByMember" />), and it is what says the entry the key does
+    /// match belongs to some other call site.
     /// </param>
     /// <param name="value">
     /// What the settling call's expected argument holds, which narrows <paramref name="member" />
@@ -242,6 +339,18 @@ public sealed class InlineQueue
     {
         var items = Items.ToList();
         var index = items.FindIndex(_ => _.Key == key);
+        // The entry under the key is not always the settling call's. After an accept higher in
+        // the file a passing call sits on a line a later call site was queued under, and its
+        // settle took that entry, a snapshot still failing and then pending nowhere. An entry
+        // from another member is another call site's, unless the value says otherwise: a test
+        // renamed since it was queued passes with the content its entry was waiting to become
+        if (index >= 0 &&
+            items[index].Patch.IsAnotherMembers(member) &&
+            !IsSettledBy(items[index], value))
+        {
+            index = -1;
+        }
+
         if (index < 0)
         {
             index = FindByMember(items, key, member, value);
@@ -335,7 +444,7 @@ public sealed class InlineQueue
             }
 
             if (value is not null &&
-                !entry.Variants.Any(_ => _.Patch.IsSettledBy(value)))
+                !IsSettledBy(entry, value))
             {
                 continue;
             }
@@ -350,6 +459,14 @@ public sealed class InlineQueue
 
         return found;
     }
+
+    /// <summary>
+    /// Whether a passing call holding <paramref name="value" /> settles any of an entry's
+    /// variants. Never with no value, which is a producer that sends none.
+    /// </summary>
+    static bool IsSettledBy(PendingInline entry, string? value) =>
+        value is not null &&
+        entry.Variants.Any(_ => _.Patch.IsSettledBy(value));
 
     /// <summary>
     /// The file half of a key. Taken off the key rather than off the patch, so both sides are
@@ -474,6 +591,38 @@ public sealed class InlineQueue
                 .Select(_ => (_, apply(_.Patch)))
                 .ToList(),
             out message);
+
+    /// <summary>
+    /// Applies every un-conflicted patch, handing them to <paramref name="apply"/> together.
+    /// <para>
+    /// For an applier that does better with the whole batch than with a patch at a time, which
+    /// <see cref="InlineApplier.ApplyAll(IReadOnlyList{InlinePatch})"/> does: it reads and writes a
+    /// source file once for all the snapshots in it, where the overload above has no choice but
+    /// to rewrite the file for each. What comes back is one result for each patch handed over, in
+    /// the same order.
+    /// </para>
+    /// </summary>
+    public InlineQueue AcceptAll(
+        Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>> apply,
+        out string message)
+    {
+        var entries = Items
+            .Where(_ => !_.Conflicted)
+            .ToList();
+        var results = apply(entries.Select(_ => _.Patch).ToList());
+        if (results.Count != entries.Count)
+        {
+            throw new ArgumentException($"{entries.Count} patches were handed over and {results.Count} results came back.", nameof(apply));
+        }
+
+        var outcomes = new List<(PendingInline Entry, InlineApplyResult Result)>(entries.Count);
+        for (var index = 0; index < entries.Count; index++)
+        {
+            outcomes.Add((entries[index], results[index]));
+        }
+
+        return AcceptAll(outcomes, out message);
+    }
 
     /// <summary>
     /// The batch counterpart of <see cref="Accept(PendingInline, InlineApplyResult, out string)"/>.

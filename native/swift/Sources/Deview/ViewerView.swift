@@ -127,7 +127,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // reason the first click after a menu no longer also selects a row.
         let point = convert(event.locationInWindow, from: nil)
         if let index = layout.buttons.firstIndex(where: { $0.contains(point) }) {
-            Runtime.shared.input.clickedButton = Int32(index)
+            Runtime.shared.post(.button(Int32(index)))
             return
         }
 
@@ -140,7 +140,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
 
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
-            Runtime.shared.input.clickedQueueItem = Int32(index)
+            Runtime.shared.post(.queueItem(Int32(index)))
             return
         }
 
@@ -280,7 +280,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         let point = convert(event.locationInWindow, from: nil)
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
-            Runtime.shared.input.rightClickedQueueItem = Int32(index)
+            Runtime.shared.post(.rightClickedQueueItem(Int32(index)))
             return
         }
 
@@ -293,7 +293,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
            point.y <= layout.body.maxY,
            point.x >= layout.panes[0].cellLeft,
            point.x <= layout.body.maxX {
-            Runtime.shared.input.rightClickedPane = point.x >= layout.panes[1].cellLeft ? 1 : 0
+            Runtime.shared.post(.rightClickedPane(point.x >= layout.panes[1].cellLeft ? 1 : 0))
             Runtime.shared.paneMenuPoint = point
             return
         }
@@ -358,7 +358,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
-        Runtime.shared.input.key = key
+        Runtime.shared.post(.key(key))
     }
 
     /// Matches ReadKey in deview.cpp and the WinForms head's Map, which is the keymap the docs
@@ -442,6 +442,68 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         default:
             return DEVIEW_KEY_NONE.value
         }
+    }
+}
+
+/// The pane scrollbar, with a drag of its knob followed here rather than in AppKit's own loop.
+///
+/// `NSScroller` tracks a press on its knob in a loop of its own, inside `mouseDown`, and returns
+/// when the button comes up. That is inside `Runtime.pump`, so `deview_present` did not return
+/// for the length of the drag: the knob moved under the pointer, every move was reported, and the
+/// managed loop that scrolls the panes in answer ran once, at the release. The WinForms head has
+/// the same loop under its scroll bar and is handed frames from inside it, which this ABI has no
+/// way to ask for.
+///
+/// So the drag is three ordinary events instead, as a selection is in `ViewerView`. The window
+/// sends the moves and the release to the view that took the press, each comes through the pump
+/// on its own, and there is a frame between one and the next.
+///
+/// Only a press on the knob. One in the slot is still AppKit's: what it means is the reader's
+/// setting, a page or the place that was pressed, and it is over in a click.
+final class PaneScroller: NSScroller {
+    /// A knob being dragged: where in the window the pointer took hold of it, where the knob was
+    /// then, as the fraction of its travel `doubleValue` is, and how long that travel is.
+    private var dragging = false
+    private var heldAt: CGFloat = 0
+    private var heldValue = 0.0
+    private var travel: CGFloat = 0
+
+    override func mouseDown(with event: NSEvent) {
+        let knob = rect(for: .knob)
+        let room = rect(for: .knobSlot).height - knob.height
+        guard room > 0, knob.contains(convert(event.locationInWindow, from: nil)) else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        dragging = true
+        heldAt = event.locationInWindow.y
+        heldValue = doubleValue
+        travel = room
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard dragging else {
+            super.mouseDragged(with: event)
+            return
+        }
+
+        // Measured from the press rather than from the last move, as a picture's drag is, and in
+        // the window's coordinates, which count up the screen while the document runs down it.
+        // The knob is not moved here. It goes where the frame that answers this puts it, which
+        // is the row the panes are showing.
+        let moved = Double((heldAt - event.locationInWindow.y) / travel)
+        Runtime.shared.knobDragged(to: min(max(heldValue + moved, 0), 1))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard dragging else {
+            super.mouseUp(with: event)
+            return
+        }
+
+        // Nothing to report: the last move already said where it is.
+        dragging = false
     }
 }
 

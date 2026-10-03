@@ -446,6 +446,77 @@ public class SelectionTests
     }
 
     /// <summary>
+    /// The status line counts a selection without building its text, and counts the rows a
+    /// selection takes whole without measuring them against its columns. What it says has to be
+    /// what copying hands over all the same: tabs as the four cells they are drawn as, a wide
+    /// character and a character with its marks as the characters they are, filler rows left out.
+    /// </summary>
+    [Test]
+    public void The_summary_counts_what_copying_hands_over()
+    {
+        string[] pieces = ["a", "bc", " ", "\t", "漢", "é", "\U0001F44D", "\uD800", "─", "\r"];
+        var random = new Random(8);
+        for (var iteration = 0; iteration < 2000; iteration++)
+        {
+            var left = Lines(random, pieces, random.Next(1, 9));
+            // Lines of its own on the other side, so the side selected in has filler rows in it
+            var right = Lines(random, pieces, random.Next(1, 9));
+            var state = Files(string.Join("\n", left), string.Join("\n", right));
+            var rows = state.Current!.LeftRows.Count;
+            state = Drag(
+                state,
+                PaneSide.Left,
+                random.Next(rows),
+                random.Next(12),
+                random.Next(rows),
+                random.Next(12));
+            var status = ScreenBuilder.Build(state).Status;
+            if (state.LiveSelection is not { IsEmpty: false } selection)
+            {
+                continue;
+            }
+
+            var copied = SelectionText.Of(selection, state.Current!);
+            var expected = Summary(copied);
+            if (SelectionText.Summary(selection, state.Current!) != expected ||
+                !status.Contains(expected))
+            {
+                Assert.Fail($"left: {string.Join("|", left)} right: {string.Join("|", right)} selection: {selection} status: {status} expected: {expected}");
+            }
+        }
+    }
+
+    static string Summary(string copied)
+    {
+        if (copied.Length == 0)
+        {
+            return "nothing selected";
+        }
+
+        var lines = copied.Count(_ => _ == '\n') + 1;
+        var length = copied.Count(_ => !char.IsLowSurrogate(_));
+        var characters = $"{length} character{(length == 1 ? "" : "s")}";
+        return lines == 1 ? $"selected {characters}" : $"selected {lines} lines, {characters}";
+    }
+
+    static List<string> Lines(Random random, string[] pieces, int count)
+    {
+        var lines = new List<string>();
+        for (var line = 0; line < count; line++)
+        {
+            var builder = new StringBuilder();
+            for (var piece = random.Next(0, 6); piece > 0; piece--)
+            {
+                builder.Append(pieces[random.Next(pieces.Length)]);
+            }
+
+            lines.Add(builder.ToString());
+        }
+
+        return lines;
+    }
+
+    /// <summary>
     /// What ctrl+c puts on the clipboard, or null when it puts nothing there.
     /// </summary>
     static string? Copy(SessionState state)

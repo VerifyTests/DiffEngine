@@ -277,6 +277,31 @@ static class Fixtures
     public static SessionState DocumentDrawing() =>
         ViewerSession.Rendered(Document(), "BB", Rendering.Started);
 
+    /// <summary>
+    /// The pair <see cref="Document"/> holds, as a pending move in a queue rather than in a window
+    /// of its own. That is the fullest footer there is: a queue's three buttons, the three every
+    /// entry has, and the five a paged document adds.
+    /// </summary>
+    public static SessionState DocumentInQueue()
+    {
+        var leftPage = WriteImage("page.received.png", SamplePng.Build(200, 260, 198, 64, 64));
+        var rightPage = WriteImage("page.verified.png", SamplePng.Build(200, 260, 64, 150, 198));
+        var left = new DocumentFile("temp/sample.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
+        var right = new DocumentFile("code/sample.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
+        var state = ViewerSession.EnqueueTracked(
+            SessionState.Start(ViewerMode.Inline, Columns, Rows),
+            QueueEntry.ForMove(
+                "move:temp/sample.received.pdf",
+                "Sample.Test (pdf)",
+                null,
+                "temp/sample.received.pdf",
+                "code/sample.verified.pdf",
+                new(Long(false), null, null, null, left),
+                new(Long(true), null, null, null, right)));
+        state = ViewerSession.Rendered(state, "AA", new([new(leftPage, 200, 260, "LEFT")], true));
+        return ViewerSession.Rendered(state, "BB", new([new(rightPage, 200, 260, "RIGHT")], true));
+    }
+
     static string WriteImage(string name, byte[] content)
     {
         // A fixed directory and a fixed name: only the file name reaches a pane header, and a

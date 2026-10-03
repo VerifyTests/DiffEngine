@@ -96,6 +96,88 @@ public class ViewerPreferencesTests
         await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500, false));
     }
 
+    /// <summary>
+    /// A setting at its default is kept as no line at all, so putting one back takes a line out of
+    /// the file. The other viewer read that line when it started, and used to write it back with
+    /// the next thing it remembered, since the file no longer had a value of its own to keep.
+    /// </summary>
+    [Test]
+    public async Task ASettingAnotherViewerPutBackToItsDefaultStaysThere()
+    {
+        using var directory = new TempDirectory();
+        var path = directory.File("viewer.settings");
+        var before = new ViewerPreferences(path)
+        {
+            Projection = MapProjection.Goode,
+            Drawings = new Dictionary<DocumentFormat, DrawingView>
+            {
+                [DocumentFormat.Pdf] = DrawingView.Picture
+            }
+        };
+        await Assert.That(before.Projection).IsEqualTo(MapProjection.Goode);
+        var first = new ViewerPreferences(path);
+
+        // A second viewer, started after the first, puts both back
+        var second = new ViewerPreferences(path)
+        {
+            Projection = MapProjection.Auto,
+            Drawings = new Dictionary<DocumentFormat, DrawingView>()
+        };
+        await Assert.That(second.Get("projection")).IsNull();
+        first.Window = new(5, 6, 700, 500, false);
+
+        var read = new ViewerPreferences(path);
+        await Assert.That(read.Projection).IsEqualTo(MapProjection.Auto);
+        await Assert.That(read.Drawings).IsEmpty();
+        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500, false));
+    }
+
+    /// <summary>
+    /// The viewer still showing the old setting is asked what it shows after every frame that did
+    /// something. That is not a change of its own, so it writes nothing: what it holds is its own
+    /// view, never brought up to date with a file it then looks different from.
+    /// </summary>
+    [Test]
+    public async Task SayingWhatIsOnScreenDoesNotUndoAnotherViewersChange()
+    {
+        using var directory = new TempDirectory();
+        var path = directory.File("viewer.settings");
+        new ViewerPreferences(path).Projection = MapProjection.Goode;
+        var first = new ViewerPreferences(path);
+        var state = first.Apply(SessionState.Start(ViewerMode.Inline));
+        await Assert.That(state.Projection).IsEqualTo(MapProjection.Goode);
+
+        new ViewerPreferences(path).Projection = MapProjection.Auto;
+        first.Window = new(5, 6, 700, 500, false);
+        first.Remember(state);
+
+        await Assert.That(new ViewerPreferences(path).Projection).IsEqualTo(MapProjection.Auto);
+        await Assert.That(first.Projection).IsEqualTo(MapProjection.Goode);
+    }
+
+    /// <summary>
+    /// A setting whose write failed is still this viewer's to write, and goes with the next one
+    /// that can be: here a directory was in the way of the file, then was not.
+    /// </summary>
+    [Test]
+    public async Task ASettingThatCouldNotBeWrittenGoesWithTheNextThatCan()
+    {
+        using var directory = new TempDirectory();
+        var path = directory.File("viewer.settings");
+        Directory.CreateDirectory(path);
+        var preferences = new ViewerPreferences(path)
+        {
+            Projection = MapProjection.Lambert
+        };
+        Directory.Delete(path);
+
+        preferences.Window = new(1, 2, 300, 400, false);
+
+        var read = new ViewerPreferences(path);
+        await Assert.That(read.Projection).IsEqualTo(MapProjection.Lambert);
+        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400, false));
+    }
+
     [Test]
     public async Task NullForgetsAKey()
     {

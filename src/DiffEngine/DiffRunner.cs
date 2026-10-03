@@ -368,18 +368,33 @@ public static partial class DiffRunner
         return true;
     }
 
-    static int LaunchProcess(ResolvedTool tool, string arguments)
+    internal static int LaunchProcess(ResolvedTool tool, string arguments)
     {
-        var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
-        {
-            // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
-            // however UseShellExecute allows the test running to not block when the difftool is launched
-            // https://github.com/VerifyTests/Verify/issues/1229
-            UseShellExecute = tool.UseShellExecute,
-            CreateNoWindow = tool.CreateNoWindow
-        };
         try
         {
+            // A tool declared without ShellExecute held the test run open for as long as the tool
+            // was, which is the problem the comment further down records being solved for the
+            // tools declared with it. On Windows it is started so that it cannot: see
+            // WindowsProcess.StartInheritingNothing.
+            //
+            // Elsewhere it is started as declared, as every tool is. A child there takes the
+            // host's standard streams however it is started, and nothing in a definition says
+            // which tools could do without them: Neovim runs in the terminal and needs all three,
+            // and is declared the same as the tools that open a window
+            if (!tool.UseShellExecute &&
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return WindowsProcess.StartInheritingNothing(tool.ExePath, arguments);
+            }
+
+            var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
+            {
+                // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
+                // however UseShellExecute allows the test running to not block when the difftool is launched
+                // https://github.com/VerifyTests/Verify/issues/1229
+                UseShellExecute = tool.UseShellExecute,
+                CreateNoWindow = tool.CreateNoWindow
+            };
             using var process = Process.Start(startInfo);
             if (process != null)
             {

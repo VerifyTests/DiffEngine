@@ -431,7 +431,13 @@ DEVIEW_API int32_t deview_init(
     float fontSize,
     int32_t hidden);
 
-/* Draws one frame. Returns 0 once the window has been closed. */
+/*
+ * One turn of the window for this screen: whatever of it the window does not already show is
+ * drawn, the window system's events are read, and the call comes back when the next frame is due,
+ * which is what holds the managed loop to sixty turns a second. A turn that would draw the frame
+ * already on the screen draws nothing, so this is called every turn whatever has changed, and the
+ * caller never has to say what did. Returns 0 once the window has been closed.
+ */
 DEVIEW_API int32_t deview_present(const DeviewScreen* screen);
 
 DEVIEW_API void deview_poll_input(DeviewInput* input);

@@ -132,6 +132,147 @@ public class TrackerSnapshotTest
             ["Could not accept the pending snapshots. Accepted 0, 13 not written"]);
     }
 
+    /// <summary>
+    /// A viewer that holds the queue and does not answer is not a viewer with nothing queued. The
+    /// listing flattens the two, which is right for a menu, and "Accept all" read it the same way:
+    /// nothing to accept, so the deletes went ahead. One of them may belong to a patch that viewer
+    /// is holding, and its verified file was deleted with the patch never tried.
+    /// </summary>
+    [Test]
+    public async Task AnOwnerThatDoesNotAnswerHoldsTheDeletes()
+    {
+        var verified = Path.GetTempFileName();
+        try
+        {
+            using var owner = new SilentOwner();
+            var warnings = new List<string>();
+            await using var tracker = new RecordingTracker(inlineFailed: warnings.Add);
+            tracker.AddDelete(verified);
+
+            await tracker.AcceptAll();
+
+            await Assert.That(File.Exists(verified)).IsTrue();
+            await Assert.That(tracker.Deletes).HasSingleItem();
+            await Assert.That(warnings).IsEquivalentTo(
+                [$"Could not accept the pending snapshots. The snapshot viewer did not answer. {Tracker.DeletesHeld}"]);
+        }
+        finally
+        {
+            File.Delete(verified);
+        }
+    }
+
+    /// <summary>
+    /// The three answers a listing can come back with, which the menu's flattened one cannot tell
+    /// apart. Nothing holding the port is a viewer that has gone, and its queue went with it.
+    /// </summary>
+    [Test]
+    public async Task NoOwnerIsNothingPending()
+    {
+        var host = new RemoteInlineHost();
+
+        var answered = host.TryList(out var pending);
+
+        await Assert.That(answered).IsTrue();
+        await Assert.That(pending).IsEmpty();
+    }
+
+    /// <inheritdoc cref="NoOwnerIsNothingPending"/>
+    [Test]
+    public async Task AnOwnerThatAnswersIsAskedWhatItHolds()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1");
+        var host = new RemoteInlineHost();
+
+        var answered = host.TryList(out var pending);
+
+        await Assert.That(answered).IsTrue();
+        await Assert.That(pending.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:1"]);
+    }
+
+    /// <inheritdoc cref="NoOwnerIsNothingPending"/>
+    [Test]
+    public async Task AnOwnerThatDoesNotAnswerIsNotAnEmptyQueue()
+    {
+        using var owner = new SilentOwner();
+        var host = new RemoteInlineHost();
+
+        var answered = host.TryList(out _);
+
+        await Assert.That(answered).IsFalse();
+        // The menu keeps the flattened answer it was written against
+        await Assert.That(host.List()).IsEmpty();
+    }
+
+    /// <summary>
+    /// Answering with an error is not saying what is pending either.
+    /// </summary>
+    [Test]
+    public async Task AnOwnerThatRefusesTheListingIsNotAnEmptyQueue()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1")
+        {
+            ListingFails = true
+        };
+        var host = new RemoteInlineHost();
+
+        var answered = host.TryList(out _);
+
+        await Assert.That(answered).IsFalse();
+    }
+
+    /// <summary>
+    /// The port held by a program that is not a viewer at all, which a tray that could not bind it
+    /// lives with for good. That is no owner, as it is for every send DiffEngine makes, and not an
+    /// owner that failed to answer: nothing on that port will ever hold a snapshot, so the deletes
+    /// go ahead as they do with nothing there.
+    /// </summary>
+    [Test]
+    public async Task AnotherProgramOnThePortIsNoOwner()
+    {
+        var verified = Path.GetTempFileName();
+        try
+        {
+            using var program = new FakeViewer
+            {
+                AnotherProgram = true
+            };
+            var warnings = new List<string>();
+            await using var tracker = new RecordingTracker(inlineFailed: warnings.Add);
+            tracker.AddDelete(verified);
+
+            await tracker.AcceptAll();
+
+            await Assert.That(File.Exists(verified)).IsFalse();
+            await Assert.That(warnings).IsEmpty();
+            await Assert.That(program.Verbs).DoesNotContain("acceptall");
+        }
+        finally
+        {
+            File.Delete(verified);
+            // The port is remembered as unowned for ten minutes, and the system may hand the same
+            // one to a later test
+            ViewerClient.ForgetUnowned();
+        }
+    }
+
+    /// <summary>
+    /// And said even with no delete waiting on it: the click asked for that viewer's snapshots to
+    /// be accepted, and none of them were.
+    /// </summary>
+    [Test]
+    public async Task ABulkAcceptAgainstAnOwnerThatDoesNotAnswerIsReported()
+    {
+        using var owner = new SilentOwner();
+        var warnings = new List<string>();
+        await using var tracker = new RecordingTracker(inlineFailed: warnings.Add);
+
+        await tracker.AcceptAllSnapshots();
+
+        await Assert.That(warnings).IsEquivalentTo(
+            ["Could not accept the pending snapshots. The snapshot viewer did not answer."]);
+    }
+
     [Test]
     public async Task AcceptAllWithNothingPendingDoesNotCallTheViewer()
     {

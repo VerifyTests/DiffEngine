@@ -186,6 +186,75 @@ public class InlineStagingTests
         await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
     }
 
+    /// <summary>
+    /// What a test run stages for itself goes through InlinePatchFile.Write, and its patch names no
+    /// framework: only the send to a queue owner ever stamped one. Every such trio was unlabeled,
+    /// and an unlabeled trio is cleared whichever framework asks, so scoping a clear to an origin
+    /// did nothing for the files a run with no viewer actually leaves.
+    /// </summary>
+    [Test]
+    public async Task ATrioAProcessStagesIsLabelledWithItsFramework()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var patchFile = project.Stage("ThisFramework", Patch(source, "content"));
+
+        await Assert.That(InlinePatchFile.TryRead(patchFile, out var read)).IsTrue();
+        await Assert.That(read!.Framework).IsEqualTo(RuntimeMoniker.Current);
+
+        // Another framework of the same project, passing where this one failed
+        var cleared = InlineStaging.Clear(source, 42, null, origin: "net0.0");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(File.Exists(patchFile)).IsTrue();
+    }
+
+    // A patch that says where it came from is staged as it says: a queue owner writing out what
+    // other processes sent it is not the framework those snapshots belong to
+    [Test]
+    public async Task ATrioStagedWithAFrameworkKeepsIt()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var patchFile = project.Stage("OtherFramework", Patch(source, "content", framework: "net0.0"));
+
+        await Assert.That(InlinePatchFile.TryRead(patchFile, out var read)).IsTrue();
+        await Assert.That(read!.Framework).IsEqualTo("net0.0");
+    }
+
+    /// <summary>
+    /// The clear a passing run makes: its own framework's trio, and nobody else's. A caller has no
+    /// way to name its framework as DiffEngine labels it, so the one clear it could make was for
+    /// every framework, and the one that passed took the snapshot of the one still failing.
+    /// </summary>
+    [Test]
+    public async Task SettleTakesThisFrameworksTrioAndLeavesAnothers()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var mine = project.Stage("ThisFramework", Patch(source, "from this one"));
+        var theirs = project.Stage("OtherFramework", Patch(source, "from another", framework: "net0.0"));
+
+        var cleared = InlineStaging.Settle(source, 42, null);
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(File.Exists(mine)).IsFalse();
+        await Assert.That(File.Exists(theirs)).IsTrue();
+    }
+
+    // The member and the value narrow a settle on disk as they narrow a clear
+    [Test]
+    public async Task SettleFindsACallSiteWhoseLineHasMovedByMember()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var mine = project.Stage("ThisFramework", Patch(source, "new", line: 42, member: "MyTest"));
+
+        await Assert.That(InlineStaging.Settle(source, 807, "MyTest", value: "what a sibling holds")).IsEqualTo(0);
+        await Assert.That(InlineStaging.Settle(source, 807, "MyTest", value: "new")).IsEqualTo(1);
+        await Assert.That(File.Exists(mine)).IsFalse();
+    }
+
     [Test]
     public async Task ClearFindsACallSiteWhoseLineHasMovedByMember()
     {
@@ -215,6 +284,38 @@ public class InlineStagingTests
 
         await Assert.That(cleared).IsEqualTo(0);
         await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// The queue's rule for an entry under the key, on disk. A passing call that an accept above
+    /// it moved onto a line another test staged at is not that test's call site, and its clear
+    /// used to take the trio for being at the line.
+    /// </summary>
+    [Test]
+    public async Task ClearFromAnotherMemberAtATriosLineLeavesTheTrio()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", line: 42, member: "TestB"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, "TestA", value: "what the passing call holds");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
+    // A test renamed since it staged: the line still names it, and the value says it settled
+    [Test]
+    public async Task ClearFromARenamedMemberTakesTheTrioItsValueSettles()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", line: 42, member: "OldName"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, "NewName", value: "new");
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
     }
 
     [Test]
@@ -269,6 +370,55 @@ public class InlineStagingTests
 
         await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
         await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    /// <summary>
+    /// The same for what a test run stages for itself, which does not go through Persist. The walk
+    /// for staging directories is kept between clears, and a write through InlinePatchFile is one
+    /// of the two things that say it no longer stands.
+    /// </summary>
+    [Test]
+    public async Task ClearFindsWhatThisProcessStagedAfterAnEarlierLook()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(0);
+
+        var patchFile = project.Stage("ThisFramework", Patch(source, "content"));
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
+        await Assert.That(File.Exists(patchFile)).IsFalse();
+    }
+
+    /// <summary>
+    /// Another process can stage under the same obj, and nothing tells this one that it has: a
+    /// second framework of the same run, or a queue owner writing its queue out as it exits. A
+    /// directory it creates is found once the walk this process kept has had its life, which is
+    /// why that life is short.
+    /// </summary>
+    [Test]
+    public async Task ClearFindsWhatAnotherProcessStagedOnceTheLookIsStale()
+    {
+        var previous = InlineStaging.RecheckStagingAfter;
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        try
+        {
+            await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(0);
+
+            var patchFile = project.StageFromOutside("OtherProcess", Patch(source, "content"));
+
+            // No life at all, which is every walk stale. Other tests may be clearing while this is
+            // set, and all it changes for them is that they walk too
+            InlineStaging.RecheckStagingAfter = TimeSpan.Zero;
+            await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
+            await Assert.That(File.Exists(patchFile)).IsFalse();
+        }
+        finally
+        {
+            InlineStaging.RecheckStagingAfter = previous;
+        }
     }
 
     [Test]
@@ -355,6 +505,31 @@ public class InlineStagingTests
         {
             var path = Path.Combine(directory, name);
             File.WriteAllText(path, "// sample");
+            return path;
+        }
+
+        /// <summary>
+        /// Stages a patch the way a test run with no viewer does, through InlinePatchFile.Write,
+        /// rather than the way an exiting owner does. Returns the patch file.
+        /// </summary>
+        public string Stage(string name, InlinePatch patch)
+        {
+            var path = Path.Combine(directory, "obj", InlineStaging.DirectoryName, $"{name}.inlinepatch");
+            InlinePatchFile.Write(path, patch);
+            return path;
+        }
+
+        /// <summary>
+        /// The same file written with nothing of InlineStaging's or InlinePatchFile's involved in
+        /// the write, which is all this process ever knows of what another one staged. In a
+        /// framework's own intermediate directory, where a test run stages.
+        /// </summary>
+        public string StageFromOutside(string name, InlinePatch patch)
+        {
+            var staging = Path.Combine(directory, "obj", "Debug", "net0.0", InlineStaging.DirectoryName);
+            Directory.CreateDirectory(staging);
+            var path = Path.Combine(staging, $"{name}.inlinepatch");
+            File.WriteAllText(path, InlinePatchFile.Build(patch));
             return path;
         }
 

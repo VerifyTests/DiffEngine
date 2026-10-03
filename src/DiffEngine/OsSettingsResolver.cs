@@ -50,25 +50,35 @@ static class OsSettingsResolver
         return paths.ToArray();
     }
 
+    /// <summary>
+    /// The tool's executable and how it is launched, on whichever operating system this is.
+    /// <para>
+    /// <c>preferred</c> says which of several installed copies the caller would rather have. The
+    /// first copy it accepts is the one resolved, wherever that comes in the search order, and the
+    /// first copy of all when it accepts none - so it reorders what is found and never empties it.
+    /// Not asked about a copy an environment variable names, which is somebody's explicit choice.
+    /// </para>
+    /// </summary>
     public static bool Resolve(
         string tool,
         OsSupport osSupport,
         [NotNullWhen(true)] out string? path,
-        [NotNullWhen(true)] out LaunchArguments? launchArguments)
+        [NotNullWhen(true)] out LaunchArguments? launchArguments,
+        Func<string, bool>? preferred = null)
     {
-        if (TryResolveForOs(tool, osSupport.Windows, out path, "WINDOWS"))
+        if (TryResolveForOs(tool, osSupport.Windows, out path, "WINDOWS", preferred))
         {
             launchArguments = osSupport.Windows.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(tool, osSupport.Linux, out path, "LINUX"))
+        if (TryResolveForOs(tool, osSupport.Linux, out path, "LINUX", preferred))
         {
             launchArguments = osSupport.Linux.LaunchArguments;
             return true;
         }
 
-        if (TryResolveForOs(tool, osSupport.Osx, out path, "OSX"))
+        if (TryResolveForOs(tool, osSupport.Osx, out path, "OSX", preferred))
         {
             launchArguments = osSupport.Osx.LaunchArguments;
             return true;
@@ -83,7 +93,8 @@ static class OsSettingsResolver
         string tool,
         [NotNullWhen(true)] OsSettings? os,
         [NotNullWhen(true)] out string? path,
-        string platform)
+        string platform,
+        Func<string, bool>? preferred)
     {
         path = null;
 
@@ -99,7 +110,7 @@ static class OsSettingsResolver
             return true;
         }
 
-        return TryFindExe(exeName, os.PathCommandName, os.SearchDirectories, out path);
+        return TryFindExe(exeName, os.PathCommandName, os.SearchDirectories, preferred, out path);
     }
 
     public static bool TryFindForEnvironmentVariable(string tool, string exeName, [NotNullWhen(true)] out string? envPath)
@@ -150,40 +161,77 @@ static class OsSettingsResolver
         }
     }
 
-    static bool TryFindExe(string exeName, string pathCommandName, IEnumerable<string> searchDirectories, [NotNullWhen(true)] out string? exePath)
+    static bool TryFindExe(string exeName, string pathCommandName, IEnumerable<string> searchDirectories, Func<string, bool>? preferred, [NotNullWhen(true)] out string? exePath)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             searchDirectories = ExpandProgramFiles(searchDirectories);
         }
 
+        // With nothing preferred this stops at the first copy, having looked no further than it
+        // ever did. With a preference it goes on past the copies that are turned down, and comes
+        // back to the first of them only if nothing better turns up
+        exePath = null;
+        foreach (var candidate in Installed(exeName, pathCommandName, searchDirectories))
+        {
+            if (preferred == null ||
+                preferred(candidate))
+            {
+                exePath = candidate;
+                return true;
+            }
+
+            exePath ??= candidate;
+        }
+
+        return exePath != null;
+    }
+
+    /// <summary>
+    /// Every installed copy, in the order they are looked for: the search directories as written,
+    /// then PATH.
+    /// </summary>
+    static IEnumerable<string> Installed(string exeName, string pathCommandName, IEnumerable<string> searchDirectories)
+    {
         foreach (var directory in searchDirectories.Distinct())
         {
             var exeSearchPath = Path.Combine(directory, exeName);
-            if (WildcardFileFinder.TryFind(exeSearchPath, out exePath))
+            var found = false;
+            foreach (var exePath in WildcardFileFinder.FindAll(exeSearchPath))
             {
-                return true;
+                found = true;
+                yield return exePath;
+            }
+
+            if (!found)
+            {
+                Logging.Write($"Could not find file: {exeSearchPath}");
             }
         }
 
-        return TryFindInEnvPath(pathCommandName, out exePath);
+        foreach (var commandPath in InEnvPath(pathCommandName))
+        {
+            yield return commandPath;
+        }
     }
 
     // For each path in PATH, append cliApp and check if it exists.
     // Return the first one that exists.
     public static bool TryFindInEnvPath(string pathCommandName, [NotNullWhen(true)] out string? commandPath)
     {
+        commandPath = InEnvPath(pathCommandName).FirstOrDefault();
+        return commandPath != null;
+    }
+
+    static IEnumerable<string> InEnvPath(string pathCommandName)
+    {
         foreach (var path in envPaths)
         {
             var combine = Path.Combine(path, pathCommandName);
             if (File.Exists(combine))
             {
-                commandPath = combine;
-                return true;
+                yield return combine;
             }
         }
-
-        commandPath = null;
-        return false;
     }
 }

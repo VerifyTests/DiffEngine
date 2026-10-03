@@ -44,14 +44,11 @@ public class InlineScreenTests
     [Test]
     public Task AcceptAllInProgress()
     {
-        var state = ViewerSession.BeginAcceptAll(Pending());
-        for (var step = 0; step < 2; step++)
-        {
-            state = ViewerSession.ClaimNext(state);
-            state = ViewerSession.ApplyClaimed(state.Batch!.Current!, Fixtures.Applied)(state);
-        }
+        // The two snapshots of the first file, which a batch claims and writes together
+        var state = ViewerSession.ClaimNext(ViewerSession.BeginAcceptAll(Pending()));
+        state = ViewerSession.ApplyClaimed(state, Fixtures.Applied)(state);
 
-        // The third claimed, and still applying
+        // The second file's claimed, and still applying
         return Verify(Fixtures.Render(ViewerSession.ClaimNext(state)));
     }
 

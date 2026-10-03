@@ -14,7 +14,7 @@ public class AcceptAllProgressTests
         while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
         {
             seen.Add($"{ScreenBuilder.Build(state).Status}, {state.Queue.Count} pending");
-            state = ViewerSession.ApplyClaimed(entry, Fixtures.Applied)(state);
+            state = ViewerSession.ApplyClaimed(state, Fixtures.Applied)(state);
         }
 
         await Assert.That(string.Join("\n", seen)).IsEqualTo(
@@ -49,7 +49,7 @@ public class AcceptAllProgressTests
         while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
         {
             kinds.Add($"{state.Progress!.Describe()}: {entry.Kind}");
-            state = ViewerSession.ApplyClaimed(entry, actions)(state);
+            state = ViewerSession.ApplyClaimed(state, actions)(state);
         }
 
         await Assert.That(string.Join("\n", kinds)).IsEqualTo(
@@ -83,13 +83,13 @@ public class AcceptAllProgressTests
         var state = ViewerSession.BeginAcceptAll(Pending());
         state = ViewerSession.ClaimNext(state);
         var first = state.Batch!.Current!;
-        state = ViewerSession.ApplyClaimed(first, actions)(state);
+        state = ViewerSession.ApplyClaimed(state, actions)(state);
 
         var next = state.Batch!.Remaining[0];
         state = ViewerSession.Settle(state, next);
         while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
         {
-            state = ViewerSession.ApplyClaimed(entry, actions)(state);
+            state = ViewerSession.ApplyClaimed(state, actions)(state);
         }
 
         await Assert.That(applied.Count).IsEqualTo(2);
@@ -106,7 +106,7 @@ public class AcceptAllProgressTests
     {
         var state = ViewerSession.BeginAcceptAll(Fixtures.Inline(Fixtures.Patch()));
         state = ViewerSession.ClaimNext(state);
-        var record = ViewerSession.ApplyClaimed(state.Batch!.Current!, Fixtures.Applied);
+        var record = ViewerSession.ApplyClaimed(state, Fixtures.Applied);
 
         state = ViewerSession.EnqueueInline(state, Fixtures.Patch(content: "third run"));
         state = ViewerSession.ClaimNext(record(state));
@@ -128,7 +128,7 @@ public class AcceptAllProgressTests
                 Fixtures.Patch("ATests.cs", 1, framework: "net8.0"),
                 Fixtures.Patch("BTests.cs", 2, framework: "net8.0")));
         state = ViewerSession.ClaimNext(state);
-        state = ViewerSession.ApplyClaimed(state.Batch!.Current!, Fixtures.Applied)(state);
+        state = ViewerSession.ApplyClaimed(state, Fixtures.Applied)(state);
 
         state = ViewerSession.EnqueueInline(state, Fixtures.Patch("BTests.cs", 2, content: "nine", framework: "net9.0"));
         state = ViewerSession.ClaimNext(state);
@@ -357,10 +357,11 @@ public class AcceptAllProgressTests
     static ViewerMessage Inline(InlinePatch patch) =>
         new(ViewerVerb.Inline, Body: InlinePatchFile.Build(patch));
 
+    // A file each, so each is a claim of its own: snapshots of one file are claimed together.
     static SessionState Pending() =>
         Fixtures.Inline(
             Fixtures.Patch(),
-            Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two"),
+            Fixtures.Patch("MoreTests.cs", 88, "\"one\"", "two"),
             Fixtures.Patch("OtherTests.cs", 12, null, "brand new"));
 
     /// <summary>

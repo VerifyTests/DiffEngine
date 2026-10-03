@@ -16,17 +16,37 @@ namespace DiffEngine;
 /// close-on-exec, so only the three standard streams pass to a child, and redirecting all three
 /// and closing this side of them is enough.
 /// </para>
+/// <para>
+/// Nor is the host's working directory, which a child takes unless it is given another. For a
+/// test host that is usually the test project's output folder, and on Windows a directory some
+/// process is in cannot be deleted. A viewer hidden behind a tray lives for the session, so
+/// <c>git clean -xdf</c>, or removing a worktree, failed with nothing on screen to say what was
+/// holding it. A viewer is started in its own folder instead, which it holds by running from it
+/// whatever its working directory is.
+/// </para>
 /// </summary>
 static class ViewerLauncher
 {
     /// <summary>
+    /// Where the patch for one inline launch goes. Named by the caller rather than inside
+    /// <see cref="LaunchAsync" />, because the caller is the one told that the viewer went without
+    /// reading it, and has to know what to take back: see <see cref="Discard" />.
+    /// </summary>
+    public static string PayloadFile() =>
+        Path.Combine(Path.GetTempPath(), $"DiffEngineViewer_{Guid.NewGuid():N}.inlinepatch");
+
+    /// <summary>
     /// Starts a viewer with a patch, which goes in a file rather than on stdin: a launch that
     /// redirects stdin cannot use ShellExecute (see the class remarks). The viewer reads the file
     /// and deletes it.
+    /// <para>
+    /// The process is handed back, as it is from every launch here that goes through
+    /// <see cref="ViewerLaunchGate" />, which is what lets the gate see a viewer exit rather than
+    /// wait for one that has already gone.
+    /// </para>
     /// </summary>
-    public static async Task<bool> LaunchAsync(InlinePatch patch, string payload, Cancel cancel)
+    public static async Task<Process?> LaunchAsync(InlinePatch patch, string payload, string file, Cancel cancel)
     {
-        var file = Path.Combine(Path.GetTempPath(), $"DiffEngineViewer_{Guid.NewGuid():N}.inlinepatch");
         try
         {
             // Bytes rather than text, so no preamble: a BOM is exactly what a .NET Framework
@@ -44,17 +64,17 @@ static class ViewerLauncher
             when (exception is IOException or UnauthorizedAccessException)
         {
             Trace.WriteLine($"Failed to write the inline patch for DiffEngineViewer: {exception}");
-            TryDelete(file);
-            return false;
+            Discard(file);
+            return null;
         }
 
-        if (Start(PayloadArguments(patch, file)) is null)
+        var viewer = Start(PayloadArguments(patch, file));
+        if (viewer is null)
         {
-            TryDelete(file);
-            return false;
+            Discard(file);
         }
 
-        return true;
+        return viewer;
     }
 
     /// <summary>
@@ -65,7 +85,14 @@ static class ViewerLauncher
     internal static string PayloadArguments(InlinePatch patch, string file) =>
         $"--inline --source \"{patch.SourceFile}\" --line {patch.LineHint} --payload \"{file}\"";
 
-    static void TryDelete(string file)
+    /// <summary>
+    /// Removes a payload file that no viewer is going to read: nothing was started, or what was
+    /// started has exited. A viewer deletes the one it reads, so this only finds a file where the
+    /// viewer never got that far - a copy that does not know <c>--payload</c>, or one that could
+    /// not run at all - and each of those used to leave a snapshot's worth of text in the temp
+    /// directory for good.
+    /// </summary>
+    public static void Discard(string file)
     {
         try
         {
@@ -98,16 +125,44 @@ static class ViewerLauncher
     /// the winner and exits, which is the same resolution a second inline viewer reaches.
     /// </para>
     /// </summary>
-    public static bool LaunchDelete(string file) =>
-        Start($"--delete \"{file}\"") is not null;
+    public static Process? LaunchDelete(string file) =>
+        Start($"--delete \"{Rooted(file)}\"");
 
     /// <summary>
     /// Starts a viewer holding one failing pair, for when the tool resolved for that pair is the
     /// viewer itself and nothing owns the queue. The same launch <see cref="LaunchDelete"/> makes,
     /// for the same reason: the pair joins a queue that later pairs can join too.
     /// </summary>
-    public static bool LaunchDiff(string temp, string target) =>
-        Start(DiffArguments(temp, target)) is not null;
+    public static Process? LaunchDiff(string temp, string target) =>
+        Start(DiffArguments(Rooted(temp), Rooted(target)));
+
+    /// <summary>
+    /// A path as the viewer has to be handed it now that it no longer starts in the host's
+    /// directory, which is what a relative one was relative to.
+    /// <para>
+    /// One that is already rooted goes over exactly as it was given, not normalised: the entry is
+    /// settled later by a key built from the caller's own spelling of the path, and a viewer told
+    /// a tidier one would hold a row that settle never finds.
+    /// </para>
+    /// </summary>
+    internal static string Rooted(string path)
+    {
+        try
+        {
+            if (Path.IsPathRooted(path))
+            {
+                return path;
+            }
+
+            return Path.GetFullPath(path);
+        }
+        catch (Exception exception)
+            when (exception is ArgumentException or NotSupportedException or IOException)
+        {
+            // Not a path this process can resolve, so not one it can improve on either
+            return path;
+        }
+    }
 
     /// <summary>
     /// Built here rather than at each caller, because the tray stores these arguments against the
@@ -133,9 +188,18 @@ static class ViewerLauncher
             return null;
         }
 
+        return Start(tool.ExePath, arguments);
+    }
+
+    /// <summary>
+    /// The launch itself, apart from deciding which copy to start, so a test can hand it a
+    /// stand-in rather than whichever viewer the machine running it has installed.
+    /// </summary>
+    internal static Process? Start(string exePath, string arguments)
+    {
         try
         {
-            return Start(StartInfo(tool.ExePath, arguments, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)));
+            return Start(StartInfo(exePath, arguments, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)));
         }
         catch (Exception exception)
         {
@@ -150,11 +214,15 @@ static class ViewerLauncher
     /// </summary>
     internal static ProcessStartInfo StartInfo(string exePath, string arguments, bool windows)
     {
+        // The resolved path is always a full one. A bare file name has no directory to name, and
+        // an empty working directory is the one a child inherits, which is no worse than before
+        var directory = Path.GetDirectoryName(exePath) ?? "";
         if (windows)
         {
             return new(exePath, arguments)
             {
-                UseShellExecute = true
+                UseShellExecute = true,
+                WorkingDirectory = directory
             };
         }
 
@@ -164,7 +232,8 @@ static class ViewerLauncher
             CreateNoWindow = true,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            WorkingDirectory = directory
         };
     }
 

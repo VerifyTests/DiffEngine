@@ -3,6 +3,14 @@ namespace DiffEngine;
 /// <summary>
 /// A line diff of an expected and a received text. Lines compare exactly, whitespace and case
 /// included, and split on <c>\r\n</c>, <c>\r</c> or <c>\n</c>.
+/// <para>
+/// As few lines as possible are reported as changed, with one exception: two texts of more than
+/// 10,000 lines between them that share thousands of lines in a different order, 8,000 or more
+/// of them out of place. Finding the fewest there takes from a fraction of a second to minutes,
+/// so past about a sixth of a second of looking the diff settles for one that is correct, each
+/// side being exactly its lines in order, and may report a line as changed that it could have
+/// matched.
+/// </para>
 /// </summary>
 public static class TextDiff
 {

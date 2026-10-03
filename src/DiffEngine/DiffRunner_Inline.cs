@@ -14,9 +14,10 @@ public enum InlineResult
     Disabled,
 
     /// <summary>
-    /// Nothing has the snapshot. No DiffEngineViewer could be resolved, or the owner of the queue
-    /// declined the payload - which is the same thing from the caller's side, since in both cases
-    /// the snapshot is pending nowhere. Callers that want a fallback should use it here.
+    /// Nothing has the snapshot. No DiffEngineViewer could be resolved, the one that was started
+    /// exited with a failure, or the owner of the queue declined the payload - which is the same
+    /// thing from the caller's side, since in each case the snapshot is pending nowhere. Callers
+    /// that want a fallback should use it here.
     /// </summary>
     NoViewerFound
 }
@@ -83,10 +84,19 @@ public static partial class DiffRunner
 
         // Through the gate, because a parallel run reaches here once per failing snapshot with
         // nothing owning the port, and every one of them used to start a viewer of its own.
+        var file = ViewerLauncher.PayloadFile();
         var launched = await ViewerLaunchGate.LaunchAsync(
             async () => await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel) == SendOutcome.Accepted,
-            () => ViewerLauncher.LaunchAsync(patch, payload, cancel),
+            () => ViewerLauncher.LaunchAsync(patch, payload, file, cancel),
             cancel);
+        if (launched == ViewerLaunchOutcome.Failed)
+        {
+            // Nothing is left that could read it: no viewer was started, or the one that was has
+            // exited. One that got as far as reading it also deleted it, and then this finds
+            // nothing
+            ViewerLauncher.Discard(file);
+        }
+
         return InlineResultFor(launched);
     }
 
@@ -99,6 +109,11 @@ public static partial class DiffRunner
     /// so the caller stages it. Everything but Failed used to read as queued, which was right until
     /// Capped existed and wrong from then on: with no tray running, every inline snapshot failing
     /// after the fifth diff tool of a run was reported as handed over and staged by nobody.
+    /// </para>
+    /// <para>
+    /// A viewer that was started and exited with a failure is Failed too, for the same reason: it
+    /// took nothing. That is a copy too old for the arguments this library gives it, or one with
+    /// no runtime to run on.
     /// </para>
     /// </summary>
     internal static InlineResult InlineResultFor(ViewerLaunchOutcome outcome) =>

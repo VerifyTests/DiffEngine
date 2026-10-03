@@ -98,6 +98,25 @@ public class OwnedInlineHostTest
         // an exception out of Dispose is the point.
     }
 
+    /// <summary>
+    /// What is staged as the session ends is the last of the queue anything will see, so a patch
+    /// taken after it would be acknowledged to its sender and in neither place. It is refused
+    /// instead, which is what makes the sender stage it, and everything else still answers.
+    /// </summary>
+    [Test]
+    public async Task APatchArrivingOnceTheSessionIsEndingIsRefused()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+
+        owner.Host.SessionEnding();
+        var response = owner.Queue(@"c:\repo\OtherTests.cs", 7);
+
+        await Assert.That(response.Ok).IsFalse();
+        await Assert.That(response.Message).IsEqualTo("This tray is going with the session and can take nothing more.");
+        await Assert.That(owner.Send(new(ViewerVerb.List)).Items.Select(_ => _.Name)).IsEquivalentTo(["SampleTests.cs:42"]);
+    }
+
     [Test]
     public async Task AQueuedPatchIsHeldHereAndShown()
     {
@@ -638,8 +657,14 @@ public class OwnedInlineHostTest
         /// </summary>
         public bool? HeldDeletes { get; private set; }
 
-        public (int accepted, int kept) AcceptAll(bool holdDeletes, Action? advanced = null)
+        /// <summary>
+        /// The deletes the last sweep was told it may carry out, null before there was one.
+        /// </summary>
+        public IReadOnlyCollection<string>? SweptDeletes { get; private set; }
+
+        public (int accepted, int kept) AcceptAll(IReadOnlyCollection<string> deleteKeys, bool holdDeletes, Action? advanced = null)
         {
+            SweptDeletes = deleteKeys;
             HeldDeletes = holdDeletes;
             // One step per file the sweep reports, which is what the real tracker calls it for
             for (var file = 0; file < SweepResult.accepted + SweepResult.kept; file++)
@@ -790,6 +815,97 @@ public class OwnedInlineHostTest
     }
 
     /// <summary>
+    /// The snapshots of one source file are written together, with one read and one write, so
+    /// they are completed together: while the second of two is applying, neither has left the
+    /// listing and the count has not moved. One at a time each rewrote the whole file, which for
+    /// five hundred in one file was half a minute where the drive is scanned.
+    /// </summary>
+    [Test]
+    public async Task TheSnapshotsOfOneFileAreCompletedTogether()
+    {
+        using var held = new HeldApply(2);
+        using var owner = new Owner(held.Apply);
+        owner.Queue(@"c:\repo\SampleTests.cs", 7);
+        owner.Queue(@"c:\repo\SampleTests.cs", 9);
+        owner.Queue(@"c:\repo\OtherTests.cs", 3);
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+
+        var partway = owner.Send(new(ViewerVerb.ListFull));
+        await Assert.That(partway.Progress).IsEqualTo(new(0, 3));
+        await Assert.That(partway.Items.Count).IsEqualTo(3);
+
+        held.Release();
+        var response = await accepting;
+
+        await Assert.That(response.Message).IsEqualTo("Accepted 3");
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items).IsEmpty();
+    }
+
+    /// <summary>
+    /// And each still has an outcome of its own: the one that was not written stays, saying why,
+    /// beside the one of the same file that was.
+    /// </summary>
+    [Test]
+    public async Task EachSnapshotOfAFileHasItsOwnOutcome()
+    {
+        using var owner = new Owner(
+            _ => _.LineHint == 9
+                ? InlineApplyResult.Failed("the file is held")
+                : InlineApplyResult.Applied);
+        owner.Queue(@"c:\repo\SampleTests.cs", 7);
+        owner.Queue(@"c:\repo\SampleTests.cs", 9);
+        owner.Queue(@"c:\repo\SampleTests.cs", 11);
+
+        var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
+
+        await Assert.That(response.Message).IsEqualTo("Accepted 2, 1 failed. the file is held");
+        var left = owner.Send(new(ViewerVerb.ListFull)).Items.Single();
+        await Assert.That(left.Key).IsEqualTo(InlineKey.For(@"c:\repo\SampleTests.cs", 9));
+    }
+
+    /// <summary>
+    /// With the applier a tray really has, several snapshots land in one real file.
+    /// </summary>
+    [Test]
+    public async Task TheRealApplierWritesEverySnapshotOfAFile()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"OwnedInlineHostTest_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var source = Path.Combine(directory, "SampleTests.cs");
+            await File.WriteAllTextAsync(
+                source,
+                """
+                class C
+                {
+                    void One() => Verify(value).Snapshot("old");
+                    void Two() => Verify(value).Snapshot("old");
+                    void Three() => Verify(value).Snapshot("old");
+                }
+                """);
+            using var owner = new Owner();
+            owner.Queue(source, 3, content: "one");
+            owner.Queue(source, 4, content: "two");
+            owner.Queue(source, 5, content: "three");
+
+            var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
+
+            await Assert.That(response.Message).IsEqualTo("Accepted 3");
+            var written = await File.ReadAllTextAsync(source);
+            await Assert.That(written).Contains("One() => Verify(value).Snapshot(\"one\")");
+            await Assert.That(written).Contains("Two() => Verify(value).Snapshot(\"two\")");
+            await Assert.That(written).Contains("Three() => Verify(value).Snapshot(\"three\")");
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// The tracked files are swept first, and a move being retried while a diff tool lets go of it
     /// is as much of the wait as any snapshot, so they count towards the progress too.
     /// </summary>
@@ -862,12 +978,78 @@ public class OwnedInlineHostTest
     }
 
     /// <summary>
+    /// The deletes are listed as the batch begins and those are what the sweep is handed once the
+    /// snapshots are done. They were read at that point instead, so a delete that arrived while a
+    /// snapshot was applying was swept with a batch its patch was never in.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptAllSweepsOnlyTheDeletesPendingWhenItBegan()
+    {
+        using var held = new HeldApply(1);
+        using var owner = new Owner(held.Apply);
+        var tracked = new FakeTracked
+        {
+            DeleteList = [new(@"delete:c:\code\early.verified.txt", "early.verified.txt", null, @"c:\code\early.verified.txt")],
+            SweepResult = (1, 0)
+        };
+        owner.Host.TrackedFiles = tracked;
+        owner.Queue();
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        tracked.DeleteList =
+        [
+            ..tracked.DeleteList,
+            new(@"delete:c:\code\late.verified.txt", "late.verified.txt", null, @"c:\code\late.verified.txt")
+        ];
+        held.Release();
+        await accepting;
+
+        await Assert.That(tracked.SweptDeletes!).IsEquivalentTo([@"delete:c:\code\early.verified.txt"]);
+    }
+
+    /// <summary>
     /// An accept-all runs for as long as the queue is long, and the queue moves meanwhile. It
     /// applied from a copy taken at the start, so an entry discarded while an earlier one was
-    /// applying was still written into the source.
+    /// applying was still written into the source. A file's snapshots are looked up when that
+    /// file's turn comes, so one discarded before then is not written.
     /// </summary>
     [Test]
     public async Task AnEntryDiscardedDuringAnAcceptAllIsNotWritten()
+    {
+        using var held = new HeldApply(1);
+        var applied = new List<InlinePatch>();
+        using var owner = new Owner(
+            patch =>
+            {
+                lock (applied)
+                {
+                    applied.Add(patch);
+                }
+
+                return held.Apply(patch);
+            });
+        owner.Queue(@"c:\repo\SampleTests.cs", 1);
+        owner.Queue(@"c:\repo\OtherTests.cs", 2);
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        owner.Send(new(ViewerVerb.Discard, InlineKey.For(@"c:\repo\OtherTests.cs", 2)));
+        held.Release();
+        await accepting;
+
+        await Assert.That(applied).HasSingleItem();
+        await Assert.That(applied[0].LineHint).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// The turn is a file's, because a file's snapshots are written together in one write. So one
+    /// discarded while its own file is being written had already been handed over with the rest
+    /// of the file, and is written with them. It is gone from the queue as it was asked to be, and
+    /// is not counted as accepted: the outcome is of an entry that is no longer there.
+    /// </summary>
+    [Test]
+    public async Task AnEntryDiscardedWhileItsOwnFileIsWrittenIsNotCounted()
     {
         using var held = new HeldApply(1);
         var applied = new List<InlinePatch>();
@@ -888,10 +1070,11 @@ public class OwnedInlineHostTest
         held.WaitUntilHeld();
         owner.Send(new(ViewerVerb.Discard, InlineKey.For(@"c:\repo\SampleTests.cs", 2)));
         held.Release();
-        await accepting;
+        var response = await accepting;
 
-        await Assert.That(applied).HasSingleItem();
-        await Assert.That(applied[0].LineHint).IsEqualTo(1);
+        await Assert.That(applied.Count).IsEqualTo(2);
+        await Assert.That(response.Message).IsEqualTo("Accepted 1");
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items).IsEmpty();
     }
 
     /// <summary>

@@ -15,8 +15,9 @@
 /// </para>
 /// <para>
 /// A clean tray exit stages what is still pending back to disk (<see cref="InlineStaging"/>), so
-/// a restart no longer silently discards the queue. A kill or a crash still loses it, exactly as
-/// it loses tracked moves and deletes, and the recovery is the same: re-run the tests.
+/// a restart no longer silently discards the queue. So does the session ending, which never gets
+/// as far as a clean exit: see <see cref="SessionEnding"/>. A kill or a crash still loses it,
+/// exactly as it loses tracked moves and deletes, and the recovery is the same: re-run the tests.
 /// </para>
 /// </summary>
 sealed class OwnedInlineHost :
@@ -58,16 +59,31 @@ sealed class OwnedInlineHost :
     /// </summary>
     readonly Lock accepting = new();
 
+    /// <summary>
+    /// Several snapshots of one source file, written with one read and one write and answered in
+    /// the order given: what a bulk accept hands a file's snapshots to. The applier a test
+    /// supplied, asked of each in turn, when there is one.
+    /// </summary>
+    readonly Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>> together;
+
     OwnedInlineHost(
         ViewerServer server,
         Action<string> failed,
         IViewerLauncher launcher,
-        Func<InlinePatch, InlineApplyResult> applier)
+        Func<InlinePatch, InlineApplyResult>? applier)
     {
         this.server = server;
         this.failed = failed;
         this.launcher = launcher;
-        this.applier = applier;
+        this.applier = applier ?? InlineApplier.Apply;
+        if (applier is null)
+        {
+            together = InlineApplier.ApplyAll;
+        }
+        else
+        {
+            together = _ => _.Select(applier).ToList();
+        }
     }
 
     /// <summary>
@@ -85,7 +101,7 @@ sealed class OwnedInlineHost :
         int? port = null,
         Func<InlinePatch, InlineApplyResult>? applier = null) =>
         ViewerServer.TryBind(port ?? ViewerClient.Port, out var server)
-            ? new(server, failed, launcher ?? new ProcessViewerLauncher(), applier ?? InlineApplier.Apply)
+            ? new(server, failed, launcher ?? new ProcessViewerLauncher(), applier)
             : null;
 
     public int Port => server.Port;
@@ -125,6 +141,15 @@ sealed class OwnedInlineHost :
                 .Select(_ => new PendingSnapshot(_.Key, _.Name, _.Status))
                 .ToList();
         }
+    }
+
+    /// <summary>
+    /// Held in this process, so there is nobody to fail to reach.
+    /// </summary>
+    public bool TryList(out IReadOnlyList<PendingSnapshot> pending)
+    {
+        pending = List();
+        return true;
     }
 
     /// <summary>
@@ -199,6 +224,15 @@ sealed class OwnedInlineHost :
         int count;
         lock (gate)
         {
+            if (sessionEnding)
+            {
+                // Thrown rather than returned, as an owning viewer's is once it is closing: the
+                // interface has no refusal for this verb, and a handler that throws is answered
+                // with an error, so the sender stages the patch itself instead of believing a
+                // process on its way out took it
+                throw new InvalidOperationException("This tray is going with the session and can take nothing more.");
+            }
+
             queue = queue.Enqueue(patch);
             count = queue.Count;
         }
@@ -415,6 +449,12 @@ sealed class OwnedInlineHost :
     /// same rule for the arrangement where the tray holds the queue, which is the usual one.
     /// </para>
     /// <para>
+    /// The deletes are listed as the batch begins, ahead of the snapshots, and only those are
+    /// carried out. Read when their turn came, they included the delete of a snapshot that moved
+    /// inline while the batch was applying, whose patch the batch never had: the verified file
+    /// went with the patch replacing it still pending.
+    /// </para>
+    /// <para>
     /// The files count towards the progress a listing reports, since a move that is being retried
     /// while a diff tool lets go of it is as much of the wait as any snapshot.
     /// </para>
@@ -427,13 +467,13 @@ sealed class OwnedInlineHost :
         lock (accepting)
         {
             var moves = TrackedFiles?.Moves().Count ?? 0;
-            var deletes = TrackedFiles?.Deletes().Count ?? 0;
-            StartProgress(moves + deletes);
+            var deletes = TrackedFiles?.Deletes().Select(_ => _.Key).ToList() ?? [];
+            StartProgress(moves + deletes.Count);
             try
             {
-                message = AcceptEvery(moves + deletes, out var refused);
-                tracked = TrackedFiles?.AcceptAll(refused, Advance);
-                held = refused && deletes > 0;
+                message = AcceptEvery(moves + deletes.Count, out var refused);
+                tracked = TrackedFiles?.AcceptAll(deletes, refused, Advance);
+                held = refused && deletes.Count > 0;
             }
             finally
             {
@@ -588,6 +628,15 @@ sealed class OwnedInlineHost :
     /// listing shows the queue shrinking and says how far the batch has got. Together they left
     /// the window showing an untouched queue for as long as the batch took.
     /// </para>
+    /// <para>
+    /// A file at a time where a file has several. Each snapshot applied on its own rewrote its
+    /// whole source file, and the rewrite is what costs: a file written a moment ago is scanned by
+    /// whatever watches the drive before the next thing can open it, so five hundred snapshots in
+    /// one file were half a minute of writes around a second of patching. So when a snapshot's
+    /// turn comes, the others still to do in its file are looked up with it and written with it,
+    /// one read and one write, each with its own outcome. That is still looked up when its turn
+    /// comes, by the first of the file's, and the wait it is looked up ahead of is the one write.
+    /// </para>
     /// </summary>
     /// <param name="files">
     /// The tracked files the caller sweeps once the snapshots are done, for the progress total.
@@ -613,12 +662,20 @@ sealed class OwnedInlineHost :
         }
 
         var tally = new AcceptAllTally();
+        // The keys still to come to. One is taken out as its turn comes, or earlier, when an
+        // earlier snapshot of its file took it along
+        var waiting = new HashSet<string>(keys);
         foreach (var key in keys)
         {
-            PendingInline? entry;
+            if (!waiting.Remove(key))
+            {
+                continue;
+            }
+
+            List<PendingInline> claimed;
             lock (gate)
             {
-                entry = queue.Find(key);
+                var entry = queue.Find(key);
                 if (entry is null ||
                     entry.Conflicted)
                 {
@@ -627,14 +684,36 @@ sealed class OwnedInlineHost :
                     progress = progress?.Advance();
                     continue;
                 }
+
+                claimed = [entry];
+                foreach (var other in queue.Items)
+                {
+                    if (!ReferenceEquals(other, entry) &&
+                        !other.Conflicted &&
+                        InlineKey.SamePath(other.Patch.SourceFile, entry.Patch.SourceFile) &&
+                        waiting.Remove(other.Key))
+                    {
+                        claimed.Add(other);
+                    }
+                }
             }
 
-            var result = applier(entry.Patch);
-            // Together, so no listing can show the entry gone and the count not yet moved past it
+            var results = claimed.Count == 1
+                ? [applier(claimed[0].Patch)]
+                : together(claimed.Select(_ => _.Patch).ToList());
+            if (results.Count != claimed.Count)
+            {
+                throw new InvalidOperationException($"{claimed.Count} snapshots were applied together and {results.Count} outcomes came back.");
+            }
+
+            // Together, so no listing can show an entry gone and the count not yet moved past it
             lock (gate)
             {
-                queue = queue.AcceptInBatch(entry, result, ref tally);
-                progress = progress?.Advance();
+                for (var index = 0; index < claimed.Count; index++)
+                {
+                    queue = queue.AcceptInBatch(claimed[index], results[index], ref tally);
+                    progress = progress?.Advance();
+                }
             }
 
             Changed?.Invoke();
@@ -780,4 +859,33 @@ sealed class OwnedInlineHost :
     /// </summary>
     void Persist() =>
         InlineStaging.Persist(queue.Items);
+
+    /// <summary>
+    /// The session is ending: take nothing more, and stage what the queue holds, before returning.
+    /// <para>
+    /// A logoff or a shutdown never reaches <see cref="DisposeAsync"/>. The message loop does not
+    /// return for one, and Windows may end the process as soon as its windows have answered, so
+    /// the queue was lost every time the session ended with something pending - which, for a tray
+    /// started at login, is how it usually stops. See <see cref="SessionEndWindow"/>, which calls
+    /// this from inside the message.
+    /// </para>
+    /// <para>
+    /// Refusing first, under the gate, is what makes the staged queue the final one, the way
+    /// stopping the listener does for a clean exit: a patch acknowledged after this would be in
+    /// neither place.
+    /// </para>
+    /// </summary>
+    public void SessionEnding()
+    {
+        IReadOnlyList<PendingInline> pending;
+        lock (gate)
+        {
+            sessionEnding = true;
+            pending = queue.Items;
+        }
+
+        InlineStaging.Persist(pending);
+    }
+
+    bool sessionEnding;
 }

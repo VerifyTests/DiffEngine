@@ -47,7 +47,7 @@ flowchart TD
     Tray -->|no| Bundled{"A copy for this platform bundled in the<br/>DiffEngine package the project references?"}
     Bundled -->|yes| Package["The bundled copy"]
     Bundled -->|no| Cache{"A DiffEngine package<br/>in the NuGet cache?"}
-    Cache -->|yes| Cached["The copy bundled in that package:<br/>this version first, then any"]
+    Cache -->|yes| Cached["The copy bundled in that package:<br/>this version first, then the highest"]
     Cache -->|no| OnPath{"DiffEngineViewer on PATH?"}
     OnPath -->|yes| Found["The copy on PATH"]
     OnPath -->|no| None["No viewer: files go to another diff tool, and<br/>an inline snapshot is staged as files instead"]
@@ -63,6 +63,10 @@ flowchart TD
 ```
 
 An installed tool comes first because installing one is an explicit choice of which viewer to run. The bundled copy comes ahead of the NuGet cache because it is the version the library about to launch it was built with; the cache is searched as well because not every project shape tells the library where its package is.
+
+There is one exception to the first copy found. A copy from before 20.5.0 is passed over when a newer one is further down that list, and taken only when it is the only one there is. A viewer that old exits on the `--payload` file a failing inline snapshot is launched with, so an installed tool or tray that had not been updated lost the snapshot. A copy named by `DiffEngine_DiffEngineViewer` is used as named, whatever its version.
+
+A viewer that is started and exits with a failure before it holds the queue is reported as not started, so an inline snapshot is staged as files rather than said to be queued.
 
 The folder is looked for beside the copy that was found rather than assumed from where it came from, so a tool installed before documents existed is a minimal viewer, and is not offered files it would show as text. Setting `DiffEngine_DiffEngineViewer` to a path with no viewer at it is an error rather than a fall through to the next copy.
 
@@ -177,7 +181,7 @@ What lands on the clipboard is what is on screen: tabs already expanded to the f
 
 A test run that fails several inline snapshots produces one window, not several. Whichever process binds the loopback port holds the queue; everything else hands its patch to that one. The window lists everything pending and offers **Accept all**.
 
-**Accept all** takes as long as the queue is long, so it goes one entry at a time. Each entry leaves the list as it lands, the status line says how far it has got (`Accepting 12 of 40`), and the window keeps responding throughout. **Accept**, **Discard** and **Accept all** are disabled until it finishes; scrolling, selecting and copying are not. It is the same when [DiffEngineTray](/docs/tray.md) holds the queue, and when the accept-all was started from the tray's menu: the window follows the tray's progress.
+**Accept all** takes as long as the queue is long, so it goes a step at a time. Each entry leaves the list as it lands, the status line says how far it has got (`Accepting 12 of 40`), and the window keeps responding throughout. The snapshots of one source file are a single step: they are written into the file together, with one read and one write, and leave the list together. **Accept**, **Discard** and **Accept all** are disabled until it finishes; scrolling, selecting and copying are not. **Accept all in ...** on a header goes the same way, over that header's entries. It is the same when [DiffEngineTray](/docs/tray.md) holds the queue, and when the accept-all was started from the tray's menu: the window follows the tray's progress.
 
 Failing file comparisons join the same queue, so a run that fails ten snapshots opens one window whether they are inline or on disk. Every other diff tool gets a process per pair, and DiffEngine closes each one as its test starts passing; the viewer is told to drop that row instead.
 
@@ -230,7 +234,7 @@ A conflicted entry is marked `*` in the list, the pane header names the framewor
 
 When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the tray's pending file moves and deletes beside the snapshots, grouped by solution like everything else. A move shows the received file against the committed one; a delete shows the file's content against nothing. The files are read locally — the protocol never leaves the machine — and accept and discard are forwarded to the tray, which is why the buttons name the act: **Accept move**, **Accept delete**.
 
-**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted.
+**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted. The deletes are the ones pending when it began, and are held back when a snapshot was not written. One for a file that a move in the same sweep has written is left pending.
 
 A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends them to a running tray.
 
@@ -294,7 +298,7 @@ A document opens at its first page that differs, the way a text comparison opens
 
 The status line says what is known about the pair as it becomes known: `reading text` and `drawing` while that happens, which page is showing and which differ, `every page draws the same` when the files differ only where nothing shows, and `documents are identical` when the bytes match. Each pane's header names the page it shows, `received.pdf (page 2 of 5)`, or `(no page 6)` when that side has fewer.
 
-Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer, and never holds the window either. Only the entry on screen is read and drawn: with several documents pending, the rest wait until they are opened, rather than keeping the thread busy with documents that may never be looked at. While a page is still being drawn, a spinner turns where it will appear. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: a document that hangs is given up on after two minutes, but one that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
+Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer, and never holds the window either. Only the entry on screen is read and drawn: with several documents pending, the rest wait until they are opened, rather than keeping the thread busy with documents that may never be looked at. While a page is still being drawn, a spinner turns where it will appear. The two sides of a pair are drawn at the same time, so the pages of the right appear beside the pages of the left, and which pages differ is known as they are drawn rather than once both are done. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: each side is given up on once two minutes pass with nothing coming of it, neither its text nor another page, and a PDF opened while that one is still being read, the other side of its own pair included, waits for it rather than failing. A copy that could not be taken, because the disk was full or something held the file, is said in the status line and tried again. One that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
 
 A file that is not the document its extension says is ordinary — a test that failed part way through writing its snapshot, an empty file, an error page saved as a PDF — and is reported rather than drawn. The status line says so once, about the file: `could not read report.received.docx: Not a readable Word document: it is not a zip archive, or was cut short`, or `The file is empty`. Its pane shows what the file is and how large instead of text, its header says `(not drawn)`, and the other side, if it is whole, is still read and drawn. Nothing about it carries over to the next document.
 

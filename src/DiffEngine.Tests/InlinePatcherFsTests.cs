@@ -408,6 +408,24 @@ public class InlinePatcherFsTests
                 """));
     }
 
+    // ToTask is not the only way off a SettingsTask, and a test that blocks instead of awaiting
+    // leaves by another: the Snapshot call goes in front of whichever comes first
+    [Test]
+    public async Task AppendGoesInFrontOfGetAwaiter()
+    {
+        var source = Test("    Verifier.Verify(15).GetAwaiter().GetResult() |> ignore");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(15)
+                        .Snapshot("new").GetAwaiter().GetResult() |> ignore
+                """));
+    }
+
     [Test]
     public async Task AppendToAMultiLineChain()
     {
@@ -459,7 +477,9 @@ public class InlinePatcherFsTests
     }
 
     // Awaited in a task expression instead, so there is no ToTask and the chain end is the
-    // insertion point
+    // insertion point. One level in from where the expression starts, which after do! is not where
+    // the line does: this used to expect the call under Verifier, and F# reads that as the next
+    // statement
     [Test]
     public async Task AppendWithNoToTask()
     {
@@ -478,9 +498,201 @@ public class InlinePatcherFsTests
                 """
                     task {
                         do! Verifier.Verify(15)
-                            .Snapshot("new")
+                                .Snapshot("new")
                     }
                 """));
+    }
+
+    /// <summary>
+    /// The shape of Verify's own Expecto sample. The offside line is the column the expression
+    /// starts at, and after <c>do!</c> that is four past the line's indentation, so one level in
+    /// from the line put the call exactly on it: FS0010, unexpected symbol '.' in expression.
+    /// </summary>
+    [Test]
+    public async Task AppendAfterDoBangClearsTheExpression()
+    {
+        var source = Test(
+            """
+                testTask "findPerson" {
+                    do! Verifier.Verify("findPerson", person).ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    testTask \"findPerson\" {\n" +
+                "        do! Verifier.Verify(\"findPerson\", person)\n" +
+                "                .Snapshot(\n" +
+                "                    \"\"\"\n" +
+                "                    a\n" +
+                "                    b\n" +
+                "                    \"\"\").ToTask()\n" +
+                "    }"));
+    }
+
+    /// <summary>
+    /// A literal on its own line has the same line to clear. After <c>let! _ =</c> the expression
+    /// starts nine columns past the indentation, and the literal one level in from the line was
+    /// left of it.
+    /// </summary>
+    [Test]
+    public async Task SetAfterLetBangClearsTheExpression()
+    {
+        var source = Test(
+            """
+                testTask "findPerson" {
+                    let! _ = Verifier.Verify(x).Snapshot("old").ToTask()
+                    return ()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    testTask \"findPerson\" {\n" +
+                "        let! _ = Verifier.Verify(x).Snapshot(\n" +
+                "                     \"\"\"\n" +
+                "                     a\n" +
+                "                     b\n" +
+                "                     \"\"\").ToTask()\n" +
+                "        return ()\n" +
+                "    }"));
+    }
+
+    // A binding written on one line: the expression starts after the equals sign
+    [Test]
+    public async Task AppendToABindingOnOneLineClearsTheExpression()
+    {
+        var source = Source(
+            """
+            module Tests
+
+            let MyTest () = Verifier.Verify(15).ToTask()
+
+            """);
+
+        var status = TryApply(source, 3, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Source(
+                """
+                module Tests
+
+                let MyTest () = Verifier.Verify(15)
+                                    .Snapshot("new").ToTask()
+
+                """));
+    }
+
+    // The receiver is part of the expression, however long: the column is where the first name
+    // of it is, with a namespace in front of the class as much as without
+    [Test]
+    public async Task TheExpressionStartsAtItsOutermostReceiver()
+    {
+        var source = Test("    let result = VerifyXunit.Verifier.Verify<Person>(person).UseDirectory(\"x\").Snapshot(\"old\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    let result = VerifyXunit.Verifier.Verify<Person>(person).UseDirectory(\"x\").Snapshot(\n" +
+                "                     \"\"\"\n" +
+                "                     a\n" +
+                "                     b\n" +
+                "                     \"\"\").ToTask()"));
+    }
+
+    /// <summary>
+    /// A closing paren on a line of its own, where a formatter puts it: at the column the call
+    /// starts at. Lining the appended call up with the line the chain ended on was right for a
+    /// chain and put this one on the offside line, in a call that does start its line.
+    /// </summary>
+    [Test]
+    public async Task AppendUnderAClosingParenClearsTheExpression()
+    {
+        var source = Test(
+            """
+                Verifier.Verify(
+                    value
+                ).ToTask()
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(
+                        value
+                    )
+                        .Snapshot("new").ToTask()
+                """));
+    }
+
+    // A chain already across lines is somewhere the compiler accepted, so the call joins it
+    [Test]
+    public async Task AppendAfterDoBangLinesUpWithAnExistingChain()
+    {
+        var source = Test(
+            """
+                task {
+                    do! Verifier.Verify(15)
+                            .UseMethodName("customName")
+                            .ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    task {
+                        do! Verifier.Verify(15)
+                                .UseMethodName("customName")
+                                .Snapshot("new")
+                                .ToTask()
+                    }
+                """));
+    }
+
+    // Where the Snapshot call is on a line of the chain's own, that line is what the literal is
+    // one level in from, as it always was
+    [Test]
+    public async Task SetOnAChainedLineIsMeasuredFromThatLine()
+    {
+        var source = Test(
+            """
+                task {
+                    do! Verifier.Verify(15)
+                            .Snapshot("old")
+                            .ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 7, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    task {\n" +
+                "        do! Verifier.Verify(15)\n" +
+                "                .Snapshot(\n" +
+                "                    \"\"\"\n" +
+                "                    a\n" +
+                "                    b\n" +
+                "                    \"\"\")\n" +
+                "                .ToTask()\n" +
+                "    }"));
     }
 
     [Test]
@@ -523,6 +735,31 @@ public class InlinePatcherFsTests
         var status = TryApply(source, 5, InlinePatchMode.Append, null, "same", out _, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    // The first call in the test was accepted, which is what left the hint stale, so the walk from
+    // the member's declaration meets it before the call the patch is for
+    [Test]
+    public async Task AppendPassesOverACallThatAlreadyHasASnapshot()
+    {
+        var source = Test(
+            """
+                Verifier.Verify(a).Snapshot("A").ToTask() |> ignore
+                Verifier.Verify(b).ToTask() |> ignore
+                printfn "done"
+            """);
+
+        var status = TryApply(source, 7, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "MyTest");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(a).Snapshot("A").ToTask() |> ignore
+                    Verifier.Verify(b)
+                        .Snapshot("B").ToTask() |> ignore
+                    printfn "done"
+                """));
     }
 
     [Test]
@@ -575,6 +812,70 @@ public class InlinePatcherFsTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(Test("    Verifier.Verify(15).ToTask()"));
+    }
+
+    /// <summary>
+    /// The call on a VerifySettings rather than on a verify call. Taken off the end it left the
+    /// variable standing as an expression of its own, which F# warns about (FS0020) and a project
+    /// that treats warnings as errors refuses. There is no semicolon to say where the statement
+    /// ends, so it is the line, and the statement under it is what says the block still has one.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfACallOnAVariableTakesItsLine()
+    {
+        var source = Test(
+            """
+                let settings = VerifySettings()
+                settings.Snapshot("old")
+                Verifier.Verify(15, settings).ToTask()
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Remove, null, "", out var newSource, out var reason, originalValue: "old");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    let settings = VerifySettings()
+                    Verifier.Verify(15, settings).ToTask()
+                """));
+    }
+
+    /// <summary>
+    /// Bound or passed on the same line, what the call was on is still a value with the call gone,
+    /// so the call alone is taken. The <c>=</c> a line above is another matter: a whole body hangs
+    /// off that one, and the line under it is the body's first statement.
+    /// </summary>
+    [Test]
+    [Arguments("    let kept = task.Snapshot(\"old\")\n    kept.ToTask()", "    let kept = task\n    kept.ToTask()")]
+    [Arguments("    run (task.Snapshot(\"old\"))", "    run (task)")]
+    public async Task RemoveOfACallWhoseValueIsTakenLeavesWhatItWasOn(string body, string expected)
+    {
+        var source = Test(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out var newSource, out var reason, originalValue: "old");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(Test(expected));
+    }
+
+    /// <summary>
+    /// The last line of its block is the block's value, and taking it away leaves a binding with
+    /// nothing under it. So is a line the next one carries on, or one something else shares.
+    /// </summary>
+    [Test]
+    [Arguments("    let settings = VerifySettings()\n    settings.Snapshot(\"old\")")]
+    [Arguments("    task.Snapshot(\"old\")\n    |> ignore")]
+    [Arguments("    if flag then\n        settings.Snapshot(\"old\")\n    Verifier.Verify(15, settings).ToTask()")]
+    [Arguments("    settings.Snapshot(\"old\"); Verifier.Verify(15, settings).ToTask()")]
+    public async Task RemoveReportsACallItCannotTakeWithItsLine(string body)
+    {
+        var source = Test(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out var reason, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Remove the statement by hand");
     }
 
     [Test]

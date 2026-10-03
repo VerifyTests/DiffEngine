@@ -37,6 +37,31 @@ public class ViewerFormRaiseTests
         await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Maximized);
     }
 
+    /// <summary>
+    /// Minimised from maximised, it comes back maximised, as it would from the taskbar. Put back to
+    /// normal instead, it was also remembered that way: the next hide or close saved a window the
+    /// reader had maximised as one they had not.
+    /// </summary>
+    [Test]
+    public async Task Restores_a_window_minimised_from_maximised_as_maximised()
+    {
+        // Shown, since what it was minimised from is learnt from the window as it resizes, and
+        // transparent, so a maximised window does not flash over whoever is running the tests
+        using var form = new ViewerForm("title", 800, 600)
+        {
+            Opacity = 0,
+            ShowInTaskbar = false
+        };
+        form.Show();
+        form.WindowState = FormWindowState.Maximized;
+        form.WindowState = FormWindowState.Minimized;
+
+        form.Raise();
+
+        await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Maximized);
+        await Assert.That(form.Placement!.Value.Maximized).IsTrue();
+    }
+
     [Test]
     public async Task Shows_a_hidden_window()
     {

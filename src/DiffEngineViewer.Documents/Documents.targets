@@ -8,7 +8,8 @@
   It is the same switch the Mac and Linux heads already use to keep their own natives out of the
   bundle.
 
-  Imported by each head, by DiffEngineTray and by DiffEngineViewer.Tests. Each says in DocumentsRids
+  Imported by each head, by DiffEngineTray, by DiffEngineViewer.Tests and by
+  DiffEngineViewer.Benchmarks. Each says in DocumentsRids
   which RIDs it ships natives for. The other runtimes folders are left out, which is safe because the
   running RID is the only one probed: deps.json still naming a folder for another OS costs nothing,
   while a missing asset for the running one would stop the folder loading.

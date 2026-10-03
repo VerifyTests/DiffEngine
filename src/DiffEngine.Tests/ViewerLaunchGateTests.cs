@@ -74,7 +74,7 @@ public class ViewerLaunchGateTests
                         launch: () =>
                         {
                             Interlocked.Increment(ref starts);
-                            return true;
+                            return Running();
                         },
                         isOwned: () => false,
                         canLaunch: () => true))));
@@ -98,11 +98,147 @@ public class ViewerLaunchGateTests
         {
             var outcome = ViewerLaunchGate.Launch(
                 retry: () => true,
-                launch: () => false,
+                launch: () => null,
                 isOwned: () => false,
                 canLaunch: () => true);
 
             await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <summary>
+    /// A viewer that starts and cannot take the launch is no more a launch than one that never
+    /// started. A copy from before 20.5.0 exits with 2 on the --payload it does not know, and an
+    /// apphost with no runtime to run on exits before any of the viewer's code does. Either was
+    /// waited on for the whole of BindWait with the gate held, and then reported as launched - so
+    /// an inline snapshot was called queued, and the caller staged nothing, when no process had it.
+    /// </summary>
+    [Test]
+    public async Task AViewerThatExitsWithAFailureIsReportedRatherThanWaitedOn()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        // Long enough that waiting it out would show in this test's duration.
+        ViewerLaunchGate.BindWait = TimeSpan.FromSeconds(20);
+        try
+        {
+            var elapsed = Stopwatch.StartNew();
+
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => Exited(2),
+                isOwned: () => false,
+                canLaunch: () => true);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
+            await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <inheritdoc cref="AViewerThatExitsWithAFailureIsReportedRatherThanWaitedOn" />
+    [Test]
+    public async Task AViewerThatExitsWithAFailureIsReportedRatherThanWaitedOnAsync()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        ViewerLaunchGate.BindWait = TimeSpan.FromSeconds(20);
+        try
+        {
+            var elapsed = Stopwatch.StartNew();
+
+            var outcome = await ViewerLaunchGate.LaunchAsync(
+                retry: () => Task.FromResult(true),
+                launch: () => Task.FromResult<Process?>(Exited(2)),
+                Cancel.None,
+                isOwned: () => false,
+                canLaunch: () => true);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
+            await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <summary>
+    /// An owner that turns up while a failed viewer is being waited on is somebody else's, and was
+    /// never handed this caller's work. Read as the viewer this call started, it had the caller
+    /// told its snapshot was queued by a process that had never heard of it.
+    /// </summary>
+    [Test]
+    public async Task AnOwnerArrivingBehindAFailedViewerIsNotTakenForIt()
+    {
+        var probes = 0;
+
+        var outcome = ViewerLaunchGate.Launch(
+            retry: () => true,
+            launch: () => Exited(2),
+            // Nobody when the gate decides to launch, and somebody by the time it waits
+            isOwned: () => Interlocked.Increment(ref probes) > 1,
+            canLaunch: () => true);
+
+        await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
+    }
+
+    /// <summary>
+    /// A clean exit is not a failure to start. A viewer that finds the port already bound hands
+    /// its work to whoever bound it and exits with zero, so the owner the next probe finds does
+    /// have the work, and the launch is reported as one.
+    /// </summary>
+    [Test]
+    public async Task AViewerThatHandedItsWorkOverAndExitedIsStillALaunch()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        // Long enough that reaching the end of it would show, so the answer is the owner's
+        ViewerLaunchGate.BindWait = TimeSpan.FromSeconds(20);
+        try
+        {
+            var probes = 0;
+            var elapsed = Stopwatch.StartNew();
+
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => Exited(0),
+                // Nobody when the gate decides to launch or first waits, and then the owner
+                isOwned: () => Interlocked.Increment(ref probes) > 2,
+                canLaunch: () => true);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Launched);
+            await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <summary>
+    /// Nor is a clean exit with nobody on the port, which is a viewer that opened, was dealt with
+    /// and closed before a probe caught it. It is waited on as a running one is, and reported the
+    /// same way: what it held when it closed, it staged.
+    /// </summary>
+    [Test]
+    public async Task AViewerThatExitedCleanlyIsNotAFailure()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        ViewerLaunchGate.BindWait = TimeSpan.FromMilliseconds(200);
+        try
+        {
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => Exited(0),
+                isOwned: () => false,
+                canLaunch: () => true);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Launched);
         }
         finally
         {
@@ -124,7 +260,7 @@ public class ViewerLaunchGateTests
             launch: () =>
             {
                 launches++;
-                return Task.FromResult(true);
+                return Task.FromResult<Process?>(Running());
             },
             Cancel.None,
             isOwned: () => true);
@@ -263,7 +399,7 @@ public class ViewerLaunchGateTests
                 launch: () =>
                 {
                     launches++;
-                    return true;
+                    return Running();
                 });
 
             await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Taken);
@@ -290,15 +426,43 @@ public class ViewerLaunchGateTests
 
         public int Starts => starts;
 
-        public bool Start()
+        public Process? Start()
         {
             Interlocked.Increment(ref starts);
             Interlocked.Exchange(ref upAt, (elapsed.Elapsed + BindDelay).Ticks);
-            return true;
+            return Running();
         }
 
         public bool IsUp() =>
             elapsed.Elapsed.Ticks >= Interlocked.Read(ref upAt);
+    }
+
+    /// <summary>
+    /// The process of a viewer that is still running, which is all the gate asks of one it has
+    /// started. This process, since it is. What the gate disposes when its wait is over is the
+    /// object, which holds a handle of its own and nothing of the process.
+    /// </summary>
+    static Process Running() =>
+        Process.GetCurrentProcess();
+
+    /// <summary>
+    /// A process that has exited with <paramref name="code" />: the command interpreter, told to
+    /// do that and nothing else. A real one, because what the gate reads is Process.HasExited and
+    /// Process.ExitCode, and how those behave is the part a stand-in would only be guessing at.
+    /// </summary>
+    static Process Exited(int code)
+    {
+        var windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var process = Process.Start(
+            new ProcessStartInfo(
+                windows ? "cmd.exe" : "/bin/sh",
+                windows ? $"/c exit {code}" : $"-c \"exit {code}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            })!;
+        process.WaitForExit();
+        return process;
     }
 
     /// <summary>
@@ -309,7 +473,7 @@ public class ViewerLaunchGateTests
     /// </summary>
     [Test]
     public Task SyncLaunchBehindAnAsyncDeleteOnTheSameContextFinishes() =>
-        SyncBehindAsync(() => Task.FromResult(true));
+        SyncBehindAsync(() => Task.FromResult<Process?>(Running()));
 
     /// <summary>
     /// AddInlineAsync's shape: the launch is ViewerLauncher.LaunchAsync, whose stdin write and
@@ -322,10 +486,10 @@ public class ViewerLaunchGateTests
         SyncBehindAsync(async () =>
         {
             await Task.Delay(10);
-            return true;
+            return Running();
         });
 
-    static async Task SyncBehindAsync(Func<Task<bool>> launch)
+    static async Task SyncBehindAsync(Func<Task<Process?>> launch)
     {
         var previous = ViewerLaunchGate.BindWait;
         ViewerLaunchGate.BindWait = TimeSpan.FromMilliseconds(300);
@@ -343,7 +507,7 @@ public class ViewerLaunchGateTests
                 canLaunch: () => true);
             syncOutcome = ViewerLaunchGate.Launch(
                 retry: () => true,
-                launch: () => true,
+                launch: Running,
                 isOwned: () => false,
                 canLaunch: () => true);
         })

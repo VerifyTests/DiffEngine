@@ -330,9 +330,8 @@ public class TrackedFileTests
     }
 
     /// <summary>
-    /// The same guard on the group sweep. It reaches it differently: a group accept takes its
-    /// entries one at a time, so a refused patch leaves the queue rather than staying in it with a
-    /// status, and the sweep cannot read the outcome off the queue it is handed.
+    /// The same guard on a group's accept, which is the same batch over fewer entries: its deletes
+    /// wait on its own snapshots, counted from the attempts it made.
     /// </summary>
     [Test]
     public async Task ARefusedPatchHoldsTheDeleteInAGroupSweepToo()

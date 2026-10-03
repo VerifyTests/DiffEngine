@@ -42,16 +42,21 @@ static class ViewerSession
         var selected = current is null ? 0 : IndexOf(queue, current.Key);
         if (selected < 0)
         {
-            selected = 0;
+            // Enqueueing takes no entry away, so one that is no longer under its key has gone with
+            // its call site to the line this patch reports: an accept above it moved the call, and
+            // the queue took the re-run for what it was (InlineQueue.Enqueue). It is still the
+            // entry being read, and the first in the list is not
+            selected = Math.Max(IndexOf(queue, key), 0);
         }
 
         // Start the reader over, at the first change, only when the text under them changed.
         // Folding into an entry further down the list is not it, and neither is a re-send of what
         // is already there: Fold reports an identical patch as unchanged and Project hands back
         // the same entry, so a continuous runner re-sending the same failing snapshot every few
-        // seconds used to bounce the reader to the top on every run.
+        // seconds used to bounce the reader to the top on every run. Asked of the entry rather
+        // than of the key, since a patch can reach the entry on screen under a key that is not the
+        // patch's own: the one it had before its call site moved
         var replaced = current is not null &&
-                       current.Key == key &&
                        !ReferenceEquals(queue[selected], current);
 
         var next = state with
@@ -140,6 +145,12 @@ static class ViewerSession
     /// <see cref="TrackedEntry"/> does that on the listener thread, which is the same seam
     /// <see cref="Sync"/> takes the tray's through.
     /// </para>
+    /// <para>
+    /// A re-send of what is already queued leaves the reader where they are, as
+    /// <see cref="EnqueueInline"/> does. A test that keeps failing the same way sends its pair on
+    /// every run, and each one used to open the entry again: back to its first change and its
+    /// first page, fitted, with the menu closed.
+    /// </para>
     /// </summary>
     public static SessionState EnqueueTracked(SessionState state, QueueEntry entry)
     {
@@ -147,6 +158,13 @@ static class ViewerSession
         if (state.Closing)
         {
             return state;
+        }
+
+        var existing = IndexOf(state.Queue, entry.Key);
+        if (existing >= 0 &&
+            SameContent(state.Queue[existing], entry))
+        {
+            return Restaged(state, existing, entry);
         }
 
         var replacedCurrent = state.Current?.Key == entry.Key;
@@ -170,6 +188,77 @@ static class ViewerSession
         }
 
         return Clamp(next);
+    }
+
+    /// <summary>
+    /// The entry already queued for a pair that arrived again saying the same thing, with the
+    /// files' new stamps and nothing else about the window changed.
+    /// <para>
+    /// A new entry all the same, never the one that was there. <see cref="TrackedWatch"/> applies
+    /// what a pass found by reference, and a pass that looked while the run had cleared its
+    /// received file found it gone: that must not take the pair the run has since staged again.
+    /// </para>
+    /// <para>
+    /// The queued entry's content rather than the arrival's, because it can be further along: a
+    /// document's text is read after it arrives, and the arrival may not have it yet.
+    /// </para>
+    /// </summary>
+    static SessionState Restaged(SessionState state, int index, QueueEntry entry)
+    {
+        var queue = new List<QueueEntry>(state.Queue);
+        queue[index] = queue[index] with
+        {
+            LeftStamp = entry.LeftStamp,
+            RightStamp = entry.RightStamp
+        };
+        return Clamp(state with
+        {
+            Queue = queue,
+            // As any arrival: a reason to stay
+            Exit = false
+        });
+    }
+
+    /// <summary>
+    /// Whether two entries for one key show the same thing: the same files, holding the same
+    /// text, pictures or documents. Stamps are left out, since a run that rewrites a file with
+    /// what it already held changes those and nothing a reader can see.
+    /// </summary>
+    static bool SameContent(QueueEntry queued, QueueEntry arrived) =>
+        queued.Kind == arrived.Kind &&
+        queued.Name == arrived.Name &&
+        queued.Solution == arrived.Solution &&
+        queued.LeftFile == arrived.LeftFile &&
+        queued.TargetFile == arrived.TargetFile &&
+        queued.LeftHeader == arrived.LeftHeader &&
+        queued.RightHeader == arrived.RightHeader &&
+        queued.Warning == arrived.Warning &&
+        SameSide(queued.LeftText, queued.LeftImage, queued.LeftDocument, arrived.LeftText, arrived.LeftImage, arrived.LeftDocument) &&
+        SameSide(queued.RightText, queued.RightImage, queued.RightDocument, arrived.RightText, arrived.RightImage, arrived.RightDocument);
+
+    static bool SameSide(
+        string text,
+        ImageFile? image,
+        DocumentFile? document,
+        string arrivedText,
+        ImageFile? arrivedImage,
+        DocumentFile? arrivedDocument)
+    {
+        if (document is { } held &&
+            arrivedDocument is { } sent)
+        {
+            // By its bytes. Its text follows from them, and is read after the entry arrives, so
+            // one of the two may hold it while the other is still waiting for it.
+            return held.Path == sent.Path &&
+                   held.Format == sent.Format &&
+                   held.Length == sent.Length &&
+                   held.Hash == sent.Hash;
+        }
+
+        return document is null &&
+               arrivedDocument is null &&
+               image == arrivedImage &&
+               text == arrivedText;
     }
 
     /// <summary>
@@ -207,6 +296,13 @@ static class ViewerSession
 
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
+        if (selected < 0)
+        {
+            // Gone from under its key is not always gone. An accept above a call site moves it,
+            // and the owner takes its entry to the line the re-run reports it at
+            selected = IndexOfMoved(queue, state.Current);
+        }
+
         var next = state with
         {
             Queue = queue,
@@ -693,75 +789,71 @@ static class ViewerSession
     }
 
     /// <summary>
-    /// Accepts every member of the group a header's menu described, skipping conflicted entries
-    /// the way accept-all does. By key rather than index, because each accept rebuilds the queue
-    /// underneath the next.
-    /// <para>
-    /// A solution header spans tracked moves and deletes as well as snapshots, so the sweep does
-    /// too. Skipping them would make "Accept all in ..." quietly mean "accept the snapshots in
-    /// ...", which is the divergence the unqualified accept-all already avoids.
-    /// </para>
+    /// A whole group accept in one call, for a caller that already holds the state: what
+    /// <see cref="AcceptAllInline"/> is to an accept-all, and the same batch underneath.
     /// </summary>
     static SessionState AcceptGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
-        var all = Members(state, menu);
-        var members = all
-            .Where(_ => _.Kind == QueueEntryKind.Inline)
-            .ToList();
-        var queue = Pending(state);
-        var accepted = 0;
-        var notWritten = 0;
-        var failed = 0;
-        var conflicted = 0;
-        string? failure = null;
-        foreach (var member in members)
+        // For the reason AcceptAllInline gives
+        if (state.Batch is not null)
         {
-            if (member.Conflicted)
-            {
-                conflicted++;
-                continue;
-            }
-
-            var before = queue.Count;
-            // The applier's own answer, kept as it goes past. A group accept goes one entry at a
-            // time, so a stale one leaves the queue here the way a single accept does, and the
-            // count of accepts would otherwise include a snapshot written nowhere - which is
-            // exactly what the sweep below must not take as licence to delete anything.
-            InlineApplyResult? applied = null;
-            queue = queue.Accept(member.Key, patch => applied = actions.ApplyInline(patch), out var outcome);
-            if (queue.Count < before)
-            {
-                if (applied?.Status == InlineApplyStatus.NotFound)
-                {
-                    notWritten++;
-                    failure = outcome;
-                    continue;
-                }
-
-                accepted++;
-                continue;
-            }
-
-            if (outcome is not null)
-            {
-                failed++;
-                failure = outcome;
-            }
+            return state;
         }
 
-        return SweepTracked(
-            state,
-            Rebuild(state, queue),
-            // The wording accept-all uses, from where accept-all gets it, so a group sweep and a
-            // full sweep cannot read differently
-            InlineQueue.AcceptAllMessage(accepted, notWritten, failed, conflicted, failure),
-            actions,
-            discarding: false,
-            TrackedKeysOf(all),
-            // Its own members only: a stale one has left the queue, and one that failed is still
-            // in it, beside other entries' statuses from other accepts
-            refused: notWritten + failed > 0);
+        state = BeginAcceptGroup(state, menu);
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
+        {
+            state = ApplyClaimed(state, actions)(state);
+        }
+
+        return state;
     }
+
+    /// <summary>
+    /// Starts an accept of every member of the group the open menu's header describes, without
+    /// applying anything yet: an accept-all over those members and nothing else, carried out the
+    /// way <see cref="BeginAcceptAll"/> says. The state as it is, less the menu, when there is no
+    /// group to accept.
+    /// <para>
+    /// It used to be one transition that applied every member before it returned, on the render
+    /// thread and under the lock every arrival waits on. In a queue of one solution that header's
+    /// group is the whole queue, so it was the freeze the batch was written to remove.
+    /// </para>
+    /// <para>
+    /// A solution header spans tracked moves and deletes as well as snapshots, so the batch does
+    /// too. Skipping them would make "Accept all in ..." quietly mean "accept the snapshots in
+    /// ...", which is the divergence the unqualified accept-all already avoids.
+    /// </para>
+    /// <para>
+    /// Being the same batch, it goes by the batch's rules: a snapshot the applier would not take
+    /// stays in the queue with what the applier said, where a group accept used to drop it as a
+    /// single accept does. That holds this group's deletes either way, and counts only this
+    /// group's own attempts in doing so.
+    /// </para>
+    /// </summary>
+    public static SessionState BeginAcceptGroup(SessionState state)
+    {
+        if (state.Menu is not { } menu)
+        {
+            return state;
+        }
+
+        state = state with { Menu = null };
+        if (state.Mode != ViewerMode.Inline)
+        {
+            return state;
+        }
+
+        return BeginAcceptGroup(state, menu);
+    }
+
+    // By key rather than index, because each accept rebuilds the queue underneath the next.
+    static SessionState BeginAcceptGroup(SessionState state, MenuState menu) =>
+        BeginAccept(
+            state,
+            Members(state, menu)
+                .Select(_ => _.Key)
+                .ToList());
 
     static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
@@ -776,12 +868,11 @@ static class ViewerSession
             queue = queue.Discard(key, out _);
         }
 
-        return SweepTracked(
+        return DiscardTrackedIn(
             state,
             Rebuild(state, queue),
             $"Discarded {keys.Count}",
             actions,
-            discarding: true,
             TrackedKeysOf(all));
     }
 
@@ -888,9 +979,9 @@ static class ViewerSession
         }
 
         state = BeginAcceptAll(state);
-        while ((state = ClaimNext(state)).Batch?.Current is { } entry)
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
         {
-            state = ApplyClaimed(entry, actions)(state);
+            state = ApplyClaimed(state, actions)(state);
         }
 
         return state;
@@ -907,7 +998,20 @@ static class ViewerSession
     /// honest way to pick a side. They are counted into the message once the batch has finished.
     /// </para>
     /// </summary>
-    public static SessionState BeginAcceptAll(SessionState state)
+    public static SessionState BeginAcceptAll(SessionState state) =>
+        BeginAccept(state, null);
+
+    /// <summary>
+    /// A batch over the whole queue or over some of it. One method with a name of its own, rather
+    /// than an optional argument on <see cref="BeginAcceptAll"/>, so that one is still a
+    /// transition a host can be handed as it is.
+    /// </summary>
+    /// <param name="state">The state to start it in.</param>
+    /// <param name="only">
+    /// The keys to accept, for a group header acting on its own members. Null accepts everything,
+    /// which is what the unqualified accept-all means.
+    /// </param>
+    static SessionState BeginAccept(SessionState state, IReadOnlyCollection<string>? only)
     {
         if (state.Mode != ViewerMode.Inline ||
             state.Batch is not null)
@@ -915,10 +1019,15 @@ static class ViewerSession
             return state;
         }
 
+        var batch = new AcceptBatch([], 0)
+        {
+            Only = only?.ToHashSet()
+        };
         var keys = new List<string>();
         foreach (var entry in state.Queue)
         {
-            if (entry is { Kind: QueueEntryKind.Inline, Conflicted: false })
+            if (entry is { Kind: QueueEntryKind.Inline, Conflicted: false } &&
+                batch.Covers(entry.Key))
             {
                 keys.Add(entry.Key);
             }
@@ -926,13 +1035,18 @@ static class ViewerSession
 
         foreach (var entry in state.Queue)
         {
-            if (entry.Kind is QueueEntryKind.Move or QueueEntryKind.Delete)
+            if (entry.Kind is QueueEntryKind.Move or QueueEntryKind.Delete &&
+                batch.Covers(entry.Key))
             {
                 keys.Add(entry.Key);
             }
         }
 
-        var batch = new AcceptBatch(keys, keys.Count);
+        batch = batch with
+        {
+            Remaining = keys,
+            Total = keys.Count
+        };
         // Nothing to apply, so nothing to report progress on: finished where it started
         if (keys.Count == 0)
         {
@@ -956,7 +1070,22 @@ static class ViewerSession
     /// Entries with nothing left to apply are passed over rather than claimed: one that has gone
     /// since the batch began - settled, discarded, its file taken away - and one a second
     /// framework has since made a conflict of. A delete is held rather than claimed once a
-    /// snapshot in the batch was not written, for the reason <see cref="SweepTracked"/> gives.
+    /// snapshot in the batch was not written.
+    /// </para>
+    /// <para>
+    /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
+    /// into the source, and a delete of the verified file it replaces. A bulk accept ran the delete
+    /// whether or not the patch landed, so a patch the applier would not take — a call site that
+    /// cannot host a Snapshot call, a source that moved since the run — cost the snapshot both
+    /// copies at once. Nothing ties a delete to the patch it belongs to, so every delete of the
+    /// batch waits on every patch of it. Blunt, and deliberately so — the entries held are still
+    /// queued, still shown, and still acceptable one at a time. Moves are left alone: a received
+    /// file promoted over a verified one is the snapshot arriving, not the last copy of it leaving.
+    /// </para>
+    /// <para>
+    /// Counted from the attempts the batch made (<see cref="AcceptAllTally.Refused"/>), never read
+    /// off the queue. Every status an entry carries looks the same there, and reading them held a
+    /// group's deletes over a failure in another solution, left by an accept long before this one.
     /// </para>
     /// </summary>
     public static SessionState ClaimNext(SessionState state)
@@ -991,14 +1120,16 @@ static class ViewerSession
                 continue;
             }
 
+            var remaining = batch.Remaining.Skip(position + 1).ToList();
             return state with
             {
                 Queue = queue,
                 Batch = batch with
                 {
-                    Remaining = batch.Remaining.Skip(position + 1).ToList(),
                     Kept = kept,
-                    Current = entry
+                    Current = entry,
+                    Together = TakeSameFile(queue, entry, remaining),
+                    Remaining = remaining
                 }
             };
         }
@@ -1013,42 +1144,127 @@ static class ViewerSession
     }
 
     /// <summary>
-    /// Applies a claimed entry - the one piece of IO in a batch, done without the lock - and hands
-    /// back the transition that records how it went, for the caller to take the lock for.
+    /// The other snapshots the batch still has to do in the same source file as the one just
+    /// claimed, taken out of <paramref name="remaining"/> to be claimed with it: see
+    /// <see cref="AcceptBatch.Together"/>. None for a move or a delete, which is a file of its own.
+    /// <para>
+    /// Claimed, rather than looked ahead to by whoever applies, so that nothing can settle,
+    /// discard or replace one of them between its patch being written and its outcome being
+    /// recorded without the record noticing, as it notices for a single entry.
+    /// </para>
+    /// <para>
+    /// Asked of the queue first, and without making anything, since most claims find no other
+    /// snapshot in their file and a batch makes one claim an entry.
+    /// </para>
     /// </summary>
-    public static Func<SessionState, SessionState> ApplyClaimed(QueueEntry entry, ViewerActions actions)
+    static IReadOnlyList<QueueEntry> TakeSameFile(IReadOnlyList<QueueEntry> queue, QueueEntry claimed, List<string> remaining)
     {
-        if (entry.Kind == QueueEntryKind.Inline)
+        if (claimed is not { Kind: QueueEntryKind.Inline, Patch: { } patch } ||
+            remaining.Count == 0)
         {
-            var result = actions.ApplyInline(entry.Patch!);
-            return _ => RecordInline(_, entry, result);
+            return [];
         }
 
-        var failure = TryApplyTracked(entry, actions, discarding: false);
-        return _ => RecordTracked(_, entry, failure);
+        List<QueueEntry>? sameFile = null;
+        foreach (var entry in queue)
+        {
+            if (!ReferenceEquals(entry, claimed) &&
+                entry is { Kind: QueueEntryKind.Inline, Conflicted: false, Patch: not null } &&
+                InlineKey.SamePath(entry.Patch.SourceFile, patch.SourceFile))
+            {
+                sameFile ??= [];
+                sameFile.Add(entry);
+            }
+        }
+
+        if (sameFile is null)
+        {
+            return [];
+        }
+
+        // Only the ones this batch set out to do: a group's batch is some of the queue, and an
+        // entry that arrived after it began is not part of it
+        var waiting = new HashSet<string>(remaining);
+        sameFile.RemoveAll(_ => !waiting.Contains(_.Key));
+        if (sameFile.Count == 0)
+        {
+            return [];
+        }
+
+        var taken = new HashSet<string>(sameFile.Select(_ => _.Key));
+        remaining.RemoveAll(taken.Contains);
+        return sameFile;
     }
 
     /// <summary>
-    /// The transition for a claimed entry whose apply threw rather than answering. InlineApplier
-    /// answers every failure it knows of, so this is an applier that did not, and a batch left
-    /// holding a claimed entry would never finish.
+    /// Applies what a state has claimed - the one piece of IO in a batch, done without the lock -
+    /// and hands back the transition that records how it went, for the caller to take the lock for.
+    /// Snapshots claimed together are written together, and each still has an outcome of its own.
     /// </summary>
-    public static Func<SessionState, SessionState> FailClaimed(QueueEntry entry, string failure)
+    /// <param name="claimed">The state <see cref="ClaimNext"/> returned, which says what was claimed.</param>
+    /// <param name="actions">What applies it.</param>
+    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions)
     {
-        if (entry.Kind == QueueEntryKind.Inline)
+        if (claimed.Batch is not { Current: { } entry } batch)
         {
-            return _ => RecordInline(_, entry, InlineApplyResult.Failed(failure));
+            return static _ => _;
         }
 
-        return _ => RecordTracked(_, entry, failure);
+        if (entry.Kind != QueueEntryKind.Inline)
+        {
+            var failure = TryApplyTracked(entry, actions, discarding: false);
+            return _ => RecordTracked(_, entry, failure);
+        }
+
+        List<QueueEntry> entries = [entry, ..batch.Together];
+        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList());
+        if (results.Count != entries.Count)
+        {
+            throw new InvalidOperationException($"{entries.Count} snapshots were applied together and {results.Count} outcomes came back.");
+        }
+
+        return _ => RecordInline(_, entries, results);
     }
 
     /// <summary>
-    /// A snapshot's outcome, by the batch's rules rather than a single accept's: see
-    /// <see cref="InlineQueue.AcceptInBatch"/>. An entry that changed while its patch was applying,
-    /// because a re-run replaced it, keeps its new content and is not counted.
+    /// The transition for a claim whose apply threw rather than answering. InlineApplier answers
+    /// every failure it knows of, so this is an applier that did not, and a batch left holding
+    /// what it claimed would never finish. Every snapshot of the claim is failed with it, since
+    /// which of them were written is not known.
     /// </summary>
-    static SessionState RecordInline(SessionState state, QueueEntry entry, InlineApplyResult result)
+    public static Func<SessionState, SessionState> FailClaimed(SessionState claimed, string failure)
+    {
+        if (claimed.Batch is not { Current: { } entry } batch)
+        {
+            return static _ => _;
+        }
+
+        if (entry.Kind != QueueEntryKind.Inline)
+        {
+            return _ => RecordTracked(_, entry, failure);
+        }
+
+        List<QueueEntry> entries = [entry, ..batch.Together];
+        var failed = InlineApplyResult.Failed(failure);
+        var results = entries.Select(_ => failed).ToList();
+        return _ => RecordInline(_, entries, results);
+    }
+
+    /// <summary>
+    /// The outcomes of the snapshots a claim applied, by the batch's rules rather than a single
+    /// accept's: see <see cref="InlineQueue.AcceptInBatch"/>. An entry that changed while its
+    /// patch was applying, because a re-run replaced it, keeps its new content and is not counted.
+    /// <para>
+    /// The rules are still asked of an <see cref="InlineQueue"/>, but of one holding the entry
+    /// alone, and what it says is done to the list as it stands: the entry taken out, or given the
+    /// status. Every other inline transition rebuilds the whole list from the whole queue, and a
+    /// batch did that once an entry, so its own bookkeeping grew with the square of the queue:
+    /// 2,000 snapshots were 3.7 seconds and 8.8 GB of garbage beside the applying. Taking an entry
+    /// out of a list that is in order leaves it in order, and no other entry is touched, so there
+    /// is nothing for a rebuild to find.
+    /// </para>
+    /// </summary>
+    static SessionState RecordInline(SessionState state, IReadOnlyList<QueueEntry> entries, IReadOnlyList<InlineApplyResult> results)
     {
         if (state.Batch is not { } batch)
         {
@@ -1056,17 +1272,43 @@ static class ViewerSession
         }
 
         var tally = batch.Tally;
-        var pending = Pending(state).AcceptInBatch(new(entry.Variants, entry.Status), result, ref tally);
+        var queue = state.Queue.ToList();
+        for (var claim = 0; claim < entries.Count; claim++)
+        {
+            var entry = entries[claim];
+            // By its variants, which is how the batch finds what it started on. A snapshot's
+            // only: every move and delete has none, and may well share the one empty list.
+            var index = queue.FindIndex(_ => _.Kind == QueueEntryKind.Inline && ReferenceEquals(_.Variants, entry.Variants));
+            if (index < 0)
+            {
+                continue;
+            }
+
+            var held = queue[index];
+            var outcome = InlineQueue
+                .From([new(held.Variants, held.Status)])
+                .AcceptInBatch(new(entry.Variants, entry.Status), results[claim], ref tally);
+            if (outcome.Count == 0)
+            {
+                queue.RemoveAt(index);
+            }
+            else
+            {
+                queue[index] = held with { Status = outcome.Items[0].Status };
+            }
+        }
+
         return Remove(
             state with
             {
                 Batch = batch with
                 {
                     Tally = tally,
-                    Current = null
+                    Current = null,
+                    Together = []
                 }
             },
-            Rebuild(state, pending),
+            queue,
             state.Message);
     }
 
@@ -1117,14 +1359,16 @@ static class ViewerSession
     /// <summary>
     /// The batch done: the sentence a bulk accept ends with, and nothing left saying one is
     /// running. Conflicts are counted here, as whatever the queue still holds with more than one
-    /// variant, which includes any a second framework made while the batch ran.
+    /// variant, which includes any a second framework made while the batch ran. A group's batch
+    /// counts its own members only.
     /// </summary>
     static SessionState Finish(SessionState state, AcceptBatch batch)
     {
         var conflicted = 0;
         foreach (var entry in state.Queue)
         {
-            if (entry is { Kind: QueueEntryKind.Inline, Conflicted: true })
+            if (entry is { Kind: QueueEntryKind.Inline, Conflicted: true } &&
+                batch.Covers(entry.Key))
             {
                 conflicted++;
             }
@@ -1158,46 +1402,33 @@ static class ViewerSession
     static SessionState DiscardAllInline(SessionState state, ViewerActions actions)
     {
         var discarded = Pending(state).DiscardAll(out var message);
-        return SweepTracked(state, Rebuild(state, discarded), message, actions, discarding: true);
+        return DiscardTrackedIn(state, Rebuild(state, discarded), message, actions);
     }
 
     /// <summary>
-    /// The tracked half of a bulk command, worded the way an owning tray words its own: the inline
+    /// The tracked half of a bulk discard, worded the way an owning tray words its own: the inline
     /// summary, then ", plus n files" with what stayed pending counted rather than hidden. Both
-    /// sweeps say the same thing about the same files, whichever process is holding them.
+    /// say the same thing about the same files, whichever process is holding them.
+    /// <para>
+    /// Only discards go this way now. A bulk accept is an <see cref="AcceptBatch"/>, an entry at a
+    /// time and outside the lock, because accepting is where the time goes: a discard throws a
+    /// received file away or untracks a delete, and neither waits on anything.
+    /// </para>
     /// </summary>
+    /// <param name="state">The state the discard was asked of.</param>
+    /// <param name="queue">Its queue, with the snapshots already discarded.</param>
+    /// <param name="message">What the snapshots' half of the discard said.</param>
+    /// <param name="actions">What throws a received file away.</param>
     /// <param name="only">
-    /// The keys to sweep, for a group header acting on its own members. Null sweeps every tracked
-    /// entry, which is what the unqualified bulk commands mean.
+    /// The keys to discard, for a group header acting on its own members. Null discards every
+    /// tracked entry, which is what the unqualified discard-all means.
     /// </param>
-    /// <param name="refused">
-    /// Whether the inline accept this sweep follows left a snapshot unwritten, which holds every
-    /// delete it would carry out.
-    /// <para>
-    /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
-    /// into the source, and a delete of the verified file it replaces. The sweep ran the delete
-    /// whether or not the patch landed, so a patch the applier would not take — a call site that
-    /// cannot host a Snapshot call, a source that moved since the run — cost the snapshot both
-    /// copies at once. Nothing ties a delete to the patch it belongs to, so the whole sweep of
-    /// deletes waits on the whole batch of patches. Blunt, and deliberately so — the entries held
-    /// are still queued, still shown, and still acceptable one at a time. Moves are left alone: a
-    /// received file promoted over a verified one is the snapshot arriving, not the last copy of it
-    /// leaving.
-    /// </para>
-    /// <para>
-    /// Counted by the caller from the attempts it made, never read off the queue. Every status an
-    /// entry carries looks the same there, and reading them held a group's deletes over a failure
-    /// in another solution, left by an accept long before this one.
-    /// </para>
-    /// </param>
-    static SessionState SweepTracked(
+    static SessionState DiscardTrackedIn(
         SessionState state,
         IReadOnlyList<QueueEntry> queue,
         string message,
         ViewerActions actions,
-        bool discarding,
-        IReadOnlyCollection<string>? only = null,
-        bool refused = false)
+        IReadOnlyCollection<string>? only = null)
     {
         var remaining = new List<QueueEntry>(queue.Count);
         var swept = 0;
@@ -1211,15 +1442,7 @@ static class ViewerSession
                 continue;
             }
 
-            if (refused &&
-                entry.Kind == QueueEntryKind.Delete)
-            {
-                kept++;
-                remaining.Add(entry with { Status = deleteHeld });
-                continue;
-            }
-
-            if (TryApplyTracked(entry, actions, discarding) is not { } failure)
+            if (TryApplyTracked(entry, actions, discarding: true) is not { } failure)
             {
                 swept++;
                 continue;
@@ -1234,7 +1457,7 @@ static class ViewerSession
 
     /// <summary>
     /// The files clause of a bulk command, after the inline summary: ", plus n files", with what
-    /// stayed pending counted rather than hidden. Shared by the group sweeps and the accept-all
+    /// stayed pending counted rather than hidden. Shared by the bulk discards and the accept-all
     /// batch, so the two cannot word the same files differently.
     /// </summary>
     static string WithFiles(string message, int swept, int kept)
@@ -1497,6 +1720,37 @@ static class ViewerSession
     }
 
     /// <summary>
+    /// Where the entry for <paramref name="current"/>'s call site is once the owner has taken it to
+    /// another line, by the test <see cref="InlineQueue.Enqueue"/> recognised the move with. -1
+    /// when none answers to it, or more than one does.
+    /// </summary>
+    static int IndexOfMoved(IReadOnlyList<QueueEntry> queue, QueueEntry? current)
+    {
+        if (current?.Patch is not { } patch)
+        {
+            return -1;
+        }
+
+        var found = -1;
+        for (var index = 0; index < queue.Count; index++)
+        {
+            if (queue[index].Patch?.IsSameCallSite(patch) != true)
+            {
+                continue;
+            }
+
+            if (found >= 0)
+            {
+                return -1;
+            }
+
+            found = index;
+        }
+
+        return found;
+    }
+
+    /// <summary>
     /// Drops whatever is no longer in the queue and leaves the reader where they were.
     /// <para>
     /// Most removals are not of the entry on screen: a settle from a test that has started
@@ -1683,6 +1937,14 @@ static class ViewerSession
     /// </summary>
     static int? NearestVisible(SessionState state)
     {
+        // Nothing folded, nothing hidden: every entry has a row, the selected one among them. The
+        // answer the walk below would give, without the walk, which is every entry of the queue
+        // and is asked after each entry a batch takes out.
+        if (state.Collapsed.Count == 0)
+        {
+            return null;
+        }
+
         var visible = QueueProjection.VisibleEntries(state);
         if (visible.Count == 0 ||
             visible.Contains(state.Selected))

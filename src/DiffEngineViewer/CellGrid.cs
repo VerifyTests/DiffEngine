@@ -146,20 +146,63 @@ static class CellGrid
     }
 
     /// <summary>
-    /// Printable ASCII throughout, which every head draws one cell a character with nothing to
-    /// work out.
+    /// Characters every head draws one cell each with nothing to work out, throughout: a row that
+    /// is one run, as many cells as it has characters, each character at the cell of its index.
+    /// Printable ASCII, which is nearly every row, and whatever else the embedded font draws a
+    /// cell wide, so a row of box drawing costs what a row of letters does rather than a walk
+    /// through its clusters.
     /// </summary>
     static bool IsPlain(string text)
     {
         foreach (var character in text)
         {
-            if (character is < ' ' or > '~')
+            if (character is >= ' ' and <= '~')
+            {
+                continue;
+            }
+
+            if (!SimpleUnit(character))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether one UTF-16 unit is a character that can be part of a run: see <see cref="Simple"/>.
+    /// Never half of a surrogate pair, so a row of these is as many characters as it is long.
+    /// </summary>
+    static bool SimpleUnit(char character) =>
+        (simple.Value[character >> 6] & (1UL << (character & 63))) != 0;
+
+    // The basic plane's answer to Simple as a bit a character, worked out the first time a row
+    // that is not ASCII is measured: asking costs a category lookup, a walk of the wide ranges
+    // and the font's own answer, and every character of every such row asks.
+    static readonly Lazy<ulong[]> simple = new(SimpleUnits);
+
+    static ulong[] SimpleUnits()
+    {
+        var units = new ulong[1024];
+        for (var value = 0x20; value <= 0xFFFF; value++)
+        {
+            if (value is >= 0xD800 and <= 0xDFFF)
+            {
+                continue;
+            }
+
+            var rune = new Rune(value);
+            // Printable ASCII whatever the font says, since a row of it is drawn as one string
+            // without asking, by a head left with a font of its own as much as by one with ours
+            if (value <= 0x7E ||
+                (!ZeroWidth(rune) && !Wide(rune) && FontCoverage.Has(value)))
+            {
+                units[value >> 6] |= 1UL << (value & 63);
+            }
+        }
+
+        return units;
     }
 
     readonly record struct Cluster(int Start, int Length, int Width, bool Simple);
@@ -173,8 +216,14 @@ static class CellGrid
             var rune = Read(text, ref index);
             // A mark with nothing before it for it to sit on still takes a cell, or it could be
             // neither drawn anywhere nor selected
-            var width = !ZeroWidth(rune) && Wide(rune) ? 2 : 1;
-            var simple = Simple(rune);
+            var mark = ZeroWidth(rune);
+            var wide = !mark && Wide(rune);
+            var width = wide ? 2 : 1;
+            // A surrogate with no partner is read as the replacement character, which the font
+            // has. What is in the text is still half a pair, which no font has, so it is drawn on
+            // its own like anything else a head has to find a glyph for.
+            var lone = char.IsSurrogate(text[start]) && index - start == 1;
+            var simple = !mark && !wide && !lone && Simple(rune);
             while (index < text.Length)
             {
                 var next = index;
@@ -223,24 +272,20 @@ static class CellGrid
 
     /// <summary>
     /// A character the embedded monospace font has, and so draws exactly one cell wide in every
-    /// head, which lets a run of them be drawn as one string: Latin with its extensions, Greek and
-    /// Cyrillic. Everything else is drawn on its own, at its column, because where a fallback font
-    /// would put the character after it is not something the grid can know.
+    /// head, which lets a run of them be drawn as one string: Latin, Greek and Cyrillic as far as
+    /// the font goes, and its box drawing, arrows, mathematical operators and typographic
+    /// punctuation. Everything else is drawn on its own, at its column, because where a fallback
+    /// font would put the character after it is not something the grid can know.
+    /// <para>
+    /// Asked of the font (<see cref="FontCoverage"/>) rather than listed. Only of a character that
+    /// takes one cell: a mark takes none, and a character the grid gives two cells is given them
+    /// whatever the font would have drawn it in, so neither can be part of a run.
+    /// </para>
     /// </summary>
-    static bool Simple(Rune rune)
-    {
-        var value = rune.Value;
-        if (ZeroWidth(rune))
-        {
-            return false;
-        }
-
-        return value is
-            >= 0x20 and <= 0x7E or
-            >= 0xA0 and <= 0x24F or
-            >= 0x370 and <= 0x3FF or
-            >= 0x400 and <= 0x52F;
-    }
+    static bool Simple(Rune rune) =>
+        rune.IsBmp
+            ? SimpleUnit((char) rune.Value)
+            : FontCoverage.Has(rune.Value);
 
     /// <summary>
     /// East Asian Wide and Fullwidth, and the emoji blocks, by range. Not the whole Unicode

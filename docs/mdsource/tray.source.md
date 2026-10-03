@@ -43,7 +43,7 @@ A test can produce multiple resulting snapshots. If the accepted versions has a 
 
 Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop down will expose extra actions for that change.
 
-A delete is withdrawn when a later test run verifies against its file again, since the file is then in use rather than stale: `DiffRunner.SettleDelete(file)` drops the pending delete and leaves the file alone. It reaches a tray that owns the inline queue, which is the usual arrangement since the tray starts at login.
+A delete is withdrawn when a later test run verifies against its file again, since the file is then in use rather than stale: `DiffRunner.SettleDelete(file)` drops the pending delete and leaves the file alone. It reaches a tray that owns the inline queue, which is the usual arrangement since the tray starts at login. A pending move onto the file withdraws the delete as well, whichever process owns the queue: a run that produced a received file for it is a run that verified against it.
 
 
 ### Pending snapshots
@@ -56,12 +56,14 @@ The viewer installed with the tray also reads [documents](/docs/viewer.md#docume
 
 "Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
 
-Exiting the tray writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. A kill or a crash skips that, and loses the queue as it loses pending moves and deletes; re-run the tests.
+Exiting the tray writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. Logging off or shutting down does the same, and a snapshot that arrives once the session is ending is refused, so the test run stages it itself. A kill or a crash skips that, and loses the queue as it loses pending moves and deletes; re-run the tests.
 
 
 ### Accept all
 
 "Accept all" will accept all pending moves, deletes and inline snapshots. Snapshots whose target frameworks disagree about the content are skipped rather than picked between; resolve those in the viewer.
+
+The deletes it carries out are the ones that were pending when it began. A delete can be the last copy of a snapshot that is moving inline, so the deletes are held back, and the tray says so, when a snapshot could not be written or when a viewer that owns the queue did not answer. A delete of a file that a move in the same accept has written is left pending rather than carried out.
 
 A long queue takes a while to accept. An open [DiffEngineViewer](/docs/viewer.md) window shows how far it has got, with each snapshot leaving the list as it lands.
 

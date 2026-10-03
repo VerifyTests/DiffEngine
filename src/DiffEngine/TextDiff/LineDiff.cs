@@ -66,7 +66,7 @@ sealed class LineDiff
         {
             changed.Clear();
             new LineInterner(expected, expectedLines, received, receivedLines).Intern(ids[..n], ids[n..]);
-            MyersDiff.Diff(ids[..n], ids[n..], changed[..n], changed[n..]);
+            DiffShared(ids[..n], ids[n..], changed[..n], changed[n..]);
             var entries = Walk(changed[..n], changed[n..]);
             return new(expected, received, expectedLines, receivedLines, entries);
         }
@@ -80,6 +80,146 @@ sealed class LineDiff
             if (rentedChanged != null)
             {
                 ArrayPool<bool>.Shared.Return(rentedChanged);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Diffs the lines both sides have, having marked every other line as changed without asking.
+    /// <para>
+    /// A line only one side has cannot be unchanged, so it is no part of the question Myers
+    /// answers, and leaving it in was what made the answer expensive. Myers costs by the number of
+    /// edits, and two texts with no line in common are edits and nothing else: 40,000 lines a side
+    /// took four seconds. That is not a rare input. A serializer setting that changes the
+    /// indentation makes it out of any large snapshot. With those lines taken out first there is
+    /// nothing left to search, and the same goes for the usual failure, a few lines that differ in
+    /// a text that otherwise matches.
+    /// </para>
+    /// <para>
+    /// The result is no worse for it. The longest run of lines the two sides share is the same
+    /// with or without the lines that could never be in it, so as many lines are unchanged as
+    /// before.
+    /// </para>
+    /// <para>
+    /// Which lines those are is already in the ids. <see cref="LineInterner"/> gives a line the
+    /// index of the first line with its content, counting the expected lines first, so a received
+    /// line whose id is past the expected lines is in none of them, and one pass over the received
+    /// ids says which expected lines are in neither.
+    /// </para>
+    /// <para>
+    /// The ids are compacted where they are, since they are this diff's own and are not read
+    /// again.
+    /// </para>
+    /// </summary>
+    static void DiffShared(Span<int> expectedIds, Span<int> receivedIds, Span<bool> changedExpected, Span<bool> changedReceived)
+    {
+        var n = expectedIds.Length;
+        bool[]? rentedShared = null;
+        var shared = n <= MyersDiff.StackLimit
+            ? stackalloc bool[n]
+            : (rentedShared = ArrayPool<bool>.Shared.Rent(n)).AsSpan(0, n);
+        shared.Clear();
+        var keptReceived = 0;
+        foreach (var id in receivedIds)
+        {
+            if (id < n)
+            {
+                shared[id] = true;
+                keptReceived++;
+            }
+        }
+
+        var keptExpected = 0;
+        foreach (var id in expectedIds)
+        {
+            if (shared[id])
+            {
+                keptExpected++;
+            }
+        }
+
+        var kept = keptExpected + keptReceived;
+        int[]? rentedOrigins = null;
+        bool[]? rentedFlags = null;
+        // Where each line that is kept came from, the expected ones and then the received.
+        var origins = kept <= MyersDiff.StackLimit
+            ? stackalloc int[kept]
+            : (rentedOrigins = ArrayPool<int>.Shared.Rent(kept)).AsSpan(0, kept);
+        var flags = kept <= MyersDiff.StackLimit
+            ? stackalloc bool[kept]
+            : (rentedFlags = ArrayPool<bool>.Shared.Rent(kept)).AsSpan(0, kept);
+        try
+        {
+            flags.Clear();
+            var next = 0;
+            for (var index = 0; index < n; index++)
+            {
+                var id = expectedIds[index];
+                if (shared[id])
+                {
+                    expectedIds[next] = id;
+                    origins[next] = index;
+                    next++;
+                }
+                else
+                {
+                    changedExpected[index] = true;
+                }
+            }
+
+            next = 0;
+            for (var index = 0; index < receivedIds.Length; index++)
+            {
+                var id = receivedIds[index];
+                if (id < n)
+                {
+                    receivedIds[next] = id;
+                    origins[keptExpected + next] = index;
+                    next++;
+                }
+                else
+                {
+                    changedReceived[index] = true;
+                }
+            }
+
+            MyersDiff.Diff(
+                expectedIds[..keptExpected],
+                receivedIds[..keptReceived],
+                flags[..keptExpected],
+                flags[keptExpected..]);
+
+            for (var index = 0; index < keptExpected; index++)
+            {
+                if (flags[index])
+                {
+                    changedExpected[origins[index]] = true;
+                }
+            }
+
+            for (var index = keptExpected; index < kept; index++)
+            {
+                if (flags[index])
+                {
+                    changedReceived[origins[index]] = true;
+                }
+            }
+        }
+        finally
+        {
+            if (rentedShared != null)
+            {
+                ArrayPool<bool>.Shared.Return(rentedShared);
+            }
+
+            if (rentedOrigins != null)
+            {
+                ArrayPool<int>.Shared.Return(rentedOrigins);
+            }
+
+            if (rentedFlags != null)
+            {
+                ArrayPool<bool>.Shared.Return(rentedFlags);
             }
         }
     }

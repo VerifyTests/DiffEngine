@@ -40,6 +40,29 @@ final class Runtime {
     var input = DeviewInput()
     var initialised = false
 
+    /// Keys, clicks and menu events, in the order they happened, one handed over per poll.
+    ///
+    /// A slot per kind used to hold them, in `input`, and each handler overwrote its slot. `pump`
+    /// dispatches everything AppKit has queued before it returns, so with a slow frame - the loop
+    /// waiting behind an accept on InlineApplier's mutex - two presses of Down scrolled once, Tab
+    /// then a accepted the entry the reader meant to skip, and d then a click on another row
+    /// discarded the clicked one, which the reader had never looked at: the managed side applies
+    /// a frame's click before its key. The WinForms head queues them for the same reason.
+    ///
+    /// Only these. The wheel adds up, a drag and the scroller say where they are now and a close
+    /// is a flag, so each of those is whole however many events made it, and stays in `input`.
+    private var discrete: [Discrete] = []
+
+    enum Discrete {
+        case key(Int32)
+        case button(Int32)
+        case queueItem(Int32)
+        case rightClickedQueueItem(Int32)
+        case rightClickedPane(Int32)
+        case menuItem(Int32)
+        case menuClosed
+    }
+
     /// Keeps App Nap off for as long as the runtime is open: see `open`.
     private var activity: NSObjectProtocol?
 
@@ -194,11 +217,21 @@ final class Runtime {
     /// which has no window and so no scroller — is not left with a gap where one would be.
     private func makeScroller(in view: ViewerView, _ renderer: Renderer) {
         let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
-        let scroller = NSScroller(frame: NSRect(x: 0, y: 0, width: width, height: view.bounds.height))
+        let scroller = PaneScroller(
+            frame: NSRect(x: view.bounds.maxX - width, y: 0, width: width, height: view.bounds.height))
         scroller.scrollerStyle = .legacy
         scroller.knobStyle = .light
+        // Kept against the right edge and as tall as the window leaves it by AppKit, as well as by
+        // `position`. A window being resized is a loop of AppKit's own, inside the pump, so
+        // `position` does not run until the mouse comes up, and until then the scroller stayed
+        // where the last frame had put it: out in the right hand pane of a window being widened.
+        scroller.autoresizingMask = [.minXMargin, .height]
         scroller.target = target
         scroller.action = #selector(ControlTarget.scrolled(_:))
+        // Said rather than left to whatever a scroller starts as. A scroll view sees to this for
+        // its own scrollers and there is none here, and a scroller that is not enabled draws its
+        // slot with no knob in it to take hold of.
+        scroller.isEnabled = true
         view.addSubview(scroller)
 
         self.scroller = scroller
@@ -266,8 +299,9 @@ final class Runtime {
             width: scrollerWidth,
             height: max(1, body.height))
 
-        // Assigned rather than guarded against a drag in progress, because there cannot be one:
-        // a legacy scroller tracks in a loop of its own, inside the pump this runs before.
+        // Assigned during a drag of the knob as at any other time. `PaneScroller` reports where a
+        // drag has got to without moving the knob, so this is what moves it: to the row the panes
+        // are showing, which is where the WinForms bar's thumb sits too.
         let visible = max(1, frame.left.rows.count)
         let total = max(Int(frame.left.totalRows), visible)
         let maximum = total - visible
@@ -275,7 +309,20 @@ final class Runtime {
         scroller.doubleValue = maximum <= 0 ? 0 : Double(frame.left.scrollTop) / Double(maximum)
     }
 
-    /// Translates wherever the scroller was grabbed into a first visible row.
+    /// The knob dragged to `value` of the way along its travel, as a first visible row. From
+    /// `PaneScroller`, which follows that drag itself.
+    func knobDragged(to value: Double) {
+        guard let frame = view?.model else {
+            return
+        }
+
+        let visible = max(1, frame.left.rows.count)
+        let maximum = max(0, Int(frame.left.totalRows) - visible)
+        input.scrollTo = Int32((value * Double(maximum)).rounded())
+    }
+
+    /// Translates wherever the scroller was grabbed into a first visible row. What reaches here is
+    /// what AppKit tracked itself, which is a press in the slot.
     func scrolled(_ scroller: NSScroller) {
         guard let frame = view?.model else {
             return
@@ -306,7 +353,12 @@ final class Runtime {
             return
         }
 
-        guard !menuShown, let view else {
+        // Not while anything is waiting to be handed over. It happened before this menu could be
+        // shown, and popping holds the managed loop for as long as the menu is up: a key pressed
+        // straight after the right-click would be applied when the menu closed, however much later
+        // that was. Handed over first, it is applied now, and a menu that outlives it is popped on
+        // the frame after.
+        guard !menuShown, discrete.isEmpty, let view else {
             return
         }
 
@@ -340,15 +392,19 @@ final class Runtime {
         if !menu.popUp(positioning: nil, at: at, in: view) {
             // Escape, a click elsewhere, or focus lost. The click that did it was swallowed by the
             // tracking loop, so this is the only way the managed side can hear about it.
-            input.menuClosed = 1
+            post(.menuClosed)
         }
     }
 
     /// Drains what is queued and then blocks until the deadline, which is both the pump and the
     /// frame throttle. Without the second part this would spin a core, since the managed loop
     /// calls straight back in.
+    ///
+    /// Not blocked while input is still waiting to be handed over, which is the next frame's,
+    /// now. It goes one event a poll, and a frame's wait between two of them would hand a held
+    /// key's repeats over more slowly than a fast repeat rate makes them.
     private func pump() {
-        let deadline = Date(timeIntervalSinceNow: 1.0 / 60.0)
+        let deadline = discrete.isEmpty ? Date(timeIntervalSinceNow: 1.0 / 60.0) : Date.distantPast
         while let event = NSApp.nextEvent(matching: .any, until: deadline, inMode: .default, dequeue: true) {
             NSApp.sendEvent(event)
         }
@@ -394,7 +450,43 @@ final class Runtime {
         delegate = nil
         scroller = nil
         menuShown = false
+        discrete = []
         initialised = false
+    }
+
+    /// Records a key, a click or a menu event, behind whatever is already waiting.
+    func post(_ event: Discrete) {
+        discrete.append(event)
+    }
+
+    /// What one poll hands over: everything in `input`, and the discrete event that is next in
+    /// line when there is one. Only the one, so the managed side applies them in the order they
+    /// happened rather than in the order it reads a frame's fields.
+    func takeInput() -> DeviewInput {
+        var taken = input
+        resetInput()
+        guard !discrete.isEmpty else {
+            return taken
+        }
+
+        switch discrete.removeFirst() {
+        case let .key(key):
+            taken.key = key
+        case let .button(index):
+            taken.clickedButton = index
+        case let .queueItem(index):
+            taken.clickedQueueItem = index
+        case let .rightClickedQueueItem(index):
+            taken.rightClickedQueueItem = index
+        case let .rightClickedPane(side):
+            taken.rightClickedPane = side
+        case let .menuItem(index):
+            taken.clickedMenuItem = index
+        case .menuClosed:
+            taken.menuClosed = 1
+        }
+
+        return taken
     }
 
     /// Each event is delivered exactly once, so the poll that read them clears them. The grid is

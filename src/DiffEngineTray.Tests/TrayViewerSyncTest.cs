@@ -189,6 +189,84 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A move and a delete pending on the same verified file, swept from the attached viewer. The
+    /// tray carries out its moves and then its deletes, so the received file was moved into place
+    /// and then deleted. The delete stays pending instead, and the window goes on showing it.
+    /// </summary>
+    [Test]
+    public async Task ViewerAcceptAllKeepsTheFileATrackedMoveJustWrote()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        pair.Pump();
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+
+        var viewer = pair.Pump();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(pair.Tracker.Moves).IsEmpty();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([TrackedKeys.ForDelete(move.Target)]);
+    }
+
+    /// <summary>
+    /// A snapshot moving inline lands while an accept-all is applying: its patch, and the delete of
+    /// the verified file that patch replaces. The batch takes its snapshots as it begins, so the
+    /// patch is not in it, and it used to read the deletes when their turn came, so the delete was.
+    /// The verified file went while the patch replacing it was only pending.
+    /// </summary>
+    [Test]
+    public async Task TrayAcceptAllLeavesADeleteThatArrivedWhileItWasApplying()
+    {
+        using var held = new HeldApply(1);
+        await using var pair = new TrayOwned(held.Apply);
+        pair.Queue(sample, 1);
+        var early = pair.AddDelete();
+
+        var accepting = pair.Tracker.AcceptAll();
+        held.WaitUntilHeld();
+        pair.Queue(other, 7);
+        var late = pair.AddDelete();
+        held.Release();
+        await accepting;
+
+        // What was pending when the batch began went, and what arrived during it is still there
+        await Assert.That(File.Exists(early.File)).IsFalse();
+        await Assert.That(File.Exists(late.File)).IsTrue();
+        await Assert.That(pair.Tracker.Deletes.Select(_ => _.File)).IsEquivalentTo([late.File]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+    }
+
+    /// <summary>
+    /// The same arrival during the accept-all a displaying viewer asks for. What came in during
+    /// the batch is not part of it either way, so it is not counted as kept: it is still in the
+    /// window, as the patch beside it is.
+    /// </summary>
+    [Test]
+    public async Task ViewerAcceptAllLeavesADeleteThatArrivedWhileItWasApplying()
+    {
+        using var held = new HeldApply(1);
+        await using var pair = new TrayOwned(held.Apply);
+        pair.Queue(sample, 1);
+        var early = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+        var pumping = Task.Run(pair.Pump);
+        held.WaitUntilHeld();
+        pair.Queue(other, 7);
+        var late = pair.AddDelete();
+        held.Release();
+        var viewer = await pumping;
+
+        await Assert.That(File.Exists(early.File)).IsFalse();
+        await Assert.That(File.Exists(late.File)).IsTrue();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([Key(other, 7), late.Key]);
+        await Assert.That(viewer.Message).IsEqualTo("Accepted 1, plus 1 files");
+    }
+
+    /// <summary>
     /// The arrangement the tray sets up at login: it owns the queue and a viewer displays it. An
     /// accept-all clicked in that viewer runs in the tray, and the window follows it there - each
     /// entry leaving as it lands, and the tray's count in the status line - rather than saying
@@ -356,6 +434,33 @@ public class TrayViewerSyncTest
         pair.Link.Post(ViewerSideVerb.Accept, move.Key);
 
         await Assert.That(pair.Pump().Keys()).IsEquivalentTo([Key(sample, 1)]);
+        await Assert.That(pair.Tracker.Moves).IsEmpty();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+    }
+
+    /// <summary>
+    /// A pair whose diff tool is the viewer, sent to the tray again as a Diff: what "Open diff tool"
+    /// on it does, since the viewer that starts cannot bind the port and forwards the pair here.
+    /// The verb carries no tool, and the tray replaced the one it had recorded with its own choice
+    /// for the extension, so the pair stopped counting as open and "Accept open" passed over it
+    /// while it was on screen in the viewer.
+    /// </summary>
+    [Test]
+    public async Task ADiffForAPairTheTrayTracksLeavesItOpenInTheViewer()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        var viewerExe = Path.Combine(Path.GetTempPath(), "some-other-package", "viewer", "DiffEngineViewer.exe");
+        // The piper move DiffEngine sends for a pair it resolved the viewer for
+        pair.Tracker.AddMove(move.Temp, move.Target, viewerExe, $"--diff \"{move.Temp}\" \"{move.Target}\"", false, null);
+
+        var response = pair.Send(new(ViewerVerb.Diff, move.Temp, move.Target));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(pair.Tracker.Moves.Single().Exe).IsEqualTo(viewerExe);
+
+        await pair.Tracker.AcceptOpen();
+
         await Assert.That(pair.Tracker.Moves).IsEmpty();
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
     }

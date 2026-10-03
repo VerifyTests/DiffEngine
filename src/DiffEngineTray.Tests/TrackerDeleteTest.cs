@@ -170,6 +170,34 @@ public class TrackerDeleteTest :
             [$"Could not accept the pending snapshots. Accepted 0, 1 not written {Tracker.DeletesHeld}"]);
     }
 
+    /// <summary>
+    /// A queue that could not be asked what it holds is treated as one with a snapshot it could
+    /// not write: nothing is sent to it, and the deletes wait. It used to read as an empty queue,
+    /// and the deletes went ahead.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllHoldsTheDeletesWhenTheQueueCouldNotBeAsked()
+    {
+        var swept = false;
+        var warnings = new List<string>();
+        await using var tracker = new RecordingTracker(
+            inlineFailed: warnings.Add,
+            inline: new StubInlineHost(new PendingSnapshot(@"c:\repo\sample.cs|12", "Sample.cs:12", null))
+            {
+                Answers = false,
+                AcceptingAll = () => swept = true
+            });
+        tracker.AddDelete(file1);
+
+        await tracker.AcceptAll();
+
+        await Assert.That(swept).IsFalse();
+        await Assert.That(File.Exists(file1)).IsTrue();
+        await Assert.That(tracker.Deletes).HasSingleItem();
+        await Assert.That(warnings).IsEquivalentTo(
+            [$"Could not accept the pending snapshots. The snapshot viewer did not answer. {Tracker.DeletesHeld}"]);
+    }
+
     public void Dispose()
     {
         File.Delete(file1);

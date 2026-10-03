@@ -55,6 +55,136 @@ public class CellGridTests
         await Assert.That(CellGrid.Segments("Привет, мир")).IsEquivalentTo([new CellGrid.Segment(0, 11, 0)]);
 
     /// <summary>
+    /// Whatever the embedded font has is drawn in runs, from whichever block: a table drawn in a
+    /// snapshot is rows of box drawing, and was a segment a character.
+    /// </summary>
+    [Test]
+    public async Task BoxDrawingArrowsAndPunctuationAreARunLikeAscii() =>
+        await Assert.That(CellGrid.Segments("├── a → b … “c” ≤ d"))
+            .IsEquivalentTo([new CellGrid.Segment(0, 19, 0)]);
+
+    /// <summary>
+    /// A character the font does not have is drawn from whatever font the machine finds for it, at
+    /// that font's width, so it is never inside a run. That holds in the blocks the font mostly
+    /// covers too, where it used to be taken on trust: Latin Extended-B's ƀ and Cyrillic's Ѡ.
+    /// </summary>
+    [Test]
+    [Arguments("aƀb")]
+    [Arguments("aѠb")]
+    public async Task ACharacterTheFontLacksIsASegmentOfItsOwn(string text) =>
+        await Assert.That(CellGrid.Segments(text))
+            .IsEquivalentTo<IReadOnlyList<CellGrid.Segment>, CellGrid.Segment>(
+            [
+                new(0, 1, 0),
+                new(1, 1, 1),
+                new(2, 1, 2)
+            ]);
+
+    /// <summary>
+    /// The font has a glyph for the high voltage sign, a cell wide, and the grid gives it two as
+    /// it does every emoji. The grid decides, so it is drawn on its own and what follows is where
+    /// the grid says.
+    /// </summary>
+    [Test]
+    public async Task ACharacterGivenTwoCellsIsOnItsOwnWhateverTheFontHas() =>
+        await Assert.That(CellGrid.Segments("a⚡b"))
+            .IsEquivalentTo<IReadOnlyList<CellGrid.Segment>, CellGrid.Segment>(
+            [
+                new(0, 1, 0),
+                new(1, 1, 1),
+                new(2, 1, 3)
+            ]);
+
+    /// <summary>
+    /// Half a surrogate pair is read as the replacement character, which the font has a glyph
+    /// for. The text still holds half a pair, which no font has, so it stays out of a run.
+    /// </summary>
+    [Test]
+    public async Task ASurrogateWithNoPartnerIsASegmentOfItsOwn() =>
+        await Assert.That(CellGrid.Segments("a\uD800b"))
+            .IsEquivalentTo<IReadOnlyList<CellGrid.Segment>, CellGrid.Segment>(
+            [
+                new(0, 1, 0),
+                new(1, 1, 1),
+                new(2, 1, 2)
+            ]);
+
+    /// <summary>
+    /// A row of nothing but what the font draws a cell wide is measured as a row of ASCII is, with
+    /// no walk through its clusters: as many cells as characters, and each character at its own.
+    /// </summary>
+    [Test]
+    public async Task ARowTheFontDrawsThroughoutIsMeasuredAsPlainTextIs()
+    {
+        const string rule = "├──┼──┤ → é";
+
+        await Assert.That(CellGrid.Cells(rule)).IsEqualTo(11);
+        await Assert.That(CellGrid.Snap(rule, 4)).IsEqualTo(4);
+        await Assert.That(CellGrid.Index(rule, 4)).IsEqualTo(4);
+        await Assert.That(CellGrid.Snap(rule, 40)).IsEqualTo(11);
+        await Assert.That(CellGrid.Index(rule, 40)).IsEqualTo(11);
+        await Assert.That(CellGrid.Segments(rule)).IsEquivalentTo([new CellGrid.Segment(0, 11, 0)]);
+    }
+
+    /// <summary>
+    /// And one wide character in such a row puts it back on the grid a cluster at a time.
+    /// </summary>
+    [Test]
+    public async Task AWideCharacterInSuchARowIsStillCounted()
+    {
+        const string rule = "──中─";
+
+        await Assert.That(CellGrid.Cells(rule)).IsEqualTo(5);
+        await Assert.That(CellGrid.Index(rule, 4)).IsEqualTo(3);
+        await Assert.That(CellGrid.Segments(rule))
+            .IsEquivalentTo<IReadOnlyList<CellGrid.Segment>, CellGrid.Segment>(
+            [
+                new(0, 2, 0),
+                new(2, 1, 2),
+                new(3, 1, 4)
+            ]);
+    }
+
+    /// <summary>
+    /// What the grid asks the font: every printable ASCII character, since a row of those is drawn
+    /// as one string without asking; what it has past ASCII, and past the basic plane; and not a
+    /// character it lacks, nor a mark, which it has at no width at all.
+    /// </summary>
+    [Test]
+    public async Task TheEmbeddedFontSaysWhatItDrawsACellWide()
+    {
+        for (var character = 0x20; character <= 0x7E; character++)
+        {
+            await Assert.That(FontCoverage.Has(character)).IsTrue();
+        }
+
+        await Assert.That(FontCoverage.Has(0x2500)).IsTrue();
+        await Assert.That(FontCoverage.Has(0x2192)).IsTrue();
+        await Assert.That(FontCoverage.Has(0x044F)).IsTrue();
+        await Assert.That(FontCoverage.Has(0x1D538)).IsTrue();
+
+        await Assert.That(FontCoverage.Has(0x4E2D)).IsFalse();
+        await Assert.That(FontCoverage.Has(0x0180)).IsFalse();
+        await Assert.That(FontCoverage.Has(0x0301)).IsFalse();
+        await Assert.That(FontCoverage.Has(0x1F600)).IsFalse();
+        await Assert.That(FontCoverage.Has(0x10FFFF)).IsFalse();
+        await Assert.That(FontCoverage.Has(-1)).IsFalse();
+    }
+
+    /// <summary>
+    /// Bytes that are not a font say nothing is covered, rather than throwing out of the first row
+    /// to be drawn: every character is then a segment of its own, which is slower and still right.
+    /// </summary>
+    [Test]
+    public async Task BytesThatAreNotAFontCoverNothing()
+    {
+        await Assert.That(FontCoverage.Read([]).Has('a')).IsFalse();
+        await Assert.That(FontCoverage.Read([0, 1, 0, 0, 0, 200, 9, 9, 9, 9, 9, 9, 9, 9]).Has('a')).IsFalse();
+        var truncated = EmbeddedFont.Bytes().AsSpan(0, 2000).ToArray();
+        await Assert.That(FontCoverage.Read(truncated).Has('a')).IsFalse();
+    }
+
+    /// <summary>
     /// A column inside a wide character moves to its end, so a selection takes it whole or not at
     /// all, and the index it maps to is after the whole character.
     /// </summary>

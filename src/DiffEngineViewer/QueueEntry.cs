@@ -70,6 +70,19 @@ record QueueEntry(
         ? null
         : DiffView.Build(DocumentRows.Build(LeftDocument, RightDocument), fold: false).Full;
 
+    // Once as well, and copied by a `with` as the views are. Every entry is asked for it each time
+    // the queue is ordered or projected, and building it is a lower cased path and a string a time.
+    readonly string? testGroup = Kind == QueueEntryKind.Inline && TestName is not null && Patch is not null
+        ? $"{Patch.SourceFile.ToLowerInvariant()}|{TestName}"
+        : null;
+
+    /// <summary>
+    /// What makes two snapshots one test's: the file and the test's name, or null for an entry
+    /// that is in no test group. One test is one group only within one file, so two tests that
+    /// merely share a name in different files do not coalesce.
+    /// </summary>
+    public string? TestGroup => testGroup;
+
     static (DiffView Full, DiffView Minimal) Views(
         string leftText,
         string rightText,

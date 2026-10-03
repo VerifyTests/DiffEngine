@@ -112,6 +112,58 @@ public sealed class InlinePatch(
                SourceLanguage.NormalizeNewlines(original) == normalized;
     }
 
+    /// <summary>
+    /// Whether this patch came from a member other than <paramref name="member" />: both are known,
+    /// and they differ.
+    /// <para>
+    /// What a line cannot say for itself. A line names a call site only until something above it
+    /// in the file changes, and accepting a snapshot is exactly that: every call site below it
+    /// moves down, and the line an entry was queued under becomes the line of whatever call moved
+    /// onto it. Whoever finds an entry by its line has this to ask before believing it, since a
+    /// call cannot be in two members. A patch with no member, or a caller with none, leaves the
+    /// line as all there is.
+    /// </para>
+    /// </summary>
+    internal bool IsAnotherMembers(string? member) =>
+        !string.IsNullOrEmpty(member) &&
+        !string.IsNullOrEmpty(MemberName) &&
+        member != MemberName;
+
+    /// <summary>
+    /// Whether <paramref name="other" /> is for the call site this patch is for, going by
+    /// everything but the line: the same member of the same test in the same file, the same kind
+    /// of edit, and anchored to the same argument.
+    /// <para>
+    /// For recognising a call site that has moved. The anchors are what the source held when each
+    /// run saw it, so they agree for as long as nothing has been accepted there, whatever the two
+    /// runs produced. The test name is beside the member because a member is only a name, and one
+    /// file can declare it in two classes. A patch with no member is never recognised: without
+    /// one there is nothing to say two call sites with nothing accepted yet are different ones.
+    /// </para>
+    /// </summary>
+    internal bool IsSameCallSite(InlinePatch other) =>
+        !string.IsNullOrEmpty(MemberName) &&
+        MemberName == other.MemberName &&
+        TestName == other.TestName &&
+        Mode == other.Mode &&
+        OriginalExpression == other.OriginalExpression &&
+        OriginalValue == other.OriginalValue &&
+        InlineKey.FoldPath(SourceFile) == InlineKey.FoldPath(other.SourceFile);
+
+    /// <summary>
+    /// This patch with another line hint. A copy, because a queued patch is shared with whatever
+    /// is displaying it and with an accept that may be part way through applying it.
+    /// </summary>
+    internal InlinePatch At(int line) =>
+        new(SourceFile, line, OriginalExpression, NewContent, Mode)
+        {
+            OriginalValue = OriginalValue,
+            MemberName = MemberName,
+            EntryPoints = EntryPoints,
+            TestName = TestName,
+            Framework = Framework
+        };
+
     public InlinePatchMode Mode { get; set; } = mode;
 
     /// <summary>
@@ -130,9 +182,10 @@ public sealed class InlinePatch(
 
     /// <summary>
     /// Short target framework of the test process that produced this patch ("net9.0", "net48").
-    /// Stamped by <see cref="DiffRunner.AddInlineAsync"/> in the sending process, never by a
-    /// parser or a re-host, so a patch that crosses processes keeps the framework it was born
-    /// under. Null means unknown origin, which selects last-writer-wins queue semantics.
+    /// Stamped by <see cref="DiffRunner.AddInlineAsync"/> in the sending process, and by
+    /// <see cref="InlinePatchFile.Write"/> in the one staging it, never by a parser or a re-host,
+    /// so a patch that crosses processes keeps the framework it was born under. Null means unknown
+    /// origin, which selects last-writer-wins queue semantics.
     /// </summary>
     public string? Framework { get; set; }
 

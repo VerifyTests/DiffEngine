@@ -214,6 +214,110 @@ public class TrackedWatchTests :
         }
     }
 
+    /// <summary>
+    /// A queue longer than a pass looks at is looked at in turn. A thousand pending pairs were two
+    /// thousand stats a pass, five passes a second, for as long as the viewer ran.
+    /// </summary>
+    [Test]
+    public async Task AQueueLongerThanAPassLooksAtIsLookedAtInTurn()
+    {
+        var host = OwnedAll(5);
+        var watch = new TrackedWatch(host)
+        {
+            Budget = 2
+        };
+        // The last in the queue, which a pass that starts at the front does not get to
+        File.Delete(host.State.Queue[^1].LeftFile!);
+
+        watch.Pump();
+        await Assert.That(host.State.Queue.Count).IsEqualTo(5);
+
+        watch.Pump();
+        await Assert.That(host.State.Queue.Count).IsEqualTo(4);
+    }
+
+    /// <summary>
+    /// And one no longer than that is looked at whole every pass, as every queue used to be.
+    /// </summary>
+    [Test]
+    public async Task AQueueNoLongerThanAPassLooksAtIsLookedAtWhole()
+    {
+        var host = OwnedAll(5);
+        var watch = new TrackedWatch(host)
+        {
+            Budget = 4
+        };
+        File.Delete(host.State.Queue[^1].LeftFile!);
+
+        watch.Pump();
+
+        await Assert.That(host.State.Queue.Count).IsEqualTo(4);
+    }
+
+    /// <summary>
+    /// The entry on screen is the one being read, so it is looked at every pass, wherever the turn
+    /// has got to.
+    /// </summary>
+    [Test]
+    public async Task TheEntryOnScreenIsLookedAtEveryPass()
+    {
+        var host = OwnedAll(5);
+        var watch = new TrackedWatch(host)
+        {
+            Budget = 1
+        };
+        // The turn moves on past the first entry, which is the one on screen
+        watch.Pump();
+        watch.Pump();
+        await Assert.That(host.State.Selected).IsEqualTo(0);
+        await File.WriteAllTextAsync(host.State.Current!.LeftFile!, "rewritten by a later run");
+
+        watch.Pump();
+
+        await Assert.That(host.State.Current!.LeftText).IsEqualTo("rewritten by a later run");
+    }
+
+    /// <summary>
+    /// A snapshot has no file to look at, so it takes nothing from what a pass looks at: the pairs
+    /// behind a queue's snapshots are still all reached.
+    /// </summary>
+    [Test]
+    public async Task SnapshotsTakeNothingFromWhatAPassLooksAt()
+    {
+        // Two snapshots ahead of three pairs, and a pass that looks at three files
+        var state = Fixtures.Inline(Fixtures.Patch("OneTests.cs", 10), Fixtures.Patch("TwoTests.cs", 20));
+        for (var index = 0; index < 3; index++)
+        {
+            var (temp, target) = Pair($"Sample{index}.Test");
+            state = ViewerSession.EnqueueTracked(state, TrackedEntry.ForMove(temp, target));
+        }
+
+        var host = new SessionHost(state);
+        var watch = new TrackedWatch(host)
+        {
+            Budget = 3
+        };
+        await Assert.That(string.Join(" ", host.State.Queue.Select(_ => _.Kind))).IsEqualTo("Inline Inline Move Move Move");
+        File.Delete(host.State.Queue[^1].LeftFile!);
+
+        watch.Pump();
+
+        await Assert.That(host.State.Queue.Count(_ => _.Kind == QueueEntryKind.Move)).IsEqualTo(2);
+        await Assert.That(host.State.Queue.Count(_ => _.Kind == QueueEntryKind.Inline)).IsEqualTo(2);
+    }
+
+    SessionHost OwnedAll(int count)
+    {
+        var state = SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows);
+        for (var index = 0; index < count; index++)
+        {
+            var (temp, target) = Pair($"Sample{index}.Test");
+            state = ViewerSession.EnqueueTracked(state, TrackedEntry.ForMove(temp, target));
+        }
+
+        return new(state);
+    }
+
     static bool WaitUntilBlocked(Thread thread)
     {
         var watch = Stopwatch.StartNew();

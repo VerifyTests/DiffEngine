@@ -52,7 +52,7 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
                 while (true)
                 {
                     var claimed = host.Mutate(ViewerSession.ClaimNext);
-                    if (claimed.Batch?.Current is not { } entry)
+                    if (claimed.Batch?.Current is null)
                     {
                         return claimed.Message;
                     }
@@ -60,11 +60,11 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
                     Func<SessionState, SessionState> record;
                     try
                     {
-                        record = ViewerSession.ApplyClaimed(entry, actions);
+                        record = ViewerSession.ApplyClaimed(claimed, actions);
                     }
                     catch (Exception exception)
                     {
-                        record = ViewerSession.FailClaimed(entry, exception.Message);
+                        record = ViewerSession.FailClaimed(claimed, exception.Message);
                     }
 
                     host.Mutate(record);

@@ -1112,6 +1112,11 @@ public class ViewerProtocolTests
     /// listening on - Windows lets it hang, others refuse it, both only after the wait has returned.
     /// Serialised with the other tests in this class, since the event is process wide.
     /// </para>
+    /// <para>
+    /// The listener table is made to say the port may be held, which is what it says when it
+    /// cannot be read. Left to answer, it rules the port out on Windows before anything connects,
+    /// and then there is no connect to give up on.
+    /// </para>
     /// </summary>
     [Test]
     [NotInParallel]
@@ -1131,6 +1136,8 @@ public class ViewerProtocolTests
             }
         }
 
+        var lookup = ListenerTable.Lookup;
+        ListenerTable.Lookup = _ => _ == port || lookup(_);
         TaskScheduler.UnobservedTaskException += Record;
         try
         {
@@ -1151,6 +1158,7 @@ public class ViewerProtocolTests
         finally
         {
             TaskScheduler.UnobservedTaskException -= Record;
+            ListenerTable.Lookup = lookup;
             ViewerClient.ForgetUnowned();
         }
 

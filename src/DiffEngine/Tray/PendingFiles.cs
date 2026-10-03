@@ -152,6 +152,11 @@ static class PendingFiles
     /// A capped one reports what every other tool's does, rather than being folded in with a tool
     /// that could not be found: the pair has a tool and the cap is why no window opened.
     /// </para>
+    /// <para>
+    /// A viewer that was started and exited with a failure is folded in with it. The copy that
+    /// resolved cannot be run, which from here is a tool that is not there, and it used to be
+    /// reported as a new instance with no window behind it.
+    /// </para>
     /// </summary>
     static LaunchResult Launched(ViewerLaunchOutcome outcome) =>
         outcome switch

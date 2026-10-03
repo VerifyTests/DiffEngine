@@ -12,7 +12,12 @@ static partial class Implementation
             AutoRefresh: false,
             IsMdi: false,
             SupportsText: true,
-            RequiresTarget: true,
+            // A new snapshot has no verified file, and the viewer says so: it reads a missing
+            // target as an empty side. Asking for one meant EmptyFiles wrote a placeholder first,
+            // which the viewer then compared against as though it were the expected file - an
+            // empty PDF it could not open, a blank page - and for the maps, which EmptyFiles has
+            // no file for, that the pair never reached the viewer at all.
+            RequiresTarget: false,
             BinaryExtensions: ImageExtensions.All,
             Cost: "Free",
             OsSupport: new(
@@ -29,7 +34,8 @@ static partial class Implementation
                     launchArguments,
                     SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Osx()))),
             UseShellExecute: false,
-            // Console subsystem, so without this a window flashes on every launch.
+            // A copy from before 20.5 is a console executable, so without this a console window
+            // flashes when one is started by these flags, which the tray's Open diff tool does.
             CreateNoWindow: true,
             Notes: """
                  * The one tool DiffEngine does not open per pair. Every failing pair joins one
@@ -54,6 +60,11 @@ static partial class Implementation
     /// A globally installed tool is preferred, because installing one is an explicit choice of
     /// which viewer to run. Then the tray's copy, then the bundled copy, which is version matched to
     /// the library that is about to launch it, then the NuGet cache's.
+    /// <para>
+    /// That is the order copies are looked for in, and not quite the order they are taken in: one
+    /// from before the way this library starts a viewer is passed over while a newer one is
+    /// further down. See <see cref="DiffEngine.ViewerContract" />.
+    /// </para>
     /// </summary>
     static string[] SearchDirectories(string toolsDirectory, IEnumerable<string> tray, IEnumerable<string> nuGet)
     {

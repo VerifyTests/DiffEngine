@@ -514,8 +514,13 @@ sealed class ViewerCanvas : Control
         // Under the rows rather than instead of them. The rows are what every head draws — format,
         // size and byte count, coloured against the other side — and this head can afford to also
         // show the thing they describe.
+        // Both in the same width, not the pixel more an odd width leaves the right pane. Two
+        // pictures of one size are then fitted to one size, rather than a pixel apart. And one
+        // picture on both sides, which a page two identical documents share is, is composed once:
+        // the cache keeps a composite per picture, so asked for at two sizes it composed each in
+        // turn for as long as the entry was on screen, every landing throwing the other away.
         DrawImage(graphics, screen.Left, panesLeft, half, bodyTop, bodyBottom, lineHeight);
-        DrawImage(graphics, screen.Right, panesLeft + half, panesWidth - half, bodyTop, bodyBottom, lineHeight);
+        DrawImage(graphics, screen.Right, panesLeft + half, half, bodyTop, bodyBottom, lineHeight);
 
         if (hasQueue)
         {
@@ -570,7 +575,13 @@ sealed class ViewerCanvas : Control
         var bounds = placement.Bounds;
         if (image.Zoom > 1)
         {
-            DrawEnlarged(graphics, image, placement);
+            // From a copy of the whole of it at that size while one is small enough to keep, and
+            // otherwise straight from the picture
+            if (!DrawScaled(graphics, image, placement, available, lineHeight))
+            {
+                DrawEnlarged(graphics, image, placement);
+            }
+
             return;
         }
 
@@ -612,12 +623,135 @@ sealed class ViewerCanvas : Control
     }
 
     /// <summary>
-    /// A picture the reader has zoomed into: the part of it that shows, drawn straight from the
-    /// decoded picture rather than from a composite of the whole of it at that size, which at the
-    /// last step would be hundreds of megabytes to show one corner.
+    /// A picture the reader has zoomed into, but only as far as half its own size or less: the
+    /// part of it that shows, copied out of the whole of it scaled to that size. False when there
+    /// is no such copy to draw from and none coming, which leaves it to
+    /// <see cref="DrawEnlarged"/>: the picture is further in than that, or could not be scaled.
     /// <para>
-    /// On this thread, on every paint. It is the pane's worth of pixels however far in it is, and a
-    /// drag asks for a different part on every frame, so there is nothing a cache could keep.
+    /// Drawn straight from the picture, this far out, the part that shows is many times the
+    /// pane's pixels, and the filter a reduction needs reads every one of them on every paint: a
+    /// pair of 4000 by 3000 pictures at 150% was 54 ms a paint, on every frame of a drag, and is 2
+    /// copied. The whole of it at this size is at most a quarter of the picture's own pixels, so
+    /// it is kept as the fitted one is, made on the pool and replaced when another size is asked
+    /// for. Where the picture is dragged to is not part of what is kept, so a drag copies a
+    /// different part of the same thing.
+    /// </para>
+    /// <para>
+    /// Past half its size the whole of it is too much to keep a second copy of, up to the
+    /// picture's own size again, and the part that shows is under four times the pane's pixels.
+    /// </para>
+    /// </summary>
+    bool DrawScaled(Graphics graphics, ImagePane image, PicturePlacement placement, Rectangle available, int lineHeight)
+    {
+        if (image.Width < placement.Size.Width * 2)
+        {
+            return false;
+        }
+
+        var size = new Size(
+            (int) Math.Round(placement.Size.Width),
+            (int) Math.Round(placement.Size.Height));
+        var scaled = Synchronous
+            ? images.Composite(image.Path, size, Scale)
+            : images.Composite(image.Path, size, Scale, Invalidate);
+        var landed = scaled is not null &&
+                     scaled.Size == size;
+        if (!landed &&
+            images.Idle(image.Path) is not null)
+        {
+            // Not at this size, and nothing on the pool is making it: it could not be made
+            return false;
+        }
+
+        if (scaled is null)
+        {
+            DrawSpinner(graphics, available, lineHeight);
+            return true;
+        }
+
+        var bounds = placement.Bounds;
+        FillChecker(graphics, bounds);
+        var interpolation = graphics.InterpolationMode;
+        var offset = graphics.PixelOffsetMode;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        if (landed)
+        {
+            // Pixel for pixel, from a whole pixel of it
+            graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+            graphics.DrawImage(
+                scaled,
+                bounds,
+                new Rectangle(
+                    Math.Clamp(Whole(placement.Source.X * size.Width), 0, size.Width - bounds.Width),
+                    Math.Clamp(Whole(placement.Source.Y * size.Height), 0, size.Height - bounds.Height),
+                    bounds.Width,
+                    bounds.Height),
+                GraphicsUnit.Pixel);
+        }
+        else
+        {
+            // Whatever was last composed, at the size it was, with the same part of it stretched
+            // into place: rough for the frame or two until this size lands and repaints
+            graphics.InterpolationMode = InterpolationMode.Bilinear;
+            graphics.DrawImage(
+                scaled,
+                bounds,
+                new RectangleF(
+                    placement.Source.X * scaled.Width,
+                    placement.Source.Y * scaled.Height,
+                    placement.Source.Width * scaled.Width,
+                    placement.Source.Height * scaled.Height),
+                GraphicsUnit.Pixel);
+        }
+
+        graphics.InterpolationMode = interpolation;
+        graphics.PixelOffsetMode = offset;
+
+        using var pen = new Pen(Palette.Rule);
+        graphics.DrawRectangle(pen, bounds.X - 1, bounds.Y - 1, bounds.Width + 1, bounds.Height + 1);
+        return true;
+    }
+
+    /// <summary>
+    /// The pixel of a scaled picture that the part showing starts at: the nearest to where the
+    /// placement puts it, which is anywhere between two. Half way goes up, and so does a little
+    /// short of half way. A picture centred in its pane starts on a whole pixel or exactly half
+    /// way to the next, and a drag moves it a pixel at a time from there, so half way is where it
+    /// stays for the whole of the drag. Rounded on that line it fell either way with whatever the
+    /// arithmetic left in its last digit, and the picture stood still for one pixel of the drag
+    /// and jumped two for the next.
+    /// </summary>
+    static int Whole(float position) =>
+        (int) Math.Floor(position + 0.51f);
+
+    /// <summary>
+    /// The whole picture at <paramref name="size"/>, with nothing under it: the checkerboard
+    /// behind an enlarged picture stays where the pane is while the picture is dragged across it,
+    /// so it is not part of what is kept. Scaled with the filter the part that shows was drawn
+    /// with when it was scaled on every paint, so what a reader sees at a size is what they saw.
+    /// <para>
+    /// Runs on the pool for the window, as <see cref="Compose"/> does.
+    /// </para>
+    /// </summary>
+    static Bitmap Scale(Image picture, Size size)
+    {
+        var scaled = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppPArgb);
+        using var graphics = Graphics.FromImage(scaled);
+        graphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        graphics.DrawImage(picture, new Rectangle(Point.Empty, size));
+        return scaled;
+    }
+
+    /// <summary>
+    /// A picture the reader has zoomed into past half its own size: the part of it that shows,
+    /// drawn straight from the decoded picture rather than from a copy of the whole of it at that
+    /// size, which at the last step would be hundreds of megabytes to show one corner.
+    /// <para>
+    /// On this thread, on every paint. Past its own size it is the pane's worth of the picture's
+    /// pixels however far in it is, and between that and half its size no more than four times
+    /// the pane's worth, where <see cref="DrawScaled"/> has the rest. A drag asks for a different
+    /// part on every frame, so there is nothing a cache of what shows could keep.
     /// </para>
     /// </summary>
     void DrawEnlarged(Graphics graphics, ImagePane image, PicturePlacement placement)
@@ -638,11 +772,13 @@ sealed class ViewerCanvas : Control
             placement.Source.Width * picture.Width,
             placement.Source.Height * picture.Height);
 
-        graphics.FillRectangle(Checker(bounds.Location), bounds);
+        FillChecker(graphics, bounds);
         var interpolation = graphics.InterpolationMode;
         var offset = graphics.PixelOffsetMode;
         // Its pixels as they are once it is past its own size, which is what zooming that far in
         // is for: smoothed, a one pixel difference between the two sides is a blur on both.
+        // Short of that, the filter that reads every pixel it reduces. Plain bilinear would do for
+        // a reduction of under two, and is the one GDI+ takes longer over: 14 ms a pane to 9.
         graphics.InterpolationMode = placement.Size.Width >= picture.Width
             ? InterpolationMode.NearestNeighbor
             : InterpolationMode.HighQualityBilinear;
@@ -656,29 +792,30 @@ sealed class ViewerCanvas : Control
     }
 
     /// <summary>
-    /// The checkerboard as a brush, its squares starting at <paramref name="origin"/> as the
-    /// composed one's do. A tile rather than a rectangle a square, because this is filled on every
-    /// paint of an enlarged picture, where the composed one is drawn once per size.
+    /// The checkerboard under an enlarged picture, its squares starting at the corner of
+    /// <paramref name="bounds"/> as the composed one's do, and staying there while the picture is
+    /// dragged across them.
+    /// <para>
+    /// Drawn on every paint of an enlarged picture, where the composed one is drawn once per size.
+    /// It was a brush tiling one pair of squares for that reason, and the brush was the dear way:
+    /// GDI+ took over 3 ms to fill a pane from a texture, and takes half a millisecond to fill it
+    /// with a colour and half its squares with another. Once the picture over it is a copy rather
+    /// than a rescale, that was most of what a frame of a drag cost.
+    /// </para>
     /// </summary>
-    TextureBrush Checker(Point origin)
-    {
-        if (checkerBrush is null)
-        {
-            using var tile = new Bitmap(checker * 2, checker * 2, PixelFormat.Format32bppPArgb);
-            using (var graphics = Graphics.FromImage(tile))
-            {
-                DrawChecker(graphics, new(0, 0, checker * 2, checker * 2));
-            }
+    void FillChecker(Graphics graphics, Rectangle bounds) =>
+        DrawChecker(
+            graphics,
+            bounds,
+            Painter.Brush(Palette.CheckerLight),
+            Painter.Brush(Palette.CheckerDark),
+            ref darkSquares);
 
-            checkerBrush = new(tile);
-        }
-
-        checkerBrush.ResetTransform();
-        checkerBrush.TranslateTransform(origin.X, origin.Y);
-        return checkerBrush;
-    }
-
-    TextureBrush? checkerBrush;
+    /// <summary>
+    /// Where the dark squares of the last checkerboard painted were, kept so that the next paint
+    /// has somewhere to list its own.
+    /// </summary>
+    Rectangle[] darkSquares = [];
 
     /// <summary>
     /// Where the last paint put each side's picture, or the space one is on its way to. What the
@@ -813,7 +950,19 @@ sealed class ViewerCanvas : Control
     {
         using var light = new SolidBrush(Palette.CheckerLight);
         using var dark = new SolidBrush(Palette.CheckerDark);
+        Rectangle[] squares = [];
+        DrawChecker(graphics, bounds, light, dark, ref squares);
+    }
+
+    /// <summary>
+    /// One colour over all of it and the other over every second square, those as one list handed
+    /// over together: a call a square is most of what a square costs. The list is written into
+    /// <paramref name="squares"/>, which is made longer when it has to be.
+    /// </summary>
+    static void DrawChecker(Graphics graphics, Rectangle bounds, Brush light, Brush dark, ref Rectangle[] squares)
+    {
         graphics.FillRectangle(light, bounds);
+        var count = 0;
         for (var y = bounds.Y; y < bounds.Bottom; y += checker)
         {
             for (var x = bounds.X; x < bounds.Right; x += checker)
@@ -823,10 +972,20 @@ sealed class ViewerCanvas : Control
                     continue;
                 }
 
-                graphics.FillRectangle(
-                    dark,
-                    Rectangle.Intersect(new(x, y, checker, checker), bounds));
+                if (count == squares.Length)
+                {
+                    Array.Resize(ref squares, Math.Max(64, count * 2));
+                }
+
+                squares[count++] = Rectangle.Intersect(new(x, y, checker, checker), bounds);
             }
+        }
+
+        // None at all under a picture no larger than one square, and GDI+ takes a list of nothing
+        // as a mistake rather than as nothing to do
+        if (count > 0)
+        {
+            graphics.FillRectangles(dark, squares.AsSpan(0, count));
         }
     }
 
@@ -911,10 +1070,17 @@ sealed class ViewerCanvas : Control
             font,
             Palette.Dim,
             Cellular(bounds.X, bounds.Y, gutter, bounds.Height));
+        // No more of the row than the pane has cells for. GDI+ lays out every character it is
+        // handed before it clips any of them, so a row handed over whole cost by its length
+        // rather than by what of it showed: 72 rows of long lines were 18 ms a paint where the 54
+        // characters of each that show are 3.5, and every wheel notch and every frame of a
+        // selection drag is a paint. Cut before it is segmented as well, which walked the whole
+        // of a row that was not all ASCII: a megabyte of one was 14 ms a row.
+        var text = RowText.Shown(row.Text, CellsAcross(bounds.Width - gutter));
+
         // Each segment at its column on the grid rather than the row as one string, so a character
         // the font draws wider or narrower than a cell moves nothing after it: see CellGrid. A row
         // of plain text is one segment at column 0, drawn exactly as the whole row was.
-        var text = RowText.Flatten(row.Text);
         foreach (var segment in CellGrid.Segments(text))
         {
             var left = bounds.X + gutter + Offset(segment.Column);
@@ -925,13 +1091,29 @@ sealed class ViewerCanvas : Control
 
             Painter.Draw(
                 graphics,
-                // No wider than the pane can show in pixels, which no line of characters can exceed
-                RowText.Clip(text.Substring(segment.Start, segment.Length), bounds.Right - left),
+                // A character takes its marks into its cell with it, however many it has, so the
+                // cells a pane holds do not bound what is in them. As many characters as the pane
+                // is pixels wide does, which only a pile of marks reaches. Not as many as there
+                // are pixels left of it, which this was: an emoji is two, so one whose first
+                // column of pixels was the pane's last was cut to nothing, and a joined sequence
+                // within its own length of the edge lost the last of what it joins
+                RowText.Clip(text.Substring(segment.Start, segment.Length), bounds.Width),
                 font,
                 Palette.Foreground(row.Kind),
                 Cellular(left, bounds.Y, bounds.Right - left, bounds.Height));
         }
     }
+
+    /// <summary>
+    /// How many cells of a row's text <paramref name="width"/> pixels show any part of, and one
+    /// more. A glyph is not confined to its cell: GDI+ fits each to whole pixels, which can start
+    /// one in the last pixel of the cell before its own, so the cell after the last one showing
+    /// can still put ink in the pane. With that one kept, the first cell left out starts a whole
+    /// cell past the edge. And where GDI+ puts a glyph does not depend on what follows it in the
+    /// string, which is what makes the cut one that cannot be seen.
+    /// </summary>
+    int CellsAcross(int width) =>
+        Math.Max(0, (int) Math.Ceiling(width / Advance)) + 1;
 
     void DrawRule(Graphics graphics, int top) =>
         graphics.FillRectangle(Painter.Brush(Palette.Rule), padding, top, Width - padding * 2, 1);
@@ -1205,7 +1387,6 @@ sealed class ViewerCanvas : Control
             font.Dispose();
             tips.Dispose();
             images.Dispose();
-            checkerBrush?.Dispose();
         }
 
         base.Dispose(disposing);

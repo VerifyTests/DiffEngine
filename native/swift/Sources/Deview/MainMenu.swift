@@ -12,7 +12,7 @@ final class ControlTarget: NSObject {
     /// loop answer it.
     @objc
     func quit(_ sender: Any?) {
-        Runtime.shared.input.key = DEVIEW_KEY_QUIT.value
+        Runtime.shared.post(.key(DEVIEW_KEY_QUIT.value))
     }
 
     /// A menu bar command. The item's tag is the `DeviewKey`, so the menu carries no mapping of
@@ -23,7 +23,7 @@ final class ControlTarget: NSObject {
             return
         }
 
-        Runtime.shared.input.key = Int32(item.tag)
+        Runtime.shared.post(.key(Int32(item.tag)))
     }
 
     /// A context menu item. The tag is its index in the frame's menu, which is the whole payload:
@@ -34,7 +34,7 @@ final class ControlTarget: NSObject {
             return
         }
 
-        Runtime.shared.input.clickedMenuItem = Int32(item.tag)
+        Runtime.shared.post(.menuItem(Int32(item.tag)))
     }
 
     @objc

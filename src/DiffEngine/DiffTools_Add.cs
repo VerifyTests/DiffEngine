@@ -46,12 +46,27 @@ public static partial class DiffTools
 
     static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool useShellExecute, bool createNoWindow, bool killLockingProcess = false)
     {
-        if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments))
+        if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments, PreferredCopy(diffTool)))
         {
             return null;
         }
 
         return AddInner(name, diffTool, autoRefresh, isMdi, supportsText, requiresTarget, binaryExtensions, exePath, launchArguments, useShellExecute, createNoWindow, killLockingProcess);
+    }
+
+    /// <summary>
+    /// Which of several installed copies of a tool to take, for the one tool where that is this
+    /// library's business: the viewer, which it starts with arguments of its own rather than only
+    /// the two paths every tool is given. See <see cref="ViewerContract" />.
+    /// </summary>
+    internal static Func<string, bool>? PreferredCopy(DiffTool? tool)
+    {
+        if (tool == DiffTool.DiffEngineViewer)
+        {
+            return ViewerContract.IsMet;
+        }
+
+        return null;
     }
 
     static ResolvedTool? AddInner(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaries, string exePath, LaunchArguments launchArguments, bool useShellExecute, bool createNoWindow, bool killLockingProcess = false)

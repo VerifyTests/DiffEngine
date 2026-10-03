@@ -1,7 +1,7 @@
 # macOS renderer
 
 The macOS half of `libdiffengine_viewer`, drawn with AppKit and Core Text. It implements the same
-ABI as `native/` does for Linux — `native/include/deview.h`, eight exports over one flat frame
+ABI as `native/` does for Linux — `native/include/deview.h`, eleven exports over one flat frame
 description — so the managed side is identical on both and `DiffEngineViewer.Core` has no idea
 which one it loaded.
 
@@ -27,6 +27,14 @@ prototypes behind `DEVIEW_TYPES_ONLY`, because this library defines those symbol
 rather than handing control to `NSApplication.run`. That is what keeps the scroll amplification,
 the button lookup and the close-means-hide rule in `ViewerProgram` for every platform. It also
 means the deadline is the frame throttle: without it the managed loop would spin a core.
+
+**AppKit keeps loops of its own**, and each runs inside that pump, so the managed loop waits it
+out. A menu while it is open, which is deliberate: that loop is what buys the keyboard, Escape and
+VoiceOver. A window while it is being resized, which is not: the panes keep the rows they were
+sliced for until the mouse comes up, drawn into the new size, and it takes a way to ask the managed
+side for a frame from inside the loop to do better, which the ABI does not have. The scroller's
+knob used to be a third. `PaneScroller` follows a drag of it as three ordinary events instead, so
+the panes scroll as it moves.
 
 **No app bundle.** `setActivationPolicy(.regular)` plus `finishLaunching()` is enough to get a
 window that takes focus and appears in the dock, which is the same thing GLFW does for the Linux

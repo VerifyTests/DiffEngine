@@ -5,8 +5,10 @@
 /// a scrollbar thumb and for moving or sizing the window, and where a logoff ends the session. The
 /// loop's next step never comes in either case, so the head is handed those steps to run itself.
 /// <para>
-/// Optional, and only WinForms takes it: the native heads pump their own events and have no modal
-/// loops to be caught in.
+/// Optional, and only WinForms takes it. The native heads pump their own events. The Linux one has
+/// no modal loops to be caught in. AppKit has: a menu, which is deliberate, and a window being
+/// resized, which still draws the rows sliced for its old size until the mouse comes up. Handing
+/// that head a frame from inside the loop would take a callback in the C ABI.
 /// </para>
 /// </summary>
 interface ILoopHooks

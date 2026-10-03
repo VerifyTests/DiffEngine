@@ -49,6 +49,13 @@ sealed class FakeViewer : IDisposable
     /// </summary>
     public bool ListingFails { get; set; }
 
+    /// <summary>
+    /// When true, every request is answered in some other protocol, which stands in for a program
+    /// that is not a viewer holding the port. 3493 is registered to Network UPS Tools, whose
+    /// daemon answers whatever it does not understand with a line like this one.
+    /// </summary>
+    public bool AnotherProgram { get; set; }
+
     async Task Listen()
     {
         while (!cancel.IsCancellationRequested)
@@ -76,6 +83,10 @@ sealed class FakeViewer : IDisposable
         var verb = Read(request, "verb");
         var key = Decode(Read(request, "key"));
         Verbs.Add(key == null ? verb : $"{verb}:{key}");
+        if (AnotherProgram)
+        {
+            return "ERR UNKNOWN-COMMAND\n";
+        }
 
         var builder = new StringBuilder("version: 1\n");
         if (verb == "list" &&

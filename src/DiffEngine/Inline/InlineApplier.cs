@@ -17,6 +17,78 @@ public static class InlineApplier
         Run(patch, write: true);
 
     /// <summary>
+    /// Applies several patches, reading and writing each source file once however many of them
+    /// are for it. The results are in the order the patches were given, whichever files they
+    /// name.
+    /// <para>
+    /// Each outcome is the one <see cref="Apply"/> would have reported had it been called on them
+    /// in turn. A patch is applied to what the ones before it left of its file, so the second of
+    /// two for one call site finds the first one's literal there, and a call site that an earlier
+    /// one moved is found where it now is.
+    /// </para>
+    /// <para>
+    /// What differs is when the file is written: once, after the last of its patches, through the
+    /// same temporary and the same swap, with the file's lock held from the read to the write. One
+    /// at a time, the whole file is read, lexed and written again for every patch, and the write
+    /// is where the time goes. A file that has just been written is scanned by whatever watches
+    /// the drive before the next thing can open it, and for five hundred snapshots in one ten
+    /// thousand line file that came to half a minute. The lexing is still once per patch, since
+    /// each starts from different source.
+    /// </para>
+    /// <para>
+    /// So a write that fails fails every patch it was carrying, and each says so. The patches
+    /// after the first of those say so too, whatever they were judged to be, because what they
+    /// were judged against was never written. The file is left as it was.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches) =>
+        ApplyAll(patches, Swap);
+
+    /// <param name="patches">The patches, in the order they are to be applied.</param>
+    /// <param name="replace">
+    /// The swap. Supplied by the tests, which count how many there were and make one fail.
+    /// </param>
+    internal static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches, Action<string, string> replace)
+    {
+        var results = new InlineApplyResult[patches.Count];
+        // Each file's patches in the order they were given, and the files in the order they were
+        // first named
+        var files = new List<(string FullPath, List<int> Indexes)>();
+        var known = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < patches.Count; index++)
+        {
+            if (!TryResolve(patches[index], out var fullPath, out var invalid))
+            {
+                results[index] = invalid;
+                continue;
+            }
+
+            // Folded as the queue folds a path, so two spellings of a file the file system takes
+            // for one are one read and one write here as well
+            var key = InlineKey.FoldPath(fullPath);
+            if (!known.TryGetValue(key, out var file))
+            {
+                file = files.Count;
+                known.Add(key, file);
+                files.Add((fullPath, []));
+            }
+
+            files[file].Indexes.Add(index);
+        }
+
+        foreach (var (fullPath, indexes) in files)
+        {
+            var applied = Run(fullPath, indexes.Select(_ => patches[_]).ToList(), write: true, anchorOnly: false, replace);
+            for (var position = 0; position < indexes.Count; position++)
+            {
+                results[indexes[position]] = applied[position];
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
     /// What <see cref="Apply"/> would report, with nothing written.
     /// <para>
     /// For a producer deciding whether a snapshot can live inline at all. Some call sites cannot
@@ -53,31 +125,56 @@ public static class InlineApplier
 
     static InlineApplyResult Run(InlinePatch patch, bool write, bool anchorOnly = false)
     {
+        if (!TryResolve(patch, out var fullPath, out var invalid))
+        {
+            return invalid;
+        }
+
+        return Run(fullPath, [patch], write, anchorOnly, Swap)[0];
+    }
+
+    /// <summary>
+    /// The file a patch is for, or what is wrong with the patch when it does not name one.
+    /// </summary>
+    static bool TryResolve(InlinePatch patch, out string fullPath, [NotNullWhen(false)] out InlineApplyResult? invalid)
+    {
+        fullPath = "";
+        invalid = null;
         if (string.IsNullOrWhiteSpace(patch.SourceFile))
         {
-            return InlineApplyResult.Failed("InlinePatch.SourceFile is empty");
+            invalid = InlineApplyResult.Failed("InlinePatch.SourceFile is empty");
+            return false;
         }
 
         if (patch.LineHint < 1)
         {
-            return InlineApplyResult.Failed($"InlinePatch.LineHint must be 1 or greater. Value: {patch.LineHint}");
+            invalid = InlineApplyResult.Failed($"InlinePatch.LineHint must be 1 or greater. Value: {patch.LineHint}");
+            return false;
         }
 
-        string fullPath;
         try
         {
             fullPath = Path.GetFullPath(patch.SourceFile);
         }
         catch (Exception exception)
         {
-            return InlineApplyResult.Failed($"Invalid InlinePatch.SourceFile: {patch.SourceFile}", exception);
+            invalid = InlineApplyResult.Failed($"Invalid InlinePatch.SourceFile: {patch.SourceFile}", exception);
+            return false;
         }
 
         // Followed before anything else, so the lock, the mutex, the read and the swap all name
         // the file that actually holds the source
         fullPath = ResolveLink(fullPath);
+        return true;
+    }
 
-        var newContent = SourceLanguage.NormalizeNewlines(patch.NewContent);
+    /// <summary>
+    /// The patches of one file, applied in order with the file's locks held throughout, and an
+    /// outcome for each. A failure that is about the file rather than about a patch - a lock that
+    /// could not be taken, a file that could not be read - is every patch's outcome.
+    /// </summary>
+    static InlineApplyResult[] Run(string fullPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
+    {
         var normalizedPath = fullPath.ToLowerInvariant();
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
@@ -92,7 +189,7 @@ public static class InlineApplier
             }
             catch (Exception exception)
             {
-                return InlineApplyResult.Failed($"Could not open the inline patch mutex for: {fullPath}", exception);
+                return All(patches, InlineApplyResult.Failed($"Could not open the inline patch mutex for: {fullPath}", exception));
             }
 
             using var mutex = opened;
@@ -110,10 +207,10 @@ public static class InlineApplier
 
                 if (!owned)
                 {
-                    return InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}");
+                    return All(patches, InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}"));
                 }
 
-                return LockedApply(fullPath, patch, newContent, write, anchorOnly);
+                return LockedApply(fullPath, patches, write, anchorOnly, replace);
             }
             finally
             {
@@ -125,7 +222,18 @@ public static class InlineApplier
         }
     }
 
-    static InlineApplyResult LockedApply(string fullPath, InlinePatch patch, string newContent, bool write, bool anchorOnly)
+    static InlineApplyResult[] All(IReadOnlyList<InlinePatch> patches, InlineApplyResult result)
+    {
+        var results = new InlineApplyResult[patches.Count];
+        for (var index = 0; index < results.Length; index++)
+        {
+            results[index] = result;
+        }
+
+        return results;
+    }
+
+    static InlineApplyResult[] LockedApply(string fullPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
     {
         // Asked here rather than before the lock, because the swap at the end of this method takes
         // the path away for the instant it takes to rename over it. Asked outside, an applier
@@ -133,7 +241,7 @@ public static class InlineApplier
         // reported it, which is neither true nor the sort of thing a retry was going to fix
         if (!File.Exists(fullPath))
         {
-            return InlineApplyResult.Failed($"Source file does not exist: {fullPath}");
+            return All(patches, InlineApplyResult.Failed($"Source file does not exist: {fullPath}"));
         }
 
         byte[] bytes;
@@ -143,7 +251,7 @@ public static class InlineApplier
         }
         catch (Exception exception)
         {
-            return InlineApplyResult.Failed($"Failed to read: {fullPath}", exception);
+            return All(patches, InlineApplyResult.Failed($"Failed to read: {fullPath}", exception));
         }
 
         var (encoding, bomLength) = DetectEncoding(bytes);
@@ -154,59 +262,87 @@ public static class InlineApplier
         }
         catch (DecoderFallbackException exception)
         {
-            return InlineApplyResult.Failed(
-                $"Could not decode as {encoding.WebName}: {fullPath}. Every byte that failed to decode would be replaced on write, so the file is left alone. Convert it to UTF-8 and re-run the test.",
-                exception);
+            return All(
+                patches,
+                InlineApplyResult.Failed(
+                    $"Could not decode as {encoding.WebName}: {fullPath}. Every byte that failed to decode would be replaced on write, so the file is left alone. Convert it to UTF-8 and re-run the test.",
+                    exception));
         }
         catch (Exception exception)
         {
-            return InlineApplyResult.Failed($"Failed to decode: {fullPath}", exception);
+            return All(patches, InlineApplyResult.Failed($"Failed to decode: {fullPath}", exception));
         }
 
-        PatchStatus status;
-        string newSource;
-        string failReason;
+        var language = SourceLanguage.ForFile(fullPath);
+        var results = new InlineApplyResult[patches.Count];
+        // The first patch whose edit the write below has to carry, or -1 while there is none
+        var firstToWrite = -1;
+        for (var index = 0; index < results.Length; index++)
+        {
+            var patch = patches[index];
+            PatchStatus status;
+            string newSource;
+            string failReason;
+            try
+            {
+                status = InlinePatcher.TryApply(
+                    language,
+                    source,
+                    patch.LineHint,
+                    patch.Mode,
+                    patch.OriginalExpression,
+                    patch.OriginalValue,
+                    patch.MemberName,
+                    patch.EntryPoints,
+                    anchorOnly,
+                    SourceLanguage.NormalizeNewlines(patch.NewContent),
+                    out newSource,
+                    out failReason);
+            }
+            catch (Exception exception)
+            {
+                // A patcher defect on some shape of source, reported against the file it met it in
+                // rather than thrown at whichever surface was accepting
+                results[index] = InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
+                continue;
+            }
+
+            switch (status)
+            {
+                case PatchStatus.AlreadyApplied:
+                    results[index] = InlineApplyResult.AlreadyApplied;
+                    continue;
+                case PatchStatus.NotFound:
+                    results[index] = InlineApplyResult.NotFound(failReason);
+                    continue;
+            }
+
+            // Every reason a patch can be refused for has been asked by this point and none of
+            // them held. All that remains is the write, which is the one step a dry run may not
+            // take
+            results[index] = InlineApplyResult.Applied;
+            if (!write)
+            {
+                continue;
+            }
+
+            // The next patch is applied to this one's result, as it would have been to the file
+            // this one had written
+            source = newSource;
+            if (firstToWrite < 0)
+            {
+                firstToWrite = index;
+            }
+        }
+
+        if (firstToWrite < 0)
+        {
+            return results;
+        }
+
         try
         {
-            status = InlinePatcher.TryApply(
-                SourceLanguage.ForFile(fullPath),
-                source,
-                patch.LineHint,
-                patch.Mode,
-                patch.OriginalExpression,
-                patch.OriginalValue,
-                patch.MemberName,
-                patch.EntryPoints,
-                anchorOnly,
-                newContent,
-                out newSource,
-                out failReason);
-        }
-        catch (Exception exception)
-        {
-            // A patcher defect on some shape of source, reported against the file it met it in
-            // rather than thrown at whichever surface was accepting
-            return InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
-        }
-
-        switch (status)
-        {
-            case PatchStatus.AlreadyApplied:
-                return InlineApplyResult.AlreadyApplied;
-            case PatchStatus.NotFound:
-                return InlineApplyResult.NotFound(failReason);
-        }
-
-        // Every reason a patch can be refused for has been asked by this point and none of them
-        // held. All that remains is the write, which is the one step a dry run may not take
-        if (!write)
-        {
-            return InlineApplyResult.Applied;
-        }
-
-        try
-        {
-            var content = encoding.GetBytes(newSource);
+            var content = encoding.GetBytes(source);
             byte[] output;
             if (bomLength > 0)
             {
@@ -220,14 +356,23 @@ public static class InlineApplier
                 output = content;
             }
 
-            WriteThroughTemporary(fullPath, output);
+            WriteThroughTemporary(fullPath, output, replace);
         }
         catch (Exception exception)
         {
-            return InlineApplyResult.Failed($"Failed to write: {fullPath}", exception);
+            // Nothing from the first edit on reached the file, and every answer after it was about
+            // source that held that edit: one already applied only because an earlier patch here
+            // had written the same literal, one not found only because an earlier patch had taken
+            // its anchor. So they all report the write, and an entry that reports a failure is
+            // kept for another try
+            var failed = InlineApplyResult.Failed($"Failed to write: {fullPath}", exception);
+            for (var index = firstToWrite; index < results.Length; index++)
+            {
+                results[index] = failed;
+            }
         }
 
-        return InlineApplyResult.Applied;
+        return results;
     }
 
     /// <summary>
@@ -314,8 +459,9 @@ public static class InlineApplier
     }
 #endif
 
-    static void WriteThroughTemporary(string fullPath, byte[] output) =>
-        WriteThroughTemporary(fullPath, output, static (temporary, destination) => File.Replace(temporary, destination, null));
+    // What replace is for every caller but a test
+    static void Swap(string temporary, string destination) =>
+        File.Replace(temporary, destination, null);
 
     /// <param name="fullPath">The source file, which the patched bytes replace.</param>
     /// <param name="output">The whole patched file, preamble included.</param>

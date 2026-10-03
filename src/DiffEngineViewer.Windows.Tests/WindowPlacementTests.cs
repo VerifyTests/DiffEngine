@@ -89,6 +89,42 @@ public class WindowPlacementTests
         await Assert.That(restored).IsNull();
     }
 
+    /// <summary>
+    /// A first window, with nothing remembered, is scaled to its display once its handle exists,
+    /// and WinForms has centred it by then for the size it was before. It grew down and to the
+    /// right from there: at 125% the margins came out left 1161 and right 886, and at 150% on a
+    /// 1080p display the footer was under the taskbar. That placement was then the one remembered.
+    /// </summary>
+    [Test]
+    public async Task AFirstWindowIsCentredForTheSizeItOpensAt()
+    {
+        // Asked for larger than any display, so the size it opens at is not the size it was
+        // centred for whatever this machine's scaling is: a test host that is not DPI aware
+        // scales nothing, and a window of 1100 by 700 would be left exactly as it was made
+        using var form = new ViewerForm("title", 9000, 6000);
+        _ = form.Handle;
+
+        var area = System.Windows.Forms.Screen.FromControl(form).WorkingArea;
+        await Assert.That(form.Width).IsLessThan(area.Width);
+        await Assert.That(form.Location).IsEqualTo(ViewerForm.Centred(area, form.Size));
+        await Assert.That(form.Left).IsGreaterThan(area.Left);
+    }
+
+    [Test]
+    public async Task CentredIsTheMiddleOfTheDisplayItIsOn()
+    {
+        await Assert.That(ViewerForm.Centred(display, new(1100, 700))).IsEqualTo(new Point(410, 170));
+        await Assert.That(ViewerForm.Centred(second, new(1500, 900))).IsEqualTo(new Point(2450, 250));
+    }
+
+    /// <summary>
+    /// Too large for the display, it starts at the top left rather than hanging off it evenly: the
+    /// title bar is what it is moved by.
+    /// </summary>
+    [Test]
+    public async Task AWindowLargerThanTheDisplayIsCentredFromItsTopLeft() =>
+        await Assert.That(ViewerForm.Centred(second, new(3000, 1600))).IsEqualTo(new Point(1920, 0));
+
     [Test]
     public async Task AFormOpensAtTheBoundsItIsGiven()
     {

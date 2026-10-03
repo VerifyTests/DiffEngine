@@ -2,86 +2,182 @@
 
 Findings from a review of `main` at 991bc480 (2026-10-03). The list from the review at 4244ebe6 is closed, so this one weights what has landed since: documents and maps, the text diff, zoom and pan, the remembered window and views, and pictures decoded off the UI thread.
 
-- **reproduced**: run and seen. Either the API involved, or the repo's own sources compiled into a scratch console project outside the repo (the same files `DiffEngineViewer.csproj` links, plus a `Program.cs`). No test in the repo yet.
-- **measured**: timed in that same project. Release, net10.0, this machine.
-- **read**: confirmed by reading the code path end to end, not run.
-- **cannot verify here**: needs macOS or Linux; the item says what would settle it.
+Most of it came from six reviews run alongside, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. Every bug found is fixed and gone from this list: the five in the viewer's model, and the twenty seven the six reviews found. So is every performance item, all fourteen. What is left is what those fixes did not reach, and the smaller ones.
+
+File and line references are as of a01dfc1d, before the second round of fixes and before the performance ones. The code they point at is unchanged, but lines below an edit have moved, so go by the names.
+
+- **reproduced**: run and seen by me. Either the API involved, or the repo's own sources compiled into a scratch console project outside the repo. No test in the repo yet.
+- **measured**: timed by me in that same project. Release, net10.0, this machine.
+- **read**: confirmed by me reading the code path, not run.
+- **reported**: found by one of the six reviews and not rerun by me. What follows the word is the reviewer's own evidence: *ran* is a probe of theirs outside the repo, *measured* a timing of theirs, *read* a trace through the code, and *plausible* a reading that rests on something they could not run, with what would settle it. For each of these I checked that the code it quotes is in the tree as quoted, and nothing more.
+- **left by the fix**: said by whoever fixed the bug it sits under, about the part the fix did not reach.
+- Nothing under a macOS heading has been run by a person: the Swift cannot be built from Windows. CI's `macos-14` job compiles it and runs the suite and the pixel snapshots, and it passes there. The Linux fixes were built and run in an `ubuntu:24.04` container, and pass on CI's Linux job too. The two macOS performance changes are in the same position as the fixes, and have not been measured either.
 
 
 ## Bugs
 
-- [ ] **A new snapshot of a document or a map never gets a real comparison** (reproduced)
-  - `src/DiffEngine/Implementation/DiffEngineViewer.cs:15` declares the viewer `RequiresTarget: true`, so for a snapshot with no verified file `DiffRunner.TryCreate` (`src/DiffEngine/DiffRunner.cs:357`) asks EmptyFiles for a placeholder before the viewer is told anything. The viewer does not need one: `FileSide.Read` gives a missing target an empty side (`src/DiffEngineViewer/FileSide.cs:30`), and `TrackedWatch` already treats "no target" as a new snapshot.
-  - EmptyFiles 8.19.0 has no template for `.geojson`, `.gpx`, `.kml`, `.topojson`, `.wkt`, `.wkb`, `.fgb` or `.geoparquet` (`AllFiles.TryCreateFile` returns false for all eight). `ShouldExitLaunch` (`DiffRunner.cs:347`) then returns `NoEmptyFileForExtension`: no window, and only a plain `AddMove`. Every map format except `.kmz` cannot be reviewed the first time it is verified.
-  - Where a placeholder is created, it is then read as the expected document:
-    - `.pdf`: the 212 byte template is refused by PDFium ("Not a readable PDF: file is not a PDF or is corrupt"). The right side is `Unreadable`, so `QueueEntry.HasText` is false and both panes show the two property rows instead of the received text (`src/DiffEngineViewer/QueueEntry.cs:89`). The header says `verified.pdf (not drawn)`. With the target deleted, the same entry shows every received line as added.
-    - `.svg`: three bytes, a BOM. "Not a readable SVG: Root element is missing."
-    - `.kmz`: "The map has no features to draw."
-    - `.docx`, `.xlsx`, `.pptx` draw one blank page, and an image gets a tiny valid one, so those read "differ" where "only the received file exists" is the truth.
-  - `FileTypeLaunchTests` writes a verified file in every case (`:220`, `:285`, `:344`), so nothing launches the viewer on a pair with no target.
-  - Fix: `RequiresTarget: false` for the viewer. Then add a no-target case per extension to `FileTypeLaunchTests`.
+Nothing that was found as a bug is open. What follows is what the fixes left.
 
-- [ ] **A failing file snapshot that runs again throws the reader back to its first change** (reproduced)
-  - `src/DiffEngineViewer/ViewerSession.cs:152-170` (`EnqueueTracked`): an entry replacing the one on screen always goes through `Open`, which resets the scroll, the page and the zoom, and the menu is cleared either way. `MessageHandler.TrackMove` (`src/DiffEngineViewer/Ipc/MessageHandler.cs:54`) builds a fresh entry for every `Diff` or `Move`, whether or not anything changed.
-  - Reader scrolled to row 0 of a pair that opens at row 147, with its menu open. The same pair arrives again, byte for byte: row 147, menu closed. The selection goes too, since it is tied to the entry's view.
-  - `EnqueueInline` avoids exactly this (`ViewerSession.cs:48-55`, "a continuous runner re-sending the same failing snapshot every few seconds used to bounce the reader to the top on every run"), and the same inline patch sent twice keeps the reader at row 179. A watch runner, or re-running one failing test while reading its diff, does this for file snapshots.
-  - `TrackedWatch` already follows a rewritten file without moving the reader (`Refresh` clamps), so the re-send adds nothing but the reset, plus a second read and diff of both files.
-  - Fix: when the key is already queued and both texts (or image and document hashes) are equal, keep the existing entry with the new stamps, and open only when the content changed.
+### Library
 
-- [ ] **One failed write to the document cache ends document reading for the life of the window** (read)
-  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:64-72`: any exception out of `Pump` sets a message and returns from `Run`. Nothing restarts it, and the message is replaced by the next thing the status line says.
-  - `Copy` guards only the read (`:260-268`). `File.WriteAllBytes(partial)` and `File.Move(partial, source)` (`:276-278`) are bare, as are `Cache.For` and, in `Prune`, `RenderCache.Hashes`. A scanner holding the file just written, a full temp drive, or a cleaner that removed the cache directory under a viewer hidden for days all throw there.
-  - After that every document stepped to shows "reading text" and a spinner until the viewer is restarted.
-  - Fix: catch inside the loop, say it, wait `Interval` and carry on. For the copy, treat a failed write as "not copied this pass" the way a failed read is.
+- [ ] A viewer that is alive and never binds the port is still reported as launched after `BindWait`, and its payload file stays. That is the apphost's "install .NET" dialog, which does not exit. At the gate it cannot be told from a viewer that is only slow. (left by the fix)
+- [ ] A viewer that exits 1 or 4 has staged the patch itself, and the caller, told the launch failed, now stages it too: two trios in different `VerifyInline` folders until a passing run clears both. (left by the fix)
+- [ ] A failed launch still spends a `MaxInstance` slot, so after five in one process the cap answers instead. (left by the fix)
+- [ ] On macOS and Linux a tool started without ShellExecute still inherits the test host's streams. Nothing in the definitions tells a terminal tool, which needs them, from a windowed one: Neovim is declared `UseShellExecute: true` like the rest. (left by the fix)
+- [ ] `DiffRunner.LaunchProcess` still starts a third party tool in the test host's working directory, which then cannot be deleted while the tool is open. Left alone because a tool resolves relative arguments against it and `ProcessCleanup` matches on those same strings. (left by the fix)
+- [ ] None of the four tools now started through `WindowsProcess.StartInheritingNothing` (Word and Excel comparers, Cursor, VS Code) was itself run. A console exe, a windowed exe and a `.cmd` stood in for them. (left by the fix)
 
-- [ ] **A PDF that takes longer than two minutes disables PDFs until restart, even once it finishes** (read)
-  - `DocumentWatch.cs:286-316` (`Run`): the timeout is on the whole document, and `pdfiumHeld` is set when it passes and never cleared. The reason given is that the call left behind still holds PDFium's lock, which stops being true when that call returns.
-  - A page of one line of text takes 43 ms to draw here (measured, 100 A4 pages in 4.3 s), so the limit is a few hundred dense pages on a slow machine. The render was making progress the whole time; pages had been landing.
-  - Fix: clear the flag in a continuation on the abandoned task, and measure the timeout from the last page that landed rather than from the start.
+### Inline snapshots
 
-- [ ] **A setting one viewer put back to its default is restored by another viewer's next write** (reproduced)
-  - `src/DiffEngineViewer/ViewerPreferences.cs:68-72`: `Set` merges what this process holds over a fresh read with `TryAdd`. `Auto` and `Both` are stored as the key being absent, so a key another viewer removed is one this viewer adds back.
-  - Two `ViewerPreferences` on one file holding `projection=Goode`. The second sets `Auto`: the file is empty. The first remembers its window: the file is `projection=Goode; window=...`.
-  - Needs two viewers alive at once, which a viewer hidden behind the tray plus a `DiffEngineViewer left right` is.
-  - Fix: keep the set of keys this instance has changed, and lay only those over the fresh read.
+- [ ] Verify has to change for the staged trios of a multi-targeted project to be cleared per framework: in `InlineEngine.Settle()`, call `InlineStaging.Settle(MappedSourceFile, inline.Line, inline.MemberName, VerifierSettings.IntermediateDir, SnapshotInSource)` in place of `ClearStaged(...)`. DiffEngine's half is done: the trios are labelled, and `Settle` clears only the running framework's. (left by the fix)
+- [ ] A queued entry is still found by its line, with the member asked second. Three cases remain: a test that carries on past a failed verification and has two call sites only the line tells apart folds them into one; an entry the reporting framework has no content in is not moved, so a multi-target run can keep a stale duplicate; and a settle from the same member is believed on a key hit. Rebasing the hints of a file's remaining entries when one is accepted would close all three, and was not done because a batch accept finds entries by their `Variants` reference. (left by the fix)
+- [ ] An `Append` with a stale hint takes the first call in the member that has no `Snapshot` call. Where an earlier call there is verified through files, or through `settings.Snapshot`, that is the wrong call, as it already was whenever such a call came first. (left by the fix)
+- [ ] A `Remove` with a stale hint can answer AlreadyApplied while its anchored call is still there, because `RemovedAtHint` is asked first. (left by the fix: seen in its fuzzing, and present before it)
+
+### Tray
+
+- [ ] "Accept all in" a group from an attached viewer sends one `Accept` per key (`OwnerLink.AcceptGroup`), so the guard that leaves a delete whose file a move in the same sweep wrote does not apply there. (left by the fix)
+- [ ] A delete held back that way stays in the menu with only a log line to say why, and a second "Accept all" carries it out. (left by the fix)
+- [ ] An owning viewer's own batch looks to have the shape the tray's had: `ViewerSession.EnqueueTracked` replaces by key only, and `BeginAcceptAll` takes moves and deletes in queue order, so a delete can follow the move that wrote its file. (left by the fix: read, not run)
+- [ ] A batch that begins between Verify raising a delete and queueing its patch can still carry out the delete without the patch. Closing that needs the two tied together on the wire. (left by the fix)
+- [ ] A logoff also skips `TrayVersionFile.Delete()`, for the reason it skipped the staging. (left by the fix)
+- [ ] The session ending was confirmed by sending the tray-shaped process `WM_QUERYENDSESSION` and `WM_ENDSESSION`, not by logging off. (left by the fix)
+
+### Viewer, Linux head
+
+- [ ] The body is not told about a taller footer. The model's eight chrome lines leave room for two rows of buttons and a status line; a paged document in a window under about 450 px wide needs four, and the last body rows are then hidden. Fixing it means the shim reporting fewer `rows`, which changes what `deview.h` says that field is. (left by the fix)
+- [ ] The machine's fonts are drawn, not shaped: Arabic is unjoined and right to left text is in stored order. Colour emoji fonts and CFF2 variable fonts cannot be read by stb_truetype and are passed over, so a machine whose only CJK font is the variable Noto still shows replacement glyphs. At most fifteen fonts are merged. (left by the fix)
+- [ ] Accept-all reads the Shift key's physical state, since raylib gives no modifiers with a character, so a latched Shift (sticky keys) is a plain accept. (left by the fix)
+
+### Viewer, macOS head
+
+- [ ] The four macOS fixes compile and the suite passes on CI, but none has been run by a person, and two are event handling that no capture exercises. What would confirm each on a Mac:
+  - Keys and clicks queued: with three entries queued, `pkill -STOP -x DiffEngineViewer`, press Down twice, `pkill -CONT`: the panes scroll two rows. Stopped, Tab then `a`: the second entry is the one accepted.
+  - The scroller's knob: dragging it scrolls the panes while the button is down, and the scroller stays on the right edge through a resize.
+  - The footer: `DiffEngineViewer --diff a.png b.png` at the default size has "images differ" on a line of its own with nothing over "Zoom in"; a PDF pair has two rows of buttons, all of which click.
+  - Ligatures: `!= <= => -> == ...` in a text file are each drawn as separate characters.
+- [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. That half of the tracking loop bug needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too. (left by the fix)
+- [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. (left by the fix)
+- [ ] Every auto-repeat of a held `a` or `d` is now handed over, including ones queued during a stall. `event.isARepeat` would drop them. The Windows item under Smaller is the same hazard. (left by the fix)
+- [ ] The title row has the footer's old shape: the subtitle is drawn over a long title. (left by the fix)
 
 
 ## Performance
 
-- [ ] **The screen is rebuilt every frame, including frames where the state is the same object** (measured)
-  - `src/DiffEngineViewer/ViewerProgram.cs:464-465` (and `ModalFrame`, `:380`): `ScreenBuilder.Build(host.State)` runs sixty times a second, ten when hidden. `SessionState` is immutable and only replaced by `SessionHost.Mutate`, so an unchanged reference is an unchanged screen.
-  - `QueueProjection.Rows` builds a label, a group key and a tooltip for every entry in the queue before `Visible` slices out the few on screen (`src/DiffEngineViewer/QueueProjection.cs:102-199`, `:237`). Per call: 100 entries 0.1 ms and 123 KB, 500 entries 0.57 ms and 618 KB, 2,000 entries 0.72 ms and 2.3 MB. At sixty frames that is 7, 36 and 136 MB of garbage a second from a window nobody is touching.
-  - `SelectionText.Summary` walks every selected row every frame (`src/DiffEngineViewer/SelectionText.cs:146`), flattening each twice. Ctrl+A on a tab indented file: 20,000 lines 3.1 ms and 5.6 MB a frame (330 MB a second), 100,000 lines 15.8 ms and 28 MB a frame, which is the whole frame budget for as long as the selection stands. Nothing selected: 0.001 ms.
-  - Downstream of it, the WinForms head compares the new screen with the last field by field (`src/DiffEngineViewer.Windows/ViewerForm.cs:789`) and the native heads re-encode it (`src/DiffEngineViewer/Native/NativeViewerWindow.cs:101`).
-  - Fix: keep the last state and its screen in the loop and rebuild only when the reference changed. `ViewerForm.Same` and `ScreenPayload.Build` can then return early on the same screen reference. That removes all of the above without touching what any of it computes.
+Nothing that was found as a performance item is open. Each was measured before and after by a benchmark that is now in the repository, in `src/DiffEngine.Benchmarks`, `src/DiffEngineViewer.Benchmarks` and `src/DiffEngineViewer.Windows.Benchmarks`, and the numbers are in the commits that made the changes. The two Linux items were measured in the `ubuntu:24.04` container, by `NativeFrameBenchmarks` and `NativeIdleBenchmarks`, which are left out of a run anywhere else. Two were not measured, because nothing here can run them: both macOS items. What follows is what the fixes left.
 
-- [ ] **The text diff is quadratic when the two sides share little, and the viewer runs it before it answers** (measured)
-  - `src/DiffEngine/TextDiff/MyersDiff.cs:159`: the search runs to `maxD` with no bound, and `LineDiff.Build` (`src/DiffEngine/TextDiff/LineDiff.cs:68`) hands it every line. Nothing in common: 10,000 lines a side 226 ms, 20,000 866 ms, 40,000 3.5 s. One percent changed, 400,000 lines: 175 ms.
-  - "Nothing in common" is an ordinary snapshot change: a serializer setting that re-indents every line. A 40,000 line re-indented JSON takes `TrackedEntry.ForMove` 3.5 s, and 80,000 lines 14 s.
-  - `MessageHandler.TrackMove` builds the entry, diff included, before the `Diff` or `Move` is answered (`src/DiffEngineViewer/Ipc/MessageHandler.cs:54`). The synchronous client gives up at 3 s (`src/DiffEngine/Protocol/ViewerClient.cs:64`), so `PendingFiles.AddDiff` (`src/DiffEngine/Tray/PendingFiles.cs:134-144`) falls to the launch gate, finds the port owned, sends again, times out again and returns `NoDiffToolFound`, while the viewer diffs the pair twice on two pool threads and then replaces the first entry with the second. The async path has 30 s.
-  - Fix, in order of value:
-    - Before Myers, drop the lines that occur on one side only and mark them changed. `LineInterner` already says which: a received id of `expectedLines.Length` or more never occurs in expected, and one pass over the received ids marks the expected ones that do occur. The longest common subsequence is unchanged, so the result is still minimal. Both cases above become linear.
-    - A cost cap for what is left. The same lines in another order (40,000 lines: 6.9 s) have nothing unique to drop. Past the cap, report the remaining block as removed then added.
-    - Answer the pair before diffing it: queue the entry with its sides unread and fill it in on `TrackedWatch`'s thread, the way a document arrives `Reading`.
+### Viewer model
 
-- [ ] **"Accept all in" a group still applies the whole group in one transition on the render thread** (read)
-  - `src/DiffEngineViewer/ViewerProgram.cs:700-711`: only `AcceptAll` is handed to `AcceptAllRunner`. `AcceptGroup` goes to `ViewerSession.Apply` inside `host.Mutate`, where `AcceptGroup` (`src/DiffEngineViewer/ViewerSession.cs:705-764`) runs `InlineApplier` for every member and `SweepTracked` (`:1193`) moves or deletes every file, each move retrying for up to a second when the target is held (`src/DiffEngineViewer/ViewerActions.cs:71-87`).
-  - In a queue with one solution, that header's "Accept all in" is the whole queue: the freeze `AcceptBatch` was written to remove, with the lock held so every arriving `Inline`, `Diff` and listing waits behind it.
-  - Fix: let `BeginAcceptAll` take the keys to sweep, and send a group through the same runner.
+- [ ] Past its budget a diff is correct and may not be the smallest: two texts of more than 10,000 lines between them with 8,000 or more of the lines they share out of place. A block moved whole is found whatever its size. The same lines shuffled come out as nearly everything changed, where the longest run still in order could be kept: anchoring on the lines that occur once on each side, by the longest increasing run of them, would find it in the time of a sort. (left by the fix)
+- [ ] A pair is still read and diffed before the viewer answers the test process that sent it (`MessageHandler.TrackMove`). The diff is bounded now, so what is left is two reads: a million lines a side, shuffled, is about two of the sender's three seconds. Answering first and filling the entry in afterwards, as a document arrives `Reading`, was not done. (left by the fix)
+- [ ] A screen is built when the state changes, which a scroll or a drag does every frame, and `QueueProjection.Rows` describes every row of the queue to draw the forty that fit: 0.55 ms and 1.1 MB at 2,000 entries, for each such frame. Slicing before describing would make it the visible rows'. (left by the fix)
+- [ ] `ScreenPayload` clips a row to the window's width in cells rather than the pane's, so about twice what a pane can show is encoded for the macOS and Linux heads: 3.6 ms a changed frame for a 4K window of 300 character CJK lines. `RowText.Shown`, which the WinForms head now cuts with, would serve, once the model knows how many cells a pane has. (left by the fix)
+- [ ] A queue of more than a hundred pending files is looked at a hundred a pass, so a row that is not on screen follows its file within `count / 100` passes: two seconds for a thousand, and five times that while the window is hidden. The entry on screen is still looked at every pass. (left by the fix)
+- [ ] Only a batch's record step stopped rebuilding the whole list from the whole queue. Every arrival (`EnqueueInline`), settle and single accept still does, under the lock: a dictionary of the queue, two orderings and a key an entry. The two `Smaller` items on `QueueProjection.Order` and `PendingInline.Key` are parts of it. (left by the fix)
+- [ ] The bulk discards are still one transition on the render thread: `DiscardGroup` and `DiscardAll` delete each received file under the lock. A discard waits on nothing, so they were left. (left by the fix)
+- [ ] A snapshot discarded, or settled by a test that started passing, while its own source file is being written by a bulk accept was handed over with the rest of the file and is written with them. It is not counted, and a discard still takes it out of the queue. Before, that moment was the snapshot's own apply rather than its file's. Closing it would take the applier asking, before its one write, which of the patches are still wanted. (left by the fix)
+- [ ] Both sides of a document are drawn at once, and four things about that are as they are for a reason and could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it now could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`. (left by the fix)
+- [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back. (left by the fix)
 
-- [ ] **The right side of a document waits for every page of the left** (measured)
-  - `src/DiffEngineViewer/Documents/DocumentWatch.cs:160-168`: `Draw` renders the first side without pages to completion and returns. The right side starts on the next pass.
-  - 100 A4 pages take 4.3 s here and the first lands after 87 ms. So the left page is on screen at once, and the right pane spins for 4.3 s, and which pages differ is unknown until both are done.
-  - Fix: draw both sides at once on two tasks. Two PDFs then take turns at PDFium's lock a page at a time, and two Office files use two cores. The timeout and `generation` become per job.
+### Library
 
-- [ ] **Every pending file is statted five times a second, and the owning watch never slows down** (measured)
-  - `src/DiffEngineViewer/TrackedWatch.cs:27-55` and `src/DiffEngineViewer/Ipc/OwnerLink.cs:344-432`. One pass over 1,000 pending moves is 2,000 stats and takes 25 ms here, so 125 ms of every second. The class doc's "a queue is small enough that the difference is not measurable" holds to about a hundred.
-  - `OwnerLink` drops to one pass a second when the window is hidden and `DocumentWatch` stops. `TrackedWatch` has no `Hidden`, and an owning viewer hidden behind a tray keeps its 200 ms for days.
-  - Fix: give `TrackedWatch` the hidden interval. If large queues matter, stat the entry on screen every pass and the rest in turn.
+- [ ] The listener table is every connection the machine has, filtered, so reading it grows with them: 0.45 ms at 86 connections and 7.9 ms at 3,102. `ViewerClient` skips it for a port that answered in the last second; `PiperClient.PortIsHeld` reads it on every send, as it did before. A listener-only table by P/Invoke would not grow. (left by the fix)
+- [ ] `RecheckUnownedAfter` is still ten minutes, though a recheck on Windows is now a read of the table rather than two seconds, and could come down. (left by the fix)
+- [ ] Off Windows the connect is still the only question asked, since a refusal there is immediate. Whether the table reads as empty under WSL1 was not checked. (left by the fix)
+- [ ] `PiperClient.PortIsHeld` now takes any exception from the table as "may be held", where it took two kinds. (left by the fix)
+
+### Inline snapshots
+
+- [ ] Lexing is still once a patch, in a batch as well: each patch is applied to what the one before it left, and one scan for all of them would not give the outcomes of applying in turn. 500 patches to a 600 KB file are 0.8 s of patching around one write. (left by the fix)
+- [ ] `CanAnchor` still reads and lexes the whole file for each call site a run has not seen before: 0.7 s for 500 call sites in the 600 KB file. (left by the fix)
+- [ ] A batch's one write that fails fails every patch from the first edit on, including one judged already applied or not found after it, and the file's mutex is held from the read to the write. (left by the fix)
+- [ ] A `VerifyInline` directory another process creates can be found up to a second late by `InlineStaging.Clear`. (left by the fix)
+- [ ] Two Windows-only tests assert that a send to a free port returns in under a second, where the refusal it avoids takes two. (left by the fix)
+
+### Viewer, Windows head
+
+- [ ] Between half its own size and its own size an enlarged picture is still scaled on every paint: 15 ms for a 4000 by 3000 pair at 400%. A copy there would cost up to the decoded picture again, 96 MB for that pair. Decoding premultiplied (`Format32bppPArgb` in `ImageCache.Load`) measured 9 ms, and was left out because it moves translucent pixels by one level in five pixel scenes. (left by the fix)
+- [ ] A picture drawn from its scaled copy sits on whole pixels, up to half a pixel from its exact placement, so two pictures of different sizes can be a pixel apart relative to each other while zoomed below half size. (left by the fix)
+- [ ] `Uncomposable` is a picture's rather than a size's, so a scale that failed also stops the fitted copy being made again at a new size. (left by the fix)
+- [ ] `RowText.Shown`'s tests are in `DiffEngineViewer.Windows.Tests`, beside its one caller. They belong beside `CellGridTests`. (left by the fix)
+- [ ] One of the fixes changes what is drawn. A character of two UTF-16 units whose first column of pixels is its pane's last, an emoji at the very edge, used to be cut to nothing and is now drawn. (left by the fix)
+
+### Viewer, Linux head
+
+- [ ] An idle window still turns sixty times a second. Each turn compares the screen's bytes with the last one's, asks after the files behind the pictures on it and waits out its sixtieth: 3 to 9 ms of processor a second, where it was half a second to ten. Waiting on the window system instead would take the managed loop, which also asks after its owner and its files each turn, being told when to wake. (left by the fix)
+- [ ] What is not built rests on the list of what a frame is built from being whole: the screen, the pointer, the keys, the window, the decoder, the font finder, a tooltip's delay and the files behind the pictures. Anything `BuildFrame` comes to read that is none of those has to be asked in `deview_present` before a window is left alone, or the window shows the frame before until something else arrives. A frame that is built and comes out the same is not drawn whatever it read, so that half needs no such care. (left by the fix)
+- [ ] Nothing in `DiffEngineViewer.Tests` fails if the window goes back to drawing every frame. `NativeIdleBenchmarks` shows it, in its Drawn column, and is run by hand in the container. (left by the fix)
+- [ ] A hidden window is still built and drawn when its screen changes, which an arrival in the queue does. (left by the fix)
+- [ ] Run only under Xvfb with Mesa's software rasteriser, with no window manager and under openbox. Not on a GPU, under a compositor, on Wayland or over forwarded X, where what the window system keeps of a window that is not being drawn may differ, and where leaving one alone matters most. (left by the fix)
+- [ ] `deview_capture` makes its ImGui context without `ImGuiBackendFlags_RendererHasVtxOffset`, which the window's declares, so a capture whose draw list passes 65,535 vertices comes out scrambled. The old checkerboard took a 4K capture of two large pictures past it, which is how it was found. Nothing captures at that size, and the checkerboard no longer takes a capture there, but dense text could. (left by the fix: ran, with the flag added to the shim from before the fix)
+
+### Viewer, macOS head
+
+- [ ] Neither macOS change has been compiled by a person or run at all. CI's `macos-14` job compiles them, and its captures draw text from the kept lines. Nothing there runs the clip test or the scaled copy. What would confirm each on a Mac:
+  - The premise: break in `Renderer.draw` while a spinner turns and print `context.boundingBoxOfClipPath`. The spinner's 44 pt square, or the whole view.
+  - A turn: Time Profiler on a pair with a long PDF. `CTLineCreateWithAttributedString` under `Renderer.draw` for each turn: about 150 before, none after, whichever clip AppKit hands over.
+  - Text outside Latin: `--diff` two files of Chinese and hold Down. The same symbol for each frame: every character before, the new row alone after.
+  - An enlarged picture: `--diff` two 2880 by 1800 screenshots, `+` once, and drag. Time under `Renderer.enlarged` for each frame: a `.high` resample of both panes before, a blit after, and one 1560 by 975 bitmap a pane about a tenth of a second after the step.
+- [ ] Since macOS 11 a view with an automatic backing store is handed its whole bounds whatever was invalidated, clip included, so the clip test is safe and probably leaves nothing out on any supported macOS. What makes a spinner's turn cheap there is the kept lines. Two routes would make the clip test pay: `layer.contentsFormat = .RGBA8Uint` in `viewWillDraw`, which changes how the whole window is stored, or a view of the spinner's own. (left by the fix: read, in Apple's developer forums)
+- [ ] A byte-equal pair of documents names one page's png in both panes. With one scaled copy a picture and panes a point apart in width, `fitted` looks to make the copy again for each pane in turn without end. The enlarged path stays out of it by drawing such a pair from the picture. (left by the fix: read, not run)
 
 
 ## Smaller
 
-- [ ] `QueueProjection.Order` runs twice per transition: `Project` orders (`ViewerSession.cs:1446`) and `Rebuild` (`:1406`) and `Sync` (`:195`) order its result again. (read)
+### Viewer model
+
+- [ ] A pair sent again unchanged is still read and diffed before it is found to be unchanged: `MessageHandler.TrackMove` builds the whole entry, and `ViewerSession.EnqueueTracked` compares after. The reader is no longer moved, but a large pair pays the diff on every run. Fix: read the two sides, compare them with the queued entry's, and build an entry only when they differ. (read)
+- [ ] `QueueProjection.Order` runs twice per transition: `Project` orders (`ViewerSession.cs:1530`) and `Rebuild` (`:1490`) and `Sync` (`:279`) order its result again. (read)
 - [ ] Opening a context menu builds each side's whole text to ask whether it is empty: `SelectionText.All(entry, side).Length > 0` in `src/DiffEngineViewer/MenuState.cs:98` and `:117`. Megabytes per right-click on a large file. (read)
 - [ ] `FileSide.ReadBytes` copies every file twice, through a growing `MemoryStream` and then `ToArray` (`src/DiffEngineViewer/FileSide.cs:105`). The length is known. (read)
+
+### Library
+
+- [ ] Linux: an exported `COLUMNS` truncates every command line `ProcessCleanup` reads. `LinuxOsxProcess.cs:92` runs `ps -o pid,command -x`, and procps lets `COLUMNS` override the unlimited width it uses when stdout is not a terminal, so with `COLUMNS=80` a running tool is never detected or killed. Fix: add `-ww`, which procps and Apple's `ps` both accept. (reported: read, against the procps source)
+- [ ] A `SendAsync` the caller cancelled is recorded as "port unowned": `ViewerClient.cs:372-384`, `:433-444`. `token.Register(() => Abort(client))` closes the client, the exception that follows is not an `OperationCanceledException`, and `Found(endpointPort, false)` silences settles and moves against a live owner for ten minutes. Not reachable from Verify today, which passes no token. Fix: `cancel.ThrowIfCancellationRequested()` on entry, and no `Found(false)` when the token is cancelled. (reported: plausible)
+- [ ] With an owner present, every passing inline verification is a TCP connection that leaves a port in TIME_WAIT for two minutes (`DiffRunner_Inline.cs:136-145`, `ViewerClient.cs:276-292`): 0.284 ms each, but about 16,000 settles in two minutes across test processes exhaust the dynamic range, and the failed connect is then remembered as unowned. Fix, only if suites that size matter: list once and skip settles while the owner holds nothing for this framework, or keep one connection open. (reported: measured)
+- [ ] `ViewerServer.Listen` (`ViewerServer.cs:89-97`) has `catch (SocketException) { continue; }` with no delay, so an accept failure that persisted would spin a core. Whether one can persist was not established. (reported: plausible)
+
+### Inline snapshots
+
+- [ ] A Remove applied twice can take a sibling's literal: `InlinePatcher.cs:652-656`. With `await Verify(a)` over `.Snapshot("dup");` and `await Verify(b).Snapshot("dup");` under it, the first apply pulls the next line up, and the second, from another framework or another case of an `IgnoreParameters` test, finds a Snapshot call on the hint line, so `RemovedAtHint` is false and `Verify(b)` loses its literal. Fix: do not pull the following text up, or have Verify skip the Remove when the source file is newer than the test assembly. (reported: read)
+- [ ] The F# lexer disagrees with the compiler inside block comments: `FsLanguage.cs:183-229`. `(* returns "*)" when closed *)`, `(* see "(*" *)` and `(* the (*) operator *)` are each one comment to F#, and the scanner closes or nests on what is inside the string. The usual result is NotFound for calls below. Fix: inside a comment step over string literals and `(*)`, and step over a double backticked identifier whole. (reported: read; what F# does was run under `dotnet fsi`)
+- [ ] An F# snapshot whose value is the empty string loses its anchor over the wire: `InlinePatchFile.Build` writes `OriginalValue == ""` as an empty field (`:53-55`), and `TryParse` reads an empty field back as null (`:148-152`). The viewer then heads the pane "expected (new snapshot)", and the patcher falls back to the hint alone. Fix: write a marker for "present and empty", or a separate line saying a value is present. (read)
+- [ ] Keys are recomputed per comparison: `PendingInline.Key` lowercases the path and formats a string on every `FindIndex` step (`PendingInline.cs:70`, `InlineQueue.cs:48,244,453,565`, `InlineStaging.cs:366-367`). A few hundred milliseconds across a run with hundreds pending. Fix: compute the key once per entry. (reported: read)
+
+### Tray
+
+- [ ] `Process` objects are never disposed for moves that cannot be killed: `Tracker.cs:799-806`, `:945-950`, `ProcessEx.cs:19-32`. `DiffRunner` sends a process id for MDI tools too, `TryGet` forces a handle open, and `KillProcesses` returns at `if (!move.CanKill)` without disposing. One handle per tracked move until a gen2 finaliser. Fix: dispose, without killing, wherever a move finally leaves the dictionary. (reported: read)
+- [ ] The scan can drop the wrong move, and one unexpected exception stalls it: `Tracker.cs:66-72`, `:97-114`, `AsyncTimer.cs:25-43`. `moves.TryRemove(tacked.Temp, out var removed)` removes by key, so a re-run that replaced the move between the scan's check and the removal loses its fresh entry and has its tool killed. Only `IOException` is caught around `FilesAreEqual`, and the handler shows a `MessageBox` on the timer thread. Fix: remove by key and value, and catch `UnauthorizedAccessException` beside it. (reported: plausible)
+- [ ] "Discard (n)" waits up to 15 s on the UI thread when a viewer owns the queue: `Tracker.cs:836-851` calls `inline.DiscardAll(out var message)` inline, where `Discard` was moved to a worker for this reason. (reported: read)
+- [ ] An exception thrown by a hot key action ends the tray: `HotKey/KeyRegister.cs:70-92`. One thrown from `IMessageFilter.PreFilterMessage` comes out of `Application.Run()` rather than reaching `Application.ThreadException`. Fix: try and catch around `action()`, and a catch in `LinkLauncher`. (reported: ran for the mechanism; no trigger found)
+- [ ] The process id in a piper payload is trusted as the diff tool: `Tracker.cs:179-183`, `:205-211`. Libraries from before the `ProcessCleanup.StillRunning` fix can send a reused id, and the tray kills whatever holds it now on accept. Fix: compare the process image against the payload's `Exe` first. (reported: plausible)
+- [ ] `ListingTag`'s `Fingerprint` (`OwnedInlineHost.cs:317-331`) rebuilds and hashes every tracked move per poll, about 0.5 MB of garbage five times a second while a viewer is attached. (reported: read)
+
+### Viewer, Windows head
+
+- [ ] Holding the scroll bar's arrow or its trough freezes the panes until release: `ViewerForm.cs:176-191` enters the modal frame only for `ThumbTrack`, and user32 tracks every part of the bar in the same loop. Fix: `EnterModal()` for any type other than `EndScroll` and `ThumbPosition`. (reported: ran)
+- [ ] Alt chords fall through to the plain key commands: `ViewerForm.Map` (`:703-770`) gives Alt+A accept, Alt+D discard and Alt+Q quit. The same leak was closed for Control. Fix: return `CommandKind.None` when `Keys.Alt` is held, ahead of the Control branch. (reported: ran)
+- [ ] Accept and Discard auto-repeat, and the repeats are queued: `ViewerForm.cs:703-721`, `:96-105`. Holding `a` past the repeat delay accepts entries the reader has not seen. Fix: drop repeats (bit 30 of `LParam`) for the commands `ViewerSession.ChangesQueue` names. (reported: plausible)
+- [ ] The status label shows the middle of a status that does not fit: `ViewerForm.cs:21-32`, `:582-607`. A pdf in a queue leaves it 151 px, and a status of 344 px wraps to three lines in a 30 px label centred vertically. Fix: `AutoEllipsis = true`, with an alignment that keeps the start. (reported: measured)
+- [ ] A minimised window still runs the loop at sixty frames a second: `FormsViewerWindow.cs:92` tests `form.Visible`, which stays true when minimised. Fix: `form.Visible && form.WindowState != FormWindowState.Minimized`. (reported: plausible)
+
+### Viewer, Linux head
+
+- [ ] Input is sampled as state once a frame, so a press and release that arrive together are not seen and several wheel events collapse into one: `deview.cpp:909-923`, `:2217-2220`. Sent together by xdotool under Xvfb, none of ten clicks was seen and three of ten key presses were. A touchpad two finger tap would not open a context menu, which a tap on a real touchpad would confirm. Fix: chain GLFW's mouse button and scroll callbacks and feed ImGui from them. (reported: plausible, and since run in the container)
+- [ ] Ctrl+A and Ctrl+C are still by US key position, arrows and paging do not repeat when held, and no letter shortcut matches on a non-Latin layout: `deview.cpp:929-944`, `:976-985`. Fix: `IsKeyPressedRepeat` for navigation, and resolve the chords through `GetKeyName`. (reported: read)
+- [ ] No display scale handling: no `FLAG_WINDOW_HIGHDPI` and no `GetWindowScaleDPI()`, so on a HiDPI X11 display everything is about half size (`deview.cpp:2075-2091`, `:2137`). What would settle it: a display with `Xft.dpi` 192. (reported: plausible)
+- [ ] A queue row's context menu is not kept inside the window: the clamp at `deview.cpp:1929-1944` is inside `if (paneMenu)`, so the last row's menu is cut off at the default size. (reported: read)
+- [ ] Hover never ends when the pointer leaves the window: `io.AddMousePosEvent(mouse.x, mouse.y)` is unconditional (`deview.cpp:915-916`), so a row stays highlighted and its tooltip appears with the pointer elsewhere. (reported: plausible)
+- [ ] A picture larger than `GL_MAX_TEXTURE_SIZE` draws as a black box rather than as nothing (`deview.cpp:613-621`, `:706-712`), and pictures shrunk more than two times are sampled bilinear with no mipmaps (`:464-469`, `:1457-1464`), so thin lines and small text drop out. (reported: plausible, and read)
+- [ ] Labels containing `##` are cut short, since ImGui hides everything from there on: pane headers, queue rows, menu items and buttons (`deview.cpp:1687-1688`, `:1716`, `:1738`, `:1961`, `:2003`). (reported: read)
+
+### Viewer, macOS head
+
+- [ ] A picture landing during a repaint of the spinner alone is drawn clipped to the spinner's rectangle and never completed: `Renderer.swift:245`, `Runtime.swift:223-239`. A few in a thousand large images. The scaled copy of an enlarged picture lands the same way, and one that lands then leaves the picture drawn at `.low`. Fix: have `draw` report that something landed, and turn that into a full redraw. (reported: read)
+- [ ] `[` and `]` never match on layouts where they need Option, since `charactersIgnoringModifiers` yields the digit (`ViewerView.swift:412-433`): German, French, Nordic, Spanish and Italian layouts cannot turn pages by key. Fix: match symbols on `event.characters` first. (reported: read)
+- [ ] A pan drag in a pane that cannot move on an axis resets that axis for the other pane: the report is clamped with the dragged pane's own extents (`Renderer.swift:164-174`, `ViewerView.swift:180-187`, and `deview.cpp:1587-1591` on Linux). Fix: report the frame's own centre unchanged on an axis the pane cannot move on. (reported: read)
+- [ ] `picturesChanged` never settles when a picture has no room, so a window shorter than about 176 pt redraws at sixty frames a second (`Renderer.swift:485-489`, `:846-848`). Fix: a `contentMinSize`, or record the stamp when nothing is drawn. (reported: read)
+- [ ] A notched mouse wheel may do nothing until ten slow clicks add up (`ViewerView.swift:310-322`), and control-click never opens a context menu (`:124-170`). What would settle them: a Mac with a wheel mouse. (reported: plausible)
+- [ ] The pump waits out its full 16.7 ms after input, and nothing slows the loop when the window is occluded or miniaturised (`Runtime.swift:209-249`, `:257-276`). (reported: read)
+- [ ] `Runtime.open` cannot fail (`Runtime.swift:57-91` always returns true), so with no console session, as over SSH, AppKit aborts the process after the port was bound and the patch is lost. What would settle it: a failing inline snapshot over SSH with nobody logged in. (reported: plausible)

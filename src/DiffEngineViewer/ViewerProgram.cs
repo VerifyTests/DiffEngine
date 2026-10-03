@@ -285,9 +285,11 @@ static class ViewerProgram
             return 4;
         }
 
+        // One for the loop and for a head's modal loop, which draw the same window on one thread.
+        var screens = new ScreenCache();
         if (window is ILoopHooks hooks)
         {
-            hooks.Frame = () => ModalFrame(host, window, link, preferences);
+            hooks.Frame = () => ModalFrame(host, window, link, preferences, screens);
             hooks.SessionEnding = () =>
             {
                 host.Mutate(_ => _ with {Closing = true});
@@ -310,9 +312,10 @@ static class ViewerProgram
             : Task.Run(() => link.Run(cancel.Token), Cancel.None);
         // Only for a queue this process owns. A displayed one is re-read by OwnerLink already, and
         // its files belong to the owner, which is what decides when an entry stops being pending.
-        var watching = server is null
+        var watch = server is null ? null : new TrackedWatch(host, documents);
+        var watching = watch is null
             ? null
-            : Task.Run(() => new TrackedWatch(host, documents).Run(cancel.Token), Cancel.None);
+            : Task.Run(() => watch.Run(cancel.Token), Cancel.None);
         // Whoever owns the queue: every viewer reads and draws the documents it shows itself, since
         // the files are on this machine and the wire carries only their paths.
         var reader = documents is null ? null : new DocumentWatch(host, documents);
@@ -326,7 +329,7 @@ static class ViewerProgram
         {
             using (window)
             {
-                Loop(host, window, link, reader, windowCommands, runner, preferences);
+                Loop(host, window, link, reader, watch, windowCommands, runner, preferences, screens);
                 // While there is still a window to ask. Not from the finally: a loop that threw
                 // has a window in no state worth opening the next one from.
                 Remember(window, preferences);
@@ -367,7 +370,7 @@ static class ViewerProgram
     /// A frame from inside a head's modal loop (<see cref="ILoopHooks.Frame"/>): what the loop does
     /// with input, without the present, which the head is already inside of.
     /// </summary>
-    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link, ViewerPreferences preferences)
+    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link, ViewerPreferences preferences, ScreenCache screens)
     {
         var state = host.State;
         var input = window.Poll();
@@ -377,7 +380,7 @@ static class ViewerProgram
             preferences.Remember(state);
         }
 
-        return ScreenBuilder.Build(state);
+        return screens.For(state);
     }
 
     /// <summary>
@@ -417,9 +420,11 @@ static class ViewerProgram
         IViewerWindow window,
         OwnerLink? link,
         DocumentWatch? reader,
+        TrackedWatch? watch,
         ConcurrentQueue<WindowCommand> windowCommands,
         AcceptAllRunner? runner,
-        ViewerPreferences preferences)
+        ViewerPreferences preferences,
+        ScreenCache screens)
     {
         while (true)
         {
@@ -436,6 +441,7 @@ static class ViewerProgram
                 // A focus shows the window as well as raising it
                 link?.Hidden = hide;
                 reader?.Hidden = hide;
+                watch?.Hidden = hide;
 
                 if (command == WindowCommand.Focus)
                 {
@@ -461,8 +467,10 @@ static class ViewerProgram
                 return;
             }
 
+            // The screen of the state last presented, for as long as that is still the state: see
+            // ScreenCache. A frame in which nothing happened builds nothing.
             var state = host.State;
-            if (!window.Present(ScreenBuilder.Build(state)))
+            if (!window.Present(screens.For(state)))
             {
                 return;
             }
@@ -521,6 +529,7 @@ static class ViewerProgram
                 window.SetHidden(true);
                 link?.Hidden = true;
                 reader?.Hidden = true;
+                watch?.Hidden = true;
 
                 continue;
             }
@@ -700,11 +709,19 @@ static class ViewerProgram
         if (link is null)
         {
             // Only begun here. Applying every entry inside this frame held the window for as long
-            // as the queue was long; the loop hands the batch to a worker instead.
-            if (command.Kind == CommandKind.AcceptAll &&
-                state.Mode == ViewerMode.Inline)
+            // as the queue was long; the loop hands the batch to a worker instead. A group's
+            // accept the same, since in a queue of one solution its header's group is the queue.
+            if (state.Mode == ViewerMode.Inline)
             {
-                return ViewerSession.BeginAcceptAll(state);
+                if (command.Kind == CommandKind.AcceptAll)
+                {
+                    return ViewerSession.BeginAcceptAll(state);
+                }
+
+                if (command.Kind == CommandKind.AcceptGroup)
+                {
+                    return ViewerSession.BeginAcceptGroup(state);
+                }
             }
 
             return ViewerSession.Apply(state, command, ViewerActions.Real);

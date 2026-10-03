@@ -786,6 +786,71 @@ public class InlinePatcherTests
             """);
     }
 
+    /// <summary>
+    /// The three calls that hand back something other than a SettingsTask. A Snapshot call after
+    /// one of them is a call on a ConfiguredTaskAwaitable, a Task or a TaskAwaiter, none of which
+    /// has one, so the append goes in front. The end of the chain used to be the only place C#
+    /// appended, which wrote source that did not compile into a call site the anchor probe had
+    /// already said could host a snapshot.
+    /// </summary>
+    [Test]
+    [Arguments(".ConfigureAwait(false)")]
+    [Arguments(".ToTask()")]
+    [Arguments(".GetAwaiter().GetResult()")]
+    public async Task AppendGoesInFrontOfWhatEndsTheChain(string ending)
+    {
+        var source = Method($"        await Verify(value){ending};");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                $"""
+                         await Verify(value)
+                             .Snapshot("new"){ending};
+                 """));
+    }
+
+    // A chain already across lines keeps its shape: the call takes a line of its own, in front of
+    // the one that ends the chain
+    [Test]
+    public async Task AppendToAMultiLineChainGoesInFrontOfWhatEndsIt()
+    {
+        var source = Method(
+            """
+                    await Verify(value)
+                        .UseDirectory("snapshots")
+                        .ConfigureAwait(false);
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        await Verify(value)
+                            .UseDirectory("snapshots")
+                            .Snapshot("new")
+                            .ConfigureAwait(false);
+                """));
+    }
+
+    // What the append wrote is what the second framework's identical append then finds, in front
+    // of the call that ends the chain rather than at the end of it
+    [Test]
+    public async Task AppendingTwiceInFrontOfWhatEndsTheChainIsAlreadyApplied()
+    {
+        var source = Method("        await Verify(value).ConfigureAwait(false);");
+
+        TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var applied, out _);
+        var status = TryApply(applied, 5, InlinePatchMode.Append, null, "a\nb", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+        await Assert.That(applied).Contains("\"\"\").ConfigureAwait(false);");
+    }
+
     [Test]
     public async Task AppendToAnEntryPointOverload()
     {
@@ -866,6 +931,152 @@ public class InlinePatcherTests
         var status = TryApply(applied, 5, InlinePatchMode.Append, null, "a\nb", out _, out _);
 
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    const string acceptedThenNew =
+        """
+        class Tests
+        {
+            async Task Test()
+            {
+                await Verify(a)
+                    .Snapshot("A");
+                await Verify(b);
+            }
+        }
+
+        """;
+
+    /// <summary>
+    /// Two verify calls in one test, the first already accepted, and a hint an accept higher in
+    /// the file left pointing past the member. The walk starts over from the declaration and meets
+    /// the accepted call first. Stopping there refused the patch over a Snapshot call that was
+    /// never in its way, with the call it was for two lines below.
+    /// </summary>
+    [Test]
+    public async Task AppendPassesOverACallThatAlreadyHasASnapshot()
+    {
+        var status = TryApply(Source(acceptedThenNew), 12, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Source(
+                """
+                class Tests
+                {
+                    async Task Test()
+                    {
+                        await Verify(a)
+                            .Snapshot("A");
+                        await Verify(b)
+                            .Snapshot("B");
+                    }
+                }
+
+                """));
+    }
+
+    /// <summary>
+    /// The hint lands on the accepted call this time, which is what a second framework's patch for
+    /// that same call site looks like once the first has been accepted. It names that call, so the
+    /// call after it is not somewhere else to put the snapshot.
+    /// </summary>
+    [Test]
+    public async Task AppendStopsAtACallOnTheRecordedLineThatAlreadyHasASnapshot()
+    {
+        var status = TryApply(Source(acceptedThenNew), 5, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    /// <summary>
+    /// With no member there is nothing to say where the test ends, so the call nearest the hint
+    /// still decides: the next one without a Snapshot call could be anybody's.
+    /// </summary>
+    [Test]
+    public async Task AppendWithNoMemberStopsAtTheNearestCall()
+    {
+        var status = TryApply(Source(acceptedThenNew), 4, InlinePatchMode.Append, null, "B", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    // Nothing left to take it, and nothing holding it either
+    [Test]
+    public async Task AppendIsRefusedWhenEveryCallInTheMemberHasASnapshot()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Verify(a).Snapshot("A");
+                    await Verify(b).Snapshot("other");
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("already has a Snapshot call");
+    }
+
+    /// <summary>
+    /// The second framework's append again, but with a hint gone stale: the call that holds the
+    /// content is no longer the first one the walk meets, and the first one holding something
+    /// else used to make this a refusal over source that was already right.
+    /// </summary>
+    [Test]
+    public async Task AppendFindsItsContentAlreadyOnACallPastTheFirst()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Verify(a).Snapshot("A");
+                    await Verify(b).Snapshot("B");
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out _, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// An entry point inside the arguments of the call that was passed over. It has no Snapshot
+    /// call chained onto it, and reads as the next candidate, but it is part of a call that has.
+    /// </summary>
+    [Test]
+    public async Task AppendDoesNotLandInsideACallItPassedOver()
+    {
+        var source = Source(
+            """
+            class Tests
+            {
+                async Task Test()
+                {
+                    await Throws(() => Verify(a)).Snapshot("A");
+                    await Verify(b);
+                }
+            }
+
+            """);
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Throws(() => Verify(a)).Snapshot(\"A\");\n");
+        await Assert.That(newSource).Contains("await Verify(b)\n            .Snapshot(\"B\");");
     }
 
     [Test]
@@ -1180,6 +1391,152 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("not a chained call");
+    }
+
+    /// <summary>
+    /// Snapshot is public on VerifySettings, so the call can hang off a variable rather than off a
+    /// verify call. Taking it off the end left <c>settings;</c>, which is no statement at all
+    /// (CS0201). The whole statement is what has stopped being wanted, so its line goes.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfACallOnAVariableTakesItsStatement()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        var settings = new VerifySettings();
+                        await Verify(value, settings);
+                """));
+    }
+
+    // Every line of it, and the comment that trailed it
+    [Test]
+    public async Task RemoveOfAStatementTakesAllOfItsLines()
+    {
+        var source = Method(
+            "        var settings = new VerifySettings();\n" +
+            "        fixture.Settings\n" +
+            "            .Snapshot(\n" +
+            "                \"\"\"\n" +
+            "                old\n" +
+            "                \"\"\"); // inline for now\n" +
+            "        await Verify(value, settings);");
+
+        var status = TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        var settings = new VerifySettings();
+                        await Verify(value, settings);
+                """));
+    }
+
+    [Test]
+    public async Task RemoveOfAStatementWithCrlf()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+        var expected = Method(
+            """
+                    var settings = new VerifySettings();
+                    await Verify(value, settings);
+            """);
+
+        var status = TryApply(source.Replace("\n", "\r\n"), 6, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(expected.Replace("\n", "\r\n"));
+    }
+
+    /// <summary>
+    /// The second framework's Remove, which finds the line it named holding the verify call that
+    /// used to follow the statement, with nothing chained onto it.
+    /// </summary>
+    [Test]
+    public async Task ReapplyingARemoveOfAStatementIsAlreadyApplied()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+
+        TryApply(source, 6, InlinePatchMode.Remove, "\"old\"", "", out var removed, out _, memberName: "Test");
+        var status = TryApply(removed, 6, InlinePatchMode.Remove, "\"old\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// Shapes where the call is all its statement does and the statement cannot simply be lifted
+    /// out: an <c>if</c> with no braces would take the next statement for its body, a line shared
+    /// with another statement is not the call's to remove, and a lambda's body is not a statement
+    /// of its own at all. Reported, where it used to leave the receiver behind.
+    /// </summary>
+    [Test]
+    [Arguments("        if (flag)\n            settings.Snapshot(\"old\");")]
+    [Arguments("        var settings = new VerifySettings(); settings.Snapshot(\"old\");")]
+    [Arguments("        Configure(_ => _.Snapshot(\"old\"));")]
+    public async Task RemoveReportsACallItCannotTakeWithItsStatement(string body)
+    {
+        var source = Method(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Remove the statement by hand");
+    }
+
+    /// <summary>
+    /// Awaited, assigned, returned or passed, what the call was on is still a value with the call
+    /// gone, so the call alone is taken and the statement reads as it would have run without the
+    /// snapshot. Only a statement that was nothing but the call leaves a name standing by itself.
+    /// </summary>
+    [Test]
+    [Arguments("        await task.Snapshot(\"old\");", "        await task;")]
+    [Arguments("        var kept = task.Snapshot(\"old\");", "        var kept = task;")]
+    [Arguments("        kept = task.Snapshot(\"old\");", "        kept = task;")]
+    [Arguments("        return task.Snapshot(\"old\");", "        return task;")]
+    [Arguments("        Run(task.Snapshot(\"old\"));", "        Run(task);")]
+    [Arguments("        Run(first, task.Snapshot(\"old\"));", "        Run(first, task);")]
+    [Arguments("        var same = other == task.Snapshot(\"old\");", "        var same = other == task;")]
+    public async Task RemoveOfACallWhoseValueIsTakenLeavesWhatItWasOn(string body, string expected)
+    {
+        var source = Method(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method(expected));
+    }
+
+    // With more of the chain to come, the rest hangs off the variable as it hung off the call
+    [Test]
+    public async Task RemoveFromTheMiddleOfAChainOnAVariable()
+    {
+        var source = Method("        await task.Snapshot(\"old\").UseDirectory(\"snapshots\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        await task.UseDirectory(\"snapshots\");"));
     }
 
     /// <summary>

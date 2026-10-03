@@ -373,7 +373,12 @@ public class MapProjectionTests :
 
         int Render(string path, string directory, string projection, Action<string> landed)
         {
-            Projections.Add(projection);
+            // Both sides are drawn at once, each on a thread of its own
+            lock (Projections)
+            {
+                Projections.Add(projection);
+            }
+
             var colour = SHA256.HashData(Encoding.UTF8.GetBytes(File.ReadAllText(path) + projection));
             var page = Path.Combine(directory, "page_0001.png");
             File.WriteAllBytes(page, SamplePng.Build(8, 8, colour[0], colour[1], colour[2]));
