@@ -346,6 +346,34 @@ public class PixelTests
     }
 
     /// <summary>
+    /// The context menu opened on the last row of a queue that fills its column, where hung under
+    /// its row it would run off the bottom of the window, its last item with it: it goes over the
+    /// row instead. Linux only, for the reason <see cref="ContextMenu"/> is.
+    /// <para>
+    /// At the rows the Linux head measures for a window this size, which is three more than the
+    /// other scenes are pinned to: its lines are 17 pixels and not 18, and it is that grid that
+    /// puts the last row 96 pixels above the window's bottom edge. The entry is a conflicted one
+    /// because its menu is the longest a row has, six items and 114 pixels.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 16)]
+    [SkipOnMac("The macOS head pops a real NSMenu, which a capture has no window to show.")]
+    public Task ContextMenuOnTheLastRow()
+    {
+        const int measuredRows = height / 17;
+        InlinePatch[] patches =
+        [
+            .. Enumerable.Range(1, 32).Select(_ => Fixtures.Patch($"Tests{_:D2}.cs", _)),
+            Fixtures.Patch("Tests33.cs", 33, content: "eight", framework: "net8.0"),
+            Fixtures.Patch("Tests33.cs", 33, content: "nine", framework: "net9.0")
+        ];
+        var state = ViewerSession.Resize(Fixtures.Inline(patches), columns, measuredRows);
+        return Capture(ViewerSession.OpenMenu(state, ScreenBuilder.BodyRows(state) - 1), measuredRows);
+    }
+
+    /// <summary>
     /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
     /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
     /// deview_present did none of them - the window stayed blank and took no keys, and the loop
@@ -357,7 +385,7 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
-    [NotInParallel(nameof(PixelTests), Order = 16)]
+    [NotInParallel(nameof(PixelTests), Order = 20)]
     [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
     public async Task PresentWaitsForTheNextFrame()
     {
@@ -381,9 +409,9 @@ public class PixelTests
         await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
     }
 
-    static async Task Capture(SessionState state)
+    static async Task Capture(SessionState state, int gridRows = rows)
     {
-        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, gridRows));
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {

@@ -3044,6 +3044,7 @@ void BuildFrame(const DeviewScreen* screen)
     const int columns = hasQueue ? 3 : 2;
     const float cell = ImGui::CalcTextSize("M").x;
     ImVec2 menuAnchor;
+    float menuRowTop = 0.0f;
     bool menuAnchored = false;
     if (state.queueWidth <= 0.0f)
     {
@@ -3178,6 +3179,7 @@ void BuildFrame(const DeviewScreen* screen)
                         screen->menuCount > 0)
                     {
                         menuAnchor = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+                        menuRowTop = ImGui::GetItemRectMin().y;
                         menuAnchored = true;
                     }
                 }
@@ -3345,12 +3347,21 @@ void BuildFrame(const DeviewScreen* screen)
             position = state.capturing
                 ? ImVec2(hit.cellLeft + cell, bodyMin.y + ImGui::GetTextLineHeightWithSpacing())
                 : state.paneMenuAnchor;
-            /* Kept inside the window: a click near its right or bottom edge would otherwise hang
-             * most of the menu off it. */
-            const ImVec2 display = ImGui::GetIO().DisplaySize;
-            position.x = std::max(0.0f, std::min(position.x, display.x - size.x));
-            position.y = std::max(0.0f, std::min(position.y, display.y - size.y));
         }
+
+        /* Kept inside the window, whichever it hangs from: a click near a pane's right or bottom
+         * edge would otherwise hang most of the menu off it, and under the last rows of a queue
+         * that fills its column there is not the height of a menu left. A row's menu goes over
+         * the row then rather than under it, so the row it is about can still be read. */
+        const ImVec2 display = ImGui::GetIO().DisplaySize;
+        if (!paneMenu &&
+            position.y + size.y > display.y)
+        {
+            position.y = menuRowTop - size.y;
+        }
+
+        position.x = std::max(0.0f, std::min(position.x, display.x - size.x));
+        position.y = std::max(0.0f, std::min(position.y, display.y - size.y));
 
         state.menuMin = position;
         state.menuMax = ImVec2(position.x + size.x, position.y + size.y);
