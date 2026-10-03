@@ -4,6 +4,7 @@ public static class ModuleInitializer
     public static void Initialize()
     {
         ThrowRatherThanAsk();
+        DeclineToOpenAnIssue();
         MachineSettings.Ignore();
         VerifyWinForms.Initialize();
         VerifierSettings.UseSsimForPng(PngSsimThreshold);
@@ -25,6 +26,23 @@ public static class ModuleInitializer
         System.Windows.Forms.Application.SetUnhandledExceptionMode(
             System.Windows.Forms.UnhandledExceptionMode.ThrowException,
             threadScope: false);
+
+    /// <summary>
+    /// The tray follows an error it did not expect with a modal "Open an issue on GitHub?" box,
+    /// and a yes opens a browser. A test that reaches one is declined here, with nobody asked, and
+    /// what it reached is kept for the tests that are about an error being reported.
+    /// </summary>
+    static void DeclineToOpenAnIssue() =>
+        IssueLauncher.Declined = text =>
+        {
+            IssuesAsked.Enqueue(text);
+            return true;
+        };
+
+    /// <summary>
+    /// Every question <see cref="DeclineToOpenAnIssue"/> has declined, oldest first.
+    /// </summary>
+    internal static ConcurrentQueue<string> IssuesAsked { get; } = new();
 
     /// <summary>
     /// Tests must not write the user environment of the machine running them. The test projects
