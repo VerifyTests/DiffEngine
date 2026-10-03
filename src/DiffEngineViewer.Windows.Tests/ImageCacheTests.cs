@@ -112,6 +112,63 @@ public class ImageCacheTests
     }
 
     /// <summary>
+    /// And a picture that comes back after its decode was dropped is decoded again. The dropped
+    /// decode used to leave the path marked as on its way, so nothing was started for it and both
+    /// panes showed a spinner until the file changed: stepping past a picture before it had
+    /// decoded, which holding Tab through a queue of them does to nearly every one.
+    /// </summary>
+    [Test]
+    public async Task APictureThatComesBackAfterItsDecodeWasDroppedIsDecodedAgain()
+    {
+        var path = Write("came-back.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        var loaded = 0;
+        cache.Keep([path]);
+        cache.Get(path, null, () => loaded++);
+        await Assert.That(posted.TryTake(out var dropped, TimeSpan.FromSeconds(10))).IsTrue();
+        cache.Keep([]);
+        dropped!();
+        await Assert.That(cache.Loading(path)).IsFalse();
+
+        cache.Keep([path]);
+        await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
+        await Assert.That(cache.Loading(path)).IsTrue();
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        handBack!();
+
+        await Assert.That(loaded).IsEqualTo(1);
+        await Assert.That(cache.Loading(path)).IsFalse();
+        await Assert.That(cache.Get(path, null, () => loaded++)!.Width).IsEqualTo(8);
+    }
+
+    /// <summary>
+    /// Back on screen before its decode has landed, the picture is still the one on its way: that
+    /// decode is kept when it lands, not thrown away and started over.
+    /// </summary>
+    [Test]
+    public async Task APictureBackOnScreenBeforeItsDecodeLandsKeepsThatDecode()
+    {
+        var path = Write("back-in-time.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        var loaded = 0;
+        cache.Keep([path]);
+        cache.Get(path, null, () => loaded++);
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        cache.Keep([]);
+        cache.Keep([path]);
+
+        // Nothing new is started for it
+        await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
+        handBack!();
+
+        await Assert.That(loaded).IsEqualTo(1);
+        await Assert.That(posted.Count).IsEqualTo(0);
+        await Assert.That(cache.Get(path, null, () => loaded++)!.Width).IsEqualTo(8);
+    }
+
+    /// <summary>
     /// A pane paints the picture over its checkerboard, scaled, once per size, and copies that on
     /// every paint after. Scaling it on every paint cost 46 to 66 ms a paint for a pair of 2000 by
     /// 1500 pictures, on every wheel notch.

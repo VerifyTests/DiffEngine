@@ -514,8 +514,13 @@ sealed class ViewerCanvas : Control
         // Under the rows rather than instead of them. The rows are what every head draws — format,
         // size and byte count, coloured against the other side — and this head can afford to also
         // show the thing they describe.
+        // Both in the same width, not the pixel more an odd width leaves the right pane. Two
+        // pictures of one size are then fitted to one size, rather than a pixel apart. And one
+        // picture on both sides, which a page two identical documents share is, is composed once:
+        // the cache keeps a composite per picture, so asked for at two sizes it composed each in
+        // turn for as long as the entry was on screen, every landing throwing the other away.
         DrawImage(graphics, screen.Left, panesLeft, half, bodyTop, bodyBottom, lineHeight);
-        DrawImage(graphics, screen.Right, panesLeft + half, panesWidth - half, bodyTop, bodyBottom, lineHeight);
+        DrawImage(graphics, screen.Right, panesLeft + half, half, bodyTop, bodyBottom, lineHeight);
 
         if (hasQueue)
         {

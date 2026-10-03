@@ -237,7 +237,18 @@ sealed class ViewerForm : Form
         if (!sized)
         {
             sized = true;
-            ClientSize = InitialClientSize(ClientSize, DeviceDpi, System.Windows.Forms.Screen.FromControl(this).WorkingArea.Size);
+            var area = System.Windows.Forms.Screen.FromControl(this).WorkingArea;
+            ClientSize = InitialClientSize(ClientSize, DeviceDpi, area.Size);
+
+            // Centred again, for the size it has now. WinForms centres a window as it creates it,
+            // which is before this, so it was centred for the size asked for in logical pixels and
+            // then grew down and to the right from there: at 150% on a 1080p display the footer
+            // was under the taskbar, and that was the placement remembered for every run after.
+            if (StartPosition == FormStartPosition.CenterScreen &&
+                WindowState == FormWindowState.Normal)
+            {
+                Location = Centred(area, Size);
+            }
         }
         else if (restored is { } bounds &&
                  WindowState == FormWindowState.Normal &&
@@ -373,7 +384,8 @@ sealed class ViewerForm : Form
 
     /// <summary>
     /// The size asked for is in logical pixels, and the window is per monitor aware, so it is
-    /// scaled to the display it opens on - once, before it is shown and centred. Unscaled, it was
+    /// scaled to the display it opens on - once, before it is shown, and centred again for the
+    /// size that comes to, since WinForms had already centred it for the other. Unscaled, it was
     /// 1100 by 700 device pixels while the text grew with the display: at 200% each pane had room
     /// for four characters. Moving to another display afterwards is Windows' to scale.
     /// <para>
@@ -390,6 +402,16 @@ sealed class ViewerForm : Form
         var maxHeight = workingArea.Height * 9 / 10;
         return new(Math.Min(width, maxWidth), Math.Min(height, maxHeight));
     }
+
+    /// <summary>
+    /// Where a window of <paramref name="size"/> sits to be in the middle of
+    /// <paramref name="area"/>. One too large for it starts at the area's top left, so its title
+    /// bar is still in reach.
+    /// </summary>
+    internal static Point Centred(Rectangle area, Size size) =>
+        new(
+            Math.Max(area.X, area.X + (area.Width - size.Width) / 2),
+            Math.Max(area.Y, area.Y + (area.Height - size.Height) / 2));
 
     protected override void OnDpiChanged(DpiChangedEventArgs e)
     {
@@ -484,7 +506,10 @@ sealed class ViewerForm : Form
         Visible = true;
         if (WindowState == FormWindowState.Minimized)
         {
-            WindowState = FormWindowState.Normal;
+            // Back to what it was minimised from, as the taskbar would put it. Always to normal,
+            // a window the reader had maximised came back at its restored size, and was then
+            // remembered as one they had not maximised.
+            WindowState = maximized ? FormWindowState.Maximized : FormWindowState.Normal;
         }
 
         BringToFront();

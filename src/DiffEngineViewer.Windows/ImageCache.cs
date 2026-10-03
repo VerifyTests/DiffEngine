@@ -243,14 +243,24 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         // since moved past, would put back the picture the newer decode is replacing
         if (disposed ||
             !pending.TryGetValue(path, out var started) ||
-            started != stamp ||
-            (wanted is not null && !wanted.Contains(path)))
+            started != stamp)
         {
             image?.Dispose();
             return;
         }
 
+        // The decode the path was waiting on has landed, so it is waiting no longer, whatever is
+        // done with the result. Thrown away for a picture that had left the screen, it used to
+        // leave the path marked as on its way: a reader who came back to it had nothing started
+        // for it again, and a spinner in each pane until the file changed.
         pending.Remove(path);
+        if (wanted is not null &&
+            !wanted.Contains(path))
+        {
+            image?.Dispose();
+            return;
+        }
+
         Forget(path);
         entries.Add(path, new(stamp, image));
         loaded();

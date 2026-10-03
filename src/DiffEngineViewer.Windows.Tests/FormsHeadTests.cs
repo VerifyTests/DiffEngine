@@ -180,6 +180,44 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// One picture on both sides, which a page that two identical documents share is, on a canvas
+    /// an odd number of pixels wide. The right pane is then a pixel wider than the left, and a
+    /// picture fitted to each was asked for at two sizes. The cache keeps one composite per
+    /// picture, so every paint composed it twice over, each landing throwing the other away, for
+    /// as long as the entry was on screen.
+    /// </summary>
+    [Test]
+    [Arguments(1100)]
+    [Arguments(1101)]
+    public async Task OnePictureOnBothSidesIsComposedOnce(int width)
+    {
+        var directory = Directory.CreateTempSubdirectory("deview-one-picture-").FullName;
+        try
+        {
+            // Wide, so it is the pane's width that it is fitted to
+            var path = Path.Combine(directory, "page.png");
+            await File.WriteAllBytesAsync(path, SamplePng.Build(2000, 500, 198, 64, 64));
+            var entry = QueueEntry.ForFiles(path, path, FileSide.Read(path), FileSide.Read(path));
+            var screen = ScreenBuilder.Build(
+                ViewerSession.Resize(
+                    ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File, columns, rows), entry),
+                    columns,
+                    rows));
+            using var host = new CanvasHost(width);
+            host.Canvas.Synchronous = true;
+
+            host.Draw(screen);
+            host.Draw(screen);
+
+            await Assert.That(host.Canvas.Composed()).IsEqualTo(1);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// Through the real canvas, loading its pictures the way the window does, on the pool: a
     /// spinner where each picture goes until it lands, and the pictures once they have, with nothing
     /// left turning.
