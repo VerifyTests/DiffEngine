@@ -108,6 +108,114 @@ public class TrackerScanTest :
         await Assert.That(ModuleInitializer.IssuesAsked.Where(_ => _.Contains("Failed to scan files"))).IsEmpty();
     }
 
+    /// <summary>
+    /// Logged and nothing more, a tray whose every scan failed looked like one with nothing wrong
+    /// while its menu and icon stopped following the files. A run of failures is said once, in a
+    /// balloon, and not again for each scan in it: that would be one every two seconds.
+    /// <para>
+    /// The scans here are run by the test, beside the tracker's own two second timer over the same
+    /// failing queue, whose scans count towards the same run. So what is asserted holds however
+    /// many of those land in between.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AScanThatKeepsFailingIsSaidOnce()
+    {
+        var listed = 0;
+        var told = new ConcurrentQueue<string>();
+        var host = new StubInlineHost
+        {
+            Listed = () =>
+            {
+                // The first is the tracker starting, and the rest are scans
+                if (Interlocked.Increment(ref listed) > 1)
+                {
+                    throw new InvalidOperationException("TheScanFailure");
+                }
+            }
+        };
+        await using var tracker = new RecordingTracker(inline: host, scanFailing: told.Enqueue);
+
+        for (var scan = 0; scan < Tracker.ScanFailuresBeforeTelling * 4; scan++)
+        {
+            await tracker.Scan(Cancel.None);
+        }
+
+        await Assert.That(told).HasSingleItem();
+        await Assert.That(told.Single()).Contains("TheScanFailure");
+        await Assert.That(ModuleInitializer.IssuesAsked.Where(_ => _.Contains("Failed to scan files"))).IsEmpty();
+    }
+
+    /// <summary>
+    /// A scan that works ends the run, so the next run of failures is news again.
+    /// </summary>
+    [Test]
+    public async Task AScanThatFailsAgainAfterWorkingIsSaidAgain()
+    {
+        var failing = false;
+        var told = new ConcurrentQueue<string>();
+        var host = new StubInlineHost
+        {
+            Listed = () =>
+            {
+                if (Volatile.Read(ref failing))
+                {
+                    throw new InvalidOperationException("TheScanFailure");
+                }
+            }
+        };
+        await using var tracker = new RecordingTracker(inline: host, scanFailing: told.Enqueue);
+
+        async Task ScanThrice()
+        {
+            for (var scan = 0; scan < Tracker.ScanFailuresBeforeTelling; scan++)
+            {
+                await tracker.Scan(Cancel.None);
+            }
+        }
+
+        Volatile.Write(ref failing, true);
+        await ScanThrice();
+        await Assert.That(told.Count).IsEqualTo(1);
+
+        Volatile.Write(ref failing, false);
+        await tracker.Scan(Cancel.None);
+
+        Volatile.Write(ref failing, true);
+        await ScanThrice();
+        await Assert.That(told.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// One scan failing is a file that went between two lines of it, and nobody is told.
+    /// </summary>
+    [Test]
+    public async Task ASingleFailedScanIsNotSaid()
+    {
+        var failing = true;
+        var told = new ConcurrentQueue<string>();
+        var listed = 0;
+        var host = new StubInlineHost
+        {
+            Listed = () =>
+            {
+                // The tracker starting, which is not a scan, and then the one scan that fails
+                if (Interlocked.Increment(ref listed) > 1 &&
+                    Volatile.Read(ref failing))
+                {
+                    throw new InvalidOperationException("TheScanFailure");
+                }
+            }
+        };
+        await using var tracker = new RecordingTracker(inline: host, scanFailing: told.Enqueue);
+
+        await tracker.Scan(Cancel.None);
+        Volatile.Write(ref failing, false);
+        await tracker.Scan(Cancel.None);
+
+        await Assert.That(told).IsEmpty();
+    }
+
     public TrackerScanTest()
     {
         directory = Path.Combine(Path.GetTempPath(), "DiffEngineTray.Tests", Guid.NewGuid().ToString("N"));

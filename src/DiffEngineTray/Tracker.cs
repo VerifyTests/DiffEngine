@@ -17,21 +17,16 @@ class Tracker :
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null, Action<string>? scanFailing = null)
     {
         this.active = active;
         this.inactive = inactive;
         this.lockedFilesResolver = lockedFilesResolver;
         this.acceptFailed = acceptFailed;
         this.inlineFailed = inlineFailed;
+        this.scanFailing = scanFailing;
         this.inline = inline ?? new RemoteInlineHost();
-        timer = new(
-            ScanFiles,
-            TimeSpan.FromSeconds(2),
-            // Logged and no more. This is the timer's own thread, and the handler everything else
-            // uses follows the log with a modal box: no scan ran again until somebody answered it,
-            // and a scan is nothing anybody asked for, so the box arrived out of nowhere
-            exception => Log.Error(exception, "Failed to scan files"));
+        timer = new(Scan, TimeSpan.FromSeconds(2));
 
         // Seeded rather than left empty until the first scan two seconds later. The menu reads
         // this cache now, so without it a tray that has just started shows none of what a viewer
@@ -39,7 +34,57 @@ class Tracker :
         Refresh();
     }
 
-    Task ScanFiles(Cancel cancel)
+    /// <summary>
+    /// How many scans have to fail one after the other before anybody is told. One that fails
+    /// alone is a file that went between two lines of it, and is put right by the next.
+    /// </summary>
+    internal const int ScanFailuresBeforeTelling = 3;
+
+    Action<string>? scanFailing;
+    int failedScans;
+
+    /// <summary>
+    /// One scan, and what is made of it failing.
+    /// <para>
+    /// Logged, every time. This is the timer's own thread, and the handler everything else uses
+    /// follows the log with a modal box: no scan ran again until somebody answered it, and a scan
+    /// is nothing anybody asked for, so the box arrived out of nowhere.
+    /// </para>
+    /// <para>
+    /// The log alone left a tray whose every scan failed looking like one with nothing wrong: the
+    /// icon and the menu stopped following the files, and nothing said so. So a run of failures
+    /// is said once, in a balloon, when it has gone on long enough not to be a passing one. Once
+    /// for the run, rather than for each scan in it, which would be a balloon every two seconds
+    /// for as long as the cause stood. A scan that works ends the run, and the next run is told
+    /// afresh.
+    /// </para>
+    /// </summary>
+    internal async Task Scan(Cancel cancel)
+    {
+        try
+        {
+            await ScanFiles(cancel);
+            Interlocked.Exchange(ref failedScans, 0);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed to scan files");
+            // Counted across threads, since a test runs scans beside the timer's
+            if (Interlocked.Increment(ref failedScans) == ScanFailuresBeforeTelling)
+            {
+                scanFailing?.Invoke(ScanFailingMessage(exception));
+            }
+        }
+    }
+
+    internal static string ScanFailingMessage(Exception exception) =>
+        $"The pending files could not be checked, {ScanFailuresBeforeTelling} times running, so the menu and the icon may be behind what is on disk. {exception.Message} Every failure is in the log: 'Open logs' in the menu.";
+
+    internal Task ScanFiles(Cancel cancel)
     {
         foreach (var delete in deletes.ToList()
                      .Where(delete => !File.Exists(delete.Value.File)))

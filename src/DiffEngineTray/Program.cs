@@ -94,7 +94,8 @@ static class Program
             acceptFailed: move => Warn(
                 $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried."),
             inlineFailed: Warn,
-            inline: owned);
+            inline: owned,
+            scanFailing: Warn);
 
         // Owning the queue means knowing the moment it changes, rather than finding out on the
         // next two second scan. Wired before serving starts, so the first patch to arrive counts.
