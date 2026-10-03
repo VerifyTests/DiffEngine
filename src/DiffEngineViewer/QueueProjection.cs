@@ -99,7 +99,21 @@ static class QueueProjection
     /// The full row list: headers inserted, labels indented, collisions disambiguated, conflicts
     /// marked. Assumes the queue is already <see cref="Order"/>ed, which every mutation ensures.
     /// </summary>
-    public static IReadOnlyList<QueueItem> Rows(SessionState state)
+    public static IReadOnlyList<QueueItem> Rows(SessionState state) =>
+        Rows(state, described: true);
+
+    /// <summary>
+    /// The one walk that decides which rows there are: what gets a header, and what a fold hides.
+    /// </summary>
+    /// <param name="state">The state whose queue is projected.</param>
+    /// <param name="described">
+    /// Whether the rows are to be drawn, and so want their labels, tooltips and group members. Not
+    /// for <see cref="VisibleEntries"/>, which asks only which entries have a row: that is asked
+    /// on every step through the queue and after every entry a batch records, and describing every
+    /// row to answer it was a kilobyte and more an entry each time. The same walk either way, so
+    /// what is visible cannot be decided twice.
+    /// </param>
+    static IReadOnlyList<QueueItem> Rows(SessionState state, bool described)
     {
         var entries = state.Queue;
         if (state.Mode == ViewerMode.File ||
@@ -118,7 +132,7 @@ static class QueueProjection
         }
 
         var showSolutions = solutions.Count >= 2;
-        var labels = Labels(entries);
+        var labels = described ? Labels(entries) : null;
 
         var rows = new List<QueueItem>();
         var index = 0;
@@ -137,12 +151,15 @@ static class QueueProjection
             if (header)
             {
                 var folded = state.Collapsed.Contains(bucketKey);
-                rows.Add(new($"{Marker(folded)} {bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
-                {
-                    GroupName = bucket,
-                    GroupKey = bucketKey,
-                    GroupMembers = Enumerable.Range(index, bucketEnd - index).ToList()
-                });
+                rows.Add(
+                    described
+                        ? new($"{Marker(folded)} {bucket} ({bucketEnd - index})", false, null, QueueRowKind.Header)
+                        {
+                            GroupName = bucket,
+                            GroupKey = bucketKey,
+                            GroupMembers = Enumerable.Range(index, bucketEnd - index).ToList()
+                        }
+                        : undescribedHeader);
 
                 if (folded)
                 {
@@ -168,12 +185,15 @@ static class QueueProjection
                 {
                     var groupKey = $"test|{group}";
                     var folded = state.Collapsed.Contains(groupKey);
-                    rows.Add(new($"{indent}{Marker(folded)} {entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
-                    {
-                        GroupName = entries[index].TestName,
-                        GroupKey = groupKey,
-                        GroupMembers = Enumerable.Range(index, groupEnd - index).ToList()
-                    });
+                    rows.Add(
+                        described
+                            ? new($"{indent}{Marker(folded)} {entries[index].TestName} ({groupEnd - index})", false, null, QueueRowKind.Header)
+                            {
+                                GroupName = entries[index].TestName,
+                                GroupKey = groupKey,
+                                GroupMembers = Enumerable.Range(index, groupEnd - index).ToList()
+                            }
+                            : undescribedHeader);
                     if (folded)
                     {
                         index = groupEnd;
@@ -184,19 +204,32 @@ static class QueueProjection
                     {
                         // Under a test header the test name would repeat, so the entry falls back
                         // to its call site — and its tip leaves the name out for the same reason.
-                        rows.Add(EntryRow(entries[index], index, $"{indent}  ", entries[index].Name, state, true));
+                        rows.Add(
+                            labels is null
+                                ? Undescribed(index)
+                                : EntryRow(entries[index], index, $"{indent}  ", entries[index].Name, state, true));
                     }
 
                     continue;
                 }
 
-                rows.Add(EntryRow(entries[index], index, indent, labels[index], state));
+                rows.Add(
+                    labels is null
+                        ? Undescribed(index)
+                        : EntryRow(entries[index], index, indent, labels[index], state));
                 index++;
             }
         }
 
         return rows;
     }
+
+    // What a walk that is not to be drawn puts where a row would be: that there is one, and for
+    // an entry which.
+    static readonly QueueItem undescribedHeader = new("", false, null, QueueRowKind.Header);
+
+    static QueueItem Undescribed(int index) =>
+        new("", false, null, QueueRowKind.Entry, index);
 
     /// <summary>
     /// A disclosure marker, in both states. One that appeared only when folded would leave nothing
@@ -217,7 +250,7 @@ static class QueueProjection
     public static List<int> VisibleEntries(SessionState state)
     {
         var visible = new List<int>();
-        foreach (var row in Rows(state))
+        foreach (var row in Rows(state, described: false))
         {
             if (row.EntryIndex >= 0)
             {
@@ -344,13 +377,11 @@ static class QueueProjection
     }
 
     /// <summary>
-    /// One test is one group only within one file: two tests that merely share a name in
-    /// different files must not coalesce.
+    /// See <see cref="QueueEntry.TestGroup"/>, which works it out once an entry rather than once
+    /// an asking.
     /// </summary>
     static string? TestGroup(QueueEntry entry) =>
-        entry is { Kind: QueueEntryKind.Inline, TestName: not null, Patch: not null }
-            ? $"{entry.Patch.SourceFile.ToLowerInvariant()}|{entry.TestName}"
-            : null;
+        entry.TestGroup;
 
     /// <summary>
     /// The path an entry's label can be grown from: the source file for an inline entry, and the

@@ -1176,6 +1176,15 @@ static class ViewerSession
     /// A snapshot's outcome, by the batch's rules rather than a single accept's: see
     /// <see cref="InlineQueue.AcceptInBatch"/>. An entry that changed while its patch was applying,
     /// because a re-run replaced it, keeps its new content and is not counted.
+    /// <para>
+    /// The rules are still asked of an <see cref="InlineQueue"/>, but of one holding this entry
+    /// alone, and what it says is done to the list as it stands: the entry taken out, or given the
+    /// status. Every other inline transition rebuilds the whole list from the whole queue, and a
+    /// batch did that once an entry, so its own bookkeeping grew with the square of the queue:
+    /// 2,000 snapshots were 3.7 seconds and 8.8 GB of garbage beside the applying. Taking an entry
+    /// out of a list that is in order leaves it in order, and no other entry is touched, so there
+    /// is nothing for a rebuild to find.
+    /// </para>
     /// </summary>
     static SessionState RecordInline(SessionState state, QueueEntry entry, InlineApplyResult result)
     {
@@ -1185,7 +1194,31 @@ static class ViewerSession
         }
 
         var tally = batch.Tally;
-        var pending = Pending(state).AcceptInBatch(new(entry.Variants, entry.Status), result, ref tally);
+        var queue = state.Queue;
+        // By its variants, which is how the batch finds what it started on. A snapshot's only:
+        // every move and delete has none, and may well share the one empty list.
+        var index = -1;
+        for (var position = 0; position < queue.Count; position++)
+        {
+            if (queue[position].Kind == QueueEntryKind.Inline &&
+                ReferenceEquals(queue[position].Variants, entry.Variants))
+            {
+                index = position;
+                break;
+            }
+        }
+
+        if (index >= 0)
+        {
+            var claimed = queue[index];
+            var outcome = InlineQueue
+                .From([new(claimed.Variants, claimed.Status)])
+                .AcceptInBatch(new(entry.Variants, entry.Status), result, ref tally);
+            queue = outcome.Count == 0
+                ? Without(queue, index)
+                : Replace(queue, index, claimed with { Status = outcome.Items[0].Status });
+        }
+
         return Remove(
             state with
             {
@@ -1195,7 +1228,7 @@ static class ViewerSession
                     Current = null
                 }
             },
-            Rebuild(state, pending),
+            queue,
             state.Message);
     }
 
@@ -1824,6 +1857,14 @@ static class ViewerSession
     /// </summary>
     static int? NearestVisible(SessionState state)
     {
+        // Nothing folded, nothing hidden: every entry has a row, the selected one among them. The
+        // answer the walk below would give, without the walk, which is every entry of the queue
+        // and is asked after each entry a batch takes out.
+        if (state.Collapsed.Count == 0)
+        {
+            return null;
+        }
+
         var visible = QueueProjection.VisibleEntries(state);
         if (visible.Count == 0 ||
             visible.Contains(state.Selected))
