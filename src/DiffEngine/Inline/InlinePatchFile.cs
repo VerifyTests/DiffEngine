@@ -27,6 +27,9 @@ public static class InlinePatchFile
         }
 
         File.WriteAllText(path, Build(patch, patch.Framework ?? RuntimeMoniker.Current), new UTF8Encoding(false));
+        // The directory may be one no clear has listed yet, and the next clear this process makes
+        // has to find what is now in it
+        InlineStaging.Staged();
     }
 
     /// <summary>

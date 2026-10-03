@@ -372,6 +372,55 @@ public class InlineStagingTests
         await Assert.That(project.StagedFiles()).IsEmpty();
     }
 
+    /// <summary>
+    /// The same for what a test run stages for itself, which does not go through Persist. The walk
+    /// for staging directories is kept between clears, and a write through InlinePatchFile is one
+    /// of the two things that say it no longer stands.
+    /// </summary>
+    [Test]
+    public async Task ClearFindsWhatThisProcessStagedAfterAnEarlierLook()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(0);
+
+        var patchFile = project.Stage("ThisFramework", Patch(source, "content"));
+
+        await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
+        await Assert.That(File.Exists(patchFile)).IsFalse();
+    }
+
+    /// <summary>
+    /// Another process can stage under the same obj, and nothing tells this one that it has: a
+    /// second framework of the same run, or a queue owner writing its queue out as it exits. A
+    /// directory it creates is found once the walk this process kept has had its life, which is
+    /// why that life is short.
+    /// </summary>
+    [Test]
+    public async Task ClearFindsWhatAnotherProcessStagedOnceTheLookIsStale()
+    {
+        var previous = InlineStaging.RecheckStagingAfter;
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        try
+        {
+            await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(0);
+
+            var patchFile = project.StageFromOutside("OtherProcess", Patch(source, "content"));
+
+            // No life at all, which is every walk stale. Other tests may be clearing while this is
+            // set, and all it changes for them is that they walk too
+            InlineStaging.RecheckStagingAfter = TimeSpan.Zero;
+            await Assert.That(InlineStaging.Clear(source, 42, null)).IsEqualTo(1);
+            await Assert.That(File.Exists(patchFile)).IsFalse();
+        }
+        finally
+        {
+            InlineStaging.RecheckStagingAfter = previous;
+        }
+    }
+
     [Test]
     public async Task ClearLeavesAnotherSourceFileAlone()
     {
@@ -467,6 +516,20 @@ public class InlineStagingTests
         {
             var path = Path.Combine(directory, "obj", InlineStaging.DirectoryName, $"{name}.inlinepatch");
             InlinePatchFile.Write(path, patch);
+            return path;
+        }
+
+        /// <summary>
+        /// The same file written with nothing of InlineStaging's or InlinePatchFile's involved in
+        /// the write, which is all this process ever knows of what another one staged. In a
+        /// framework's own intermediate directory, where a test run stages.
+        /// </summary>
+        public string StageFromOutside(string name, InlinePatch patch)
+        {
+            var staging = Path.Combine(directory, "obj", "Debug", "net0.0", InlineStaging.DirectoryName);
+            Directory.CreateDirectory(staging);
+            var path = Path.Combine(staging, $"{name}.inlinepatch");
+            File.WriteAllText(path, InlinePatchFile.Build(patch));
             return path;
         }
 

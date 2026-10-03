@@ -338,13 +338,7 @@ public static class InlineStaging
             yield break;
         }
 
-        var obj = Path.Combine(project, "obj");
-        if (!Directory.Exists(obj))
-        {
-            yield break;
-        }
-
-        foreach (var directory in FindStaging(obj, 0))
+        foreach (var directory in StagingUnder(project))
         {
             if (seen.Add(directory))
             {
@@ -352,6 +346,72 @@ public static class InlineStaging
             }
         }
     }
+
+    /// <summary>
+    /// The <c>VerifyInline</c> directories under a project's <c>obj</c>, from the last walk of it
+    /// while that walk still stands.
+    /// <para>
+    /// <see cref="Clear(string, int, string?, string?, string?, string?)" /> runs once per
+    /// verification, and the walk is a directory listing for every directory in the tree: three
+    /// milliseconds for an obj of a hundred and fifty, and several times that on a drive where a
+    /// listing is slower, to find what it found for the verification before. So the walk is kept,
+    /// on the two conditions that are why it used not to be.
+    /// </para>
+    /// <para>
+    /// Nothing this process has staged since. A run that finds no queue owner stages as it goes,
+    /// and the call site it stages is one it will be asked to clear, so a walk taken before the
+    /// last thing this process wrote is never answered from: see <see cref="Staged" />.
+    /// </para>
+    /// <para>
+    /// And not for long, because another process can stage under the same obj at any time - the
+    /// other frameworks of a multi-targeted run, or a queue owner writing its queue out as it
+    /// exits - and nothing tells this one when it does. A directory one of them creates is found
+    /// by the first clear after <see cref="RecheckStagingAfter" />. Only the list of directories
+    /// is kept, so what is late is a staging directory that did not exist: one already known is
+    /// read on every clear, as it was.
+    /// </para>
+    /// </summary>
+    static string[] StagingUnder(string project)
+    {
+        // Read before the walk rather than after it, so a write that lands while the walk is
+        // under way leaves a count the next clear does not match
+        var writes = Volatile.Read(ref stagingWrites);
+        if (stagingUnder.TryGetValue(project, out var kept) &&
+            kept.Writes == writes &&
+            Since(kept.At) < RecheckStagingAfter)
+        {
+            return kept.Directories;
+        }
+
+        var obj = Path.Combine(project, "obj");
+        var directories = Directory.Exists(obj) ? FindStaging(obj, 0).ToArray() : [];
+        stagingUnder[project] = (Stopwatch.GetTimestamp(), writes, directories);
+        return directories;
+    }
+
+    static ConcurrentDictionary<string, (long At, int Writes, string[] Directories)> stagingUnder =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// How long a walk for staging directories is answered from, which is how long a directory
+    /// another process creates can go unseen by a clear. Short for that reason, and long enough
+    /// for what it is for: a run making hundreds of clears a second walks once in that second
+    /// rather than hundreds of times.
+    /// </summary>
+    internal static TimeSpan RecheckStagingAfter { get; set; } = TimeSpan.FromSeconds(1);
+
+    static int stagingWrites;
+
+    /// <summary>
+    /// Says this process has just staged something, so no walk taken before now is answered from.
+    /// Called by everything that writes a trio: <see cref="Persist" /> here, and
+    /// <see cref="InlinePatchFile.Write" />, which is what a test run stages through.
+    /// </summary>
+    internal static void Staged() =>
+        Interlocked.Increment(ref stagingWrites);
+
+    static TimeSpan Since(long timestamp) =>
+        TimeSpan.FromSeconds((Stopwatch.GetTimestamp() - timestamp) / (double) Stopwatch.Frequency);
 
     // An intermediate directory sits a handful of levels below the project it belongs to, so the
     // walk is bounded rather than open ended, the same way ReceivedMaps bounds its own.
@@ -456,6 +516,10 @@ public static class InlineStaging
         {
             return false;
         }
+        finally
+        {
+            Staged();
+        }
     }
 
     /// <summary>
@@ -541,9 +605,11 @@ public static class InlineStaging
     /// on every one of them, including the overwhelmingly common case where nothing is staged and
     /// the answer is thrown away.
     /// <para>
-    /// Only this half is cached. Which project a source file belongs to cannot change while a run
-    /// is going, whereas the staging directories under it can: a run that finds no queue owner
-    /// creates one as it goes, and a cached "nothing here" would then miss what it wrote.
+    /// Only this half is kept for good. Which project a source file belongs to cannot change while
+    /// a run is going, whereas the staging directories under it can: a run that finds no queue
+    /// owner creates one as it goes, and a "nothing here" kept across that would miss what it
+    /// wrote. That half is <see cref="StagingUnder" />, which keeps its answer only until this
+    /// process next stages something, and briefly even then.
     /// </para>
     /// </summary>
     static ConcurrentDictionary<string, string?> projectDirectories =
