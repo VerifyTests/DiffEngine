@@ -943,16 +943,28 @@ int ReadKey()
         return DEVIEW_KEY_NONE;
     }
 
+    /* The key itself held down, rather than read off the case of what was typed: see below. */
+    const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
     /* Letters by the character typed rather than by key position. raylib's key codes are
      * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
      * snapshot written into source by a key meant to quit - while the one labelled A quit.
      * Characters follow the layout, the way the macOS and Windows heads already do. */
     for (int character = GetCharPressed(); character != 0; character = GetCharPressed())
     {
+        /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
+         * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
+         * pending snapshot written into source, with nothing asked first, by the key that accepts
+         * one - and left D, V, Q, N, P, M, R and J doing nothing. */
+        if (character >= 'A' && character <= 'Z')
+        {
+            character += 'a' - 'A';
+        }
+
         switch (character)
         {
-            case 'a': return DEVIEW_KEY_ACCEPT;
-            case 'A': return DEVIEW_KEY_ACCEPT_ALL;
+            /* Accept all is A with Shift held, which is what the other two heads go by. */
+            case 'a': return shift ? DEVIEW_KEY_ACCEPT_ALL : DEVIEW_KEY_ACCEPT;
             case 'd': return DEVIEW_KEY_DISCARD;
             case 'v': return DEVIEW_KEY_NEXT_VARIANT;
             case 'q': return DEVIEW_KEY_QUIT;
@@ -979,9 +991,7 @@ int ReadKey()
     if (IsKeyPressed(KEY_PAGE_DOWN)) return DEVIEW_KEY_PAGE_DOWN;
     if (IsKeyPressed(KEY_HOME)) return DEVIEW_KEY_HOME;
     if (IsKeyPressed(KEY_END)) return DEVIEW_KEY_END;
-    if (IsKeyPressed(KEY_TAB)) return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)
-        ? DEVIEW_KEY_PREVIOUS_ITEM
-        : DEVIEW_KEY_NEXT_ITEM;
+    if (IsKeyPressed(KEY_TAB)) return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
     if (IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
     return DEVIEW_KEY_NONE;
 }
