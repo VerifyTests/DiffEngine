@@ -81,19 +81,27 @@ public class KeptConnectionTests
         using var owner = new Owner(_ => _.Key!.EndsWith("odd") ? ViewerResponse.Error("odd") : ViewerResponse.Success());
         var wrong = 0;
 
+        // Threads of their own rather than the pool's. A send blocks its thread until it is
+        // answered, and this owner answers from the pool, being in the same process: on a machine
+        // of two or four cores eight blocked senders were every thread the pool had, the owner
+        // could not answer, and a send timed out. A real owner is another process.
         var threads = Enumerable.Range(0, 8)
-            .Select(_ => Task.Run(() =>
-            {
-                for (var index = 0; index < 50; index++)
+            .Select(_ => Task.Factory.StartNew(
+                () =>
                 {
-                    var odd = (_ + index) % 2 == 1;
-                    var sent = ViewerClient.Tell(new(ViewerVerb.Settle, odd ? "odd" : "even"), owner.Port);
-                    if (sent == odd)
+                    for (var index = 0; index < 50; index++)
                     {
-                        Interlocked.Increment(ref wrong);
+                        var odd = (_ + index) % 2 == 1;
+                        var sent = ViewerClient.Tell(new(ViewerVerb.Settle, odd ? "odd" : "even"), owner.Port);
+                        if (sent == odd)
+                        {
+                            Interlocked.Increment(ref wrong);
+                        }
                     }
-                }
-            }));
+                },
+                Cancel.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default));
         await Task.WhenAll(threads);
 
         await Assert.That(wrong).IsEqualTo(0);
