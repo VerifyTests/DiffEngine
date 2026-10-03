@@ -12,6 +12,7 @@ sealed class ViewerForm : Form
 
     readonly FlowLayoutPanel buttonRow = new()
     {
+        Name = "buttons",
         Dock = DockStyle.Left,
         AutoSize = true,
         WrapContents = false,
@@ -649,7 +650,11 @@ sealed class ViewerForm : Form
                 // Standard rather than System: WinForms draws these itself, including in dark
                 // mode, so their pixels are pinned to the .NET version rather than to whatever
                 // the OS build's theme renderer does with a Win32 button.
-                FlatStyle = FlatStyle.Standard
+                FlatStyle = FlatStyle.Standard,
+                // A label is the model's words, and an ampersand in one is an ampersand. Read as
+                // a mnemonic it is not drawn, and the letter after it becomes an Alt chord that
+                // presses the button.
+                UseMnemonic = false
             };
             button.Click += (_, _) => discrete.Enqueue(new(Button: index));
             pool.Add(button);
