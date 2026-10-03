@@ -53,6 +53,11 @@
     -->
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
+  <Project Path="DiffEngineViewer.Windows.Benchmarks/DiffEngineViewer.Windows.Benchmarks.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <!-- Targets net10.0-windows, as the tests above do, so it does not build off Windows either. -->
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
   <Project Path="DiffEngineViewer.Mac/DiffEngineViewer.Mac.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>

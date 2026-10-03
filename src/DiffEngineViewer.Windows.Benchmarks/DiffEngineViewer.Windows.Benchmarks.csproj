@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- As DiffEngineViewer.Windows.Tests has them: the head draws with WinForms and GDI+. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!-- Signed for InternalsVisibleTo, and stated here for the reason DiffEngine.Benchmarks gives. -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\key.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+    The core links DiffEngine's Inline sources, so InlinePatch and friends are in that namespace.
+    -->
+    <Using Include="DiffEngine" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <!--
+    The head, which brings the viewer's core with it, and nothing of DiffEngine. The tests need an
+    aliased reference to displace the DiffEngine assembly Verify drags in; nothing here drags one
+    in, so the types the core links are declared once and need no alias.
+    -->
+    <ProjectReference Include="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj" />
+  </ItemGroup>
+
+</Project>
