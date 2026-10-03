@@ -177,8 +177,8 @@ apart.
   three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
   line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
   (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
-- Documents (PDF, docx, xlsx, pptx, and SVG drawn beside its text) need **`src/DiffEngineViewer.Documents`**,
-  a separate assembly with Morph, Morph.PDFium, Skia and the OpenXml SDK behind it: tens of MB per
+- Documents (PDF, docx, xlsx, pptx, and SVG and maps drawn beside their text) need **`src/DiffEngineViewer.Documents`**,
+  a separate assembly with Morph, Morph.PDFium, Skia, GeoConvert and the OpenXml SDK behind it: tens of MB per
   RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
   at `viewer/documents/`, which each RID copy finds one directory up), never in DiffEngine's bundle.
   `Documents.targets` adds it, and only to RID-less builds - the bundle is the only per-RID publish -
@@ -207,8 +207,13 @@ apart.
     Which page shows and which differ is said in the headers and status line, for the reason above.
     `r`, `[` and `]` are additive `DeviewKey` values, as `m` was: no `DEVIEW_VERSION` bump, and the
     footer buttons reach the same commands from a shim built before them.
-  - DiffEngine offers the viewer `DocumentExtensions.Paged` only when `ViewerDocuments.Beside` finds
-    the folder by the resolved exe (beside, one up, or in the tool store behind a shim).
+  - DiffEngine offers the viewer `DocumentExtensions.Routed` only when `ViewerDocuments.Beside` finds
+    the folder by the resolved exe (beside, one up, or in the tool store behind a shim). That is
+    the paged formats and every map: a `.geojson` is no text extension to DiffEngine, unlike `.svg`.
+  - A map is drawn as an SVG is, one picture with no page commands (`DocumentFile.IsDrawn`). Its
+    text is the file for the text formats and GeoJSON read out of it for the binary ones
+    (`DocumentFile.IsSource`), so a FlatGeobuf is read by `DocumentWatch` as a PDF is but draws
+    as an SVG does. Those are two questions, and an SVG answering both the same way hid that.
 - Text selection is a view, and makes the same bargain images do. A drag arrives as both of its
   ends at once, in rows of the whole side rather than of the visible slice: a head knows the scroll
   top it drew the press with, so only it can resolve one that spans a wheel notch, and reporting

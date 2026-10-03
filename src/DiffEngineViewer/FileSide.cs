@@ -65,7 +65,7 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
         var bytes = ReadBytes(path);
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
         var document = new DocumentFile(path, bytes.Length, DocumentFile.FormatOf(path), hash);
-        if (document.IsDrawn)
+        if (document.IsSource)
         {
             // Its text is the file, read as any text file is.
             using var reader = new StreamReader(new MemoryStream(bytes), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);

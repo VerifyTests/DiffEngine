@@ -119,6 +119,58 @@ public class DocumentRendererTests :
     }
 
     /// <summary>
+    /// A map is one picture, the same bytes each time it is drawn, no larger than a page.
+    /// </summary>
+    [Test]
+    public async Task AMapDrawsOnePicture()
+    {
+        var first = Render(Write("first.geojson", Map("151.21")));
+        var again = Render(Write("again.geojson", Map("151.21")));
+        var moved = Render(Write("moved.geojson", Map("151.22")));
+
+        await Assert.That(first.Count).IsEqualTo(1);
+        await Assert.That(ImageHeader.TryRead(first[0], out var header)).IsTrue();
+        await Assert.That(header.Format).IsEqualTo(ImageFormat.Png);
+        await Assert.That(Math.Max(header.Width, header.Height)).IsEqualTo(2048);
+        await Assert.That(Hashes(again)).IsEquivalentTo(Hashes(first));
+        await Assert.That(Hashes(moved)).IsNotEquivalentTo(Hashes(first));
+    }
+
+    /// <summary>
+    /// A binary map reads as GeoJSON, so its features and their properties are what the text
+    /// compares.
+    /// </summary>
+    [Test]
+    public async Task ABinaryMapReadsAsGeoJson()
+    {
+        var path = Sample("sample.fgb");
+        var text = Plugin.Text(path);
+        await Assert.That(text).Contains("\"FeatureCollection\"");
+        await Assert.That(text).Contains("Opera House");
+        await Assert.That(Render(path).Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// Nothing to draw is said as much, rather than as a picture of nothing.
+    /// </summary>
+    [Test]
+    public async Task AMapWithNoFeaturesFails()
+    {
+        var path = Write("empty.geojson", """{"type":"FeatureCollection","features":[]}""");
+        await Assert.That(() => Render(path))
+            .Throws<InvalidDataException>()
+            .WithMessage("The map has no features to draw.");
+    }
+
+    static string Map(string longitude) =>
+        $$$"""
+           {"type":"FeatureCollection","features":[
+             {"type":"Feature","properties":{"name":"Harbour"},"geometry":{"type":"Polygon","coordinates":[[[151.2,-33.86],[151.24,-33.86],[151.24,-33.84],[151.2,-33.84],[151.2,-33.86]]]}},
+             {"type":"Feature","properties":{"name":"Pier"},"geometry":{"type":"Point","coordinates":[{{{longitude}}},-33.85]}}
+           ]}
+           """;
+
+    /// <summary>
     /// A file that is not what its name says fails, and costs nothing beyond itself: the next
     /// document still draws.
     /// </summary>

@@ -89,6 +89,37 @@ public class DocumentFileSideTests :
     }
 
     /// <summary>
+    /// A map that is text is read as an SVG is: the file now, one picture later.
+    /// </summary>
+    [Test]
+    public async Task AGeoJsonMapIsTextThatDraws()
+    {
+        var path = Write("route.geojson", """{"type":"FeatureCollection","features":[]}""");
+        var side = FileSide.Read(path, Plugin());
+        await Assert.That(side.Text).IsEqualTo("""{"type":"FeatureCollection","features":[]}""");
+        var document = side.Document!.Value;
+        await Assert.That(document.Format).IsEqualTo(DocumentFormat.GeoJson);
+        await Assert.That(document.HasText).IsTrue();
+        await Assert.That(document.IsDrawn).IsTrue();
+    }
+
+    /// <summary>
+    /// A binary map has its text read out of it, as GeoJSON, as a PDF has; but it is one picture
+    /// rather than pages.
+    /// </summary>
+    [Test]
+    public async Task AFlatGeobufMapIsADocumentStillBeingRead()
+    {
+        var path = Write("route.fgb", "not really a fgb");
+        var side = FileSide.Read(path, Plugin());
+        await Assert.That(side.Text).IsEmpty();
+        var document = side.Document!.Value;
+        await Assert.That(document.Format).IsEqualTo(DocumentFormat.FlatGeobuf);
+        await Assert.That(document.Reading).IsTrue();
+        await Assert.That(document.IsDrawn).IsTrue();
+    }
+
+    /// <summary>
     /// Pictures are still pictures, and text still text.
     /// </summary>
     [Test]

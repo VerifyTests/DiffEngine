@@ -13,6 +13,11 @@ Morph.PDFium
   https://github.com/Papyrine/Morph.PDFium
   MIT License
 
+GeoConvert
+  https://github.com/Papyrine/GeoConvert
+  Source: MIT License, Copyright (c) Brandt Vavasour and Simon Cropp
+  Binary release: Open Source Maintenance Fee EULA, https://github.com/Papyrine/GeoConvert/blob/main/OsmfEula.txt
+
 PDFium binaries (bblanchon.PDFium)
   https://github.com/bblanchon/pdfium-binaries
   Apache License 2.0, Copyright (c) Benoit Blanchon 2017-2025
@@ -44,7 +49,7 @@ DocumentFormat.OpenXml and DocumentFormat.OpenXml.Framework
   https://github.com/dotnet/Open-XML-SDK
   MIT License, (c) Microsoft Corporation
 
-System.IO.Packaging
+System.IO.Packaging and System.IO.Hashing
   https://github.com/dotnet/runtime
   MIT License, (c) Microsoft Corporation
 

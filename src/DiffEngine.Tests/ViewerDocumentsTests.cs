@@ -50,33 +50,39 @@ public class ViewerDocumentsTests :
     }
 
     [Test]
-    public async Task DocumentsAreOfferedToACopyThatCanReadThem()
+    [Arguments(".pdf")]
+    [Arguments(".geojson")]
+    [Arguments(".fgb")]
+    public async Task DocumentsAreOfferedToACopyThatCanReadThem(string extension)
     {
         var viewer = Viewer("bin");
         Documents(Path.Combine(root, "bin", "documents"));
 
-        await Assert.That(DetectedForPdf(viewer)).IsTrue();
+        await Assert.That(Detected(viewer, extension)).IsTrue();
     }
 
     [Test]
-    public async Task DocumentsAreNotOfferedToACopyThatCannot()
+    [Arguments(".pdf")]
+    [Arguments(".geojson")]
+    [Arguments(".fgb")]
+    public async Task DocumentsAreNotOfferedToACopyThatCannot(string extension)
     {
         var viewer = Viewer("bin");
 
-        await Assert.That(DetectedForPdf(viewer)).IsFalse();
+        await Assert.That(Detected(viewer, extension)).IsFalse();
     }
 
     /// <summary>
     /// Through the resolution every launch takes, with the viewer found where the environment
     /// variable that overrides its location says.
     /// </summary>
-    static bool DetectedForPdf(string viewer)
+    static bool Detected(string viewer, string extension)
     {
         Environment.SetEnvironmentVariable("DiffEngine_DiffEngineViewer", Path.GetDirectoryName(viewer));
         try
         {
             DiffTools.UseOrder(DiffTool.DiffEngineViewer);
-            return DiffTools.IsDetectedForExtension(DiffTool.DiffEngineViewer, ".pdf");
+            return DiffTools.IsDetectedForExtension(DiffTool.DiffEngineViewer, extension);
         }
         finally
         {

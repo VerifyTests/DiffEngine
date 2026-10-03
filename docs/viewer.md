@@ -194,7 +194,7 @@ Accepting is the same act it is for text — copy the received file over the exp
 
 ## Documents
 
-The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files. The copy bundled in the DiffEngine package does not, to stay small: the folder is about 16 MB of libraries and 22 MB of natives per platform. That copy reads these files exactly as it always has, an SVG as text.
+The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files and [maps](#maps). The copy bundled in the DiffEngine package does not, to stay small: the folder is about 16 MB of libraries and 22 MB of natives per platform. That copy reads these files exactly as it always has, an SVG or a GeoJSON file as text.
 
 A document is shown one of three ways, and `r`, or the button naming the next one, cycles between them:
 
@@ -206,7 +206,8 @@ A document is shown one of three ways, and `r`, or the button naming the next on
 
 What the text is depends on the format:
 
- * SVG: the file itself.
+ * SVG, and a map that is text: the file itself.
+ * A binary map: its features as GeoJSON.
  * PDF: each page's text under a `--- page N ---` line, read with [PDFium](https://pdfium.googlesource.com/pdfium) through [Morph.PDFium](https://github.com/Papyrine/Morph.PDFium).
  * Word, Excel and PowerPoint: the document as Markdown, from [Morph](https://github.com/Papyrine/Morph). Embedded pictures become `image-N` references rather than lines of base64.
 
@@ -220,7 +221,26 @@ Reading and drawing happen on a thread of their own once the window is up, so a 
 
 An SVG is drawn with scripts, external images and external elements turned off. A snapshot is test output, and nothing in one gets to reach the network or the disk.
 
-DiffEngine offers the viewer for `.pdf`, `.docx`, `.xlsx` and `.pptx` only when the copy it resolved carries the folder. The viewer is last in the default tool order, so Word, Excel, Beyond Compare or DeltaWalker are still preferred where installed.
+DiffEngine offers the viewer for `.pdf`, `.docx`, `.xlsx`, `.pptx` and the map extensions only when the copy it resolved carries the folder. The viewer is last in the default tool order, so Word, Excel, Beyond Compare or DeltaWalker are still preferred where installed.
+
+
+### Maps
+
+Maps are read and drawn with [GeoConvert](https://github.com/Papyrine/GeoConvert). Each is one picture, as an SVG is, so there are no pages to turn, and the status line says whether the two draw the same.
+
+| Format | Extension | Text |
+| --- | --- | --- |
+| GeoJSON | `.geojson` | The file |
+| TopoJSON | `.topojson` | The file |
+| KML | `.kml` | The file |
+| GPX | `.gpx` | The file |
+| WKT | `.wkt` | The file |
+| KMZ | `.kmz` | GeoJSON |
+| WKB | `.wkb` | GeoJSON |
+| FlatGeobuf | `.fgb` | GeoJSON |
+| GeoParquet | `.geoparquet` | GeoJSON |
+
+A map is drawn with its longer side 2048 pixels, in the projection GeoConvert picks for its extent. A map with no features is reported as having nothing to draw. Shapefiles are left out, being a set of files where a snapshot is one, and so are `.json`, `.csv` and `.parquet`, which hold far more than maps.
 
 
 ## With DiffEngineTray

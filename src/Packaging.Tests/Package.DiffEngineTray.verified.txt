@@ -19,6 +19,7 @@ tools/net10.0/any/viewer/documents/DiffEngineViewer.Documents.dll
 tools/net10.0/any/viewer/documents/DocumentFormat.OpenXml.Framework.dll
 tools/net10.0/any/viewer/documents/DocumentFormat.OpenXml.dll
 tools/net10.0/any/viewer/documents/ExCSS.dll
+tools/net10.0/any/viewer/documents/GeoConvert.dll
 tools/net10.0/any/viewer/documents/HarfBuzzSharp.dll
 tools/net10.0/any/viewer/documents/Morph.PDFium.dll
 tools/net10.0/any/viewer/documents/Morph.Skia.dll
@@ -30,6 +31,7 @@ tools/net10.0/any/viewer/documents/Svg.Custom.dll
 tools/net10.0/any/viewer/documents/Svg.Model.dll
 tools/net10.0/any/viewer/documents/Svg.SceneGraph.dll
 tools/net10.0/any/viewer/documents/Svg.Skia.dll
+tools/net10.0/any/viewer/documents/System.IO.Hashing.dll
 tools/net10.0/any/viewer/documents/System.IO.Packaging.dll
 tools/net10.0/any/viewer/documents/THIRD-PARTY-NOTICES.txt
 tools/net10.0/any/viewer/documents/runtimes/win-arm64/native/libHarfBuzzSharp.dll
