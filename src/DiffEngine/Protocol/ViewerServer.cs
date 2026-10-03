@@ -60,10 +60,14 @@ sealed class ViewerServer : IDisposable
         // Sync dispose: CancellationTokenRegistration is only IAsyncDisposable from net6, and
         // waiting for an in flight Stop callback buys nothing here.
         // ReSharper disable once UseAwaitUsing
-        using var registration = cancel.Register(listener.Stop);
+        using var registration = cancel.Register(Stop);
         await Serve(
                 Accept,
-                _ => Task.Run(() => Handle(_, handle, cancel), Cancel.None),
+                _ =>
+                {
+                    Interlocked.Increment(ref accepted);
+                    Task.Run(() => Handle(_, handle, cancel), Cancel.None);
+                },
                 cancel)
             .ConfigureAwait(false);
     }
@@ -177,7 +181,51 @@ sealed class ViewerServer : IDisposable
 #endif
     }
 
-    static async Task Handle(TcpClient client, Func<ViewerMessage, ViewerResponse> handle, Cancel cancel)
+    /// <summary>
+    /// The first line of a connection that is kept: one request after another, each ended by an
+    /// empty line and answered the same way, until either side closes.
+    /// <para>
+    /// The ordinary exchange is a connection each, ended by the client closing its half, and the
+    /// side that closes first is the side whose port then waits out TIME_WAIT. Windows has about
+    /// 16,000 ports to give out and keeps each for two minutes, a passing inline verification
+    /// settles once, and so a large enough green run with a tray answering used up the machine's
+    /// ports on telling the tray nothing. A client that has many of them to send keeps one
+    /// connection instead: see <see cref="ViewerClient.TrySend(ViewerMessage)"/>.
+    /// </para>
+    /// <para>
+    /// No request starts with this line, since every one starts with its version, so an owner
+    /// that predates it reads it as an unreadable request and says so. It is never sent to one:
+    /// a client keeps a connection only to an owner that has just said it <see cref="Keeps"/>.
+    /// </para>
+    /// </summary>
+    internal const string Keep = "keep: 1";
+
+    /// <summary>
+    /// The line an owner that takes <see cref="Keep"/> ends every ordinary reply with, which is
+    /// how a client knows to ask. A reader that predates it skips the line, as it skips any name
+    /// it does not know.
+    /// </summary>
+    internal const string Keeps = "keeps: 1";
+
+    /// <summary>
+    /// The kept connections, so that stopping closes them. Nothing else would: each is a read
+    /// waiting on a client that has nothing to say yet, and before net7 that read takes no token.
+    /// A client still being answered on one by an owner that had stopped listening would be told
+    /// about a queue that is no longer the port's.
+    /// </summary>
+    readonly ConcurrentDictionary<TcpClient, byte> kept = new();
+
+    volatile bool stopped;
+
+    int accepted;
+
+    /// <summary>
+    /// How many connections have been accepted. For the tests and the benchmark, to which a
+    /// connection kept and a connection each look the same from the answers.
+    /// </summary>
+    internal int Accepted => Volatile.Read(ref accepted);
+
+    async Task Handle(TcpClient client, Func<ViewerMessage, ViewerResponse> handle, Cancel cancel)
     {
         try
         {
@@ -186,20 +234,22 @@ sealed class ViewerServer : IDisposable
                 // ReSharper disable once UseAwaitUsing
                 using var stream = client.GetStream();
                 using var reader = new StreamReader(stream, Encoding.UTF8);
+                var first = await ReadLine(reader, cancel);
+                if (first == Keep)
+                {
+                    await HandleKept(client, stream, reader, handle, cancel);
+                    return;
+                }
+
 #if NET7_0_OR_GREATER
-                var text = await reader.ReadToEndAsync(cancel);
+                var rest = await reader.ReadToEndAsync(cancel);
 #else
-                var text = await reader.ReadToEndAsync();
+                var rest = await reader.ReadToEndAsync();
 #endif
 
-                var response = Respond(handle, text);
-                var bytes = Encoding.UTF8.GetBytes(response.Build());
-#if NET6_0_OR_GREATER
-                await stream.WriteAsync(bytes, cancel);
-#else
-                await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
-#endif
-                await stream.FlushAsync(cancel);
+                // Put back together with the line that was read to tell the two kinds apart
+                var response = Respond(handle, first is null ? rest : $"{first}\n{rest}");
+                await Write(stream, $"{response.Build()}{Keeps}\n", cancel);
             }
         }
         catch (Exception exception)
@@ -212,6 +262,73 @@ sealed class ViewerServer : IDisposable
             // A client that vanished mid exchange, or shutdown arriving midway. Nothing left to
             // answer, and nothing the owner of the queue needs to hear about.
         }
+    }
+
+    /// <summary>
+    /// One request after another on a connection the client keeps. Answered in turn rather than
+    /// each on a task of its own, which is the order the client sent them in and all it can use:
+    /// it waits for each answer before it sends the next.
+    /// </summary>
+    async Task HandleKept(
+        TcpClient client,
+        NetworkStream stream,
+        StreamReader reader,
+        Func<ViewerMessage, ViewerResponse> handle,
+        Cancel cancel)
+    {
+        // Each request is one small write waiting on one small answer, which is the pattern
+        // Nagle's algorithm holds back
+        client.NoDelay = true;
+        kept[client] = 0;
+        try
+        {
+            // Checked after it is listed, so that a stop on either side of the listing closes it
+            while (!stopped)
+            {
+                var request = new StringBuilder();
+                string? line;
+                while ((line = await ReadLine(reader, cancel)) is { Length: > 0 })
+                {
+                    request.Append(line);
+                    request.Append('\n');
+                }
+
+                if (line is null)
+                {
+                    // The client has gone. Anything it had half sent is nothing to answer
+                    return;
+                }
+
+                var response = Respond(handle, request.ToString());
+                await Write(stream, $"{response.Build()}\n", cancel);
+            }
+        }
+        finally
+        {
+            kept.TryRemove(client, out _);
+        }
+    }
+
+    // ReSharper disable once ReplaceAsyncWithTaskReturn
+    static async Task<string?> ReadLine(StreamReader reader, Cancel cancel)
+    {
+#if NET7_0_OR_GREATER
+        return await reader.ReadLineAsync(cancel);
+#else
+        cancel.ThrowIfCancellationRequested();
+        return await reader.ReadLineAsync();
+#endif
+    }
+
+    static async Task Write(NetworkStream stream, string text, Cancel cancel)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+#if NET6_0_OR_GREATER
+        await stream.WriteAsync(bytes, cancel);
+#else
+        await stream.WriteAsync(bytes, 0, bytes.Length, cancel);
+#endif
+        await stream.FlushAsync(cancel);
     }
 
     static ViewerResponse Respond(Func<ViewerMessage, ViewerResponse> handle, string text)
@@ -233,6 +350,17 @@ sealed class ViewerServer : IDisposable
         }
     }
 
-    public void Dispose() =>
+    void Stop()
+    {
+        stopped = true;
         listener.Stop();
+        foreach (var client in kept.Keys)
+        {
+            // Unblocks the read it is waiting in, which ends its task
+            client.Close();
+        }
+    }
+
+    public void Dispose() =>
+        Stop();
 }
