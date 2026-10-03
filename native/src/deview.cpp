@@ -52,6 +52,19 @@
 extern "C" void* glfwGetCurrentContext(void);
 extern "C" void glfwSetWindowShouldClose(void* window, int value);
 
+/*
+ * And GLFW's callback for the window system wanting a window's content drawn again, because part
+ * of it has been uncovered or it has been put back on the screen. raylib asks to be told when a
+ * window is resized, moved, minimised or focused and not this, since it draws every frame whatever
+ * happens. A window that has stopped drawing frames nobody needs has to hear it: see State::stale.
+ * Setting it here takes nothing from raylib, which sets none.
+ */
+extern "C"
+{
+typedef void (*DeviewRefresh)(void* window);
+DeviewRefresh glfwSetWindowRefreshCallback(void* window, DeviewRefresh callback);
+}
+
 namespace
 {
 void ClearCloseFlag()
@@ -102,6 +115,25 @@ constexpr float emScale = 1.32f;
  * rather than as whatever colour the pane happens to be. Matches the WinForms head.
  */
 constexpr float checkerSize = 8.0f;
+
+/*
+ * How long a frame lasts, which is what holds the managed loop to sixty turns a second: it calls
+ * deview_present as fast as that returns. raylib used to do the waiting, inside EndDrawing. It is
+ * done here now, because a frame that is not drawn has to be waited out as well: see Rest.
+ */
+constexpr double frameSeconds = 1.0 / 60.0;
+
+/*
+ * How many frames in a row have to be built with nothing arriving, and come out as the frame on
+ * the screen, before frames stop being built: a second of them, since each is waited out.
+ *
+ * ImGui does things over several frames and counts some of them in the time it is told has passed.
+ * A layout can take a second frame to settle, input given in one frame may be acted on over the
+ * next few, and for a quarter of a second after the pointer leaves a row with a tooltip the next
+ * row's comes up without its delay. A second is longer than any of them, and costs little: these
+ * are frames that are built and compared, not drawn.
+ */
+constexpr int settledFrames = 60;
 
 /*
  * One decoded picture, kept because BuildFrame runs sixty times a second and decoding an image per
@@ -341,9 +373,68 @@ struct State
      */
     bool tracked = false;
     DeviewPlacement normal{};
+
+    /*
+     * What decides whether a frame is put on the screen, and whether one is built at all: see
+     * deview_present. First the screen as it was last handed over, every byte of it, and the one
+     * being held against it.
+     */
+    std::vector<unsigned char> presented;
+    std::vector<unsigned char> arriving;
+
+    /* What was drawn to make the frame on the screen, reduced to a number: see Fingerprint. */
+    uint64_t shown = 0;
+
+    /*
+     * The window cannot be taken to be showing the frame last drawn into it: nothing has been
+     * drawn yet, the window system has asked for its content again, it has changed size or come
+     * back from being hidden, or a texture has been put behind a name that frame may have used.
+     * The next frame is drawn, whatever it comes out as.
+     */
+    bool stale = true;
+
+    /* Frames in a row that had nothing arrive and came out as the one on the screen. */
+    int settled = 0;
+
+    /* A queue row's tooltip is waiting out its delay, which ImGui counts in the frames it is
+     * given: see BuildFrame. */
+    bool tooltipDue = false;
+
+    /* When the last present began, and when the last frame's wait ended, by GetTime. */
+    double began = 0.0;
+    double ended = 0.0;
+
+    /* The pointer and the window as the last present found them. */
+    Vector2 pointer{};
+    int width = 0;
+    int height = 0;
+    bool hidden = false;
+    bool minimised = false;
+    bool focused = false;
+
+    /*
+     * The file behind each picture the last frame built for the window asked for, as that frame
+     * found it: there or not, and if there, written when and how long. See PicturesRewritten.
+     */
+    struct Watched
+    {
+        std::string path;
+        bool there = false;
+        std::filesystem::file_time_type written{};
+        std::uintmax_t length = 0;
+    };
+
+    std::vector<Watched> watched;
 };
 
 State state;
+
+/* GLFW's refresh callback, called from inside PollInputEvents: the window system has uncovered
+ * some of the window, or shown it, and what was there is gone. */
+extern "C" void WindowRefreshed(void* window)
+{
+    state.stale = true;
+}
 
 /*
  * Whether a remembered window would open somewhere it can be reached: its top edge on a monitor,
@@ -717,12 +808,15 @@ void StopDecoder()
  * Uploads what the decoder has finished into the entries still waiting for it. At the top of a
  * frame, on the thread that owns the GL context. A decode for an entry since forgotten, or for a
  * file since rewritten, is thrown away.
+ *
+ * Returns whether any entry was waiting for what landed, which is a frame to build: the picture is
+ * there to draw now, or is known not to be coming and its spinner goes.
  */
-void TakeDecoded()
+bool TakeDecoded()
 {
     if (!state.decoder)
     {
-        return;
+        return false;
     }
 
     std::vector<Decode> done;
@@ -731,6 +825,7 @@ void TakeDecoded()
         done.swap(state.decoder->done);
     }
 
+    bool landed = false;
     for (auto& decode : done)
     {
         const auto found = state.pictures.find(decode.path);
@@ -741,6 +836,7 @@ void TakeDecoded()
         {
             CachedTexture& entry = found->second;
             entry.decoding = false;
+            landed = true;
             if (decode.image.data != nullptr)
             {
                 const Texture2D texture = LoadTextureFromImage(decode.image);
@@ -750,12 +846,19 @@ void TakeDecoded()
                     entry.loaded = true;
                     entry.translucent = decode.translucent;
                     PrepareTexture(entry);
+
+                    /* GL hands out the name of a texture that has been unloaded again, so a frame
+                     * drawn with this one can be, number for number, a frame drawn with the one
+                     * that had the name before it. */
+                    state.stale = true;
                 }
             }
         }
 
         UnloadImage(decode.image);
     }
+
+    return landed;
 }
 
 void ForgetPicture(const std::string& path)
@@ -780,6 +883,47 @@ void ForgetPicture(const std::string& path)
 }
 
 /*
+ * A file's write time and length, which between them say whether a picture decoded from it is
+ * still what the file holds. False when either cannot be read, which is a file that has gone.
+ */
+bool Stamp(const std::string& path, std::filesystem::file_time_type& written, std::uintmax_t& length)
+{
+    const std::filesystem::path file(path);
+    std::error_code error;
+    written = std::filesystem::last_write_time(file, error);
+    if (error)
+    {
+        return false;
+    }
+
+    length = std::filesystem::file_size(file, error);
+    return !error;
+}
+
+/*
+ * Whether the file behind any picture the last frame asked for is no longer as that frame found
+ * it: written again, gone, or there where it was not. Picture asks this of each picture as a frame
+ * is built. A window that is being left alone builds no frames, so it is asked of all of them here
+ * before the window is left alone again.
+ */
+bool PicturesRewritten()
+{
+    for (const State::Watched& watched : state.watched)
+    {
+        std::filesystem::file_time_type written;
+        std::uintmax_t length = 0;
+        const bool there = Stamp(watched.path, written, length);
+        if (there != watched.there ||
+            (there && (written != watched.written || length != watched.length)))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
  * The decoded picture for a path, or null when there is none to draw: either this build cannot
  * read it, or it is still being decoded, which `loading` says so the pane can show that it is coming
  * rather than nothing. A capture decodes here and now, since it draws one frame and has no later one
@@ -797,17 +941,15 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
         return nullptr;
     }
 
-    const std::filesystem::path file(path);
-    std::error_code error;
-    const auto written = std::filesystem::last_write_time(file, error);
-    if (error)
+    std::filesystem::file_time_type written;
+    std::uintmax_t length = 0;
+    const bool there = Stamp(path, written, length);
+    if (!state.capturing)
     {
-        ForgetPicture(path);
-        return nullptr;
+        state.watched.push_back({path, there, written, length});
     }
 
-    const auto length = std::filesystem::file_size(file, error);
-    if (error)
+    if (!there)
     {
         ForgetPicture(path);
         return nullptr;
@@ -1414,12 +1556,15 @@ void FindFontsFor(const DeviewScreen* screen)
  * Merges what the finder has read into the window's font. At the top of a frame: ImGui takes a
  * new source between frames, and drops what it had rasterised from the font as it does, so a
  * character already drawn as missing is looked for again.
+ *
+ * Returns whether a font was merged, which is a frame to build: characters on the screen as the
+ * replacement glyph may have a glyph now.
  */
-void TakeFonts()
+bool TakeFonts()
 {
     if (!state.finder)
     {
-        return;
+        return false;
     }
 
     std::vector<FoundFont> found;
@@ -1428,12 +1573,13 @@ void TakeFonts()
         found.swap(state.finder->found);
     }
 
+    bool merged = false;
     ImGuiIO& io = ImGui::GetIO();
     for (FoundFont& font : found)
     {
         if (state.fontData.size() >= fontLimit)
         {
-            return;
+            return merged;
         }
 
         state.fontData.push_back(std::move(font.data));
@@ -1453,18 +1599,23 @@ void TakeFonts()
         const bool logs = io.ConfigErrorRecoveryEnableDebugLog;
         io.ConfigErrorRecoveryEnableAssert = false;
         io.ConfigErrorRecoveryEnableDebugLog = false;
-        const ImFont* merged = io.Fonts->AddFontFromMemoryTTF(
+        const ImFont* added = io.Fonts->AddFontFromMemoryTTF(
             data.data(),
             static_cast<int>(data.size()),
             0.0f,
             &config);
         io.ConfigErrorRecoveryEnableAssert = asserts;
         io.ConfigErrorRecoveryEnableDebugLog = logs;
-        if (merged == nullptr)
+        if (added == nullptr)
         {
             state.fontData.pop_back();
+            continue;
         }
+
+        merged = true;
     }
+
+    return merged;
 }
 
 ImFont* AddEmbeddedFont(const uint8_t* fontTtf, int32_t fontLength, float fontSize)
@@ -1616,11 +1767,17 @@ void RenderDrawData(ImDrawData* drawData)
 
 /* ---- input ---- */
 
-void PumpInput()
+/*
+ * `elapsed` is the time since the present before this one began, built or not, which is a frame's
+ * length while frames are coming. Not the time since the last frame ImGui was given: after a
+ * window has been left alone for an hour, that would have a tooltip's delay, and everything else
+ * ImGui times, over in the first frame.
+ */
+void PumpInput(float elapsed)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight()));
-    io.DeltaTime = GetFrameTime() > 0.0f ? GetFrameTime() : 1.0f / 60.0f;
+    io.DeltaTime = elapsed;
 
     const Vector2 mouse = GetMousePosition();
     io.AddMousePosEvent(mouse.x, mouse.y);
@@ -2648,6 +2805,15 @@ void BuildFrame(const DeviewScreen* screen)
                             ImGui::SetTooltip("%s", tip.c_str());
                         }
                     }
+                    else if (item.tooltipLength > 0 &&
+                             !state.capturing &&
+                             ImGui::IsItemHovered())
+                    {
+                        /* Under the pointer and still waiting out the delay, which ImGui counts
+                         * in the frames it is given and the time it is told each took. So frames
+                         * have to keep coming with the pointer at rest, until the tip is up. */
+                        state.tooltipDue = true;
+                    }
 
                     if (index == screen->menuRow &&
                         screen->menuCount > 0)
@@ -2922,6 +3088,252 @@ void BuildFrame(const DeviewScreen* screen)
     ImGui::End();
 }
 
+/* ---- which frames are drawn ---- */
+
+void Append(std::vector<unsigned char>& bytes, const void* data, size_t size)
+{
+    if (data == nullptr ||
+        size == 0)
+    {
+        return;
+    }
+
+    const unsigned char* begin = static_cast<const unsigned char*>(data);
+    bytes.insert(bytes.end(), begin, begin + size);
+}
+
+/* An array of the screen with its count ahead of it, so two screens whose arrays are the same
+ * bytes in all but split differently are not the same screen. */
+template <typename Element>
+void AppendArray(std::vector<unsigned char>& bytes, const Element* elements, int32_t count)
+{
+    Append(bytes, &count, sizeof count);
+    if (count > 0)
+    {
+        Append(bytes, elements, static_cast<size_t>(count) * sizeof(Element));
+    }
+}
+
+/*
+ * Whether the screen handed over differs from the one handed over last, which is kept either way.
+ *
+ * By its bytes, every one of them: the managed side builds each screen into the same buffers, so
+ * where they point says nothing, and none of the structs has padding to differ for no reason. The
+ * same bytes are the same strings, rows, panes, queue and menu, and so the same frame for as long
+ * as nothing else that a frame is built from has moved.
+ */
+bool Changed(const DeviewScreen* screen)
+{
+    std::vector<unsigned char>& bytes = state.arriving;
+    bytes.clear();
+    AppendArray(bytes, screen->strings, screen->stringsLength);
+    AppendArray(bytes, screen->panes, screen->paneCount);
+    AppendArray(bytes, screen->rows, screen->rowCount);
+    AppendArray(bytes, screen->segments, screen->segmentCount);
+    AppendArray(bytes, screen->buttons, screen->buttonCount);
+    AppendArray(bytes, screen->queue, screen->queueCount);
+    AppendArray(bytes, screen->menu, screen->menuCount);
+    const int32_t rest[] = {
+        screen->pendingCount,
+        screen->titleOffset,
+        screen->titleLength,
+        screen->subtitleOffset,
+        screen->subtitleLength,
+        screen->statusOffset,
+        screen->statusLength,
+        screen->menuRow,
+        screen->menuPane};
+    Append(bytes, rest, sizeof rest);
+
+    if (bytes == state.presented)
+    {
+        return false;
+    }
+
+    bytes.swap(state.presented);
+    return true;
+}
+
+/*
+ * Whether anything has come from the pointer, the keys or the window since the last present: what
+ * raylib gathered when it last read the window system's events, which is what the frame about to
+ * be built would be given.
+ *
+ * A key is not something a frame is built from, since ImGui is given none: what a key does comes
+ * back from the managed side as a different screen. It counts all the same, because a window is
+ * only left alone when nothing at all is happening to it. By the press rather than by what is
+ * down, since raylib reports Caps Lock and Num Lock as held for as long as they are on.
+ */
+bool Arrived()
+{
+    bool arrived = false;
+
+    const Vector2 pointer = GetMousePosition();
+    if (pointer.x != state.pointer.x ||
+        pointer.y != state.pointer.y)
+    {
+        state.pointer = pointer;
+        arrived = true;
+    }
+
+    for (const int button : {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE})
+    {
+        if (IsMouseButtonDown(button) ||
+            IsMouseButtonReleased(button))
+        {
+            arrived = true;
+        }
+    }
+
+    const Vector2 wheel = GetMouseWheelMoveV();
+    if (wheel.x != 0.0f ||
+        wheel.y != 0.0f)
+    {
+        arrived = true;
+    }
+
+    /* Taken off raylib's queue, which nothing else here reads: ReadKey asks about keys by name
+     * and takes characters from a queue of their own. */
+    while (GetKeyPressed() != 0)
+    {
+        arrived = true;
+    }
+
+    const int width = GetScreenWidth();
+    const int height = GetScreenHeight();
+    const bool hidden = IsWindowState(FLAG_WINDOW_HIDDEN);
+    const bool minimised = IsWindowMinimized();
+    const bool focused = IsWindowFocused();
+    if (width != state.width ||
+        height != state.height ||
+        hidden != state.hidden ||
+        minimised != state.minimised)
+    {
+        /* A window of another size has another framebuffer, and one that was not on the screen
+         * was not being kept by anything. */
+        state.stale = true;
+        arrived = true;
+    }
+
+    if (focused != state.focused)
+    {
+        arrived = true;
+    }
+
+    state.width = width;
+    state.height = height;
+    state.hidden = hidden;
+    state.minimised = minimised;
+    state.focused = focused;
+    return arrived;
+}
+
+uint64_t Mix(uint64_t hash, const void* data, size_t size)
+{
+    const unsigned char* bytes = static_cast<const unsigned char*>(data);
+    for (; size >= sizeof(uint64_t); bytes += sizeof(uint64_t), size -= sizeof(uint64_t))
+    {
+        uint64_t word;
+        memcpy(&word, bytes, sizeof word);
+        hash = (hash ^ word) * 0x9E3779B97F4A7C15ull;
+        hash ^= hash >> 29;
+    }
+
+    for (; size > 0; bytes++, size--)
+    {
+        hash = (hash ^ *bytes) * 0x100000001B3ull;
+    }
+
+    return hash;
+}
+
+/*
+ * Everything RenderDrawData would draw a frame from, reduced to one number: the size drawn at, and
+ * for every draw list its vertices, its indices and what each command clips to and draws with.
+ *
+ * Two frames with the same number are the same pixels, short of a texture's content having changed
+ * behind its name, which is asked separately. That is what lets a frame be built and then not
+ * drawn: it is held against the frame on the screen, and a frame that would put the same pixels
+ * there again is a full window for a software rasteriser to fill, and for the window system to
+ * copy, to no effect. Sixty four bits, so two frames that differ share a number about as often as
+ * never, and a pass over the vertices costs a small part of what drawing them would.
+ */
+uint64_t Fingerprint(const ImDrawData* drawData)
+{
+    uint64_t hash = 0xCBF29CE484222325ull;
+    hash = Mix(hash, &drawData->DisplaySize, sizeof drawData->DisplaySize);
+    for (int list = 0; list < drawData->CmdListsCount; list++)
+    {
+        const ImDrawList* commands = drawData->CmdLists[list];
+        hash = Mix(
+            hash,
+            commands->VtxBuffer.Data,
+            static_cast<size_t>(commands->VtxBuffer.Size) * sizeof(ImDrawVert));
+        hash = Mix(
+            hash,
+            commands->IdxBuffer.Data,
+            static_cast<size_t>(commands->IdxBuffer.Size) * sizeof(ImDrawIdx));
+        for (const ImDrawCmd& command : commands->CmdBuffer)
+        {
+            const uint64_t drawn[] = {
+                static_cast<uint64_t>(command.GetTexID()),
+                command.VtxOffset,
+                command.IdxOffset,
+                command.ElemCount};
+            hash = Mix(hash, &command.ClipRect, sizeof command.ClipRect);
+            hash = Mix(hash, drawn, sizeof drawn);
+        }
+    }
+
+    return hash;
+}
+
+/*
+ * Whether ImGui is waiting for a texture to be made, updated or destroyed, which RenderDrawData
+ * does as it draws: the font atlas, when a character is drawn for the first time. Such a frame is
+ * drawn whatever its fingerprint, so the atlas on the GPU never falls behind the one ImGui holds.
+ */
+bool TexturesWaiting(const ImDrawData* drawData)
+{
+    if (drawData->Textures == nullptr)
+    {
+        return false;
+    }
+
+    for (const ImTextureData* texture : *drawData->Textures)
+    {
+        if (texture->Status != ImTextureStatus_OK)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * The end of every frame, drawn or not: what EndDrawing does once a frame is on the screen, which
+ * it can no longer be left to do, since it only does it for a frame it has put there.
+ *
+ * It waits out what is left of the frame, counted from when the last one's wait ended, so the
+ * managed loop turns sixty times a second whatever a turn drew: without the wait a window with
+ * nothing to draw would spin a core. And then it reads the window system's events, last, so that
+ * what deview_poll_input reports and what the next frame is built from are as fresh as they can
+ * be. That is the order raylib kept them in.
+ */
+void Rest()
+{
+    const double left = frameSeconds - (GetTime() - state.ended);
+    if (left > 0.0)
+    {
+        /* Never longer than a frame, whatever the clock has done. */
+        WaitTime(std::min(left, frameSeconds));
+    }
+
+    PollInputEvents();
+    state.ended = GetTime();
+}
+
 void ApplyStyle()
 {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -3004,7 +3416,22 @@ int32_t deview_init(
     }
 
     SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+
+    /* No SetTargetFPS: raylib only holds to it inside EndDrawing, which is no longer called. The
+     * frame is ended, and waited out, by Rest. And nothing about a window that came before this
+     * one says anything about this one, whose clock has started again from nothing. */
+    glfwSetWindowRefreshCallback(glfwGetCurrentContext(), WindowRefreshed);
+    state.presented.clear();
+    state.watched.clear();
+    state.shown = 0;
+    state.stale = true;
+    state.settled = 0;
+    state.tooltipDue = false;
+    state.began = 0.0;
+    state.ended = 0.0;
+    state.pointer = Vector2{};
+    state.width = 0;
+    state.height = 0;
 
     state.context = ImGui::CreateContext();
     ImGui::SetCurrentContext(state.context);
@@ -3054,13 +3481,59 @@ int32_t deview_present(const DeviewScreen* screen)
     }
 
     ImGui::SetCurrentContext(state.context);
-    PumpInput();
-    /* Before the frame asks for its pictures, so one that finished decoding since the last frame is
-     * drawn in this one. */
-    TakeDecoded();
+
+    const double now = GetTime();
+    const float elapsed = state.began > 0.0 && now > state.began
+        ? static_cast<float>(now - state.began)
+        : static_cast<float>(frameSeconds);
+    state.began = now;
+
+    /*
+     * What has arrived since the last present. Each of these is asked every time, whatever the
+     * ones before it said, since each also takes what it finds.
+     *
+     * Before the frame asks for its pictures, so one that finished decoding since the last frame
+     * is drawn in this one.
+     */
+    bool arrived = TakeDecoded();
     /* And its fonts, for that reason and because a font can only be added between frames. */
-    TakeFonts();
+    arrived = TakeFonts() || arrived;
+    arrived = Changed(screen) || arrived;
+    arrived = Arrived() || arrived;
+    arrived = arrived || state.tooltipDue;
+
+    /*
+     * A window nothing is happening to is left alone: no frame is built, and nothing is drawn.
+     * It used to be built, drawn and put on the screen sixty times a second, each one the frame
+     * already there, and under a software rasteriser or over a remote session each of those is the
+     * whole window filled and copied again.
+     *
+     * Left alone only once it is certain the next frame would be the one on the screen. The screen
+     * handed over is the last one byte for byte, nothing has come from the pointer, the keys, the
+     * window system, the decoder or the font finder, no tooltip is waiting to appear, the files
+     * behind the pictures are as they were, and a second of frames built since any of that last
+     * changed have all come out as the frame on the screen. That last is what a spinner fails,
+     * and anything else that moves by itself.
+     */
+    if (!arrived &&
+        !state.stale &&
+        state.settled >= settledFrames)
+    {
+        if (!PicturesRewritten())
+        {
+            Rest();
+            MeasureGrid();
+            TrackPlacement();
+            return 1;
+        }
+
+        arrived = true;
+    }
+
+    PumpInput(elapsed);
     FindFontsFor(screen);
+    state.watched.clear();
+    state.tooltipDue = false;
     ImGui::NewFrame();
     BuildFrame(screen);
     ImGui::Render();
@@ -3076,10 +3549,37 @@ int32_t deview_present(const DeviewScreen* screen)
         SetMouseCursor(cursor);
     }
 
-    BeginDrawing();
-    ClearBackground(Color{24, 24, 24, 255});
-    RenderDrawData(ImGui::GetDrawData());
-    EndDrawing();
+    /*
+     * Drawn only if it is not the frame on the screen: the pointer crossing a pane, a key that did
+     * nothing and the frames that follow any change mostly come out as the frame before them.
+     * Building one costs a fraction of drawing it, and is what all of ImGui's own state is kept
+     * moving by, so those frames are built and not drawn rather than not built.
+     */
+    ImDrawData* drawData = ImGui::GetDrawData();
+    const uint64_t frame = Fingerprint(drawData);
+    if (state.stale ||
+        frame != state.shown ||
+        TexturesWaiting(drawData))
+    {
+        BeginDrawing();
+        ClearBackground(Color{24, 24, 24, 255});
+        RenderDrawData(drawData);
+        rlDrawRenderBatchActive();
+        SwapScreenBuffer();
+        state.shown = frame;
+        state.stale = false;
+        state.settled = 0;
+    }
+    else if (arrived)
+    {
+        state.settled = 0;
+    }
+    else if (state.settled < settledFrames)
+    {
+        state.settled++;
+    }
+
+    Rest();
     ForgetUnusedPictures();
 
     MeasureGrid();
@@ -3210,6 +3710,9 @@ void deview_set_hidden(int32_t hidden)
     }
 
     ClearWindowState(FLAG_WINDOW_HIDDEN);
+    /* The window system asks for a window it has just shown to be drawn. Not waited for: nothing
+     * was keeping what a hidden window showed. */
+    state.stale = true;
 }
 
 void deview_set_clipboard(const char* text)
@@ -3242,6 +3745,8 @@ void deview_focus(void)
     }
 
     SetWindowFocused();
+    /* Shown, restored or raised: drawn again, as in deview_set_hidden. */
+    state.stale = true;
 }
 
 void deview_set_placement(const DeviewPlacement* placement)
@@ -3291,6 +3796,10 @@ void deview_shutdown(void)
     state.font = nullptr;
     state.fontData.clear();
     state.asked.clear();
+
+    state.presented.clear();
+    state.arriving.clear();
+    state.watched.clear();
 
     CloseWindow();
     state.initialised = false;
