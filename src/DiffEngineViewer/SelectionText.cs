@@ -133,6 +133,32 @@ static class SelectionText
                 .Select(_ => _.Text));
 
     /// <summary>
+    /// Whether <see cref="All"/> would hand anything over, asked without building it. A menu asks
+    /// this of both sides as it opens, to leave out an item that would copy nothing, and joining
+    /// a large file's rows into one string to measure it was megabytes for every right click.
+    /// </summary>
+    public static bool Any(QueueEntry entry, PaneSide side)
+    {
+        var lines = 0;
+        foreach (var row in Rows(entry, side))
+        {
+            if (row.Kind == RowKind.Filler)
+            {
+                continue;
+            }
+
+            // A second line is a newline between the two, whatever either holds
+            if (row.Text.Length > 0 ||
+                ++lines > 1)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// What the status line says while something is selected. The universal statement about a
     /// selection: the heads that can draw a highlight also draw this, and the one that cannot
     /// still says a selection exists and how much of one.

@@ -95,7 +95,7 @@ static class ContextMenu
             items.Add(new("Copy selection", CommandKind.Copy));
         }
 
-        if (SelectionText.All(entry, side).Length > 0)
+        if (SelectionText.Any(entry, side))
         {
             items.Add(new("Copy all", side == PaneSide.Left ? CommandKind.CopyLeft : CommandKind.CopyRight));
             if (selectable)
@@ -114,7 +114,7 @@ static class ContextMenu
     /// </summary>
     static void AddCopy(List<MenuItem> items, QueueEntry entry, PaneSide side, CommandKind kind)
     {
-        if (SelectionText.All(entry, side).Length > 0)
+        if (SelectionText.Any(entry, side))
         {
             items.Add(new($"Copy {SelectionText.Header(entry, side)}", kind));
         }

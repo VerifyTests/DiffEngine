@@ -436,6 +436,23 @@ public class SelectionTests
     /// <summary>
     /// Select all ends at the last cell of the last row, not a cell further per wide character.
     /// </summary>
+    // What a menu asks before it offers to copy a side, which has to be what copying it would find
+    [Test]
+    [Arguments("", "one")]
+    [Arguments("\n", "one")]
+    [Arguments("one", "")]
+    [Arguments("one\ntwo", "one")]
+    [Arguments("", "")]
+    public async Task Whether_a_side_has_anything_to_copy_is_what_copying_it_finds(string left, string right)
+    {
+        var entry = Fixtures.Move(left: left, right: right);
+
+        foreach (var side in new[] { PaneSide.Left, PaneSide.Right })
+        {
+            await Assert.That(SelectionText.Any(entry, side)).IsEqualTo(SelectionText.All(entry, side).Length > 0);
+        }
+    }
+
     [Test]
     public async Task Select_all_ends_on_the_last_cell()
     {
