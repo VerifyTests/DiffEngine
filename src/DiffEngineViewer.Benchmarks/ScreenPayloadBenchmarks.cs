@@ -12,7 +12,9 @@ using BenchmarkDotNet.Attributes;
 [MemoryDiagnoser]
 public class ScreenPayloadBenchmarks
 {
-    [Params("ascii", "cjk")]
+    // Box drawing is what a table drawn in a snapshot is made of. The embedded font has it, so
+    // whether a row of it is one segment or one a character is CellGrid's to decide.
+    [Params("ascii", "box", "cjk")]
     public string Text = "";
 
     readonly ScreenPayload payload = new();
@@ -60,6 +62,10 @@ public class ScreenPayloadBenchmarks
                 {
                     // CJK Unified Ideographs, two cells each
                     builder.Append((char) (0x4E00 + (row * 7 + column * 13) % 2000));
+                }
+                else if (Text == "box")
+                {
+                    builder.Append(column % 6 == 0 ? '┼' : '─');
                 }
                 else
                 {
