@@ -99,7 +99,7 @@ static class MenuBuilder
             yield return new ToolStripSeparator();
         }
 
-        yield return new MenuButton($"Discard ({count})", tracker.Clear, Images.Discard);
+        yield return new MenuButton($"Discard ({count})", () => tracker.Clear(),Images.Discard);
         yield return new MenuButton($"Accept all ({count})", () => tracker.AcceptAll(), Images.AcceptAll);
     }
 

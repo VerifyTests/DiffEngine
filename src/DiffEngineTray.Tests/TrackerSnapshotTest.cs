@@ -97,6 +97,29 @@ public class TrackerSnapshotTest
         await discarding;
     }
 
+    /// <summary>
+    /// And so does the click on "Discard (n)", which was left asking the queue from the thread the
+    /// click came in on when the single discard was moved off it: up to fifteen seconds of a tray
+    /// that draws nothing, when a viewer holds the queue and is slow to answer.
+    /// </summary>
+    [Test]
+    public async Task ClearDoesNotWaitOnTheQueue()
+    {
+        using var block = new ManualResetEventSlim();
+        var host = new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null))
+        {
+            DiscardBlock = block
+        };
+        await using var tracker = new RecordingTracker(inline: host);
+
+        var clearing = tracker.Clear();
+
+        await Assert.That(host.DiscardStarted.Wait(TimeSpan.FromSeconds(5))).IsTrue();
+        await Assert.That(clearing.IsCompleted).IsFalse();
+        block.Set();
+        await clearing;
+    }
+
     [Test]
     public async Task AcceptAllForwardsOnce()
     {
@@ -336,7 +359,7 @@ public class TrackerSnapshotTest
         using var viewer = new FakeViewer("Sample.cs:1");
         await using var tracker = new RecordingTracker();
 
-        tracker.Clear();
+        await tracker.Clear();
 
         await Assert.That(viewer.Verbs).Contains("discardall");
         await Assert.That(viewer.Queue).IsEmpty();

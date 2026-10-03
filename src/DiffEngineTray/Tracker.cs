@@ -935,22 +935,42 @@ class Tracker :
     /// make the button lie twice over — it discarded fewer things than it said, and the ones it
     /// skipped came back on the next scan two seconds later.
     /// </para>
+    /// <para>
+    /// The tracked files here, on the calling thread, and the snapshots on a worker, for the
+    /// reason <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a
+    /// socket, and one slow to answer held the thread drawing everything for as long as that
+    /// took. The menu and the hot key discard the task; tests await it.
+    /// </para>
     /// </summary>
-    public void Clear()
+    public Task Clear()
     {
         ((ITrackedFiles) this).DiscardAll();
 
-        // Only forget the cached snapshots when the owner actually discarded them. It used to be
-        // cleared regardless, so a discard the owner never received still emptied the menu - and
-        // everything came back on the next scan two seconds later
-        if (inline.DiscardAll(out var message))
+        return Task.Run(() =>
         {
-            snapshots = [];
-        }
-        else
-        {
-            Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
-        }
+            try
+            {
+                // Only forget the cached snapshots when the owner actually discarded them. It used
+                // to be cleared regardless, so a discard the owner never received still emptied the
+                // menu - and everything came back on the next scan two seconds later
+                if (inline.DiscardAll(out var message))
+                {
+                    snapshots = [];
+                }
+                else
+                {
+                    Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
+                }
+
+                // Nothing waits for the next scan to say so: the files went above, whatever the
+                // queue answered
+                ToggleActive();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle("Failed to discard the pending snapshots", exception);
+            }
+        });
     }
 
     /// <summary>

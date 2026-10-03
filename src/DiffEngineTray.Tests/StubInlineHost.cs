@@ -96,6 +96,8 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
     public bool DiscardAll(out string? message)
     {
         message = null;
+        DiscardStarted.Set();
+        DiscardBlock?.Wait(TimeSpan.FromSeconds(10));
         return true;
     }
 

@@ -7,7 +7,7 @@ public class TrackerClearTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
         tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
-        tracker.Clear();
+        await tracker.Clear();
         await tracker.AssertEmpty();
     }
 

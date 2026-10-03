@@ -107,7 +107,7 @@ public class TrayViewerSyncTest
         var move = pair.AddMove();
         pair.Pump();
 
-        pair.Tracker.Clear();
+        await pair.Tracker.Clear();
 
         var viewer = pair.Pump();
         await Assert.That(viewer.Queue).IsEmpty();
@@ -626,7 +626,7 @@ public class TrayViewerSyncTest
         pair.Queue(sample, 1);
         pair.Queue(other, 7);
 
-        pair.Tracker.Clear();
+        await pair.Tracker.Clear();
 
         await Assert.That(pair.Viewer.Queue).IsEmpty();
         await Assert.That(pair.Listing).IsEmpty();
