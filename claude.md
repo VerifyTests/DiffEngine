@@ -131,6 +131,26 @@ language, none of which returns something to call it on. And a `Remove` of
 `settings.Snapshot("old");` takes the statement, since `settings;` is none, while one whose value
 is awaited, assigned, returned or passed takes only the call.
 
+An accept reads, lexes and rewrites the whole source file, and the rewrite is what costs: a file
+written a moment ago is scanned by whatever watches the drive before the next thing can open it,
+so five hundred snapshots in one 600 KB file were half a minute of writes around a second of
+patching. `InlineApplier.ApplyAll` takes patches together: each file is read once, its patches are
+applied in memory in the order given, each to what the one before it left, and it is written once
+through the same temporary and swap, with the file's lock and mutex held from the read to the
+write. Every patch is told what `Apply` would have told it in turn, and `Apply` is the one-patch
+case of the same code. One thing can only differ: a write that fails fails every patch from the
+first edit on. Both batches use it, a file at a time (`AcceptBatch.Together` in the viewer,
+`OwnedInlineHost.AcceptEvery` in the tray), so the moment up to which a snapshot can still be
+withdrawn from a bulk accept is its file's turn rather than its own. A `SourceScan` rents its map
+from the pool and is disposed for that reason, and keeps its spans as sorted lists rather than
+hash tables: it is built again for every patch, over the whole file.
+
+A passing inline verification clears its staged trio (`InlineStaging.Clear`), which walked the
+project's whole `obj` tree to find the `VerifyInline` directories. The list of those is now kept a
+second, per project, and dropped at once when this process stages anything; the caller's own
+directory and each known directory's write time are still checked on every clear, which is what
+the comment there about not caching "nothing staged" asks for.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**
@@ -169,7 +189,14 @@ is awaited, assigned, returned or passed takes only the call.
   `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared. Only the
   grid is owner drawn: the footer, the context menu, the pane scrollbar and the tooltips are real
   controls, so they get the OS's keyboard handling, theming and screen reader support. The menu is
-  still projected from the same `Screen.Menu` the other heads draw.
+  still projected from the same `Screen.Menu` the other heads draw. A row is handed to GDI+ cut to
+  the cells its pane has, and one more (`RowText.Shown`, read from the front of the row and cut
+  before it is segmented): GDI+ lays out every character it is given before it clips any, so 72
+  rows of 2,000 character lines were 18 ms a paint, and a megabyte line 28. A picture zoomed to
+  half its own size or less is copied out of one scaled copy, made on the pool and kept in
+  `ImageCache`'s composite slot with pan out of the key, where it was scaled from full resolution
+  on every paint, 50 ms for a 4000 by 3000 pair. Between half and full size nothing is kept, since
+  the copy would cost up to the decoded picture again.
 - macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
   ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
 - macOS took the same treatment as Windows: a real menu bar, an `NSMenu` context menu, `NSView`
@@ -184,8 +211,16 @@ is awaited, assigned, returned or passed takes only the call.
   `Runtime` and handed over one a poll, as the WinForms head does and for its reason. The footer
   wraps its buttons, and puts the status on a line of its own when there is no room beside them.
   The font has `calt` and `liga` off, so `<>` or `!=` in a snapshot is drawn as the characters it
-  holds. None of this head can be compiled or run from Windows: CI's `macos-14` job is the first
-  build, and its OSX baselines come from that job's `received-*` artifacts.
+  holds. A spinner invalidates only its own rectangle, but since macOS 11 a view with an automatic
+  backing store may be handed its whole bounds anyway, so the renderer answers a turn two ways:
+  `dirty` and `shows` leave out what the context's clip cannot reach, where it is narrowed, and
+  `lines` and `earlier` keep the `CTLine`s the last two draws made, keyed by the text's bytes and
+  by which colour object, so a draw that changes little lays out little. An enlarged picture below
+  its own size is drawn from a copy at that size (`reduced`), made on the work queue in the fitted
+  copy's slot, except in a capture, past its own size, or when both panes name one picture. None
+  of this head can be compiled or run from Windows: CI's `macos-14` job is the first build, and
+  its OSX baselines come from that job's `received-*` artifacts. That job only captures, so it
+  exercises none of the clip test and none of `reduced`.
 - Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
   the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
   `ViewerSession`'s clamp. Its footer wraps as the macOS one does (`LayOutFooter`), with two
@@ -200,11 +235,13 @@ is awaited, assigned, returned or passed takes only the call.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
   rules about when a header exists at all live in one place and must stay there. A fold is a view:
   `AcceptAll` still sweeps what it hides, which `CollapseTests` pins.
-- Accept-all goes an entry at a time, because it takes as long as the queue is long.
+- Accept-all goes a step at a time, because it takes as long as the queue is long.
   `ViewerSession.BeginAcceptAll` records an `AcceptBatch`, and `AcceptAllRunner` claims an entry
   under `SessionHost`'s lock (`ClaimNext`), applies it outside (`ApplyClaimed`), and records it
   under the lock again - snapshots before files, since whether a delete is held turns on how the
-  snapshots went. The render loop takes that lock every frame, so one transition over the queue
+  snapshots went. A snapshot is claimed with every other one the batch still has to do in the
+  same source file (`AcceptBatch.Together`), and they are written with one read and one write,
+  each still with an outcome of its own: a step is a file where a file has several. The render loop takes that lock every frame, so one transition over the queue
   froze the window for the whole batch. A window's batch runs on a worker, a wire `AcceptAll` on
   its listener thread, and `ViewerSession.Apply(AcceptAll)` is the same steps back to back, which
   is what the tests drive. Owners put `AcceptProgress` on their listings - the tray completes each
@@ -216,7 +253,12 @@ is awaited, assigned, returned or passed takes only the call.
   the header's group is the whole queue. So it goes by the batch's rules, a snapshot the applier
   would not take staying in the queue with what the applier said, and it counts as still needing
   review only its own members. Only the bulk discards are still one transition, since a discard
-  waits on nothing.
+  waits on nothing. A batch's record step is the one inline transition that does not rebuild the
+  list from the queue: it asks `InlineQueue.AcceptInBatch` of a queue holding the claimed entry
+  alone and takes that entry out of the list, or marks it, where it stands. Rebuilt an entry, the
+  bookkeeping grew with the square of the queue, seconds and gigabytes for 2,000 snapshots. For
+  the same reason which entries are visible is found by `QueueProjection`'s one walk without
+  describing the rows, and not asked at all when nothing is folded.
 - Images (`Images/`, extensions in `DiffEngine/Viewer/ImageExtensions.cs`, linked into the viewer so
   the tool registration and the renderer cannot disagree) are a side, not a mode. `FileSide.Read`
   decides text or picture **by extension**, because the expected side of a new snapshot has no bytes
@@ -562,7 +604,7 @@ is awaited, assigned, returned or passed takes only the call.
 - Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations. A wildcard whose matches are all version-named folders takes the highest version; anything else takes the most recently written
 - Tool order can be customized via `DiffEngine_ToolOrder` environment variable
 - `DisabledChecker` respects `DiffEngine_Disabled` env var
-- `ViewerClient` remembers a port found unowned for ten minutes (`RecheckUnownedAfter`), and the library's telling sends - settle, retire, move, delete, the first inline or diff send - skip the connect while that stands. A refused loopback connection costs two seconds on Windows (firewall stealth mode drops the reset), and a green run settles once per inline verification, which was six minutes for a class of 188 inline tests. Probes (`IsOwned`), the hosts and `InlineQueueClient` always connect and correct the memory; so does `SettleAppliedInline`, being one send per accept
+- `ViewerClient` remembers a port found unowned for ten minutes (`RecheckUnownedAfter`), and the library's telling sends - settle, retire, move, delete, the first inline or diff send - skip the connect while that stands. A refused loopback connection costs two seconds on Windows (firewall stealth mode drops the reset), and a green run settles once per inline verification, which was six minutes for a class of 188 inline tests. Probes (`IsOwned`), the hosts and `InlineQueueClient` always ask and correct the memory; so does `SettleAppliedInline`, being one send per accept. Asking, on Windows, is the operating system's listener table first (`ListenerTable`, shared with `PiperClient`): no listener on the port means nobody to connect to, said without the two seconds, and a listener or a table that cannot be read leaves the connect to answer. So the first telling send of a test process, the launch gate's probe and each of its polls no longer wait to be refused. By port alone, whichever address, since the table is only believed when it says nobody is there. Not for a port that accepted a connection in the last second (`TrustOwnerFor`), because reading the table is reading every connection the machine has, and a run of settles to a live owner would pay more for each than the connect costs
 - `TrayDisabledChecker` respects `DiffEngine_TrayDisabled` env var, behind `DiffRunner.TrayDisabled`. Separate from `Disabled` because tracking a pending move is separate from launching a tool: every exit of `InnerLaunch`, `Disabled` included, still calls `AddMove`. `PendingFiles.TrayAvailable` is the single gate
 - Tests use TUnit and Verify for snapshot testing
 - The native pixel snapshots (`PixelTests`) are opt in through `DIFFENGINE_VIEWER_PIXEL_TESTS`, which `MachineSettings.Ignore` has to leave alone: it clears every `DiffEngine_*` variable without regard to case, and clearing that one skipped them on the CI job that sets it, silently, for as long as nobody looked. Every call into the shim goes through one thread (`OnShimThread`), because on Linux the window's GL context belongs to the thread that made it and each test starts on whichever pool thread picks it up. The Linux baselines reproduce in an `ubuntu:24.04` container set up as the `unix` job in `build.yml` is - the shim built from source, Xvfb, llvmpipe - which is also the only way to run the C++ at all from Windows
