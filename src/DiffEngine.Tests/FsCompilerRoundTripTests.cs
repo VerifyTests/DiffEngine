@@ -456,6 +456,9 @@ public class FsCompilerRoundTripTests
         builder.Append($"check \"removedBang\" (removedBang ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("xdup"))}\"\n\n");
         builder.Append(Patch("let removedChain () =\n    Verify(\"x\")\n        .Snapshot(\"dup\")\n        .Snapshot(\"kept\").ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
         builder.Append($"check \"removedChain\" (removedChain ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("kept"))}\"\n\n");
+        // And where a statement was, taken whole for being a call on a name and nothing else
+        builder.Append(Patch("let removedStatement () =\n    let first = Verify(\"x\")\n    first.Snapshot(\"dup\")\n    first.Snapshot(\"dup\")\n    first.ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
+        builder.Append($"check \"removedStatement\" (removedStatement ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("x"))}\"\n\n");
 
         builder.Append(footer);
         return builder.ToString();

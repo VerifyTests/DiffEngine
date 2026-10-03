@@ -1583,6 +1583,62 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// A statement taken whole brought the line under it up onto the line the patch names, as a
+    /// chained call taken with its line did, and where that line was a sibling's statement with
+    /// the same literal the second apply took the sibling. So the line stays here too, empty.
+    /// </summary>
+    [Test]
+    [Arguments("        other.Snapshot(\"dup\");")]
+    [Arguments("        await Verify(value, other).Snapshot(\"dup\");")]
+    public async Task RemoveOfAStatementAppliedTwiceLeavesTheSiblingUnderIt(string sibling)
+    {
+        var source = Method($"        settings.Snapshot(\"dup\");\n{sibling}\n        await Verify(value, settings);");
+        var removed = Method($"\n{sibling}\n        await Verify(value, settings);");
+
+        var first = TryApply(source, 5, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 5, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// One line is kept for a statement over several, written with the file's own line break, as
+    /// it is for a chained call: the first line is the one the patch names.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfAStatementOverSeveralLinesAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var literal = "\"\"\"\n            dup\n            \"\"\"";
+        var source = Method($"        settings.Snapshot(\n            {literal}); // inline for now\n        other.Snapshot(\n            {literal});").Replace("\n", "\r\n");
+        var removed = Method($"\n        other.Snapshot(\n            {literal});").Replace("\n", "\r\n");
+        var anchor = literal.Replace("\n", "\r\n");
+
+        var first = TryApply(source, 5, InlinePatchMode.Remove, anchor, "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 5, InlinePatchMode.Remove, anchor, "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The line is kept only for a Snapshot call that would come up onto it. Under anything else
+    /// the statement's lines go, as they always did.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfAStatementWithNoSnapshotCallUnderItKeepsNoLine()
+    {
+        var source = Method("        settings.Snapshot(\"dup\");\n        var next = 1;\n        other.Snapshot(\"dup\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"dup\"", "", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        var next = 1;\n        other.Snapshot(\"dup\");"));
+    }
+
+    /// <summary>
     /// Shapes where the call is all its statement does and the statement cannot simply be lifted
     /// out: an <c>if</c> with no braces would take the next statement for its body, a line shared
     /// with another statement is not the call's to remove, and a lambda's body is not a statement

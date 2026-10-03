@@ -678,7 +678,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            newSource = Splice(source, from, to, "");
+            newSource = Splice(source, from, to, KeptStatementLine(source, scan, lineStarts, nameStart, from, to));
             return PatchStatus.Applied;
         }
 
@@ -780,6 +780,41 @@ static class InlinePatcher
         builder.Append(source, lineBreak, lineBreakEnd + 1 - lineBreak);
         builder.Append(source, restEnd, source.Length - restEnd);
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// What a statement taken whole leaves where it was: nothing, or one empty line when the line
+    /// under it holds a Snapshot call.
+    /// <para>
+    /// <see cref="KeepingItsLine"/> for a statement, and for its reason.
+    /// <c>settings.Snapshot("dup");</c> over <c>other.Snapshot("dup");</c> brought the second up
+    /// onto the line the patch names, and the next apply of the same Remove had the same line and
+    /// the same anchor to go by and took the sibling's statement.
+    /// </para>
+    /// <para>
+    /// Only where the Snapshot call is on the statement's first line, which is the line the patch
+    /// names and so the one the empty line has to be on. With what it is called on a line above
+    /// it, the line that comes up onto the call's is further down than the one under the
+    /// statement, and one kept line puts neither right.
+    /// </para>
+    /// </summary>
+    /// <param name="source">The source the statement is in.</param>
+    /// <param name="scan">The map of that source.</param>
+    /// <param name="lineStarts">Where each line of the source starts.</param>
+    /// <param name="nameStart">The Snapshot call's name.</param>
+    /// <param name="from">The start of the statement's first line.</param>
+    /// <param name="to">The start of the line after its last.</param>
+    static string KeptStatementLine(string source, SourceScan scan, List<int> lineStarts, int nameStart, int from, int to)
+    {
+        if (to >= source.Length ||
+            LineOf(lineStarts, nameStart) != LineOf(lineStarts, from) ||
+            !CallsOnLine(source, scan, lineStarts, LineOf(lineStarts, to), snapshotName, false).Any())
+        {
+            return "";
+        }
+
+        // The break the statement's last line ended in, which is the file's own
+        return to >= 2 && source[to - 2] == '\r' ? "\r\n" : "\n";
     }
 
     /// <summary>
@@ -958,6 +993,11 @@ static class InlinePatcher
     /// pulls the rest of its statement up onto the line above, so the recorded line then holds
     /// whatever followed, and the statement it named ends just before it.
     /// </para>
+    /// <para>
+    /// A call on a variable has no verify statement to be read off, and its whole statement goes.
+    /// So an empty line over a line holding a Snapshot call is read as removed too, which is what
+    /// <see cref="KeptStatementLine"/> leaves, and <see cref="KeepingItsLine"/>.
+    /// </para>
     /// </summary>
     static bool RemovedAtHint(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, string[] entryPoints)
     {
@@ -983,6 +1023,15 @@ static class InlinePatcher
             return false;
         }
 
+        // An empty line over a Snapshot call is the line a Remove kept, and the only sign there is
+        // of a statement taken whole: nothing above it need be a verify call
+        if (lineHint < lineCount &&
+            IsEmptyLine(source, scan, lineStarts, lineHint) &&
+            CallsOnLine(source, scan, lineStarts, lineHint + 1, snapshotName, false).Any())
+        {
+            return true;
+        }
+
         for (var line = lineHint; line >= floor; line--)
         {
             var calls = CallsOnLine(source, scan, lineStarts, line, entryPoints, true).ToList();
@@ -1004,6 +1053,25 @@ static class InlinePatcher
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether a line holds nothing but whitespace, and is a line of code: an empty line of a
+    /// literal's content is not one anything was taken from.
+    /// </summary>
+    static bool IsEmptyLine(string source, SourceScan scan, List<int> lineStarts, int line)
+    {
+        var start = lineStarts[line - 1];
+        var end = line < lineStarts.Count ? lineStarts[line] : source.Length;
+        for (var index = start; index < end; index++)
+        {
+            if (!char.IsWhiteSpace(source[index]))
+            {
+                return false;
+            }
+        }
+
+        return scan.IsCode(start);
     }
 
     /// <summary>
