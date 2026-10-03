@@ -24,6 +24,42 @@ public class ImageCacheTests
     }
 
     /// <summary>
+    /// Kept with its colours multiplied by their alpha, which is what a paint's buffer holds, so
+    /// drawing from it converts nothing: the way a decoder hands it over, every paint of an
+    /// enlarged picture multiplied every pixel it read. An opaque pixel is the one in the file,
+    /// and a translucent one keeps its alpha.
+    /// </summary>
+    [Test]
+    public async Task DecodesPremultiplied()
+    {
+        var path = Write("premultiplied.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var cache = new ImageCache();
+        using var file = new Bitmap(path);
+
+        var picture = (Bitmap) cache.Get(path, null)!;
+
+        await Assert.That(picture.PixelFormat).IsEqualTo(System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+        var translucent = 0;
+        for (var x = 0; x < 8; x++)
+        {
+            var expected = file.GetPixel(x, 0);
+            var kept = picture.GetPixel(x, 0);
+            await Assert.That(kept.A).IsEqualTo(expected.A);
+            if (expected.A == 255)
+            {
+                await Assert.That(kept).IsEqualTo(expected);
+            }
+            else
+            {
+                translucent++;
+            }
+        }
+
+        // Or the sample has stopped fading out, and this compares only what cannot differ
+        await Assert.That(translucent).IsGreaterThan(0);
+    }
+
+    /// <summary>
     /// The hazard this cache is written around. GDI+ holds the stream it was handed for as long as
     /// the image lives, so decoding straight from the file would make the viewer the reason its own
     /// accept fails.

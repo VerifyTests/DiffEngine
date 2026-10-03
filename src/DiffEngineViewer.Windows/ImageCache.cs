@@ -496,11 +496,41 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
             // received file is one that blocks the accept it exists to perform.
             using var stream = new MemoryStream(FileSide.ReadBytes(path));
             using var decoded = new Bitmap(stream);
-            return new Bitmap(decoded);
+            return Premultiplied(decoded);
         }
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// A copy of <paramref name="decoded"/> with its colours already multiplied by their alpha,
+    /// which is what the double buffer a paint draws into holds. Kept the way a decoder hands it
+    /// over, GDI+ multiplied every pixel it read on every paint that drew from it. For a picture
+    /// enlarged to between half its size and its own, which is scaled on every paint, that was
+    /// 15 ms a paint for a pair of 4000 by 3000 pictures and is 9.
+    /// <para>
+    /// Not the same bytes on screen: a translucent pixel is rounded when it is multiplied rather
+    /// than after it is filtered, which moves it by one level in 255 at most and an opaque one
+    /// not at all.
+    /// </para>
+    /// </summary>
+    static Bitmap Premultiplied(Bitmap decoded)
+    {
+        var copy = new Bitmap(decoded.Width, decoded.Height, PixelFormat.Format32bppPArgb);
+        try
+        {
+            using var graphics = Graphics.FromImage(copy);
+            // Its pixels and nothing under them, so nothing to blend with
+            graphics.CompositingMode = CompositingMode.SourceCopy;
+            graphics.DrawImage(decoded, new Rectangle(0, 0, decoded.Width, decoded.Height));
+            return copy;
+        }
+        catch
+        {
+            copy.Dispose();
+            throw;
         }
     }
 
