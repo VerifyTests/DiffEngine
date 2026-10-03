@@ -30,7 +30,24 @@ public class TextDiffBenchmarks
         var lines = expected.Split('\n');
         Array.Reverse(lines);
         reordered = string.Join('\n', lines);
+        // Every line survives, in runs of fifty, one run in four moved to somewhere else: what
+        // sorting a list by another key, or moving its sections about, leaves. Reversed, nothing
+        // is still in order, so there is nothing for a diff to find however it looks. Here most
+        // of an order survives, and a diff is as good as how much of it is kept.
+        var random = new Random(7);
+        var runs = expected.Split('\n').Chunk(50).ToArray();
+        var places = Enumerable.Range(0, runs.Length)
+            .Select(_ => random.Next(4) == 0 ? random.Next(runs.Length) : _)
+            .ToArray();
+        Array.Sort(places, runs);
+        runsMoved = string.Join('\n', runs.SelectMany(_ => _));
     }
+
+    string runsMoved = "";
+
+    [Benchmark]
+    public int SameLinesWithRunsMoved() =>
+        LineDiff.Build(expected, runsMoved).Entries.Count;
 
     [Benchmark]
     public int OnePercentChanged() =>
