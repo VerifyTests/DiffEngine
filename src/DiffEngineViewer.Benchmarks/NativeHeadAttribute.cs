@@ -101,7 +101,6 @@ sealed class NativeHeadDiagnoser : IDiagnoser
             new()
             {
                 Operations = end.Operations - start.Operations,
-                Turns = end.Turns - start.Turns,
                 Drawn = end.Drawn - start.Drawn,
                 Triangles = end.Triangles - start.Triangles,
                 ProcessorTime = end.ProcessorTime - start.ProcessorTime
@@ -117,8 +116,8 @@ sealed class NativeHeadDiagnoser : IDiagnoser
             yield break;
         }
 
-        // Counted by the benchmark methods themselves rather than taken from the results, so the
-        // figures do not rest on which of BenchmarkDotNet's iterations fall between its two signals.
+        // Counted as they run rather than taken from the results, so the figures do not rest on
+        // which of BenchmarkDotNet's iterations fall between its two signals.
         double operations = run.Totals.Operations;
         yield return new(processorTime, run.Totals.ProcessorTime / operations);
         if (run.Server >= 0)
@@ -146,7 +145,9 @@ sealed class NativeHeadDiagnoser : IDiagnoser
 
         public string Legend => legend;
 
-        public string NumberFormat => "0.##";
+        // To the thousandth, since a time is shown in the unit Mean is, and an idle second's
+        // processor time is a few thousandths of the second it is measured against.
+        public string NumberFormat => "0.###";
 
         public UnitType UnitType => unitType;
 

@@ -10,11 +10,17 @@ using System.Runtime.InteropServices;
 /// <para>
 /// A frame's time on the clock says little about what it cost. The shim holds the loop to sixty
 /// frames a second, so a frame that took one millisecond to draw and one that took ten both come
-/// back after 16.7. What is counted around every turn instead is the processor time the process
-/// spent, on every thread, since a software rasteriser spreads a frame over several, and what was
-/// drawn, which is asked of OpenGL itself: the primitives generated between the start of a turn
-/// and its end are the triangles the shim submitted, whichever rasteriser then filled them, and a
-/// turn that generated none put nothing on the screen.
+/// back after 16.7. What is counted around the turns of an operation instead is the processor
+/// time the process spent, on every thread, since a software rasteriser spreads a frame over
+/// several, and what was drawn, which is asked of OpenGL itself: the primitives generated between
+/// the start of a turn and its end are the triangles the shim submitted, whichever rasteriser
+/// then filled them, and a turn that generated none put nothing on the screen.
+/// </para>
+/// <para>
+/// Each turn has a query of its own, and none is read until the operation's turns are over and
+/// the clock has been read. Reading one has llvmpipe finish whatever it is holding, on all its
+/// threads, and for a turn that drew nothing that is work the question itself made: read turn by
+/// turn, it would be most of what a second costs a window that draws nothing.
 /// </para>
 /// <para>
 /// Every call into the shim has to come from the thread that opened the window, and so does every
@@ -38,13 +44,18 @@ sealed unsafe class NativeHead : IDisposable
     static int? server;
     static bool serverSought;
 
-    readonly IViewerWindow window;
-    readonly uint query;
+    /// <summary>
+    /// The most turns one operation has: a second of them.
+    /// </summary>
+    public const int MostTurns = 60;
 
-    NativeHead(IViewerWindow window, uint query)
+    readonly IViewerWindow window;
+    readonly uint[] queries;
+
+    NativeHead(IViewerWindow window, uint[] queries)
     {
         this.window = window;
-        this.query = query;
+        this.queries = queries;
     }
 
     /// <summary>
@@ -85,54 +96,65 @@ sealed unsafe class NativeHead : IDisposable
             throw new InvalidOperationException(error);
         }
 
-        uint query;
-        Gl.GenQueries(1, &query);
-        var head = new NativeHead(window, query);
+        var queries = new uint[MostTurns];
+        fixed (uint* ids = queries)
+        {
+            Gl.GenQueries(queries.Length, ids);
+        }
+
+        var head = new NativeHead(window, queries);
 
         // The first frame is drawn before the window's size in cells is known, as the loop's is.
-        head.Turn(ScreenBuilder.Build(SessionState.Start(ViewerMode.File)), out var input);
+        window.Present(ScreenBuilder.Build(SessionState.Start(ViewerMode.File)));
+        var input = window.Poll();
         head.Columns = input.Columns;
         head.Rows = input.Rows;
         return head;
     }
 
     /// <summary>
-    /// One turn of the loop.
+    /// One operation of a benchmark: so many turns of the loop on one screen, counted.
     /// </summary>
-    public bool Turn(Screen screen) =>
-        Turn(screen, out _);
-
-    bool Turn(Screen screen, out ViewerInput input)
+    public bool Run(Screen screen, int turns = 1)
     {
+        var open = true;
         var before = ProcessorTime();
-        Gl.BeginQuery(Gl.PrimitivesGenerated, query);
-        var open = window.Present(screen);
-        Gl.EndQuery(Gl.PrimitivesGenerated);
-        uint triangles;
-        Gl.GetQueryObject(query, Gl.QueryResult, &triangles);
-        input = window.Poll();
-
-        Totals.ProcessorTime += ProcessorTime() - before;
-        Totals.Triangles += triangles;
-        Totals.Turns++;
-        if (triangles > 0)
+        for (var turn = 0; turn < turns; turn++)
         {
-            Totals.Drawn++;
+            Gl.BeginQuery(Gl.PrimitivesGenerated, queries[turn]);
+            open &= window.Present(screen);
+            Gl.EndQuery(Gl.PrimitivesGenerated);
+            window.Poll();
         }
 
+        Totals.ProcessorTime += ProcessorTime() - before;
+
+        for (var turn = 0; turn < turns; turn++)
+        {
+            uint triangles;
+            Gl.GetQueryObject(queries[turn], Gl.QueryResult, &triangles);
+            Totals.Triangles += triangles;
+            if (triangles > 0)
+            {
+                Totals.Drawn++;
+            }
+        }
+
+        Totals.Operations++;
         return open;
     }
 
     /// <summary>
-    /// Turns the loop for as long as it takes a screen to come to rest: its pictures decoded on
-    /// the shim's own thread and handed over, and whatever the shim does in the frames after a
-    /// change done with.
+    /// Turns the loop, uncounted, for as long as it takes a screen to come to rest: its pictures
+    /// decoded on the shim's own thread and handed over, and whatever the shim does in the frames
+    /// after a change done with.
     /// </summary>
     public void Settle(Screen screen, int turns = 180)
     {
         for (var turn = 0; turn < turns; turn++)
         {
-            Turn(screen);
+            window.Present(screen);
+            window.Poll();
         }
     }
 
@@ -317,17 +339,15 @@ sealed unsafe class NativeHead : IDisposable
 }
 
 /// <summary>
-/// What turns of the loop have added up to.
+/// What the operations run so far have added up to.
 /// </summary>
 struct NativeHeadTotals
 {
     /// <summary>
-    /// Runs of a benchmark method, which is what a figure is reported per: one turn for a
-    /// benchmark of a frame, sixty for a benchmark of a second.
+    /// What a figure is reported per: one turn for a benchmark of a frame, sixty for a benchmark
+    /// of a second.
     /// </summary>
     public long Operations;
-
-    public long Turns;
 
     /// <summary>
     /// Turns that submitted anything to draw.
@@ -337,7 +357,7 @@ struct NativeHeadTotals
     public long Triangles;
 
     /// <summary>
-    /// Nanoseconds of processor time this process spent inside turns.
+    /// Nanoseconds of processor time this process spent inside the turns.
     /// </summary>
     public long ProcessorTime;
 }

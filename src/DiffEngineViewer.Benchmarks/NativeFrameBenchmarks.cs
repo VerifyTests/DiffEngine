@@ -73,11 +73,8 @@ public class NativeFrameBenchmarks
     public bool TranslucentPictures() =>
         Frame();
 
-    bool Frame()
-    {
-        NativeHead.Totals.Operations++;
-        return head!.Turn(screens[turn++ & 1]);
-    }
+    bool Frame() =>
+        head!.Run(screens[turn++ & 1]);
 
     void Open(Func<int, int, SessionState> scene)
     {
