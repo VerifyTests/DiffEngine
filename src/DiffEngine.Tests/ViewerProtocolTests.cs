@@ -1047,9 +1047,14 @@ public class ViewerProtocolTests
     /// Retried with nothing between them that was ten thousand failed accepts a second, measured
     /// on Linux under a low descriptor limit, and a core for as long as it went on.
     /// <para>
-    /// Half a second of nothing but failures is the first, the retry it gets at once, and then
-    /// one each <see cref="ViewerServer.FailedAcceptWait"/>. The bound is several times that and
-    /// thousands of times under what the loop made of it before.
+    /// Nothing but failures is the first, the retry it gets at once, and then one each
+    /// <see cref="ViewerServer.FailedAcceptWait"/>. The bound is twice that rate and some, which
+    /// is thousands of times under what the loop made of it before.
+    /// </para>
+    /// <para>
+    /// The retry is waited for, and the stretch that is counted is timed, rather than either
+    /// being taken to fit in half a second. On a runner of four cores with the rest of the suite
+    /// running, the loop's first continuation had not been given a thread in that long.
     /// </para>
     /// </summary>
     [Test]
@@ -1068,12 +1073,23 @@ public class ViewerProtocolTests
         }
 
         var serving = ViewerServer.Serve(Accept, _ => _.Dispose(), cancel.Token);
+        var retried = Stopwatch.StartNew();
+        while (Volatile.Read(ref accepts) < 2 &&
+               retried.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            await Task.Delay(10);
+        }
+
+        var before = Volatile.Read(ref accepts);
+        var counted = Stopwatch.StartNew();
         await Task.Delay(500);
+        var during = Volatile.Read(ref accepts) - before;
+        var waits = counted.Elapsed.TotalMilliseconds / ViewerServer.FailedAcceptWait.TotalMilliseconds;
         cancel.Cancel();
         await Wait(serving);
 
-        await Assert.That(Volatile.Read(ref accepts)).IsGreaterThan(1);
-        await Assert.That(Volatile.Read(ref accepts)).IsLessThan(30);
+        await Assert.That(before).IsGreaterThan(1);
+        await Assert.That(during).IsLessThan((int) (waits * 2) + 5);
     }
 
     /// <summary>
