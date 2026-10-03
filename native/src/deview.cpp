@@ -2240,9 +2240,40 @@ unsigned int LetterOf(const State::KeyPress& press)
     return 0;
 }
 
-/* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
- * acts once however long it is held. */
-int KeyOf(const State::KeyPress& press)
+/*
+ * Whether a command goes on for as long as its key is held, at the rate the window system repeats
+ * a key: the ones that move through what is being read, and no other.
+ *
+ * A letter repeated like an arrow. A held a accepted the entry on screen and then every one that
+ * took its place, into source, none of them read, and a held d discarded them. The WinForms head
+ * gives what changes the queue a press each for that reason. Here the rest of what is not
+ * navigation acts once as well: a held m, r or j is the view flipping thirty times a second, and
+ * there is nothing more for a held q or 0 to do.
+ */
+bool Repeats(int key)
+{
+    switch (key)
+    {
+        case DEVIEW_KEY_SCROLL_UP:
+        case DEVIEW_KEY_SCROLL_DOWN:
+        case DEVIEW_KEY_PAGE_UP:
+        case DEVIEW_KEY_PAGE_DOWN:
+        case DEVIEW_KEY_NEXT_CHANGE:
+        case DEVIEW_KEY_PREVIOUS_CHANGE:
+        case DEVIEW_KEY_NEXT_VARIANT:
+        case DEVIEW_KEY_PREVIOUS_PAGE:
+        case DEVIEW_KEY_NEXT_PAGE:
+        case DEVIEW_KEY_ZOOM_IN:
+        case DEVIEW_KEY_ZOOM_OUT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/* What a key going down asks for, or none for a key this head has no use for, whether it is the
+ * press or one of its repeats: see KeyOf. */
+int Pressed(const State::KeyPress& press)
 {
     const unsigned int letter = LetterOf(press);
 
@@ -2319,30 +2350,26 @@ int KeyOf(const State::KeyPress& press)
         }
     }
 
-    /* The arrows and paging go on for as long as they are held, at the rate the window system
-     * repeats a key: one row a press was all a held arrow scrolled. */
     switch (press.key)
     {
         case KEY_UP: return DEVIEW_KEY_SCROLL_UP;
         case KEY_DOWN: return DEVIEW_KEY_SCROLL_DOWN;
         case KEY_PAGE_UP: return DEVIEW_KEY_PAGE_UP;
         case KEY_PAGE_DOWN: return DEVIEW_KEY_PAGE_DOWN;
-        default: break;
-    }
-
-    if (press.repeated)
-    {
-        return DEVIEW_KEY_NONE;
-    }
-
-    switch (press.key)
-    {
         case KEY_HOME: return DEVIEW_KEY_HOME;
         case KEY_END: return DEVIEW_KEY_END;
         case KEY_TAB: return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
         case KEY_ESCAPE: return DEVIEW_KEY_QUIT;
         default: return DEVIEW_KEY_NONE;
     }
+}
+
+/* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
+ * acts once however long it is held. */
+int KeyOf(const State::KeyPress& press)
+{
+    const int key = Pressed(press);
+    return press.repeated && !Repeats(key) ? DEVIEW_KEY_NONE : key;
 }
 
 /*
