@@ -189,6 +189,28 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A move and a delete pending on the same verified file, swept from the attached viewer. The
+    /// tray carries out its moves and then its deletes, so the received file was moved into place
+    /// and then deleted. The delete stays pending instead, and the window goes on showing it.
+    /// </summary>
+    [Test]
+    public async Task ViewerAcceptAllKeepsTheFileATrackedMoveJustWrote()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        pair.Pump();
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+
+        var viewer = pair.Pump();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(pair.Tracker.Moves).IsEmpty();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([TrackedKeys.ForDelete(move.Target)]);
+    }
+
+    /// <summary>
     /// The arrangement the tray sets up at login: it owns the queue and a viewer displays it. An
     /// accept-all clicked in that viewer runs in the tray, and the window follows it there - each
     /// entry leaving as it lands, and the tray's count in the status line - rather than saying
