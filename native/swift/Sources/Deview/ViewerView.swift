@@ -468,11 +468,19 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // was. German, French, Nordic, Spanish and Italian layouts have them behind Option, and
         // with the modifiers left out the key is the digit or the letter printed on it, so those
         // readers could not turn a page from the keyboard.
+        //
+        // The zoom keys the same way, for a layout that has one of them behind Option. Shift is
+        // no part of this: it is kept by both readings, so equals unshifted and plus with shift
+        // held are each what was typed on a US keyboard, and each zooms in, as they did.
         switch event.characters {
         case "[":
             return DEVIEW_KEY_PREVIOUS_PAGE.value
         case "]":
             return DEVIEW_KEY_NEXT_PAGE.value
+        case "=", "+":
+            return DEVIEW_KEY_ZOOM_IN.value
+        case "-":
+            return DEVIEW_KEY_ZOOM_OUT.value
         default:
             break
         }
