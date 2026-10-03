@@ -55,6 +55,32 @@ public static class InlineStaging
         Clear(sourceFile, line, memberName, extraDirectory, origin, null);
 
     /// <summary>
+    /// Deletes what this process's framework staged for a call site that now passes, and leaves
+    /// what any other framework staged for it. Returns how many trios were cleared.
+    /// </summary>
+    /// <remarks>
+    /// The staging half of <see cref="DiffRunner.SettleInline(string, int, string?, string?)" />,
+    /// and beside <see cref="Clear(string, int, string?, string?, string?, string?)" /> for the
+    /// reason that one is beside <see cref="DiffRunner.RetireInline" />: "this framework now
+    /// passes" and "there is no inline snapshot here for any of them" are different statements.
+    /// Clear could already be given an origin to say the first, but nothing outside this assembly
+    /// can name the framework the way <see cref="InlinePatchFile.Write" /> and the queue label it,
+    /// so no caller passed one. Every settle was the second statement, and in a multi-targeted
+    /// run the framework that passed cleared the trio of the one still failing.
+    /// <para>
+    /// A process whose framework cannot be determined clears as Clear does with no origin. It
+    /// stages without a label for the same reason, so there is nothing to scope by.
+    /// </para>
+    /// </remarks>
+    /// <param name="sourceFile">The source file the settled call site is in.</param>
+    /// <param name="line">The line the call site was recorded at.</param>
+    /// <param name="memberName">The member the call site is in, used where the line has moved.</param>
+    /// <param name="extraDirectory">A staging root to clear beside the source project's.</param>
+    /// <param name="value">What the settling call's expected argument holds.</param>
+    public static int Settle(string sourceFile, int line, string? memberName, string? extraDirectory = null, string? value = null) =>
+        Clear(sourceFile, line, memberName, extraDirectory, RuntimeMoniker.Current, value);
+
+    /// <summary>
     /// Deletes the staged files for a call site, for a run that has just settled or retired it.
     /// Returns how many trios were cleared.
     /// </summary>

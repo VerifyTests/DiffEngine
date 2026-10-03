@@ -182,9 +182,10 @@ public sealed class InlinePatch(
 
     /// <summary>
     /// Short target framework of the test process that produced this patch ("net9.0", "net48").
-    /// Stamped by <see cref="DiffRunner.AddInlineAsync"/> in the sending process, never by a
-    /// parser or a re-host, so a patch that crosses processes keeps the framework it was born
-    /// under. Null means unknown origin, which selects last-writer-wins queue semantics.
+    /// Stamped by <see cref="DiffRunner.AddInlineAsync"/> in the sending process, and by
+    /// <see cref="InlinePatchFile.Write"/> in the one staging it, never by a parser or a re-host,
+    /// so a patch that crosses processes keeps the framework it was born under. Null means unknown
+    /// origin, which selects last-writer-wins queue semantics.
     /// </summary>
     public string? Framework { get; set; }
 
