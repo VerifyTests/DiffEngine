@@ -1260,7 +1260,6 @@ void UpdateSelection(
             mouse.y > bodyMin.y + bodyAvail.y ||
             mouse.x > bodyMin.x + bodyAvail.x ||
             leftHit.cellLeft < 0.0f ||
-            leftHit.textLeft < 0.0f ||
             mouse.x < leftHit.cellLeft ||
             /* The splitter's grab zone overlaps the left pane's edge, and a drag that started
              * there would otherwise also select whatever it began over. */
@@ -1270,12 +1269,17 @@ void UpdateSelection(
         }
 
         const bool right = rightHit.cellLeft >= 0.0f && mouse.x >= rightHit.cellLeft;
-        if (right && rightHit.textLeft < 0.0f)
+        const PaneHit& hit = right ? rightHit : leftHit;
+
+        /* Nothing but filler on screen in the pane that was pressed, so nothing there to select.
+         * Asked of that pane and of no other: asked of the left one whichever was pressed, a left
+         * pane of filler ruled out the right pane's text with it, which is the whole of a pending
+         * delete and wherever a long removed block has been scrolled to. */
+        if (hit.textLeft < 0.0f)
         {
             return;
         }
 
-        const PaneHit& hit = right ? rightHit : leftHit;
         const DeviewPane& pane = screen->panes[right ? 1 : 0];
         state.dragging = true;
         state.dragSide = right ? 1 : 0;
