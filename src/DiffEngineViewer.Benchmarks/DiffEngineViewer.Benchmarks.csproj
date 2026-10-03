@@ -9,6 +9,12 @@
     <!-- Signed for InternalsVisibleTo, and stated here for the reason DiffEngine.Benchmarks gives. -->
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\key.snk</AssemblyOriginatorKeyFile>
+    <!--
+    The natives of the machine that builds this, since that is the one that runs it. The osx folder
+    is where SkiaSharp and HarfBuzzSharp keep their universal macOS binaries.
+    -->
+    <DocumentsRids>$(NETCoreSdkPortableRuntimeIdentifier)</DocumentsRids>
+    <DocumentsRids Condition="$(DocumentsRids.StartsWith('osx'))">osx;$(DocumentsRids)</DocumentsRids>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,5 +27,12 @@
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
   </ItemGroup>
+
+  <!--
+  The documents folder beside the benchmarks, where DocumentPlugin.Find looks for it, so
+  DocumentWatchBenchmarks draws with PDFium and Morph as a viewer does. For build order and a copy
+  of the folder, nothing else: none of its packages are referenced here.
+  -->
+  <Import Project="..\DiffEngineViewer.Documents\Documents.targets" />
 
 </Project>
