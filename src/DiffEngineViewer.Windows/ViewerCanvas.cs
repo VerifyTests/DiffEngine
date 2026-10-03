@@ -152,6 +152,12 @@ sealed class ViewerCanvas : Control
     /// </summary>
     public event Action<int, Point>? QueueItemRightClicked;
 
+    /// <summary>
+    /// A right click over a pane, and where in this control it landed, which anchors the popup as
+    /// it does for a queue row.
+    /// </summary>
+    public event Action<PaneSide, Point>? PaneRightClicked;
+
     /// <summary>Notches, positive for up, matching what the shim reports.</summary>
     public event Action<int>? Scrolled;
 
@@ -386,6 +392,29 @@ sealed class ViewerCanvas : Control
         return (side, ScrollTop(side) + row, ColumnAt(point.X, side));
     }
 
+    /// <summary>
+    /// The pane a point is in, or null when it is in neither: the whole of the pane under its
+    /// header, whether or not a row or a picture is under the point.
+    /// </summary>
+    internal PaneSide? PaneAt(Point point)
+    {
+        if (screen is null)
+        {
+            return null;
+        }
+
+        var panes = Panes();
+        if (point.X < panes.Left ||
+            point.X >= panes.Left + panes.Width ||
+            point.Y < BodyTop ||
+            point.Y >= BodyTop + BodyCapacity * Cell.Height)
+        {
+            return null;
+        }
+
+        return point.X < panes.Left + panes.Half ? PaneSide.Left : PaneSide.Right;
+    }
+
     int ScrollTop(PaneSide side) =>
         side == PaneSide.Left ? screen!.Left.ScrollTop : screen!.Right.ScrollTop;
 
@@ -429,6 +458,7 @@ sealed class ViewerCanvas : Control
         var graphics = e.Graphics;
         graphics.Clear(Palette.Background);
         spinners.Clear();
+        pictures.Clear();
         if (screen is null)
         {
             return;
@@ -518,6 +548,10 @@ sealed class ViewerCanvas : Control
             return;
         }
 
+        // Where the pointer finds it, whether or not it has been decoded yet: the wheel turned over
+        // a spinner is still turned over a picture
+        pictures.Add(new(available, image));
+
         var decoded = Synchronous
             ? images.Get(image.Path, image.Hash)
             : images.Get(image.Path, image.Hash, Invalidate);
@@ -532,25 +566,15 @@ sealed class ViewerCanvas : Control
             return;
         }
 
-        // Fitted, and never enlarged past its own size: a snapshot is judged against the pixels it
-        // has, and an eight pixel icon stretched across a pane is an interpolation of them rather
-        // than a look at them.
-        //
-        // Scaled from the size the model carries rather than from the decoded bitmap, so all three
-        // heads place a picture identically even where their decoders would not agree.
-        var scale = Math.Min(
-            Math.Min(
-                available.Width / (double) image.Width,
-                available.Height / (double) image.Height),
-            1);
-        var drawn = new Size(
-            Math.Max(1, (int) (image.Width * scale)),
-            Math.Max(1, (int) (image.Height * scale)));
-        var bounds = new Rectangle(
-            available.X + (available.Width - drawn.Width) / 2,
-            available.Y + (available.Height - drawn.Height) / 2,
-            drawn.Width,
-            drawn.Height);
+        var placement = PicturePlacement.Of(available, image);
+        var bounds = placement.Bounds;
+        if (image.Zoom > 1)
+        {
+            DrawEnlarged(graphics, image, placement);
+            return;
+        }
+
+        var drawn = bounds.Size;
 
         // Copied rather than drawn: the checkerboard and the scaled picture are composed once per
         // picture and size, on the pool, and every paint after that is a copy of the result
@@ -586,6 +610,135 @@ sealed class ViewerCanvas : Control
         using var pen = new Pen(Palette.Rule);
         graphics.DrawRectangle(pen, bounds.X - 1, bounds.Y - 1, bounds.Width + 1, bounds.Height + 1);
     }
+
+    /// <summary>
+    /// A picture the reader has zoomed into: the part of it that shows, drawn straight from the
+    /// decoded picture rather than from a composite of the whole of it at that size, which at the
+    /// last step would be hundreds of megabytes to show one corner.
+    /// <para>
+    /// On this thread, on every paint. It is the pane's worth of pixels however far in it is, and a
+    /// drag asks for a different part on every frame, so there is nothing a cache could keep.
+    /// </para>
+    /// </summary>
+    void DrawEnlarged(Graphics graphics, ImagePane image, PicturePlacement placement)
+    {
+        var bounds = placement.Bounds;
+        // The decoded picture, unless a compose on the pool still has it from when it was fitted.
+        // Then the composite it last made, which is the same picture smaller: rough for the frame
+        // or two until the compose lands and repaints.
+        var picture = images.Idle(image.Path) ?? images.Composited(image.Path);
+        if (picture is null)
+        {
+            return;
+        }
+
+        var source = new RectangleF(
+            placement.Source.X * picture.Width,
+            placement.Source.Y * picture.Height,
+            placement.Source.Width * picture.Width,
+            placement.Source.Height * picture.Height);
+
+        graphics.FillRectangle(Checker(bounds.Location), bounds);
+        var interpolation = graphics.InterpolationMode;
+        var offset = graphics.PixelOffsetMode;
+        // Its pixels as they are once it is past its own size, which is what zooming that far in
+        // is for: smoothed, a one pixel difference between the two sides is a blur on both.
+        graphics.InterpolationMode = placement.Size.Width >= picture.Width
+            ? InterpolationMode.NearestNeighbor
+            : InterpolationMode.HighQualityBilinear;
+        graphics.PixelOffsetMode = PixelOffsetMode.Half;
+        graphics.DrawImage(picture, bounds, source, GraphicsUnit.Pixel);
+        graphics.InterpolationMode = interpolation;
+        graphics.PixelOffsetMode = offset;
+
+        using var pen = new Pen(Palette.Rule);
+        graphics.DrawRectangle(pen, bounds.X - 1, bounds.Y - 1, bounds.Width + 1, bounds.Height + 1);
+    }
+
+    /// <summary>
+    /// The checkerboard as a brush, its squares starting at <paramref name="origin"/> as the
+    /// composed one's do. A tile rather than a rectangle a square, because this is filled on every
+    /// paint of an enlarged picture, where the composed one is drawn once per size.
+    /// </summary>
+    TextureBrush Checker(Point origin)
+    {
+        if (checkerBrush is null)
+        {
+            using var tile = new Bitmap(checker * 2, checker * 2, PixelFormat.Format32bppPArgb);
+            using (var graphics = Graphics.FromImage(tile))
+            {
+                DrawChecker(graphics, new(0, 0, checker * 2, checker * 2));
+            }
+
+            checkerBrush = new(tile);
+        }
+
+        checkerBrush.ResetTransform();
+        checkerBrush.TranslateTransform(origin.X, origin.Y);
+        return checkerBrush;
+    }
+
+    TextureBrush? checkerBrush;
+
+    /// <summary>
+    /// Where the last paint put each side's picture, or the space one is on its way to. What the
+    /// wheel and a drag are resolved against.
+    /// </summary>
+    readonly List<PictureArea> pictures = [];
+
+    readonly record struct PictureArea(Rectangle Available, ImagePane Image);
+
+    PictureArea? PictureAt(Point point)
+    {
+        foreach (var picture in pictures)
+        {
+            if (picture.Available.Contains(point))
+            {
+                return picture;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// An enlarged picture being dragged about: where the button went down, and the placement it
+    /// had then, which is what the drag is measured against for as long as it is held.
+    /// </summary>
+    bool panning;
+
+    Point panStart;
+
+    PicturePlacement panFrom;
+
+    /// <summary>
+    /// Where a drag has left the middle of the picture, until <see cref="TakePan"/> reports it.
+    /// </summary>
+    PanPoint? pan;
+
+    /// <summary>
+    /// Where a drag of an enlarged picture has moved it to since the last call, for
+    /// <see cref="ViewerForm.Drain" />, or null when it has not moved.
+    /// </summary>
+    public PanPoint? TakePan()
+    {
+        var taken = pan;
+        pan = null;
+        return taken;
+    }
+
+    /// <summary>
+    /// Wheel notches turned over a picture, or with control held: positive for up, which is in.
+    /// </summary>
+    public event Action<int>? Zoomed;
+
+    /// <summary>
+    /// Where the last paint put the pictures, for the tests.
+    /// </summary>
+    internal IReadOnlyList<Rectangle> PictureAreas =>
+        pictures
+            .Select(_ => _.Available)
+            .ToList();
 
     /// <summary>
     /// Something turning, centred in <paramref name="available"/>, while the picture for it is on
@@ -824,6 +977,30 @@ sealed class ViewerCanvas : Control
             return;
         }
 
+        // Anywhere in a pane, its text or under it: the menu is the pane's, and a file of three
+        // lines has most of its pane under them.
+        if (e.Button == MouseButtons.Right)
+        {
+            if (PaneAt(e.Location) is { } side)
+            {
+                PaneRightClicked?.Invoke(side, e.Location);
+            }
+
+            return;
+        }
+
+        // A picture enlarged past its pane is taken hold of and moved. One that fits has nowhere to
+        // go, so a press on it is the nothing it always was.
+        if (e.Button == MouseButtons.Left &&
+            PictureAt(e.Location) is { Image.Zoom: > 1 } picture)
+        {
+            panning = true;
+            Capture = true;
+            panStart = e.Location;
+            panFrom = PicturePlacement.Of(picture.Available, picture.Image);
+            return;
+        }
+
         // Not gated on there being a queue: file mode has two panes and no column, and its text is
         // as worth copying as anything else.
         if (e.Button != MouseButtons.Left ||
@@ -868,10 +1045,18 @@ sealed class ViewerCanvas : Control
         base.OnMouseMove(e);
         // A move with the button up is a drag whose release went somewhere else - the button let go
         // over another window after an Alt+Tab, say - and not one still going.
-        if ((selecting || dragging) &&
+        if ((selecting || dragging || panning) &&
             (e.Button & MouseButtons.Left) == 0)
         {
             EndDrag();
+        }
+
+        if (panning)
+        {
+            // From where the button went down rather than from the last move, so the picture is
+            // where the pointer has taken it however the moves in between were reported
+            pan = panFrom.Dragged(new(e.X - panStart.X, e.Y - panStart.Y));
+            return;
         }
 
         if (selecting)
@@ -906,9 +1091,13 @@ sealed class ViewerCanvas : Control
         // the text there can be selected at all.
         var wanted = OverSplitter(e.X)
             ? Cursors.VSplit
-            : PaneCellAt(e.Location) is null
-                ? Cursors.Default
-                : Cursors.IBeam;
+            : PaneCellAt(e.Location) is not null
+                ? Cursors.IBeam
+                // The four arrows over a picture that can be moved, which is the only thing that
+                // says it can be
+                : PictureAt(e.Location) is { Image.Zoom: > 1 }
+                    ? Cursors.SizeAll
+                    : Cursors.Default;
         if (Cursor != wanted)
         {
             Cursor = wanted;
@@ -961,6 +1150,13 @@ sealed class ViewerCanvas : Control
             selecting = false;
             Capture = false;
         }
+
+        if (panning)
+        {
+            // Where it was dragged to is left for the next read, as a selection's last end is
+            panning = false;
+            Capture = false;
+        }
     }
 
     /// <summary>
@@ -985,10 +1181,21 @@ sealed class ViewerCanvas : Control
     {
         base.OnMouseWheel(e);
         var scrolled = notches.Add(e.Delta);
-        if (scrolled != 0)
+        if (scrolled == 0)
         {
-            Scrolled?.Invoke(scrolled);
+            return;
         }
+
+        // Over a picture the wheel is for the picture, and anywhere with control held, as it is in
+        // everything else that shows one. Everywhere else it scrolls the rows, as it always has.
+        if ((ModifierKeys & Keys.Control) == Keys.Control ||
+            PictureAt(e.Location) is not null)
+        {
+            Zoomed?.Invoke(scrolled);
+            return;
+        }
+
+        Scrolled?.Invoke(scrolled);
     }
 
     protected override void Dispose(bool disposing)
@@ -998,6 +1205,7 @@ sealed class ViewerCanvas : Control
             font.Dispose();
             tips.Dispose();
             images.Dispose();
+            checkerBrush?.Dispose();
         }
 
         base.Dispose(disposing);

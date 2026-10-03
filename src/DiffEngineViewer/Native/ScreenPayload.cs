@@ -19,6 +19,7 @@ sealed class ScreenPayload
     int statusOffset;
     int statusLength;
     int menuRow;
+    int menuPane;
     int pendingCount;
 
     public void Build(Screen screen)
@@ -30,6 +31,7 @@ sealed class ScreenPayload
         queue.Clear();
         menu.Clear();
         menuRow = -1;
+        menuPane = -1;
         pendingCount = screen.PendingCount;
 
         (titleOffset, titleLength) = Add(screen.Title);
@@ -87,6 +89,7 @@ sealed class ScreenPayload
         if (screen.Menu is { } overlay)
         {
             menuRow = overlay.Row;
+            menuPane = overlay.Pane is { } pane ? (int) pane : -1;
             foreach (var label in overlay.Labels)
             {
                 var (offset, length) = Add(label);
@@ -161,7 +164,8 @@ sealed class ScreenPayload
             StatusLength = statusLength,
             Menu = menuPtr,
             MenuCount = menu.Count,
-            MenuRow = menuRow
+            MenuRow = menuRow,
+            MenuPane = menuPane
         };
 
     DeviewPane AddPane(Pane pane, int columns)
@@ -206,7 +210,10 @@ sealed class ScreenPayload
             ImagePathLength = imagePathLength,
             ImageWidth = pane.Image?.Width ?? 0,
             ImageHeight = pane.Image?.Height ?? 0,
-            ImagePending = pane.ImagePending ? 1 : 0
+            ImagePending = pane.ImagePending ? 1 : 0,
+            ImageZoom = (float) (pane.Image?.Zoom ?? 1),
+            ImageCenterX = (float) (pane.Image?.CenterX ?? 0.5),
+            ImageCenterY = (float) (pane.Image?.CenterY ?? 0.5)
         };
     }
 

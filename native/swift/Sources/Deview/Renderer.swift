@@ -137,6 +137,41 @@ final class Renderer {
         /// Where a spinner was drawn, standing in for a picture on its way. What `Runtime` redraws
         /// to turn it, rather than the whole window.
         var spinners: [CGRect] = []
+
+        /// Where each pane's picture goes, or the spinner standing in for one: what the wheel and
+        /// a press are resolved against.
+        var pictures: [PictureSpace] = []
+    }
+
+    /// The space under a pane's rows that its picture is drawn in. The whole space rather than the
+    /// picture, and whether or not the picture has arrived: a small picture is a small target, and
+    /// a wheel turned beside it means the same thing.
+    struct PictureSpace: Equatable {
+        var bounds: CGRect = .zero
+
+        /// Enlarged past the space, so there is somewhere for a drag to take it: the whole
+        /// picture's size as drawn, the centre it was drawn about as fractions of it, with y
+        /// counted from its top, and how much of it shows each way.
+        var enlarged = false
+        var whole: CGSize = .zero
+        var centre: CGPoint = CGPoint(x: 0.5, y: 0.5)
+        var across: CGFloat = 1
+        var down: CGFloat = 1
+
+        /// Where a drag of `by` points leaves the centre. The picture follows the pointer, so the
+        /// point at the middle moves the other way, and nothing here is flipped, so a drag up the
+        /// screen is a positive y and brings what is lower in the picture into view.
+        func dragged(by: CGSize) -> CGPoint {
+            guard enlarged, whole.width > 0, whole.height > 0 else {
+                return centre
+            }
+
+            let x = centre.x - by.width / whole.width
+            let y = centre.y + by.height / whole.height
+            return CGPoint(
+                x: min(max(x, across / 2), 1 - across / 2),
+                y: min(max(y, down / 2), 1 - down / 2))
+        }
     }
 
     /// One pane's horizontal extent: the column, and where its row text starts past the gutter.
@@ -456,6 +491,7 @@ final class Renderer {
         // Where the picture will be centred once it can be drawn, and so where a spinner stands in
         // for it until then
         let space = rect(top: imageTop, left: left, width: available.width, height: available.height, size)
+        layout.pictures.append(PictureSpace(bounds: space))
         guard hasPicture else {
             spinner(in: space, line: line, capturing: capturing, context, &layout)
             return
@@ -479,6 +515,11 @@ final class Renderer {
         let drawn = CGSize(
             width: max(1, (CGFloat(pane.imageWidth) * scale).rounded(.down)),
             height: max(1, (CGFloat(pane.imageHeight) * scale).rounded(.down)))
+        if pane.imageZoom > 1 {
+            enlarged(pane, picture, fitted: drawn, top: imageTop, left: left, available: available, in: context, size, &layout)
+            return
+        }
+
         let bounds = rect(
             top: imageTop + ((available.height - drawn.height) / 2).rounded(.down),
             left: left + ((available.width - drawn.width) / 2).rounded(.down),
@@ -507,6 +548,74 @@ final class Renderer {
         context.setStrokeColor(Palette.rule)
         context.setLineWidth(1)
         context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+    }
+
+    /// A picture the reader has zoomed into: `imageZoom` times the size that fits, cut off at the
+    /// edges of the space under the rows rather than drawn over anything else. What shows is the
+    /// part around the centre the managed side asked for, moved in as far as it takes to keep the
+    /// space full: it does not know how many points a pane has, so it can ask for one at the edge.
+    ///
+    /// Drawn straight from the decoded picture, clipped, rather than from a copy scaled to that
+    /// size, which at the last step would be hundreds of megabytes to show one corner of it.
+    private func enlarged(
+        _ pane: Frame.Pane,
+        _ picture: CGImage,
+        fitted: CGSize,
+        top: CGFloat,
+        left: CGFloat,
+        available: CGSize,
+        in context: CGContext,
+        _ size: CGSize,
+        _ layout: inout Layout
+    ) {
+        let zoom = CGFloat(pane.imageZoom)
+        let whole = CGSize(width: fitted.width * zoom, height: fitted.height * zoom)
+        let shown = CGSize(
+            width: min(available.width.rounded(.down), max(1, whole.width.rounded(.down))),
+            height: min(available.height.rounded(.down), max(1, whole.height.rounded(.down))))
+        let across = shown.width / whole.width
+        let down = shown.height / whole.height
+        let centre = CGPoint(
+            x: min(max(CGFloat(pane.imageCenterX), across / 2), 1 - across / 2),
+            y: min(max(CGFloat(pane.imageCenterY), down / 2), 1 - down / 2))
+        let bounds = rect(
+            top: top + ((available.height - shown.height) / 2).rounded(.down),
+            left: left + ((available.width - shown.width) / 2).rounded(.down),
+            width: shown.width,
+            height: shown.height,
+            size)
+
+        // The whole picture, placed so the centre is at the middle of what shows. Nothing is
+        // flipped, so its top is its maxY, and the centre's y is counted down from there.
+        let all = CGRect(
+            x: bounds.midX - centre.x * whole.width,
+            y: bounds.midY - (1 - centre.y) * whole.height,
+            width: whole.width,
+            height: whole.height)
+
+        checker(bounds, in: context)
+
+        context.saveGState()
+        context.clip(to: bounds)
+        // Its pixels as they are once it is past its own size, which is what zooming that far in
+        // is for: smoothed, a one pixel difference between the two sides is a blur on both.
+        let device = context.convertToDeviceSpace(all).size
+        context.interpolationQuality = abs(device.width) >= CGFloat(picture.width) ? .none : .high
+        context.draw(picture, in: all)
+        context.restoreGState()
+
+        context.setStrokeColor(Palette.rule)
+        context.setLineWidth(1)
+        context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+
+        // The last one appended is this pane's, by `image`, before it knew the picture was there
+        if !layout.pictures.isEmpty {
+            layout.pictures[layout.pictures.count - 1].enlarged = true
+            layout.pictures[layout.pictures.count - 1].whole = whole
+            layout.pictures[layout.pictures.count - 1].centre = centre
+            layout.pictures[layout.pictures.count - 1].across = across
+            layout.pictures[layout.pictures.count - 1].down = down
+        }
     }
 
     /// Something turning, centred in `space`, while the picture that will be centred there is on

@@ -34,7 +34,16 @@ public class InlinePatcherTests
         SourceLanguage.NormalizeNewlines(source);
 
     static string Method(string body) =>
-        Source($"class Tests\n{{\n    async Task Test()\n    {{\n{body}\n    }}\n}}");
+        Source(
+            $$"""
+              class Tests
+              {
+                  async Task Test()
+                  {
+              {{body}}
+                  }
+              }
+              """);
 
     [Test]
     public async Task ReplaceRawLiteral()
@@ -635,8 +644,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(direct)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(direct)
+                        .Snapshot("new");
+            """);
     }
 
     // The ordinary shape of a test: a local, then a verify call on it. The local sits between the
@@ -662,8 +673,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(value)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(value)
+                        .Snapshot("new");
+            """);
     }
 
     // Same cause, and every mode that locates by hint pays it: an explicitly typed local is as
@@ -728,8 +741,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(value)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(value)
+                        .Snapshot("new");
+            """);
     }
 
     // The raw form is the one that has to sit on its own line, indented under the call
@@ -765,8 +780,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "            .ScrubLinesContaining(\"x\")\n" +
-            "            .Snapshot(\"new\");");
+            """
+                        .ScrubLinesContaining("x")
+                        .Snapshot("new");
+            """);
     }
 
     [Test]
@@ -928,8 +945,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await VerifyDocx(document)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await VerifyDocx(document)
+                        .Snapshot("new");
+            """);
     }
 
     /// <summary>
@@ -951,8 +970,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "            .Verify(BuildAddress, streets, cities)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                        .Verify(BuildAddress, streets, cities)
+                        .Snapshot("new");
+            """);
     }
 
     // The entry point wrapping a helper of the same name: the outer call is the one to append to
@@ -965,8 +986,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(ContentValidation.Verify(value))\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(ContentValidation.Verify(value))
+                        .Snapshot("new");
+            """);
     }
 
     [Test]
@@ -1009,8 +1032,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            $"        await {entryPoint}(() => Method(value))\n" +
-            "            .Snapshot(\"new\");");
+            $$"""
+                      await {{entryPoint}}(() => Method(value))
+                          .Snapshot("new");
+              """);
     }
 
     // The receiver check covers the new prefix too, or every Assert.Throws in the file becomes a
@@ -1040,8 +1065,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Throws(() => Verify(value))\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Throws(() => Verify(value))
+                        .Snapshot("new");
+            """);
     }
 
     /// <summary>
@@ -1180,7 +1207,15 @@ public class InlinePatcherTests
     [Test]
     public async Task AnEmptyEntryPointIsIgnored()
     {
-        var source = "class Tests\n{\n    Task Test() =>\n        Verify(a);\n}\n";
+        var source =
+            """
+            class Tests
+            {
+                Task Test() =>
+                    Verify(a);
+            }
+
+            """;
 
         var apply = Task.Run(() => InlinePatcher.TryApply(SourceLanguage.CSharp, source, 4, InlinePatchMode.Append, null, null, null, ["VerifyDocx", ""], true, "x", out _, out _));
 
@@ -1200,7 +1235,17 @@ public class InlinePatcherTests
     }
 
     const string twoIdenticalSnapshots =
-        "class Tests\n{\n    async Task Test()\n    {\n        await Verify(a).Snapshot(\"dup\");\n        await Verify(b).Snapshot(\"dup\");\n    }\n}\n";
+        """
+        class Tests
+        {
+            async Task Test()
+            {
+                await Verify(a).Snapshot("dup");
+                await Verify(b).Snapshot("dup");
+            }
+        }
+
+        """;
 
     /// <summary>
     /// A patch applied a second time - a second framework's identical patch reaching the queue
@@ -1408,7 +1453,15 @@ public class InlinePatcherTests
     }
 
     static string TwoSpaceMethod(string body) =>
-        $"class Tests\n{{\n  async Task Test()\n  {{\n{body}\n  }}\n}}";
+        $$"""
+          class Tests
+          {
+            async Task Test()
+            {
+          {{body}}
+            }
+          }
+          """;
 
     // A level is whatever the file makes it, not four spaces
     [Test]
@@ -1485,7 +1538,14 @@ public class InlinePatcherTests
     [Test]
     public async Task FileWithNoIndentationFallsBackToFourSpaces()
     {
-        var source = "class Tests\n{\nasync Task Test() =>\nSnapshot(\"old\");\n}";
+        var source =
+            """
+            class Tests
+            {
+            async Task Test() =>
+            Snapshot("old");
+            }
+            """;
 
         var status = TryApply(source, 4, InlinePatchMode.Set, "\"old\"", "a\nb", out var newSource, out _);
 
@@ -1804,8 +1864,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "    Task VerifyThing(string value) => Verify(value)\n" +
-            "        .Snapshot(\"new\");");
+            """
+                Task VerifyThing(string value) => Verify(value)
+                    .Snapshot("new");
+            """);
     }
 
     // Snapshot terminates the chain, so a comment in the middle of one must not end the walk
@@ -1822,8 +1884,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "            .UseDirectory(\"snapshots\")\n" +
-            "            .Snapshot(\"new\");");
+            """
+                        .UseDirectory("snapshots")
+                        .Snapshot("new");
+            """);
     }
 
     [Test]
@@ -1986,8 +2050,10 @@ public class InlinePatcherTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(reason).IsEmpty();
         await Assert.That(newSource).Contains(
-            "        await Verify(value)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(value)
+                        .Snapshot("new");
+            """);
     }
 
     /// <summary>
@@ -2031,8 +2097,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(value)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(value)
+                        .Snapshot("new");
+            """);
         // The neighbour keeps its own snapshot
         await Assert.That(newSource).Contains(".Snapshot(\"done\");");
     }
@@ -2148,8 +2216,10 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains(
-            "        await Verify(b)\n" +
-            "            .Snapshot(\"new\");");
+            """
+                    await Verify(b)
+                        .Snapshot("new");
+            """);
         await Assert.That(newSource).Contains("await Verify(a);\n");
     }
 

@@ -57,6 +57,13 @@ readonly record struct DocumentFile(
             DocumentFormat.PowerPoint);
 
     /// <summary>
+    /// Drawn from coordinates, so it can be drawn in more than one <see cref="MapProjection"/>.
+    /// </summary>
+    public bool IsMap =>
+        IsDrawn &&
+        Format != DocumentFormat.Svg;
+
+    /// <summary>
     /// Its text is the file, read as any text file is, rather than read out of it.
     /// </summary>
     public bool IsSource =>

@@ -88,6 +88,12 @@ static class ScreenBuilder
             return null;
         }
 
+        // A pane's menu has no row to have scrolled away: it hangs where the pointer was
+        if (menu.Pane is { } pane)
+        {
+            return new(-1, menu.Items.Select(_ => _.Label).ToList(), pane);
+        }
+
         var anchor = menu.Row - top;
         if (anchor < 0 ||
             anchor >= visibleRows)
@@ -134,6 +140,23 @@ static class ScreenBuilder
     /// </summary>
     static ImagePane? Picture(SessionState state, QueueEntry? entry, PaneSide side)
     {
+        if (Fitted(state, entry, side) is not { } picture)
+        {
+            return null;
+        }
+
+        // The same enlargement and the same point at the middle on both sides, which is what
+        // makes the two panes show the same part of each picture.
+        return picture with
+        {
+            Zoom = PictureZoom.Factor(state.Zoom),
+            CenterX = state.Pan.X,
+            CenterY = state.Pan.Y
+        };
+    }
+
+    static ImagePane? Fitted(SessionState state, QueueEntry? entry, PaneSide side)
+    {
         if (entry is null)
         {
             return null;
@@ -159,6 +182,16 @@ static class ScreenBuilder
         var page = rendering.Pages[index];
         return new(page.Path, page.Width, page.Height, page.Hash);
     }
+
+    /// <summary>
+    /// Whether the entry on screen is one a head draws a picture for: an image, or a document
+    /// outside its text view. Which is when there is something to enlarge. Not whether a picture
+    /// has landed yet, so a page still being drawn can be zoomed for when it does.
+    /// </summary>
+    public static bool ShowsPicture(SessionState state) =>
+        state.Current is { } current &&
+        (current.IsImage ||
+         current.IsDocument && state.Drawing != DrawingView.Text);
 
     /// <summary>
     /// Whether the page a side would show is still to come: waiting its turn, or being drawn and
@@ -286,7 +319,8 @@ static class ScreenBuilder
                 new("Accept", enabled, CommandKind.Accept),
                 new("Close", true, CommandKind.Quit),
                 ..ViewButtons(state, body),
-                ..DocumentButtons(state)
+                ..DocumentButtons(state),
+                ..ZoomButtons(state)
             ];
         }
 
@@ -311,6 +345,7 @@ static class ScreenBuilder
         // keep their place in the footer whatever is on screen.
         buttons.AddRange(ViewButtons(state, body));
         buttons.AddRange(DocumentButtons(state));
+        buttons.AddRange(ZoomButtons(state));
 
         if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
         {
@@ -376,6 +411,15 @@ static class ScreenBuilder
     }
 
     /// <summary>
+    /// Whether the current entry is a map with its picture on screen, which is when there is a
+    /// projection to switch.
+    /// </summary>
+    public static bool DrawsMap(SessionState state) =>
+        state.Drawing != DrawingView.Text &&
+        state.Current is { } current &&
+        (current.LeftDocument ?? current.RightDocument)?.IsMap == true;
+
+    /// <summary>
     /// For a document: the view switch, labelled with what it switches to, and the page buttons.
     /// Those stay in the footer whenever a paged document is on screen, disabled when there is no
     /// page to turn to, so a click resolved by position cannot land on a button that moved under
@@ -398,7 +442,20 @@ static class ScreenBuilder
             true,
             CommandKind.ToggleDrawing);
 
-        if ((current.LeftDocument ?? current.RightDocument)?.IsDrawn == true)
+        var document = current.LeftDocument ?? current.RightDocument;
+
+        // Named for the projection it is in rather than the one it switches to, as the variant
+        // button is: there are five, and which is next says nothing about which is on screen.
+        // Kept in the footer in the text view, disabled, for the reason the page buttons are.
+        if (document?.IsMap == true)
+        {
+            yield return new(
+                $"Projection: {MapProjections.Name(state.Projection)}",
+                DrawsMap(state),
+                CommandKind.NextProjection);
+        }
+
+        if (document?.IsDrawn == true)
         {
             yield break;
         }
@@ -408,6 +465,39 @@ static class ScreenBuilder
         var (left, right) = DocumentPages.Of(state, current);
         yield return new("Prev page", pages && page > 0, CommandKind.PreviousPage);
         yield return new("Next page", pages && page < DocumentPages.Count(left, right) - 1, CommandKind.NextPage);
+    }
+
+    /// <summary>
+    /// For an entry that is, or draws as, a picture. In the footer whenever one is on screen,
+    /// disabled when there is no further to go or no picture in this view, for the reason the page
+    /// buttons stay: a click resolved by position cannot land on a button that moved under it.
+    /// </summary>
+    static IEnumerable<Button> ZoomButtons(SessionState state)
+    {
+        if (state.Current is not ({ IsImage: true } or { IsDocument: true }))
+        {
+            yield break;
+        }
+
+        var picture = ShowsPicture(state);
+        yield return new("Zoom out", picture && state.Zoom > 0, CommandKind.ZoomOut);
+        yield return new("Zoom in", picture && state.Zoom < PictureZoom.Last, CommandKind.ZoomIn);
+    }
+
+    /// <summary>
+    /// The status with how far the picture is enlarged on the end, when it is. Zoom changes what a
+    /// head draws and nothing in the rows, so this is where a renderer that draws no picture says
+    /// it, and where a reader looking at one corner of a page is told that is what they have.
+    /// </summary>
+    static string Zoomed(SessionState state, string status)
+    {
+        if (ShowsPicture(state) &&
+            PictureZoom.Describe(state.Zoom) is { } zoom)
+        {
+            return $"{status}, {zoom}";
+        }
+
+        return status;
     }
 
     static string BuildSubtitle(SessionState state)
@@ -462,12 +552,12 @@ static class ScreenBuilder
         // one thing the rows cannot say: it belongs to the pair rather than to either side.
         if (current.IsImage)
         {
-            return ImageStatus(current);
+            return Zoomed(state, ImageStatus(current));
         }
 
         if (current.IsDocument)
         {
-            return DocumentStatus(state, current, body);
+            return Zoomed(state, DocumentStatus(state, current, body));
         }
 
         return Lines(state, current, body);
@@ -519,6 +609,13 @@ static class ScreenBuilder
             return "documents are identical";
         }
 
+        var (leftPages, rightPages) = DocumentPages.Of(state, current);
+        if (state.Drawing == DrawingView.Both &&
+            (Damaged(current.LeftHeader, left, leftPages) ?? Damaged(current.RightHeader, right, rightPages)) is { } damaged)
+        {
+            return damaged;
+        }
+
         var parts = new List<string>(3);
         if (state.Drawing != DrawingView.Picture)
         {
@@ -531,6 +628,23 @@ static class ScreenBuilder
         }
 
         return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// A file that is not a document of its kind fails twice, once to be read and once to be
+    /// drawn, for the one reason. Said once, about the file: said for each, the second half ran off
+    /// the end of the footer, and what was left read as two things wrong rather than one.
+    /// </summary>
+    static string? Damaged(string header, DocumentFile document, Rendering? pages)
+    {
+        if (document.Unreadable is not { } text ||
+            pages?.Failure is not { } drawn)
+        {
+            return null;
+        }
+
+        var reason = Reason(text);
+        return reason == Reason(drawn) ? $"could not read {header}: {reason}" : null;
     }
 
     static string TextStatus(SessionState state, QueueEntry current, DocumentFile left, DocumentFile right, int body)

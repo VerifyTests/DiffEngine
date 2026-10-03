@@ -228,6 +228,42 @@ apart.
     text is the file for the text formats and GeoJSON read out of it for the binary ones
     (`DocumentFile.IsSource`), so a FlatGeobuf is read by `DocumentWatch` as a PDF is but draws
     as an SVG does. Those are two questions, and an SVG answering both the same way hid that.
+  - A third question is `DocumentFile.IsMap`: drawn from coordinates, so it can be drawn in more
+    than one `MapProjection`. `SessionState.Projection` is the window's, and its name is all that
+    crosses to the documents assembly. Pages are kept under `DocumentPages.Key`, the content hash
+    and for a map in a chosen projection that too (`HASH.Goode`), each drawn into a folder of its
+    own: a page is a path to the heads, which keep what they decoded from one, so the same path
+    rewritten would be the picture they already hold. `Auto` is the bare hash, where everything
+    always was.
+  - `DocumentRenderer.Guard` is where a damaged file is put into words: "Not a readable Word
+    document: it is not a zip archive, or was cut short" rather than whatever the library that
+    gave up on it said about its own insides. Only what a damaged file causes is put that way; a
+    locked file, a missing native or memory running out is said as thrown, since calling the
+    document unreadable for those sends the reviewer to a file with nothing wrong with it.
+    `CorruptDocumentTests` holds every extension to it, through the real folder.
+- `ViewerPreferences` is what is remembered between runs, a `key=value` file beside the tray's
+  settings: the window's `WindowPlacement`, `SessionState.Drawings` (text, picture or both, **per
+  `DocumentFormat`** rather than one for the window) and the map projection. Handed to
+  `ViewerProgram.Run` as `DocumentPlugin` is, so a test process remembers nothing unless a test
+  gives it somewhere to. The loop applies it before the window opens and saves view settings on
+  every frame that did something (a no-op unless they changed), and the placement whenever the
+  window is about to stop being on screen - not only at exit, because a viewer hidden behind a
+  tray ends with the session. A placement is in whatever units the head that reported it counts
+  in, and only that head reads it back; each ignores one that no longer fits a screen it has.
+- Zoom is the entry's, not the window's (`ViewerSession.Open` puts it back), and makes the bargain
+  images do. `SessionState.Zoom` is a `PictureZoom` step - steps so keys, buttons and wheel move
+  between the same sizes - relative to the **fit**, the one size all three heads already agree on.
+  `SessionState.Pan` is one point for both panes, as fractions of the picture, which is what makes
+  the two sides show the same part. The model does not know how many pixels a pane has, so a
+  head clamps the centre when it draws and reports a drag as the centre it left (`ViewerInput.PanX`),
+  measured from where the button went down. Which wheel notches are zoom (over a picture, or with
+  control held) is also a head's call, since only it knows what the pointer was over. Past its
+  own size a picture is drawn as its pixels. The status line says the zoom, for the reason it
+  says a selection.
+- A pane's context menu (`ViewerSession.OpenPaneMenu`, `MenuState.Pane`) is copying only, and
+  leaves the selection alone where a queue row's selects the row: copying what was dragged across
+  is why it is opened. It hangs where the pointer was, which only the head that took the click
+  knows, so the overlay's `Row` is -1 and each head remembers the point.
 - Text selection is a view, and makes the same bargain images do. A drag arrives as both of its
   ends at once, in rows of the whole side rather than of the visible slice: a head knows the scroll
   top it drew the press with, so only it can resolve one that spans a wheel notch, and reporting
@@ -424,3 +460,4 @@ apart.
 - `ViewerClient` remembers a port found unowned for ten minutes (`RecheckUnownedAfter`), and the library's telling sends - settle, retire, move, delete, the first inline or diff send - skip the connect while that stands. A refused loopback connection costs two seconds on Windows (firewall stealth mode drops the reset), and a green run settles once per inline verification, which was six minutes for a class of 188 inline tests. Probes (`IsOwned`), the hosts and `InlineQueueClient` always connect and correct the memory; so does `SettleAppliedInline`, being one send per accept
 - `TrayDisabledChecker` respects `DiffEngine_TrayDisabled` env var, behind `DiffRunner.TrayDisabled`. Separate from `Disabled` because tracking a pending move is separate from launching a tool: every exit of `InnerLaunch`, `Disabled` included, still calls `AddMove`. `PendingFiles.TrayAvailable` is the single gate
 - Tests use TUnit and Verify for snapshot testing
+- The native pixel snapshots (`PixelTests`) are opt in through `DIFFENGINE_VIEWER_PIXEL_TESTS`, which `MachineSettings.Ignore` has to leave alone: it clears every `DiffEngine_*` variable without regard to case, and clearing that one skipped them on the CI job that sets it, silently, for as long as nobody looked. Every call into the shim goes through one thread (`OnShimThread`), because on Linux the window's GL context belongs to the thread that made it and each test starts on whichever pool thread picks it up. The Linux baselines reproduce in an `ubuntu:24.04` container set up as the `unix` job in `build.yml` is - the shim built from source, Xvfb, llvmpipe - which is also the only way to run the C++ at all from Windows

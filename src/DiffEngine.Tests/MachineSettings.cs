@@ -14,10 +14,20 @@ static class MachineSettings
     {
         foreach (var name in Environment.GetEnvironmentVariables().Keys.Cast<string>())
         {
-            if (name.StartsWith("DiffEngine_", StringComparison.OrdinalIgnoreCase))
+            if (name.StartsWith("DiffEngine_", StringComparison.OrdinalIgnoreCase) &&
+                !name.Equals(PixelTests, StringComparison.OrdinalIgnoreCase))
             {
                 Environment.SetEnvironmentVariable(name, null);
             }
         }
     }
+
+    /// <summary>
+    /// What switches the native pixel snapshots on. A setting of the tests rather than of
+    /// DiffEngine, which reads nothing by this name, but it starts with the same letters, and the
+    /// prefix is matched without regard to case because Windows matches names that way. Cleared
+    /// with the rest, it was gone before the attribute that reads it ran: the pixel snapshots were
+    /// skipped on the CI job that sets it, on both platforms, and nothing said so.
+    /// </summary>
+    public const string PixelTests = "DIFFENGINE_VIEWER_PIXEL_TESTS";
 }

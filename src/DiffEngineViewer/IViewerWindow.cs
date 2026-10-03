@@ -36,6 +36,16 @@ interface IViewerWindow : IDisposable
     void Focus();
 
     /// <summary>
+    /// Where the window is and whether it is maximised, to open the next one the same way. Null
+    /// from a head that cannot say, which is also what a window that never opened says.
+    /// <para>
+    /// Still answered once the window has gone, with how it was last seen: a session that is
+    /// ending closes the window before the loop gets to ask.
+    /// </para>
+    /// </summary>
+    WindowPlacement? Placement => null;
+
+    /// <summary>
     /// Renders one frame offscreen to a PNG. Only the pixel snapshots use this.
     /// </summary>
     bool Capture(Screen screen, int width, int height, string pngPath);
@@ -46,4 +56,9 @@ interface IViewerWindow : IDisposable
 /// exception, because a machine with no renderer for its RID and no desktop session to draw into
 /// are both ordinary, and both want the same message rather than a stack trace.
 /// </summary>
-delegate IViewerWindow? OpenWindow(string title, int width, int height, bool hidden, out string? error);
+/// <param name="placement">
+/// How the last window was left, to open this one the same way, or null to open at
+/// <paramref name="width"/> by <paramref name="height"/> wherever the platform puts a new window.
+/// A head ignores one that no longer fits a screen it has.
+/// </param>
+delegate IViewerWindow? OpenWindow(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error);

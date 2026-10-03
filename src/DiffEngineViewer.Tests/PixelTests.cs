@@ -50,15 +50,60 @@ public class PixelTests
 
     static IViewerWindow? window;
 
+    /// <summary>
+    /// The one thread the shim is ever called on. On Linux its window has a GL context, which
+    /// belongs to the thread that made it: a capture started on any other fails to create its
+    /// framebuffer. Serial is not enough for that, since each test starts on whichever pool
+    /// thread picks it up, and whether that was the same one each time depended on what else was
+    /// running. Alone, these passed; with the rest of the suite beside them, all but the first
+    /// failed.
+    /// </summary>
+    static readonly BlockingCollection<Action> shimWork = [];
+
+    static Thread? shimThread;
+
+    static Task<T> OnShimThread<T>(Func<T> job)
+    {
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        shimWork.Add(
+            () =>
+            {
+                try
+                {
+                    done.SetResult(job());
+                }
+                catch (Exception exception)
+                {
+                    done.SetException(exception);
+                }
+            });
+        return done.Task;
+    }
+
     [Before(Class)]
-    public static void Open()
+    public static async Task Open()
     {
         if (Environment.GetEnvironmentVariable(PixelTestAttribute.Variable) != "true")
         {
             return;
         }
 
-        window = NativeViewerWindow.Open("DiffEngineViewer", width, height, true, out var error);
+        shimThread = new(
+            () =>
+            {
+                foreach (var job in shimWork.GetConsumingEnumerable())
+                {
+                    job();
+                }
+            })
+        {
+            IsBackground = true,
+            Name = "PixelTests shim"
+        };
+        shimThread.Start();
+
+        string? error = null;
+        window = await OnShimThread(() => NativeViewerWindow.Open("DiffEngineViewer", width, height, true, null, out error));
         if (window is null)
         {
             throw new(error!);
@@ -66,10 +111,21 @@ public class PixelTests
     }
 
     [After(Class)]
-    public static void Close()
+    public static async Task Close()
     {
-        window?.Dispose();
-        window = null;
+        if (shimThread is null)
+        {
+            return;
+        }
+
+        await OnShimThread(
+            () =>
+            {
+                window?.Dispose();
+                window = null;
+                return true;
+            });
+        shimWork.CompleteAdding();
     }
 
     [Test]
@@ -192,24 +248,62 @@ public class PixelTests
     /// so it stands for all of them. Last in the order, so the frames it draws in the live context
     /// come after every capture rather than between two of them.
     /// </summary>
+    /// <summary>
+    /// The image comparison six steps in, eight times the size that fits, and dragged to the top
+    /// right corner: each pane filled with the same part of its picture, cut off at the edges of
+    /// the space under its rows. Mirrored in WindowsPixelTests over the same state, which is what
+    /// holds the three heads to one enlargement and one clamp.
+    /// </summary>
     [Test]
     [PixelTest]
     [NotInParallel(nameof(PixelTests), Order = 11)]
+    public Task ImagesEnlarged()
+    {
+        var state = Fixtures.Images();
+        for (var step = 0; step < 6; step++)
+        {
+            state = ViewerSession.Apply(state, CommandKind.ZoomIn);
+        }
+
+        return Capture(ViewerSession.PanTo(state, 1, 0));
+    }
+
+    /// <summary>
+    /// The menu a right-click on a pane opens, over the expected pane. Linux only, for the reason
+    /// <see cref="ContextMenu"/> is. In a window it hangs where the pointer was; a capture was
+    /// never fed one, so there it hangs from the top of the pane it is for.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 12)]
+    [SkipOnMac("The macOS head pops a real NSMenu, which a capture has no window to show.")]
+    public Task PaneMenu() =>
+        Capture(ViewerSession.OpenPaneMenu(Fixtures.File(), PaneSide.Right));
+
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 13)]
     [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
     public async Task PresentWaitsForTheNextFrame()
     {
         var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
         // So the timing starts on a frame boundary
-        await Assert.That(window!.Present(screen)).IsTrue();
+        await Assert.That(await OnShimThread(() => window!.Present(screen))).IsTrue();
 
-        var watch = Stopwatch.StartNew();
-        for (var frame = 0; frame < 60; frame++)
-        {
-            window.Present(screen);
-        }
+        var elapsed = await OnShimThread(
+            () =>
+            {
+                var watch = Stopwatch.StartNew();
+                for (var frame = 0; frame < 60; frame++)
+                {
+                    window!.Present(screen);
+                }
+
+                return watch.Elapsed;
+            });
 
         // Sixty frames at sixty a second. Unpaced, a bare loop ran at tens of thousands a second.
-        await Assert.That(watch.Elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
+        await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
     }
 
     static async Task Capture(SessionState state)
@@ -218,7 +312,7 @@ public class PixelTests
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {
-            await Assert.That(window!.Capture(screen, width, height, path)).IsTrue();
+            await Assert.That(await OnShimThread(() => window!.Capture(screen, width, height, path))).IsTrue();
             // Linux and macOS run the same tests against different renderers, so the baselines
             // have to be told apart.
             await VerifyFile(path)

@@ -127,6 +127,24 @@ typedef struct DeviewPane {
      * arrives. The status line says the same in words.
      */
     int32_t imagePending;
+
+    /*
+     * How far the reader has enlarged the picture: imageZoom times the size that fits, which is 1
+     * for a picture nobody has zoomed and never less.
+     *
+     * Fitted, a picture is drawn no larger than its own size. Enlarged it may be, and what no
+     * longer fits the space under the rows is cut off at the edges of that space rather than drawn
+     * over anything else: the part that shows is the part around imageCenterX and imageCenterY,
+     * which are fractions of the picture's width and height. Both panes carry the same three
+     * numbers, so both show the same part of their picture.
+     *
+     * The managed side does not know how many pixels a pane has, so it may ask for a centre that
+     * would leave part of the space empty. A renderer moves the centre in as far as it takes to
+     * keep the space full, and that clamped centre is the one a drag starts from.
+     */
+    float imageZoom;
+    float imageCenterX;
+    float imageCenterY;
 } DeviewPane;
 
 typedef struct DeviewButton {
@@ -199,6 +217,14 @@ typedef struct DeviewScreen {
     const DeviewMenuItem* menu;
     int32_t menuCount;
     int32_t menuRow;
+
+    /*
+     * The pane the open menu was asked for over, 0 for the left and 1 for the right, or -1 for a
+     * menu opened on a queue row, which is every menu before there was this one. menuRow is -1 for
+     * a pane's menu: it hangs where the pointer was when the right-click that asked for it landed,
+     * which this side remembers and the managed side never knew.
+     */
+    int32_t menuPane;
 } DeviewScreen;
 
 /* Keep in sync with CommandKind.cs */
@@ -229,7 +255,14 @@ enum DeviewKey {
     DEVIEW_KEY_TOGGLE_DRAWING = 19,
     /* [ and ]: a document's previous and next page. */
     DEVIEW_KEY_PREVIOUS_PAGE = 20,
-    DEVIEW_KEY_NEXT_PAGE = 21
+    DEVIEW_KEY_NEXT_PAGE = 21,
+    /* J: the next projection a map is drawn in. */
+    DEVIEW_KEY_NEXT_PROJECTION = 22,
+    /* Plus, minus and zero, with or without control: a picture a step larger, a step smaller, and
+     * back to fitted. */
+    DEVIEW_KEY_ZOOM_IN = 23,
+    DEVIEW_KEY_ZOOM_OUT = 24,
+    DEVIEW_KEY_ZOOM_RESET = 25
 };
 
 typedef struct DeviewInput {
@@ -284,7 +317,50 @@ typedef struct DeviewInput {
     int32_t dragAnchorColumn;
     int32_t dragFocusRow;
     int32_t dragFocusColumn;
+
+    /*
+     * Wheel notches that were for the picture rather than the rows: turned with the pointer over
+     * the space a picture is drawn in, or with control held (command on macOS). Positive enlarges.
+     * A notch is reported here or in scrollDelta and never in both, and which it was is decided on
+     * this side, the only one that knows what the pointer was over.
+     */
+    int32_t zoomDelta;
+
+    /*
+     * Where a drag has left an enlarged picture: the point now at the middle of what shows, as
+     * fractions of the picture's width and height, already kept inside what the space can show.
+     * panX is -1 on the frames with no such drag, which is almost all of them.
+     *
+     * A position rather than a distance, measured from where the button went down, so the picture
+     * is under the pointer however the frames in between fell. Only an enlarged picture is
+     * dragged; one that fits has nowhere to go.
+     */
+    float panX;
+    float panY;
+
+    /*
+     * A right-click over a pane, anywhere under its header: 0 for the left, 1 for the right, or
+     * -1. The managed side answers with a menu to draw, as it does for rightClickedQueueItem, and
+     * says which pane it is for in DeviewScreen.menuPane.
+     */
+    int32_t rightClickedPane;
 } DeviewInput;
+
+/*
+ * Where the window is and whether it fills the screen, so the next one can be opened the same way.
+ *
+ * In this side's own units and from its own origin, whatever those are: the managed side stores the
+ * numbers and hands them back to the same implementation, and never reads them itself. The bounds
+ * are the ones the window has when it is not maximised, which is what it goes back to on being
+ * restored, so a window left maximised reports both.
+ */
+typedef struct DeviewPlacement {
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    int32_t maximized;
+} DeviewPlacement;
 
 /*
  * Bumped whenever the structs above change, or what a field means changes, so a stale native
@@ -315,8 +391,17 @@ typedef struct DeviewInput {
  *    DeviewRow is widened and DeviewScreen gains an array, the same kind of bump 6 and 8 were.
  * 10: DeviewPane carries whether its picture is still being drawn, so a head can show that it is
  *     coming rather than an empty space. A widened array element, the same kind of bump 6 was.
+ * 11: deview_set_placement and deview_get_placement, with DeviewPlacement between them, so a window
+ *     opens where the last one was left and as large. Two entry points rather than a struct that
+ *     moved, but a library without them fails on the first call rather than at the version check,
+ *     which is the thing the version is for.
+ *     DeviewPane also carries how far its picture is enlarged and about which point, and
+ *     DeviewInput reports wheel notches meant for the picture and where a drag has left it. A
+ *     widened array element again, in the same bump because they shipped together.
+ *     And DeviewInput reports a right-click over a pane, which DeviewScreen answers with a menu
+ *     that names the pane rather than a queue row.
  */
-#define DEVIEW_VERSION 10
+#define DEVIEW_VERSION 11
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -367,6 +452,22 @@ DEVIEW_API void deview_set_hidden(int32_t hidden);
 DEVIEW_API void deview_set_clipboard(const char* text);
 
 DEVIEW_API void deview_focus(void);
+
+/*
+ * How the last window was left, for the one deview_init is about to open. Called before
+ * deview_init, or not at all, in which case the window opens at init's size wherever the platform
+ * puts a new one.
+ *
+ * Ignored when it names somewhere there is no longer a screen: a window opened on a monitor that
+ * has since been unplugged is a viewer that looks as if it never started.
+ */
+DEVIEW_API void deview_set_placement(const DeviewPlacement* placement);
+
+/*
+ * How the window is now. Returns 1 and fills placement when there is a window to describe, and 0
+ * when there is not - a runtime that started hidden and never showed one.
+ */
+DEVIEW_API int32_t deview_get_placement(DeviewPlacement* placement);
 
 DEVIEW_API void deview_shutdown(void);
 

@@ -606,9 +606,9 @@ public class FormsHeadTests
         var handle = IntPtr.Zero;
         ViewerForm? form = null;
 
-        IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+        IViewerWindow? Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
         {
-            var window = FormsViewerWindow.Open(title, width, height, true, out error);
+            var window = FormsViewerWindow.Open(title, width, height, true, null, out error);
             form = Field<ViewerForm>(window!, "form");
             handle = form.Handle;
             return window;

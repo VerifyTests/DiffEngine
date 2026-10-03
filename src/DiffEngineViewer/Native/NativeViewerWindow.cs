@@ -12,7 +12,7 @@ sealed class NativeViewerWindow : IViewerWindow
     {
     }
 
-    public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+    public static IViewerWindow? Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
     {
         error = null;
         int version;
@@ -37,6 +37,11 @@ sealed class NativeViewerWindow : IViewerWindow
             return null;
         }
 
+        if (placement is { } saved)
+        {
+            Place(saved);
+        }
+
         if (!Init(title, width, height, hidden, EmbeddedFont.Bytes()))
         {
             error = "The native renderer could not open a window.";
@@ -44,6 +49,45 @@ sealed class NativeViewerWindow : IViewerWindow
         }
 
         return new NativeViewerWindow();
+    }
+
+    /// <summary>
+    /// Before the window exists, which is the only time the shim takes one: it opens where it is
+    /// told to rather than opening and then moving.
+    /// </summary>
+    static unsafe void Place(WindowPlacement placement)
+    {
+        var native = new DeviewPlacement
+        {
+            X = placement.X,
+            Y = placement.Y,
+            Width = placement.Width,
+            Height = placement.Height,
+            Maximized = placement.Maximized ? 1 : 0
+        };
+        Deview.SetPlacement(&native);
+    }
+
+    WindowPlacement? placement;
+
+    public unsafe WindowPlacement? Placement
+    {
+        get
+        {
+            if (disposed)
+            {
+                return placement;
+            }
+
+            DeviewPlacement native;
+            if (Deview.GetPlacement(&native) == 1 &&
+                native is {Width: > 0, Height: > 0})
+            {
+                placement = new(native.X, native.Y, native.Width, native.Height, native.Maximized != 0);
+            }
+
+            return placement;
+        }
     }
 
     static unsafe bool Init(string title, int width, int height, bool hidden, byte[] font)
@@ -94,7 +138,11 @@ sealed class NativeViewerWindow : IViewerWindow
             DragAnchorRow: input.DragAnchorRow,
             DragAnchorColumn: input.DragAnchorColumn,
             DragFocusRow: input.DragFocusRow,
-            DragFocusColumn: input.DragFocusColumn);
+            DragFocusColumn: input.DragFocusColumn,
+            ZoomDelta: input.ZoomDelta,
+            PanX: input.PanX,
+            PanY: input.PanY,
+            RightClickedPane: input.RightClickedPane);
     }
 
     public void SetHidden(bool hidden) =>
@@ -123,6 +171,10 @@ sealed class NativeViewerWindow : IViewerWindow
             DeviewKey.PreviousChange => CommandKind.PreviousChange,
             DeviewKey.ToggleMinimal => CommandKind.ToggleMinimal,
             DeviewKey.ToggleDrawing => CommandKind.ToggleDrawing,
+            DeviewKey.NextProjection => CommandKind.NextProjection,
+            DeviewKey.ZoomIn => CommandKind.ZoomIn,
+            DeviewKey.ZoomOut => CommandKind.ZoomOut,
+            DeviewKey.ZoomReset => CommandKind.ZoomReset,
             DeviewKey.PreviousPage => CommandKind.PreviousPage,
             DeviewKey.NextPage => CommandKind.NextPage,
             DeviewKey.NextItem => CommandKind.NextItem,

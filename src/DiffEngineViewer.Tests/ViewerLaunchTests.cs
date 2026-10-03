@@ -559,25 +559,40 @@ public class ViewerLaunchTests
     /// </summary>
     static (string Path, IReadOnlyList<int> Lines) WriteClass(DirectoryInfo directory, string name, int methods)
     {
-        var builder = new StringBuilder("public class Sample\n{\n");
+        // Each piece ends with the blank line before its closing quotes, which is the line break
+        // after its last line: the pieces are joined end to end.
+        var builder = new StringBuilder(
+            """
+            public class Sample
+            {
+
+            """);
         var lines = new List<int>();
         for (var method = 1; method <= methods; method++)
         {
             // The class opens on two lines, each method takes seven, and the verify call is the
             // fourth of them
             lines.Add(2 + (method - 1) * 7 + 4);
-            builder.Append("    [Test]\n");
-            builder.Append($"    public Task Case{method}()\n");
-            builder.Append("    {\n");
-            builder.Append("        Verify(Build())\n");
-            builder.Append($"            .Snapshot(\"old {method}\");\n");
-            builder.Append("    }\n");
-            builder.Append('\n');
+            builder.Append(
+                $$"""
+                      [Test]
+                      public Task Case{{method}}()
+                      {
+                          Verify(Build())
+                              .Snapshot("old {{method}}");
+                      }
+
+
+                  """);
         }
 
-        builder.Append("    static string Build() =>\n");
-        builder.Append("        \"content\";\n");
-        builder.Append("}\n");
+        builder.Append(
+            """
+                static string Build() =>
+                    "content";
+            }
+
+            """);
         return (Write(directory, name, builder.ToString()), lines);
     }
 

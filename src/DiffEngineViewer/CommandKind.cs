@@ -25,10 +25,25 @@ enum CommandKind
 
     /// <summary>
     /// Cycle a document between its text with its page under it, its page alone, and its text
-    /// alone. View only, like <see cref="ToggleMinimal"/>, and a setting of the window rather than
-    /// of the entry, so it holds while moving through the queue.
+    /// alone. View only, like <see cref="ToggleMinimal"/>, and a setting of that kind of document
+    /// rather than of the entry: it holds for every one of its kind in the queue, and is
+    /// remembered for the next run.
     /// </summary>
     ToggleDrawing,
+
+    /// <summary>
+    /// Draw maps in the next <see cref="MapProjection"/>, both sides at once. View only, and a
+    /// setting of the window that is remembered between runs.
+    /// </summary>
+    NextProjection,
+
+    /// <summary>
+    /// Enlarge the picture on screen a step, both sides at once, or take it back one, or all the
+    /// way to fitted. View only, and the entry's: opening another starts fitted again.
+    /// </summary>
+    ZoomIn,
+    ZoomOut,
+    ZoomReset,
 
     /// <summary>
     /// Show a document's previous or next page, on both sides at once. View only.

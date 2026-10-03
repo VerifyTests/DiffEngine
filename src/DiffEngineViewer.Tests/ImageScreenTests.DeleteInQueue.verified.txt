@@ -20,5 +20,5 @@
 |                      |                                                       |                                                       |
 |                      |                                                       |                                                       |
 +----------------------+-------------------------------------------------------+-------------------------------------------------------+
-| [Accept delete] [Discard] [Accept all] (Prev change) (Next change) (Changes only)                     only extra.verified.png exists |
+| [Accept delete] [Discard] [Accept all] (Prev change) (Next change) (Changes only) (Zoom out) [Zoom in] only extra.verified.png exis> |
 +--------------------------------------------------------------------------------------------------------------------------------------+

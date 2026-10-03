@@ -74,7 +74,91 @@ public class ViewerProgramTests
         await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
     }
 
-    static IViewerWindow? NoWindow(string title, int width, int height, bool hidden, out string? error)
+    /// <summary>
+    /// The window is opened from what the last one left, and what this one leaves is kept for the
+    /// next: maximise, close and run again used to open at the default size every time.
+    /// </summary>
+    [Test]
+    public async Task TheWindowOpensAsTheLastWasLeftAndLeavesItsOwnForTheNext()
+    {
+        var preferences = new ViewerPreferences
+        {
+            Window = new(10, 20, 900, 600, true)
+        };
+        WindowPlacement? opened = null;
+
+        IViewerWindow Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
+        {
+            opened = placement;
+            error = null;
+            return new PlacedWindow(new(30, 40, 1000, 700, false));
+        }
+
+        var code = ViewerProgram.Run(new(Fixtures.File()), server: null, link: null, Open, preferences: preferences);
+
+        await Assert.That(code).IsEqualTo(0);
+        await Assert.That(opened).IsEqualTo(new WindowPlacement(10, 20, 900, 600, true));
+        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(30, 40, 1000, 700, false));
+    }
+
+    /// <summary>
+    /// A head that cannot say where its window is leaves what was remembered alone, rather than
+    /// forgetting it.
+    /// </summary>
+    [Test]
+    public async Task AWindowThatCannotSayWhereItIsLeavesWhatWasRemembered()
+    {
+        var preferences = new ViewerPreferences
+        {
+            Window = new(10, 20, 900, 600, true)
+        };
+
+        IViewerWindow Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
+        {
+            error = null;
+            return new PlacedWindow(null);
+        }
+
+        ViewerProgram.Run(new(Fixtures.File()), server: null, link: null, Open, preferences: preferences);
+
+        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(10, 20, 900, 600, true));
+    }
+
+    /// <summary>
+    /// Closed on its first frame, which is all a test of what happens around the loop needs.
+    /// </summary>
+    sealed class PlacedWindow(WindowPlacement? placement) : IViewerWindow
+    {
+        public WindowPlacement? Placement =>
+            placement;
+
+        public bool Present(Screen screen) =>
+            false;
+
+        public ViewerInput Poll() =>
+            default;
+
+        public void SetHidden(bool hidden)
+        {
+        }
+
+        public void Focus()
+        {
+        }
+
+        public void SetClipboard(string text)
+        {
+        }
+
+        public bool Capture(Screen screen, int width, int height, string pngPath) =>
+            false;
+
+        public void Dispose()
+        {
+        }
+    }
+
+    static IViewerWindow? NoWindow(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
     {
         error = "No display.";
         return null;
@@ -82,7 +166,7 @@ public class ViewerProgramTests
 
     sealed class ThrowingWindow : IViewerWindow
     {
-        public static IViewerWindow Open(string title, int width, int height, bool hidden, out string? error)
+        public static IViewerWindow Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
         {
             error = null;
             return new ThrowingWindow();

@@ -66,6 +66,7 @@ public class DeviewStructTests
         yield return ("DeviewMenuItem", typeof(DeviewMenuItem));
         yield return ("DeviewScreen", typeof(DeviewScreen));
         yield return ("DeviewInput", typeof(DeviewInput));
+        yield return ("DeviewPlacement", typeof(DeviewPlacement));
     }
 
     /// <summary>

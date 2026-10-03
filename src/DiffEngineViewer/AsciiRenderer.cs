@@ -55,6 +55,16 @@ static class AsciiRenderer
         // Border, title, separator, headers, separator: five lines sit above the first body row.
         var top = 5 + menu.Row + 1;
         var left = 3;
+        if (menu.Pane is { } pane)
+        {
+            // A pane's menu hangs where the pointer was, and a grid of characters has no pointer:
+            // at the top of the pane it was opened over, which says which one.
+            var columns = Math.Max(40, screen.Columns);
+            var queue = screen.Queue.Count > 0 ? queueWidth : 0;
+            var (leftPane, _) = SplitPanes(columns, queue);
+            top = 5;
+            left = (queue > 0 ? queue + 1 : 0) + (pane == PaneSide.Left ? 0 : leftPane + 1) + 3;
+        }
 
         void Write(int line, string content)
         {

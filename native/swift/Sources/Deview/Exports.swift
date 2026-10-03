@@ -4,7 +4,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-/// The nine entry points of native/include/deview.h, implemented over AppKit and Core Text.
+/// The eleven entry points of native/include/deview.h, implemented over AppKit and Core Text.
 ///
 /// The header is imported for its struct layouts only, with DEVIEW_TYPES_ONLY, so these are the
 /// definitions of those symbols rather than a second declaration of them.
@@ -119,6 +119,31 @@ public func deviewSetClipboard(_ text: UnsafePointer<CChar>?) {
 public func deviewFocus() {
     autoreleasepool {
         Runtime.shared.show()
+    }
+}
+
+@_cdecl("deview_set_placement")
+public func deviewSetPlacement(_ placement: UnsafePointer<DeviewPlacement>?) {
+    guard let placement else {
+        return
+    }
+
+    Runtime.shared.placement = placement.pointee
+}
+
+@_cdecl("deview_get_placement")
+public func deviewGetPlacement(_ placement: UnsafeMutablePointer<DeviewPlacement>?) -> Int32 {
+    guard let placement else {
+        return 0
+    }
+
+    return autoreleasepool { () -> Int32 in
+        guard let now = Runtime.shared.placementNow() else {
+            return 0
+        }
+
+        placement.pointee = now
+        return 1
     }
 }
 

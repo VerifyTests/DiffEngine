@@ -133,7 +133,7 @@ public class DocumentWatchTests :
     public async Task TheTextViewDrawsNothing()
     {
         var (host, documents) = Owned("alpha", "bravo");
-        host.Mutate(_ => _ with { Drawing = DrawingView.Text });
+        host.Mutate(_ => _.Showing(DrawingView.Text));
         var watch = new DocumentWatch(host, documents.Plugin);
         while (watch.Pump())
         {
@@ -337,7 +337,7 @@ public class DocumentWatchTests :
             return File.ReadAllText(path);
         }
 
-        int Render(string path, string directory, Action<string> landed)
+        int Render(string path, string directory, string projection, Action<string> landed)
         {
             Renders++;
             if (RenderFailure is not null)

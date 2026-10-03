@@ -26,6 +26,10 @@ struct Frame: Equatable {
     var menu: [String] = []
     var menuRow: Int32 = -1
 
+    /// The pane the menu was asked for over, 0 or 1, or -1 for one on a queue row. A pane's menu
+    /// is popped where the click that asked for it landed, which `Runtime` remembers.
+    var menuPane: Int32 = -1
+
     struct Row: Equatable {
         var kind: Int32 = 0
         var lineNumber: Int32 = -1
@@ -68,6 +72,13 @@ struct Frame: Equatable {
         /// A picture for this side is still being drawn: a document's page that has not landed.
         /// There is no path or size yet, so a spinner stands in for it, centred where it will go.
         var imagePending = false
+
+        /// How many times the size that fits the picture is drawn at, 1 unless the reader has
+        /// zoomed in, and the point of it that goes at the middle of what shows, as fractions of
+        /// its width and of its height from the top. The same on both sides.
+        var imageZoom: Float = 1
+        var imageCenterX: Float = 0.5
+        var imageCenterY: Float = 0.5
     }
 
     struct QueueItem: Equatable {
@@ -108,6 +119,7 @@ struct Frame: Equatable {
 
         if let items = screen.menu, screen.menuCount > 0 {
             frame.menuRow = screen.menuRow
+            frame.menuPane = screen.menuPane
             for index in 0 ..< Int(screen.menuCount) {
                 let item = items[index]
                 frame.menu.append(string(screen, item.labelOffset, item.labelLength))
@@ -141,6 +153,9 @@ struct Frame: Equatable {
         pane.imageWidth = source.imageWidth
         pane.imageHeight = source.imageHeight
         pane.imagePending = source.imagePending != 0
+        pane.imageZoom = source.imageZoom
+        pane.imageCenterX = source.imageCenterX
+        pane.imageCenterY = source.imageCenterY
         guard let rows = screen.rows else {
             return pane
         }

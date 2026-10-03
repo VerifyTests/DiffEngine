@@ -64,15 +64,74 @@ record SessionState(
     public bool Minimal { get; init; }
 
     /// <summary>
-    /// How a document is shown: its text, its text with its page under it, or its page alone. A
-    /// view setting like <see cref="Minimal"/>, and both at once by default, since a document's
-    /// change is often only visible drawn.
+    /// How each kind of document is shown, for the kinds the reader has chosen a view for. A view
+    /// setting like <see cref="Minimal"/>, but one per kind rather than one for the window: a
+    /// spreadsheet read as its text and a map looked at as its picture are both what their reader
+    /// wants, in the same queue. Remembered from one run to the next.
     /// </summary>
-    public DrawingView Drawing { get; init; } = DrawingView.Both;
+    public IReadOnlyDictionary<DocumentFormat, DrawingView> Drawings { get; init; } = new Dictionary<DocumentFormat, DrawingView>();
 
     /// <summary>
-    /// What the queue's documents draw as, by the hash of the bytes each was drawn from. Filled a
-    /// page at a time by <see cref="DocumentWatch"/>, and dropped once no entry has those bytes.
+    /// How the document on screen is shown: its text, its text with its page under it, or its page
+    /// alone. Whatever was last chosen for its kind, and both at once until something is, since a
+    /// document's change is often only visible drawn.
+    /// </summary>
+    public DrawingView Drawing =>
+        Shown is { } format &&
+        Drawings.TryGetValue(format, out var view)
+            ? view
+            : DrawingView.Both;
+
+    /// <summary>
+    /// This state with the kind of document on screen shown as <paramref name="view"/>, now and
+    /// whenever another of its kind is opened. The identical state when nothing on screen has a
+    /// view to choose.
+    /// </summary>
+    public SessionState Showing(DrawingView view)
+    {
+        if (Shown is not { } format ||
+            Drawing == view)
+        {
+            return this;
+        }
+
+        var drawings = new Dictionary<DocumentFormat, DrawingView>(Drawings)
+        {
+            [format] = view
+        };
+        return this with { Drawings = drawings };
+    }
+
+    /// <summary>
+    /// The kind of document on screen, by whichever side there is: the two sides of a comparison
+    /// are one file under two names.
+    /// </summary>
+    DocumentFormat? Shown =>
+        (Current?.LeftDocument ?? Current?.RightDocument)?.Format;
+
+    /// <summary>
+    /// How far the picture on screen is enlarged: a <see cref="PictureZoom"/> step, 0 for fitted.
+    /// The entry's rather than the window's, unlike <see cref="Minimal"/>: every path that opens
+    /// an entry puts it back, since a part of one picture worth looking at closely says nothing
+    /// about where to look in the next.
+    /// </summary>
+    public int Zoom { get; init; }
+
+    /// <summary>
+    /// Which part of an enlarged picture is shown. See <see cref="PanPoint"/>.
+    /// </summary>
+    public PanPoint Pan { get; init; } = PanPoint.Centre;
+
+    /// <summary>
+    /// How maps are drawn. A view setting like <see cref="Drawing"/>, and remembered from one run
+    /// to the next: a reader who wants every map in one projection chooses it once.
+    /// </summary>
+    public MapProjection Projection { get; init; }
+
+    /// <summary>
+    /// What the queue's documents draw as, by <see cref="DocumentPages.Key"/>: the hash of the
+    /// bytes each was drawn from, and for a map the projection too. Filled a page at a time by
+    /// <see cref="DocumentWatch"/>, and dropped once no entry has those bytes.
     /// </summary>
     public IReadOnlyDictionary<string, Rendering> Renders { get; init; } = new Dictionary<string, Rendering>();
 

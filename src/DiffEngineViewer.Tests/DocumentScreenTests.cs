@@ -27,17 +27,11 @@ public class DocumentScreenTests
 
     [Test]
     public Task PictureOnly() =>
-        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)) with
-        {
-            Drawing = DrawingView.Picture
-        }));
+        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Picture)));
 
     [Test]
     public Task TextOnly() =>
-        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)) with
-        {
-            Drawing = DrawingView.Text
-        }));
+        Verify(Fixtures.Render(Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Text)));
 
     /// <summary>
     /// Pages still landing: those drawn are shown, and nothing is said to differ until both sides
@@ -94,6 +88,47 @@ public class DocumentScreenTests
     }
 
     /// <summary>
+    /// A file that is not a document of its kind fails to be read and fails to be drawn, for the
+    /// one reason. Said once, about the file, rather than once for each with the second running off
+    /// the end of the footer.
+    /// </summary>
+    [Test]
+    public async Task ADamagedFileIsSaidOnce()
+    {
+        const string reason = "Not a readable PDF: file is not a PDF or is corrupt";
+        var state = Damaged(reason, reason);
+
+        await Assert.That(ScreenBuilder.Build(state).Status)
+            .IsEqualTo($"could not read sample.verified.pdf: {reason}");
+
+        // Each view on its own still says what it could not do
+        await Assert.That(ScreenBuilder.Build(state.Showing(DrawingView.Text)).Status)
+            .IsEqualTo($"could not read the text of sample.verified.pdf: {reason}");
+        await Assert.That(ScreenBuilder.Build(state.Showing(DrawingView.Picture)).Status)
+            .IsEqualTo($"could not draw sample.verified.pdf: {reason}");
+    }
+
+    /// <summary>
+    /// Two different things wrong are two things to say: a document that reads and will not draw,
+    /// or whose text and pages failed differently, is not a damaged file.
+    /// </summary>
+    [Test]
+    public async Task TwoReasonsAreBothSaid()
+    {
+        var state = Damaged("it is encrypted.", "gave up after 120 seconds.");
+
+        await Assert.That(ScreenBuilder.Build(state).Status).IsEqualTo(
+            "could not read the text of sample.verified.pdf: it is encrypted, could not draw sample.verified.pdf: gave up after 120 seconds");
+    }
+
+    static SessionState Damaged(string text, string drawing)
+    {
+        var state = State(Left, Right with { Unreadable = text }, LeftText, "");
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
+        return ViewerSession.Rendered(state, Right.Hash!, new([], true, drawing));
+    }
+
+    /// <summary>
     /// One side has a page the other has not, which is a page that differs, and the side without
     /// it says so in its header rather than drawing nothing silently.
     /// </summary>
@@ -112,17 +147,11 @@ public class DocumentScreenTests
 
     [Test]
     public Task SvgPictureOnly() =>
-        Verify(Fixtures.Render(DrawnSvg(SvgState()) with
-        {
-            Drawing = DrawingView.Picture
-        }));
+        Verify(Fixtures.Render(DrawnSvg(SvgState()).Showing(DrawingView.Picture)));
 
     [Test]
     public Task SvgTextOnly() =>
-        Verify(Fixtures.Render(DrawnSvg(SvgState()) with
-        {
-            Drawing = DrawingView.Text
-        }));
+        Verify(Fixtures.Render(DrawnSvg(SvgState()).Showing(DrawingView.Text)));
 
     /// <summary>
     /// The enrichment a head draws under the rows: the page being read, as an ordinary picture.
@@ -172,7 +201,7 @@ public class DocumentScreenTests
         await Assert.That(stopped.Left.ImagePending).IsFalse();
         await Assert.That(stopped.Right.ImagePending).IsFalse();
 
-        var text = ScreenBuilder.Build(State(Left, Right, LeftText, RightText) with { Drawing = DrawingView.Text });
+        var text = ScreenBuilder.Build(State(Left, Right, LeftText, RightText).Showing(DrawingView.Text));
         await Assert.That(text.Left.ImagePending).IsFalse();
         await Assert.That(text.Right.ImagePending).IsFalse();
 
@@ -182,10 +211,7 @@ public class DocumentScreenTests
     [Test]
     public async Task TheTextViewDrawsNothing()
     {
-        var screen = ScreenBuilder.Build(Drawn(State(Left, Right, LeftText, RightText)) with
-        {
-            Drawing = DrawingView.Text
-        });
+        var screen = ScreenBuilder.Build(Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Text));
         await Assert.That(screen.Left.Image).IsNull();
         await Assert.That(screen.Right.Image).IsNull();
     }
@@ -200,7 +226,7 @@ public class DocumentScreenTests
         var state = Drawn(State(Left, Right,Fixtures.Long(false), Fixtures.Long(true)));
         var screen = ScreenBuilder.Build(state);
         await Assert.That(screen.Left.Rows.Count).IsEqualTo(ScreenBuilder.BodyRows(state) / 2);
-        await Assert.That(ScreenBuilder.Build(state with { Drawing = DrawingView.Text }).Left.Rows.Count)
+        await Assert.That(ScreenBuilder.Build(state.Showing(DrawingView.Text)).Left.Rows.Count)
             .IsEqualTo(ScreenBuilder.BodyRows(state));
     }
 
@@ -258,7 +284,7 @@ public class DocumentScreenTests
     /// Wider than <see cref="Fixtures.Columns"/>: a document's footer carries its view and page
     /// buttons as well, and a footer that runs out of room cuts the status line short.
     /// </summary>
-    const int columns = 180;
+    const int columns = 210;
 
     internal static SessionState State(DocumentFile? left, DocumentFile? right, string leftText = "", string rightText = "") =>
         ViewerSession.EnqueueFile(

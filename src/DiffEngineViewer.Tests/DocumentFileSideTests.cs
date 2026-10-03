@@ -146,7 +146,7 @@ public class DocumentFileSideTests :
     {
         var documents = new DocumentPlugin(
             static _ => throw new("Not read in these tests."),
-            static (_, _, _) => throw new("Not drawn in these tests."));
+            static (_, _, _, _) => throw new("Not drawn in these tests."));
         disposables.Add(documents);
         return documents;
     }

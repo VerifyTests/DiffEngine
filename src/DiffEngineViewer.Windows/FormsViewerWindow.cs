@@ -27,12 +27,12 @@ sealed class FormsViewerWindow :
     FormsViewerWindow(ViewerForm form) =>
         this.form = form;
 
-    public static IViewerWindow? Open(string title, int width, int height, bool hidden, out string? error)
+    public static IViewerWindow? Open(string title, int width, int height, bool hidden, WindowPlacement? placement, out string? error)
     {
         error = null;
         try
         {
-            var form = new ViewerForm(title, width, height);
+            var form = new ViewerForm(title, width, height, placement);
             // Forces the handle, so a hidden window can still measure text and be captured.
             form.CreateControl();
             _ = form.Handle;
@@ -135,6 +135,9 @@ sealed class FormsViewerWindow :
 
         form.Raise();
     }
+
+    public WindowPlacement? Placement =>
+        form.Placement;
 
     /// <summary>
     /// Best effort, the way revealing a file is. Another process can hold the clipboard open, and

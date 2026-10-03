@@ -20,5 +20,5 @@
 |                                                                  |                                                                   |
 |                                                                  |                                                                   |
 +------------------------------------------------------------------+-------------------------------------------------------------------+
-| [Accept] [Close] (Prev change) (Next change) (Changes only)                                          only sample.received.png exists |
+| [Accept] [Close] (Prev change) (Next change) (Changes only) (Zoom out) [Zoom in]                     only sample.received.png exists |
 +--------------------------------------------------------------------------------------------------------------------------------------+

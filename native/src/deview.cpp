@@ -115,6 +115,9 @@ struct CachedTexture
 
     /* Whether the frame being built asked for this picture. What ForgetUnusedPictures keeps. */
     bool used = false;
+
+    /* Sampled as its own pixels rather than smoothed: see SampleAsPixels. */
+    bool point = false;
 };
 
 /*
@@ -204,9 +207,117 @@ struct State
     int32_t dragSide = -1;
     int32_t dragAnchorRow = 0;
     int32_t dragAnchorColumn = 0;
+
+    /*
+     * Where the last frame put each pane's picture, or the spinner standing in for one: what a
+     * wheel notch and a press are resolved against. Left as they were by a capture, which draws at
+     * a size of its own.
+     */
+    struct PictureSpace
+    {
+        bool present = false;
+        float left = 0.0f;
+        float top = 0.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+
+        /* Enlarged past the space, so there is somewhere for a drag to take it: the whole picture's
+         * size as drawn, the centre it was drawn about, and how much of it shows each way. */
+        bool enlarged = false;
+        float wholeWidth = 0.0f;
+        float wholeHeight = 0.0f;
+        float centreX = 0.5f;
+        float centreY = 0.5f;
+        float across = 1.0f;
+        float down = 1.0f;
+    };
+
+    PictureSpace pictureSpaces[2];
+
+    /*
+     * An enlarged picture being dragged: where the button went down, and how the picture was placed
+     * then, which the whole drag is measured from. Measured from the last frame instead, a drag
+     * would drift by whatever each frame's clamp took off it.
+     */
+    bool panning = false;
+    ImVec2 panStart{};
+    PictureSpace panFrom{};
+
+    /*
+     * Where the right-click that asked for a pane's menu landed, which is where the menu hangs: the
+     * managed side knows which pane and nothing of where in it. And where the menu was last drawn,
+     * so a right-click on the menu itself is not taken for one on the pane under it.
+     */
+    ImVec2 paneMenuAnchor{};
+    ImVec2 menuMin{};
+    ImVec2 menuMax{};
+
+    /* How the last window was left, handed over before this one exists and used as it is made. */
+    bool placed = false;
+    DeviewPlacement placement{};
+
+    /*
+     * The window's bounds as they were when it was last neither maximised nor minimised, and
+     * whether it is maximised now. GLFW says where a maximised window is and nothing about where
+     * it will go back to, so that has to have been noted while it was still there.
+     */
+    bool tracked = false;
+    DeviewPlacement normal{};
 };
 
 State state;
+
+/*
+ * Whether a remembered window would open somewhere it can be reached: its top edge on a monitor,
+ * with enough of its width there to take hold of. Monitors come and go between runs, and a window
+ * opened where one used to be is a viewer that looks as if it did not start.
+ */
+bool OnAMonitor(const DeviewPlacement& placement)
+{
+    constexpr int reach = 100;
+    const int count = GetMonitorCount();
+    for (int index = 0; index < count; index++)
+    {
+        const Vector2 origin = GetMonitorPosition(index);
+        const int left = static_cast<int>(origin.x);
+        const int top = static_cast<int>(origin.y);
+        const int right = left + GetMonitorWidth(index);
+        const int bottom = top + GetMonitorHeight(index);
+        const int overlap = std::min(placement.x + placement.width, right) - std::max(placement.x, left);
+        if (overlap >= reach &&
+            placement.y >= top &&
+            placement.y < bottom - reach)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* Noted every frame the window is neither maximised, minimised nor hidden. See State::normal. */
+void TrackPlacement()
+{
+    if (IsWindowState(FLAG_WINDOW_HIDDEN) ||
+        IsWindowMinimized())
+    {
+        return;
+    }
+
+    state.normal.maximized = IsWindowMaximized() ? 1 : 0;
+    if (state.normal.maximized != 0 &&
+        state.tracked)
+    {
+        return;
+    }
+
+    const Vector2 position = GetWindowPosition();
+    state.normal.x = static_cast<int32_t>(position.x);
+    state.normal.y = static_cast<int32_t>(position.y);
+    state.normal.width = GetScreenWidth();
+    state.normal.height = GetScreenHeight();
+    state.tracked = true;
+}
 
 float ClampQueueWidth(float value, float available, float cell)
 {
@@ -237,6 +348,11 @@ void ResetInput()
     state.input.dragAnchorColumn = 0;
     state.input.dragFocusRow = 0;
     state.input.dragFocusColumn = 0;
+    state.input.zoomDelta = 0;
+    /* -1 again: 0 is the left edge of a picture, so a cleared field has to say "no drag". */
+    state.input.panX = -1.0f;
+    state.input.panY = -1.0f;
+    state.input.rightClickedPane = -1;
 }
 
 /* Every string is an offset into one UTF-8 blob. Bad offsets are a crash, not a glitch, so the
@@ -336,6 +452,41 @@ char RowMarker(int kind)
 }
 
 /* ---- pictures ---- */
+
+/*
+ * How a picture's texture is sampled, set once as it is made.
+ *
+ * Bilinear, which is the whole of what a fitted picture needs: it is only ever drawn at its own
+ * size or smaller. Clamped at its edges rather than repeating, which is raylib's default: sampled
+ * at its last column, a repeating texture takes in its first, and a picture that is opaque on the
+ * left and clear on the right grew a line of its left edge down its right.
+ */
+void PrepareTexture(CachedTexture& entry)
+{
+    SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+    SetTextureWrap(entry.texture, TEXTURE_WRAP_CLAMP);
+    entry.point = false;
+}
+
+/*
+ * A picture enlarged past its own size is drawn as the pixels it has, which is what zooming that
+ * far in is for: smoothed, a one pixel difference between the two sides is a blur on both. Every
+ * other picture is smoothed. Changed only when it has to be, since it is a texture parameter and
+ * this is asked every frame.
+ */
+void SampleAsPixels(const std::string& path, bool point)
+{
+    const auto found = state.pictures.find(path);
+    if (found == state.pictures.end() ||
+        !found->second.loaded ||
+        found->second.point == point)
+    {
+        return;
+    }
+
+    SetTextureFilter(found->second.texture, point ? TEXTURE_FILTER_POINT : TEXTURE_FILTER_BILINEAR);
+    found->second.point = point;
+}
 
 void DecodeLoop(std::shared_ptr<Decoder> decoder)
 {
@@ -466,9 +617,7 @@ void TakeDecoded()
                 {
                     entry.texture = texture;
                     entry.loaded = true;
-                    /* A picture is only ever scaled down here, so bilinear is the whole of what the
-                     * filter has to do. */
-                    SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+                    PrepareTexture(entry);
                 }
             }
         }
@@ -559,7 +708,7 @@ const Texture2D* Picture(const std::string& path, bool& loading)
         {
             entry.texture = texture;
             entry.loaded = true;
-            SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+            PrepareTexture(entry);
         }
     }
     else
@@ -786,6 +935,11 @@ int ReadKey()
          * this ctrl+a fell through to plain A, which accepts. */
         if (IsKeyPressed(KEY_C)) return DEVIEW_KEY_COPY;
         if (IsKeyPressed(KEY_A)) return DEVIEW_KEY_SELECT_ALL;
+        /* With control as well as without, since that is the chord everything else that zooms
+         * taught. By position here: a character is not reported while control is held. */
+        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) return DEVIEW_KEY_ZOOM_IN;
+        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) return DEVIEW_KEY_ZOOM_OUT;
+        if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_KP_0)) return DEVIEW_KEY_ZOOM_RESET;
         return DEVIEW_KEY_NONE;
     }
 
@@ -806,8 +960,15 @@ int ReadKey()
             case 'p': return DEVIEW_KEY_PREVIOUS_CHANGE;
             case 'm': return DEVIEW_KEY_TOGGLE_MINIMAL;
             case 'r': return DEVIEW_KEY_TOGGLE_DRAWING;
+            case 'j': return DEVIEW_KEY_NEXT_PROJECTION;
             case '[': return DEVIEW_KEY_PREVIOUS_PAGE;
             case ']': return DEVIEW_KEY_NEXT_PAGE;
+            /* Plus is the equals key whether or not shift is held: nobody reaches for shift to
+             * zoom in. */
+            case '+':
+            case '=': return DEVIEW_KEY_ZOOM_IN;
+            case '-': return DEVIEW_KEY_ZOOM_OUT;
+            case '0': return DEVIEW_KEY_ZOOM_RESET;
             default: break;
         }
     }
@@ -1226,8 +1387,14 @@ void DrawSpinner(ImDrawList* list, const ImVec2& centre, float pitch, float widt
  * A spinner instead, while the picture is on its way: a document's page the managed side is still
  * drawing, which it says with imagePending, or a picture still being decoded here.
  */
-void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const PaneImage& bounds, float bottom)
+void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const PaneImage& bounds, float bottom, int side)
 {
+    /* A capture draws at a size of its own, and what it lays out is not where anything is in the
+     * window the pointer is over. */
+    State::PictureSpace unused;
+    State::PictureSpace& space = state.capturing ? unused : state.pictureSpaces[side];
+    space = State::PictureSpace{};
+
     const bool picture =
         pane.imagePathLength > 0 &&
         pane.imageWidth > 0 &&
@@ -1249,6 +1416,14 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         return;
     }
 
+    /* The whole space rather than the picture in it, and whether or not the picture has arrived: a
+     * small picture is a small target, and a wheel turned beside it means the same thing. */
+    space.present = true;
+    space.left = bounds.left;
+    space.top = top;
+    space.width = bounds.width;
+    space.height = available;
+
     ImDrawList* list = ImGui::GetWindowDrawList();
     const ImVec2 centre = ImFloor(ImVec2(bounds.left + bounds.width * 0.5f, top + available * 0.5f));
     if (!picture)
@@ -1258,7 +1433,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     }
 
     bool loading = false;
-    const Texture2D* texture = Picture(Copy(screen, pane.imagePathOffset, pane.imagePathLength), loading);
+    const std::string path = Copy(screen, pane.imagePathOffset, pane.imagePathLength);
+    const Texture2D* texture = Picture(path, loading);
     if (texture == nullptr)
     {
         /* Nothing at all for a picture this build cannot decode: the rows have said what it is. */
@@ -1283,9 +1459,45 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
             bounds.width / static_cast<float>(pane.imageWidth),
             available / static_cast<float>(pane.imageHeight)),
         1.0f);
-    const ImVec2 size(
+    const ImVec2 fitted(
         std::max(1.0f, static_cast<float>(pane.imageWidth) * scale),
         std::max(1.0f, static_cast<float>(pane.imageHeight) * scale));
+
+    /*
+     * Past that only by the reader asking, and then cut off at the edges of the space rather than
+     * drawn over the rows above or the pane beside: what shows is the part around the centre the
+     * managed side asked for, moved in as far as it takes to keep the space full. It does not know
+     * how many pixels a pane has, so it can ask for one at the very edge.
+     */
+    ImVec2 size = fitted;
+    ImVec2 uvMin(0.0f, 0.0f);
+    ImVec2 uvMax(1.0f, 1.0f);
+    SampleAsPixels(
+        path,
+        pane.imageZoom > 1.0f &&
+        fitted.x * pane.imageZoom >= static_cast<float>(texture->width));
+    if (pane.imageZoom > 1.0f)
+    {
+        const ImVec2 whole(fitted.x * pane.imageZoom, fitted.y * pane.imageZoom);
+        size = ImVec2(
+            std::min(std::floor(bounds.width), std::max(1.0f, std::floor(whole.x))),
+            std::min(std::floor(available), std::max(1.0f, std::floor(whole.y))));
+        const float across = size.x / whole.x;
+        const float down = size.y / whole.y;
+        const float centreX = std::min(std::max(pane.imageCenterX, across * 0.5f), 1.0f - across * 0.5f);
+        const float centreY = std::min(std::max(pane.imageCenterY, down * 0.5f), 1.0f - down * 0.5f);
+        uvMin = ImVec2(centreX - across * 0.5f, centreY - down * 0.5f);
+        uvMax = ImVec2(centreX + across * 0.5f, centreY + down * 0.5f);
+
+        space.enlarged = true;
+        space.wholeWidth = whole.x;
+        space.wholeHeight = whole.y;
+        space.centreX = centreX;
+        space.centreY = centreY;
+        space.across = across;
+        space.down = down;
+    }
+
     /*
      * Snapped to the pixel grid: centring halves a difference of arbitrary floats, which is the
      * one place a half pixel can appear, and a picture drawn from a fractional origin rasterises
@@ -1298,12 +1510,92 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     const ImVec2 max(min.x + size.x, min.y + size.y);
 
     DrawChecker(list, min, max);
-    list->AddImage(static_cast<ImTextureID>(texture->id), min, max);
+    list->AddImage(static_cast<ImTextureID>(texture->id), min, max, uvMin, uvMax);
     /* An outline, so a picture whose edges are the colour of the pane still has visible extent. */
     list->AddRect(
         ImVec2(min.x - 1.0f, min.y - 1.0f),
         ImVec2(max.x + 1.0f, max.y + 1.0f),
         IM_COL32(70, 70, 70, 255));
+}
+
+/* Whether a point is in the space either pane draws its picture in. */
+bool OverPicture(float x, float y)
+{
+    for (const State::PictureSpace& space : state.pictureSpaces)
+    {
+        if (space.present &&
+            x >= space.left &&
+            x < space.left + space.width &&
+            y >= space.top &&
+            y < space.top + space.height)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * An enlarged picture taken hold of and moved, reduced to the centre the managed side takes.
+ *
+ * Reported for as long as the button is held, as a drag across the text is, and from where the
+ * button went down rather than from the frame before. Returns whether a drag is in progress, which
+ * is what keeps the same press from also starting a selection.
+ */
+bool UpdatePan(const DeviewScreen* screen)
+{
+    if (!ImGui::IsMousePosValid())
+    {
+        state.panning = false;
+        return false;
+    }
+
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    if (!state.panning)
+    {
+        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+            /* A click on this head's own context menu lands wherever the menu is floating. */
+            screen->menuCount > 0)
+        {
+            return false;
+        }
+
+        for (const State::PictureSpace& space : state.pictureSpaces)
+        {
+            if (space.present &&
+                space.enlarged &&
+                mouse.x >= space.left &&
+                mouse.x < space.left + space.width &&
+                mouse.y >= space.top &&
+                mouse.y < space.top + space.height)
+            {
+                state.panning = true;
+                state.panStart = mouse;
+                state.panFrom = space;
+                break;
+            }
+        }
+
+        if (!state.panning)
+        {
+            return false;
+        }
+    }
+
+    /* The picture follows the pointer, so the point at the middle moves the other way. */
+    const State::PictureSpace& from = state.panFrom;
+    const float x = from.centreX - (mouse.x - state.panStart.x) / from.wholeWidth;
+    const float y = from.centreY - (mouse.y - state.panStart.y) / from.wholeHeight;
+    state.input.panX = std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f);
+    state.input.panY = std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f);
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        state.panning = false;
+    }
+
+    return true;
 }
 
 void BuildFrame(const DeviewScreen* screen)
@@ -1501,13 +1793,50 @@ void BuildFrame(const DeviewScreen* screen)
     if (screen->paneCount >= 2)
     {
         const float bottom = bodyMin.y + bodyAvail.y;
-        DrawPaneImage(screen, screen->panes[0], leftImage, bottom);
-        DrawPaneImage(screen, screen->panes[1], rightImage, bottom);
+        DrawPaneImage(screen, screen->panes[0], leftImage, bottom, 0);
+        DrawPaneImage(screen, screen->panes[1], rightImage, bottom, 1);
     }
 
     /* After the table, which is where the geometry it reads becomes complete, and before the
-     * splitter, which claims its own clicks. */
-    UpdateSelection(screen, leftHit, rightHit, bodyMin, bodyAvail, dividerX, cell);
+     * splitter, which claims its own clicks. A press that takes hold of an enlarged picture is not
+     * also the start of a selection in the rows above it. */
+    if (state.capturing ||
+        !UpdatePan(screen))
+    {
+        UpdateSelection(screen, leftHit, rightHit, bodyMin, bodyAvail, dividerX, cell);
+    }
+
+    /*
+     * A right-click anywhere in a pane, its text or under it, asks for the menu that copies from
+     * it. Remembered here because the menu hangs where the click landed, and the managed side is
+     * told which pane and nothing of where in it.
+     *
+     * Not a click on the menu already up, which floats over the panes and is drawn after them: the
+     * queue rows take their own right-clicks as items, and a pane is not one.
+     */
+    if (!state.capturing &&
+        screen->paneCount >= 2 &&
+        ImGui::IsMousePosValid() &&
+        ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    {
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        const bool overMenu =
+            screen->menuCount > 0 &&
+            mouse.x >= state.menuMin.x &&
+            mouse.x < state.menuMax.x &&
+            mouse.y >= state.menuMin.y &&
+            mouse.y < state.menuMax.y;
+        if (!overMenu &&
+            leftHit.cellLeft >= 0.0f &&
+            mouse.x >= leftHit.cellLeft &&
+            mouse.x <= bodyMin.x + bodyAvail.x &&
+            mouse.y >= bodyMin.y &&
+            mouse.y <= bodyMin.y + bodyAvail.y)
+        {
+            state.input.rightClickedPane = rightHit.cellLeft >= 0.0f && mouse.x >= rightHit.cellLeft ? 1 : 0;
+            state.paneMenuAnchor = mouse;
+        }
+    }
 
     /*
      * The drag, submitted after the table so it wins the overlap: within a window the last item to
@@ -1578,7 +1907,8 @@ void BuildFrame(const DeviewScreen* screen)
      * The context menu, its own floating window so it draws over the panes. The managed side owns
      * opening and closing; this only draws what the screen carries and reports a clicked item.
      */
-    if (screen->menuCount > 0 && menuAnchored)
+    const bool paneMenu = screen->menuPane >= 0 && screen->paneCount >= 2;
+    if (screen->menuCount > 0 && (menuAnchored || paneMenu))
     {
         /* Sized by hand rather than AlwaysAutoResize, which measures during its first frame and
          * so draws nothing on it — and a pixel capture is exactly one frame. */
@@ -1596,7 +1926,26 @@ void BuildFrame(const DeviewScreen* screen)
             widest + style.WindowPadding.x * 2.0f + cell,
             static_cast<float>(screen->menuCount) * ImGui::GetTextLineHeightWithSpacing() +
                 style.WindowPadding.y * 2.0f);
-        ImGui::SetNextWindowPos(ImVec2(menuAnchor.x + cell, menuAnchor.y));
+        ImVec2 position(menuAnchor.x + cell, menuAnchor.y);
+        if (paneMenu)
+        {
+            /* Where the pointer was when it was asked for. A capture was never fed a pointer, so
+             * there it hangs from the top of the pane it is for, which is somewhere that is the
+             * same every time. */
+            const PaneHit& hit = screen->menuPane == 1 ? rightHit : leftHit;
+            position = state.capturing
+                ? ImVec2(hit.cellLeft + cell, bodyMin.y + ImGui::GetTextLineHeightWithSpacing())
+                : state.paneMenuAnchor;
+            /* Kept inside the window: a click near its right or bottom edge would otherwise hang
+             * most of the menu off it. */
+            const ImVec2 display = ImGui::GetIO().DisplaySize;
+            position.x = std::max(0.0f, std::min(position.x, display.x - size.x));
+            position.y = std::max(0.0f, std::min(position.y, display.y - size.y));
+        }
+
+        state.menuMin = position;
+        state.menuMax = ImVec2(position.x + size.x, position.y + size.y);
+        ImGui::SetNextWindowPos(position);
         ImGui::SetNextWindowSize(size);
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(28, 28, 28, 255));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
@@ -1729,11 +2078,36 @@ int32_t deview_init(
         flags |= FLAG_WINDOW_HIDDEN;
     }
 
+    /* At the size it was left, which is known before there is a window to ask about monitors. Where
+     * it goes is decided below, once there is. */
+    const bool sized = state.placed &&
+                       hidden == 0 &&
+                       state.placement.width > 0 &&
+                       state.placement.height > 0;
     SetConfigFlags(flags);
-    InitWindow(width, height, title == nullptr ? "DiffEngineViewer" : title);
+    InitWindow(
+        sized ? state.placement.width : width,
+        sized ? state.placement.height : height,
+        title == nullptr ? "DiffEngineViewer" : title);
     if (!IsWindowReady())
     {
         return 0;
+    }
+
+    state.tracked = false;
+    if (sized)
+    {
+        if (OnAMonitor(state.placement))
+        {
+            SetWindowPosition(state.placement.x, state.placement.y);
+        }
+
+        /* What it restores to, noted before maximising takes the chance away. */
+        TrackPlacement();
+        if (state.placement.maximized != 0)
+        {
+            MaximizeWindow();
+        }
     }
 
     SetExitKey(KEY_NULL);
@@ -1812,6 +2186,7 @@ int32_t deview_present(const DeviewScreen* screen)
     ForgetUnusedPictures();
 
     MeasureGrid();
+    TrackPlacement();
     return 1;
 }
 
@@ -1842,8 +2217,23 @@ void deview_poll_input(DeviewInput* input)
         const Vector2 wheel = GetMouseWheelMoveV();
         state.scrollRemainder += wheel.y;
         const int32_t notches = static_cast<int32_t>(state.scrollRemainder);
-        state.input.scrollDelta = notches;
         state.scrollRemainder -= static_cast<float>(notches);
+
+        /* Over a picture the wheel is for the picture, and anywhere with control held, as it is in
+         * everything else that shows one. Everywhere else it scrolls the rows, as it always has. */
+        const Vector2 mouse = GetMousePosition();
+        const bool control =
+            IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
+            IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
+        if (control || OverPicture(mouse.x, mouse.y))
+        {
+            state.input.zoomDelta = notches;
+        }
+        else
+        {
+            state.input.scrollDelta = notches;
+        }
+
         MeasureGrid();
     }
 
@@ -1955,6 +2345,31 @@ void deview_focus(void)
     }
 
     SetWindowFocused();
+}
+
+void deview_set_placement(const DeviewPlacement* placement)
+{
+    if (placement == nullptr)
+    {
+        return;
+    }
+
+    state.placement = *placement;
+    state.placed = true;
+}
+
+int32_t deview_get_placement(DeviewPlacement* placement)
+{
+    if (placement == nullptr ||
+        !state.initialised ||
+        !state.windowOpen ||
+        !state.tracked)
+    {
+        return 0;
+    }
+
+    *placement = state.normal;
+    return 1;
 }
 
 void deview_shutdown(void)

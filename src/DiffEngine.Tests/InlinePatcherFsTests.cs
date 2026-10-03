@@ -21,7 +21,15 @@ public class InlinePatcherFsTests
 
     // Line 5 is the first line of the body
     static string Test(string body) =>
-        Source($"module Tests\n\n[<Fact>]\nlet MyTest () =\n{body}\n");
+        Source(
+            $$"""
+              module Tests
+
+              [<Fact>]
+              let MyTest () =
+              {{body}}
+
+              """);
 
     static PatchStatus TryApply(
         string source,
@@ -290,7 +298,17 @@ public class InlinePatcherFsTests
     [Test]
     public async Task MemberNameBoundsTheSearchForABacktickedName()
     {
-        var source = Source("module Tests\n\nlet ``test a`` () =\n    Verifier.Verify(a).Snapshot(\"dup\").ToTask()\n\nlet ``test b`` () =\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()\n");
+        var source = Source(
+            """
+            module Tests
+
+            let ``test a`` () =
+                Verifier.Verify(a).Snapshot("dup").ToTask()
+
+            let ``test b`` () =
+                Verifier.Verify(b).Snapshot("dup").ToTask()
+
+            """);
 
         var status = TryApply(source, 4, InlinePatchMode.Set, null, "new", out var newSource, out _, originalValue: "dup", memberName: "test b");
 
@@ -542,8 +560,10 @@ public class InlinePatcherFsTests
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).IsEqualTo(
             Test(
-                "    Verifier.Verify(15)\n" +
-                "        .ToTask() |> Async.AwaitTask"));
+                """
+                    Verifier.Verify(15)
+                        .ToTask() |> Async.AwaitTask
+                """));
     }
 
     [Test]
@@ -891,7 +911,15 @@ public class InlinePatcherFsTests
     public async Task FsPatcherDoesNotCallALayoutShapedRegularLiteralAlreadyApplied()
     {
         const string content = "\nx = \"\"\"\n";
-        var source = Source("module Tests\n\n[<Test>]\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\\nx = \\\"\\\"\\\"\\n\").ToTask()\n");
+        var source = Source(
+            """
+            module Tests
+
+            [<Test>]
+            let MyTest () =
+                Verifier.Verify(value).Snapshot("\nx = \"\"\"\n").ToTask()
+
+            """);
         // What F# hands the test library for that literal is the content itself (fsi), and this is
         // what the library compares against and sends as the anchor
         var seen = SourceLanguage.FSharp.SnapshotValue(content);
@@ -909,7 +937,15 @@ public class InlinePatcherFsTests
     [Test]
     public async Task FsPatcherUpdatesALiteralHoldingAnUnknownEscape()
     {
-        var source = Source("module Tests\n\n[<Test>]\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"\\d+\").ToTask()\n");
+        var source = Source(
+            """
+            module Tests
+
+            [<Test>]
+            let MyTest () =
+                Verifier.Verify(value).Snapshot("\d+").ToTask()
+
+            """);
 
         var status = TryApply(source, 5, InlinePatchMode.Set, null, "\\d+x", out var newSource, out var reason, originalValue: "\\d+", memberName: "MyTest");
 

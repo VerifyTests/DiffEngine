@@ -93,12 +93,53 @@ public class PaneHitTests
         state = ViewerSession.Rendered(state, "BB", new(page, true));
 
         using var host = new Host();
-        host.Draw(ScreenBuilder.Build(state with { Drawing = DrawingView.Text }));
+        host.Draw(ScreenBuilder.Build(state.Showing(DrawingView.Text)));
         var lowest = LowestCell(host.Canvas);
         await Assert.That(lowest).IsNotNull();
 
         host.Draw(ScreenBuilder.Build(state));
         await Assert.That(host.Canvas.PaneCellAt(new(width / 4, lowest!.Value))).IsNull();
+    }
+
+    /// <summary>
+    /// A right click anywhere in a pane asks for that pane's menu: on its text, and under it, since
+    /// a file of five lines has most of its pane under them. The queue column, the headers and the
+    /// title are not a pane.
+    /// </summary>
+    [Test]
+    public async Task ARightClickInAPaneAsksForItsMenu()
+    {
+        var state = ViewerSession.Resize(Fixtures.Inline(Fixtures.Patch()), columns, rows);
+        using var host = new Host();
+        host.Draw(ScreenBuilder.Build(state));
+        var asked = new List<(PaneSide Side, Point At)>();
+        host.Canvas.PaneRightClicked += (side, point) => asked.Add((side, point));
+
+        var onText = new Point(width / 2, 75);
+        var underText = new Point(width - 60, height - 120);
+        host.RightClick(onText);
+        host.RightClick(underText);
+        host.RightClick(new(10, 200));
+        host.RightClick(new(width / 2, 10));
+
+        await Assert.That(asked.Count).IsEqualTo(2);
+        await Assert.That(asked[0]).IsEqualTo((PaneSide.Left, onText));
+        await Assert.That(asked[1]).IsEqualTo((PaneSide.Right, underText));
+    }
+
+    /// <summary>
+    /// File mode has no queue column, so its left pane starts at the window's edge.
+    /// </summary>
+    [Test]
+    public async Task WithNoQueueTheLeftPaneStartsAtTheEdge()
+    {
+        var state = ViewerSession.Resize(Fixtures.File(), columns, rows);
+        using var host = new Host();
+        host.Draw(ScreenBuilder.Build(state));
+
+        await Assert.That(host.Canvas.PaneAt(new(10, 200))).IsEqualTo(PaneSide.Left);
+        await Assert.That(host.Canvas.PaneAt(new(width - 20, 200))).IsEqualTo(PaneSide.Right);
+        await Assert.That(host.Canvas.PaneAt(new(10, 10))).IsNull();
     }
 
     /// <summary>
@@ -176,6 +217,14 @@ public class PaneHitTests
         }
 
         readonly List<Bitmap> bitmaps = [];
+
+        public void RightClick(Point at) =>
+            SendMessage(Canvas.Handle, rightButtonDown, new(2), new((at.Y << 16) | (at.X & 0xFFFF)));
+
+        const int rightButtonDown = 0x0204;
+
+        [DllImport("user32.dll")]
+        static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
 
         public void Dispose()
         {

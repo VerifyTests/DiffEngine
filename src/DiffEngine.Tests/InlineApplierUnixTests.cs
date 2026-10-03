@@ -7,7 +7,13 @@
 public class InlineApplierUnixTests :
     IDisposable
 {
-    const string source = "class C\n{\n    void M() => Verify(value).Snapshot(\"old\");\n}";
+    const string source =
+        """
+        class C
+        {
+            void M() => Verify(value).Snapshot("old");
+        }
+        """;
 
     /// <summary>
     /// A source file reached through a symlink - a worktree, a vendored copy, a checkout shared

@@ -18,29 +18,30 @@ static class ViewerProgram
         // bundled in DiffEngine does not, and for it this is null all the way down. Only looked
         // for here: loading it waits for the first document, on the thread that reads them.
         using var documents = DocumentPlugin.Find();
+        var preferences = ViewerPreferences.ForUser();
         try
         {
             if (request.Attach)
             {
-                return RunAttached(open, documents);
+                return RunAttached(open, documents, preferences);
             }
 
             if (request.Delete)
             {
-                return RunDelete(request.Left!, open, documents);
+                return RunDelete(request.Left!, open, documents, preferences);
             }
 
             if (request.Diff)
             {
-                return RunDiff(request.Left!, request.Right!, open, documents);
+                return RunDiff(request.Left!, request.Right!, open, documents, preferences);
             }
 
             if (request.Mode == ViewerMode.Inline)
             {
-                return RunInline(request.Payload, open, documents);
+                return RunInline(request.Payload, open, documents, preferences);
             }
 
-            return RunFile(request, open, documents);
+            return RunFile(request, open, documents, preferences);
         }
         catch (Exception exception)
         {
@@ -49,7 +50,7 @@ static class ViewerProgram
         }
     }
 
-    static int RunInline(string? payloadFile, OpenWindow open, DocumentPlugin? documents)
+    static int RunInline(string? payloadFile, OpenWindow open, DocumentPlugin? documents, ViewerPreferences preferences)
     {
         var payload = ReadPayload(payloadFile);
         if (payload is null ||
@@ -82,7 +83,7 @@ static class ViewerProgram
         using (server)
         {
             var start = ViewerSession.EnqueueInline(SessionState.Start(ViewerMode.Inline), patch);
-            return Run(new(start), server, null, open, documents);
+            return Run(new(start), server, null, open, documents, preferences);
         }
     }
 
@@ -145,7 +146,7 @@ static class ViewerProgram
     /// the same resolution <see cref="RunInline"/> reaches for a second patch.
     /// </para>
     /// </summary>
-    static int RunDelete(string file, OpenWindow open, DocumentPlugin? documents)
+    static int RunDelete(string file, OpenWindow open, DocumentPlugin? documents, ViewerPreferences preferences)
     {
         var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
@@ -165,7 +166,7 @@ static class ViewerProgram
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
                 TrackedEntry.ForDelete(file, documents));
-            return Run(new(start), server, null, open, documents);
+            return Run(new(start), server, null, open, documents, preferences);
         }
     }
 
@@ -183,7 +184,7 @@ static class ViewerProgram
     /// nothing else can add to is the whole intent.
     /// </para>
     /// </summary>
-    static int RunDiff(string temp, string target, OpenWindow open, DocumentPlugin? documents)
+    static int RunDiff(string temp, string target, OpenWindow open, DocumentPlugin? documents, ViewerPreferences preferences)
     {
         var port = ViewerClient.Port;
         if (!ViewerServer.TryBind(port, out var server))
@@ -203,7 +204,7 @@ static class ViewerProgram
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
                 TrackedEntry.ForMove(temp, target, documents));
-            return Run(new(start), server, null, open, documents);
+            return Run(new(start), server, null, open, documents, preferences);
         }
     }
 
@@ -212,7 +213,7 @@ static class ViewerProgram
     /// and forwards commands. Launched this way by DiffEngineTray, which owns the queue itself and
     /// so can never be the window.
     /// </summary>
-    static int RunAttached(OpenWindow open, DocumentPlugin? documents)
+    static int RunAttached(OpenWindow open, DocumentPlugin? documents, ViewerPreferences preferences)
     {
         var host = new SessionHost(SessionState.Start(ViewerMode.Inline));
         var link = new OwnerLink(host, ViewerClient.Port, documents);
@@ -230,10 +231,10 @@ static class ViewerProgram
             return 0;
         }
 
-        return Run(host, null, link, open, documents);
+        return Run(host, null, link, open, documents, preferences);
     }
 
-    static int RunFile(ViewerRequest request, OpenWindow open, DocumentPlugin? documents)
+    static int RunFile(ViewerRequest request, OpenWindow open, DocumentPlugin? documents, ViewerPreferences preferences)
     {
         var left = request.Left!;
         var right = request.Right!;
@@ -247,7 +248,7 @@ static class ViewerProgram
         // brand new snapshot has nothing on the right yet.
         var entry = QueueEntry.ForFiles(left, right, FileSide.Read(left, documents), FileSide.Read(right, documents));
         var start = ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File), entry);
-        return Run(new(start), null, null, open, documents);
+        return Run(new(start), null, null, open, documents, preferences);
     }
 
     /// <summary>
@@ -256,9 +257,22 @@ static class ViewerProgram
     /// ViewerProgramTests can hand it a window that will not open, or one that throws.
     /// </summary>
     /// <param name="documents">The documents folder, or null for a viewer without one.</param>
-    internal static int Run(SessionHost host, ViewerServer? server, OwnerLink? link, OpenWindow open, DocumentPlugin? documents = null)
+    /// <param name="preferences">
+    /// What to open the window from and remember it into, or null to remember nothing past this
+    /// call, which is what a test wants unless it is about remembering.
+    /// </param>
+    internal static int Run(
+        SessionHost host,
+        ViewerServer? server,
+        OwnerLink? link,
+        OpenWindow open,
+        DocumentPlugin? documents = null,
+        ViewerPreferences? preferences = null)
     {
-        var window = open("DiffEngineViewer", 1100, 700, false, out var error);
+        preferences ??= new();
+        // Before there is a window, so its first frame is already the way the reader left things
+        host.Mutate(preferences.Apply);
+        var window = open("DiffEngineViewer", 1100, 700, false, preferences.Window, out var error);
         if (window is null)
         {
             Console.Error.WriteLine(error);
@@ -273,11 +287,12 @@ static class ViewerProgram
 
         if (window is ILoopHooks hooks)
         {
-            hooks.Frame = () => ModalFrame(host, window, link);
+            hooks.Frame = () => ModalFrame(host, window, link, preferences);
             hooks.SessionEnding = () =>
             {
                 host.Mutate(_ => _ with {Closing = true});
                 PersistOwned(host.State, link);
+                Remember(window, preferences);
             };
         }
 
@@ -311,7 +326,10 @@ static class ViewerProgram
         {
             using (window)
             {
-                Loop(host, window, link, reader, windowCommands, runner);
+                Loop(host, window, link, reader, windowCommands, runner, preferences);
+                // While there is still a window to ask. Not from the finally: a loop that threw
+                // has a window in no state worth opening the next one from.
+                Remember(window, preferences);
             }
         }
         finally
@@ -349,13 +367,14 @@ static class ViewerProgram
     /// A frame from inside a head's modal loop (<see cref="ILoopHooks.Frame"/>): what the loop does
     /// with input, without the present, which the head is already inside of.
     /// </summary>
-    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link)
+    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link, ViewerPreferences preferences)
     {
         var state = host.State;
         var input = window.Poll();
         if (!IsIdle(input, state))
         {
             state = host.Mutate(_ => Apply(_, input, link, window));
+            preferences.Remember(state);
         }
 
         return ScreenBuilder.Build(state);
@@ -380,13 +399,27 @@ static class ViewerProgram
                 .Select(_ => new PendingInline(_.Variants, _.Status)));
     }
 
+    /// <summary>
+    /// How the window is now, for the next one to open as. Asked whenever the window is about to
+    /// stop being on screen, rather than once at exit: a viewer hidden behind a tray stays hidden
+    /// for days, and ends with the session rather than with a close.
+    /// </summary>
+    static void Remember(IViewerWindow window, ViewerPreferences preferences)
+    {
+        if (window.Placement is { } placement)
+        {
+            preferences.Window = placement;
+        }
+    }
+
     static void Loop(
         SessionHost host,
         IViewerWindow window,
         OwnerLink? link,
         DocumentWatch? reader,
         ConcurrentQueue<WindowCommand> windowCommands,
-        AcceptAllRunner? runner)
+        AcceptAllRunner? runner,
+        ViewerPreferences preferences)
     {
         while (true)
         {
@@ -408,6 +441,11 @@ static class ViewerProgram
                 {
                     window.Focus();
                     continue;
+                }
+
+                if (hide)
+                {
+                    Remember(window, preferences);
                 }
 
                 window.SetHidden(hide);
@@ -436,7 +474,9 @@ static class ViewerProgram
             // wait - the stall SessionHost's lock free reads exist to prevent.
             if (!IsIdle(input, state))
             {
-                host.Mutate(_ => Apply(_, input, link, window));
+                // How the reader chose to look at things is kept as they choose it rather than on
+                // the way out: a viewer hidden behind a tray ends with the session, not a close.
+                preferences.Remember(host.Mutate(_ => Apply(_, input, link, window)));
             }
 
             // An accept-all this frame's input began is carried out on a worker, so this thread
@@ -477,6 +517,7 @@ static class ViewerProgram
                 TrayDetector.IsRunning() &&
                 host.State.Queue.Count > 0)
             {
+                Remember(window, preferences);
                 window.SetHidden(true);
                 link?.Hidden = true;
                 reader?.Hidden = true;
@@ -496,7 +537,8 @@ static class ViewerProgram
         input is
         {
             Key: CommandKind.None,
-            ClickedButton: < 0, ClickedQueueItem: < 0, ScrollDelta: 0, CloseRequested: false, RightClickedQueueItem: < 0, ClickedMenuItem: < 0, MenuClosed: false, ScrollTo: < 0, DragSide: < 0
+            ClickedButton: < 0, ClickedQueueItem: < 0, ScrollDelta: 0, CloseRequested: false, RightClickedQueueItem: < 0, ClickedMenuItem: < 0, MenuClosed: false, ScrollTo: < 0, DragSide: < 0,
+            ZoomDelta: 0, PanX: < 0, RightClickedPane: < 0
         } &&
         Math.Max(40, input.Columns) == state.Columns &&
         Math.Max(10, input.Rows) == state.Rows;
@@ -530,6 +572,10 @@ static class ViewerProgram
         else if (input.RightClickedQueueItem >= 0)
         {
             state = ViewerSession.OpenMenu(state, input.RightClickedQueueItem);
+        }
+        else if (input.RightClickedPane >= 0)
+        {
+            state = ViewerSession.OpenPaneMenu(state, input.RightClickedPane == 0 ? PaneSide.Left : PaneSide.Right);
         }
         else if (input.ClickedQueueItem >= 0)
         {
@@ -571,11 +617,29 @@ static class ViewerProgram
                 input.DragFocusColumn);
         }
 
+        // After the click chain too, for the reason the drag is: both close an open menu.
+        if (input.ZoomDelta != 0)
+        {
+            // A step a notch, and no more than the steps there are, however hard a wheel is spun
+            var command = input.ZoomDelta > 0 ? CommandKind.ZoomIn : CommandKind.ZoomOut;
+            var steps = Math.Min(Math.Abs(input.ZoomDelta), PictureZoom.Last);
+            for (var step = 0; step < steps; step++)
+            {
+                state = ViewerSession.Apply(state, command);
+            }
+        }
+
+        // After the wheel, so a drag in the same frame is of the picture at its new size
+        if (input.PanX >= 0)
+        {
+            state = ViewerSession.PanTo(state, input.PanX, input.PanY);
+        }
+
         // After the click chain above, deliberately: that branch needs the menu still open to
         // resolve which item was chosen, so clearing first would swallow the command. And not when
         // a right-click opened another menu in the same frame, which is the dismissal's successor
         // rather than something to undo.
-        if (input is {MenuClosed: true, RightClickedQueueItem: < 0} &&
+        if (input is {MenuClosed: true, RightClickedQueueItem: < 0, RightClickedPane: < 0} &&
             state.Menu is not null)
         {
             state = state with {Menu = null};

@@ -159,10 +159,10 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
 
         foreach (var side in Sides(entry))
         {
-            if (side.Hash is { } hash &&
-                !state.Renders.ContainsKey(hash))
+            if (DocumentPages.Key(side, state.Projection) is { } key &&
+                !state.Renders.ContainsKey(key))
             {
-                Render(side, hash);
+                Render(side, key, state.Projection);
                 return true;
             }
         }
@@ -170,9 +170,13 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         return false;
     }
 
-    void Render(DocumentFile side, string hash)
+    /// <param name="key">
+    /// What the pages are kept under, which for a map is its hash and the projection it is drawn
+    /// in: the same bytes are drawn again for each one the reader switches to.
+    /// </param>
+    void Render(DocumentFile side, string key, MapProjection projection)
     {
-        host.Mutate(_ => ViewerSession.Rendered(_, hash, Rendering.Started));
+        host.Mutate(_ => ViewerSession.Rendered(_, key, Rendering.Started));
         var token = Volatile.Read(ref generation);
         var pages = new List<RenderedPage>();
 
@@ -191,7 +195,7 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
                 landed = pages.ToArray();
             }
 
-            host.Mutate(_ => ViewerSession.Rendered(_, hash, new(landed, false)));
+            host.Mutate(_ => ViewerSession.Rendered(_, key, new(landed, false)));
         }
 
         string? failure;
@@ -202,7 +206,15 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         else
         {
             var directory = Path.GetDirectoryName(source)!;
-            failure = Run(side.Format, () => documents.Render(source, directory, Landed));
+            // A folder per projection the reader chose, under the document's own. A page is a
+            // path to the heads, which keep what they decoded from one, so the same map drawn
+            // another way has to be another file rather than the same one rewritten.
+            if (key != side.Hash)
+            {
+                directory = Directory.CreateDirectory(Path.Combine(directory, projection.ToString())).FullName;
+            }
+
+            failure = Run(side.Format, () => documents.Render(source, directory, Landed, projection));
         }
 
         RenderedPage[] complete;
@@ -211,7 +223,7 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
             complete = pages.ToArray();
         }
 
-        host.Mutate(_ => ViewerSession.Rendered(_, hash, new(complete, true, failure)));
+        host.Mutate(_ => ViewerSession.Rendered(_, key, new(complete, true, failure)));
     }
 
     /// <summary>

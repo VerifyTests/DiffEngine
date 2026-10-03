@@ -107,8 +107,13 @@ enum MainMenu {
             command("Previous Change (p)", DEVIEW_KEY_PREVIOUS_CHANGE, target),
             command("Toggle Changes Only (m)", DEVIEW_KEY_TOGGLE_MINIMAL, target),
             command("Cycle Text and Picture (r)", DEVIEW_KEY_TOGGLE_DRAWING, target),
+            command("Next Map Projection (j)", DEVIEW_KEY_NEXT_PROJECTION, target),
             command("Previous Page ([)", DEVIEW_KEY_PREVIOUS_PAGE, target),
             command("Next Page (])", DEVIEW_KEY_NEXT_PAGE, target),
+            .separator(),
+            command("Zoom In (+)", DEVIEW_KEY_ZOOM_IN, target),
+            command("Zoom Out (-)", DEVIEW_KEY_ZOOM_OUT, target),
+            command("Zoom to Fit (0)", DEVIEW_KEY_ZOOM_RESET, target),
             .separator(),
             command("Next Pending (⇥)", DEVIEW_KEY_NEXT_ITEM, target),
             command("Previous Pending (⇧⇥)", DEVIEW_KEY_PREVIOUS_ITEM, target)

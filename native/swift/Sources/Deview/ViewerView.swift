@@ -15,6 +15,13 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     private var selectAnchorRow: Int32 = 0
     private var selectAnchorColumn: Int32 = 0
 
+    /// An enlarged picture being dragged about: where the button went down, and how the picture
+    /// was placed then, which the whole drag is measured from. Measured from the last event
+    /// instead, it would drift by whatever each frame's clamp took off it.
+    private var panning = false
+    private var panStart = NSPoint.zero
+    private var panFrom = Renderer.PictureSpace()
+
     /// Where the last frame put things. Read by `Runtime` to anchor the context menu, which is a
     /// real `NSMenu` and so is popped from outside the drawing code.
     private(set) var layout = Renderer.Layout()
@@ -50,8 +57,9 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         }
 
         let previous = layout.splitter
+        let pictures = layout.pictures
         layout = renderer.draw(model, in: context, size: bounds.size)
-        if layout.splitter != previous {
+        if layout.splitter != previous || layout.pictures != pictures {
             window?.invalidateCursorRects(for: self)
         }
     }
@@ -106,6 +114,11 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         if !layout.splitter.isEmpty {
             addCursorRect(layout.splitter, cursor: .resizeLeftRight)
         }
+
+        // The open hand over a picture that can be moved, which is the only thing that says it can
+        for picture in layout.pictures where picture.enlarged {
+            addCursorRect(picture.bounds, cursor: .openHand)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -128,6 +141,16 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
             Runtime.shared.input.clickedQueueItem = Int32(index)
+            return
+        }
+
+        // A picture enlarged past its space is taken hold of and moved. Before the text below it,
+        // so the same press is not also the start of a selection in the rows above. One that fits
+        // has nowhere to go, and a press on it is whatever it always was.
+        if let picture = layout.pictures.first(where: { $0.enlarged && $0.bounds.contains(point) }) {
+            panning = true
+            panStart = point
+            panFrom = picture
             return
         }
 
@@ -154,6 +177,16 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
+        if panning {
+            // Where it is rather than how far it moved, and already inside what the space can show:
+            // the managed side holds one centre for both panes and knows nothing of points.
+            let centre = panFrom.dragged(
+                by: CGSize(width: point.x - panStart.x, height: point.y - panStart.y))
+            Runtime.shared.input.panX = Float(centre.x)
+            Runtime.shared.input.panY = Float(centre.y)
+            return
+        }
+
         guard selecting else {
             super.mouseDragged(with: event)
             return
@@ -169,6 +202,12 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     override func mouseUp(with event: NSEvent) {
         if draggingSplitter {
             draggingSplitter = false
+            return
+        }
+
+        if panning {
+            // Nothing to report, as for a selection: the last drag already said where it is.
+            panning = false
             return
         }
 
@@ -245,6 +284,20 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
+        // Anywhere in a pane, its text or under it: the menu is the pane's, and a file of three
+        // lines has most of its pane under them. The point is kept, because the menu is popped
+        // where the click landed and the managed side is told only which pane.
+        if layout.panes.count == 2,
+           !layout.body.isEmpty,
+           point.y >= layout.body.minY,
+           point.y <= layout.body.maxY,
+           point.x >= layout.panes[0].cellLeft,
+           point.x <= layout.body.maxX {
+            Runtime.shared.input.rightClickedPane = point.x >= layout.panes[1].cellLeft ? 1 : 0
+            Runtime.shared.paneMenuPoint = point
+            return
+        }
+
         super.rightMouseDown(with: event)
     }
 
@@ -266,8 +319,35 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             : event.scrollingDeltaY
         let notches = scrollRemainder.rounded(.towardZero)
         scrollRemainder -= notches
-        if notches != 0 {
+        guard notches != 0 else {
+            return
+        }
+
+        // Over a picture the wheel is for the picture, and anywhere with command or control held,
+        // as it is in everything else that shows one. Everywhere else it scrolls the rows, as it
+        // always has. Decided here because only this side knows what the pointer was over.
+        let point = convert(event.locationInWindow, from: nil)
+        let modified = event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control)
+        if modified || layout.pictures.contains(where: { $0.bounds.contains(point) }) {
+            Runtime.shared.input.zoomDelta += Int32(notches)
+        } else {
             Runtime.shared.input.scrollDelta += Int32(notches)
+        }
+    }
+
+    /// How far two fingers have to spread or close for one step of zoom.
+    private static let magnificationPerStep = 0.25
+
+    private var magnifyRemainder = 0.0
+
+    /// A pinch, which is how a trackpad says zoom. Steps, like the wheel, so every way of zooming
+    /// moves between the same sizes.
+    override func magnify(with event: NSEvent) {
+        magnifyRemainder += Double(event.magnification) / ViewerView.magnificationPerStep
+        let steps = magnifyRemainder.rounded(.towardZero)
+        magnifyRemainder -= steps
+        if steps != 0 {
+            Runtime.shared.input.zoomDelta += Int32(steps)
         }
     }
 
@@ -295,6 +375,14 @@ final class ViewerView: NSView, NSViewToolTipOwner {
                 return DEVIEW_KEY_COPY.value
             case "a":
                 return DEVIEW_KEY_SELECT_ALL.value
+            // With command or control as well as without, since that is the chord everything else
+            // that zooms taught
+            case "=", "+":
+                return DEVIEW_KEY_ZOOM_IN.value
+            case "-":
+                return DEVIEW_KEY_ZOOM_OUT.value
+            case "0":
+                return DEVIEW_KEY_ZOOM_RESET.value
             default:
                 return DEVIEW_KEY_NONE.value
             }
@@ -330,6 +418,15 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return DEVIEW_KEY_TOGGLE_MINIMAL.value
         case "r":
             return DEVIEW_KEY_TOGGLE_DRAWING.value
+        case "j":
+            return DEVIEW_KEY_NEXT_PROJECTION.value
+        // Plus is the equals key whether or not shift is held: nobody reaches for shift to zoom in
+        case "=", "+":
+            return DEVIEW_KEY_ZOOM_IN.value
+        case "-":
+            return DEVIEW_KEY_ZOOM_OUT.value
+        case "0":
+            return DEVIEW_KEY_ZOOM_RESET.value
         case "[":
             return DEVIEW_KEY_PREVIOUS_PAGE.value
         case "]":

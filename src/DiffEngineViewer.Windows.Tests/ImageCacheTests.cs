@@ -154,7 +154,7 @@ public class ImageCacheTests
 
         await Assert.That(loaded).IsEqualTo(1);
         await Assert.That(cache.Loading(path)).IsFalse();
-        await Assert.That(cache.Composite(path, new(4, 3), Build, () => loaded++)!.Size).IsEqualTo(new Size(4, 3));
+        await Assert.That(cache.Composite(path, new(4, 3), Build, () => loaded++)!.Size).IsEqualTo(new(4, 3));
     }
 
     /// <summary>
@@ -179,7 +179,7 @@ public class ImageCacheTests
 
         await Assert.That(posted.TryTake(out var second, TimeSpan.FromSeconds(10))).IsTrue();
         second!();
-        await Assert.That(cache.Composite(path, new(6, 4), Build, () => { })!.Size).IsEqualTo(new Size(6, 4));
+        await Assert.That(cache.Composite(path, new(6, 4), Build, () => { })!.Size).IsEqualTo(new(6, 4));
     }
 
     /// <summary>

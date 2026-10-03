@@ -1,7 +1,8 @@
 /// <summary>
-/// How a document is shown. A view setting like <see cref="SessionState.Minimal"/>: it holds across
-/// entries rather than belonging to one, and it is this window's to set even when the queue belongs
-/// to someone else.
+/// How a document is shown. A view setting like <see cref="SessionState.Minimal"/>, kept per kind
+/// of document in <see cref="SessionState.Drawings"/>: it holds across every entry of that kind
+/// rather than belonging to one, and it is this window's to set even when the queue belongs to
+/// someone else.
 /// </summary>
 enum DrawingView
 {

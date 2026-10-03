@@ -18,6 +18,14 @@ record MenuState(int Row, IReadOnlyList<MenuItem> Items, IReadOnlyList<int> Memb
     /// was opened over after the menu has closed.
     /// </summary>
     public string? GroupKey { get; init; }
+
+    /// <summary>
+    /// The pane this menu was opened over, null for one opened on a queue row. A pane's menu hangs
+    /// where the pointer was rather than under a row, which only the head that took the click
+    /// knows, so <paramref name="Row"/> is -1 for one. Captured for the same reason
+    /// <see cref="GroupKey"/> is: select all has to know which pane it was asked in.
+    /// </summary>
+    public PaneSide? Pane { get; init; }
 }
 
 /// <summary>
@@ -63,6 +71,39 @@ static class ContextMenu
 
         AddCopy(items, entry, PaneSide.Left, CommandKind.CopyLeft);
         AddCopy(items, entry, PaneSide.Right, CommandKind.CopyRight);
+        return items;
+    }
+
+    /// <summary>
+    /// What a right-click on a pane's text offers: the copying a reader would otherwise have to
+    /// know the keys for. Nothing that acts on the entry, which the queue row's menu and the
+    /// footer already do, so a click meant to copy cannot land on an accept.
+    /// <para>
+    /// Empty when there is nothing in the pane to copy or select, which is no menu at all rather
+    /// than one of items that do nothing.
+    /// </para>
+    /// </summary>
+    /// <param name="selectable">
+    /// Whether the rows on screen are the entry's text, which is what a selection is held in. A
+    /// document seen as its pages shows rows describing it instead, and nothing is selected there.
+    /// </param>
+    public static IReadOnlyList<MenuItem> ForPane(QueueEntry entry, PaneSide side, bool hasSelection, bool selectable)
+    {
+        var items = new List<MenuItem>();
+        if (hasSelection)
+        {
+            items.Add(new("Copy selection", CommandKind.Copy));
+        }
+
+        if (SelectionText.All(entry, side).Length > 0)
+        {
+            items.Add(new("Copy all", side == PaneSide.Left ? CommandKind.CopyLeft : CommandKind.CopyRight));
+            if (selectable)
+            {
+                items.Add(new("Select all", CommandKind.SelectAll));
+            }
+        }
+
         return items;
     }
 

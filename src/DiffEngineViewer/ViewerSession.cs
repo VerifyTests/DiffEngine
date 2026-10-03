@@ -389,6 +389,42 @@ static class ViewerSession
     }
 
     /// <summary>
+    /// Opens the context menu for a pane: copy what is selected, copy the whole side, select the
+    /// whole side. A right-click where there is nothing to copy closes whatever menu was open and
+    /// opens none.
+    /// <para>
+    /// The selection is left as it is, unlike a right-click on a queue row, which selects the row.
+    /// The usual reason to right-click a pane is to copy what was just dragged across, and
+    /// clearing it on the way to the menu would leave nothing to copy.
+    /// </para>
+    /// </summary>
+    public static SessionState OpenPaneMenu(SessionState state, PaneSide side)
+    {
+        if (state.Current is not { } current)
+        {
+            return state with { Menu = null };
+        }
+
+        var items = ContextMenu.ForPane(
+            current,
+            side,
+            state.LiveSelection is { IsEmpty: false },
+            !state.ShowsProperties);
+        if (items.Count == 0)
+        {
+            return state with { Menu = null };
+        }
+
+        return state with
+        {
+            Menu = new(-1, items, [state.Selected])
+            {
+                Pane = side
+            }
+        };
+    }
+
+    /// <summary>
     /// The reader dragging out a range of pane text. The two ends arrive already in rows of the
     /// whole side rather than of the visible slice, because a head knows the scroll top it drew
     /// with and a drag that continues across a wheel notch has to mean the same thing either side
@@ -466,7 +502,11 @@ static class ViewerSession
     /// the expected pane takes that pane, and the received one before anything has been pointed
     /// at.
     /// </summary>
-    static SessionState SelectAll(SessionState state)
+    /// <param name="pane">
+    /// The pane a context menu asked in, which is the one meant whatever is selected elsewhere, or
+    /// null for the key, which has no pane of its own.
+    /// </param>
+    static SessionState SelectAll(SessionState state, PaneSide? pane = null)
     {
         if (state.Current is not { } current ||
             state.ShowsProperties)
@@ -474,7 +514,7 @@ static class ViewerSession
             return state;
         }
 
-        var side = state.LiveSelection?.Side ?? PaneSide.Left;
+        var side = pane ?? state.LiveSelection?.Side ?? PaneSide.Left;
         var rows = SelectionText.Rows(current, side);
         if (rows.Count == 0)
         {
@@ -554,6 +594,14 @@ static class ViewerSession
                 return ToggleMinimal(state, body);
             case CommandKind.ToggleDrawing:
                 return ToggleDrawing(state);
+            case CommandKind.NextProjection:
+                return NextProjection(state);
+            case CommandKind.ZoomIn:
+                return ZoomTo(state, state.Zoom + 1);
+            case CommandKind.ZoomOut:
+                return ZoomTo(state, state.Zoom - 1);
+            case CommandKind.ZoomReset:
+                return ZoomTo(state, 0);
             case CommandKind.PreviousPage:
                 return Turn(state, -1);
             case CommandKind.NextPage:
@@ -593,7 +641,7 @@ static class ViewerSession
             case CommandKind.DiscardAll:
                 return inline ? DiscardAllInline(state, actions) : DiscardFile(state);
             case CommandKind.SelectAll:
-                return SelectAll(state);
+                return SelectAll(state, menu?.Pane);
             case CommandKind.NextVariant:
                 return NextVariant(state);
             case CommandKind.Quit:
@@ -1533,8 +1581,58 @@ static class ViewerSession
     /// the entry on screen going - so an entry is met the same way however it got there.
     /// </summary>
     static SessionState Open(SessionState state) =>
-        // A document opens at its opening page too, which is the first that differs.
-        ScrollToOpening(state with { Page = null });
+        // A document opens at its opening page too, which is the first that differs, and a
+        // picture opens fitted: where the last one was enlarged says nothing about this one.
+        ScrollToOpening(state with { Page = null, Zoom = 0, Pan = PanPoint.Centre });
+
+    /// <summary>
+    /// The picture on screen at another <see cref="PictureZoom"/> step, kept inside the steps there
+    /// are. The identical state when there is no picture to enlarge or the step is the one it is
+    /// already on, which is what zooming out of a fitted picture comes to.
+    /// <para>
+    /// About the point already at the middle, so going in and coming back out shows what was
+    /// there before. Back at fitted the whole picture shows, and where it was dragged to means
+    /// nothing, so that goes.
+    /// </para>
+    /// </summary>
+    static SessionState ZoomTo(SessionState state, int step)
+    {
+        step = Math.Clamp(step, 0, PictureZoom.Last);
+        if (!ScreenBuilder.ShowsPicture(state) ||
+            step == state.Zoom)
+        {
+            return state;
+        }
+
+        return state with
+        {
+            Zoom = step,
+            Pan = step == 0 ? PanPoint.Centre : state.Pan
+        };
+    }
+
+    /// <summary>
+    /// The reader dragged an enlarged picture: <paramref name="x"/> and <paramref name="y"/> are
+    /// the point a head now has at the middle, as fractions of the picture, already kept inside
+    /// what its pane can show. Both sides follow, since the model holds one point for the two.
+    /// </summary>
+    public static SessionState PanTo(SessionState state, double x, double y)
+    {
+        var pan = new PanPoint(Math.Clamp(x, 0, 1), Math.Clamp(y, 0, 1));
+        if (state.Zoom == 0 ||
+            !ScreenBuilder.ShowsPicture(state) ||
+            pan == state.Pan)
+        {
+            return state;
+        }
+
+        // Moving a picture about is the reader moving on, as a drag across text is
+        return state with
+        {
+            Pan = pan,
+            Menu = null
+        };
+    }
 
     /// <summary>
     /// The text scrolled to its first change, leaving the page where it is: for a document whose
@@ -1738,15 +1836,14 @@ static class ViewerSession
             return state;
         }
 
-        var toggled = state with
-        {
-            Drawing = state.Drawing switch
+        // For this kind of document, here and wherever one comes up next
+        var toggled = state.Showing(
+            state.Drawing switch
             {
                 DrawingView.Both => DrawingView.Picture,
                 DrawingView.Picture => DrawingView.Text,
                 _ => DrawingView.Both
-            }
-        };
+            });
 
         if (state.ShowsProperties != toggled.ShowsProperties)
         {
@@ -1805,16 +1902,17 @@ static class ViewerSession
     /// still holds those bytes, so a render finishing for a file that went or was rewritten in the
     /// meantime leaves nothing behind.
     /// </summary>
-    public static SessionState Rendered(SessionState state, string hash, Rendering rendering)
+    /// <param name="key">What the pages are kept under: <see cref="DocumentPages.Key"/>.</param>
+    public static SessionState Rendered(SessionState state, string key, Rendering rendering)
     {
-        if (!Holds(state.Queue, hash))
+        if (!Holds(state.Queue, key))
         {
             return state;
         }
 
         var renders = new Dictionary<string, Rendering>(state.Renders)
         {
-            [hash] = rendering
+            [key] = rendering
         };
         return state with { Renders = renders };
     }
@@ -1836,8 +1934,31 @@ static class ViewerSession
         return state with { Renders = renders };
     }
 
-    static bool Holds(IReadOnlyList<QueueEntry> queue, string hash) =>
-        queue.Any(_ => _.LeftDocument?.Hash == hash || _.RightDocument?.Hash == hash);
+    /// <summary>
+    /// Whether any entry still has the bytes a key's pages were drawn from. By the hash in the
+    /// key, so a map's pages in every projection it has been drawn in stay for as long as the map
+    /// does, and switching back to one costs nothing.
+    /// </summary>
+    static bool Holds(IReadOnlyList<QueueEntry> queue, string key)
+    {
+        var hash = DocumentPages.HashOf(key);
+        return queue.Any(_ => _.LeftDocument?.Hash == hash || _.RightDocument?.Hash == hash);
+    }
+
+    /// <summary>
+    /// The next projection, for the map on screen and every one after it. Not in the text view,
+    /// where nothing is drawn for it to change. The pages already drawn in the others are kept, so
+    /// going round to one again shows it at once.
+    /// </summary>
+    static SessionState NextProjection(SessionState state)
+    {
+        if (!ScreenBuilder.DrawsMap(state))
+        {
+            return state;
+        }
+
+        return state with { Projection = MapProjections.Next(state.Projection) };
+    }
 
     /// <summary>
     /// A document's text has been read, so its entry is replaced by one built with it. By the entry

@@ -29,4 +29,16 @@ readonly record struct ViewerInput(
     int DragAnchorRow = 0,
     int DragAnchorColumn = 0,
     int DragFocusRow = 0,
-    int DragFocusColumn = 0);
+    int DragFocusColumn = 0,
+    // Wheel notches that were for the picture rather than the rows: turned over one, or with
+    // control held. Positive enlarges. A head decides which a notch was, since only it knows
+    // what the pointer was over; it is never both this and ScrollDelta.
+    int ZoomDelta = 0,
+    // The point of the picture now at the middle of an enlarged one being dragged, as fractions
+    // of its width and height, or -1 for the frames with no such drag. Where it is, not how far
+    // it moved, and already kept inside what the pane can show: only a head knows that.
+    double PanX = -1,
+    double PanY = -1,
+    // A right-click on a pane's text: 0 for the left, 1 for the right, or -1. Opens the menu that
+    // copies from it, which the head hangs where the click landed.
+    int RightClickedPane = -1);
