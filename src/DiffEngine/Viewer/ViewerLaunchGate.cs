@@ -17,7 +17,8 @@ enum ViewerLaunchOutcome
     Launched,
 
     /// <summary>
-    /// Nothing could be started, and nobody was there to take it.
+    /// Nothing could be started, or what was started exited with a failure before anything held
+    /// the queue, and nobody was there to take it.
     /// </summary>
     Failed,
 
@@ -72,8 +73,9 @@ static class ViewerLaunchGate
 
     /// <summary>
     /// How long the caller that launched holds the gate waiting for its viewer to answer. Long
-    /// enough for a cold start with an antivirus in the way; one that never binds costs a single
-    /// caller this wait, and then the next tries again.
+    /// enough for a cold start with an antivirus in the way; one that is running and never binds
+    /// costs a single caller this wait, and then the next tries again. One that has exited with a
+    /// failure costs only as long as that takes to notice.
     /// </summary>
     internal static TimeSpan BindWait { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -82,7 +84,11 @@ static class ViewerLaunchGate
     /// and takes a round trip: nineteen of those queued behind one another cost more than the
     /// nineteen processes this exists to avoid.
     /// </param>
-    /// <param name="launch">Starts a viewer. False when nothing could be started.</param>
+    /// <param name="launch">
+    /// Starts a viewer and hands back its process, which is how the wait tells one that has given
+    /// up from one that is only slow. Null when nothing could be started. Disposed here once the
+    /// wait is over.
+    /// </param>
     /// <param name="isOwned">
     /// How the gate asks whether anyone holds the queue, which is also what it waits on after a
     /// launch. Defaults to the real port. Supplied by the tests, which otherwise have to arrange
@@ -96,7 +102,7 @@ static class ViewerLaunchGate
     /// </param>
     public static ViewerLaunchOutcome Launch(
         Func<bool> retry,
-        Func<bool> launch,
+        Func<Process?> launch,
         Func<bool>? isOwned = null,
         Func<bool>? canLaunch = null)
     {
@@ -116,12 +122,12 @@ static class ViewerLaunchGate
                     return ViewerLaunchOutcome.Capped;
                 }
 
-                if (!launch())
+                using var viewer = launch();
+                if (viewer is null ||
+                    !WaitForBind(viewer, isOwned))
                 {
                     return ViewerLaunchOutcome.Failed;
                 }
-
-                WaitForBind(isOwned);
             }
         }
         finally
@@ -150,7 +156,7 @@ static class ViewerLaunchGate
     /// </remarks>
     public static async Task<ViewerLaunchOutcome> LaunchAsync(
         Func<Task<bool>> retry,
-        Func<Task<bool>> launch,
+        Func<Task<Process?>> launch,
         Cancel cancel,
         Func<bool>? isOwned = null,
         Func<bool>? canLaunch = null)
@@ -169,12 +175,12 @@ static class ViewerLaunchGate
                     return ViewerLaunchOutcome.Capped;
                 }
 
-                if (!await Task.Run(launch, cancel).ConfigureAwait(false))
+                using var viewer = await Task.Run(launch, cancel).ConfigureAwait(false);
+                if (viewer is null ||
+                    !await WaitForBindAsync(viewer, isOwned, cancel).ConfigureAwait(false))
                 {
                     return ViewerLaunchOutcome.Failed;
                 }
-
-                await WaitForBindAsync(isOwned, cancel).ConfigureAwait(false);
             }
         }
         finally
@@ -195,33 +201,84 @@ static class ViewerLaunchGate
     /// an owner rather than starting another. Gives up after <see cref="BindWait" /> and reports
     /// the launch all the same, because it did happen: the work went over on the command line or
     /// in a payload file, and the cost of giving up early is one more viewer, which is where this began.
+    /// <para>
+    /// False when the viewer gave up first, which is the one launch that did not happen. It used to
+    /// be waited on for the whole of <see cref="BindWait" /> with the gate held and then reported
+    /// like any other, so an inline snapshot was said to be queued when it was nowhere: not in a
+    /// queue, and not staged either, since a caller stages only what it is told nobody took.
+    /// </para>
     /// </summary>
-    static void WaitForBind(Func<bool> isOwned)
+    static bool WaitForBind(Process viewer, Func<bool> isOwned)
     {
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < BindWait)
         {
+            // Before the probe, so that an owner some other process started is not taken for the
+            // viewer this one did: that owner was never handed the work
+            if (GaveUp(viewer))
+            {
+                return false;
+            }
+
             if (isOwned())
             {
-                return;
+                return true;
             }
 
             Thread.Sleep(poll);
         }
+
+        return true;
     }
 
     /// <inheritdoc cref="WaitForBind" />
-    static async Task WaitForBindAsync(Func<bool> isOwned, Cancel cancel)
+    static async Task<bool> WaitForBindAsync(Process viewer, Func<bool> isOwned, Cancel cancel)
     {
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < BindWait)
         {
+            if (GaveUp(viewer))
+            {
+                return false;
+            }
+
             if (isOwned())
             {
-                return;
+                return true;
             }
 
             await Task.Delay(poll, cancel).ConfigureAwait(false);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Whether the viewer this call started has exited and said it failed, so it took nothing and
+    /// never will. A copy from before the arguments it was given exits on the first it does not
+    /// know, and an apphost with no runtime to run exits before any of the viewer's own code.
+    /// <para>
+    /// A clean exit is not this, and is left to the wait. A viewer that finds the port already
+    /// bound hands its work to whoever holds it and exits with zero, and the next probe finds that
+    /// owner. One that opened, was dealt with and closed between two probes exits with zero too,
+    /// having staged whatever it still held.
+    /// </para>
+    /// <para>
+    /// A process that cannot be asked is taken to be running, which is the answer that leaves the
+    /// wait as it was before there was a process to ask.
+    /// </para>
+    /// </summary>
+    static bool GaveUp(Process viewer)
+    {
+        try
+        {
+            return viewer.HasExited &&
+                   viewer.ExitCode != 0;
+        }
+        catch (Exception exception)
+            when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            return false;
         }
     }
 

@@ -272,7 +272,7 @@ public class ViewerClientUnownedTests
                 () =>
                 {
                     launches++;
-                    return Task.FromResult(true);
+                    return Task.FromResult<Process?>(null);
                 },
                 Cancel.None,
                 isOwned: () => ViewerClient.IsOwned(port));

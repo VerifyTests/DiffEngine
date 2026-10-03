@@ -7,7 +7,9 @@ namespace DiffEngine;
 /// The bundled lookup depends on buildTransitive/DiffEngine.targets having stamped the package
 /// path into the consuming project, which does not happen for every project shape, so the cache is
 /// searched as well. The cache's copy of this library's own version is tried before any other
-/// version, which is as close to version matched as a fallback gets.
+/// version, which is as close to version matched as a fallback gets. The others are tried highest
+/// first: the wildcard that stands for them is resolved by version where the folders are named
+/// for one, rather than by which was restored last.
 /// </para>
 /// <para>
 /// Written with environment variables rather than resolved, like every other search directory, so

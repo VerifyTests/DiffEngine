@@ -59,6 +59,11 @@ static partial class Implementation
     /// A globally installed tool is preferred, because installing one is an explicit choice of
     /// which viewer to run. Then the tray's copy, then the bundled copy, which is version matched to
     /// the library that is about to launch it, then the NuGet cache's.
+    /// <para>
+    /// That is the order copies are looked for in, and not quite the order they are taken in: one
+    /// from before the way this library starts a viewer is passed over while a newer one is
+    /// further down. See <see cref="DiffEngine.ViewerContract" />.
+    /// </para>
     /// </summary>
     static string[] SearchDirectories(string toolsDirectory, IEnumerable<string> tray, IEnumerable<string> nuGet)
     {

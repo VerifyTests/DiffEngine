@@ -28,13 +28,25 @@ namespace DiffEngine;
 static class ViewerLauncher
 {
     /// <summary>
+    /// Where the patch for one inline launch goes. Named by the caller rather than inside
+    /// <see cref="LaunchAsync" />, because the caller is the one told that the viewer went without
+    /// reading it, and has to know what to take back: see <see cref="Discard" />.
+    /// </summary>
+    public static string PayloadFile() =>
+        Path.Combine(Path.GetTempPath(), $"DiffEngineViewer_{Guid.NewGuid():N}.inlinepatch");
+
+    /// <summary>
     /// Starts a viewer with a patch, which goes in a file rather than on stdin: a launch that
     /// redirects stdin cannot use ShellExecute (see the class remarks). The viewer reads the file
     /// and deletes it.
+    /// <para>
+    /// The process is handed back, as it is from every launch here that goes through
+    /// <see cref="ViewerLaunchGate" />, which is what lets the gate see a viewer exit rather than
+    /// wait for one that has already gone.
+    /// </para>
     /// </summary>
-    public static async Task<bool> LaunchAsync(InlinePatch patch, string payload, Cancel cancel)
+    public static async Task<Process?> LaunchAsync(InlinePatch patch, string payload, string file, Cancel cancel)
     {
-        var file = Path.Combine(Path.GetTempPath(), $"DiffEngineViewer_{Guid.NewGuid():N}.inlinepatch");
         try
         {
             // Bytes rather than text, so no preamble: a BOM is exactly what a .NET Framework
@@ -52,17 +64,17 @@ static class ViewerLauncher
             when (exception is IOException or UnauthorizedAccessException)
         {
             Trace.WriteLine($"Failed to write the inline patch for DiffEngineViewer: {exception}");
-            TryDelete(file);
-            return false;
+            Discard(file);
+            return null;
         }
 
-        if (Start(PayloadArguments(patch, file)) is null)
+        var viewer = Start(PayloadArguments(patch, file));
+        if (viewer is null)
         {
-            TryDelete(file);
-            return false;
+            Discard(file);
         }
 
-        return true;
+        return viewer;
     }
 
     /// <summary>
@@ -73,7 +85,14 @@ static class ViewerLauncher
     internal static string PayloadArguments(InlinePatch patch, string file) =>
         $"--inline --source \"{patch.SourceFile}\" --line {patch.LineHint} --payload \"{file}\"";
 
-    static void TryDelete(string file)
+    /// <summary>
+    /// Removes a payload file that no viewer is going to read: nothing was started, or what was
+    /// started has exited. A viewer deletes the one it reads, so this only finds a file where the
+    /// viewer never got that far - a copy that does not know <c>--payload</c>, or one that could
+    /// not run at all - and each of those used to leave a snapshot's worth of text in the temp
+    /// directory for good.
+    /// </summary>
+    public static void Discard(string file)
     {
         try
         {
@@ -106,16 +125,16 @@ static class ViewerLauncher
     /// the winner and exits, which is the same resolution a second inline viewer reaches.
     /// </para>
     /// </summary>
-    public static bool LaunchDelete(string file) =>
-        Start($"--delete \"{Rooted(file)}\"") is not null;
+    public static Process? LaunchDelete(string file) =>
+        Start($"--delete \"{Rooted(file)}\"");
 
     /// <summary>
     /// Starts a viewer holding one failing pair, for when the tool resolved for that pair is the
     /// viewer itself and nothing owns the queue. The same launch <see cref="LaunchDelete"/> makes,
     /// for the same reason: the pair joins a queue that later pairs can join too.
     /// </summary>
-    public static bool LaunchDiff(string temp, string target) =>
-        Start(DiffArguments(Rooted(temp), Rooted(target))) is not null;
+    public static Process? LaunchDiff(string temp, string target) =>
+        Start(DiffArguments(Rooted(temp), Rooted(target)));
 
     /// <summary>
     /// A path as the viewer has to be handed it now that it no longer starts in the host's
