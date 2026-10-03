@@ -85,7 +85,17 @@ public class KeyRegister :
             return false;
         }
 
-        action();
+        // Caught here because nothing further out will. What a message filter throws does not go
+        // to Application.ThreadException, as a throw from a click does: it comes out of
+        // Application.Run(), and the tray ends with everything it was tracking.
+        try
+        {
+            action();
+        }
+        catch (Exception exception)
+        {
+            ExceptionHandler.Handle("Failed to run a hot key", exception);
+        }
 
         // true to filter message and stop it from being dispatched
         return true;
