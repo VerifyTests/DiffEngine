@@ -96,9 +96,14 @@ add_library(diffengine_viewer SHARED
   ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
 
 target_include_directories(diffengine_viewer PRIVATE include ${imgui_SOURCE_DIR})
-# Threads for the thread pictures are decoded on.
+# ImGui's characters are sixteen bits unless told otherwise, and everything past the basic plane,
+# which is most emoji and the rarer Han characters, is then the replacement character before any
+# font is asked for it.
+target_compile_definitions(diffengine_viewer PRIVATE IMGUI_USE_WCHAR32)
+# Threads for the threads pictures are decoded and fonts are found on, and dl for fontconfig,
+# which is looked for at run time rather than linked.
 find_package(Threads REQUIRED)
-target_link_libraries(diffengine_viewer PRIVATE raylib Threads::Threads)
+target_link_libraries(diffengine_viewer PRIVATE raylib Threads::Threads ${CMAKE_DL_LIBS})
 
 # The managed side probes for a bare name; keep it identical on every platform apart from the
 # platform's own prefix and extension.

@@ -240,15 +240,6 @@ public class PixelTests
         Capture(ViewerSession.Apply(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)), CommandKind.ToggleMinimal));
 
     /// <summary>
-    /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
-    /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
-    /// deview_present did none of them - the window stayed blank and took no keys, and the loop
-    /// drew as fast as it could. A capture draws into a texture and never gets that far, so every
-    /// snapshot above kept passing. The wait is the one of the three that can be timed from here,
-    /// so it stands for all of them. Last in the order, so the frames it draws in the live context
-    /// come after every capture rather than between two of them.
-    /// </summary>
-    /// <summary>
     /// The image comparison six steps in, eight times the size that fits, and dragged to the top
     /// right corner: each pane filled with the same part of its picture, cut off at the edges of
     /// the space under its rows. Mirrored in WindowsPixelTests over the same state, which is what
@@ -311,9 +302,62 @@ public class PixelTests
     public Task DocumentPageInQueue() =>
         Capture(Fixtures.DocumentInQueue());
 
+    /// <summary>
+    /// Text the embedded font has no glyphs for: wide characters, which the grid gives two cells,
+    /// narrow ones, marks that take none, and one from outside the basic plane.
+    /// <para>
+    /// In its window the Linux head draws these from the machine's own fonts, and in a capture it
+    /// never does, because a baseline would then be a picture of whatever a runner had installed.
+    /// So this is the replacement glyph at each character's column, on a machine with every font
+    /// and on one with none. It is shown in the window first, and for long enough that the fonts
+    /// this machine has for it have been found and merged: that is the state a capture has to be
+    /// indifferent to, and one that drew with the window's font would fail here on any machine
+    /// with a font for one of these characters.
+    /// </para>
+    /// <para>
+    /// Linux only. The macOS head draws through Core Text, in a capture as in its window, so there
+    /// these characters are the runner's fonts, and a baseline of them has to come from that runner.
+    /// </para>
+    /// </summary>
     [Test]
     [PixelTest]
     [NotInParallel(nameof(PixelTests), Order = 15)]
+    [SkipOnMac("There is no macOS baseline for this scene: that head draws these characters from the runner's own fonts, and a capture host never creates its window.")]
+    public async Task OutsideTheFont()
+    {
+        var state = Fixtures.File(
+            "plain text\n日本語 and 漢字\n한국어 텍스트\nעברית عربي ไทย น้ำ\nemoji \U0001F600 and ★\nmixed 中a文b字c",
+            "plain text\n日本語 and 漢子\n한국어 텍스트\nעברית عربي ไทย น้ำ\nemoji \U0001F600 and ★\nmixed 中a文b字c");
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
+        await OnShimThread(
+            () =>
+            {
+                // A second of frames. A font is asked for on the first of them, found on a thread
+                // of its own, and merged at the top of the next frame after it lands
+                for (var frame = 0; frame < 60; frame++)
+                {
+                    window!.Present(screen);
+                }
+
+                return true;
+            });
+
+        await Capture(state);
+    }
+
+    /// <summary>
+    /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
+    /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
+    /// deview_present did none of them - the window stayed blank and took no keys, and the loop
+    /// drew as fast as it could. A capture draws into a texture and never gets that far, so every
+    /// snapshot above kept passing. The wait is the one of the three that can be timed from here,
+    /// so it stands for all of them. Last in the order, so the frames it draws in the live context
+    /// come after the captures rather than between two of them. <see cref="OutsideTheFont"/> is
+    /// the one capture with frames of its own ahead of it, which are what it is about.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 16)]
     [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
     public async Task PresentWaitsForTheNextFrame()
     {

@@ -18,6 +18,8 @@
 #include "rlgl.h"
 
 #include <algorithm>
+#include <cfloat>
+#include <climits>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
@@ -25,13 +27,21 @@
 #include <cstring>
 #include <deque>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <system_error>
 #include <thread>
+#include <utility>
 #include <vector>
+
+/* For fontconfig, which is found at run time rather than linked: see Fontconfig. */
+#if !defined(_WIN32)
+#include <dlfcn.h>
+#endif
 
 /*
  * raylib latches GLFW's close flag and exposes no way to clear it, but the window has to survive a
@@ -82,7 +92,8 @@ constexpr float grabWidth = 4.0f;
  * The correction is the font's own ascent plus descent over its em, and it is a constant because
  * the only font that reaches here is the JetBrains Mono the managed side embeds: 1020 and 300 over
  * 1000 units. Swapping that font means revisiting this number, hence naming it rather than folding
- * it into the size.
+ * it into the size. The machine's fonts, merged in for the characters that one lacks, do not come
+ * through here, and have theirs read out of their own tables: see EmScaleOf.
  */
 constexpr float emScale = 1.32f;
 
@@ -151,12 +162,66 @@ struct Decoder
     bool stopping = false;
 };
 
+/*
+ * One of the machine's fonts, read whole, for the characters the embedded one does not have:
+ * its bytes, which of the faces in them, and the scale that makes deview_init's size an em for
+ * that face, as emScale does for the embedded font.
+ */
+struct FoundFont
+{
+    std::vector<unsigned char> data;
+    int face = 0;
+    float scale = 1.0f;
+};
+
+/*
+ * Those fonts are looked for and read on a thread of their own, for the reason pictures are
+ * decoded on one: fontconfig reading its caches and a CJK collection coming off the disk are tens
+ * of milliseconds each, and the first is seconds on a machine whose caches are stale. Shared and
+ * detached as the decoder is, and for its reason.
+ */
+struct FontFinder
+{
+    std::mutex mutex;
+    std::condition_variable wake;
+
+    /* Characters the window's font cannot draw, each asked about once. */
+    std::vector<uint32_t> wanted;
+    std::vector<FoundFont> found;
+    bool stopping = false;
+};
+
 struct State
 {
     bool initialised = false;
     bool windowOpen = false;
     ImGuiContext* context = nullptr;
     DeviewInput input{};
+
+    /*
+     * The font the window draws with: the embedded font, and merged into it whichever of the
+     * machine's fonts a character on screen has needed.
+     *
+     * Not the font a capture draws with. That is the embedded font alone, which the atlas holds
+     * a second time and ahead of this one, so that a capture is the same picture on a machine
+     * with every font installed and on one with none: a character the embedded font lacks is the
+     * replacement glyph there, as it was everywhere before this. What the two draw from the
+     * embedded font is the same glyphs, so the captures still describe the window.
+     */
+    ImFont* font = nullptr;
+
+    /* Started with the first character the font cannot draw, so a window that never shows one
+     * never has it, nor fontconfig. */
+    std::shared_ptr<FontFinder> finder;
+
+    /* One bit a code point, set once it has been looked at, so it is asked about once and a
+     * frame of text already seen costs a pass over its bytes. Empty until something past ASCII
+     * turns up. */
+    std::vector<bool> asked;
+
+    /* The bytes of each font merged in. ImGui rasterises a glyph out of them when a character is
+     * first drawn, so they are kept for as long as the atlas is. */
+    std::deque<std::vector<unsigned char>> fontData;
 
     /* Whether the last screen carried a context menu, which is what makes Escape and a click
      * outside it a dismissal rather than what they would otherwise mean. */
@@ -769,6 +834,534 @@ void UnloadPictures()
     state.pictures.clear();
 }
 
+/* ---- fonts ---- */
+
+/*
+ * The machine's own fonts, for the characters the embedded one does not have.
+ *
+ * JetBrains Mono has Latin, Greek, Cyrillic and the symbols code is written in, and it was the
+ * only font here: Chinese, Japanese, Korean, Arabic, Hebrew, Thai and emoji all drew as the
+ * replacement glyph, so a snapshot holding any of them could not be reviewed in this head. A line
+ * with one such character changed was marked as changed and looked the same on both sides. The
+ * other two heads have their toolkits' font fallback. ImGui has none of its own, but it does draw
+ * a character from the first of a font's sources to have it, so the machine's fonts are merged
+ * into the window's font as further sources.
+ *
+ * Drawn, and not shaped: each character is the glyph its font has for it, where the grid put it.
+ * Arabic is its letters unjoined and in the order they are stored, and an emoji made of several
+ * is as many of them as its cells hold. That is enough to see which characters a snapshot holds,
+ * which is what this is for.
+ *
+ * Only the fonts a character on screen has needed, and only once one has. Every font fontconfig
+ * knows of can be hundreds of megabytes of files, and a screen of ASCII, which is nearly every
+ * screen, costs a pass over its bytes and nothing else. Until a font lands its characters are the
+ * replacement glyph they always were.
+ *
+ * Never for a capture: see State::font.
+ */
+
+/* As many of the machine's fonts as are ever merged in. ImGui numbers a font's sources in four
+ * bits, and the embedded font is the first of them. */
+constexpr size_t fontLimit = 15;
+
+/*
+ * fontconfig's FcFontSet, whose layout is part of its ABI, and the entry points this uses.
+ *
+ * Found in the library when a character first needs them rather than linked. Linked, a machine
+ * without fontconfig could not load this library at all, and building it would need fontconfig's
+ * headers. Found at run time, such a machine has no fonts to offer, which is what every machine
+ * had before.
+ */
+struct FontSet
+{
+    int count;
+    int capacity;
+    void** fonts;
+};
+
+struct Fontconfig
+{
+    void* (*initLoadConfigAndFonts)() = nullptr;
+    void* (*nameParse)(const unsigned char* name) = nullptr;
+    int (*configSubstitute)(void* config, void* pattern, int kind) = nullptr;
+    void (*defaultSubstitute)(void* pattern) = nullptr;
+    FontSet* (*fontSort)(void* config, void* pattern, int trim, void** charset, int* result) = nullptr;
+    int (*patternGetString)(const void* pattern, const char* object, int index, unsigned char** value) = nullptr;
+    int (*patternGetInteger)(const void* pattern, const char* object, int index, int* value) = nullptr;
+    int (*patternGetBool)(const void* pattern, const char* object, int index, int* value) = nullptr;
+    int (*patternGetCharSet)(const void* pattern, const char* object, int index, void** value) = nullptr;
+    int (*charSetHasChar)(const void* charset, unsigned int codepoint) = nullptr;
+};
+
+/*
+ * Every font on the machine that says which characters it has, in the order fontconfig falls
+ * back through them from a monospace font for this user's language. That is the answer every
+ * other program here is given, and it is what puts the Japanese forms of the Han characters
+ * ahead of the Chinese ones for a Japanese reader.
+ */
+struct SystemFonts
+{
+    bool opened = false;
+    Fontconfig fontconfig;
+
+    struct Candidate
+    {
+        const void* pattern;
+        const void* charset;
+    };
+
+    std::vector<Candidate> candidates;
+
+    /* Handed over already, and found to be something stb_truetype cannot draw from. By file and
+     * face rather than by candidate, because one face can be listed more than once. */
+    std::set<std::pair<std::string, int>> taken;
+    std::set<std::pair<std::string, int>> unusable;
+};
+
+#if !defined(_WIN32)
+template <typename Entry>
+bool Resolve(void* library, const char* name, Entry& entry)
+{
+    entry = reinterpret_cast<Entry>(dlsym(library, name));
+    return entry != nullptr;
+}
+#endif
+
+/* On the finder's thread, the first time a character is asked about. What fontconfig hands back
+ * is not given back: the candidates point into it for as long as the thread runs, which is as
+ * long as the window does, and a process has the one window. */
+void OpenSystemFonts(SystemFonts& fonts)
+{
+    fonts.opened = true;
+#if !defined(_WIN32)
+    void* library = dlopen("libfontconfig.so.1", RTLD_NOW | RTLD_LOCAL);
+    if (library == nullptr)
+    {
+        return;
+    }
+
+    Fontconfig& fontconfig = fonts.fontconfig;
+    if (!Resolve(library, "FcInitLoadConfigAndFonts", fontconfig.initLoadConfigAndFonts) ||
+        !Resolve(library, "FcNameParse", fontconfig.nameParse) ||
+        !Resolve(library, "FcConfigSubstitute", fontconfig.configSubstitute) ||
+        !Resolve(library, "FcDefaultSubstitute", fontconfig.defaultSubstitute) ||
+        !Resolve(library, "FcFontSort", fontconfig.fontSort) ||
+        !Resolve(library, "FcPatternGetString", fontconfig.patternGetString) ||
+        !Resolve(library, "FcPatternGetInteger", fontconfig.patternGetInteger) ||
+        !Resolve(library, "FcPatternGetBool", fontconfig.patternGetBool) ||
+        !Resolve(library, "FcPatternGetCharSet", fontconfig.patternGetCharSet) ||
+        !Resolve(library, "FcCharSetHasChar", fontconfig.charSetHasChar))
+    {
+        return;
+    }
+
+    void* config = fontconfig.initLoadConfigAndFonts();
+    void* pattern = fontconfig.nameParse(reinterpret_cast<const unsigned char*>("monospace"));
+    if (config == nullptr ||
+        pattern == nullptr)
+    {
+        return;
+    }
+
+    /* The two steps every match is prepared with: the configuration's rules, which is where
+     * "monospace" becomes the fonts the machine means by it, and the defaults, which is where
+     * the user's language comes from. */
+    fontconfig.configSubstitute(config, pattern, 0);
+    fontconfig.defaultSubstitute(pattern);
+
+    /* Untrimmed. Trimming leaves out a font with no character the ones ahead of it lack, which
+     * it works out by uniting every character set in turn, and each character is asked of them
+     * here anyway. */
+    int result = 0;
+    const FontSet* sorted = fontconfig.fontSort(config, pattern, 0, nullptr, &result);
+    if (sorted == nullptr)
+    {
+        return;
+    }
+
+    for (int index = 0; index < sorted->count; index++)
+    {
+        void* charset = nullptr;
+        if (fontconfig.patternGetCharSet(sorted->fonts[index], "charset", 0, &charset) == 0 &&
+            charset != nullptr)
+        {
+            fonts.candidates.push_back({sorted->fonts[index], charset});
+        }
+    }
+#endif
+}
+
+constexpr uint32_t Tag(char first, char second, char third, char fourth)
+{
+    return static_cast<uint32_t>(static_cast<unsigned char>(first)) << 24 |
+           static_cast<uint32_t>(static_cast<unsigned char>(second)) << 16 |
+           static_cast<uint32_t>(static_cast<unsigned char>(third)) << 8 |
+           static_cast<uint32_t>(static_cast<unsigned char>(fourth));
+}
+
+/*
+ * The scale that makes deview_init's size an em for a face: its ascent plus its descent over its
+ * em, which is what emScale is for the embedded font. Merged at ImGui's own scale it is each
+ * font's height that is matched, so one with tall lines comes out small and one with short lines
+ * large. An em is what the other two heads fall back at, and what leaves a CJK character, an em
+ * wide, inside the two cells the grid gives it.
+ *
+ * False for a face stb_truetype, which is what rasterises here, cannot draw from. Those are its
+ * own conditions, asked first. It wants outlines, as TrueType's or in a CFF table, and a variable
+ * font of the CFF2 kind has neither, which is one of the forms Noto CJK comes in. Asked here, on
+ * the finder's thread, the next font with the character is tried instead; left to ImGui, the
+ * refusal comes on the render thread as an error, and nothing else is tried.
+ */
+bool EmScaleOf(const std::vector<unsigned char>& data, int face, float& scale)
+{
+    const size_t size = data.size();
+    const auto u16 = [&data, size](size_t at) -> uint32_t
+    {
+        return at + 2 <= size
+            ? static_cast<uint32_t>(data[at]) << 8 | static_cast<uint32_t>(data[at + 1])
+            : 0;
+    };
+    const auto u32 = [&u16](size_t at) -> uint32_t { return u16(at) << 16 | u16(at + 2); };
+
+    /* A collection starts with where each of its faces does. */
+    size_t start = 0;
+    if (u32(0) == Tag('t', 't', 'c', 'f'))
+    {
+        if (static_cast<uint32_t>(face) >= u32(8))
+        {
+            return false;
+        }
+
+        start = u32(12 + static_cast<size_t>(face) * 4);
+    }
+    else if (face != 0)
+    {
+        return false;
+    }
+
+    size_t head = 0;
+    size_t hhea = 0;
+    bool cmap = false;
+    bool hmtx = false;
+    bool glyf = false;
+    bool loca = false;
+    bool cff = false;
+    const uint32_t tables = u16(start + 4);
+    for (uint32_t table = 0; table < tables; table++)
+    {
+        const size_t record = start + 12 + static_cast<size_t>(table) * 16;
+        switch (u32(record))
+        {
+            case Tag('h', 'e', 'a', 'd'): head = u32(record + 8); break;
+            case Tag('h', 'h', 'e', 'a'): hhea = u32(record + 8); break;
+            case Tag('c', 'm', 'a', 'p'): cmap = true; break;
+            case Tag('h', 'm', 't', 'x'): hmtx = true; break;
+            case Tag('g', 'l', 'y', 'f'): glyf = true; break;
+            case Tag('l', 'o', 'c', 'a'): loca = true; break;
+            case Tag('C', 'F', 'F', ' '): cff = true; break;
+            default: break;
+        }
+    }
+
+    const int unitsPerEm = static_cast<int>(u16(head + 18));
+    const int ascent = static_cast<int16_t>(u16(hhea + 4));
+    const int descent = static_cast<int16_t>(u16(hhea + 6));
+    if (head == 0 ||
+        hhea == 0 ||
+        !cmap ||
+        !hmtx ||
+        !(cff || (glyf && loca)) ||
+        unitsPerEm == 0 ||
+        ascent <= descent)
+    {
+        return false;
+    }
+
+    scale = static_cast<float>(ascent - descent) / static_cast<float>(unitsPerEm);
+    return true;
+}
+
+bool ReadFont(const Fontconfig& fontconfig, const void* pattern, const std::pair<std::string, int>& face, FoundFont& found)
+{
+    /* Outlines, and nothing else. A bitmap font has none to scale, and a colour font - which is
+     * what the emoji font usually is - keeps its pictures in tables stb_truetype does not read.
+     * Merged, it would draw every emoji as nothing, ahead of a font with plain ones. */
+    int flag = 0;
+    if ((fontconfig.patternGetBool(pattern, "outline", 0, &flag) == 0 && flag == 0) ||
+        (fontconfig.patternGetBool(pattern, "color", 0, &flag) == 0 && flag != 0))
+    {
+        return false;
+    }
+
+    std::ifstream file(face.first, std::ios::binary | std::ios::ate);
+    const std::streamoff length = file.tellg();
+    /* ImGui takes a length as an int. */
+    if (!file ||
+        length <= 0 ||
+        length > INT_MAX)
+    {
+        return false;
+    }
+
+    std::vector<unsigned char> data(static_cast<size_t>(length));
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char*>(data.data()), length) ||
+        !EmScaleOf(data, face.second, found.scale))
+    {
+        return false;
+    }
+
+    found.data = std::move(data);
+    found.face = face.second;
+    return true;
+}
+
+/*
+ * The first font in fontconfig's order to have a character and be one that can be drawn from,
+ * read whole. False when there is none, and when that font has been handed over already, since
+ * the character is then on its way with it.
+ */
+bool FindFont(SystemFonts& fonts, uint32_t codepoint, FoundFont& found)
+{
+    if (!fonts.opened)
+    {
+        OpenSystemFonts(fonts);
+    }
+
+    const Fontconfig& fontconfig = fonts.fontconfig;
+    for (const SystemFonts::Candidate& candidate : fonts.candidates)
+    {
+        if (fontconfig.charSetHasChar(candidate.charset, codepoint) == 0)
+        {
+            continue;
+        }
+
+        unsigned char* file = nullptr;
+        if (fontconfig.patternGetString(candidate.pattern, "file", 0, &file) != 0 ||
+            file == nullptr)
+        {
+            continue;
+        }
+
+        /* The face of a collection is the low half of the index. The high half names an instance
+         * of a variable font, which stb_truetype draws as its default whichever is asked for. */
+        int index = 0;
+        fontconfig.patternGetInteger(candidate.pattern, "index", 0, &index);
+        const std::pair<std::string, int> face(reinterpret_cast<const char*>(file), index & 0xFFFF);
+        if (fonts.taken.count(face) != 0)
+        {
+            return false;
+        }
+
+        if (fonts.unusable.count(face) != 0)
+        {
+            continue;
+        }
+
+        if (ReadFont(fontconfig, candidate.pattern, face, found))
+        {
+            fonts.taken.insert(face);
+            return true;
+        }
+
+        fonts.unusable.insert(face);
+    }
+
+    return false;
+}
+
+void FindFonts(std::shared_ptr<FontFinder> finder)
+{
+    SystemFonts fonts;
+    std::unique_lock<std::mutex> lock(finder->mutex);
+    while (true)
+    {
+        finder->wake.wait(lock, [&finder] { return finder->stopping || !finder->wanted.empty(); });
+        if (finder->stopping)
+        {
+            return;
+        }
+
+        std::vector<uint32_t> wanted;
+        wanted.swap(finder->wanted);
+        lock.unlock();
+
+        /* fontconfig and the disk, and nothing of ImGui's, which belongs to the other thread. */
+        std::vector<FoundFont> found;
+        for (const uint32_t codepoint : wanted)
+        {
+            FoundFont font;
+            if (FindFont(fonts, codepoint, font))
+            {
+                found.push_back(std::move(font));
+            }
+        }
+
+        lock.lock();
+        for (FoundFont& font : found)
+        {
+            finder->found.push_back(std::move(font));
+        }
+    }
+}
+
+void StopFontFinder()
+{
+    if (!state.finder)
+    {
+        return;
+    }
+
+    {
+        const std::lock_guard<std::mutex> lock(state.finder->mutex);
+        state.finder->stopping = true;
+        state.finder->wanted.clear();
+        state.finder->found.clear();
+    }
+
+    state.finder->wake.notify_one();
+    state.finder.reset();
+}
+
+/*
+ * Asks for a font for every character of a screen that the window's font cannot draw. Every
+ * string of the frame is in the one blob, so one pass over it covers the title, the queue and
+ * the tooltips with the rows.
+ */
+void FindFontsFor(const DeviewScreen* screen)
+{
+    if (state.font == nullptr ||
+        screen->strings == nullptr ||
+        state.fontData.size() >= fontLimit)
+    {
+        return;
+    }
+
+    const char* text = reinterpret_cast<const char*>(screen->strings);
+    const char* const end = text + screen->stringsLength;
+    std::vector<uint32_t> wanted;
+    while (text < end)
+    {
+        /* ASCII, all of which the embedded font has, and which is nearly every byte of nearly
+         * every screen. */
+        if (static_cast<unsigned char>(*text) < 0x80)
+        {
+            text++;
+            continue;
+        }
+
+        unsigned int codepoint = 0;
+        text += std::max(1, ImTextCharFromUtf8(&codepoint, text, end));
+        if (codepoint > IM_UNICODE_CODEPOINT_MAX)
+        {
+            continue;
+        }
+
+        if (state.asked.empty())
+        {
+            state.asked.resize(static_cast<size_t>(IM_UNICODE_CODEPOINT_MAX) + 1);
+        }
+
+        if (state.asked[codepoint])
+        {
+            continue;
+        }
+
+        state.asked[codepoint] = true;
+        if (!state.font->IsGlyphInFont(static_cast<ImWchar>(codepoint)))
+        {
+            wanted.push_back(codepoint);
+        }
+    }
+
+    if (wanted.empty())
+    {
+        return;
+    }
+
+    if (!state.finder)
+    {
+        state.finder = std::make_shared<FontFinder>();
+        std::thread(FindFonts, state.finder).detach();
+    }
+
+    {
+        const std::lock_guard<std::mutex> lock(state.finder->mutex);
+        state.finder->wanted.insert(state.finder->wanted.end(), wanted.begin(), wanted.end());
+    }
+
+    state.finder->wake.notify_one();
+}
+
+/*
+ * Merges what the finder has read into the window's font. At the top of a frame: ImGui takes a
+ * new source between frames, and drops what it had rasterised from the font as it does, so a
+ * character already drawn as missing is looked for again.
+ */
+void TakeFonts()
+{
+    if (!state.finder)
+    {
+        return;
+    }
+
+    std::vector<FoundFont> found;
+    {
+        const std::lock_guard<std::mutex> lock(state.finder->mutex);
+        found.swap(state.finder->found);
+    }
+
+    ImGuiIO& io = ImGui::GetIO();
+    for (FoundFont& font : found)
+    {
+        if (state.fontData.size() >= fontLimit)
+        {
+            return;
+        }
+
+        state.fontData.push_back(std::move(font.data));
+        std::vector<unsigned char>& data = state.fontData.back();
+
+        /* Merged into the font added before it, which is the window's: see deview_init. */
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.FontNo = static_cast<ImU32>(font.face);
+        config.ExtraSizeScale = font.scale;
+        config.FontDataOwnedByAtlas = false;
+
+        /* A font stb_truetype turns out not to read after all is left out. That is nothing for
+         * ImGui to assert or to write to its log, which is what it does with a font it is given
+         * and cannot use. */
+        const bool asserts = io.ConfigErrorRecoveryEnableAssert;
+        const bool logs = io.ConfigErrorRecoveryEnableDebugLog;
+        io.ConfigErrorRecoveryEnableAssert = false;
+        io.ConfigErrorRecoveryEnableDebugLog = false;
+        const ImFont* merged = io.Fonts->AddFontFromMemoryTTF(
+            data.data(),
+            static_cast<int>(data.size()),
+            0.0f,
+            &config);
+        io.ConfigErrorRecoveryEnableAssert = asserts;
+        io.ConfigErrorRecoveryEnableDebugLog = logs;
+        if (merged == nullptr)
+        {
+            state.fontData.pop_back();
+        }
+    }
+}
+
+ImFont* AddEmbeddedFont(const uint8_t* fontTtf, int32_t fontLength, float fontSize)
+{
+    /* ImGui frees font data with its own allocator, so hand it a copy rather than memory owned
+     * by the managed heap. */
+    void* copy = IM_ALLOC(static_cast<size_t>(fontLength));
+    memcpy(copy, fontTtf, static_cast<size_t>(fontLength));
+    ImFontConfig config;
+    config.FontDataOwnedByAtlas = true;
+    config.ExtraSizeScale = emScale;
+    return ImGui::GetIO().Fonts->AddFontFromMemoryTTF(copy, fontLength, fontSize <= 0.0f ? 15.0f : fontSize, &config);
+}
+
 /* ---- texture protocol (ImGuiBackendFlags_RendererHasTextures) ---- */
 
 void UpdateTexture(ImTextureData* texture)
@@ -1103,11 +1696,41 @@ void RowText(const DeviewScreen* screen, const DeviewRow& row, ImVec2 textPos)
             continue;
         }
 
-        list->AddText(
-            ImVec2(textPos.x + static_cast<float>(segment.column) * cell, textPos.y),
-            colour,
-            begin,
-            end);
+        const ImVec2 position(textPos.x + static_cast<float>(segment.column) * cell, textPos.y);
+
+        /*
+         * Cut off where the next character starts, when it is drawn wider than the cells the grid
+         * gave it: a character from one of the machine's fonts, which is as wide as that font
+         * made it. The grid says where everything after it goes whatever its width, so drawn
+         * whole it would run on under the characters that follow. Over spaces it may, there being
+         * nothing there to run under, which is what leaves a warning sign or a star with a space
+         * after it whole. A run from the embedded font is exactly its cells and is never cut, and
+         * the last segment has nothing after it.
+         */
+        if (index + 1 < row.segmentCount)
+        {
+            const DeviewSegment& next = screen->segments[row.segmentOffset + index + 1];
+            int column = next.column;
+            const char* following;
+            const char* followingEnd;
+            if (Slice(screen, next.textOffset, next.textLength, &following, &followingEnd))
+            {
+                for (; following < followingEnd && *following == ' '; following++)
+                {
+                    column++;
+                }
+            }
+
+            const float limit = textPos.x + static_cast<float>(column) * cell;
+            if (ImGui::CalcTextSize(begin, end).x > limit - position.x)
+            {
+                const ImVec4 cells(position.x, -FLT_MAX, limit, FLT_MAX);
+                list->AddText(nullptr, 0.0f, position, colour, begin, end, 0.0f, &cells);
+                continue;
+            }
+        }
+
+        list->AddText(position, colour, begin, end);
     }
 
     ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight()));
@@ -2269,14 +2892,15 @@ int32_t deview_init(
 
     if (fontTtf != nullptr && fontLength > 0)
     {
-        /* ImGui frees font data with its own allocator, so hand it a copy rather than memory
-         * owned by the managed heap. */
-        void* copy = IM_ALLOC(static_cast<size_t>(fontLength));
-        memcpy(copy, fontTtf, static_cast<size_t>(fontLength));
-        ImFontConfig config;
-        config.FontDataOwnedByAtlas = true;
-        config.ExtraSizeScale = emScale;
-        io.Fonts->AddFontFromMemoryTTF(copy, fontLength, fontSize <= 0.0f ? 15.0f : fontSize, &config);
+        /*
+         * Twice. The first is the atlas's default, and so what a capture's context draws with:
+         * the embedded font and nothing else, on every machine. The second is the window's, which
+         * the machine's fonts are merged into, and it is added last because a merge goes into
+         * the font added before it. See State::font.
+         */
+        AddEmbeddedFont(fontTtf, fontLength, fontSize);
+        state.font = AddEmbeddedFont(fontTtf, fontLength, fontSize);
+        io.FontDefault = state.font;
     }
 
     ResetInput();
@@ -2306,6 +2930,9 @@ int32_t deview_present(const DeviewScreen* screen)
     /* Before the frame asks for its pictures, so one that finished decoding since the last frame is
      * drawn in this one. */
     TakeDecoded();
+    /* And its fonts, for that reason and because a font can only be added between frames. */
+    TakeFonts();
+    FindFontsFor(screen);
     ImGui::NewFrame();
     BuildFrame(screen);
     ImGui::Render();
@@ -2523,6 +3150,7 @@ void deview_shutdown(void)
 
     /* Before CloseWindow, which takes the GL context these live in with it. */
     UnloadPictures();
+    StopFontFinder();
 
     if (state.context != nullptr)
     {
@@ -2530,6 +3158,11 @@ void deview_shutdown(void)
         ImGui::DestroyContext(state.context);
         state.context = nullptr;
     }
+
+    /* After the context, whose atlas was still reading glyphs out of these. */
+    state.font = nullptr;
+    state.fontData.clear();
+    state.asked.clear();
 
     CloseWindow();
     state.initialised = false;
