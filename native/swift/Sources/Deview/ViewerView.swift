@@ -409,6 +409,19 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             break
         }
 
+        // The brackets by what was typed, before the letters below are matched by which key it
+        // was. German, French, Nordic, Spanish and Italian layouts have them behind Option, and
+        // with the modifiers left out the key is the digit or the letter printed on it, so those
+        // readers could not turn a page from the keyboard.
+        switch event.characters {
+        case "[":
+            return DEVIEW_KEY_PREVIOUS_PAGE.value
+        case "]":
+            return DEVIEW_KEY_NEXT_PAGE.value
+        default:
+            break
+        }
+
         switch event.charactersIgnoringModifiers?.lowercased() {
         case "n":
             return DEVIEW_KEY_NEXT_CHANGE.value
