@@ -456,6 +456,176 @@ public class FormsHeadTests
         await Assert.That(after.Width).IsGreaterThanOrEqualTo(button.MinimumSize.Width);
     }
 
+    /// <summary>
+    /// A document's ten buttons in a window too narrow for one row of them: every one of them is
+    /// inside the footer, on more rows than one. In one row, those past the window's edge could
+    /// not be reached at all.
+    /// </summary>
+    [Test]
+    public async Task ButtonsThatDoNotFitOneRowWrap()
+    {
+        using var host = new FormHost(Fixtures.Document());
+        host.Settle();
+        var footer = Field<Panel>(host.Form, "footer");
+        var oneRow = footer.Height;
+
+        host.Form.ClientSize = new(560, 700);
+        host.Settle();
+
+        var buttons = FooterButtons(host.Form);
+        await Assert.That(buttons.Count).IsEqualTo(10);
+        await Assert.That(buttons.Select(_ => _.Top).Distinct().Count()).IsEqualTo(2);
+        await Assert.That(buttons.All(_ => footer.ClientRectangle.Contains(_.Bounds))).IsTrue();
+        await Assert.That(footer.Height).IsGreaterThan(oneRow);
+    }
+
+    /// <summary>
+    /// What the footer takes comes off the canvas, which says so: the model is asked for the
+    /// rows the canvas has left, so none is drawn behind a footer that grew.
+    /// </summary>
+    [Test]
+    public async Task ATallerFooterIsRowsTheBodyIsNotAskedFor()
+    {
+        using var host = new FormHost(Fixtures.File(Lines(300, 3), Lines(300)));
+        host.Settle();
+        var footer = Field<Panel>(host.Form, "footer");
+        var before = (Rows: host.State.Rows, Footer: footer.Height, Canvas: host.Canvas.Height);
+
+        // A file's five buttons are on two rows at this width
+        host.Form.ClientSize = new(300, host.Form.ClientSize.Height);
+        host.Settle();
+
+        var grew = footer.Height - before.Footer;
+        var cell = host.Canvas.CellSize();
+        await Assert.That(grew).IsGreaterThan(cell.Height);
+        await Assert.That(host.Canvas.Height).IsEqualTo(before.Canvas - grew);
+        await Assert.That(host.State.Rows).IsEqualTo(host.Canvas.BodyCapacity + ScreenBuilder.Chrome);
+        await Assert.That(host.State.Rows).IsLessThan(before.Rows);
+        // The last row the model sliced ends inside the canvas
+        var rows = ScreenBuilder.Build(host.State).Left.Rows.Count;
+        await Assert.That(host.Canvas.BodyTop() + rows * cell.Height).IsLessThanOrEqualTo(host.Canvas.Height);
+    }
+
+    /// <summary>
+    /// A status with no room beside the buttons goes under them, and the label is as tall as the
+    /// lines it wraps to: nothing of it is cut. Then one that fits beside them is beside them
+    /// again, in a footer the height it always was.
+    /// </summary>
+    [Test]
+    public async Task AStatusWithNoRoomBesideTheButtonsHasLinesOfItsOwn()
+    {
+        using var form = new ViewerForm("title", 700, 600);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), columns, rows));
+        var footer = Field<Panel>(form, "footer");
+        var status = Field<Label>(form, "status");
+        form.Apply(screen);
+        var oneRow = footer.Height;
+
+        form.Apply(
+            screen with
+            {
+                Status = LongStatus
+            });
+
+        var buttons = FooterButtons(form);
+        await Assert.That(status.Top).IsGreaterThanOrEqualTo(buttons.Max(_ => _.Bottom));
+        await Assert.That(status.Width).IsEqualTo(footer.ClientSize.Width - footer.Padding.Horizontal);
+        var needed = status.GetPreferredSize(new(status.Width, 0)).Height;
+        var line = status.GetPreferredSize(Size.Empty).Height;
+        await Assert.That(needed).IsGreaterThan(line);
+        await Assert.That(status.Height).IsEqualTo(needed);
+        await Assert.That(status.TextAlign).IsEqualTo(ContentAlignment.TopLeft);
+        await Assert.That(status.Bottom).IsLessThanOrEqualTo(footer.ClientSize.Height);
+
+        form.Apply(
+            screen with
+            {
+                Status = "page 1"
+            });
+
+        await Assert.That(footer.Height).IsEqualTo(oneRow);
+        // Beside the last row of them, which at this width is the second
+        var last = buttons.Where(_ => _.Top == buttons.Max(button => button.Top)).ToList();
+        await Assert.That(status.Top).IsEqualTo(last[0].Top);
+        await Assert.That(status.Left).IsGreaterThan(last.Max(_ => _.Right));
+    }
+
+    const string LongStatus =
+        "START lines 1-14 of 40, page 1 of 1, page 1 differs, 200% zoom, selected 3 lines of sample.received.pdf, " +
+        "which is 112 characters, and could not be drawn: Not a readable PDF document: it was cut short END";
+
+    /// <summary>
+    /// The label is as tall as its lines at the font it has, which on a scaled display is a
+    /// larger one, and they start at its top. Two lines high whatever it held and centred, more
+    /// lines than that showed the middle of the status. A display cannot be scaled from a test,
+    /// so the font is.
+    /// </summary>
+    [Test]
+    public async Task TheStatusIsAsTallAsItsLinesAtALargerFont()
+    {
+        using var form = new ViewerForm("title", 700, 600);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), columns, rows));
+        var status = Field<Label>(form, "status");
+        form.Apply(
+            screen with
+            {
+                Status = LongStatus
+            });
+        var small = status.Height;
+
+        using var larger = new Font(status.Font.FontFamily, status.Font.Size * 1.5f);
+        status.Font = larger;
+        form.Apply(
+            screen with
+            {
+                Status = LongStatus + "."
+            });
+
+        await Assert.That(status.Height).IsGreaterThan(small);
+        // All of it, or the three lines it is given at most, from the first of them
+        var line = status.GetPreferredSize(Size.Empty).Height;
+        var needed = status.GetPreferredSize(new(status.Width, 0)).Height;
+        await Assert.That(status.Height).IsEqualTo(Math.Min(needed, line * 3));
+        await Assert.That(status.TextAlign).IsEqualTo(ContentAlignment.TopLeft);
+    }
+
+    /// <summary>
+    /// A status under the buttons goes back beside them only with room to spare. What it says can
+    /// turn on how many rows the body has, and the body has a row more with the status beside
+    /// the buttons: one that fitted by a character there and not under them changed places on
+    /// every frame.
+    /// </summary>
+    [Test]
+    public async Task AStatusUnderTheButtonsIsSlowToGoBackBesideThem()
+    {
+        using var form = new ViewerForm("title", 700, 600);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        var status = Field<Label>(form, "status");
+        bool Below(int length)
+        {
+            form.Apply(
+                screen with
+                {
+                    Status = new('x', length)
+                });
+            return status.Top > FooterButtons(form).Max(_ => _.Top);
+        }
+
+        // The first length with no room beside the buttons
+        var length = 1;
+        while (!Below(length))
+        {
+            length++;
+        }
+
+        await Assert.That(length).IsGreaterThan(10);
+        // A character shorter fitted on the way up, and does not bring it back
+        await Assert.That(Below(length - 1)).IsTrue();
+        await Assert.That(Below(length - 10)).IsFalse();
+        // And from beside them it stays there until it does not fit
+        await Assert.That(Below(length - 1)).IsFalse();
+    }
+
     static List<System.Windows.Forms.Button> FooterButtons(ViewerForm form) =>
         ((IList) typeof(ViewerForm).GetField("pool", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(form)!)
         .Cast<System.Windows.Forms.Button>()

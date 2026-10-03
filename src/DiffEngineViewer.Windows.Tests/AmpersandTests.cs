@@ -49,8 +49,9 @@ public class AmpersandTests
             });
 
         var buttons = form.Controls
-            .Find("buttons", true)
+            .Find("status", true)
             .Single()
+            .Parent!
             .Controls
             .OfType<System.Windows.Forms.Button>()
             .ToList();

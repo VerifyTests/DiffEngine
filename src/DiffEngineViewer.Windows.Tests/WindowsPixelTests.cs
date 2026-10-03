@@ -183,10 +183,10 @@ public class WindowsPixelTests
     }
 
     /// <summary>
-    /// A status wider than the footer has left beside a document's buttons: one line, from its
-    /// start, ending in an ellipsis where it is cut. The status line is where the model says what
-    /// no picture can, and it says the thing that matters first. Wrapped into a label two lines
-    /// high and centred, what showed was the middle of it.
+    /// A status wider than the footer has left beside a document's buttons: on a line of its own
+    /// under them, all of it, as the other two heads put it. The status line is where the model
+    /// says what no picture can. Beside the buttons it had the width of a few words and the
+    /// height of two lines, and what did not fit in those was lost behind an ellipsis.
     /// </summary>
     [Test]
     public Task StatusThatDoesNotFit()
@@ -195,16 +195,40 @@ public class WindowsPixelTests
         return Capture(
             screen with
             {
-                // Five lines of the label's width, where it has the height for two
-                Status = "START lines 1-14 of 40, page 1 of 1, page 1 differs, 200% zoom, selected 3 lines of sample.received.pdf, " +
-                         "which is 112 characters, and could not be drawn: Not a readable PDF document: it was cut short END"
+                Status = longStatus
             });
+    }
+
+    const string longStatus =
+        "START lines 1-14 of 40, page 1 of 1, page 1 differs, 200% zoom, selected 3 lines of sample.received.pdf, " +
+        "which is 112 characters, and could not be drawn: Not a readable PDF document: it was cut short END";
+
+    /// <summary>
+    /// The same in a window half as wide: a document's buttons on two rows, since one does not
+    /// hold them, and the status under them on the two lines it needs at that width, read from
+    /// the left. In one row the buttons past the window's edge could not be reached at all.
+    /// <para>
+    /// Fewer rows than the window of the other scenes holds, as the canvas reports fewer once
+    /// the footer is this tall.
+    /// </para>
+    /// </summary>
+    [Test]
+    public Task FooterThatWraps()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), 60, 26));
+        return Capture(
+            screen with
+            {
+                Status = longStatus
+            },
+            560,
+            560);
     }
 
     static Task Capture(SessionState state) =>
         Capture(ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows)));
 
-    static async Task Capture(Screen screen)
+    static async Task Capture(Screen screen, int width = width, int height = height)
     {
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
