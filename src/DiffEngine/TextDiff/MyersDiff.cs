@@ -19,6 +19,14 @@ using System.Buffers;
 /// fewer elements unchanged than it could have. Nothing the search used to do in a tenth of a
 /// second gets that far, so what was quick is exactly as it was.
 /// </para>
+/// <para>
+/// A search that settles first asks whether the two sequences can be lined up without searching,
+/// by the elements each has once (<see cref="LineAnchors"/>). The same elements in another order
+/// are edits from end to end, so a search gets nowhere in them however deep it goes, and split
+/// wherever it stopped they came out as nearly all changed. The longest run of them still in
+/// order is found in the time of a sort, and the sequences are split at every element of it at
+/// once.
+/// </para>
 /// </summary>
 static class MyersDiff
 {
@@ -47,6 +55,14 @@ static class MyersDiff
     /// </summary>
     internal const int MinimumDepth = 256;
 
+    /// <summary>
+    /// A run of elements in order, each on both sides once, is taken as how the sequences line up
+    /// once it is this long, and longer than whatever the search that settled had to go on. A
+    /// shorter one is a few lines that happen to be unique, and where they are says little about
+    /// the lines around them.
+    /// </summary>
+    internal const int AnchorRun = 16;
+
     public static void Diff(ReadOnlySpan<int> a, ReadOnlySpan<int> b, Span<bool> changedA, Span<bool> changedB) =>
         Diff(a, b, changedA, changedB, Budget, MinimumDepth);
 
@@ -56,17 +72,19 @@ static class MyersDiff
     /// <param name="changedB">Set for each element of <paramref name="b"/> with no match.</param>
     /// <param name="budget">
     /// The searching to do before settling. Given by the tests, along with
-    /// <paramref name="minimumDepth"/>, which is the only way a search that settles can be had on
-    /// sequences small enough to check by other means.
+    /// <paramref name="minimumDepth"/> and <paramref name="anchorRun"/>, which is the only way a
+    /// search that settles can be had on sequences small enough to check by other means.
     /// </param>
     /// <param name="minimumDepth">The depth a search is allowed with nothing left of the budget.</param>
+    /// <param name="anchorRun">The shortest run of unique elements in order to split by.</param>
     internal static void Diff(
         ReadOnlySpan<int> a,
         ReadOnlySpan<int> b,
         Span<bool> changedA,
         Span<bool> changedB,
         long budget,
-        int minimumDepth)
+        int minimumDepth,
+        int anchorRun = AnchorRun)
     {
         var length = VectorLength(a.Length, b.Length);
         int[]? rentedForward = null;
@@ -79,7 +97,7 @@ static class MyersDiff
             : (rentedReverse = ArrayPool<int>.Shared.Rent(length)).AsSpan(0, length);
         try
         {
-            Recurse(a, b, changedA, changedB, forward, reverse, ref budget, Math.Max(1, minimumDepth));
+            Recurse(a, b, changedA, changedB, forward, reverse, ref budget, new(Math.Max(1, minimumDepth), Math.Max(1, anchorRun)), long.MaxValue);
         }
         finally
         {
@@ -104,6 +122,24 @@ static class MyersDiff
     /// is no longer follows from where the split is: one a search settled for can leave almost
     /// everything on either side of it.
     /// </summary>
+    /// <param name="a">One sequence, or the part of it left to diff.</param>
+    /// <param name="b">The other.</param>
+    /// <param name="changedA">The flags of <paramref name="a"/>.</param>
+    /// <param name="changedB">The flags of <paramref name="b"/>.</param>
+    /// <param name="forward">The forward search's diagonals, shared by every search of the diff.</param>
+    /// <param name="reverse">The reverse search's.</param>
+    /// <param name="budget">What is left of the searching the diff may do.</param>
+    /// <param name="limits">What a search with nothing left to spend may still do.</param>
+    /// <param name="anchorBelow">
+    /// How many elements, between the two sides, a part may have and still be looked at for
+    /// anchors when a search of it settles. Finding them costs a sort of the part, and a diff
+    /// that settles makes a split every few hundred elements, so looking after every one would be
+    /// the length squared again. Every part until one has been looked at; then nothing inside a
+    /// part that had no run worth splitting by, where a smaller piece of the same is unlikely to
+    /// have one either, and inside a part that was split by one only a part of half its size or
+    /// less. A part is inside at most as many such halvings as its length has, and the parts at
+    /// each are apart from one another, so all of it together is a few sorts of the whole.
+    /// </param>
     static void Recurse(
         ReadOnlySpan<int> a,
         ReadOnlySpan<int> b,
@@ -112,7 +148,8 @@ static class MyersDiff
         Span<int> forward,
         Span<int> reverse,
         ref long budget,
-        int minimumDepth)
+        Limits limits,
+        long anchorBelow)
     {
         while (true)
         {
@@ -158,9 +195,21 @@ static class MyersDiff
             // whole of the grid when that is within reach, which is a search that cannot settle.
             var deepest = (a.Length + b.Length + 1) / 2;
             var affordable = budget <= 0 ? 0 : (long) Math.Sqrt(budget);
-            var limit = (int) Math.Min(deepest, Math.Max(minimumDepth, affordable));
-            var found = TryMiddleSnake(a, b, forward, reverse, limit, out var x, out var y, out var depth);
+            var limit = (int) Math.Min(deepest, Math.Max(limits.Depth, affordable));
+            var found = TryMiddleSnake(a, b, forward, reverse, limit, out var x, out var y, out var depth, out var settled, out var passed);
             budget -= (long) depth * depth;
+            if (settled &&
+                (long) a.Length + b.Length <= anchorBelow)
+            {
+                var size = (long) a.Length + b.Length;
+                if (TryAnchors(a, b, changedA, changedB, forward, reverse, ref budget, limits, Math.Max(limits.AnchorRun, passed + 1), size / 2))
+                {
+                    return;
+                }
+
+                anchorBelow = 0;
+            }
+
             if (!found)
             {
                 changedA.Fill(true);
@@ -170,7 +219,7 @@ static class MyersDiff
 
             if (x + y <= a.Length - x + b.Length - y)
             {
-                Recurse(a[..x], b[..y], changedA[..x], changedB[..y], forward, reverse, ref budget, minimumDepth);
+                Recurse(a[..x], b[..y], changedA[..x], changedB[..y], forward, reverse, ref budget, limits, anchorBelow);
                 a = a[x..];
                 b = b[y..];
                 changedA = changedA[x..];
@@ -178,12 +227,78 @@ static class MyersDiff
             }
             else
             {
-                Recurse(a[x..], b[y..], changedA[x..], changedB[y..], forward, reverse, ref budget, minimumDepth);
+                Recurse(a[x..], b[y..], changedA[x..], changedB[y..], forward, reverse, ref budget, limits, anchorBelow);
                 a = a[..x];
                 b = b[..y];
                 changedA = changedA[..x];
                 changedB = changedB[..y];
             }
+        }
+    }
+
+    /// <summary>
+    /// What a search may do once the budget has gone, and what a settled one may split by.
+    /// </summary>
+    /// <param name="Depth">See <see cref="MinimumDepth"/>.</param>
+    /// <param name="AnchorRun">See <see cref="MyersDiff.AnchorRun"/>.</param>
+    readonly record struct Limits(int Depth, int AnchorRun);
+
+    /// <summary>
+    /// Splits two sequences at every element of the longest run of elements still in order that
+    /// each has once, and diffs what lies between one and the next. False, having done nothing,
+    /// when there is no such run of <paramref name="needed"/> elements.
+    /// <para>
+    /// The elements of the run are the same on both sides and stay unflagged, which is what
+    /// unchanged is. Each part between two of them is a diff of its own, searched with whatever
+    /// budget is left, and all the parts together are at least as much unchanged as the run is
+    /// long.
+    /// </para>
+    /// </summary>
+    static bool TryAnchors(
+        ReadOnlySpan<int> a,
+        ReadOnlySpan<int> b,
+        Span<bool> changedA,
+        Span<bool> changedB,
+        Span<int> forward,
+        Span<int> reverse,
+        ref long budget,
+        Limits limits,
+        int needed,
+        long anchorBelow)
+    {
+        var count = LineAnchors.Find(a, b, needed, out var xs, out var ys);
+        if (count == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var fromX = 0;
+            var fromY = 0;
+            for (var index = 0; index < count; index++)
+            {
+                var x = xs![index];
+                var y = ys![index];
+                // Nothing between two that follow straight on from one another, which in a run
+                // that was found whole is most of them
+                if (x > fromX ||
+                    y > fromY)
+                {
+                    Recurse(a[fromX..x], b[fromY..y], changedA[fromX..x], changedB[fromY..y], forward, reverse, ref budget, limits, anchorBelow);
+                }
+
+                fromX = x + 1;
+                fromY = y + 1;
+            }
+
+            Recurse(a[fromX..], b[fromY..], changedA[fromX..], changedB[fromY..], forward, reverse, ref budget, limits, anchorBelow);
+            return true;
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(xs!);
+            ArrayPool<int>.Shared.Return(ys!);
         }
     }
 
@@ -203,6 +318,12 @@ static class MyersDiff
     /// both sequences changed. <paramref name="depth"/> is how many edits deep it went either way,
     /// which is what it is charged for.
     /// </para>
+    /// <para>
+    /// <paramref name="settled"/> says the split is one it settled for, and
+    /// <paramref name="passed"/> what that split has going for it: the elements the search passed
+    /// as the same on its way there, or the run that follows from where the sequences were found
+    /// to line up. A run of anchors has to be longer than that to be split by instead.
+    /// </para>
     /// </summary>
     static bool TryMiddleSnake(
         ReadOnlySpan<int> a,
@@ -212,8 +333,12 @@ static class MyersDiff
         int limit,
         out int splitX,
         out int splitY,
-        out int depth)
+        out int depth,
+        out bool settled,
+        out int passed)
     {
+        settled = false;
+        passed = 0;
         var n = a.Length;
         var m = b.Length;
         var maxD = (n + m + 1) / 2;
@@ -344,11 +469,14 @@ static class MyersDiff
             if (d >= limit)
             {
                 depth = d + 1;
+                settled = true;
                 var furthest = TryFurthest(n, m, d, offset, forward, reverse, out splitX, out splitY, out var matched);
-                if (TryDisplaced(a, b, depth, matched, out var displacedX, out var displacedY))
+                passed = matched;
+                if (TryDisplaced(a, b, depth, matched, out var displacedX, out var displacedY, out var run))
                 {
                     splitX = displacedX;
                     splitY = displacedY;
+                    passed = run;
                     return true;
                 }
 
@@ -394,10 +522,11 @@ static class MyersDiff
     /// scattered along a diagonal it was already following.
     /// </para>
     /// </summary>
-    static bool TryDisplaced(ReadOnlySpan<int> a, ReadOnlySpan<int> b, int depth, int matched, out int splitX, out int splitY)
+    static bool TryDisplaced(ReadOnlySpan<int> a, ReadOnlySpan<int> b, int depth, int matched, out int splitX, out int splitY, out int run)
     {
         splitX = 0;
         splitY = 0;
+        run = 0;
         // No further than the search looked, which was its depth squared, so a scan never costs
         // more than the search it follows did
         var window = (int) Math.Min(int.MaxValue, (long) depth * depth);
@@ -412,12 +541,14 @@ static class MyersDiff
             (!fromB || inA <= inB))
         {
             splitX = inA;
+            run = runA;
             return true;
         }
 
         if (fromB)
         {
             splitY = inB;
+            run = runB;
             return true;
         }
 

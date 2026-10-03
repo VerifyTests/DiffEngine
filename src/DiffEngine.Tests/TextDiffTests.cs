@@ -377,6 +377,37 @@ public class TextDiffTests
         await Assert.That(lines.Where(_ => _.Kind != DiffLineKind.Removed).Select(_ => _.Text).SequenceEqual(received)).IsTrue();
     }
 
+    /// <summary>
+    /// Past what a diff may spend searching, lines that are each on both sides once are what it
+    /// goes by: the longest run of them still in order is kept, where the search alone left
+    /// nearly all of them changed. With every line on both sides once, as here, that run is the
+    /// most that can be unchanged, so the diff is minimal again however the lines were moved:
+    /// every line somewhere else, runs of them moved, and a few large blocks in another order.
+    /// </summary>
+    [Test]
+    [Arguments(30000, 1)]
+    [Arguments(40000, 50)]
+    [Arguments(60000, 3000)]
+    public async Task LinesInAnotherOrderKeepTheLongestRunStillInOrder(int count, int run)
+    {
+        var random = new Random(13);
+        var runs = Enumerable.Range(0, count).Chunk(run).ToArray();
+        // One run in four somewhere else when there are many, and every run when there are few
+        var places = Enumerable.Range(0, runs.Length)
+            .Select(_ => run == 50 && random.Next(4) != 0 ? _ : random.Next(runs.Length))
+            .ToArray();
+        Array.Sort(places, runs);
+        var order = runs.SelectMany(_ => _).ToArray();
+        var expected = Enumerable.Range(0, count).Select(_ => $"line {_}").ToList();
+        var received = order.Select(_ => expected[_]).ToList();
+
+        var lines = TextDiff.Compute(string.Join("\n", expected), string.Join("\n", received));
+
+        await Assert.That(lines.Count(_ => _.Kind == DiffLineKind.Unchanged)).IsEqualTo(LongestIncreasingRun(order));
+        await Assert.That(lines.Where(_ => _.Kind != DiffLineKind.Added).Select(_ => _.Text).SequenceEqual(expected)).IsTrue();
+        await Assert.That(lines.Where(_ => _.Kind != DiffLineKind.Removed).Select(_ => _.Text).SequenceEqual(received)).IsTrue();
+    }
+
     // Patience sorting: the piles' tops stay sorted, and there are as many piles as the longest
     // increasing run is long.
     static int LongestIncreasingRun(int[] values)
@@ -514,6 +545,114 @@ public class TextDiffTests
             if (!unchangedA.SequenceEqual(unchangedB))
             {
                 Assert.Fail($"budget: {budget} minimum: {minimumDepth} a: {string.Join(",", a)} b: {string.Join(",", b)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// And searches that settle where there are elements to line up by, on sequences small enough
+    /// to check: some elements on each side once, some repeated, some on one side only, and a run
+    /// of any length taken as worth splitting by. What is left unchanged has to be the same
+    /// elements in the same order, whatever was split by an anchor and whatever by a search.
+    /// </summary>
+    [Test]
+    public void ASearchThatSettlesOnAnchorsStillDiffsCorrectly()
+    {
+        var random = new Random(14);
+        for (var iteration = 0; iteration < 20000; iteration++)
+        {
+            var alphabet = 2 + iteration % 80;
+            var a = RandomIds(random, random.Next(0, 60), alphabet);
+            var b = RandomIds(random, random.Next(0, 60), alphabet);
+            var budget = iteration % 40;
+            var minimumDepth = 1 + iteration % 5;
+            var anchorRun = 1 + iteration % 3;
+            var changedA = new bool[a.Length];
+            var changedB = new bool[b.Length];
+
+            MyersDiff.Diff(a, b, changedA, changedB, budget, minimumDepth, anchorRun);
+
+            var unchangedA = a.Where((_, index) => !changedA[index]);
+            var unchangedB = b.Where((_, index) => !changedB[index]);
+            if (!unchangedA.SequenceEqual(unchangedB))
+            {
+                Assert.Fail($"budget: {budget} minimum: {minimumDepth} run: {anchorRun} a: {string.Join(",", a)} b: {string.Join(",", b)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The same elements in another order, with nothing to spend on searching: every element is on
+    /// both sides once, so the longest run of them still in order is the most that can be
+    /// unchanged, and that is what is kept.
+    /// </summary>
+    [Test]
+    public void TheSameElementsInAnotherOrderKeepTheLongestRunWithNothingToSpend()
+    {
+        var random = new Random(15);
+        for (var iteration = 0; iteration < 5000; iteration++)
+        {
+            var a = Enumerable.Range(0, random.Next(2, 60)).ToArray();
+            var b = a.OrderBy(_ => random.Next()).ToArray();
+            var changedA = new bool[a.Length];
+            var changedB = new bool[b.Length];
+
+            MyersDiff.Diff(a, b, changedA, changedB, 0, 1 + iteration % 5, 1);
+
+            var unchangedA = a.Where((_, index) => !changedA[index]).ToList();
+            var unchangedB = b.Where((_, index) => !changedB[index]);
+            if (!unchangedA.SequenceEqual(unchangedB) ||
+                unchangedA.Count != LongestIncreasingRun(b))
+            {
+                Assert.Fail($"kept {unchangedA.Count} of {LongestIncreasingRun(b)} a: {string.Join(",", a)} b: {string.Join(",", b)}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the anchors are: elements on each side exactly once, in ascending places on both
+    /// sides, and as many of them as the longest such run has, checked against the quadratic way
+    /// of finding one.
+    /// </summary>
+    [Test]
+    public void AnchorsAreTheLongestRunOfUniqueElementsInOrder()
+    {
+        var random = new Random(16);
+        for (var iteration = 0; iteration < 5000; iteration++)
+        {
+            var alphabet = 2 + iteration % 80;
+            var a = RandomIds(random, random.Next(0, 60), alphabet);
+            var b = RandomIds(random, random.Next(0, 60), alphabet);
+            var unique = a
+                .Where(_ => a.Count(value => value == _) == 1 && b.Count(value => value == _) == 1)
+                .Select(_ => Array.IndexOf(b, _))
+                .ToArray();
+            var longest = LongestIncreasingRun(unique);
+
+            var count = LineAnchors.Find(a, b, 1, out var xs, out var ys);
+
+            if (count != longest)
+            {
+                Assert.Fail($"found {count} of {longest} a: {string.Join(",", a)} b: {string.Join(",", b)}");
+            }
+
+            for (var index = 0; index < count; index++)
+            {
+                var x = xs![index];
+                var y = ys![index];
+                if (a[x] != b[y] ||
+                    a.Count(_ => _ == a[x]) != 1 ||
+                    b.Count(_ => _ == a[x]) != 1 ||
+                    (index > 0 && (x <= xs[index - 1] || y <= ys[index - 1])))
+                {
+                    Assert.Fail($"anchor {index} at {x},{y} a: {string.Join(",", a)} b: {string.Join(",", b)}");
+                }
+            }
+
+            // One more than the longest is not there to find, which comes back as none
+            if (LineAnchors.Find(a, b, longest + 1, out _, out _) != 0)
+            {
+                Assert.Fail($"a run longer than {longest} a: {string.Join(",", a)} b: {string.Join(",", b)}");
             }
         }
     }
