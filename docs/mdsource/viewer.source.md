@@ -30,6 +30,73 @@ dotnet tool install -g DiffEngineViewer.Windows
 One package per operating system rather than one for all of them, because WinForms has to be named as a framework dependency and a package that names it cannot start anywhere else. The copy bundled in DiffEngine is unaffected: it is published per RID and resolved by directory.
 
 
+## Which copy runs
+
+The viewer comes in two variants. The **full** one carries a `documents` folder and does everything on this page. The **minimal** one is the same viewer without that folder: it reviews text, [images](#images) and inline snapshots, leaves a PDF or an Office file to another diff tool, and reads an SVG or a GeoJSON file as text.
+
+Which one runs is not a setting. DiffEngine, and [DiffEngineTray](/docs/tray.md) when it opens a window, take the first copy found, and that copy either has the folder with it or does not:
+
+```mermaid
+flowchart TD
+    Need(["DiffEngine, or DiffEngineTray,<br/>needs a viewer"]) --> Override{"DiffEngine_DiffEngineViewer<br/>is set?"}
+    Override -->|yes| Named["The copy it names"]
+    Override -->|no| Tool{"DiffEngineViewer.Windows, .Mac or .Linux<br/>installed as a global tool?"}
+    Tool -->|yes| Installed["The installed tool"]
+    Tool -->|no| Tray{"DiffEngineTray installed?<br/>Windows only"}
+    Tray -->|yes| Beside["The copy inside the tray's package"]
+    Tray -->|no| Bundled{"A copy for this platform bundled in the<br/>DiffEngine package the project references?"}
+    Bundled -->|yes| Package["The bundled copy"]
+    Bundled -->|no| Cache{"A DiffEngine package<br/>in the NuGet cache?"}
+    Cache -->|yes| Cached["The copy bundled in that package:<br/>this version first, then any"]
+    Cache -->|no| OnPath{"DiffEngineViewer on PATH?"}
+    OnPath -->|yes| Found["The copy on PATH"]
+    OnPath -->|no| None["No viewer: files go to another diff tool, and<br/>an inline snapshot is staged as files instead"]
+
+    Named --> Documents{"A documents folder<br/>with that copy?"}
+    Installed --> Documents
+    Beside --> Documents
+    Found --> Documents
+    Documents -->|yes| Full["Full viewer: text, images, inline snapshots,<br/>PDF, Office files, SVGs and maps drawn"]
+    Documents -->|no| Minimal["Minimal viewer: text, images<br/>and inline snapshots"]
+    Package -->|never has one| Minimal
+    Cached -->|never has one| Minimal
+```
+
+An installed tool comes first because installing one is an explicit choice of which viewer to run. The bundled copy comes ahead of the NuGet cache because it is the version the library about to launch it was built with; the cache is searched as well because not every project shape tells the library where its package is.
+
+The folder is looked for beside the copy that was found rather than assumed from where it came from, so a tool installed before documents existed is a minimal viewer, and is not offered files it would show as text. Setting `DiffEngine_DiffEngineViewer` to a path with no viewer at it is an error rather than a fall through to the next copy.
+
+So the full viewer is one install away, with nothing to configure afterwards:
+
+```
+dotnet tool install -g DiffEngineViewer.Windows
+```
+
+or, on Windows, [DiffEngineTray](/docs/tray.md), which carries one.
+
+
+### Why the bundled copy is minimal
+
+DiffEngine is a library. It is referenced by Verify, ApprovalTests and Shouldly, so every test project using one of them restores it: on every developer machine, and on a build agent with a clean cache, on every run. A build agent is also where the viewer never opens, since DiffEngine is [disabled](/docs/#disabled) on build servers. Whatever is bundled is paid for most often exactly where it is never used.
+
+It is also one package for every platform, where each standalone tool is one operating system's. A NuGet package is restored whole, so anything bundled is bundled six times, once per RID.
+
+Measured on version 20.6.0:
+
+| | Download | On disk |
+| --- | --- | --- |
+| DiffEngine as it ships, with six minimal viewers | 7 MB | 18 MB |
+| The six minimal viewers within that | 5 MB | 10 MB |
+| The `documents` folder for all six platforms | 58 MB | 133 MB |
+| DiffEngine if it bundled the full viewer | 66 MB | 151 MB |
+
+The `documents` folder is PDFium, Skia, [Morph](https://github.com/Papyrine/Morph), [GeoConvert](https://github.com/Papyrine/GeoConvert) and the Open XML SDK: about 16 MB of managed libraries, which the platforms could share, and around 20 MB of natives for each of them, which they cannot. A minimal viewer is 1 MB on Windows and macOS and 3 MB on Linux, where it carries its own renderer. Bundling the full viewer would make every restore of every test project nine times the download, to draw formats most snapshots are not.
+
+Bundling nothing is not the answer either, because of inline snapshots. Every other tool in the [tool list](/docs/diff-tool.md) compares two files, and an inline snapshot has no second file: the expected text is a literal in the source, and accepting means rewriting that literal. The viewer is the only diff tool that can do that. Without a copy in the package, someone with neither the tool nor the tray installed would have a failing inline snapshot and no diff tool able to accept it.
+
+So the package carries the least that keeps inline snapshots working with no install, and the documents are opt in. That split costs little: the formats the minimal viewer leaves out are the ones other tools already open, and DiffEngine goes on to offer Word, Excel, Beyond Compare or whatever else is installed for them.
+
+
 ## Usage
 
 Comparing two files, in a window of its own:
@@ -202,7 +269,7 @@ The status line says how far in the view is, `images differ, zoom 400%`, which i
 
 ## Documents
 
-The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files and [maps](#maps). The copy bundled in the DiffEngine package does not, to stay small: the folder is about 16 MB of libraries and 22 MB of natives per platform. That copy reads these files exactly as it always has, an SVG or a GeoJSON file as text.
+The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files and [maps](#maps). The copy bundled in the DiffEngine package does not, [to stay small](#why-the-bundled-copy-is-minimal): the folder is about 16 MB of libraries and 20 MB of natives per platform. That copy reads these files exactly as it always has, an SVG or a GeoJSON file as text.
 
 A document is shown one of three ways, and `r`, or the button naming the next one, cycles between them:
 
@@ -307,4 +374,4 @@ Set `DiffEngine_InlineViewer` to `false` to stop inline snapshots opening a wind
 
 Ships for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64` and `osx-arm64`.
 
-The viewer is resolved from, in order: a globally installed DiffEngineViewer tool, the copy installed beside DiffEngineTray (Windows only), the copy bundled in the DiffEngine package, and the DiffEngine package in the NuGet cache (this library's version first, then any other). With none of those, resolution falls through to whatever other diff tool is available.
+[Which copy runs](#which-copy-runs) on each is resolved the same way. With no copy found, resolution falls through to whatever other diff tool is available.
