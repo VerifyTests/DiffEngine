@@ -190,7 +190,7 @@ static class Program
     {
         if (settings.DiscardAllHotKey is { } discardAll)
         {
-            yield return new(KeyBindingIds.DiscardAll, discardAll, tracker.Clear);
+            yield return new(KeyBindingIds.DiscardAll, discardAll, () => tracker.Clear());
         }
 
         if (settings.AcceptAllHotKey is { } acceptAll)

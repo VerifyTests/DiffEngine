@@ -403,11 +403,52 @@ final class Runtime {
     /// Not blocked while input is still waiting to be handed over, which is the next frame's,
     /// now. It goes one event a poll, and a frame's wait between two of them would hand a held
     /// key's repeats over more slowly than a fast repeat rate makes them.
+    ///
+    /// Nor once an event has left something to hand over. The wait used to run to its deadline
+    /// whatever arrived during it, so a key pressed a millisecond into a frame was answered a
+    /// frame late. What else is already queued is still dispatched, without waiting for more.
+    ///
+    /// A window nobody can see waits longer: ordered out behind a tray, miniaturised, or wholly
+    /// covered. The managed loop turns only as fast as this returns, and it was turning sixty
+    /// times a second to present to nothing. An event still ends the wait at once, and a click
+    /// on the Dock icon is one. What does not is the managed side's own reason to show the
+    /// window, a patch arriving over the socket, which it acts on between two presents and has
+    /// no way to interrupt this with: `unseenWait` is how late that can be.
     private func pump() {
-        let deadline = discrete.isEmpty ? Date(timeIntervalSinceNow: 1.0 / 60.0) : Date.distantPast
+        let wait = unseen ? Runtime.unseenWait : 1.0 / 60.0
+        var deadline = hasInput ? Date.distantPast : Date(timeIntervalSinceNow: wait)
         while let event = NSApp.nextEvent(matching: .any, until: deadline, inMode: .default, dequeue: true) {
             NSApp.sendEvent(event)
+            if hasInput {
+                deadline = Date.distantPast
+            }
         }
+    }
+
+    /// How long a pump waits for an event while nobody can see the window: ten turns of the
+    /// managed loop a second, and a tenth of a second at most before a window that has been
+    /// asked for comes forward.
+    private static let unseenWait: TimeInterval = 0.1
+
+    /// Nobody can see the window: it is ordered out, in the Dock, or has nothing of it showing.
+    private var unseen: Bool {
+        guard let window else {
+            return false
+        }
+
+        return !window.isVisible || window.isMiniaturized || !window.occlusionState.contains(.visible)
+    }
+
+    /// Something is waiting for the next poll to hand over: a key or a click in line, or any of
+    /// what `input` gathers, by the values `resetInput` clears each to.
+    private var hasInput: Bool {
+        !discrete.isEmpty ||
+            input.scrollDelta != 0 ||
+            input.zoomDelta != 0 ||
+            input.scrollTo >= 0 ||
+            input.dragSide >= 0 ||
+            input.panX >= 0 ||
+            input.closeRequested != 0
     }
 
     func measureGrid() {

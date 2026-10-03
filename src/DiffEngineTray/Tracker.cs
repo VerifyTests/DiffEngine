@@ -28,10 +28,10 @@ class Tracker :
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
-            exception =>
-            {
-                ExceptionHandler.Handle("Failed to scan files", exception);
-            });
+            // Logged and no more. This is the timer's own thread, and the handler everything else
+            // uses follows the log with a modal box: no scan ran again until somebody answered it,
+            // and a scan is nothing anybody asked for, so the box arrived out of nowhere
+            exception => Log.Error(exception, "Failed to scan files"));
 
         // Seeded rather than left empty until the first scan two seconds later. The menu reads
         // this cache now, so without it a tray that has just started shows none of what a viewer
@@ -61,20 +61,25 @@ class Tracker :
         return Task.WhenAll(moves.Select(HandleScanMove));
     }
 
-    async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
+    internal async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
     {
-        void RemoveAndKill(TrackedMove tacked)
+        // The move this scan looked at, and no other. Everything below is about that one, and a
+        // re-run can replace it while the two files are being compared: taken out by key alone,
+        // the move that went was the fresh one, which nothing had found equal to anything, and the
+        // tool just opened for it was ended. A move that was replaced is left to the next scan.
+        void RemoveAndKill()
         {
-            if (moves.TryRemove(tacked.Temp, out var removed))
+            if (moves.TryRemove(pair))
             {
-                KillProcesses(removed);
+                KillProcesses(pair.Value);
+                Release(pair.Value);
             }
         }
 
         var move = pair.Value;
         if (!File.Exists(move.Temp))
         {
-            RemoveAndKill(pair.Value);
+            RemoveAndKill();
             return;
         }
 
@@ -106,14 +111,15 @@ class Tracker :
                 return;
             }
         }
-        catch (IOException)
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
         {
-            // File is missing, or locked by a diff tool or a running test.
-            // Skip this scan round
+            // File is missing, locked by a diff tool or a running test, or not this account's to
+            // read. Skip this scan round
             return;
         }
 
-        RemoveAndKill(pair.Value);
+        RemoveAndKill();
     }
 
     readonly ConcurrentDictionary<string, (long, DateTime, long, DateTime)> differing = new(StringComparer.OrdinalIgnoreCase);
@@ -190,7 +196,7 @@ class Tracker :
                 Process? process = null;
                 if (processId != null)
                 {
-                    ProcessEx.TryGet(processId.Value, out process);
+                    ProcessEx.TryGetTool(processId.Value, exe, out process);
                 }
 
                 var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
@@ -219,7 +225,9 @@ class Tracker :
                     // a menu built before this update - reaches a disposed process through it
                     existing.Process?.Dispose();
                     existing.Process = null;
-                    ProcessEx.TryGet(processId.Value, out process);
+                    // Against the tool the pair was tracked with when this move names none, as
+                    // Retarget keeps that one
+                    ProcessEx.TryGetTool(processId.Value, exe ?? existing.Exe, out process);
                 }
 
                 var move = exe == null
@@ -659,11 +667,42 @@ class Tracker :
             return;
         }
 
-        if (!InnerMove(removed, batch))
+        if (InnerMove(removed, batch))
         {
-            // Keep the move pending so accepting can be retried
-            moves.TryAdd(removed.Temp, removed);
+            Release(removed);
+            return;
         }
+
+        // Keep the move pending so accepting can be retried
+        Restore(removed);
+    }
+
+    /// <summary>
+    /// Puts back a move that was taken out to be accepted and could not be. One that arrived for
+    /// the same received file meanwhile stands, and this one has then left for good.
+    /// </summary>
+    void Restore(TrackedMove removed)
+    {
+        if (!moves.TryAdd(removed.Temp, removed))
+        {
+            Release(removed);
+        }
+    }
+
+    /// <summary>
+    /// Lets go of the process a move was tracked with, without ending it, once the move has left
+    /// for good.
+    /// <para>
+    /// <see cref="ProcessEx.TryGet"/> holds a handle on every process a move
+    /// names, and DiffRunner names one for an MDI tool too. Only <see cref="KillProcesses"/>
+    /// disposed any, and it passes over a move that cannot be killed, so each of those kept a
+    /// handle, and with it a process id Windows could not hand out again, until a finaliser ran.
+    /// </para>
+    /// </summary>
+    static void Release(TrackedMove move)
+    {
+        move.Process?.Dispose();
+        move.Process = null;
     }
 
     public void Discard(TrackedMove move)
@@ -851,6 +890,7 @@ class Tracker :
     static void InnerDiscard(TrackedMove move)
     {
         KillProcesses(move);
+        Release(move);
 
         if (!FileEx.SafeDeleteFile(move.Temp))
         {
@@ -897,22 +937,42 @@ class Tracker :
     /// make the button lie twice over — it discarded fewer things than it said, and the ones it
     /// skipped came back on the next scan two seconds later.
     /// </para>
+    /// <para>
+    /// The tracked files here, on the calling thread, and the snapshots on a worker, for the
+    /// reason <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a
+    /// socket, and one slow to answer held the thread drawing everything for as long as that
+    /// took. The menu and the hot key discard the task; tests await it.
+    /// </para>
     /// </summary>
-    public void Clear()
+    public Task Clear()
     {
         ((ITrackedFiles) this).DiscardAll();
 
-        // Only forget the cached snapshots when the owner actually discarded them. It used to be
-        // cleared regardless, so a discard the owner never received still emptied the menu - and
-        // everything came back on the next scan two seconds later
-        if (inline.DiscardAll(out var message))
+        return Task.Run(() =>
         {
-            snapshots = [];
-        }
-        else
-        {
-            Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
-        }
+            try
+            {
+                // Only forget the cached snapshots when the owner actually discarded them. It used
+                // to be cleared regardless, so a discard the owner never received still emptied the
+                // menu - and everything came back on the next scan two seconds later
+                if (inline.DiscardAll(out var message))
+                {
+                    snapshots = [];
+                }
+                else
+                {
+                    Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
+                }
+
+                // Nothing waits for the next scan to say so: the files went above, whatever the
+                // queue answered
+                ToggleActive();
+            }
+            catch (Exception exception)
+            {
+                ExceptionHandler.Handle("Failed to discard the pending snapshots", exception);
+            }
+        });
     }
 
     /// <summary>
@@ -1025,6 +1085,77 @@ class Tracker :
                 _.File))
             .ToList();
 
+    readonly Lock versionGate = new();
+    readonly List<object> versioned = [];
+    long version;
+
+    /// <summary>
+    /// By which objects are tracked, compared with the ones tracked the last time this was asked.
+    /// <para>
+    /// Everything a listing carries of a move or a delete is fixed when the object is made, and a
+    /// change to either is another object in its place, so the same objects are the same listing.
+    /// Walking the two dictionaries and comparing references allocates nothing but the walk, where
+    /// describing every entry to hash the descriptions was a megabyte for a couple of hundred of
+    /// them. A dictionary nothing has touched is walked in the same order each time. One that was
+    /// touched and put back as it was may not be, which reads as a change and costs a listing.
+    /// </para>
+    /// <para>
+    /// Rather than a count of changes, kept wherever the dictionaries are written: there are a
+    /// score of such places, and one missed is a viewer that goes on showing a file that left.
+    /// </para>
+    /// </summary>
+    long ITrackedFiles.Version()
+    {
+        lock (versionGate)
+        {
+            if (Unchanged())
+            {
+                return version;
+            }
+
+            versioned.Clear();
+            foreach (var move in moves)
+            {
+                versioned.Add(move.Value);
+            }
+
+            foreach (var delete in deletes)
+            {
+                versioned.Add(delete.Value);
+            }
+
+            return ++version;
+        }
+    }
+
+    bool Unchanged()
+    {
+        var index = 0;
+        foreach (var move in moves)
+        {
+            if (index == versioned.Count ||
+                !ReferenceEquals(versioned[index], move.Value))
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        foreach (var delete in deletes)
+        {
+            if (index == versioned.Count ||
+                !ReferenceEquals(versioned[index], delete.Value))
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        return index == versioned.Count;
+    }
+
     void ITrackedFiles.AddMove(string temp, string target)
     {
         // No exe, arguments or process: the sender's diff tool details do not cross the viewer
@@ -1054,7 +1185,13 @@ class Tracker :
     {
         if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
         {
-            return moves.TryRemove(temp, out _);
+            if (!moves.TryRemove(temp, out var removed))
+            {
+                return false;
+            }
+
+            Release(removed);
+            return true;
         }
 
         return TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) &&
@@ -1223,10 +1360,11 @@ class Tracker :
 
         if (InnerMove(removed, batch))
         {
+            Release(removed);
             return (true, $"Accepted {removed.Name}");
         }
 
-        moves.TryAdd(removed.Temp, removed);
+        Restore(removed);
         return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
     }
 
@@ -1261,6 +1399,7 @@ class Tracker :
         foreach (var move in moves.Values)
         {
             KillProcesses(move);
+            Release(move);
         }
 
         moves.Clear();

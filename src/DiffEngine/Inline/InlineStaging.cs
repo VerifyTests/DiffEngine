@@ -452,11 +452,18 @@ public static class InlineStaging
     }
 
     /// <summary>
-    /// Through <see cref="InlineKey.For" />, so two spellings of one path are judged the same way
-    /// the queue judges them, and on the platforms where that matters.
+    /// Through <see cref="InlineKey.FoldPath" />, so two spellings of one path are judged the same
+    /// way the queue judges them, and on the platforms where that matters.
+    /// <para>
+    /// Asked of every trio in a staging directory on every clear, so the two answers that need no
+    /// folded copy are given first: folding changes no path's length, and a path spelled the same
+    /// is the same.
+    /// </para>
     /// </summary>
     static bool SamePath(string left, string right) =>
-        InlineKey.For(left, 0) == InlineKey.For(right, 0);
+        left.Length == right.Length &&
+        (left == right ||
+         InlineKey.FoldPath(left) == InlineKey.FoldPath(right));
 
     static bool TryPersist(InlinePatch patch, IReadOnlyList<string> origins)
     {

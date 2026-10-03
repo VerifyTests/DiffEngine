@@ -636,6 +636,12 @@ public class OwnedInlineHostTest
 
         public IReadOnlyList<ViewerResponseDelete> Deletes() => DeleteList;
 
+        // The lists are replaced when a test changes them, so which lists they are says it
+        public long Version() =>
+            HashCode.Combine(
+                System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(MoveList),
+                System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(DeleteList));
+
         public bool Has(string key) =>
             MoveList.Any(_ => _.Key == key) ||
             DeleteList.Any(_ => _.Key == key);

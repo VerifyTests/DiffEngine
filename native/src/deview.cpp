@@ -65,6 +65,59 @@ typedef void (*DeviewRefresh)(void* window);
 DeviewRefresh glfwSetWindowRefreshCallback(void* window, DeviewRefresh callback);
 }
 
+/*
+ * And its callbacks for a mouse button, the wheel, a key and a character. raylib sets all four, and
+ * keeps from them what was so when it last read the window system's events: whether a button is
+ * down, the last wheel message, which keys are down. That is a state, read once a frame, and a
+ * press and a release that arrive between two reads leave it as it was. So these are set over
+ * raylib's, which are kept and still called, and what they are told is kept as what happened: see
+ * State::presses.
+ *
+ * And the one for the pointer crossing the window's edge, which raylib also keeps and nothing
+ * else here could be told by: where the pointer is stays where it last was in the window, for as
+ * long as it is anywhere else. See State::pointerInside.
+ */
+extern "C"
+{
+typedef void (*DeviewButtonEvent)(void* window, int button, int action, int mods);
+typedef void (*DeviewScrollEvent)(void* window, double across, double down);
+typedef void (*DeviewKeyEvent)(void* window, int key, int scancode, int action, int mods);
+typedef void (*DeviewCharacterEvent)(void* window, unsigned int codepoint);
+typedef void (*DeviewCrossingEvent)(void* window, int entered);
+DeviewCrossingEvent glfwSetCursorEnterCallback(void* window, DeviewCrossingEvent callback);
+DeviewButtonEvent glfwSetMouseButtonCallback(void* window, DeviewButtonEvent callback);
+DeviewScrollEvent glfwSetScrollCallback(void* window, DeviewScrollEvent callback);
+DeviewKeyEvent glfwSetKeyCallback(void* window, DeviewKeyEvent callback);
+DeviewCharacterEvent glfwSetCharCallback(void* window, DeviewCharacterEvent callback);
+
+/* What a key types on the layout in use, unshifted, or null for a key that types nothing. The
+ * key is one of GLFW's numbers, or -1 for the key with that scancode. */
+const char* glfwGetKeyName(int key, int scancode);
+}
+
+/*
+ * And GLFW's way to an entry point of the GL the window was made with, for the one thing asked of
+ * GL that rlgl has no call for: how large a texture it will take. See TextureLimit.
+ */
+extern "C"
+{
+typedef void (*DeviewGlEntry)(void);
+DeviewGlEntry glfwGetProcAddress(const char* name);
+}
+
+/*
+ * And how much larger than a pixel the desktop wants everything drawn, which under X11 is the
+ * Xft.dpi resource over 96. raylib asks GLFW this only for a window it was told to scale itself,
+ * which this one is not: see State::scale.
+ */
+extern "C" void glfwGetWindowContentScale(void* window, float* across, float* down);
+
+/* GLFW's own numbers, which its headers would have named. */
+constexpr int glfwRelease = 0;
+constexpr int glfwShift = 0x0001;
+constexpr int glfwControl = 0x0002;
+constexpr int glfwSuper = 0x0008;
+
 namespace
 {
 void ClearCloseFlag()
@@ -159,8 +212,8 @@ struct CachedTexture
     /* Whether the frame being built asked for this picture. What ForgetUnusedPictures keeps. */
     bool used = false;
 
-    /* Sampled as its own pixels rather than smoothed: see SampleAsPixels. */
-    bool point = false;
+    /* How it is sampled now, which is by how it was last drawn: see Sample. */
+    int sampling = 0;
 
     /* Some of it can be seen through, so it is drawn over a checkerboard: see SeeThrough. */
     bool translucent = false;
@@ -197,6 +250,10 @@ struct Decoder
     std::deque<Decode> requests;
     std::vector<Decode> done;
     bool stopping = false;
+
+    /* The longest side of a texture the window's GL takes, read on its thread before this one
+     * was started: see TextureLimit. */
+    int textureLimit = 0;
 };
 
 /*
@@ -260,6 +317,31 @@ struct State
      * first drawn, so they are kept for as long as the atlas is. */
     std::deque<std::vector<unsigned char>> fontData;
 
+    /*
+     * How much larger than a pixel the desktop wants things drawn: 1 on an ordinary display, 2 on
+     * one whose desktop is set to twice the size, and anything between.
+     *
+     * Nothing here asked. Under X11 a pixel is a pixel whatever the display, so the window was
+     * 1100 by 700 of them and its text 15 to the em on a display with twice as many to the inch,
+     * where everything else on the desktop is twice that: the viewer at half size.
+     *
+     * The window is drawn larger rather than handed to raylib to scale, which it would do by
+     * drawing the same frame through a transform: the text here is rasterised at the size it is
+     * shown, and everything stays in the pixels the pointer is reported in, so nothing that is
+     * hit tested has two sets of coordinates to keep apart. What is scaled is the font, ImGui's
+     * paddings and spacings, the few lengths this file gives in pixels, and the size a window
+     * opens at when there is none remembered. A remembered one is in pixels already.
+     *
+     * Read once, as the window is made: GLFW works it out as it starts and keeps it. Never applied
+     * to a capture, which draws at the size it is told at a scale of 1, on any display.
+     */
+    float scale = 1.0f;
+
+    /* A character cell's width and a row's height in the last frame built for the window, which
+     * is what the grid reported to the managed side is counted in: see MeasureGrid. */
+    float cellWidth = 0.0f;
+    float lineHeight = 0.0f;
+
     /* Whether the last screen carried a context menu, which is what makes Escape and a click
      * outside it a dismissal rather than what they would otherwise mean. */
     bool menuOpen = false;
@@ -268,6 +350,87 @@ struct State
      * truncating each frame's value on its own threw all of them away, so a touchpad scrolled
      * nothing at all. */
     float scrollRemainder = 0.0f;
+
+    /*
+     * What the pointer's buttons, the wheel and the keys have done since each was last taken, as
+     * GLFW reported it: every press and release in the order they came, every wheel message added
+     * up, every key pressed with the character it typed.
+     *
+     * Read as a state once a frame, which is how raylib offers them, a press and a release that
+     * arrived together had never happened, and of several wheel messages only the last had. A tap
+     * on a touchpad is such a press, and so is every click xdotool sends: under Xvfb none of ten
+     * clicks was seen, and three of ten presses of Page Down.
+     *
+     * The presses are ImGui's, handed over at the top of the next frame built. It takes a press and
+     * a release handed over together a frame apart, so what is drawn is clicked as it would be by a
+     * button that was held. Nothing else here asks raylib about a button, so there is no second
+     * account of one to disagree with ImGui's.
+     */
+    struct Press
+    {
+        int button;
+        bool down;
+    };
+
+    std::vector<Press> presses;
+    bool held[3] = {};
+
+    /* The wheel twice over, because it is taken twice: by ImGui with the presses, and by
+     * deview_poll_input for the managed side, which is not at the same moment. */
+    float wheelAcross = 0.0f;
+    float wheelDown = 0.0f;
+    float wheelNotches = 0.0f;
+
+    /*
+     * A key pressed, or repeating while it is held, with the character it typed if it typed one.
+     * Handed to the managed side one a poll, as the other two heads hand theirs, so two keys
+     * between two polls are both acted on and in their order.
+     */
+    struct KeyPress
+    {
+        /* GLFW's number for the key, which is where it is on a US keyboard, or -1 for a key it
+         * has no number for, and the window system's own number for it. */
+        int key;
+        int scancode;
+        int mods;
+        bool repeated;
+        unsigned int character;
+    };
+
+    std::deque<KeyPress> keys;
+
+    /* Whether the next character GLFW reports was typed by the key press at the back of the queue,
+     * which is so only straight after that press: GLFW reports the two together. */
+    bool characterFollows = false;
+
+    /* A key has been pressed since Arrived last asked. */
+    bool keyed = false;
+
+    /*
+     * Whether the pointer is over the window, by the last crossing GLFW reported, and whether the
+     * last frame was built with it gone.
+     *
+     * ImGui was told where the pointer is on every frame, and raylib goes on answering with the
+     * last place it was in the window. So a pointer that left over a queue row was still on that
+     * row: it stayed lit, and its tooltip came up with the pointer on another window. A pointer
+     * that has left is now reported to ImGui as nowhere, which is what it has for that.
+     *
+     * Not while a button is held. The window system goes on reporting a pointer that was pressed
+     * in the window wherever it is taken, and a selection dragged past the window's edge has to
+     * go on being one.
+     *
+     * Taken to be inside until a crossing says otherwise, so a window that opens under the pointer
+     * and is told of no crossing is no worse off than it was.
+     */
+    bool pointerInside = true;
+    bool pointerGone = false;
+
+    /* raylib's callbacks, which go on being called. */
+    DeviewCrossingEvent raylibCrossing = nullptr;
+    DeviewButtonEvent raylibButton = nullptr;
+    DeviewScrollEvent raylibScroll = nullptr;
+    DeviewKeyEvent raylibKey = nullptr;
+    DeviewCharacterEvent raylibCharacter = nullptr;
 
     /*
      * The queue column, owned here rather than by the table.
@@ -340,6 +503,11 @@ struct State
         float centreY = 0.5f;
         float across = 1.0f;
         float down = 1.0f;
+
+        /* Whether there is more of it across, and down, than the space shows: whether the space
+         * cut it short that way, which is the only way it can be moved. */
+        bool movesAcross = false;
+        bool movesDown = false;
     };
 
     PictureSpace pictureSpaces[2];
@@ -350,6 +518,7 @@ struct State
      * would drift by whatever each frame's clamp took off it.
      */
     bool panning = false;
+    int32_t panSide = 0;
     ImVec2 panStart{};
     PictureSpace panFrom{};
 
@@ -429,11 +598,112 @@ struct State
 
 State state;
 
+/* The scale the frame being built is drawn at: the display's for the window's, and 1 for a
+ * capture's. See State::scale. */
+float Scale()
+{
+    return state.capturing ? 1.0f : state.scale;
+}
+
 /* GLFW's refresh callback, called from inside PollInputEvents: the window system has uncovered
  * some of the window, or shown it, and what was there is gone. */
 extern "C" void WindowRefreshed(void* window)
 {
     state.stale = true;
+}
+
+/* The five below are called from inside PollInputEvents too, each after raylib's own. */
+extern "C" void PointerCrossed(void* window, int entered)
+{
+    if (state.raylibCrossing != nullptr)
+    {
+        state.raylibCrossing(window, entered);
+    }
+
+    state.pointerInside = entered != 0;
+}
+
+extern "C" void ButtonChanged(void* window, int button, int action, int mods)
+{
+    if (state.raylibButton != nullptr)
+    {
+        state.raylibButton(window, button, action, mods);
+    }
+
+    /* Left, right and middle, which GLFW and ImGui number alike. */
+    if (button >= 0 &&
+        button < 3)
+    {
+        state.presses.push_back({button, action != glfwRelease});
+        state.held[button] = action != glfwRelease;
+    }
+}
+
+extern "C" void WheelTurned(void* window, double across, double down)
+{
+    if (state.raylibScroll != nullptr)
+    {
+        state.raylibScroll(window, across, down);
+    }
+
+    state.wheelAcross += static_cast<float>(across);
+    state.wheelDown += static_cast<float>(down);
+    state.wheelNotches += static_cast<float>(down);
+}
+
+extern "C" void KeyChanged(void* window, int key, int scancode, int action, int mods)
+{
+    if (state.raylibKey != nullptr)
+    {
+        state.raylibKey(window, key, scancode, action, mods);
+    }
+
+    state.characterFollows = false;
+    if (action == glfwRelease)
+    {
+        return;
+    }
+
+    state.keyed = true;
+
+    /* One repeat of a key waiting at a time. A loop that was held up for seconds is handed every
+     * repeat the window system kept for it at once, and would go on scrolling for as long again
+     * after the key was let go. */
+    const bool repeated = action != 1;
+    if (repeated)
+    {
+        for (const State::KeyPress& waiting : state.keys)
+        {
+            if (waiting.repeated &&
+                waiting.key == key &&
+                waiting.scancode == scancode)
+            {
+                return;
+            }
+        }
+    }
+
+    state.keys.push_back({key, scancode, mods, repeated, 0});
+    state.characterFollows = true;
+}
+
+extern "C" void CharacterTyped(void* window, unsigned int codepoint)
+{
+    if (state.raylibCharacter != nullptr)
+    {
+        state.raylibCharacter(window, codepoint);
+    }
+
+    /* Typed by the press just queued: GLFW reports a key and then its character. One that follows
+     * a repeat that was not queued goes with it, and one that comes by itself is what an input
+     * method composed, which is none of the keys read here. */
+    if (state.characterFollows &&
+        !state.keys.empty())
+    {
+        state.keys.back().character = codepoint;
+    }
+
+    state.characterFollows = false;
 }
 
 /*
@@ -623,38 +893,99 @@ char RowMarker(int kind)
 /* ---- pictures ---- */
 
 /*
- * How a picture's texture is sampled, set once as it is made.
+ * The three ways a picture's texture is sampled, by the size it is drawn at.
  *
- * Bilinear, which is the whole of what a fitted picture needs: it is only ever drawn at its own
- * size or smaller. Clamped at its edges rather than repeating, which is raylib's default: sampled
- * at its last column, a repeating texture takes in its first, and a picture that is opaque on the
- * left and clear on the right grew a line of its left edge down its right.
+ * Smoothed between its own pixels, which is all a picture drawn at its own size or a little under
+ * needs. As the pixels it has, once it is enlarged past its own size, which is what zooming that
+ * far in is for: smoothed, a one pixel difference between the two sides is a blur on both. And
+ * from its reduced copies, once it is drawn at under half its size. Smoothing looks at the four
+ * pixels nearest each point it samples and at none of the ones between two such points, so a
+ * screenshot fitted at a third of its size lost whichever of its one pixel lines fell between
+ * them, and its small text came apart. The reduced copies are each half the size of the one
+ * before, every pixel of them an average of the ones it stands for, so a thin line is fainter
+ * there and not gone.
+ */
+constexpr int sampleSmoothed = 0;
+constexpr int sampleAsPixels = 1;
+constexpr int sampleReduced = 2;
+
+/*
+ * How a picture's texture is sampled as it is made: smoothed. Clamped at its edges rather than
+ * repeating, which is raylib's default: sampled at its last column, a repeating texture takes in
+ * its first, and a picture that is opaque on the left and clear on the right grew a line of its
+ * left edge down its right.
  */
 void PrepareTexture(CachedTexture& entry)
 {
     SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
     SetTextureWrap(entry.texture, TEXTURE_WRAP_CLAMP);
-    entry.point = false;
+    entry.sampling = sampleSmoothed;
 }
 
-/*
- * A picture enlarged past its own size is drawn as the pixels it has, which is what zooming that
- * far in is for: smoothed, a one pixel difference between the two sides is a blur on both. Every
- * other picture is smoothed. Changed only when it has to be, since it is a texture parameter and
- * this is asked every frame.
- */
-void SampleAsPixels(const std::string& path, bool point)
+/* Changed only when it has to be, since it is a texture parameter and this is asked every
+ * frame. A picture whose reduced copies could not be made is smoothed instead. */
+void Sample(const std::string& path, int sampling)
 {
     const auto found = state.pictures.find(path);
     if (found == state.pictures.end() ||
-        !found->second.loaded ||
-        found->second.point == point)
+        !found->second.loaded)
     {
         return;
     }
 
-    SetTextureFilter(found->second.texture, point ? TEXTURE_FILTER_POINT : TEXTURE_FILTER_BILINEAR);
-    found->second.point = point;
+    CachedTexture& entry = found->second;
+    if (sampling == sampleReduced &&
+        entry.texture.mipmaps <= 1)
+    {
+        sampling = sampleSmoothed;
+    }
+
+    if (entry.sampling == sampling)
+    {
+        return;
+    }
+
+    SetTextureFilter(
+        entry.texture,
+        sampling == sampleAsPixels ? TEXTURE_FILTER_POINT :
+        sampling == sampleReduced ? TEXTURE_FILTER_TRILINEAR :
+        TEXTURE_FILTER_BILINEAR);
+    entry.sampling = sampling;
+}
+
+/*
+ * The longest side of a texture the window's GL will take, or zero where it would not say.
+ *
+ * A picture past it cannot be drawn. Handed to GL all the same, it came back as a texture with a
+ * name and no pixels, which draws as black: a box of it where the picture should be, in place of
+ * the nothing a picture this head cannot show is drawn as. It is 16384 under Mesa's software
+ * rasteriser, and a screenshot of the whole of a long page is past that.
+ *
+ * Asked of GL by name, through GLFW, since rlgl reads this number only to log it. On the thread
+ * that owns the context, once.
+ */
+int TextureLimit()
+{
+    static int limit = -1;
+    if (limit < 0)
+    {
+        limit = 0;
+        typedef void (*GetIntegers)(unsigned int name, int* values);
+        const GetIntegers getIntegers = reinterpret_cast<GetIntegers>(glfwGetProcAddress("glGetIntegerv"));
+        if (getIntegers != nullptr)
+        {
+            constexpr unsigned int maxTextureSize = 0x0D33;
+            getIntegers(maxTextureSize, &limit);
+        }
+    }
+
+    return limit;
+}
+
+bool FitsATexture(const Image& image, int limit)
+{
+    return limit <= 0 ||
+           (image.width <= limit && image.height <= limit);
 }
 
 /*
@@ -709,6 +1040,52 @@ bool SeeThrough(const Image& image)
     return false;
 }
 
+/*
+ * A picture read off the disk and made ready to be a texture: whether any of it can be seen
+ * through, and its reduced copies, which are made here because here is off the window's thread
+ * for every picture but a capture's. The file, stb_image and raylib's resampling, and nothing
+ * that touches GL. A picture no texture can hold is left as it was read, since nothing will be
+ * made of it.
+ */
+Image ReadPicture(const std::string& path, int textureLimit, bool& translucent)
+{
+    Image image = LoadImage(path.c_str());
+    translucent = SeeThrough(image);
+    if (image.data != nullptr &&
+        FitsATexture(image, textureLimit))
+    {
+        ImageMipmaps(&image);
+    }
+
+    return image;
+}
+
+/*
+ * The texture for a picture that has been read, or false for one there is none for: a file that
+ * could not be read, a picture longer on a side than a texture can be, or a context that would
+ * not make one. On the thread that owns the context.
+ */
+bool MakeTexture(const Image& image, bool translucent, CachedTexture& entry)
+{
+    if (image.data == nullptr ||
+        !FitsATexture(image, TextureLimit()))
+    {
+        return false;
+    }
+
+    const Texture2D texture = LoadTextureFromImage(image);
+    if (!IsTextureValid(texture))
+    {
+        return false;
+    }
+
+    entry.texture = texture;
+    entry.loaded = true;
+    entry.translucent = translucent;
+    PrepareTexture(entry);
+    return true;
+}
+
 void DecodeLoop(std::shared_ptr<Decoder> decoder)
 {
     std::unique_lock<std::mutex> lock(decoder->mutex);
@@ -724,9 +1101,7 @@ void DecodeLoop(std::shared_ptr<Decoder> decoder)
         decoder->requests.pop_front();
         lock.unlock();
 
-        /* The file and stb_image under it, and nothing that touches GL. */
-        decode.image = LoadImage(decode.path.c_str());
-        decode.translucent = SeeThrough(decode.image);
+        decode.image = ReadPicture(decode.path, decoder->textureLimit, decode.translucent);
 
         lock.lock();
         if (decoder->stopping)
@@ -744,6 +1119,7 @@ void RequestDecode(const std::string& path, std::uintmax_t length, std::filesyst
     if (!state.decoder)
     {
         state.decoder = std::make_shared<Decoder>();
+        state.decoder->textureLimit = TextureLimit();
         std::thread(DecodeLoop, state.decoder).detach();
     }
 
@@ -837,21 +1213,12 @@ bool TakeDecoded()
             CachedTexture& entry = found->second;
             entry.decoding = false;
             landed = true;
-            if (decode.image.data != nullptr)
+            if (MakeTexture(decode.image, decode.translucent, entry))
             {
-                const Texture2D texture = LoadTextureFromImage(decode.image);
-                if (IsTextureValid(texture))
-                {
-                    entry.texture = texture;
-                    entry.loaded = true;
-                    entry.translucent = decode.translucent;
-                    PrepareTexture(entry);
-
-                    /* GL hands out the name of a texture that has been unloaded again, so a frame
-                     * drawn with this one can be, number for number, a frame drawn with the one
-                     * that had the name before it. */
-                    state.stale = true;
-                }
+                /* GL hands out the name of a texture that has been unloaded again, so a frame
+                 * drawn with this one can be, number for number, a frame drawn with the one
+                 * that had the name before it. */
+                state.stale = true;
             }
         }
 
@@ -977,21 +1344,11 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
     entry.used = true;
     if (state.capturing)
     {
-        /* What LoadTexture does, taken apart so the pixels can be looked at on the way through. */
-        const Image image = LoadImage(path.c_str());
-        if (image.data != nullptr)
-        {
-            const Texture2D texture = LoadTextureFromImage(image);
-            if (IsTextureValid(texture))
-            {
-                entry.texture = texture;
-                entry.loaded = true;
-                entry.translucent = SeeThrough(image);
-                PrepareTexture(entry);
-            }
-
-            UnloadImage(image);
-        }
+        /* What the decoder's thread and then TakeDecoded do, here and now. */
+        bool translucent = false;
+        const Image image = ReadPicture(path, TextureLimit(), translucent);
+        MakeTexture(image, translucent, entry);
+        UnloadImage(image);
     }
     else
     {
@@ -1779,56 +2136,166 @@ void PumpInput(float elapsed)
     io.DisplaySize = ImVec2(static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight()));
     io.DeltaTime = elapsed;
 
+    /* Nowhere, for a pointer that has left the window: see State::pointerInside. */
     const Vector2 mouse = GetMousePosition();
-    io.AddMousePosEvent(mouse.x, mouse.y);
-    io.AddMouseButtonEvent(ImGuiMouseButton_Left, IsMouseButtonDown(MOUSE_BUTTON_LEFT));
-    io.AddMouseButtonEvent(ImGuiMouseButton_Right, IsMouseButtonDown(MOUSE_BUTTON_RIGHT));
-    io.AddMouseButtonEvent(ImGuiMouseButton_Middle, IsMouseButtonDown(MOUSE_BUTTON_MIDDLE));
-
-    const Vector2 wheel = GetMouseWheelMoveV();
-    io.AddMouseWheelEvent(wheel.x, wheel.y);
-}
-
-int ReadKey()
-{
-    /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
-     * session still copies with the chord its user has in their fingers. */
-    const bool control =
-        IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
-        IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
-    if (control)
+    if (state.pointerGone)
     {
-        /* Answered before the unmodified keys below, and returning none for anything else: without
-         * this ctrl+a fell through to plain A, which accepts. */
-        if (IsKeyPressed(KEY_C)) return DEVIEW_KEY_COPY;
-        if (IsKeyPressed(KEY_A)) return DEVIEW_KEY_SELECT_ALL;
-        /* With control as well as without, since that is the chord everything else that zooms
-         * taught. By position here: a character is not reported while control is held. */
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) return DEVIEW_KEY_ZOOM_IN;
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) return DEVIEW_KEY_ZOOM_OUT;
-        if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_KP_0)) return DEVIEW_KEY_ZOOM_RESET;
-        return DEVIEW_KEY_NONE;
+        io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+    }
+    else
+    {
+        io.AddMousePosEvent(mouse.x, mouse.y);
     }
 
-    /* The key itself held down, rather than read off the case of what was typed: see below. */
-    const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    /* Every press and release since the last frame built, in the order they came. */
+    for (const State::Press& press : state.presses)
+    {
+        io.AddMouseButtonEvent(press.button, press.down);
+    }
 
-    /* Letters by the character typed rather than by key position. raylib's key codes are
-     * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
-     * snapshot written into source by a key meant to quit - while the one labelled A quit.
-     * Characters follow the layout, the way the macOS and Windows heads already do. */
-    for (int character = GetCharPressed(); character != 0; character = GetCharPressed())
+    state.presses.clear();
+
+    if (state.wheelAcross != 0.0f ||
+        state.wheelDown != 0.0f)
+    {
+        io.AddMouseWheelEvent(state.wheelAcross, state.wheelDown);
+        state.wheelAcross = 0.0f;
+        state.wheelDown = 0.0f;
+    }
+}
+
+/* The one character a string is, or zero for a string that is none or several. */
+unsigned int OnlyCharacter(const char* text)
+{
+    if (text == nullptr ||
+        *text == '\0')
+    {
+        return 0;
+    }
+
+    unsigned int codepoint = 0;
+    const int length = ImTextCharFromUtf8(&codepoint, text, nullptr);
+    return length > 0 && text[length] == '\0' ? codepoint : 0;
+}
+
+/* Whether the layout in use has a key that types a letter, unshifted. Asked of every key GLFW
+ * names, which are the ones that type something, by their own numbers. */
+bool LayoutTypes(unsigned int letter)
+{
+    for (int key = KEY_APOSTROPHE; key <= 162; key++)
+    {
+        if (OnlyCharacter(glfwGetKeyName(key, 0)) == letter)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Which character a key press is to be read as, in lower case, or zero for none.
+ *
+ * What it typed, where it typed something. While control is held nothing is typed, and it is what
+ * the key types unshifted on the layout in use, which GLFW will say: read by position, as a chord
+ * was, Ctrl+A on AZERTY was the key labelled Q, and Ctrl+C on Dvorak the one labelled J.
+ *
+ * A layout with no Latin letters has neither. Russian, Greek, Hebrew and Arabic type their own
+ * letters from the keys a US keyboard has A to Z on, so not one of this head's letters could be
+ * typed there, and its user had the footer's buttons and nothing else. Then the key is read as
+ * the letter a US keyboard has in its place, which is what such a keyboard has printed on it
+ * beside its own. Only where no key of the layout
+ * types that letter: a layout that has it somewhere else keeps it there and nowhere else, or a
+ * Turkish keyboard's dotless i, which sits where a US keyboard has R, would toggle the drawing.
+ */
+unsigned int LetterOf(const State::KeyPress& press)
+{
+    const unsigned int typed = press.character != 0
+        ? press.character
+        : OnlyCharacter(glfwGetKeyName(press.key, press.scancode));
+    if (typed == 0)
+    {
+        return 0;
+    }
+
+    if (typed < 0x80)
     {
         /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
          * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
          * pending snapshot written into source, with nothing asked first, by the key that accepts
          * one - and left D, V, Q, N, P, M, R and J doing nothing. */
-        if (character >= 'A' && character <= 'Z')
+        return typed >= 'A' && typed <= 'Z' ? typed + ('a' - 'A') : typed;
+    }
+
+    if (press.key >= KEY_A &&
+        press.key <= KEY_Z)
+    {
+        const unsigned int letter = static_cast<unsigned int>(press.key - KEY_A) + 'a';
+        if (!LayoutTypes(letter))
         {
-            character += 'a' - 'A';
+            return letter;
+        }
+    }
+
+    return 0;
+}
+
+/* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
+ * acts once however long it is held. */
+int KeyOf(const State::KeyPress& press)
+{
+    const unsigned int letter = LetterOf(press);
+
+    /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
+     * session still copies with the chord its user has in their fingers. */
+    if ((press.mods & (glfwControl | glfwSuper)) != 0)
+    {
+        if (press.repeated)
+        {
+            return DEVIEW_KEY_NONE;
         }
 
-        switch (character)
+        /* Answered before the unmodified keys below, and returning none for anything else: without
+         * this ctrl+a fell through to plain A, which accepts. */
+        switch (letter)
+        {
+            case 'c': return DEVIEW_KEY_COPY;
+            case 'a': return DEVIEW_KEY_SELECT_ALL;
+            /* With control as well as without, since that is the chord everything else that zooms
+             * taught. */
+            case '+':
+            case '=': return DEVIEW_KEY_ZOOM_IN;
+            case '-': return DEVIEW_KEY_ZOOM_OUT;
+            case '0': return DEVIEW_KEY_ZOOM_RESET;
+            default: break;
+        }
+
+        /* And by position, as these three always were, for a layout whose key there types
+         * something else unshifted: AZERTY has its digits on Shift. The keypad's are the same
+         * keys on every layout. */
+        switch (press.key)
+        {
+            case KEY_EQUAL:
+            case KEY_KP_ADD: return DEVIEW_KEY_ZOOM_IN;
+            case KEY_MINUS:
+            case KEY_KP_SUBTRACT: return DEVIEW_KEY_ZOOM_OUT;
+            case KEY_ZERO:
+            case KEY_KP_0: return DEVIEW_KEY_ZOOM_RESET;
+            default: return DEVIEW_KEY_NONE;
+        }
+    }
+
+    /* The key itself held down, rather than read off the case of what was typed: see LetterOf. */
+    const bool shift = (press.mods & glfwShift) != 0;
+
+    /* Letters by the character typed rather than by key position. raylib's key codes are
+     * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
+     * snapshot written into source by a key meant to quit - while the one labelled A quit.
+     * Characters follow the layout, the way the macOS and Windows heads already do. Only a key
+     * that typed something: with Alt held none does, and Alt+A is not this head's to act on. */
+    if (press.character != 0)
+    {
+        switch (letter)
         {
             /* Accept all is A with Shift held, which is what the other two heads go by. */
             case 'a': return shift ? DEVIEW_KEY_ACCEPT_ALL : DEVIEW_KEY_ACCEPT;
@@ -1852,14 +2319,52 @@ int ReadKey()
         }
     }
 
-    if (IsKeyPressed(KEY_UP)) return DEVIEW_KEY_SCROLL_UP;
-    if (IsKeyPressed(KEY_DOWN)) return DEVIEW_KEY_SCROLL_DOWN;
-    if (IsKeyPressed(KEY_PAGE_UP)) return DEVIEW_KEY_PAGE_UP;
-    if (IsKeyPressed(KEY_PAGE_DOWN)) return DEVIEW_KEY_PAGE_DOWN;
-    if (IsKeyPressed(KEY_HOME)) return DEVIEW_KEY_HOME;
-    if (IsKeyPressed(KEY_END)) return DEVIEW_KEY_END;
-    if (IsKeyPressed(KEY_TAB)) return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
-    if (IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
+    /* The arrows and paging go on for as long as they are held, at the rate the window system
+     * repeats a key: one row a press was all a held arrow scrolled. */
+    switch (press.key)
+    {
+        case KEY_UP: return DEVIEW_KEY_SCROLL_UP;
+        case KEY_DOWN: return DEVIEW_KEY_SCROLL_DOWN;
+        case KEY_PAGE_UP: return DEVIEW_KEY_PAGE_UP;
+        case KEY_PAGE_DOWN: return DEVIEW_KEY_PAGE_DOWN;
+        default: break;
+    }
+
+    if (press.repeated)
+    {
+        return DEVIEW_KEY_NONE;
+    }
+
+    switch (press.key)
+    {
+        case KEY_HOME: return DEVIEW_KEY_HOME;
+        case KEY_END: return DEVIEW_KEY_END;
+        case KEY_TAB: return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
+        case KEY_ESCAPE: return DEVIEW_KEY_QUIT;
+        default: return DEVIEW_KEY_NONE;
+    }
+}
+
+/*
+ * The next key waiting that asks for anything, and whether it was Escape. One a poll: the rest
+ * wait for the polls after it, which is what keeps two keys pressed between two polls both acted
+ * on, and a key pressed and let go between two of raylib's readings acted on at all.
+ */
+int ReadKey(bool& escape)
+{
+    escape = false;
+    while (!state.keys.empty())
+    {
+        const State::KeyPress press = state.keys.front();
+        state.keys.pop_front();
+        const int key = KeyOf(press);
+        if (key != DEVIEW_KEY_NONE)
+        {
+            escape = press.key == KEY_ESCAPE;
+            return key;
+        }
+    }
+
     return DEVIEW_KEY_NONE;
 }
 
@@ -1873,9 +2378,13 @@ int ReadKey()
  */
 void MeasureGrid()
 {
+    /* As the last frame built for the window found them, once there has been one. Between frames
+     * ImGui answers with the font at the size it was added at, which on a scaled display is not
+     * the size a frame draws it at: asked here, a window at twice the scale was told it had
+     * twice the rows it has. */
     ImGui::SetCurrentContext(state.context);
-    const float width = ImGui::CalcTextSize("M").x;
-    const float height = ImGui::GetTextLineHeightWithSpacing();
+    const float width = state.cellWidth > 0.0f ? state.cellWidth : ImGui::CalcTextSize("M").x;
+    const float height = state.lineHeight > 0.0f ? state.lineHeight : ImGui::GetTextLineHeightWithSpacing();
     state.input.columns = width > 0.0f
         ? static_cast<int32_t>(static_cast<float>(GetScreenWidth()) / width)
         : 0;
@@ -2160,7 +2669,7 @@ void UpdateSelection(
             mouse.x < leftHit.cellLeft ||
             /* The splitter's grab zone overlaps the left pane's edge, and a drag that started
              * there would otherwise also select whatever it began over. */
-            (dividerX >= 0.0f && mouse.x <= dividerX + grabWidth))
+            (dividerX >= 0.0f && mouse.x <= dividerX + grabWidth * Scale()))
         {
             return;
         }
@@ -2261,7 +2770,7 @@ void DrawChecker(ImDrawList* list, const ImVec2& min, const ImVec2& max)
         return;
     }
 
-    const float repeat = checkerSize * 2.0f;
+    const float repeat = checkerSize * Scale() * 2.0f;
     list->AddImage(
         static_cast<ImTextureID>(checker->id),
         min,
@@ -2388,10 +2897,13 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     ImVec2 size = fitted;
     ImVec2 uvMin(0.0f, 0.0f);
     ImVec2 uvMax(1.0f, 1.0f);
-    SampleAsPixels(
+    const float drawnWidth = fitted.x * (pane.imageZoom > 1.0f ? pane.imageZoom : 1.0f);
+    const float ownWidth = static_cast<float>(decoded->texture.width);
+    Sample(
         path,
-        pane.imageZoom > 1.0f &&
-        fitted.x * pane.imageZoom >= static_cast<float>(decoded->texture.width));
+        pane.imageZoom > 1.0f && drawnWidth >= ownWidth ? sampleAsPixels :
+        drawnWidth * 2.0f < ownWidth ? sampleReduced :
+        sampleSmoothed);
     if (pane.imageZoom > 1.0f)
     {
         const ImVec2 whole(fitted.x * pane.imageZoom, fitted.y * pane.imageZoom);
@@ -2412,6 +2924,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         space.centreY = centreY;
         space.across = across;
         space.down = down;
+        space.movesAcross = std::floor(whole.x) > size.x;
+        space.movesDown = std::floor(whole.y) > size.y;
     }
 
     /*
@@ -2483,8 +2997,9 @@ bool UpdatePan(const DeviewScreen* screen)
             return false;
         }
 
-        for (const State::PictureSpace& space : state.pictureSpaces)
+        for (int32_t side = 0; side < 2; side++)
         {
+            const State::PictureSpace& space = state.pictureSpaces[side];
             if (space.present &&
                 space.enlarged &&
                 mouse.x >= space.left &&
@@ -2493,6 +3008,7 @@ bool UpdatePan(const DeviewScreen* screen)
                 mouse.y < space.top + space.height)
             {
                 state.panning = true;
+                state.panSide = side;
                 state.panStart = mouse;
                 state.panFrom = space;
                 break;
@@ -2505,12 +3021,33 @@ bool UpdatePan(const DeviewScreen* screen)
         }
     }
 
-    /* The picture follows the pointer, so the point at the middle moves the other way. */
+    if (state.panSide >= screen->paneCount)
+    {
+        state.panning = false;
+        return false;
+    }
+
+    /*
+     * The picture follows the pointer, so the point at the middle moves the other way, as far as
+     * this pane's picture can go.
+     *
+     * Only the way it can go at all. The centre is one point for both panes, and the two pictures
+     * need not be the same shape: one that is all in view from top to bottom has nowhere to go
+     * that way, and clamped like the other axis its report was the middle, every frame of the
+     * drag. So dragging it sideways took the other pane's picture back to its middle row, from
+     * wherever it had been dragged to. An axis this pane's picture cannot move on is reported as
+     * the frame's own centre, the one the managed side handed over, which leaves it where it is.
+     */
     const State::PictureSpace& from = state.panFrom;
+    const DeviewPane& pane = screen->panes[state.panSide];
     const float x = from.centreX - (mouse.x - state.panStart.x) / from.wholeWidth;
     const float y = from.centreY - (mouse.y - state.panStart.y) / from.wholeHeight;
-    state.input.panX = std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f);
-    state.input.panY = std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f);
+    state.input.panX = from.movesAcross
+        ? std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f)
+        : pane.imageCenterX;
+    state.input.panY = from.movesDown
+        ? std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f)
+        : pane.imageCenterY;
 
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
@@ -2532,6 +3069,114 @@ void TextWithin(const char* begin, const char* end, float width)
     const ImVec2 limit(position.x + room, position.y + size.y);
     ImGui::Dummy(ImVec2(std::min(size.x, room), size.y));
     ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), position, limit, limit.x, begin, end, &size);
+}
+
+/*
+ * ImGui reads a label for more than its text. From "##" on it is the item's identity and is not
+ * drawn, which is how two buttons that say the same thing are told apart, and it is so for every
+ * label an item takes: a queue row, a menu item, a button, a pane's header. Those are a file's
+ * name, a test's, a solution's, and a name with "##" in it was cut short there: "Notes##2.txt" in
+ * the queue was "Notes".
+ *
+ * A label is never an identity here, since every item is given one by its index. So one with the
+ * mark in it is drawn by this side, where the item would have drawn it, over an item that is given
+ * no text at all. One without it is left to the item, which is every label there has been.
+ */
+bool Marked(const std::string& label)
+{
+    return label.find("##") != std::string::npos;
+}
+
+void DrawLabel(const ImVec2& position, const std::string& label)
+{
+    ImGui::GetWindowDrawList()->AddText(
+        position,
+        ImGui::GetColorU32(ImGuiCol_Text),
+        label.data(),
+        label.data() + label.size());
+}
+
+bool SelectableLabel(const std::string& label, bool selected = false)
+{
+    if (!Marked(label))
+    {
+        return ImGui::Selectable(label.c_str(), selected);
+    }
+
+    /* Where Selectable puts its text: at the cursor, on the line's baseline. */
+    const ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const ImVec2 position(window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
+    const bool pressed = ImGui::Selectable("##label", selected);
+    DrawLabel(position, label);
+    return pressed;
+}
+
+/* The width of a label's text, all of it. */
+float LabelWidth(const std::string& label)
+{
+    return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
+}
+
+bool ButtonLabel(const std::string& label)
+{
+    if (!Marked(label))
+    {
+        return ImGui::Button(label.c_str());
+    }
+
+    /* The size Button gives itself from its text, and the text where it puts it: inside the
+     * frame's padding. */
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const bool pressed = ImGui::Button(
+        "##label",
+        ImVec2(
+            LabelWidth(label) + style.FramePadding.x * 2.0f,
+            ImGui::GetTextLineHeight() + style.FramePadding.y * 2.0f));
+    const ImVec2 corner = ImGui::GetItemRectMin();
+    DrawLabel(ImVec2(corner.x + style.FramePadding.x, corner.y + style.FramePadding.y), label);
+    return pressed;
+}
+
+/*
+ * The header row of the panes' table, as TableHeadersRow lays it out, for a table with a marked
+ * header: that one is given no text and has its own drawn over it, cut short with an ellipsis at
+ * the column's edge as the table would have cut it.
+ */
+void HeadersRow(const std::string* headers, int first, int columns)
+{
+    ImGui::TableNextRow(ImGuiTableRowFlags_Headers, ImGui::TableGetHeaderRowHeight());
+    for (int column = 0; column < columns; column++)
+    {
+        if (!ImGui::TableSetColumnIndex(column))
+        {
+            continue;
+        }
+
+        ImGui::PushID(column);
+        if (column >= first &&
+            Marked(headers[column - first]))
+        {
+            const std::string& header = headers[column - first];
+            const ImVec2 position = ImGui::GetCursorScreenPos();
+            ImGui::TableHeader("");
+            const float edge = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), column).Max.x;
+            const ImVec2 size = ImGui::CalcTextSize(header.data(), header.data() + header.size());
+            ImGui::RenderTextEllipsis(
+                ImGui::GetWindowDrawList(),
+                position,
+                ImVec2(edge, position.y + size.y),
+                edge,
+                header.data(),
+                header.data() + header.size(),
+                &size);
+        }
+        else
+        {
+            ImGui::TableHeader(ImGui::TableGetColumnName(column));
+        }
+
+        ImGui::PopID();
+    }
 }
 
 /*
@@ -2577,10 +3222,8 @@ Footer LayOutFooter(const DeviewScreen* screen, float width)
         const DeviewButton& button = screen->buttons[index];
         footer.labels.push_back(Copy(screen, button.labelOffset, button.labelLength));
 
-        /* What ImGui::Button makes of a label: its text, less whatever follows a ##, inside the
-         * frame's padding. */
-        const float size =
-            ImGui::CalcTextSize(footer.labels.back().c_str(), nullptr, true).x + style.FramePadding.x * 2.0f;
+        /* What a button makes of a label: its text inside the frame's padding. */
+        const float size = LabelWidth(footer.labels.back()) + style.FramePadding.x * 2.0f;
         const bool wraps = index > 0 && reach + style.ItemSpacing.x + size > width;
         footer.wraps.push_back(wraps);
         if (wraps)
@@ -2684,9 +3327,17 @@ void BuildFrame(const DeviewScreen* screen)
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
     const float cell = ImGui::CalcTextSize("M").x;
+    if (!state.capturing)
+    {
+        state.cellWidth = cell;
+        state.lineHeight = ImGui::GetTextLineHeightWithSpacing();
+    }
+
     ImVec2 menuAnchor;
+    float menuRowTop = 0.0f;
     bool menuAnchored = false;
-    if (state.queueWidth <= 0.0f)
+    if (!state.capturing &&
+        state.queueWidth <= 0.0f)
     {
         state.queueWidth = cell * queueCells;
     }
@@ -2695,7 +3346,13 @@ void BuildFrame(const DeviewScreen* screen)
      * rows the table happens to have. */
     const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
     const ImVec2 bodyAvail = ImGui::GetContentRegionAvail();
-    const float queueWidth = ClampQueueWidth(state.queueWidth, bodyAvail.x, cell);
+
+    /* A capture's queue column is the width it starts at, in its own cells. The window's is in
+     * the window's, which are larger on a scaled display, and may have been dragged. */
+    const float queueWidth = ClampQueueWidth(
+        state.capturing ? cell * queueCells : state.queueWidth,
+        bodyAvail.x,
+        cell);
 
     /* Where the border between the queue and the panes ended up, read back from the table rather
      * than recomputed, and -1 until a row has been laid out. */
@@ -2725,9 +3382,20 @@ void BuildFrame(const DeviewScreen* screen)
             ImGui::TableSetupColumn(pending, ImGuiTableColumnFlags_WidthFixed, queueWidth);
         }
 
-        ImGui::TableSetupColumn(Copy(screen, left.headerOffset, left.headerLength).c_str());
-        ImGui::TableSetupColumn(Copy(screen, right.headerOffset, right.headerLength).c_str());
-        ImGui::TableHeadersRow();
+        const std::string headers[] = {
+            Copy(screen, left.headerOffset, left.headerLength),
+            Copy(screen, right.headerOffset, right.headerLength)};
+        ImGui::TableSetupColumn(headers[0].c_str());
+        ImGui::TableSetupColumn(headers[1].c_str());
+        if (Marked(headers[0]) ||
+            Marked(headers[1]))
+        {
+            HeadersRow(headers, hasQueue ? 1 : 0, columns);
+        }
+        else
+        {
+            ImGui::TableHeadersRow();
+        }
 
         int bodyRows = left.rowCount > right.rowCount ? left.rowCount : right.rowCount;
         if (screen->queueCount > bodyRows)
@@ -2754,7 +3422,7 @@ void BuildFrame(const DeviewScreen* screen)
                          * saying the marker can be clicked. */
                         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
                         ImGui::PushID(index);
-                        if (ImGui::Selectable(label.c_str(), false))
+                        if (SelectableLabel(label))
                         {
                             state.input.clickedQueueItem = index;
                         }
@@ -2776,7 +3444,7 @@ void BuildFrame(const DeviewScreen* screen)
                         }
 
                         ImGui::PushID(index);
-                        if (ImGui::Selectable(label.c_str(), selected))
+                        if (SelectableLabel(label, selected))
                         {
                             state.input.clickedQueueItem = index;
                         }
@@ -2819,6 +3487,7 @@ void BuildFrame(const DeviewScreen* screen)
                         screen->menuCount > 0)
                     {
                         menuAnchor = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+                        menuRowTop = ImGui::GetItemRectMin().y;
                         menuAnchored = true;
                     }
                 }
@@ -2896,10 +3565,11 @@ void BuildFrame(const DeviewScreen* screen)
     if (dividerX >= 0.0f)
     {
         const ImVec2 resume = ImGui::GetCursorScreenPos();
-        ImGui::SetCursorScreenPos(ImVec2(dividerX - grabWidth, bodyMin.y));
+        const float grab = grabWidth * Scale();
+        ImGui::SetCursorScreenPos(ImVec2(dividerX - grab, bodyMin.y));
         ImGui::InvisibleButton(
             "##queue-splitter",
-            ImVec2(grabWidth * 2.0f + 1.0f, std::max(1.0f, bodyAvail.y)));
+            ImVec2(grab * 2.0f + 1.0f, std::max(1.0f, bodyAvail.y)));
         if (ImGui::IsItemHovered() || ImGui::IsItemActive())
         {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -2986,12 +3656,21 @@ void BuildFrame(const DeviewScreen* screen)
             position = state.capturing
                 ? ImVec2(hit.cellLeft + cell, bodyMin.y + ImGui::GetTextLineHeightWithSpacing())
                 : state.paneMenuAnchor;
-            /* Kept inside the window: a click near its right or bottom edge would otherwise hang
-             * most of the menu off it. */
-            const ImVec2 display = ImGui::GetIO().DisplaySize;
-            position.x = std::max(0.0f, std::min(position.x, display.x - size.x));
-            position.y = std::max(0.0f, std::min(position.y, display.y - size.y));
         }
+
+        /* Kept inside the window, whichever it hangs from: a click near a pane's right or bottom
+         * edge would otherwise hang most of the menu off it, and under the last rows of a queue
+         * that fills its column there is not the height of a menu left. A row's menu goes over
+         * the row then rather than under it, so the row it is about can still be read. */
+        const ImVec2 display = ImGui::GetIO().DisplaySize;
+        if (!paneMenu &&
+            position.y + size.y > display.y)
+        {
+            position.y = menuRowTop - size.y;
+        }
+
+        position.x = std::max(0.0f, std::min(position.x, display.x - size.x));
+        position.y = std::max(0.0f, std::min(position.y, display.y - size.y));
 
         state.menuMin = position;
         state.menuMax = ImVec2(position.x + size.x, position.y + size.y);
@@ -3008,7 +3687,7 @@ void BuildFrame(const DeviewScreen* screen)
         for (int index = 0; index < screen->menuCount; index++)
         {
             ImGui::PushID(index);
-            if (ImGui::Selectable(labels[static_cast<size_t>(index)].c_str()))
+            if (SelectableLabel(labels[static_cast<size_t>(index)]))
             {
                 state.input.clickedMenuItem = index;
             }
@@ -3050,7 +3729,7 @@ void BuildFrame(const DeviewScreen* screen)
         }
 
         ImGui::PushID(index);
-        if (ImGui::Button(footer.labels[static_cast<size_t>(index)].c_str()))
+        if (ButtonLabel(footer.labels[static_cast<size_t>(index)]))
         {
             state.input.clickedButton = index;
         }
@@ -3163,6 +3842,9 @@ bool Changed(const DeviewScreen* screen)
  * back from the managed side as a different screen. It counts all the same, because a window is
  * only left alone when nothing at all is happening to it. By the press rather than by what is
  * down, since raylib reports Caps Lock and Num Lock as held for as long as they are on.
+ *
+ * The buttons, the wheel and the keys are asked of what GLFW's callbacks kept rather than of
+ * raylib, for the reason they are kept: see State::presses.
  */
 bool Arrived()
 {
@@ -3176,26 +3858,39 @@ bool Arrived()
         arrived = true;
     }
 
-    for (const int button : {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE})
-    {
-        if (IsMouseButtonDown(button) ||
-            IsMouseButtonReleased(button))
-        {
-            arrived = true;
-        }
-    }
-
-    const Vector2 wheel = GetMouseWheelMoveV();
-    if (wheel.x != 0.0f ||
-        wheel.y != 0.0f)
+    /* A press or a release waiting to be handed to ImGui, a button held, or one of a press and
+     * release handed over together that ImGui is keeping for the frame after. */
+    if (!state.presses.empty() ||
+        state.held[0] ||
+        state.held[1] ||
+        state.held[2] ||
+        state.context->InputEventsQueue.Size > 0)
     {
         arrived = true;
     }
 
-    /* Taken off raylib's queue, which nothing else here reads: ReadKey asks about keys by name
-     * and takes characters from a queue of their own. */
-    while (GetKeyPressed() != 0)
+    if (state.wheelAcross != 0.0f ||
+        state.wheelDown != 0.0f)
     {
+        arrived = true;
+    }
+
+    /* The pointer leaving the window, or coming back to where it left from: raylib's position
+     * for it is the same before and after. */
+    const bool gone =
+        !state.pointerInside &&
+        !state.held[0] &&
+        !state.held[1] &&
+        !state.held[2];
+    if (gone != state.pointerGone)
+    {
+        state.pointerGone = gone;
+        arrived = true;
+    }
+
+    if (state.keyed)
+    {
+        state.keyed = false;
         arrived = true;
     }
 
@@ -3330,6 +4025,7 @@ void Rest()
         WaitTime(std::min(left, frameSeconds));
     }
 
+    state.characterFollows = false;
     PollInputEvents();
     state.ended = GetTime();
 }
@@ -3399,7 +4095,35 @@ int32_t deview_init(
         return 0;
     }
 
+    void* handle = glfwGetCurrentContext();
+
+    /* Not under 1: a desktop set smaller than a pixel to the pixel is not asking for text below
+     * the size it is legible at. And not a number that is no scale at all. */
+    float across = 1.0f;
+    float down = 1.0f;
+    glfwGetWindowContentScale(handle, &across, &down);
+    state.scale = across > 1.0f && across <= 8.0f ? across : 1.0f;
+    state.cellWidth = 0.0f;
+    state.lineHeight = 0.0f;
+
     state.tracked = false;
+    if (!sized &&
+        state.scale != 1.0f)
+    {
+        /* The size asked for is in the pixels of an ordinary display. As much of it at this
+         * display's scale as its monitor has room for, and in the middle of that monitor, which is
+         * where raylib put the window it has just made at the size it was given. There is no
+         * asking the scale before there is a window to ask it of. */
+        const int monitor = GetCurrentMonitor();
+        const int wide = std::min(static_cast<int>(static_cast<float>(width) * state.scale), GetMonitorWidth(monitor));
+        const int tall = std::min(static_cast<int>(static_cast<float>(height) * state.scale), GetMonitorHeight(monitor));
+        const Vector2 origin = GetMonitorPosition(monitor);
+        SetWindowSize(wide, tall);
+        SetWindowPosition(
+            static_cast<int>(origin.x) + (GetMonitorWidth(monitor) - wide) / 2,
+            static_cast<int>(origin.y) + (GetMonitorHeight(monitor) - tall) / 2);
+    }
+
     if (sized)
     {
         if (OnAMonitor(state.placement))
@@ -3420,7 +4144,23 @@ int32_t deview_init(
     /* No SetTargetFPS: raylib only holds to it inside EndDrawing, which is no longer called. The
      * frame is ended, and waited out, by Rest. And nothing about a window that came before this
      * one says anything about this one, whose clock has started again from nothing. */
-    glfwSetWindowRefreshCallback(glfwGetCurrentContext(), WindowRefreshed);
+    glfwSetWindowRefreshCallback(handle, WindowRefreshed);
+    state.raylibCrossing = glfwSetCursorEnterCallback(handle, PointerCrossed);
+    state.pointerInside = true;
+    state.pointerGone = false;
+    state.raylibButton = glfwSetMouseButtonCallback(handle, ButtonChanged);
+    state.raylibScroll = glfwSetScrollCallback(handle, WheelTurned);
+    state.raylibKey = glfwSetKeyCallback(handle, KeyChanged);
+    state.raylibCharacter = glfwSetCharCallback(handle, CharacterTyped);
+    state.presses.clear();
+    state.keys.clear();
+    state.held[0] = state.held[1] = state.held[2] = false;
+    state.wheelAcross = 0.0f;
+    state.wheelDown = 0.0f;
+    state.wheelNotches = 0.0f;
+    state.scrollRemainder = 0.0f;
+    state.characterFollows = false;
+    state.keyed = false;
     state.presented.clear();
     state.watched.clear();
     state.shown = 0;
@@ -3444,6 +4184,13 @@ int32_t deview_init(
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     ApplyStyle();
+    if (state.scale != 1.0f)
+    {
+        /* The window's context alone. A capture makes its own, which is left at 1. */
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.ScaleAllSizes(state.scale);
+        style.FontScaleDpi = state.scale;
+    }
 
     if (fontTtf != nullptr && fontLength > 0)
     {
@@ -3596,23 +4343,24 @@ void deview_poll_input(DeviewInput* input)
 
     if (state.initialised)
     {
-        state.input.key = ReadKey();
+        bool escape = false;
+        state.input.key = ReadKey(escape);
 
         /* Escape with a menu up dismisses the menu. It reached the managed side as quit, which
          * closes the menu and then runs the command, so Esc-to-dismiss closed the viewer - and on
          * Linux there is no tray to open it again from, so the queue went to staging. */
         if (state.menuOpen &&
-            state.input.key == DEVIEW_KEY_QUIT &&
-            IsKeyPressed(KEY_ESCAPE))
+            escape)
         {
             state.input.key = DEVIEW_KEY_NONE;
             state.input.menuClosed = 1;
         }
 
         /* Whole notches, keeping the fraction. A touchpad sends a fraction of one per frame and
-         * truncating each frame on its own threw every one of them away. */
-        const Vector2 wheel = GetMouseWheelMoveV();
-        state.scrollRemainder += wheel.y;
+         * truncating each frame on its own threw every one of them away. Every wheel message since
+         * the last poll, added up: read off raylib it was the last of them alone. */
+        state.scrollRemainder += state.wheelNotches;
+        state.wheelNotches = 0.0f;
         const int32_t notches = static_cast<int32_t>(state.scrollRemainder);
         state.scrollRemainder -= static_cast<float>(notches);
 

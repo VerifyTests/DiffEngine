@@ -25,6 +25,12 @@ sealed class ViewerForm : Form
         TextAlign = ContentAlignment.MiddleRight,
         ForeColor = Palette.Dim,
         AutoSize = false,
+        // A status too long for what the buttons leave wraps, and the label has the height for two
+        // lines. The rest was cut with nothing to say so, and the status line is where the model
+        // says what no picture can. With this the cut ends in an ellipsis, and the label shows the
+        // whole status as a tip when the pointer rests on it. It is cut from the end either way:
+        // the lines kept are the first two, so right aligned still keeps the start.
+        AutoEllipsis = true,
         // The status line is built from paths, solution names and whatever the applier said, and a
         // Label reads an ampersand in any of those as a mnemonic: "R&D" drew as "R_D" with D live
         // as an accelerator.
@@ -176,18 +182,18 @@ sealed class ViewerForm : Form
         scrollBar.Scroll += (_, e) =>
         {
             scrollTo = e.NewValue;
-            // The thumb is tracked in the scroll bar's own modal loop, from the first ThumbTrack
-            // until the release
-            if (e.Type == ScrollEventType.ThumbTrack)
-            {
-                EnterModal();
-                return;
-            }
-
+            // Every part of the bar is tracked in its own modal loop, from the press until the
+            // release: an arrow or the trough held down as much as the thumb dragged, which was
+            // the only one this entered for, so holding an arrow moved nothing until it was let
+            // go. EndScroll is what the bar sends as that loop ends, whichever part it was, and
+            // ThumbPosition comes just ahead of it.
             if (e.Type is ScrollEventType.ThumbPosition or ScrollEventType.EndScroll)
             {
                 ExitModal();
+                return;
             }
+
+            EnterModal();
         };
         modalFrames.Tick += (_, _) =>
         {
@@ -453,6 +459,15 @@ sealed class ViewerForm : Form
 
     void ExitModal() =>
         modalFrames.Stop();
+
+    /// <summary>
+    /// The loop is presenting a frame of its own, so nothing is holding the thread: whatever modal
+    /// loop was entered has returned. Its exit is normally what says so. A scroll sent to the bar
+    /// by something other than a press - an accessibility tool, say - need not be followed by an
+    /// EndScroll, and frames would then come from the timer as well as the loop from there on.
+    /// </summary>
+    public void LoopReturned() =>
+        ExitModal();
 
     const int enterSizeMove = 0x0231;
     const int exitSizeMove = 0x0232;
@@ -751,12 +766,37 @@ sealed class ViewerForm : Form
             return base.ProcessCmdKey(ref message, keyData);
         }
 
+        // A key held past the repeat delay arrives again thirty times a second, and each one is
+        // queued. That is what a held Down is for. A held a accepted the entry on screen and then
+        // every one that took its place, into source, none of them read. So what changes the
+        // queue takes a press each. Swallowed rather than passed on: it is still this key.
+        if (ViewerSession.ChangesQueue(command) &&
+            IsRepeat(message))
+        {
+            return true;
+        }
+
         discrete.Enqueue(new(Key: command));
         return true;
     }
 
-    static CommandKind Map(Keys keyData)
+    /// <summary>
+    /// Bit 30 of a key message's LParam: the key was already down when this was sent.
+    /// </summary>
+    static bool IsRepeat(Message message) =>
+        (message.LParam.ToInt64() & 1L << 30) != 0;
+
+    internal static CommandKind Map(Keys keyData)
     {
+        // No command is an Alt chord, and the switch below reads only the key code, so Alt+A was
+        // accept, Alt+D discard and Alt+Q quit: a reach for a menu that is not there wrote a
+        // snapshot into source. Ahead of Control, because Alt Gr arrives as both, and a character
+        // typed with it is not a Control chord either.
+        if ((keyData & Keys.Alt) == Keys.Alt)
+        {
+            return CommandKind.None;
+        }
+
         var shift = (keyData & Keys.Shift) == Keys.Shift;
         var code = keyData & Keys.KeyCode;
         // Answered on its own rather than folded into the switch, which reads only the key code:

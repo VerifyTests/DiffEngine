@@ -118,6 +118,21 @@ final class Renderer {
         var unscalable = false
     }
 
+    /// The pictures the last draw had no room for, each with its file as it was then.
+    ///
+    /// Nothing is decoded for one, so it is not in `pictures`, and `picturesChanged` took a picture
+    /// that is not there for one that has just appeared: a window too short for its picture, about
+    /// 176 points, was redrawn sixty times a second to draw none of it. Kept apart from `pictures`
+    /// because an entry there with no image is one ImageIO could not read, which is never tried
+    /// again, and this one is to be decoded as soon as there is room.
+    private var unplaced: [String: Stamp] = [:]
+
+    /// A file as it was when it was last looked at, which is how a rewritten one is told.
+    private struct Stamp: Equatable {
+        var modified: Date
+        var length: UInt64
+    }
+
     /// A size in device pixels, which is what a scaled copy is made at and matched by.
     private struct Pixels: Equatable {
         var width: Int
@@ -132,6 +147,10 @@ final class Renderer {
     private let gate = NSLock()
     private var finished: [Finished] = []
     private var wanted: Set<String> = []
+
+    /// Something landed during a draw that painted only part of the window, or none of it, and
+    /// the whole of it has not been drawn since: see `draw` and `takeFinished`.
+    private var owed = false
 
     private enum Finished {
         case decoded(path: String, modified: Date, length: UInt64, image: CGImage?)
@@ -232,9 +251,22 @@ final class Renderer {
         var across: CGFloat = 1
         var down: CGFloat = 1
 
+        /// The centre the frame asked for, before it was moved in to keep this space full, and
+        /// whether there is more of the picture than the space shows each way, by a whole point
+        /// or more: which is whether a drag can move it that way.
+        var asked: CGPoint = CGPoint(x: 0.5, y: 0.5)
+        var movesAcross = false
+        var movesDown = false
+
         /// Where a drag of `by` points leaves the centre. The picture follows the pointer, so the
         /// point at the middle moves the other way, and nothing here is flipped, so a drag up the
         /// screen is a positive y and brings what is lower in the picture into view.
+        ///
+        /// The centre is one point for both panes, and the other pane's picture need not be this
+        /// one's shape. So a way this picture cannot move is reported as the frame had it, not as
+        /// this space holds it: all of it shows that way, which held here is the middle, and
+        /// reporting the middle put the other pane's picture back there on the first move of a
+        /// drag that was along the other axis.
         func dragged(by: CGSize) -> CGPoint {
             guard enlarged, whole.width > 0, whole.height > 0 else {
                 return centre
@@ -243,8 +275,8 @@ final class Renderer {
             let x = centre.x - by.width / whole.width
             let y = centre.y + by.height / whole.height
             return CGPoint(
-                x: min(max(x, across / 2), 1 - across / 2),
-                y: min(max(y, down / 2), 1 - down / 2))
+                x: movesAcross ? min(max(x, across / 2), 1 - across / 2) : asked.x,
+                y: movesDown ? min(max(y, down / 2), 1 - down / 2) : asked.y)
         }
     }
 
@@ -339,8 +371,18 @@ final class Renderer {
     /// repaint of part of it leaves out is the drawing, and a capture leaves out nothing.
     @discardableResult
     func draw(_ frame: Frame, in context: CGContext, size: CGSize, capturing: Bool = false) -> Layout {
-        takeFinished()
+        let landed = settle()
         dirty = capturing ? nil : context.boundingBoxOfClipPath
+        // Something landed in a draw that is not the whole window's, so the window is owed one.
+        // A turn of a spinner is clipped to the spinner, and the picture that landed as it began
+        // was drawn inside that clip and nowhere else: `Runtime.present` had already asked whether
+        // anything landed, been told no, and would not be told again. A capture is no draw of the
+        // window's at all. Only said here, and asked for by the next present, so a draw never
+        // asks for another from inside itself.
+        if landed, capturing || dirty?.contains(CGRect(origin: .zero, size: size)) != true {
+            owed = true
+        }
+
         // The lines the last draw drew are the ones this one may use again, and what the draw
         // before it drew and it did not goes here. A draw that reached no text is passed over:
         // where the clip is a spinner, a turn would otherwise leave nothing kept for whatever is
@@ -413,6 +455,7 @@ final class Renderer {
         let shown: Set<String> = [frame.left.imagePath, frame.right.imagePath]
         shared = !frame.left.imagePath.isEmpty && frame.left.imagePath == frame.right.imagePath
         pictures = pictures.filter { shown.contains($0.key) }
+        unplaced = [:]
         gate.lock()
         wanted = shown
         gate.unlock()
@@ -683,6 +726,10 @@ final class Renderer {
         let imageTop = top + CGFloat(pane.rows.count + 1) * line
         let available = CGSize(width: width - Renderer.gap, height: bottom - imageTop)
         guard available.width > 0, available.height > 0 else {
+            if hasPicture {
+                leftOut(pane.imagePath)
+            }
+
             return
         }
 
@@ -810,6 +857,14 @@ final class Renderer {
             layout.pictures[layout.pictures.count - 1].centre = centre
             layout.pictures[layout.pictures.count - 1].across = across
             layout.pictures[layout.pictures.count - 1].down = down
+            // What the frame carried, exactly, so that handing it back changes nothing. And a way
+            // counts as one it can move only where the space is what cut it short: a picture a
+            // fraction of a point wider than what shows of it has nowhere to go that can be seen.
+            layout.pictures[layout.pictures.count - 1].asked = CGPoint(
+                x: CGFloat(pane.imageCenterX),
+                y: CGFloat(pane.imageCenterY))
+            layout.pictures[layout.pictures.count - 1].movesAcross = whole.width.rounded(.down) > shown.width
+            layout.pictures[layout.pictures.count - 1].movesDown = whole.height.rounded(.down) > shown.height
         }
 
         // Below its own size the window draws it from a copy scaled to the pixels the whole of it
@@ -1043,11 +1098,21 @@ final class Renderer {
         return bitmap.makeImage()
     }
 
+    /// Whether the window has something new to draw all of itself for: a picture or a scaled copy
+    /// that has landed since this was last asked, whether it was put in place here or by a draw
+    /// that got to it first and could only paint part of the window. Asked by `Runtime.present`,
+    /// once a frame.
+    func takeFinished() -> Bool {
+        let landed = settle()
+        let late = owed
+        owed = false
+        return landed || late
+    }
+
     /// Puts what `work` has finished into the pictures still waiting for it, and says whether
     /// anything landed, which is a reason to redraw. A result for a picture that has left the
     /// screen since, or for a file rewritten since, is dropped.
-    @discardableResult
-    func takeFinished() -> Bool {
+    private func settle() -> Bool {
         gate.lock()
         let landed = finished
         finished = []
@@ -1121,29 +1186,48 @@ final class Renderer {
                 continue
             }
 
-            let cached = pictures[pane.imagePath]
+            // As the last draw saw the file: decoded or on its way, or passed over for want of room
+            let seen = pictures[pane.imagePath].map { Stamp(modified: $0.modified, length: $0.length) }
+                ?? unplaced[pane.imagePath]
             let attributes = try? FileManager.default.attributesOfItem(atPath: pane.imagePath)
             guard let modified = attributes?[.modificationDate] as? Date,
                   let length = attributes?[.size] as? UInt64
             else {
                 // Gone: worth a redraw only to take away what was drawn
-                if cached != nil {
+                if seen != nil {
                     return true
                 }
 
                 continue
             }
 
-            guard let cached else {
+            guard let seen else {
                 return true
             }
 
-            if cached.modified != modified || cached.length != length {
+            if seen.modified != modified || seen.length != length {
                 return true
             }
         }
 
         return false
+    }
+
+    /// Notes a picture this draw has no room for, so that `picturesChanged` knows it was seen and
+    /// asks for a redraw only when its file is written again. A copy decoded from the file as it
+    /// was before goes, since it is stale and would otherwise say so on every frame.
+    private func leftOut(_ path: String) {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attributes[.modificationDate] as? Date,
+              let length = attributes[.size] as? UInt64
+        else {
+            return
+        }
+
+        unplaced[path] = Stamp(modified: modified, length: length)
+        if let cached = pictures[path], cached.modified != modified || cached.length != length {
+            pictures.removeValue(forKey: path)
+        }
     }
 
     /// The decoded picture at `path`, and whether it is still on its way: being decoded on `work`,

@@ -182,9 +182,30 @@ public class WindowsPixelTests
         return Capture(ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applied));
     }
 
-    static async Task Capture(SessionState state)
+    /// <summary>
+    /// A status wider than the footer has left beside a document's buttons: one line, from its
+    /// start, ending in an ellipsis where it is cut. The status line is where the model says what
+    /// no picture can, and it says the thing that matters first. Wrapped into a label two lines
+    /// high and centred, what showed was the middle of it.
+    /// </summary>
+    [Test]
+    public Task StatusThatDoesNotFit()
     {
-        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), columns, rows));
+        return Capture(
+            screen with
+            {
+                // Five lines of the label's width, where it has the height for two
+                Status = "START lines 1-14 of 40, page 1 of 1, page 1 differs, 200% zoom, selected 3 lines of sample.received.pdf, " +
+                         "which is 112 characters, and could not be drawn: Not a readable PDF document: it was cut short END"
+            });
+    }
+
+    static Task Capture(SessionState state) =>
+        Capture(ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows)));
+
+    static async Task Capture(Screen screen)
+    {
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {

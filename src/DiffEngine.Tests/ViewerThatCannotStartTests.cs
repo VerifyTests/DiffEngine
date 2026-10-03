@@ -38,7 +38,30 @@ public class ViewerThatCannotStartTests
         await Assert.That(result).IsEqualTo(InlineResult.NoViewerFound);
         // The viewer reads its payload file and deletes it, and this one never got that far, so
         // the file is the launcher's to take back
-        await Assert.That(PayloadFiles().Except(before)).IsEmpty();
+        await Assert.That(await LeftBehind(before)).IsEmpty();
+    }
+
+    /// <summary>
+    /// The payload files that are there now and were not before, once any that are someone
+    /// else's have had time to go. The temp folder is shared, and this test runs in the net48
+    /// process and the net10.0 one at the same time: each saw the other's file in the moment
+    /// between it being written and taken back, and failed for it. One this launch left behind
+    /// stays, however long it is waited for.
+    /// </summary>
+    static async Task<List<string>> LeftBehind(List<string> before)
+    {
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            var left = PayloadFiles().Except(before).ToList();
+            if (left.Count == 0 ||
+                waited.Elapsed > TimeSpan.FromSeconds(40))
+            {
+                return left;
+            }
+
+            await Task.Delay(100);
+        }
     }
 
     static List<string> PayloadFiles() =>

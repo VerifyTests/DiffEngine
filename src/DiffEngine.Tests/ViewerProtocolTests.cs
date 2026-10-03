@@ -1042,6 +1042,57 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// An accept that keeps failing, which is what a process out of descriptors gets: each one
+    /// refused at once, with the connection left in the backlog, until something is closed.
+    /// Retried with nothing between them that was ten thousand failed accepts a second, measured
+    /// on Linux under a low descriptor limit, and a core for as long as it went on.
+    /// <para>
+    /// Nothing but failures is the first, the retry it gets at once, and then one each
+    /// <see cref="ViewerServer.FailedAcceptWait"/>. The bound is twice that rate and some, which
+    /// is thousands of times under what the loop made of it before.
+    /// </para>
+    /// <para>
+    /// The retry is waited for, and the stretch that is counted is timed, rather than either
+    /// being taken to fit in half a second. On a runner of four cores with the rest of the suite
+    /// running, the loop's first continuation had not been given a thread in that long.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AnAcceptThatKeepsFailingIsWaitedOut()
+    {
+        using var cancel = new CancelSource();
+        var accepts = 0;
+
+        async Task<TcpClient> Accept(Cancel token)
+        {
+            Interlocked.Increment(ref accepts);
+            // So the loop is left between failures, as a real accept leaves it, rather than
+            // holding the thread that started it
+            await Task.Yield();
+            throw new SocketException((int) SocketError.TooManyOpenSockets);
+        }
+
+        var serving = ViewerServer.Serve(Accept, _ => _.Dispose(), cancel.Token);
+        var retried = Stopwatch.StartNew();
+        while (Volatile.Read(ref accepts) < 2 &&
+               retried.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            await Task.Delay(10);
+        }
+
+        var before = Volatile.Read(ref accepts);
+        var counted = Stopwatch.StartNew();
+        await Task.Delay(500);
+        var during = Volatile.Read(ref accepts) - before;
+        var waits = counted.Elapsed.TotalMilliseconds / ViewerServer.FailedAcceptWait.TotalMilliseconds;
+        cancel.Cancel();
+        await Wait(serving);
+
+        await Assert.That(before).IsGreaterThan(1);
+        await Assert.That(during).IsLessThan((int) (waits * 2) + 5);
+    }
+
+    /// <summary>
     /// An owner that answers with an error is not an absent one. Collapsing the two into false
     /// meant a refused inline was read as "nobody is there", so a second viewer was launched, it
     /// could not bind the port, and the snapshot was reported as Queued while being held by

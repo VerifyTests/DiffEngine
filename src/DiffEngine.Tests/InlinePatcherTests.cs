@@ -175,6 +175,104 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// A Remove is applied once per framework, and once per case of a test that ignores its
+    /// parameters. Taking the call's line out brought the statement under it up onto the line the
+    /// patch names, and where that statement held the same literal the second apply had the same
+    /// line and the same anchor to go by: the sibling lost its snapshot. So the line stays, empty,
+    /// and the second apply reads it as the call already removed.
+    /// </summary>
+    [Test]
+    public async Task RemoveAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var source = Method(
+            """
+                    await Verify(a)
+                        .Snapshot("dup");
+                    await Verify(b).Snapshot("dup");
+            """);
+        var removed = Method("        await Verify(a);\n\n        await Verify(b).Snapshot(\"dup\");");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The same with a literal over several lines, which is what a snapshot usually is. One line
+    /// is kept and not one for each the call ran over: the line the call started on is the one a
+    /// patch names.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfACallOverSeveralLinesAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var literal = "\"\"\"\n                dup\n                \"\"\"";
+        var source = Method($"        await Verify(a)\n            .Snapshot(\n                {literal});\n        await Verify(b).Snapshot(\n                {literal});");
+        var removed = Method($"        await Verify(a);\n\n        await Verify(b).Snapshot(\n                {literal});");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, literal, "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, literal, "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The line is kept only for a Snapshot call under it. Anything else that comes up onto the
+    /// recorded line is read as the call removed already, so the line goes, as it always did.
+    /// </summary>
+    [Test]
+    public async Task RemoveAppliedTwiceWithNoSnapshotCallUnderItKeepsNoLine()
+    {
+        var source = Method("        await Verify(a)\n            .Snapshot(\"dup\");\n        await Verify(b);\n        await Verify(c).Snapshot(\"dup\");");
+        var removed = Method("        await Verify(a);\n        await Verify(b);\n        await Verify(c).Snapshot(\"dup\");");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The kept line goes in after whatever followed the call on its line, and where that opens a
+    /// literal running onto the next line, a line break there would be more content. The call is
+    /// taken from where it stands then, and what followed it keeps the line.
+    /// </summary>
+    [Test]
+    public async Task RemoveKeepsTheLineWithoutBreakingALiteralThatFollowsTheCall()
+    {
+        var source = Method("        await Verify(a)\n            .Snapshot(\"dup\").UseTextForParameters(@\"one\ntwo\"); await Verify(b).Snapshot(\"dup\");");
+        var removed = Method("        await Verify(a)\n            .UseTextForParameters(@\"one\ntwo\"); await Verify(b).Snapshot(\"dup\");");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The line breaks of a file are its own, and the kept line is written with the one that was
+    /// in front of the call. A comment after the call goes up with what else followed it.
+    /// </summary>
+    [Test]
+    public async Task RemoveKeepsTheLineWithTheFilesLineBreak()
+    {
+        var source = "await Verify(a)\r\n    .Snapshot(\"dup\"); // gone\r\nawait Verify(b).Snapshot(\"dup\");\r\n";
+
+        var status = TryApply(source, 2, InlinePatchMode.Remove, "\"dup\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo("await Verify(a); // gone\r\n\r\nawait Verify(b).Snapshot(\"dup\");\r\n");
+    }
+
+    /// <summary>
     /// And an anchor that matches nothing is reported rather than resolved to the nearest call.
     /// </summary>
     [Test]

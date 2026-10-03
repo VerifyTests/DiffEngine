@@ -174,6 +174,34 @@ record QueueEntry(
 
     public bool Conflicted => Variants.Count > 1;
 
+    /// <summary>
+    /// Whether one side of an entry holds what a side that arrived, or was read again, holds.
+    /// </summary>
+    public static bool SameSide(
+        string text,
+        ImageFile? image,
+        DocumentFile? document,
+        string arrivedText,
+        ImageFile? arrivedImage,
+        DocumentFile? arrivedDocument)
+    {
+        if (document is { } held &&
+            arrivedDocument is { } sent)
+        {
+            // By its bytes. Its text follows from them, and is read after the entry arrives, so
+            // one of the two may hold it while the other is still waiting for it.
+            return held.Path == sent.Path &&
+                   held.Format == sent.Format &&
+                   held.Length == sent.Length &&
+                   held.Hash == sent.Hash;
+        }
+
+        return document is null &&
+               arrivedDocument is null &&
+               image == arrivedImage &&
+               text == arrivedText;
+    }
+
     public static string KeyForInline(string sourceFile, int line) =>
         InlineKey.For(sourceFile, line);
 

@@ -76,8 +76,19 @@ public static class InlinePatchFile
         var entryPoints = patch.EntryPoints is null || patch.EntryPoints.Length == 0
             ? ""
             : Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Join(',', patch.EntryPoints)));
-        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {framework}\noriginalValue: {value}\nmemberName: {memberName}\nentryPoints: {entryPoints}\n";
+        // An empty field is read back as no value, and a snapshot whose value is the empty string
+        // has one: it is the anchor an F# call is matched by, and without it the call reads as a
+        // new snapshot and is found by its line alone. Said on a line of its own, and only when
+        // it is so, because nothing can be put in the field itself: a reader that predates this
+        // decodes whatever is there as base64 and rejects the whole payload when it is not, where
+        // a line it does not know it skips, leaving it with what it had before
+        var emptyValue = patch.OriginalValue is { Length: 0 }
+            ? $"{originalValueEmpty}: true\n"
+            : "";
+        return $"version: 2\nsourceFile: {patch.SourceFile}\nlineHint: {patch.LineHint}\nmode: {patch.Mode}\noriginalExpression: {expression}\nnewContent: {content}\ntestName: {testName}\nframework: {framework}\noriginalValue: {value}\nmemberName: {memberName}\nentryPoints: {entryPoints}\n{emptyValue}";
     }
+
+    const string originalValueEmpty = "originalValueEmpty";
 
     public static bool TryRead(string path, [NotNullWhen(true)] out InlinePatch? patch)
     {
@@ -133,6 +144,7 @@ public static class InlinePatchFile
         string? testName = null;
         string? framework = null;
         string? originalValue = null;
+        var emptyValue = false;
         string? memberName = null;
         string[]? entryPoints = null;
         try
@@ -168,6 +180,12 @@ public static class InlinePatchFile
                     continue;
                 }
 
+                if (TryValue(lines[index], originalValueEmpty, out var emptyText))
+                {
+                    emptyValue = emptyText == "true";
+                    continue;
+                }
+
                 if (TryValue(lines[index], "memberName", out var memberNameBase64))
                 {
                     memberName = memberNameBase64.Length == 0
@@ -188,6 +206,13 @@ public static class InlinePatchFile
         catch (FormatException)
         {
             return false;
+        }
+
+        // After the lines rather than as they are read, since they come in any order. A value
+        // that is there wins: the line only says what an empty field cannot
+        if (emptyValue)
+        {
+            originalValue ??= "";
         }
 
         patch = new(sourceFile, lineHint, expression, content, mode)

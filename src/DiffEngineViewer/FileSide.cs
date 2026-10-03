@@ -102,12 +102,39 @@ readonly record struct FileSide(string Text, FileStamp? Stamp, string? Warning, 
     static FileStream OpenShared(string path) =>
         new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
+    /// <summary>
+    /// Into one array of the file's own length. Through a growing MemoryStream and out of it
+    /// again, a picture or a document was copied twice over on its way in.
+    /// <para>
+    /// The length is what it was when asked, and the file is shared with whoever is writing it,
+    /// so both ways it can have changed by the time it is read are answered as a copy to the end
+    /// answered them: one cut short is what was there, and one that grew is read to its new end.
+    /// </para>
+    /// </summary>
     public static byte[] ReadBytes(string path)
     {
         using var stream = OpenShared(path);
-        using var memory = new MemoryStream();
-        stream.CopyTo(memory);
-        return memory.ToArray();
+        var bytes = new byte[stream.Length];
+        var read = 0;
+        while (read < bytes.Length)
+        {
+            var count = stream.Read(bytes, read, bytes.Length - read);
+            if (count == 0)
+            {
+                return bytes[..read];
+            }
+
+            read += count;
+        }
+
+        using var grown = new MemoryStream();
+        stream.CopyTo(grown);
+        if (grown.Length == 0)
+        {
+            return bytes;
+        }
+
+        return [..bytes, ..grown.ToArray()];
     }
 
     /// <summary>

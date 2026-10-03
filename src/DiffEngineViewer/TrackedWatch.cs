@@ -177,14 +177,8 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
 
         Changed(
             entry,
-            () => QueueEntry.ForMove(
-                entry.Key,
-                entry.Name,
-                entry.Solution,
-                temp,
-                target,
-                FileSide.Read(temp, documents),
-                FileSide.Read(target, documents)),
+            // A file written again with what it held is the entry it was, with a new stamp
+            () => TrackedEntry.MoveAgain(entry, temp, target, documents),
             changed);
     }
 
@@ -205,7 +199,7 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
 
         Changed(
             entry,
-            () => QueueEntry.ForDelete(entry.Key, entry.Name, entry.Solution, file, FileSide.Read(file, documents)),
+            () => TrackedEntry.DeleteAgain(entry, file, documents),
             changed);
     }
 

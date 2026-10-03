@@ -79,6 +79,31 @@ public class FileSideTests
         await Assert.That(side.Image!.Value.Hash).IsNull();
     }
 
+    /// <summary>
+    /// One array of the file's length and little else. Read through a stream that grew and then
+    /// copied out of it, a megabyte came to more than three.
+    /// </summary>
+    [Test]
+    public async Task AFileIsReadIntoOneArray()
+    {
+        var content = new byte[1024 * 1024];
+        Random.Shared.NextBytes(content);
+        var file = Write("large.bin", content);
+        // Once before it is measured, so nothing counted is the first call's own
+        FileSide.ReadBytes(file);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var bytes = FileSide.ReadBytes(file);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        await Assert.That(bytes.AsSpan().SequenceEqual(content)).IsTrue();
+        await Assert.That(allocated).IsLessThan(content.Length + 256 * 1024);
+    }
+
+    [Test]
+    public async Task AnEmptyFileIsNoBytes() =>
+        await Assert.That(FileSide.ReadBytes(Write("empty.bin", []))).IsEmpty();
+
     static string Write(string name, byte[] content)
     {
         var path = Path.Combine(Directory(), name);

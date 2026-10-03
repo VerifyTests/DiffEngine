@@ -602,7 +602,8 @@ static class InlinePatcher
 
     /// <summary>
     /// Removes the Snapshot call, along with the whitespace and line break that preceded it so no
-    /// blank line is left behind.
+    /// blank line is left behind, except over a line holding another Snapshot call, where one has
+    /// to be (<see cref="KeepingItsLine"/>).
     /// <para>
     /// What it was called on stays, and that has to still be something once the call has gone. A
     /// verify call is. A variable is not: <c>settings.Snapshot("old");</c> became
@@ -700,11 +701,85 @@ static class InlinePatcher
 
             // Not when the line above ends in a line comment: pulling the call up would take the
             // semicolon that follows it into the comment
-            start = scan.IsCode(lineBreak) ? lineBreak : dotStart;
+            if (!scan.IsCode(lineBreak))
+            {
+                start = dotStart;
+            }
+            else if (SnapshotCallFollows(source, scan, lineStarts, closeParen))
+            {
+                newSource = KeepingItsLine(source, scan, lineBreak, start - 1, dotStart, closeParen);
+                return PatchStatus.Applied;
+            }
+            else
+            {
+                start = lineBreak;
+            }
         }
 
         newSource = Splice(source, start, closeParen + 1, "");
         return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Whether the line under the one a call ends on holds a Snapshot call: the line that comes
+    /// up onto the call's own when the call is taken out with its line.
+    /// </summary>
+    static bool SnapshotCallFollows(string source, SourceScan scan, List<int> lineStarts, int closeParen)
+    {
+        var next = LineOf(lineStarts, closeParen) + 1;
+        return next <= lineStarts.Count &&
+               CallsOnLine(source, scan, lineStarts, next, snapshotName, false).Any();
+    }
+
+    /// <summary>
+    /// Takes out a call that started its line, back to the end of the line above, so what
+    /// followed the call carries on from there, and leaves the line the call was on empty.
+    /// <para>
+    /// For a call with a Snapshot call on the line under it, and the empty line is for whoever
+    /// applies the same Remove next: every framework of a multi-targeted run does, and each case
+    /// of a test that ignores its parameters. With the lines under it pulled up, the recorded
+    /// line came to hold that call, and where it had the same literal there was nothing to tell
+    /// it from the one the patch was made for: the same line, the same anchor. It was taken for
+    /// a call still to be removed, and a sibling lost its snapshot. The file as it then stood is
+    /// the file an honest Remove of that sibling would meet, so nothing reading it afterwards
+    /// can do better, and the line has to be kept. One line, where the call started, however
+    /// many it ran over: that is the line a patch names, and <see cref="RemovedAtHint"/> reads
+    /// one with no Snapshot call, under a verify statement with none, as that call removed.
+    /// Anything else on the line under it is read that way already, so nothing is kept for it.
+    /// </para>
+    /// </summary>
+    /// <param name="source">The source the call is in.</param>
+    /// <param name="scan">The map of that source.</param>
+    /// <param name="lineBreak">Where the line break in front of the call's line starts.</param>
+    /// <param name="lineBreakEnd">The last character of that line break.</param>
+    /// <param name="dot">The dot the call hangs off.</param>
+    /// <param name="closeParen">The call's closing paren.</param>
+    static string KeepingItsLine(string source, SourceScan scan, int lineBreak, int lineBreakEnd, int dot, int closeParen)
+    {
+        var restEnd = source.IndexOf('\n', closeParen + 1);
+        // The line ends inside a literal or a block comment that opened after the call, where a
+        // line break more would be content. The call goes from where it stands instead, which
+        // keeps its line by leaving on it what followed. A break that ends a line comment is the
+        // comment's last character, and is the end of the line all the same
+        if (restEnd < 0 ||
+            !(scan.IsCode(restEnd) || scan.TryGetCommentEndingAt(restEnd + 1, out _)))
+        {
+            return Splice(source, dot, closeParen + 1, "");
+        }
+
+        if (restEnd > 0 &&
+            source[restEnd - 1] == '\r')
+        {
+            restEnd--;
+        }
+
+        var builder = new StringBuilder(source.Length);
+        builder.Append(source, 0, lineBreak);
+        builder.Append(source, closeParen + 1, restEnd - closeParen - 1);
+        // The break that was in front of the call, now behind what followed it
+        builder.Append(source, lineBreak, lineBreakEnd + 1 - lineBreak);
+        builder.Append(source, restEnd, source.Length - restEnd);
+        return builder.ToString();
     }
 
     /// <summary>

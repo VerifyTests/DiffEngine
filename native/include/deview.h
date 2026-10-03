@@ -329,6 +329,8 @@ typedef struct DeviewInput {
     /*
      * Where a drag has left an enlarged picture: the point now at the middle of what shows, as
      * fractions of the picture's width and height, already kept inside what the space can show.
+     * On an axis the dragged picture cannot move on, because all of it shows, it is the centre
+     * the frame was drawn with, unchanged: the other pane's picture may be able to move there.
      * panX is -1 on the frames with no such drag, which is almost all of them.
      *
      * A position rather than a distance, measured from where the button went down, so the picture

@@ -257,6 +257,54 @@ public class ViewerClientUnownedTests
     }
 
     /// <summary>
+    /// A send the caller cancelled says nothing about the port. Cancelling closes the socket, the
+    /// one thing that unblocks every framework, and what the closed socket threw was read as a
+    /// connect that failed: the port was remembered as unowned, with its owner listening, and
+    /// every settle and move after it went unsent for ten minutes.
+    /// </summary>
+    [Test]
+    public async Task ASendCancelledBeforeItStartsSaysNothingAboutThePort()
+    {
+        using var owner = new Owner();
+        using var cancel = new CancelSource();
+        cancel.Cancel();
+
+        await Assert.That(async () => await ViewerClient.SendAsync(settle, cancel.Token, owner.Port))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsFalse();
+        await Assert.That(ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true)).IsTrue();
+        await Assert.That(owner.Heard.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// The same while the connect is still out. A port that is bound and not listening is the
+    /// connect that goes unanswered: Windows spends two seconds on it, which the cancel arrives
+    /// inside. The table is made unreadable so that the connect is reached at all.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task ASendCancelledWhileConnectingSaysNothingAboutThePort()
+    {
+        using var holder = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        {
+            ExclusiveAddressUse = true
+        };
+        holder.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint) holder.LocalEndPoint!).Port;
+        using var unreadable = new Lookup(port)
+        {
+            Unreadable = true
+        };
+        using var cancel = new CancelSource(TimeSpan.FromMilliseconds(200));
+
+        await Assert.That(async () => await ViewerClient.SendAsync(settle, cancel.Token, port))
+            .Throws<OperationCanceledException>();
+
+        await Assert.That(ViewerClient.FoundUnowned(port)).IsFalse();
+    }
+
+    /// <summary>
     /// Stands in front of the listener table for the ports a test names, counting how often each
     /// was asked about and, when told to, failing the way a table that cannot be read does. Every
     /// other port goes through untouched, since the tests beside this one are asking about theirs

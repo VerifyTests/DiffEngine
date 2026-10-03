@@ -1403,6 +1403,128 @@ public class InlinePatchFileTests
         await Assert.That(result!.EntryPoints).IsNull();
     }
 
+    /// <summary>
+    /// An F# call is anchored by the value its literal holds, and the empty string is a value. It
+    /// was written as an empty field, which reads back as no value at all: the viewer then called
+    /// the snapshot new, and the patcher went by the line alone.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyOriginalValueSurvives()
+    {
+        var patch = new InlinePatch("Tests.fs", 1, null, "content")
+        {
+            TestName = null,
+            OriginalValue = ""
+        };
+
+        var read = InlinePatchFile.TryParse(InlinePatchFile.Build(patch), out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsEqualTo("");
+    }
+
+    /// <summary>
+    /// What a reader that predates the line is handed. The field it knows is as empty as it always
+    /// was, so it reads no value, as before; the line that says otherwise is one it has no name
+    /// for, after every line it has, and it skips those
+    /// (<see cref="UnknownTrailingLinesAreIgnored" />). A mark inside the field would have been
+    /// decoded as base64 and failed the whole payload.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyOriginalValueIsALineAnOlderReaderSkips()
+    {
+        var patch = new InlinePatch("Tests.fs", 1, null, "a")
+        {
+            TestName = null,
+            Framework = "net8.0",
+            OriginalValue = ""
+        };
+
+        await Assert.That(InlinePatchFile.Build(patch))
+            .IsEqualTo("version: 2\nsourceFile: Tests.fs\nlineHint: 1\nmode: Set\noriginalExpression: \nnewContent: YQ==\ntestName: \nframework: net8.0\noriginalValue: \nmemberName: \nentryPoints: \noriginalValueEmpty: true\n");
+    }
+
+    /// <summary>
+    /// Every other patch is written as it was, with no line for a reader to make anything of.
+    /// </summary>
+    [Test]
+    [Arguments(null)]
+    [Arguments("old")]
+    public async Task OnlyAnEmptyOriginalValueIsMarked(string? value)
+    {
+        var patch = new InlinePatch("Tests.fs", 1, null, "a")
+        {
+            TestName = null,
+            OriginalValue = value
+        };
+
+        var payload = InlinePatchFile.Build(patch);
+
+        await Assert.That(payload).DoesNotContain("originalValueEmpty");
+        await Assert.That(InlinePatchFile.TryParse(payload, out var result)).IsTrue();
+        await Assert.That(result!.OriginalValue).IsEqualTo(value);
+    }
+
+    /// <summary>
+    /// What a writer that predates the line sends: an empty field and nothing more, which is still
+    /// no value, since such a writer sends the same for both.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyOriginalValueFieldAloneIsStillNoValue()
+    {
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            originalValue:
+            memberName:
+
+            """, out var result);
+
+        await Assert.That(read).IsTrue();
+        await Assert.That(result!.OriginalValue).IsNull();
+    }
+
+    /// <summary>
+    /// The lines past the fixed six come in any order, and the line says only what an empty field
+    /// cannot: beside a field that holds a value, the value stands.
+    /// </summary>
+    [Test]
+    public async Task TheEmptyValueLineIsReadInAnyOrderAndYieldsToAValue()
+    {
+        await Assert.That(InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            originalValueEmpty: true
+            originalValue:
+
+            """, out var before)).IsTrue();
+        await Assert.That(before!.OriginalValue).IsEqualTo("");
+
+        await Assert.That(InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            originalValue: b2xk
+            originalValueEmpty: true
+
+            """, out var beside)).IsTrue();
+        await Assert.That(beside!.OriginalValue).IsEqualTo("old");
+    }
+
     // Matching the strictness of the other encoded fields
     [Test]
     public async Task ABadTestNameBase64Fails()

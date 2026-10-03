@@ -346,6 +346,176 @@ public class PixelTests
     }
 
     /// <summary>
+    /// The context menu opened on the last row of a queue that fills its column, where hung under
+    /// its row it would run off the bottom of the window, its last item with it: it goes over the
+    /// row instead. Linux only, for the reason <see cref="ContextMenu"/> is.
+    /// <para>
+    /// At the rows the Linux head measures for a window this size, which is three more than the
+    /// other scenes are pinned to: its lines are 17 pixels and not 18, and it is that grid that
+    /// puts the last row 96 pixels above the window's bottom edge. The entry is a conflicted one
+    /// because its menu is the longest a row has, six items and 114 pixels.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 16)]
+    [SkipOnMac("The macOS head pops a real NSMenu, which a capture has no window to show.")]
+    public Task ContextMenuOnTheLastRow()
+    {
+        const int measuredRows = height / 17;
+        InlinePatch[] patches =
+        [
+            .. Enumerable.Range(1, 32).Select(_ => Fixtures.Patch($"Tests{_:D2}.cs", _)),
+            Fixtures.Patch("Tests33.cs", 33, content: "eight", framework: "net8.0"),
+            Fixtures.Patch("Tests33.cs", 33, content: "nine", framework: "net9.0")
+        ];
+        var state = ViewerSession.Resize(Fixtures.Inline(patches), columns, measuredRows);
+        return Capture(ViewerSession.OpenMenu(state, ScreenBuilder.BodyRows(state) - 1), measuredRows);
+    }
+
+    /// <summary>
+    /// Names with <c>##</c> in them, everywhere the Linux head hands a name to ImGui as an item's
+    /// label: a queue row, a group's heading, the two pane headers and the items of a menu. ImGui
+    /// takes everything from <c>##</c> on as the item's identity and does not draw it, so each of
+    /// these stopped there. Linux only: no other head has a toolkit that reads a label that way.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 17)]
+    [SkipOnMac("There is no macOS baseline for this scene: it is about how Dear ImGui reads a label, which that head does not use.")]
+    public Task NamesWithHashes()
+    {
+        var state = ViewerSession.EnqueueTracked(
+            SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows),
+            QueueEntry.ForMove(
+                "move:temp/Notes##2.received.txt",
+                "Notes##2 (txt)",
+                null,
+                "temp/Notes##2.received.txt",
+                "code/Notes##2.verified.txt",
+                FileSide.OfText(Fixtures.Received),
+                FileSide.OfText(Fixtures.Expected)));
+        state = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(Fixtures.SolutionFile("Solution##A", "Tests", "A##Tests.cs"), 10));
+        state = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 12));
+        // The fifth row is the move, under the two solutions and their one entry each: the menu
+        // names its files, and opening it selects it, which puts them in the pane headers
+        return Capture(ViewerSession.OpenMenu(state, 4));
+    }
+
+    /// <summary>
+    /// Two pictures fitted at a third of their size: white, with a black line one pixel wide every
+    /// sixteen, across and down. Sampled between its own pixels and no others, which is all a
+    /// picture near its own size needs, a line survives only where a sample lands on it, so a grid
+    /// came out with some of its lines faint and some gone. The Linux head now draws a picture
+    /// under half its size from reduced copies of it, in which every line is there and fainter.
+    /// <para>
+    /// Linux only. How a picture is reduced is each head's own toolkit's, so this one says
+    /// nothing about the others.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 18)]
+    [SkipOnMac("There is no macOS baseline for this scene: how a picture is reduced is each head's own.")]
+    public Task ImagesReduced()
+    {
+        var left = WriteBitmap("grid.received.bmp", 1600, 1200, 255, 16);
+        var right = WriteBitmap("grid.verified.bmp", 1200, 1600, 255, 16);
+        return Capture(
+            ViewerSession.EnqueueFile(
+                SessionState.Start(ViewerMode.File, Fixtures.Columns, Fixtures.Rows),
+                QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right))));
+    }
+
+    /// <summary>
+    /// A picture longer on one side than a texture can be, beside one that is not. The rows say
+    /// what it is, as they do for a format the head has no decoder for, and nothing is drawn under
+    /// them: it was a black box the shape of the picture, which is what GL makes of a texture it
+    /// was handed and would not take.
+    /// <para>
+    /// Linux only, and only where the limit is what it is under Mesa's software rasteriser, which
+    /// is what these baselines are pinned to: 16384 pixels, one fewer than this picture is wide.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 19)]
+    [SkipOnMac("There is no macOS baseline for this scene: it is about the largest texture the Linux head's GL takes.")]
+    public Task ImageTooLargeForATexture()
+    {
+        var left = WriteBitmap("wide.received.bmp", 16385, 512, 160, 0);
+        var right = WriteBitmap("wide.verified.bmp", 160, 120, 160, 0);
+        return Capture(
+            ViewerSession.EnqueueFile(
+                SessionState.Start(ViewerMode.File, Fixtures.Columns, Fixtures.Rows),
+                QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right))));
+    }
+
+    /// <summary>
+    /// An eight bit greyscale bitmap of one shade, with a black line one pixel wide every
+    /// <paramref name="spacing"/> pixels across and down when that is not zero. A bitmap because
+    /// it is its header, a palette and its pixels, with nothing to compress, so its bytes are the
+    /// same on every runtime: the pane prints how many there are.
+    /// </summary>
+    static string WriteBitmap(string name, int width, int height, byte shade, int spacing)
+    {
+        const int headers = 14 + 40;
+        const int palette = 256 * 4;
+        // Each row is padded to a multiple of four bytes
+        var stride = (width + 3) / 4 * 4;
+        var bytes = new byte[headers + palette + stride * height];
+        bytes[0] = (byte) 'B';
+        bytes[1] = (byte) 'M';
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(2), bytes.Length);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(10), headers + palette);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(14), 40);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(18), width);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(22), height);
+        // One plane, eight bits a pixel, uncompressed
+        BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(26), 1);
+        BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(28), 8);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(34), stride * height);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(46), 256);
+        for (var index = 0; index < 256; index++)
+        {
+            bytes.AsSpan(headers + index * 4, 3).Fill((byte) index);
+        }
+
+        for (var y = 0; y < height; y++)
+        {
+            // Rows are stored from the bottom one up
+            var row = bytes.AsSpan(headers + palette + (height - 1 - y) * stride, width);
+            row.Fill(shade);
+            if (spacing == 0)
+            {
+                continue;
+            }
+
+            if (y % spacing == 0)
+            {
+                row.Clear();
+                continue;
+            }
+
+            for (var x = 0; x < width; x += spacing)
+            {
+                row[x] = 0;
+            }
+        }
+
+        // A fixed directory and a fixed name, as Fixtures.Images has and for its reason
+        var directory = Path.Combine(Path.GetTempPath(), "deview-fixture-images");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, name);
+        File.WriteAllBytes(path, bytes);
+        return path;
+    }
+
+    /// <summary>
     /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
     /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
     /// deview_present did none of them - the window stayed blank and took no keys, and the loop
@@ -357,7 +527,7 @@ public class PixelTests
     /// </summary>
     [Test]
     [PixelTest]
-    [NotInParallel(nameof(PixelTests), Order = 16)]
+    [NotInParallel(nameof(PixelTests), Order = 20)]
     [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
     public async Task PresentWaitsForTheNextFrame()
     {
@@ -381,9 +551,9 @@ public class PixelTests
         await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
     }
 
-    static async Task Capture(SessionState state)
+    static async Task Capture(SessionState state, int gridRows = rows)
     {
-        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, gridRows));
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {

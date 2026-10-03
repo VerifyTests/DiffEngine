@@ -842,6 +842,26 @@ public class InlinePatcherFsTests
     }
 
     /// <summary>
+    /// A Remove applied a second time, by another framework of the run, has the same line and the
+    /// same value to go by. With the call's line taken out, the sibling under it had come up onto
+    /// that line and lost its snapshot. The line is kept, empty, which
+    /// <see cref="FsCompilerRoundTripTests" /> asks the compiler about.
+    /// </summary>
+    [Test]
+    public async Task RemoveAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var source = Test("    Verifier.Verify(a)\n        .Snapshot(\"dup\")\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()");
+        var removed = Test("    Verifier.Verify(a)\n\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, null, "", out var once, out _, originalValue: "dup", memberName: "MyTest");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, null, "", out _, out _, originalValue: "dup", memberName: "MyTest");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
     /// Bound or passed on the same line, what the call was on is still a value with the call gone,
     /// so the call alone is taken. The <c>=</c> a line above is another matter: a whole body hangs
     /// off that one, and the line under it is the body's first statement.
@@ -953,6 +973,48 @@ public class InlinePatcherFsTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.Applied);
         await Assert.That(newSource).Contains("Snapshot(\"new\")");
+    }
+
+    /// <summary>
+    /// F# lexes inside a comment, so a close or an open written in a string there is neither, and
+    /// (*) there is the operator. Each of these is one comment to the compiler, which
+    /// <see cref="FsCompilerRoundTripTests" /> asks it; read as text, the comment ended early or
+    /// never, and the call under it was not found.
+    /// </summary>
+    [Test]
+    public async Task ACommentIsLexedAsTheCompilerLexesIt()
+    {
+        foreach (var comment in FsCompilerRoundTripTests.Comments)
+        {
+            var source = Source($"module Tests\n\n{comment}\nlet MyTest () =\n    Verifier.Verify(x).Snapshot().ToTask()\n");
+            var commentLines = comment.Split('\n').Length;
+
+            var status = TryApply(source, 4 + commentLines, InlinePatchMode.Set, null, "new", out var newSource, out var reason);
+
+            await Assert.That(status).IsEqualTo(PatchStatus.Applied).Because($"{comment}: {reason}");
+            await Assert.That(newSource).IsEqualTo(
+                Source($"module Tests\n\n{comment}\nlet MyTest () =\n    Verifier.Verify(x).Snapshot(\"new\").ToTask()\n"));
+        }
+    }
+
+    /// <summary>
+    /// A double backticked name holds anything, and none of it opens a string or a comment. The
+    /// name is still code: it is where the member a patch names is looked for.
+    /// </summary>
+    [Test]
+    public async Task ADoubleBacktickedNameIsSteppedOverWhole()
+    {
+        foreach (var name in FsCompilerRoundTripTests.QuotedNames)
+        {
+            var source = Source($"module Tests\n\nlet ``other {name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n\nlet ``{name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n");
+
+            // A hint that names nothing, so the member is all that finds the call
+            var status = TryApply(source, 1, InlinePatchMode.Set, null, "new", out var newSource, out var reason, memberName: name);
+
+            await Assert.That(status).IsEqualTo(PatchStatus.Applied).Because($"{name}: {reason}");
+            await Assert.That(newSource).IsEqualTo(
+                Source($"module Tests\n\nlet ``other {name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n\nlet ``{name}`` () =\n    Verifier.Verify(x).Snapshot(\"new\").ToTask()\n"));
+        }
     }
 
     [Test]

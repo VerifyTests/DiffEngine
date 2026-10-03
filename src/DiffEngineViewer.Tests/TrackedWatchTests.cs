@@ -306,6 +306,56 @@ public class TrackedWatchTests :
         await Assert.That(host.State.Queue.Count(_ => _.Kind == QueueEntryKind.Inline)).IsEqualTo(2);
     }
 
+    /// <summary>
+    /// A run that fails the same way writes its received file again with what it held. The entry
+    /// is the one it was with a new stamp: its rows are not built again, since building them is
+    /// the diff, and the pass after has nothing to do.
+    /// </summary>
+    [Test]
+    public async Task AFileWrittenAgainWithWhatItHeldIsNotDiffedAgain()
+    {
+        var (temp, target) = Pair("Sample.Test");
+        var host = Owned(TrackedEntry.ForMove(temp, target));
+        var before = host.State.Queue.Single();
+        File.SetLastWriteTimeUtc(temp, DateTime.UtcNow.AddMinutes(1));
+        var watch = new TrackedWatch(host);
+
+        watch.Pump();
+
+        var after = host.State.Queue.Single();
+        await Assert.That(ReferenceEquals(after.LeftRows, before.LeftRows)).IsTrue();
+        await Assert.That(after.LeftStamp).IsNotEqualTo(before.LeftStamp);
+
+        var settled = host.State;
+        watch.Pump();
+        await Assert.That(ReferenceEquals(host.State, settled)).IsTrue();
+    }
+
+    /// <summary>
+    /// The same over the socket, which is how the run itself says the pair is pending again.
+    /// </summary>
+    [Test]
+    public async Task APairSentAgainUnchangedIsNotDiffedAgain()
+    {
+        var (temp, target) = Pair("Sample.Test");
+        var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+        IQueueOwner owner = new MessageHandler(host, Fixtures.Applied, _ => { });
+        owner.TrackMove(temp, target);
+        var before = host.State.Queue.Single();
+        File.SetLastWriteTimeUtc(temp, DateTime.UtcNow.AddMinutes(1));
+
+        owner.TrackMove(temp, target);
+
+        var after = host.State.Queue.Single();
+        await Assert.That(ReferenceEquals(after.LeftRows, before.LeftRows)).IsTrue();
+        await Assert.That(after.LeftStamp).IsNotEqualTo(before.LeftStamp);
+
+        await File.WriteAllTextAsync(temp, "what a later run received instead");
+        owner.TrackMove(temp, target);
+
+        await Assert.That(host.State.Queue.Single().LeftText).IsEqualTo("what a later run received instead");
+    }
+
     SessionHost OwnedAll(int count)
     {
         var state = SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows);

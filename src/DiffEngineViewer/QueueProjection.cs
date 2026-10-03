@@ -39,7 +39,7 @@ static class QueueProjection
         }
 
         // Each entry's group worked out once, and its mates collected in one pass, rather than every
-        // entry asking every other one for a key built from two new strings. This runs twice per
+        // entry asking every other one for a key built from two new strings. This runs for every
         // change to the queue, under the lock the render loop takes, and at a few hundred entries
         // the pairwise version was tens of milliseconds and megabytes of garbage each time.
         var groups = new string?[entries.Count];

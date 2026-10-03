@@ -59,6 +59,7 @@ sealed class FormsViewerWindow :
             return false;
         }
 
+        form.LoopReturned();
         form.Apply(screen);
         // Every frame rather than only on a changed screen: a spinner turns while nothing about the
         // screen changes, which is the whole time a page is being drawn
@@ -89,9 +90,20 @@ sealed class FormsViewerWindow :
             return;
         }
 
-        var timeout = form.Visible ? frameMilliseconds - 1 : hiddenMilliseconds;
+        var timeout = FrameWait(form.Visible, form.WindowState);
         MsgWaitForMultipleObjectsEx(0, IntPtr.Zero, (uint) timeout, allInput, inputAvailable);
     }
+
+    /// <summary>
+    /// How long to wait for the next frame. A minimised window waits as a hidden one does: it is
+    /// still Visible to WinForms, so it went on at sixty frames a second with nothing of it on
+    /// screen, for as long as it sat in the taskbar. Not a third state, because what a hidden
+    /// window has to hear is what a minimised one has to: the wait ends on any message, which is
+    /// the click that restores it, and the loop reads what the listener queued each time it wakes,
+    /// so a snapshot that arrives raises the window within a tenth of a second either way.
+    /// </summary>
+    internal static int FrameWait(bool visible, FormWindowState state) =>
+        visible && state != FormWindowState.Minimized ? frameMilliseconds - 1 : hiddenMilliseconds;
 
     const int hiddenMilliseconds = 100;
     const uint allInput = 0x04FF;

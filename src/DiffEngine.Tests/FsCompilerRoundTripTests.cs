@@ -69,6 +69,96 @@ public class FsCompilerRoundTripTests
         (InlinePatchMode.Append, "Verify(\"x\").ToTask()")
     ];
 
+    /// <summary>
+    /// Comments F# reads as one comment each, which the scanner has to read the same way or the
+    /// call below is taken to be inside a comment or a string. What F# does inside a comment is
+    /// lex it: a string is a string, a char literal is a char literal, and <c>(*)</c> is the
+    /// operator. Each is here because fsi was asked, and is asked again by
+    /// <see cref="CommentsAndNamesAreReadAsTheCompilerReadsThem" />.
+    /// </summary>
+    internal static readonly string[] Comments =
+    [
+        "(* returns \"*)\" when closed *)",
+        "(* see \"(*\" *)",
+        "(* the (*) operator *)",
+        "(* (*)*)",
+        // Verbatim, where a backslash escapes nothing and the string ends at the quote after it
+        "(* path @\"c:\\\" *)",
+        "(* @\"a\"\"*)\" *)",
+        // Regular, where it does
+        "(* \"a\\\"*)\" *)",
+        "(* \"a\\\\\" *)",
+        // Not interpolated: a dollar, and then whichever string follows it
+        "(* $\"{1}*)\" *)",
+        "(* $@\"c:\\\" *)",
+        "(* \"\"\" a \" *) \" b \"\"\" *)",
+        // A quote that opens nothing
+        "(* char '\"' *)",
+        "(* char '\\\"' *)",
+        "(* '\"' \"*)\" *)",
+        "(* a'\"' *)",
+        "(* 'a'\"'*)\" *)",
+        // And a tick that is no char literal, so the string after it is one
+        "(* it's \"*)\" *)",
+        "(* 'a \"*)\" *)",
+        "(* a (* \"*)\" *) c *)",
+        "(*\"*)\"*)",
+        "(* \"a\n*)\nb\" *)",
+        "(* // *)",
+        "(**)",
+        "(***)"
+    ];
+
+    /// <summary>
+    /// Double backticked names, which hold anything: none of these opens a string or a comment.
+    /// </summary>
+    internal static readonly string[] QuotedNames =
+    [
+        "returns \"x",
+        "a (* b",
+        "a // b",
+        "it's '\"' b",
+        "a ` b"
+    ];
+
+    [Test]
+    [RequiresDotnet]
+    public async Task CommentsAndNamesAreReadAsTheCompilerReadsThem()
+    {
+        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes("found"));
+        var builder = new StringBuilder(prelude);
+        for (var index = 0; index < Comments.Length; index++)
+        {
+            // The comment is the first thing in the body, so a scanner that ends it early or not
+            // at all loses the call under it, and a compiler that reads it as anything but one
+            // comment has no function to call
+            builder.Append(Patch($"let comment{index} () =\n    {Comments[index]}\n    Verify(\"x\").Snapshot().ToTask()\n", 3, InlinePatchMode.Set, "found"));
+            builder.Append($"check \"comment{index}\" (comment{index} ()) \"{expected}\"\n\n");
+        }
+
+        for (var index = 0; index < QuotedNames.Length; index++)
+        {
+            var name = $"``{QuotedNames[index]} {index}``";
+            builder.Append(Patch($"let {name} () =\n    Verify(\"x\").Snapshot().ToTask()\n", 2, InlinePatchMode.Set, "found"));
+            builder.Append($"check \"name{index}\" ({name} ()) \"{expected}\"\n\n");
+        }
+
+        builder.Append(footer);
+        var path = Path.Combine(Path.GetTempPath(), $"DiffEngineFsComments_{Guid.NewGuid():N}.fsx");
+        await File.WriteAllTextAsync(path, builder.ToString(), new UTF8Encoding(false));
+        try
+        {
+            var (exitCode, output) = RunFsi(path);
+
+            await Assert.That(output).Contains("ALL OK");
+            await Assert.That(exitCode).IsEqualTo(0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     [RequiresDotnet]
     public async Task PatchedSourceCompilesAndReadsBack()
@@ -90,10 +180,7 @@ public class FsCompilerRoundTripTests
         }
     }
 
-    static string BuildScript()
-    {
-        var builder = new StringBuilder();
-        builder.Append(
+    const string prelude =
             """
             type Chain(value: string) =
                 member _.Snapshot(expected: string) = Chain(expected)
@@ -148,7 +235,18 @@ public class FsCompilerRoundTripTests
                     printfn "  expected %A" expected
 
 
-            """);
+            """;
+
+    const string footer =
+        """
+        if failures = 0 then printfn "ALL OK" else printfn "%d FAILURES" failures
+        exit failures
+
+        """;
+
+    static string BuildScript()
+    {
+        var builder = new StringBuilder(prelude);
 
         for (var index = 0; index < cases.Length; index++)
         {
@@ -231,18 +329,22 @@ public class FsCompilerRoundTripTests
             }
         }
 
-        builder.Append(
-            """
-            if failures = 0 then printfn "ALL OK" else printfn "%d FAILURES" failures
-            exit failures
+        // A Remove of a call that has a line to itself, over a line holding a Snapshot call, leaves
+        // its line empty, so the next apply of the same patch does not find that call where its
+        // own was. The empty line is between two statements of a computation expression here,
+        // and inside one chain, which has to still be one expression
+        builder.Append(Patch("let removedBang () =\n    capture {\n        do! Verify(\"x\")\n                .Snapshot(\"dup\").ToTask()\n        do! Verify(\"y\").Snapshot(\"dup\").ToTask()\n    }\n", 4, InlinePatchMode.Remove, "", "dup"));
+        builder.Append($"check \"removedBang\" (removedBang ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("xdup"))}\"\n\n");
+        builder.Append(Patch("let removedChain () =\n    Verify(\"x\")\n        .Snapshot(\"dup\")\n        .Snapshot(\"kept\").ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
+        builder.Append($"check \"removedChain\" (removedChain ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("kept"))}\"\n\n");
 
-            """);
+        builder.Append(footer);
         return builder.ToString();
     }
 
-    static string Patch(string snippet, int lineHint, InlinePatchMode mode, string content)
+    static string Patch(string snippet, int lineHint, InlinePatchMode mode, string content, string? originalValue = null)
     {
-        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, null, null, null, false, content, out var patched, out var reason);
+        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, originalValue, null, null, false, content, out var patched, out var reason);
         if (status != PatchStatus.Applied)
         {
             throw new($"{mode} patch was not applied: {reason}");

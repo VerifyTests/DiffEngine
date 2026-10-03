@@ -75,7 +75,7 @@ static class OptionsFormLauncher
     static void Bind(KeyRegister keyRegister, Tracker tracker, Settings settings, List<string> saveErrors)
     {
         AddHotKey(keyRegister, settings.AcceptAllHotKey, KeyBindingIds.AcceptAll, () => tracker.AcceptAll(), saveErrors);
-        AddHotKey(keyRegister, settings.DiscardAllHotKey, KeyBindingIds.DiscardAll, tracker.Clear, saveErrors);
+        AddHotKey(keyRegister, settings.DiscardAllHotKey, KeyBindingIds.DiscardAll, () => tracker.Clear(), saveErrors);
         AddHotKey(keyRegister, settings.AcceptOpenHotKey, KeyBindingIds.AcceptOpen, () => tracker.AcceptOpen(), saveErrors);
     }
 

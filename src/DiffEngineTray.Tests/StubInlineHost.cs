@@ -12,8 +12,17 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
 {
     public string Description => "stub";
 
-    public IReadOnlyList<PendingSnapshot> List() =>
-        snapshots;
+    /// <summary>
+    /// Run each time the listing is read, which is once as a tracker starts and once a scan after
+    /// that. Throwing from it is a queue that fails the scan.
+    /// </summary>
+    public Action? Listed { get; init; }
+
+    public IReadOnlyList<PendingSnapshot> List()
+    {
+        Listed?.Invoke();
+        return snapshots;
+    }
 
     /// <summary>
     /// Whether the queue says what it holds when asked. False stands in for a viewer that holds
@@ -87,6 +96,8 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
     public bool DiscardAll(out string? message)
     {
         message = null;
+        DiscardStarted.Set();
+        DiscardBlock?.Wait(TimeSpan.FromSeconds(10));
         return true;
     }
 

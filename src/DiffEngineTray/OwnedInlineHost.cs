@@ -332,10 +332,11 @@ sealed class OwnedInlineHost :
 
     string IQueueOwner.ListingTag()
     {
-        // The tracked files by what the listing would carry of them rather than by a count, since
-        // the tracker changes them on its own scan as well as through here. A handful of paths,
-        // where the listing it saves is every patch.
-        var files = TrackedFiles is { } tracked ? Fingerprint(tracked) : "";
+        // The tracked files by the tracker's own word on whether what it would list has changed,
+        // rather than by a count of them, since it changes them on its own scan as well as through
+        // here. Asked of it rather than worked out from the lists, which was every tracked file
+        // described and hashed on every poll to find that none had changed.
+        var files = TrackedFiles?.Version();
         lock (gate)
         {
             if (!ReferenceEquals(queue, taggedQueue))
@@ -346,22 +347,6 @@ sealed class OwnedInlineHost :
 
             return $"{instance}.{generation}.{asks}.{progress?.Build()}.{files}";
         }
-    }
-
-    static string Fingerprint(ITrackedFiles tracked)
-    {
-        var builder = new StringBuilder();
-        foreach (var move in tracked.Moves())
-        {
-            builder.Append(move).Append('\n');
-        }
-
-        foreach (var delete in tracked.Deletes())
-        {
-            builder.Append(delete).Append('\n');
-        }
-
-        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
 
     bool IQueueOwner.Has(string key)

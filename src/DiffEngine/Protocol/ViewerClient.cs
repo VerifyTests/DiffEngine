@@ -191,6 +191,10 @@ static class ViewerClient
     {
         lastFound.Clear();
         reportedForeign.Clear();
+        lock (keptGate)
+        {
+            DropKept();
+        }
     }
 
     /// <summary>
@@ -283,10 +287,191 @@ static class ViewerClient
     /// settle, a retire, a move or a delete to track - so a port recently found unowned is taken
     /// at its word rather than connected to again: see <see cref="RecheckUnownedAfter"/>.
     /// </para>
+    /// <para>
+    /// And they are the sends there can be thousands of, a settle for every passing inline
+    /// verification, so they go down one connection where the owner keeps one: see
+    /// <see cref="ViewerServer.Keep"/>. The first is an ordinary exchange, whose reply says
+    /// whether the owner does, and so is every one to an owner that predates it.
+    /// </para>
     /// </summary>
     public static bool TrySend(ViewerMessage message) =>
-        TrySend(message, out var response, skipIfUnowned: true) &&
-        response.Ok;
+        Tell(message, Port);
+
+    /// <summary>
+    /// <see cref="TrySend(ViewerMessage)"/> with the port given, for the tests, which use a port
+    /// of their own rather than change what <see cref="Port"/> reads for everything beside them.
+    /// </summary>
+    internal static bool Tell(ViewerMessage message, int port)
+    {
+        switch (SendKept(message, port, out var ok))
+        {
+            case KeptSend.Answered:
+                return ok;
+            case KeptSend.Unanswered:
+                return false;
+        }
+
+        if (!Exchange(message, out var response, out var keeps, port, null, skipIfUnowned: true))
+        {
+            return false;
+        }
+
+        if (keeps)
+        {
+            KeepConnection(port);
+        }
+
+        return response.Ok;
+    }
+
+    enum KeptSend
+    {
+        /// <summary>
+        /// No connection is kept to that port, or the one that was has gone, as it does when its
+        /// owner exits. The ordinary exchange is what finds out who is there now.
+        /// </summary>
+        NotKept,
+
+        Answered,
+
+        /// <summary>
+        /// Sent, and not answered inside the timeout: an owner that is there and busy, which the
+        /// ordinary exchange would only wait on for as long again.
+        /// </summary>
+        Unanswered
+    }
+
+    sealed class KeptConnection(TcpClient client, int port) :
+        IDisposable
+    {
+        public int Port { get; } = port;
+        public NetworkStream Stream { get; } = client.GetStream();
+        public StreamReader Reader { get; } = new(client.GetStream(), Encoding.UTF8);
+
+        public void Dispose() =>
+            client.Close();
+    }
+
+    /// <summary>
+    /// Held for the whole of an exchange on the kept connection, which is one request and its
+    /// answer at a time. A parallel run's settles take turns at it, each for about as long as
+    /// the owner takes to answer.
+    /// </summary>
+    static readonly object keptGate = new();
+
+    static KeptConnection? kept;
+
+    static KeptSend SendKept(ViewerMessage message, int port, out bool ok)
+    {
+        ok = false;
+        lock (keptGate)
+        {
+            if (kept is null)
+            {
+                return KeptSend.NotKept;
+            }
+
+            if (kept.Port != port)
+            {
+                DropKept();
+                return KeptSend.NotKept;
+            }
+
+            try
+            {
+                var bytes = Encoding.UTF8.GetBytes($"{message.Build()}\n");
+                kept.Stream.Write(bytes, 0, bytes.Length);
+                kept.Stream.Flush();
+                var reply = new StringBuilder();
+                string? line;
+                while ((line = kept.Reader.ReadLine()) is { Length: > 0 })
+                {
+                    reply.Append(line);
+                    reply.Append('\n');
+                }
+
+                if (line is not null &&
+                    ViewerResponse.TryParse(reply.ToString(), out var response))
+                {
+                    Found(port, true);
+                    ok = response.Ok;
+                    return KeptSend.Answered;
+                }
+
+                // Closed by the owner, which is an owner that stopped or exited since the last
+                // send. Whoever holds the port now is for the ordinary exchange to find
+                DropKept();
+                return KeptSend.NotKept;
+            }
+            catch (Exception exception)
+                when (Ignorable(exception))
+            {
+                DropKept();
+                return TimedOut(exception) ? KeptSend.Unanswered : KeptSend.NotKept;
+            }
+        }
+    }
+
+    static bool TimedOut(Exception exception) =>
+        exception is IOException
+        {
+            InnerException: SocketException
+            {
+                SocketErrorCode: SocketError.TimedOut
+            }
+        };
+
+    /// <summary>
+    /// Opens the connection the telling sends after this one go down, to an owner whose reply
+    /// has just said it keeps one. Failing to is nothing: the next send is an ordinary exchange,
+    /// and tries again on the strength of its own reply.
+    /// </summary>
+    static void KeepConnection(int port)
+    {
+        lock (keptGate)
+        {
+            if (kept is not null)
+            {
+                if (kept.Port == port)
+                {
+                    return;
+                }
+
+                DropKept();
+            }
+
+            var client = new TcpClient();
+            try
+            {
+                if (!Connect(client, port, ShortTimeout))
+                {
+                    client.Close();
+                    return;
+                }
+
+                Configure(client, timeout);
+                // Each request is one small write waiting on one small answer, which is the
+                // pattern Nagle's algorithm holds back
+                client.NoDelay = true;
+                var connection = new KeptConnection(client, port);
+                var bytes = Encoding.UTF8.GetBytes($"{ViewerServer.Keep}\n");
+                connection.Stream.Write(bytes, 0, bytes.Length);
+                connection.Stream.Flush();
+                kept = connection;
+            }
+            catch (Exception exception)
+                when (Ignorable(exception))
+            {
+                client.Close();
+            }
+        }
+    }
+
+    static void DropKept()
+    {
+        kept?.Dispose();
+        kept = null;
+    }
 
     /// <summary>
     /// True when a reply arrived and parsed, whatever it says. Callers that need the body, such as
@@ -308,9 +493,25 @@ static class ViewerClient
         [NotNullWhen(true)] out ViewerResponse? response,
         int? port = null,
         TimeSpan? wait = null,
-        bool skipIfUnowned = false)
+        bool skipIfUnowned = false) =>
+        Exchange(message, out response, out _, port, wait, skipIfUnowned);
+
+    /// <summary>
+    /// The ordinary exchange: a connection of its own, the request ended by closing the sending
+    /// half, and the reply read until the owner closes. <paramref name="keeps"/> is whether the
+    /// reply said its owner would take requests one after another on a connection that stays
+    /// open, which is <see cref="ViewerServer.Keeps"/>.
+    /// </summary>
+    static bool Exchange(
+        ViewerMessage message,
+        [NotNullWhen(true)] out ViewerResponse? response,
+        out bool keeps,
+        int? port,
+        TimeSpan? wait,
+        bool skipIfUnowned)
     {
         response = null;
+        keeps = false;
         var endpointPort = port ?? Port;
         if (skipIfUnowned &&
             RecentlyUnowned(endpointPort))
@@ -347,6 +548,9 @@ static class ViewerClient
             var text = reader.ReadToEnd();
             if (ViewerResponse.TryParse(text, out response))
             {
+                // A line of its own, and the last: nothing a field holds can look like it, since
+                // whatever could hold a line break is base64
+                keeps = text.EndsWith($"\n{ViewerServer.Keeps}\n", StringComparison.Ordinal);
                 return true;
             }
 
@@ -404,6 +608,10 @@ static class ViewerClient
         TimeSpan? wait = null,
         bool skipIfUnowned = false)
     {
+        // Said here, before anything is made. Left to the connect, a send already cancelled was
+        // a client closed by the abort below before it was ever connected, and on the modern
+        // frameworks what that threw was read as a port with nobody on it
+        cancel.ThrowIfCancellationRequested();
         var endpointPort = port ?? Port;
         if (skipIfUnowned &&
             RecentlyUnowned(endpointPort))
@@ -411,10 +619,7 @@ static class ViewerClient
             return SendOutcome.NoOwner;
         }
 
-        // A send the caller has already cancelled is left to the connect, which is where each
-        // framework says so in its own way
-        if (!cancel.IsCancellationRequested &&
-            NothingListening(endpointPort))
+        if (NothingListening(endpointPort))
         {
             Found(endpointPort, false);
             return SendOutcome.NoOwner;
@@ -492,6 +697,21 @@ static class ViewerClient
                 (connected ? "The owner is present but unresponsive. " : "Nothing accepted the connection. ") +
                 exception.GetType().Name);
             return SendOutcome.NoOwner;
+        }
+        // The caller cancelling, which reaches the exchange as its socket closing under it, and
+        // so as whatever a closed socket throws where the call in hand takes no token: all of
+        // them on .NET Framework, the read before net7. It says nothing about the port. Taken
+        // for a connect that failed, it was remembered as unowned with the owner still
+        // listening, and every settle and move after it went unsent until the memory ran out
+        catch (Exception exception)
+            when (cancel.IsCancellationRequested &&
+                  exception is not OperationCanceledException &&
+                  Ignorable(exception))
+        {
+            throw new OperationCanceledException(
+                $"The send to the inline queue owner on port {endpointPort} was cancelled.",
+                exception,
+                cancel);
         }
         // Cancellation is the caller's business; a missing owner is not.
         catch (Exception exception)

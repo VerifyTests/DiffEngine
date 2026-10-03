@@ -67,7 +67,62 @@ public sealed record PendingInline
 
     internal string ConflictStatus => $"Conflicting snapshots ({OriginsLabel})";
 
-    public string Key => InlineKey.For(Patch.SourceFile, Patch.LineHint);
+    /// <summary>
+    /// What a queue finds this entry by: <see cref="InlineKey.For" /> of the primary patch's file
+    /// and line.
+    /// <para>
+    /// Built once and kept. Every lookup in a queue asks it of each entry it passes, and building
+    /// it is a lowercased copy of the path and a formatted string: with hundreds pending, a run
+    /// that enqueues and settles each of them asked hundreds of thousands of times. Kept beside
+    /// the file and line it was built from, and built again when the patch no longer holds those,
+    /// because a patch's properties can be set and <c>with</c> copies whatever is kept here onto an
+    /// entry that may be given other variants.
+    /// </para>
+    /// </summary>
+    public string Key
+    {
+        get
+        {
+            var patch = Patch;
+            var built = key.Value;
+            if (built is null ||
+                built.Line != patch.LineHint ||
+                !ReferenceEquals(built.SourceFile, patch.SourceFile))
+            {
+                built = new(patch.SourceFile, patch.LineHint, InlineKey.For(patch.SourceFile, patch.LineHint));
+                // One reference, so a reader on another thread sees a whole key or builds its own
+                key = new(built);
+            }
+
+            return built.Key;
+        }
+    }
+
+    KeptKey key;
+
+    sealed class BuiltKey(string sourceFile, int line, string key)
+    {
+        public string SourceFile => sourceFile;
+        public int Line => line;
+        public string Key => key;
+    }
+
+    /// <summary>
+    /// The kept key, as a field a record can hold without it counting: the equality a record
+    /// generates compares every field, and two entries are not different for one of them having
+    /// been asked its key.
+    /// </summary>
+    readonly struct KeptKey(BuiltKey? value) :
+        IEquatable<KeptKey>
+    {
+        public BuiltKey? Value => value;
+
+        public bool Equals(KeptKey other) => true;
+
+        public override bool Equals(object? other) => other is KeptKey;
+
+        public override int GetHashCode() => 0;
+    }
 
     public string Name => $"{Path.GetFileName(Patch.SourceFile)}:{Patch.LineHint}";
 }
