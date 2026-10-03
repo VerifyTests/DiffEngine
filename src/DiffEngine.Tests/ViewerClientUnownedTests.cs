@@ -233,23 +233,30 @@ public class ViewerClientUnownedTests
     /// operating system knows nobody is listening without anything being connected, so where that
     /// refusal is slow it is asked first.
     /// <para>
-    /// A bound of half what the connect takes to be refused, around something that takes well
-    /// under a millisecond.
+    /// Shown by what the send does rather than by how long it takes, which on a loaded two core
+    /// machine is whatever the machine says. An owner is listening on the port and the table is
+    /// made to say nobody is: a send that connected would be answered, and heard, and one that
+    /// took the table's word is neither. That the real table says so of a port nobody listens on
+    /// is ListenerTableTests' half.
     /// </para>
     /// </summary>
     [Test]
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task APortNobodyHoldsIsNotWaitedOn()
     {
-        var port = FreePort();
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
 
-        var elapsed = Stopwatch.StartNew();
-        var sent = ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
-        elapsed.Stop();
+        var sent = ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true);
 
         await Assert.That(sent).IsFalse();
-        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
-        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+        await Assert.That(unlisted.Asked).IsEqualTo(1);
+        await Assert.That(owner.Heard).IsEmpty();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
+        await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsTrue();
     }
 
     /// <inheritdoc cref="APortNobodyHoldsIsNotWaitedOn" />
@@ -257,15 +264,34 @@ public class ViewerClientUnownedTests
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task APortNobodyHoldsIsNotWaitedOnAsync()
     {
-        var port = FreePort();
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
 
-        var elapsed = Stopwatch.StartNew();
-        var outcome = await ViewerClient.SendAsync(settle, Cancel.None, port, skipIfUnowned: true);
-        elapsed.Stop();
+        var outcome = await ViewerClient.SendAsync(settle, Cancel.None, owner.Port, skipIfUnowned: true);
 
         await Assert.That(outcome).IsEqualTo(SendOutcome.NoOwner);
-        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
-        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+        await Assert.That(unlisted.Asked).IsEqualTo(1);
+        await Assert.That(owner.Heard).IsEmpty();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
+        await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsTrue();
+    }
+
+    /// <inheritdoc cref="APortNobodyHoldsIsNotWaitedOn" />
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task APortNobodyHoldsIsNotProbed()
+    {
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
+
+        await Assert.That(ViewerClient.IsOwned(owner.Port)).IsFalse();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
     }
 
     /// <summary>
@@ -376,9 +402,9 @@ public class ViewerClientUnownedTests
 
     /// <summary>
     /// Stands in front of the listener table for the ports a test names, counting how often each
-    /// was asked about and, when told to, failing the way a table that cannot be read does. Every
-    /// other port goes through untouched, since the tests beside this one are asking about theirs
-    /// at the same time.
+    /// was asked about and, when told to, failing the way a table that cannot be read does, or
+    /// saying nobody listens there whoever does. Every other port goes through untouched, since
+    /// the tests beside this one are asking about theirs at the same time.
     /// </summary>
     sealed class Lookup : IDisposable
     {
@@ -394,6 +420,8 @@ public class ViewerClientUnownedTests
 
         public bool Unreadable { get; init; }
 
+        public bool Unlisted { get; init; }
+
         public int Asked => Volatile.Read(ref asked);
 
         bool Answer(int port)
@@ -407,6 +435,11 @@ public class ViewerClientUnownedTests
             if (Unreadable)
             {
                 throw new System.Net.NetworkInformation.NetworkInformationException();
+            }
+
+            if (Unlisted)
+            {
+                return false;
             }
 
             return previous(port);
@@ -465,6 +498,11 @@ public class ViewerClientUnownedTests
         }
 
         public int Port => server.Port;
+
+        /// <summary>
+        /// How many connections were made, which a probe is and says nothing down.
+        /// </summary>
+        public int Accepted => server.Accepted;
 
         public IReadOnlyList<ViewerVerb> Heard
         {
