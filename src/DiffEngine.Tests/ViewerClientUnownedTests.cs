@@ -158,6 +158,147 @@ public class ViewerClientUnownedTests
     }
 
     /// <summary>
+    /// The first telling send of a process meets the refusal with nothing remembered, and paid for
+    /// it: two seconds, once per test process, and again each time the memory ran out. The
+    /// operating system knows nobody is listening without anything being connected, so where that
+    /// refusal is slow it is asked first.
+    /// <para>
+    /// A bound of half what the connect takes to be refused, around something that takes well
+    /// under a millisecond.
+    /// </para>
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task APortNobodyHoldsIsNotWaitedOn()
+    {
+        var port = FreePort();
+
+        var elapsed = Stopwatch.StartNew();
+        var sent = ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
+        elapsed.Stop();
+
+        await Assert.That(sent).IsFalse();
+        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
+        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+    }
+
+    /// <inheritdoc cref="APortNobodyHoldsIsNotWaitedOn" />
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task APortNobodyHoldsIsNotWaitedOnAsync()
+    {
+        var port = FreePort();
+
+        var elapsed = Stopwatch.StartNew();
+        var outcome = await ViewerClient.SendAsync(settle, Cancel.None, port, skipIfUnowned: true);
+        elapsed.Stop();
+
+        await Assert.That(outcome).IsEqualTo(SendOutcome.NoOwner);
+        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
+        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+    }
+
+    /// <summary>
+    /// The table is a way of not waiting, never the authority. Where it cannot be read the
+    /// connect answers, as it did before anything asked the table: an owner is still found, and
+    /// a port with nobody on it is still reported that way.
+    /// </summary>
+    [Test]
+    public async Task ATableThatCannotBeReadLeavesTheConnectToAnswer()
+    {
+        using var owner = new Owner();
+        var dead = FreePort();
+        using var unreadable = new Lookup(owner.Port, dead)
+        {
+            Unreadable = true
+        };
+
+        await Assert.That(ViewerClient.IsOwned(owner.Port)).IsTrue();
+        await Assert.That(ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true)).IsTrue();
+        await Assert.That(ViewerClient.IsOwned(dead)).IsFalse();
+    }
+
+    /// <summary>
+    /// Reading the table costs more than the connect it stands in front of, and a green run with a
+    /// tray answering settles thousands of times. So a port that accepted a connection a moment
+    /// ago is connected to again without asking, and only one that has been quiet is looked up.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AnOwnerThatJustAnsweredIsNotLookedUpAgain()
+    {
+        var trustOwnerFor = ViewerClient.TrustOwnerFor;
+        using var owner = new Owner();
+        using var lookup = new Lookup(owner.Port);
+        try
+        {
+            // Long enough that nothing this machine is doing can run it out between two sends
+            ViewerClient.TrustOwnerFor = TimeSpan.FromMinutes(1);
+
+            // Nothing known about the port yet, so this one asks
+            await Assert.That(ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true)).IsTrue();
+            for (var index = 0; index < 3; index++)
+            {
+                await Assert.That(ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true)).IsTrue();
+            }
+
+            await Assert.That(ViewerClient.IsOwned(owner.Port)).IsTrue();
+            await Assert.That(lookup.Asked).IsEqualTo(1);
+
+            ViewerClient.TrustOwnerFor = TimeSpan.Zero;
+            await Assert.That(ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true)).IsTrue();
+            await Assert.That(lookup.Asked).IsEqualTo(2);
+            await Assert.That(owner.Heard.Count).IsEqualTo(5);
+        }
+        finally
+        {
+            ViewerClient.TrustOwnerFor = trustOwnerFor;
+        }
+    }
+
+    /// <summary>
+    /// Stands in front of the listener table for the ports a test names, counting how often each
+    /// was asked about and, when told to, failing the way a table that cannot be read does. Every
+    /// other port goes through untouched, since the tests beside this one are asking about theirs
+    /// at the same time.
+    /// </summary>
+    sealed class Lookup : IDisposable
+    {
+        readonly Func<int, bool> previous = ListenerTable.Lookup;
+        readonly int[] ports;
+        int asked;
+
+        public Lookup(params int[] ports)
+        {
+            this.ports = ports;
+            ListenerTable.Lookup = Answer;
+        }
+
+        public bool Unreadable { get; init; }
+
+        public int Asked => Volatile.Read(ref asked);
+
+        bool Answer(int port)
+        {
+            if (!ports.Contains(port))
+            {
+                return previous(port);
+            }
+
+            Interlocked.Increment(ref asked);
+            if (Unreadable)
+            {
+                throw new System.Net.NetworkInformation.NetworkInformationException();
+            }
+
+            return previous(port);
+        }
+
+        public void Dispose() =>
+            ListenerTable.Lookup = previous;
+    }
+
+    /// <summary>
     /// A port that is free right now, found by binding and releasing it.
     /// </summary>
     static int FreePort()

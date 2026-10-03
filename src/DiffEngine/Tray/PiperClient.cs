@@ -1,5 +1,4 @@
-﻿using System.Net.NetworkInformation;
-static class PiperClient
+﻿static class PiperClient
 {
     public static int Port = 3492;
 
@@ -221,24 +220,8 @@ static class PiperClient
     /// is dropped it runs to its timeout, two seconds a send. The listener table answers in well
     /// under a millisecond. A table that cannot be read leaves the connect to decide.
     /// </summary>
-    static bool PortIsHeld()
-    {
-        try
-        {
-            var port = Port;
-            return IPGlobalProperties.GetIPGlobalProperties()
-                .GetActiveTcpListeners()
-                .Any(_ => _.Port == port);
-        }
-        catch (NetworkInformationException)
-        {
-            return true;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return true;
-        }
-    }
+    static bool PortIsHeld() =>
+        ListenerTable.IsHeld(Port);
 
     static IPEndPoint GetEndpoint() =>
         new(IPAddress.Loopback, Port);
