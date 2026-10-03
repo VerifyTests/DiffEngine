@@ -133,6 +133,10 @@ final class Renderer {
     private var finished: [Finished] = []
     private var wanted: Set<String> = []
 
+    /// Something landed during a draw that painted only part of the window, or none of it, and
+    /// the whole of it has not been drawn since: see `draw` and `takeFinished`.
+    private var owed = false
+
     private enum Finished {
         case decoded(path: String, modified: Date, length: UInt64, image: CGImage?)
         case scaled(path: String, modified: Date, length: UInt64, size: Pixels, image: CGImage?)
@@ -339,8 +343,18 @@ final class Renderer {
     /// repaint of part of it leaves out is the drawing, and a capture leaves out nothing.
     @discardableResult
     func draw(_ frame: Frame, in context: CGContext, size: CGSize, capturing: Bool = false) -> Layout {
-        takeFinished()
+        let landed = settle()
         dirty = capturing ? nil : context.boundingBoxOfClipPath
+        // Something landed in a draw that is not the whole window's, so the window is owed one.
+        // A turn of a spinner is clipped to the spinner, and the picture that landed as it began
+        // was drawn inside that clip and nowhere else: `Runtime.present` had already asked whether
+        // anything landed, been told no, and would not be told again. A capture is no draw of the
+        // window's at all. Only said here, and asked for by the next present, so a draw never
+        // asks for another from inside itself.
+        if landed, capturing || dirty?.contains(CGRect(origin: .zero, size: size)) != true {
+            owed = true
+        }
+
         // The lines the last draw drew are the ones this one may use again, and what the draw
         // before it drew and it did not goes here. A draw that reached no text is passed over:
         // where the clip is a spinner, a turn would otherwise leave nothing kept for whatever is
@@ -1043,11 +1057,21 @@ final class Renderer {
         return bitmap.makeImage()
     }
 
+    /// Whether the window has something new to draw all of itself for: a picture or a scaled copy
+    /// that has landed since this was last asked, whether it was put in place here or by a draw
+    /// that got to it first and could only paint part of the window. Asked by `Runtime.present`,
+    /// once a frame.
+    func takeFinished() -> Bool {
+        let landed = settle()
+        let late = owed
+        owed = false
+        return landed || late
+    }
+
     /// Puts what `work` has finished into the pictures still waiting for it, and says whether
     /// anything landed, which is a reason to redraw. A result for a picture that has left the
     /// screen since, or for a file rewritten since, is dropped.
-    @discardableResult
-    func takeFinished() -> Bool {
+    private func settle() -> Bool {
         gate.lock()
         let landed = finished
         finished = []
