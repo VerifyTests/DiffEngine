@@ -842,6 +842,26 @@ public class InlinePatcherFsTests
     }
 
     /// <summary>
+    /// A Remove applied a second time, by another framework of the run, has the same line and the
+    /// same value to go by. With the call's line taken out, the sibling under it had come up onto
+    /// that line and lost its snapshot. The line is kept, empty, which
+    /// <see cref="FsCompilerRoundTripTests" /> asks the compiler about.
+    /// </summary>
+    [Test]
+    public async Task RemoveAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var source = Test("    Verifier.Verify(a)\n        .Snapshot(\"dup\")\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()");
+        var removed = Test("    Verifier.Verify(a)\n\n    Verifier.Verify(b).Snapshot(\"dup\").ToTask()");
+
+        var first = TryApply(source, 6, InlinePatchMode.Remove, null, "", out var once, out _, originalValue: "dup", memberName: "MyTest");
+        var second = TryApply(once, 6, InlinePatchMode.Remove, null, "", out _, out _, originalValue: "dup", memberName: "MyTest");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
     /// Bound or passed on the same line, what the call was on is still a value with the call gone,
     /// so the call alone is taken. The <c>=</c> a line above is another matter: a whole body hangs
     /// off that one, and the line under it is the body's first statement.

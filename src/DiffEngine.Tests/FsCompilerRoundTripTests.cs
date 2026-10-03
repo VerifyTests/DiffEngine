@@ -329,13 +329,22 @@ public class FsCompilerRoundTripTests
             }
         }
 
+        // A Remove of a call that has a line to itself, over a line holding a Snapshot call, leaves
+        // its line empty, so the next apply of the same patch does not find that call where its
+        // own was. The empty line is between two statements of a computation expression here,
+        // and inside one chain, which has to still be one expression
+        builder.Append(Patch("let removedBang () =\n    capture {\n        do! Verify(\"x\")\n                .Snapshot(\"dup\").ToTask()\n        do! Verify(\"y\").Snapshot(\"dup\").ToTask()\n    }\n", 4, InlinePatchMode.Remove, "", "dup"));
+        builder.Append($"check \"removedBang\" (removedBang ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("xdup"))}\"\n\n");
+        builder.Append(Patch("let removedChain () =\n    Verify(\"x\")\n        .Snapshot(\"dup\")\n        .Snapshot(\"kept\").ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
+        builder.Append($"check \"removedChain\" (removedChain ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("kept"))}\"\n\n");
+
         builder.Append(footer);
         return builder.ToString();
     }
 
-    static string Patch(string snippet, int lineHint, InlinePatchMode mode, string content)
+    static string Patch(string snippet, int lineHint, InlinePatchMode mode, string content, string? originalValue = null)
     {
-        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, null, null, null, false, content, out var patched, out var reason);
+        var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, lineHint, mode, null, originalValue, null, null, false, content, out var patched, out var reason);
         if (status != PatchStatus.Applied)
         {
             throw new($"{mode} patch was not applied: {reason}");
