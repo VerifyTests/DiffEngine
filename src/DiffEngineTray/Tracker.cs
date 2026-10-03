@@ -68,6 +68,7 @@ class Tracker :
             if (moves.TryRemove(tacked.Temp, out var removed))
             {
                 KillProcesses(removed);
+                Release(removed);
             }
         }
 
@@ -659,11 +660,42 @@ class Tracker :
             return;
         }
 
-        if (!InnerMove(removed, batch))
+        if (InnerMove(removed, batch))
         {
-            // Keep the move pending so accepting can be retried
-            moves.TryAdd(removed.Temp, removed);
+            Release(removed);
+            return;
         }
+
+        // Keep the move pending so accepting can be retried
+        Restore(removed);
+    }
+
+    /// <summary>
+    /// Puts back a move that was taken out to be accepted and could not be. One that arrived for
+    /// the same received file meanwhile stands, and this one has then left for good.
+    /// </summary>
+    void Restore(TrackedMove removed)
+    {
+        if (!moves.TryAdd(removed.Temp, removed))
+        {
+            Release(removed);
+        }
+    }
+
+    /// <summary>
+    /// Lets go of the process a move was tracked with, without ending it, once the move has left
+    /// for good.
+    /// <para>
+    /// <see cref="ProcessEx.TryGet"/> holds a handle on every process a move
+    /// names, and DiffRunner names one for an MDI tool too. Only <see cref="KillProcesses"/>
+    /// disposed any, and it passes over a move that cannot be killed, so each of those kept a
+    /// handle, and with it a process id Windows could not hand out again, until a finaliser ran.
+    /// </para>
+    /// </summary>
+    static void Release(TrackedMove move)
+    {
+        move.Process?.Dispose();
+        move.Process = null;
     }
 
     public void Discard(TrackedMove move)
@@ -851,6 +883,7 @@ class Tracker :
     static void InnerDiscard(TrackedMove move)
     {
         KillProcesses(move);
+        Release(move);
 
         if (!FileEx.SafeDeleteFile(move.Temp))
         {
@@ -1054,7 +1087,13 @@ class Tracker :
     {
         if (TrackedKeys.TryStrip(key, TrackedKeys.MovePrefix, out var temp))
         {
-            return moves.TryRemove(temp, out _);
+            if (!moves.TryRemove(temp, out var removed))
+            {
+                return false;
+            }
+
+            Release(removed);
+            return true;
         }
 
         return TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) &&
@@ -1223,10 +1262,11 @@ class Tracker :
 
         if (InnerMove(removed, batch))
         {
+            Release(removed);
             return (true, $"Accepted {removed.Name}");
         }
 
-        moves.TryAdd(removed.Temp, removed);
+        Restore(removed);
         return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
     }
 
@@ -1261,6 +1301,7 @@ class Tracker :
         foreach (var move in moves.Values)
         {
             KillProcesses(move);
+            Release(move);
         }
 
         moves.Clear();
