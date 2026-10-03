@@ -1,3 +1,5 @@
+using System.Threading.Channels;
+
 /// <summary>
 /// The decode the WinForms head puts under an image pane's rows.
 /// <para>
@@ -77,13 +79,13 @@ public class ImageCacheTests
     public async Task ADecodeWithSomewhereToPostItIsHandedBack()
     {
         var path = Write("posted.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         var loaded = 0;
 
         await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
-        handBack!();
+        var handBack = await posted.Take();
+        handBack();
 
         await Assert.That(loaded).IsEqualTo(1);
         await Assert.That(cache.Get(path, null, () => loaded++)!.Width).IsEqualTo(8);
@@ -97,15 +99,15 @@ public class ImageCacheTests
     public async Task ADecodeForAPictureNoLongerOnScreenIsDropped()
     {
         var path = Write("left-behind.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         var loaded = 0;
         cache.Keep([path]);
 
         cache.Get(path, null, () => loaded++);
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        var handBack = await posted.Take();
         cache.Keep([]);
-        handBack!();
+        handBack();
 
         await Assert.That(loaded).IsEqualTo(0);
         await Assert.That(cache.Composite(path, new(8, 6), (_, size) => new(size.Width, size.Height))).IsNull();
@@ -121,21 +123,21 @@ public class ImageCacheTests
     public async Task APictureThatComesBackAfterItsDecodeWasDroppedIsDecodedAgain()
     {
         var path = Write("came-back.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         var loaded = 0;
         cache.Keep([path]);
         cache.Get(path, null, () => loaded++);
-        await Assert.That(posted.TryTake(out var dropped, TimeSpan.FromSeconds(10))).IsTrue();
+        var dropped = await posted.Take();
         cache.Keep([]);
-        dropped!();
+        dropped();
         await Assert.That(cache.Loading(path)).IsFalse();
 
         cache.Keep([path]);
         await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
         await Assert.That(cache.Loading(path)).IsTrue();
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
-        handBack!();
+        var handBack = await posted.Take();
+        handBack();
 
         await Assert.That(loaded).IsEqualTo(1);
         await Assert.That(cache.Loading(path)).IsFalse();
@@ -150,18 +152,18 @@ public class ImageCacheTests
     public async Task APictureBackOnScreenBeforeItsDecodeLandsKeepsThatDecode()
     {
         var path = Write("back-in-time.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         var loaded = 0;
         cache.Keep([path]);
         cache.Get(path, null, () => loaded++);
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        var handBack = await posted.Take();
         cache.Keep([]);
         cache.Keep([path]);
 
         // Nothing new is started for it
         await Assert.That(cache.Get(path, null, () => loaded++)).IsNull();
-        handBack!();
+        handBack();
 
         await Assert.That(loaded).IsEqualTo(1);
         await Assert.That(posted.Count).IsEqualTo(0);
@@ -199,15 +201,15 @@ public class ImageCacheTests
     public async Task AComposeWithSomewhereToPostItIsHandedBack()
     {
         var path = Write("composed-posted.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         await Assert.That(cache.Get(path, null)).IsNotNull();
         var loaded = 0;
 
         await Assert.That(cache.Composite(path, new(4, 3), Build, () => loaded++)).IsNull();
         await Assert.That(cache.Loading(path)).IsTrue();
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
-        handBack!();
+        var handBack = await posted.Take();
+        handBack();
 
         await Assert.That(loaded).IsEqualTo(1);
         await Assert.That(cache.Loading(path)).IsFalse();
@@ -222,20 +224,20 @@ public class ImageCacheTests
     public async Task AResizeShowsTheLastSizeUntilTheNewOneLands()
     {
         var path = Write("resized.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         cache.Get(path, null);
         cache.Composite(path, new(4, 3), Build, () => { });
-        await Assert.That(posted.TryTake(out var first, TimeSpan.FromSeconds(10))).IsTrue();
-        first!();
+        var first = await posted.Take();
+        first();
         var small = cache.Composite(path, new(4, 3), Build, () => { });
 
         var meanwhile = cache.Composite(path, new(6, 4), Build, () => { });
         await Assert.That(ReferenceEquals(meanwhile, small)).IsTrue();
         await Assert.That(cache.Loading(path)).IsFalse();
 
-        await Assert.That(posted.TryTake(out var second, TimeSpan.FromSeconds(10))).IsTrue();
-        second!();
+        var second = await posted.Take();
+        second();
         await Assert.That(cache.Composite(path, new(6, 4), Build, () => { })!.Size).IsEqualTo(new(6, 4));
     }
 
@@ -248,7 +250,7 @@ public class ImageCacheTests
     public async Task AComposeForAPictureNoLongerOnScreenIsDropped()
     {
         var path = Write("composed-left-behind.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         using var reading = new ManualResetEventSlim();
         var width = 0;
@@ -268,8 +270,8 @@ public class ImageCacheTests
             () => loaded++);
         cache.Keep([]);
         reading.Set();
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
-        handBack!();
+        var handBack = await posted.Take();
+        handBack();
 
         await Assert.That(width).IsEqualTo(8);
         await Assert.That(loaded).IsEqualTo(0);
@@ -284,7 +286,7 @@ public class ImageCacheTests
     public async Task AComposeThatFailsIsNotTriedAgain()
     {
         var path = Write("uncomposable.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         cache.Get(path, null);
         var attempts = 0;
@@ -295,8 +297,8 @@ public class ImageCacheTests
         };
 
         cache.Composite(path, new(4, 3), failing, () => { });
-        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
-        handBack!();
+        var handBack = await posted.Take();
+        handBack();
 
         await Assert.That(cache.Composite(path, new(4, 3), failing, () => { })).IsNull();
         await Assert.That(cache.Loading(path)).IsFalse();
@@ -306,6 +308,42 @@ public class ImageCacheTests
 
     static Bitmap Build(Image picture, Size size) =>
         new(size.Width, size.Height);
+
+    /// <summary>
+    /// What a cache posts back, for a test to take and run: the window's BeginInvoke, as a queue.
+    /// <para>
+    /// Waited for without holding a thread. A decode runs on the pool, and so does every test, in
+    /// parallel. These used to block where they stood until the decode posted back, so each held
+    /// a pool thread while waiting for work that needed one, and once every thread the pool had
+    /// was held that way the work had nowhere to run until the pool grew another: on a runner of
+    /// four cores busy with the other test projects, ten seconds went by with nothing decoded and
+    /// four of these failed together. A test that awaits gives its thread back.
+    /// </para>
+    /// </summary>
+    sealed class Posts
+    {
+        readonly Channel<Action> posted = Channel.CreateUnbounded<Action>();
+
+        public void Add(Action action) =>
+            posted.Writer.TryWrite(action);
+
+        public int Count =>
+            posted.Reader.Count;
+
+        public async Task<Action> Take()
+        {
+            // Long, since all it bounds is a test that would otherwise never end
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+            try
+            {
+                return await posted.Reader.ReadAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException("Nothing was posted back within a minute.");
+            }
+        }
+    }
 
     [Test]
     public async Task MissingFile()
