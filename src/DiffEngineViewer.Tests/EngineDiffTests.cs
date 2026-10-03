@@ -99,7 +99,7 @@ public class EngineDiffTests :
 
     static EngineResolvedTool Viewer() =>
         new(
-            EngineTool.DiffEngineViewer.ToString(),
+            nameof(EngineTool.DiffEngineViewer),
             EngineTool.DiffEngineViewer,
             // Guarded as existing, and never started: an owner answers on the port every time.
             Environment.ProcessPath!,

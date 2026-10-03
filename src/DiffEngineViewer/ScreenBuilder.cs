@@ -23,9 +23,7 @@ static class ScreenBuilder
     public static int PaneRows(SessionState state)
     {
         var body = BodyRows(state);
-        if (state.Drawing == DrawingView.Both &&
-            state.Current is { IsDocument: true } &&
-            !state.ShowsProperties)
+        if (state is {Drawing: DrawingView.Both, Current.IsDocument: true, ShowsProperties: false})
         {
             return Math.Max(1, body / 2);
         }
@@ -333,7 +331,7 @@ static class ScreenBuilder
 
         yield return new(
             state.Minimal ? "All lines" : "Changes only",
-            state.Current is { IsImage: false } && !state.ShowsProperties,
+            state is {Current.IsImage: false, ShowsProperties: false},
             CommandKind.ToggleMinimal);
     }
 

@@ -80,7 +80,7 @@ public class DiffRunnerViewerMoveTest :
 
     static ResolvedTool Viewer() =>
         new(
-            name: DiffTool.DiffEngineViewer.ToString(),
+            name: nameof(DiffTool.DiffEngineViewer),
             tool: DiffTool.DiffEngineViewer,
             // Guarded as existing, and never started: the tray takes the move, so nothing here
             // reaches a launch.

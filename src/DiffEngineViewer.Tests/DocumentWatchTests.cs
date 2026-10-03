@@ -197,7 +197,7 @@ public class DocumentWatchTests :
                 Timeout = TimeSpan.FromMilliseconds(200)
             };
             watch.Pump();
-            documents.Landing = () => release.Wait();
+            documents.Landing = release.Wait;
 
             watch.Pump();
 

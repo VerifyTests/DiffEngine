@@ -38,7 +38,7 @@ public class DocumentRendererTests :
         {
             await Assert.That(ImageHeader.TryRead(page, out var header)).IsTrue();
             // 300 x 200 points at 150 dpi
-            await Assert.That(header).IsEqualTo(new ImageHeader(ImageFormat.Png, 625, 417));
+            await Assert.That(header).IsEqualTo(new(ImageFormat.Png, 625, 417));
         }
     }
 
@@ -115,7 +115,7 @@ public class DocumentRendererTests :
         var pages = Render(path);
         await Assert.That(pages.Count).IsEqualTo(1);
         await Assert.That(ImageHeader.TryRead(pages[0], out var header)).IsTrue();
-        await Assert.That(header).IsEqualTo(new ImageHeader(ImageFormat.Png, 1024, 512));
+        await Assert.That(header).IsEqualTo(new(ImageFormat.Png, 1024, 512));
     }
 
     /// <summary>
