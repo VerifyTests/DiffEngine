@@ -13,9 +13,12 @@
 /// image snapshots is not work to do between two frames.
 /// </para>
 /// <para>
-/// Deliberately not a file system watcher. The stat is what the attached path already pays, it
-/// needs no handle per directory and no debounce, and a queue is small enough that the difference
-/// is not measurable.
+/// Deliberately not a file system watcher. The stat is what the attached path already pays, and
+/// it needs no handle per directory and no debounce. What it costs is kept small instead: a pass
+/// looks at the entry on screen and at <see cref="Budget"/> of the others, taking those in turn,
+/// and the passes come a second apart while the window is hidden. A thousand pending pairs, which
+/// one serializer setting can produce, were two thousand stats five times a second for as long as
+/// the viewer ran, and behind a tray that is days.
 /// </para>
 /// </summary>
 sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
@@ -26,11 +29,33 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
     /// </summary>
     public static TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(200);
 
+    /// <summary>
+    /// Whether the window is hidden, set by the render loop as it hides and shows it. Nobody is
+    /// reading a hidden window's rows, so its files are looked at as often as an attached viewer
+    /// lists its owner while hidden. Not stopped, because an entry whose received file has gone
+    /// is still pending for as long as it is in the queue, and the queue is what gets staged.
+    /// </summary>
+    public bool Hidden { get; set; }
+
+    public static TimeSpan HiddenInterval { get; set; } = OwnerLink.HiddenInterval;
+
+    /// <summary>
+    /// How many pending files one pass looks at, besides the one on screen. A queue of no more
+    /// than this is looked at whole every pass, as every queue used to be. A longer one is looked
+    /// at this many at a time, so a row that is not on screen follows its file within a few
+    /// seconds rather than within one pass.
+    /// </summary>
+    public int Budget { get; init; } = 100;
+
+    // Where in the queue the next pass takes up. A position rather than a key, so an entry that
+    // leaves moves it by one, which costs some entry a pass and no more.
+    int next;
+
     public void Run(Cancel cancel)
     {
         while (!cancel.IsCancellationRequested)
         {
-            cancel.WaitHandle.WaitOne(Interval);
+            cancel.WaitHandle.WaitOne(Hidden ? HiddenInterval : Interval);
             if (cancel.IsCancellationRequested)
             {
                 return;
@@ -63,22 +88,39 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
     /// under the same key in between: dropped by key, the new pair went with the old one's missing
     /// file, and stayed gone until the test failed again.
     /// </para>
+    /// <para>
+    /// The entry on screen every pass, since it is the one being read, and then the others from
+    /// where the last pass left off, until <see cref="Budget"/> of them have been looked at or
+    /// the queue has been gone round once.
+    /// </para>
     /// </summary>
     public void Pump()
     {
         var gone = new List<QueueEntry>();
         var changed = new List<(QueueEntry Seen, QueueEntry Fresh)>();
-        foreach (var entry in host.State.Queue)
+        // One read, so the entry on screen and the queue it is in are of the same moment
+        var state = host.State;
+        var queue = state.Queue;
+        var current = state.Current;
+        if (current is not null)
         {
-            if (entry.Kind == QueueEntryKind.Move)
-            {
-                Move(entry, gone, changed);
-                continue;
-            }
+            Look(current, gone, changed);
+        }
 
-            if (entry.Kind == QueueEntryKind.Delete)
+        if (next >= queue.Count)
+        {
+            next = 0;
+        }
+
+        var looked = 0;
+        for (var visited = 0; visited < queue.Count && looked < Budget; visited++)
+        {
+            var entry = queue[next];
+            next = (next + 1) % queue.Count;
+            if (!ReferenceEquals(entry, current) &&
+                Look(entry, gone, changed))
             {
-                Delete(entry, gone, changed);
+                looked++;
             }
         }
 
@@ -89,6 +131,27 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
         }
 
         host.Mutate(_ => ViewerSession.Refresh(_, gone, changed));
+    }
+
+    /// <summary>
+    /// Whether the entry is one with files to look at, which is what a pass has a budget of. A
+    /// snapshot has none: it is in the queue as the patch it arrived as.
+    /// </summary>
+    bool Look(QueueEntry entry, List<QueueEntry> gone, List<(QueueEntry Seen, QueueEntry Fresh)> changed)
+    {
+        if (entry.Kind == QueueEntryKind.Move)
+        {
+            Move(entry, gone, changed);
+            return true;
+        }
+
+        if (entry.Kind == QueueEntryKind.Delete)
+        {
+            Delete(entry, gone, changed);
+            return true;
+        }
+
+        return false;
     }
 
     readonly ReadRetry retry = new();
