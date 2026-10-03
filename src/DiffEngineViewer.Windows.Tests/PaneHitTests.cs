@@ -115,12 +115,15 @@ public class PaneHitTests
         var asked = new List<(PaneSide Side, Point At)>();
         host.Canvas.PaneRightClicked += (side, point) => asked.Add((side, point));
 
-        var onText = new Point(width / 2, 75);
-        var underText = new Point(width - 60, height - 120);
+        // From the canvas as it is rather than from the size asked for: a window is no larger than
+        // the display it is on, and a build agent's is smaller than this one asks to be.
+        var canvas = host.Canvas;
+        var onText = new Point(canvas.Width / 2, 75);
+        var underText = new Point(canvas.Width - 60, canvas.Height - 120);
         host.RightClick(onText);
         host.RightClick(underText);
         host.RightClick(new(10, 200));
-        host.RightClick(new(width / 2, 10));
+        host.RightClick(new(canvas.Width / 2, 10));
 
         await Assert.That(asked.Count).IsEqualTo(2);
         await Assert.That(asked[0]).IsEqualTo((PaneSide.Left, onText));
@@ -138,7 +141,8 @@ public class PaneHitTests
         host.Draw(ScreenBuilder.Build(state));
 
         await Assert.That(host.Canvas.PaneAt(new(10, 200))).IsEqualTo(PaneSide.Left);
-        await Assert.That(host.Canvas.PaneAt(new(width - 20, 200))).IsEqualTo(PaneSide.Right);
+        // The canvas's own width, which on a display narrower than the window asks to be is less
+        await Assert.That(host.Canvas.PaneAt(new(host.Canvas.Width - 20, 200))).IsEqualTo(PaneSide.Right);
         await Assert.That(host.Canvas.PaneAt(new(10, 10))).IsNull();
     }
 
