@@ -239,6 +239,36 @@ public class KeptConnectionTests
     }
 
     /// <summary>
+    /// The kept connection is this process's alone. On .NET Framework a socket is inheritable and
+    /// a process started without ShellExecute is handed every inheritable handle, so a child a
+    /// test started held the connection too, and the owner went on keeping it until that child
+    /// exited, long after the test host had.
+    /// <para>
+    /// What is asked is whether the handle is one a child would be given. What a child does with
+    /// it only shows once the host has gone without closing anything, which a test cannot do to
+    /// the process it runs in: closing the connection here shuts it down, and that reaches the
+    /// owner whoever else holds the handle.
+    /// </para>
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task TheKeptConnectionIsNotOneAChildProcessIsGiven()
+    {
+        using var owner = new Owner();
+        ViewerClient.Tell(settle, owner.Port);
+        await Assert.That(ViewerClient.Tell(settle, owner.Port)).IsTrue();
+
+        var handle = ViewerClient.KeptHandle;
+        await Assert.That(handle).IsNotNull();
+        await Assert.That(GetHandleInformation(handle!.Value, out var flags)).IsTrue();
+        // HANDLE_FLAG_INHERIT
+        await Assert.That(flags & 1).IsEqualTo(0);
+    }
+
+    [DllImport("kernel32.dll")]
+    static extern bool GetHandleInformation(IntPtr handle, out int flags);
+
+    /// <summary>
     /// A queue owner on a port of the test's choosing, recording what it was sent.
     /// </summary>
     sealed class Owner : IDisposable

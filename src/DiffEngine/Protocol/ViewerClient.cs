@@ -405,6 +405,7 @@ static class ViewerClient
         IDisposable
     {
         public int Port { get; } = port;
+        public IntPtr Handle => client.Client.Handle;
         public NetworkStream Stream { get; } = client.GetStream();
         public StreamReader Reader { get; } = new(client.GetStream(), Encoding.UTF8);
 
@@ -420,6 +421,22 @@ static class ViewerClient
     static readonly object keptGate = new();
 
     static KeptConnection? kept;
+
+    /// <summary>
+    /// The socket of the kept connection, or null with none kept. For the test of whether a
+    /// child process would be handed it, which is a property of the handle and of nothing an
+    /// exchange shows.
+    /// </summary>
+    internal static IntPtr? KeptHandle
+    {
+        get
+        {
+            lock (keptGate)
+            {
+                return kept?.Handle;
+            }
+        }
+    }
 
     static KeptSend SendKept(ViewerMessage message, int port, out bool ok)
     {
@@ -503,6 +520,9 @@ static class ViewerClient
             var client = new TcpClient();
             try
             {
+#if NETFRAMEWORK
+                KeepFromChildren(client);
+#endif
                 if (!Connect(client, port, ShortTimeout))
                 {
                     client.Close();
@@ -532,6 +552,44 @@ static class ViewerClient
         kept?.Dispose();
         kept = null;
     }
+
+#if NETFRAMEWORK
+    /// <summary>
+    /// Marks the socket of a connection about to be kept as one a child process does not get.
+    /// <para>
+    /// .NET Framework makes its sockets inheritable, and a process started without ShellExecute
+    /// is given every inheritable handle its parent has. The kept connection is open for as long
+    /// as the test process is, so any child a test started that way - a server under test, a
+    /// tool - took a handle to it, and the connection then stayed open in the owner until that
+    /// child had exited too, however the test host ended. Run with a child that lived eight
+    /// seconds, the owner saw the connection close eight seconds after the host was gone, and at
+    /// once with the flag cleared. Later runtimes make their sockets uninheritable themselves.
+    /// </para>
+    /// <para>
+    /// Before the connect, on the socket the parameterless constructor has already made here, so
+    /// that the moment a child could still take it is the few instructions in between. Only the
+    /// kept connection: an exchange on a connection of its own ends by shutting down its sending
+    /// half, which reaches the owner whoever else holds the handle.
+    /// </para>
+    /// </summary>
+    static void KeepFromChildren(TcpClient client)
+    {
+        try
+        {
+            SetHandleInformation(client.Client.Handle, handleFlagInherit, 0);
+        }
+        catch (Exception exception)
+            // .NET Framework's shape on another runtime, with no kernel32 to ask
+            when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
+    }
+
+    const int handleFlagInherit = 1;
+
+    [DllImport("kernel32.dll")]
+    static extern bool SetHandleInformation(IntPtr handle, int mask, int flags);
+#endif
 
     /// <summary>
     /// True when a reply arrived and parsed, whatever it says. Callers that need the body, such as
