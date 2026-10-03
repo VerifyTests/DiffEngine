@@ -83,8 +83,9 @@ static class ViewerClient
     public static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
-    /// How long a port found with nothing listening stands as unowned, during which the sends
-    /// that only tell the owner something return without connecting.
+    /// How long a port a connect found nobody on stands as unowned, during which the sends that
+    /// only tell the owner something return without connecting. For a port the listener table
+    /// found empty it is <see cref="RecheckUnlistedAfter"/>.
     /// <para>
     /// A refused loopback connection is not free everywhere. Windows Firewall's stealth mode, on
     /// by default, drops the reset a closed port would answer with, so the connect sits through
@@ -94,27 +95,50 @@ static class ViewerClient
     /// connecting to nobody, and the same run took under a second with a tray answering.
     /// </para>
     /// <para>
-    /// Long, because a recheck buys almost nothing and is not free: those two seconds again where
-    /// it has to connect, and a read of the listener table where the operating system can be asked
-    /// instead (<see cref="NothingListening"/>). What the memory can delay is only a message the
-    /// owner did not have to receive: an entry to settle in a queue that did not exist when the
-    /// test failed, or a move to track in a tray that was not there to track it. Anything that has
-    /// to reach an owner - a patch, a delete, a pair - goes through the launch gate, whose
-    /// <see cref="IsOwned"/> probe always asks and corrects the memory with what it finds. Not the
-    /// life of the process only for a long lived consumer that is not a test host, launching diff
-    /// tools all day, where a tray started later would otherwise never see its moves until a
-    /// restart.
+    /// Long, because a recheck that has to connect buys almost nothing for those two seconds
+    /// again. What the memory can delay is only a message the owner did not have to receive: an
+    /// entry to settle in a queue that did not exist when the test failed, or a move to track in
+    /// a tray that was not there to track it. Anything that has to reach an owner - a patch, a
+    /// delete, a pair - goes through the launch gate, whose <see cref="IsOwned"/> probe always
+    /// asks and corrects the memory with what it finds. Not the life of the process only for a
+    /// long lived consumer that is not a test host, launching diff tools all day, where a tray
+    /// started later would otherwise never see its moves until a restart.
+    /// </para>
+    /// <para>
+    /// This is the wait wherever the connect is what answered: off Windows, on a Windows whose
+    /// listener table could not be read, and for a port held by something that is not a viewer.
     /// </para>
     /// </summary>
     internal static TimeSpan RecheckUnownedAfter { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// How long a port stands as unowned when it was the listener table that said nobody is
+    /// there (<see cref="NothingListening"/>), which is how Windows is asked wherever it can be.
+    /// <para>
+    /// A second, where the connect's answer stands for ten minutes, because asking again is a
+    /// read of the table, a tenth of a millisecond, rather than two seconds waiting to be
+    /// refused. So a tray or a viewer started after the test process is told of the settles and
+    /// moves that come a second after it is listening, where it was told of none for ten minutes.
+    /// </para>
+    /// <para>
+    /// Not nothing, because a green run settles once per verification, as fast as the tests
+    /// pass, and each would then read the table to learn what the one before it had: ten
+    /// thousand settles are over a second of that. At a second the reads are one a second however
+    /// many settles there are, a ten thousandth of the run. It is the same second an owner that
+    /// answered is trusted for (<see cref="TrustOwnerFor"/>), so what was found about a port is
+    /// believed for as long whichever way it went.
+    /// </para>
+    /// </summary>
+    internal static TimeSpan RecheckUnlistedAfter { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// How long a port that accepted a connection is connected to again without first asking the
     /// operating system whether anyone is there: see <see cref="NothingListening"/>.
     /// <para>
     /// For a run of settles to an owner that is there, which is a connection every third of a
-    /// millisecond. Each renews this, so none of them reads the listener table, which costs more
-    /// than the connect does. Short, because a send that comes a while after the last is the one
+    /// millisecond. Each renews this, so none of them reads the listener table, which costs as
+    /// much as the connect does, and several times that where the listeners cannot be asked for
+    /// alone. Short, because a send that comes a while after the last is the one
     /// most likely to find its owner gone, and asking is what spares that send its two seconds.
     /// </para>
     /// </summary>
@@ -124,13 +148,17 @@ static class ViewerClient
     /// What was last found on each port, and when, as a <see cref="Stopwatch"/> timestamp. Per
     /// port because tests talk to ephemeral ports of their own, in parallel, and what happened on
     /// those says nothing about the one live port on a developer machine.
+    /// <para>
+    /// And how it was found, for a port with nobody on it: by the listener table, which is cheap
+    /// to ask again, or by a connect, which is not.
+    /// </para>
     /// </summary>
-    static ConcurrentDictionary<int, (bool Owned, long At)> lastFound = new();
+    static ConcurrentDictionary<int, (bool Owned, long At, bool Unlisted)> lastFound = new();
 
     static bool RecentlyUnowned(int port) =>
         lastFound.TryGetValue(port, out var found) &&
         !found.Owned &&
-        Since(found.At) < RecheckUnownedAfter;
+        Since(found.At) < (found.Unlisted ? RecheckUnlistedAfter : RecheckUnownedAfter);
 
     static bool AnsweredLately(int port) =>
         lastFound.TryGetValue(port, out var found) &&
@@ -146,7 +174,14 @@ static class ViewerClient
     /// can talk to, and a port any of them found empty is what the memory is for.
     /// </summary>
     static void Found(int port, bool owned) =>
-        lastFound[port] = (owned, Stopwatch.GetTimestamp());
+        lastFound[port] = (owned, Stopwatch.GetTimestamp(), false);
+
+    /// <summary>
+    /// <see cref="Found"/> for a port the listener table has nobody on, which stands for less
+    /// long: see <see cref="RecheckUnlistedAfter"/>.
+    /// </summary>
+    static void FoundUnlisted(int port) =>
+        lastFound[port] = (false, Stopwatch.GetTimestamp(), true);
 
     /// <summary>
     /// Whether a connect to <paramref name="port"/> would only be a wait to be refused: the
@@ -167,7 +202,7 @@ static class ViewerClient
     /// Only on Windows, which is where the refusal is slow. Elsewhere it arrives at once, so the
     /// connect is the cheaper question as well as the one whose answer cannot be wrong. And not
     /// for a port that accepted a connection within <see cref="TrustOwnerFor"/>, where the table
-    /// would cost more than the connect it stands in front of.
+    /// would cost as much as the connect it stands in front of.
     /// </para>
     /// </summary>
     static bool NothingListening(int port) =>
@@ -260,7 +295,7 @@ static class ViewerClient
         var endpointPort = port ?? Port;
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return false;
         }
 
@@ -521,7 +556,7 @@ static class ViewerClient
 
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return false;
         }
 
@@ -621,7 +656,7 @@ static class ViewerClient
 
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return SendOutcome.NoOwner;
         }
 

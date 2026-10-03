@@ -17,19 +17,32 @@ public class ViewerClientUnownedTests
     // static constructor that runs on first touching a static field, and TheMemoryExpires sets the
     // value before it touches one, so running first it captured Zero for every test after it.
     static TimeSpan recheckUnownedAfter;
+    static TimeSpan recheckUnlistedAfter;
 
     [Before(Class)]
-    public static void Remember() =>
+    public static void Remember()
+    {
         recheckUnownedAfter = ViewerClient.RecheckUnownedAfter;
+        recheckUnlistedAfter = ViewerClient.RecheckUnlistedAfter;
+    }
 
+    /// <summary>
+    /// What the listener table found stands for a second, which a loaded machine can spend
+    /// between two lines of a test. Most of these are about there being a memory at all, so for
+    /// them it stands as long as a connect's answer does, and the ones about how long say so.
+    /// </summary>
     [Before(Test)]
-    public void Forget() =>
+    public void Forget()
+    {
+        ViewerClient.RecheckUnlistedAfter = recheckUnownedAfter;
         ViewerClient.ForgetUnowned();
+    }
 
     [After(Test)]
     public void Restore()
     {
         ViewerClient.RecheckUnownedAfter = recheckUnownedAfter;
+        ViewerClient.RecheckUnlistedAfter = recheckUnlistedAfter;
         ViewerClient.ForgetUnowned();
     }
 
@@ -102,12 +115,69 @@ public class ViewerClientUnownedTests
     public async Task TheMemoryExpires()
     {
         ViewerClient.RecheckUnownedAfter = TimeSpan.Zero;
+        ViewerClient.RecheckUnlistedAfter = TimeSpan.Zero;
         var port = FreePort();
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
 
         using var owner = new Owner(port);
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsTrue();
         await Assert.That(owner.Heard.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A tray started after the test process, with everything as shipped: the telling sends find
+    /// it within moments, with nothing asking on their behalf. Where the listener table is what
+    /// said the port was empty, asking it again costs a tenth of a millisecond, so there is no
+    /// reason to go ten minutes on the old answer - which is how long the tray used to hear
+    /// nothing of the run's settles and moves.
+    /// <para>
+    /// Waited for rather than timed. What is held to is that it happens while a test would still
+    /// be running, and the limit is far short of the ten minutes it replaces.
+    /// </para>
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AnOwnerStartedLaterIsFoundByTheTellingSends()
+    {
+        ViewerClient.RecheckUnlistedAfter = recheckUnlistedAfter;
+        var port = FreePort();
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+
+        using var owner = new Owner(port);
+        var elapsed = Stopwatch.StartNew();
+        var found = false;
+        while (!found &&
+               elapsed.Elapsed < TimeSpan.FromSeconds(60))
+        {
+            found = ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
+            if (!found)
+            {
+                await Task.Delay(50);
+            }
+        }
+
+        await Assert.That(found).IsTrue();
+    }
+
+    /// <summary>
+    /// The shorter wait is only for what the table said. A port a connect found nobody on - here
+    /// because the table could not be read - is one where asking again is the connect again, two
+    /// seconds of it on Windows, so that answer stands as it always did.
+    /// </summary>
+    [Test]
+    public async Task APortAConnectFoundEmptyIsNotAskedAboutAgainSoSoon()
+    {
+        ViewerClient.RecheckUnlistedAfter = TimeSpan.Zero;
+        var port = FreePort();
+        using var unreadable = new Lookup(port)
+        {
+            Unreadable = true
+        };
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+
+        using var owner = new Owner(port);
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+        await Assert.That(owner.Heard).IsEmpty();
     }
 
     /// <summary>
