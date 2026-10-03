@@ -24,6 +24,15 @@ sealed class FsLanguage : SourceLanguage
     internal override char NameSeparator => '=';
 
     /// <summary>
+    /// The offside rule. A token that starts a line carries on the expression above it only when
+    /// it sits right of the column that expression started at; at that column it is read as the
+    /// next statement, and left of it as the end of the block. And that column is where the
+    /// expression's first token is, which is not the line's own indentation once something comes
+    /// before it: <c>do!</c>, <c>let! x =</c>, <c>let x =</c>, or a binding written on one line.
+    /// </summary>
+    internal override bool IndentationIsSyntax => true;
+
+    /// <summary>
     /// The F# compiler does not implement <see cref="CallerArgumentExpressionAttribute"/> - it
     /// warns FS0202 and leaves the parameter at its default - so an F# patch never carries the
     /// expression its C# equivalent is anchored to, and is located by line hint alone.

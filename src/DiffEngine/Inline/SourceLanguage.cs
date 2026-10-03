@@ -86,6 +86,12 @@ public abstract class SourceLanguage
     internal abstract char NameSeparator { get; }
 
     /// <summary>
+    /// Whether the column a line starts at is part of the syntax, so that a splice which starts a
+    /// new line has to choose its indentation for the compiler as well as for the reader.
+    /// </summary>
+    internal virtual bool IndentationIsSyntax => false;
+
+    /// <summary>
     /// Whether a patch from this language carries the source text of the expected argument, which
     /// is to say whether the compiler honours <see cref="CallerArgumentExpressionAttribute"/>.
     /// <para>

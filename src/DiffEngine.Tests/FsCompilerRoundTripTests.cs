@@ -60,6 +60,15 @@ public class FsCompilerRoundTripTests
         "a\nb" + (char) 0x2028 + "c"
     ];
 
+    /// <summary>
+    /// The call as each mode meets it: with a Snapshot call to put the literal in, and with none.
+    /// </summary>
+    static readonly (InlinePatchMode Mode, string Call)[] midLineCalls =
+    [
+        (InlinePatchMode.Set, "Verify(\"x\").Snapshot().ToTask()"),
+        (InlinePatchMode.Append, "Verify(\"x\").ToTask()")
+    ];
+
     [Test]
     [RequiresDotnet]
     public async Task PatchedSourceCompilesAndReadsBack()
@@ -91,6 +100,17 @@ public class FsCompilerRoundTripTests
                 member _.ToTask() = value
 
             let Verify (value: string) = Chain(value)
+
+            // Somewhere for do!, let! and return! to be written. Where the offside line falls is
+            // decided by those keywords and not by the builder behind them, so this one hands back
+            // what was bound, and the literal can be read out of a computation expression by the
+            // same check as out of anything else
+            type Capture() =
+                member _.Bind(value: string, continuation: unit -> string) = value + continuation ()
+                member _.Zero() = ""
+                member _.ReturnFrom(value: string) = value
+
+            let capture = Capture()
 
             let mutable failures = 0
 
@@ -183,6 +203,32 @@ public class FsCompilerRoundTripTests
                     InlinePatchMode.Set,
                     content));
             builder.Append($"check \"formatted{index}\" (formatted{index} ()) \"{expected}\"\n\n");
+
+            // A call with something in front of it on its line. The column its expression starts
+            // at is then past the line's indentation, and that column is what a new line has to
+            // clear: the appended call, and a literal given a line of its own. Measured from the
+            // line instead, only the return! survived both, and the do! a literal alone
+            foreach (var (mode, call) in midLineCalls)
+            {
+                Add($"doBang{mode}", $"let doBang{mode}{index} () =\n    capture {{\n        do! {call}\n    }}\n", 3, mode);
+                Add($"letBang{mode}", $"let letBang{mode}{index} () =\n    capture {{\n        let! _ = {call}\n        return! \"\"\n    }}\n", 3, mode);
+                Add($"returnBang{mode}", $"let returnBang{mode}{index} () =\n    capture {{\n        return! {call}\n    }}\n", 3, mode);
+                Add($"local{mode}", $"let local{mode}{index} () =\n    let result = {call}\n    result\n", 2, mode);
+                Add($"oneLine{mode}", $"let oneLine{mode}{index} () = {call}\n", 1, mode);
+            }
+
+            // The line the chain ends on is not one of its calls here, and sits at the column the
+            // expression starts at: a closing paren where a formatter puts it, and an argument
+            // that starts its own line. An appended call lined up with either is on the offside
+            // line, whether or not the call starts its line
+            Add("underParen", $"let underParen{index} () =\n    Verify(\n        \"x\"\n    ).ToTask()\n", 2, InlinePatchMode.Append);
+            Add("underArgument", $"let underArgument{index} () =\n    capture {{\n        do! Verify(\n            \"x\").ToTask()\n    }}\n", 3, InlinePatchMode.Append);
+
+            void Add(string name, string snippet, int lineHint, InlinePatchMode mode)
+            {
+                builder.Append(Patch(snippet, lineHint, mode, content));
+                builder.Append($"check \"{name}{index}\" ({name}{index} ()) \"{expected}\"\n\n");
+            }
         }
 
         builder.Append(

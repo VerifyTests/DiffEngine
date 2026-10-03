@@ -72,6 +72,13 @@ sealed class SourceScan(SourceLanguage language, string source)
         skips.TryGetValue(index, out end);
 
     /// <summary>
+    /// <see cref="TryGetSkip"/> for a scan working backwards: when a comment or literal ends at
+    /// <paramref name="end"/>, <paramref name="start"/> is where it began.
+    /// </summary>
+    public bool TryGetSkipEndingAt(int end, out int start) =>
+        skipEnds.TryGetValue(end, out start);
+
+    /// <summary>
     /// As <see cref="TryGetSkip"/>, but only for comments.
     /// </summary>
     public bool TryGetCommentSkip(int index, out int end) =>

@@ -174,7 +174,7 @@ static class InlinePatcher
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var rendered = RenderArgument(language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                var rendered = RenderArgument(source, scan, lineStarts, nameStart, expected.Start, newContent, eol, fileUnit);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
@@ -220,7 +220,7 @@ static class InlinePatcher
                     return PatchStatus.AlreadyApplied;
                 }
 
-                var rendered = RenderArgument(language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                var rendered = RenderArgument(source, scan, lineStarts, nameStart, expected.Start, newContent, eol, fileUnit);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
@@ -261,7 +261,7 @@ static class InlinePatcher
         ref string newSource,
         ref string failReason)
     {
-        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, out var openParen))
+        if (!TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out var nameStart, out var openParen))
         {
             failReason = $"Could not find a {methodName} call near line {lineHint}. The source may have changed since the test run. Re-run the test.";
             return PatchStatus.NotFound;
@@ -282,7 +282,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var emptyRendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+            var emptyRendered = RenderArgument(source, scan, lineStarts, nameStart, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.Start, emptyRendered);
             return PatchStatus.Applied;
         }
@@ -297,7 +297,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var namedIndent = IndentForSpan(source, lineStarts, expected.ListStart, fileUnit);
+            var namedIndent = IndentForSpan(source, scan, lineStarts, nameStart, expected.ListStart, fileUnit);
             var namedRendered = scan.Language.Render(newContent, namedIndent, eol);
             newSource = Splice(source, expected.ListStart, expected.ListStart, $"{scan.Language.NamePrefix(parameterName)}{namedRendered}, ");
             return PatchStatus.Applied;
@@ -315,7 +315,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            var rendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+            var rendered = RenderArgument(source, scan, lineStarts, nameStart, expected.Start, newContent, eol, fileUnit);
             newSource = Splice(source, expected.Start, expected.End, rendered);
             return PatchStatus.Applied;
         }
@@ -333,7 +333,7 @@ static class InlinePatcher
                 // A differing literal is a snapshot that changed, and this is the only shape a
                 // changed one arrives in from a language with no expression to anchor on. Refusing
                 // it there would mean an inline snapshot could be accepted once and never updated
-                var rendered = RenderArgument(scan.Language, source, lineStarts, expected.Start, newContent, eol, fileUnit);
+                var rendered = RenderArgument(source, scan, lineStarts, nameStart, expected.Start, newContent, eol, fileUnit);
                 newSource = Splice(source, expected.Start, expected.End, rendered);
                 return PatchStatus.Applied;
             }
@@ -548,12 +548,25 @@ static class InlinePatcher
     /// </summary>
     static string AppendCall(string source, SourceScan scan, List<int> lineStarts, int nameStart, int insertAt, string newContent, string eol, string fileUnit)
     {
-        var statementIndent = LeadingWhitespace(source, lineStarts, nameStart);
+        var statementIndent = StatementIndent(source, scan, lineStarts, nameStart);
         var unit = UnitFor(fileUnit, statementIndent);
         // Line up with the existing chain when there is one, otherwise start it one level in
         var callIndent = LineOf(lineStarts, insertAt - 1) == LineOf(lineStarts, nameStart)
             ? statementIndent + unit
             : LeadingWhitespace(source, lineStarts, insertAt - 1);
+        if (scan.Language.IndentationIsSyntax)
+        {
+            // The line a chain ends on is not always one of its calls. A closing paren on a line
+            // of its own sits at the column the expression started at, which is where a formatter
+            // puts it, and an argument's last line may too. Lined up with either, the call is
+            // read as the start of the next statement rather than as more of this one
+            var expressionIndent = IndentTo(source, lineStarts, ExpressionStart(source, scan, nameStart));
+            if (IndentWidth(callIndent) <= IndentWidth(expressionIndent))
+            {
+                callIndent = expressionIndent + unit;
+            }
+        }
+
         var contentIndent = callIndent + unit;
         var rendered = scan.Language.Render(newContent, contentIndent, eol);
         var argument = OnOwnLine(rendered, contentIndent, eol);
@@ -836,6 +849,228 @@ static class InlinePatcher
     }
 
     /// <summary>
+    /// The indentation a splice at a call measures one level in from: the leading whitespace of
+    /// the line the call's name is on, unless the language reads indentation as syntax and the
+    /// call's expression starts further along that line.
+    /// <para>
+    /// One level in from the line is right for C#, where it is only a convention. In F# a new
+    /// line has to clear the column the expression starts at
+    /// (<see cref="SourceLanguage.IndentationIsSyntax"/>): a chained call right of it, and a
+    /// literal no further left than it. After <c>do!</c> that column is already a level past the
+    /// line's indentation, and after <c>let! x =</c> it is further. So an appended call landed on
+    /// the column or left of it, and after anything longer than <c>do!</c> a literal given a line
+    /// of its own did too: FS0010 either way, in source that compiled until it was accepted into.
+    /// </para>
+    /// <para>
+    /// A call whose expression starts its line, or started on a line above, is measured from the
+    /// line as before. The line it is on was already somewhere the compiler accepts, and one level
+    /// further in than that is too.
+    /// </para>
+    /// </summary>
+    static string StatementIndent(string source, SourceScan scan, List<int> lineStarts, int nameStart)
+    {
+        if (scan.Language.IndentationIsSyntax)
+        {
+            var start = ExpressionStart(source, scan, nameStart);
+            if (LineOf(lineStarts, start) == LineOf(lineStarts, nameStart))
+            {
+                return IndentTo(source, lineStarts, start);
+            }
+        }
+
+        return LeadingWhitespace(source, lineStarts, nameStart);
+    }
+
+    /// <summary>
+    /// Whitespace as wide as the column <paramref name="offset"/> is at: its line's own
+    /// indentation, then spaces for whatever stands between that and the offset. The same string
+    /// as the line's indentation for the first thing on a line.
+    /// </summary>
+    static string IndentTo(string source, List<int> lineStarts, int offset)
+    {
+        var lead = LeadingWhitespace(source, lineStarts, offset);
+        var lineStart = lineStarts[LineOf(lineStarts, offset) - 1];
+        return lead + new string(' ', offset - lineStart - lead.Length);
+    }
+
+    /// <summary>
+    /// Where the expression a call belongs to starts: back from the call's name over everything it
+    /// is reached through, one receiver at a time. For the Snapshot call in
+    /// <c>Verifier.Verify(value).UseDirectory("x").Snapshot()</c> that is Verifier.
+    /// <para>
+    /// Whatever cannot be read as a name or a call ends the walk where it has got to, which is
+    /// right of where the expression really starts. The answer is used as a column to stay clear
+    /// of, so one too far right costs an indent deeper than it had to be, where one too far left
+    /// would cost source that does not compile.
+    /// </para>
+    /// </summary>
+    static int ExpressionStart(string source, SourceScan scan, int nameStart)
+    {
+        var start = nameStart;
+        while (true)
+        {
+            var dot = PreviousToken(source, scan, start);
+            if (dot < 0 ||
+                source[dot] != '.')
+            {
+                return start;
+            }
+
+            var end = PreviousToken(source, scan, dot);
+            // A literal is a receiver too, and not one this reads
+            if (end < 0 ||
+                !scan.IsCode(end))
+            {
+                return start;
+            }
+
+            if (source[end] == ')')
+            {
+                if (!TryFindOpenParen(source, scan, end, out var openParen))
+                {
+                    return start;
+                }
+
+                // The name an argument list belongs to sits against it. With anything between
+                // them the parens are an expression of their own, and that is where this starts
+                end = openParen - 1;
+                if (end >= 0 &&
+                    source[end] == '>' &&
+                    !TrySkipTypeArgumentsBack(source, scan, ref end))
+                {
+                    return start;
+                }
+
+                if (end < 0 ||
+                    !scan.IsIdentifierChar(source[end]))
+                {
+                    return openParen;
+                }
+            }
+            else if (!scan.IsIdentifierChar(source[end]))
+            {
+                return start;
+            }
+
+            start = scan.WordStart(end);
+        }
+    }
+
+    /// <summary>
+    /// The offset of the last character before <paramref name="index"/> that is not whitespace and
+    /// not in a comment, or -1 when there is none.
+    /// <para>
+    /// A literal counts, where <see cref="SourceScan.PreviousSignificant"/> steps over one. That
+    /// suits a caller asking what kind of thing precedes a name, and not one asking what a call
+    /// hangs off: looking past <c>"text"</c> in <c>"text".Verify(value)</c> finds whatever came
+    /// before the literal and takes it for the receiver.
+    /// </para>
+    /// </summary>
+    static int PreviousToken(string source, SourceScan scan, int index)
+    {
+        while (index > 0)
+        {
+            if (scan.TryGetCommentEndingAt(index, out var commentStart))
+            {
+                index = commentStart;
+                continue;
+            }
+
+            if (!char.IsWhiteSpace(source[index - 1]))
+            {
+                return index - 1;
+            }
+
+            index--;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// The open paren that the close paren at <paramref name="closeParen"/> closes: the scan
+    /// <see cref="TryScanArguments"/> does, run backwards, with comments and literals stepped over
+    /// whole in the same way.
+    /// </summary>
+    static bool TryFindOpenParen(string source, SourceScan scan, int closeParen, out int openParen)
+    {
+        openParen = -1;
+        var depth = 1;
+        // Just past what is still to be read, so the character at closeParen itself is not
+        var index = closeParen;
+        while (index > 0)
+        {
+            if (scan.TryGetSkipEndingAt(index, out var skipStart))
+            {
+                index = skipStart;
+                continue;
+            }
+
+            index--;
+            switch (source[index])
+            {
+                case ')':
+                case ']':
+                case '}':
+                    depth++;
+                    continue;
+                case '(':
+                case '[':
+                case '{':
+                    depth--;
+                    if (depth == 0)
+                    {
+                        openParen = index;
+                        return source[index] == '(';
+                    }
+
+                    continue;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Steps back over the type argument list that ends at <paramref name="end"/>, leaving it on
+    /// the character in front of the list: <see cref="SourceLanguage.TrySkipTypeArguments"/> run
+    /// backwards, accepting only what a type argument list can hold for the same reason.
+    /// </summary>
+    static bool TrySkipTypeArgumentsBack(string source, SourceScan scan, ref int end)
+    {
+        var depth = 0;
+        for (var index = end; index >= 0; index--)
+        {
+            var ch = source[index];
+            if (ch == '>')
+            {
+                depth++;
+                continue;
+            }
+
+            if (ch == '<')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    end = index - 1;
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (!scan.IsIdentifierChar(ch) &&
+                !scan.Language.IsTypeArgumentChar(ch))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// The column indentation reaches, with a tab advancing to the next multiple of four. Four
     /// rather than eight because that is what the tab indented C# this has to measure is written
     /// with. F# rejects tabs outright (FS1161), so only C# ever gets here with one.
@@ -936,9 +1171,6 @@ static class InlinePatcher
         openParen = -1;
         return false;
     }
-
-    static bool TryFindCall(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, out int openParen) =>
-        TryFindCall(source, scan, lineStarts, lineHint, memberLine, snapshotName, false, out _, out openParen);
 
     static bool TryFindCall(
         string source,
@@ -1455,13 +1687,13 @@ static class InlinePatcher
     }
 
     /// <summary>
-    /// Renders the literal for a splice at <paramref name="spanStart"/>, indented to suit where it
-    /// lands.
+    /// Renders the literal for a splice at <paramref name="spanStart"/>, in the argument list of
+    /// the call at <paramref name="nameStart"/>, indented to suit where it lands.
     /// </summary>
-    static string RenderArgument(SourceLanguage language, string source, List<int> lineStarts, int spanStart, string newContent, string eol, string fileUnit)
+    static string RenderArgument(string source, SourceScan scan, List<int> lineStarts, int nameStart, int spanStart, string newContent, string eol, string fileUnit)
     {
-        var indent = IndentForSpan(source, lineStarts, spanStart, fileUnit);
-        var rendered = language.Render(newContent, indent, eol);
+        var indent = IndentForSpan(source, scan, lineStarts, nameStart, spanStart, fileUnit);
+        var rendered = scan.Language.Render(newContent, indent, eol);
         if (StartsLine(source, lineStarts, spanStart))
         {
             return rendered;
@@ -1692,8 +1924,13 @@ static class InlinePatcher
     /// <summary>
     /// The indentation a literal taking a line of its own would sit at: one level in from the
     /// span's line, or the span's own column when it already starts a line.
+    /// <para>
+    /// <paramref name="nameStart"/> is the call the span is an argument of. Where the span is on
+    /// that call's own line, the level is counted from what <see cref="StatementIndent"/> says the
+    /// call is measured from rather than from the line.
+    /// </para>
     /// </summary>
-    static string IndentForSpan(string source, List<int> lineStarts, int spanStart, string fileUnit)
+    static string IndentForSpan(string source, SourceScan scan, List<int> lineStarts, int nameStart, int spanStart, string fileUnit)
     {
         var line = LineOf(lineStarts, spanStart);
         var lineStart = lineStarts[line - 1];
@@ -1712,7 +1949,9 @@ static class InlinePatcher
             return source.Substring(lineStart, spanStart - lineStart);
         }
 
-        var leadText = lead.ToString();
+        var leadText = LineOf(lineStarts, nameStart) == line
+            ? StatementIndent(source, scan, lineStarts, nameStart)
+            : lead.ToString();
         return leadText + UnitFor(fileUnit, leadText);
     }
 }

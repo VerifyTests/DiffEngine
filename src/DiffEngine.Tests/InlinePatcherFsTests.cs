@@ -477,7 +477,9 @@ public class InlinePatcherFsTests
     }
 
     // Awaited in a task expression instead, so there is no ToTask and the chain end is the
-    // insertion point
+    // insertion point. One level in from where the expression starts, which after do! is not where
+    // the line does: this used to expect the call under Verifier, and F# reads that as the next
+    // statement
     [Test]
     public async Task AppendWithNoToTask()
     {
@@ -496,9 +498,201 @@ public class InlinePatcherFsTests
                 """
                     task {
                         do! Verifier.Verify(15)
-                            .Snapshot("new")
+                                .Snapshot("new")
                     }
                 """));
+    }
+
+    /// <summary>
+    /// The shape of Verify's own Expecto sample. The offside line is the column the expression
+    /// starts at, and after <c>do!</c> that is four past the line's indentation, so one level in
+    /// from the line put the call exactly on it: FS0010, unexpected symbol '.' in expression.
+    /// </summary>
+    [Test]
+    public async Task AppendAfterDoBangClearsTheExpression()
+    {
+        var source = Test(
+            """
+                testTask "findPerson" {
+                    do! Verifier.Verify("findPerson", person).ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "a\nb", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    testTask \"findPerson\" {\n" +
+                "        do! Verifier.Verify(\"findPerson\", person)\n" +
+                "                .Snapshot(\n" +
+                "                    \"\"\"\n" +
+                "                    a\n" +
+                "                    b\n" +
+                "                    \"\"\").ToTask()\n" +
+                "    }"));
+    }
+
+    /// <summary>
+    /// A literal on its own line has the same line to clear. After <c>let! _ =</c> the expression
+    /// starts nine columns past the indentation, and the literal one level in from the line was
+    /// left of it.
+    /// </summary>
+    [Test]
+    public async Task SetAfterLetBangClearsTheExpression()
+    {
+        var source = Test(
+            """
+                testTask "findPerson" {
+                    let! _ = Verifier.Verify(x).Snapshot("old").ToTask()
+                    return ()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    testTask \"findPerson\" {\n" +
+                "        let! _ = Verifier.Verify(x).Snapshot(\n" +
+                "                     \"\"\"\n" +
+                "                     a\n" +
+                "                     b\n" +
+                "                     \"\"\").ToTask()\n" +
+                "        return ()\n" +
+                "    }"));
+    }
+
+    // A binding written on one line: the expression starts after the equals sign
+    [Test]
+    public async Task AppendToABindingOnOneLineClearsTheExpression()
+    {
+        var source = Source(
+            """
+            module Tests
+
+            let MyTest () = Verifier.Verify(15).ToTask()
+
+            """);
+
+        var status = TryApply(source, 3, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Source(
+                """
+                module Tests
+
+                let MyTest () = Verifier.Verify(15)
+                                    .Snapshot("new").ToTask()
+
+                """));
+    }
+
+    // The receiver is part of the expression, however long: the column is where the first name
+    // of it is, with a namespace in front of the class as much as without
+    [Test]
+    public async Task TheExpressionStartsAtItsOutermostReceiver()
+    {
+        var source = Test("    let result = VerifyXunit.Verifier.Verify<Person>(person).UseDirectory(\"x\").Snapshot(\"old\").ToTask()");
+
+        var status = TryApply(source, 5, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    let result = VerifyXunit.Verifier.Verify<Person>(person).UseDirectory(\"x\").Snapshot(\n" +
+                "                     \"\"\"\n" +
+                "                     a\n" +
+                "                     b\n" +
+                "                     \"\"\").ToTask()"));
+    }
+
+    /// <summary>
+    /// A closing paren on a line of its own, where a formatter puts it: at the column the call
+    /// starts at. Lining the appended call up with the line the chain ended on was right for a
+    /// chain and put this one on the offside line, in a call that does start its line.
+    /// </summary>
+    [Test]
+    public async Task AppendUnderAClosingParenClearsTheExpression()
+    {
+        var source = Test(
+            """
+                Verifier.Verify(
+                    value
+                ).ToTask()
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(
+                        value
+                    )
+                        .Snapshot("new").ToTask()
+                """));
+    }
+
+    // A chain already across lines is somewhere the compiler accepted, so the call joins it
+    [Test]
+    public async Task AppendAfterDoBangLinesUpWithAnExistingChain()
+    {
+        var source = Test(
+            """
+                task {
+                    do! Verifier.Verify(15)
+                            .UseMethodName("customName")
+                            .ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    task {
+                        do! Verifier.Verify(15)
+                                .UseMethodName("customName")
+                                .Snapshot("new")
+                                .ToTask()
+                    }
+                """));
+    }
+
+    // Where the Snapshot call is on a line of the chain's own, that line is what the literal is
+    // one level in from, as it always was
+    [Test]
+    public async Task SetOnAChainedLineIsMeasuredFromThatLine()
+    {
+        var source = Test(
+            """
+                task {
+                    do! Verifier.Verify(15)
+                            .Snapshot("old")
+                            .ToTask()
+                }
+            """);
+
+        var status = TryApply(source, 7, InlinePatchMode.Set, null, "a\nb", out var newSource, out _, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                "    task {\n" +
+                "        do! Verifier.Verify(15)\n" +
+                "                .Snapshot(\n" +
+                "                    \"\"\"\n" +
+                "                    a\n" +
+                "                    b\n" +
+                "                    \"\"\")\n" +
+                "                .ToTask()\n" +
+                "    }"));
     }
 
     [Test]
