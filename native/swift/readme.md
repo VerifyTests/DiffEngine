@@ -1,7 +1,7 @@
 # macOS renderer
 
 The macOS half of `libdiffengine_viewer`, drawn with AppKit and Core Text. It implements the same
-ABI as `native/` does for Linux — `native/include/deview.h`, eight exports over one flat frame
+ABI as `native/` does for Linux — `native/include/deview.h`, eleven exports over one flat frame
 description — so the managed side is identical on both and `DiffEngineViewer.Core` has no idea
 which one it loaded.
 

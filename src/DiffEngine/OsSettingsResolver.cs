@@ -50,12 +50,15 @@ static class OsSettingsResolver
         return paths.ToArray();
     }
 
-    /// <param name="preferred">
-    /// Says which of several installed copies the caller would rather have. The first copy it
-    /// accepts is the one resolved, wherever that comes in the search order, and the first copy
-    /// of all when it accepts none - so it reorders what is found and never empties it. Not asked
-    /// about a copy an environment variable names, which is somebody's explicit choice.
-    /// </param>
+    /// <summary>
+    /// The tool's executable and how it is launched, on whichever operating system this is.
+    /// <para>
+    /// <c>preferred</c> says which of several installed copies the caller would rather have. The
+    /// first copy it accepts is the one resolved, wherever that comes in the search order, and the
+    /// first copy of all when it accepts none - so it reorders what is found and never empties it.
+    /// Not asked about a copy an environment variable names, which is somebody's explicit choice.
+    /// </para>
+    /// </summary>
     public static bool Resolve(
         string tool,
         OsSupport osSupport,

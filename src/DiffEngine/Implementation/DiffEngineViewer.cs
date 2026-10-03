@@ -34,7 +34,8 @@ static partial class Implementation
                     launchArguments,
                     SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Osx()))),
             UseShellExecute: false,
-            // Console subsystem, so without this a window flashes on every launch.
+            // A copy from before 20.5 is a console executable, so without this a console window
+            // flashes when one is started by these flags, which the tray's Open diff tool does.
             CreateNoWindow: true,
             Notes: """
                  * The one tool DiffEngine does not open per pair. Every failing pair joins one

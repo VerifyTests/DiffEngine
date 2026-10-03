@@ -106,6 +106,24 @@ that member's declaration is not in it, so an identical snapshot in the test nex
 candidate at all, while the recorded line is still tried first so two snapshots in one member stay
 apart.
 
+A line names a call site only until something above it in the file changes, and accepting a
+snapshot is exactly that. So whoever finds a queued entry by its line asks whose it is before
+believing it. A settle that hits an entry queued from another member leaves it alone unless the
+value settles it, and a failing re-run whose key names nothing looks for the entry of its own
+call site (`InlinePatch.IsSameCallSite`: member, test, mode and anchor) and takes it to the line it
+is at now, rather than queueing a second one beside it. `InlineStaging` asks the same of a staged
+trio, and scopes a settle to the running framework (`InlineStaging.Settle`), which
+`InlinePatchFile.Write` labels a staged patch with.
+
+What the patcher writes has to compile where it lands, and three shapes did not. F# measures a
+continuation from the column the call's expression starts at, not from the line's indentation,
+whenever something precedes the call on its line (`do!`, `let! x =`): the offside rule
+(`SourceLanguage.IndentationIsSyntax`, and the shapes are in `FsCompilerRoundTripTests`). An
+appended `Snapshot` call goes in front of `ToTask`, `ConfigureAwait` or `GetAwaiter` in either
+language, none of which returns something to call it on. And a `Remove` of
+`settings.Snapshot("old");` takes the statement, since `settings;` is none, while one whose value
+is awaited, assigned, returned or passed takes only the call.
+
 ### Core Components
 
 **DiffEngine Library (`src/DiffEngine/`):**
@@ -143,10 +161,25 @@ apart.
   tooltips and an `NSScroller`, with `NSApp.appearance` set to `darkAqua` so they match the drawn
   grid. The cost is that none of them exists in `deview_capture`, which makes no window — hence
   `PixelTests.ContextMenu` being skipped there, and the scroller taking its strip out of the
-  renderer only when a window exists.
+  renderer only when a window exists. AppKit's own loops run inside the pump, so the managed loop
+  waits them out. The scroller is a `PaneScroller`, which follows a drag of its knob as ordinary
+  events for that reason, where AppKit's tracking loop left the panes still until the knob was let
+  go. A live resize is the same kind of loop and still draws the rows sliced for the old size:
+  doing better takes a frame callback the C ABI does not have. Keys and clicks are queued in
+  `Runtime` and handed over one a poll, as the WinForms head does and for its reason. The footer
+  wraps its buttons, and puts the status on a line of its own when there is no room beside them.
+  The font has `calt` and `liga` off, so `<>` or `!=` in a snapshot is drawn as the characters it
+  holds. None of this head can be compiled or run from Windows: CI's `macos-14` job is the first
+  build, and its OSX baselines come from that job's `received-*` artifacts.
 - Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
   the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
-  `ViewerSession`'s clamp.
+  `ViewerSession`'s clamp. Its footer wraps as the macOS one does (`LayOutFooter`), with two
+  Linux-only scenes for it in `PixelTests`. Characters JetBrains Mono lacks are drawn from the
+  machine's fonts, found through fontconfig, which is loaded at run time rather than linked and
+  only once a character on screen needs it. A capture never uses them: it draws with the embedded
+  font alone, so no baseline depends on what is installed (`PixelTests.OutsideTheFont`).
+  Accept-all is `a` with Shift held, read from the key rather than from the case of the letter,
+  which Caps Lock also changes.
 - Group headers fold. `SessionState.Collapsed` holds `QueueItem.GroupKey`s and `QueueProjection`
   skips their members, so the marker rides in the label and no head or ABI field knows about it.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
@@ -358,7 +391,7 @@ apart.
   this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
 - Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
   any of that, because the binaries are committed.
-- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: eight exports
+- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: eleven exports
   taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
   `DEVIEW_VERSION` whenever the structs change **or a field changes meaning**. The managed side
   refuses a library whose version is not an exact match, so a bump and a binaries rebuild land
@@ -409,7 +442,18 @@ apart.
   the pipe `dotnet test` reads the host's output from kept the run from returning until its
   window closed. That is why an inline patch goes in a file rather than on stdin, which a
   ShellExecute launch cannot redirect, and why the Windows head is a `WinExe`: ShellExecute gives
-  a console executable a console window.
+  a console executable a console window. The viewer also starts in its own folder, since a child
+  that inherits the host's working directory keeps that directory from being deleted for as long
+  as it runs. The third party tools declared `UseShellExecute: false` are started on Windows by
+  `WindowsProcess.StartInheritingNothing`, a `CreateProcess` with handle inheritance off and no
+  console, rather than through ShellExecute: asked for hidden, ShellExecute also hides the own
+  window of a console program that opens one, and nothing in the file says which kind it is.
+- `ViewerLaunchGate` is handed the process it started. One that has exited with a failure before
+  anything held the queue is `Failed`, so the caller stages; it used to be waited on for the whole
+  of `BindWait` and reported as launched, and an inline snapshot was then in no queue and not
+  staged either. A clean exit is left to the wait, since a viewer that hands its work to an owner
+  exits with zero. `ViewerContract` is the other half: resolution passes over a copy older than
+  20.5.0, which exits on `--payload`, when a newer one is further down the search order.
 - Unless that diff tool is the viewer, which is the `Diff` verb and `--diff <received> <target>`.
   Then the premise above is false — there is no window for the pair yet — so it is tracked exactly
   as a move and a window is raised over the entry, and `DiffRunner` skips the whole process per
@@ -434,6 +478,21 @@ apart.
 - `DebugReport` / `DebugForm` - the menu's "Debug view": every field of every tracked move, delete
   and snapshot as text, plus the queued patches when this tray owns the queue. The report is a
   string so it can be copied into an issue and snapshot tested without rendering a window.
+- A delete can be the last copy of a snapshot, so the tracker is careful about which it carries
+  out. `AddMove` withdraws a tracked delete of its target, as `SettleDelete` would have. An
+  accept-all lists its deletes as it begins and carries out only those
+  (`ITrackedFiles.AcceptAll(deleteKeys, ...)`), leaves one whose file a move in the same sweep
+  wrote or still awaits (`WrittenOrAwaited`), and holds them all when the queue's owner could not
+  be asked: `IInlineHost.TryList` tells an owner that did not answer from there being none, the
+  second being what `ViewerClient.FoundUnowned` is for.
+- `Program.Main` is a synchronous `[STAThread]` method that blocks on `Inner`. An attribute on an
+  `async Task Main` lands on a method the runtime does not start, and the thread came up MTA.
+- `SessionEndWindow` is a hidden top level window that hears `WM_ENDSESSION`, which neither the
+  notify icon nor a message filter does. An owning tray stages its queue from inside the message
+  (`OwnedInlineHost.SessionEnding`) and refuses patches from then on, because a logoff never comes
+  back through `Application.Run()`.
+- A move that arrives for a tracked pair with no tool keeps the tool it was tracked with
+  (`Tracker.Retarget`): one over the viewer port carries two paths and nothing else.
 - Allows accepting/discarding diffs from system tray
 
 **Packaging.Tests (`src/Packaging.Tests/`):**
@@ -460,7 +519,7 @@ apart.
 
 ### Key Patterns
 
-- Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations
+- Tool discovery uses wildcard path matching (`WildcardFileFinder`) to find executables in common install locations. A wildcard whose matches are all version-named folders takes the highest version; anything else takes the most recently written
 - Tool order can be customized via `DiffEngine_ToolOrder` environment variable
 - `DisabledChecker` respects `DiffEngine_Disabled` env var
 - `ViewerClient` remembers a port found unowned for ten minutes (`RecheckUnownedAfter`), and the library's telling sends - settle, retire, move, delete, the first inline or diff send - skip the connect while that stands. A refused loopback connection costs two seconds on Windows (firewall stealth mode drops the reset), and a green run settles once per inline verification, which was six minutes for a class of 188 inline tests. Probes (`IsOwned`), the hosts and `InlineQueueClient` always connect and correct the memory; so does `SettleAppliedInline`, being one send per accept

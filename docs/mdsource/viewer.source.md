@@ -47,7 +47,7 @@ flowchart TD
     Tray -->|no| Bundled{"A copy for this platform bundled in the<br/>DiffEngine package the project references?"}
     Bundled -->|yes| Package["The bundled copy"]
     Bundled -->|no| Cache{"A DiffEngine package<br/>in the NuGet cache?"}
-    Cache -->|yes| Cached["The copy bundled in that package:<br/>this version first, then any"]
+    Cache -->|yes| Cached["The copy bundled in that package:<br/>this version first, then the highest"]
     Cache -->|no| OnPath{"DiffEngineViewer on PATH?"}
     OnPath -->|yes| Found["The copy on PATH"]
     OnPath -->|no| None["No viewer: files go to another diff tool, and<br/>an inline snapshot is staged as files instead"]
@@ -63,6 +63,10 @@ flowchart TD
 ```
 
 An installed tool comes first because installing one is an explicit choice of which viewer to run. The bundled copy comes ahead of the NuGet cache because it is the version the library about to launch it was built with; the cache is searched as well because not every project shape tells the library where its package is.
+
+There is one exception to the first copy found. A copy from before 20.5.0 is passed over when a newer one is further down that list, and taken only when it is the only one there is. A viewer that old exits on the `--payload` file a failing inline snapshot is launched with, so an installed tool or tray that had not been updated lost the snapshot. A copy named by `DiffEngine_DiffEngineViewer` is used as named, whatever its version.
+
+A viewer that is started and exits with a failure before it holds the queue is reported as not started, so an inline snapshot is staged as files rather than said to be queued.
 
 The folder is looked for beside the copy that was found rather than assumed from where it came from, so a tool installed before documents existed is a minimal viewer, and is not offered files it would show as text. Setting `DiffEngine_DiffEngineViewer` to a path with no viewer at it is an error rather than a fall through to the next copy.
 
@@ -230,7 +234,7 @@ A conflicted entry is marked `*` in the list, the pane header names the framewor
 
 When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the tray's pending file moves and deletes beside the snapshots, grouped by solution like everything else. A move shows the received file against the committed one; a delete shows the file's content against nothing. The files are read locally — the protocol never leaves the machine — and accept and discard are forwarded to the tray, which is why the buttons name the act: **Accept move**, **Accept delete**.
 
-**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted.
+**Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted. The deletes are the ones pending when it began, and are held back when a snapshot was not written. One for a file that a move in the same sweep has written is left pending.
 
 A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends them to a running tray.
 

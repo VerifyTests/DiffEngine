@@ -1,159 +1,66 @@
 # Review todo
 
-Findings from a review of `main` at 991bc480 (2026-10-03). The list from the review at 4244ebe6 is closed, so this one weights what has landed since: documents and maps, the text diff, zoom and pan, the remembered window and views, and pictures decoded off the UI thread. The five bugs that review found in the viewer's model are fixed and gone from this list.
+Findings from a review of `main` at 991bc480 (2026-10-03). The list from the review at 4244ebe6 is closed, so this one weights what has landed since: documents and maps, the text diff, zoom and pan, the remembered window and views, and pictures decoded off the UI thread.
 
-Most of what follows came from six reviews run alongside it, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. The word after each title says how far the item was taken.
+Most of it came from six reviews run alongside, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. Every bug found is fixed and gone from this list: the five in the viewer's model, and the twenty seven the six reviews found. What is left is what those fixes did not reach, the performance items, and the smaller ones.
+
+File and line references are as of a01dfc1d, before the second round of fixes. The code they point at is unchanged, but lines below an edit have moved, so go by the names.
 
 - **reproduced**: run and seen by me. Either the API involved, or the repo's own sources compiled into a scratch console project outside the repo. No test in the repo yet.
 - **measured**: timed by me in that same project. Release, net10.0, this machine.
 - **read**: confirmed by me reading the code path, not run.
 - **reported**: found by one of the six reviews and not rerun by me. What follows the word is the reviewer's own evidence: *ran* is a probe of theirs outside the repo, *measured* a timing of theirs, *read* a trace through the code, and *plausible* a reading that rests on something they could not run, with what would settle it. For each of these I checked that the code it quotes is in the tree as quoted, and nothing more.
-- Nothing under a Linux or macOS heading has been run by anyone: the C++ and Swift cannot be built from Windows.
+- **left by the fix**: said by whoever fixed the bug it sits under, about the part the fix did not reach.
+- Nothing under a macOS heading has been run by anyone: the Swift cannot be built from Windows, and its fixes are first compiled by CI. The Linux fixes were built and run in an `ubuntu:24.04` container.
 
 
 ## Bugs
 
+Nothing that was found as a bug is open. What follows is what the fixes left.
+
 ### Library
 
-- [ ] **A viewer that cannot start is reported as launched, so an inline snapshot is neither queued nor staged** (read; both triggers reported: ran)
-  - `src/DiffEngine/Viewer/ViewerLaunchGate.cs:119-135` and `:172-188`: `WaitForBind` returns nothing, so a launch that never bound the port is still `Launched`, which `DiffRunner_Inline.cs:104-109` turns into `InlineResult.Queued`. Verify then stages nothing.
-  - A resolved copy older than the library. The search order is the global tool, the tray's copy, then the bundled one, and a 20.3.1 copy exits 2 on `--payload` ("Unknown argument"), which first shipped in 20.5.0. With no tray running, every failing inline snapshot starts a process that exits at once, waits out the five second `BindWait` holding the gate, and reports `Queued`, until `MaxInstance` is used up. The temp `.inlinepatch` is never deleted.
-  - No .NET 10 Desktop runtime: the apphost exits 131, or shows a dialog and never exits, with the same result.
-  - `ViewerLaunchGateTests.AViewerThatNeverAnswersDoesNotHoldTheGateForever` pins `Launched` for a viewer that never binds, on the reasoning that the work went over on the command line. Neither case here reaches code that could stage.
-  - The NuGet fallback picks the most recently written version folder, not the highest (`FallbackViewerDirectories.cs:94-103`, `WildcardFileFinder.cs:75-77`), so it can also choose a copy from before 20.5.
-  - Fix: have `ViewerLauncher` return the `Process`, and stop `WaitForBind` as soon as it has exited without the port being owned, reporting `Failed` so the caller stages. Do not resolve a copy older than the launch contract, or try the bundled copy first for launches the library makes itself.
-
-- [ ] **`DiffRunner.LaunchProcess` hands the test host's handles to tools declared `UseShellExecute: false`** (read; the effect reported: ran, with a stand-in child)
-  - `src/DiffEngine/DiffRunner.cs:371-380` starts the tool with `UseShellExecute = tool.UseShellExecute` and nothing redirected. `MsWordDiff`, `MsExcelDiff` and `Cursor` are declared `false`, so they inherit the host's stdout pipe, which is what `ViewerLauncher` was rewritten to avoid.
-  - A host that starts an 8 second child this way and exits has its redirected stdout reach EOF after 8.3 s, against 0.1 s with ShellExecute. `diffword` waits until Word is closed, so `dotnet test` with a failing `.docx` would not return until then. On macOS and Linux every long lived tool is in the same position, ShellExecute or not.
-  - What would settle it end to end: `dotnet test` with a failing docx while Word stays open.
-  - Fix: on Windows start these through ShellExecute with `WindowStyle = Hidden`. On Unix reuse `ViewerLauncher.StartInfo`'s redirect and close for GUI tools, not terminal ones such as nvim.
-
-- [ ] **A launched viewer pins the test host's working directory** (reported: ran)
-  - `src/DiffEngine/Viewer/ViewerLauncher.cs:151-169` sets no `WorkingDirectory`, so the viewer inherits the host's, commonly the test project's `bin/<configuration>/<framework>`. That directory cannot be deleted while the viewer lives, and a viewer can sit hidden behind the tray for the session: `git clean -xdf`, or removing a worktree, fails with no visible culprit. `DiffRunner.cs:373-380` has the same shape.
-  - Fix: set `WorkingDirectory` to the viewer's own folder or temp. The paths it is handed are absolute.
+- [ ] A viewer that is alive and never binds the port is still reported as launched after `BindWait`, and its payload file stays. That is the apphost's "install .NET" dialog, which does not exit. At the gate it cannot be told from a viewer that is only slow. (left by the fix)
+- [ ] A viewer that exits 1 or 4 has staged the patch itself, and the caller, told the launch failed, now stages it too: two trios in different `VerifyInline` folders until a passing run clears both. (left by the fix)
+- [ ] A failed launch still spends a `MaxInstance` slot, so after five in one process the cap answers instead. (left by the fix)
+- [ ] On macOS and Linux a tool started without ShellExecute still inherits the test host's streams. Nothing in the definitions tells a terminal tool, which needs them, from a windowed one: Neovim is declared `UseShellExecute: true` like the rest. (left by the fix)
+- [ ] `DiffRunner.LaunchProcess` still starts a third party tool in the test host's working directory, which then cannot be deleted while the tool is open. Left alone because a tool resolves relative arguments against it and `ProcessCleanup` matches on those same strings. (left by the fix)
+- [ ] None of the four tools now started through `WindowsProcess.StartInheritingNothing` (Word and Excel comparers, Cursor, VS Code) was itself run. A console exe, a windowed exe and a `.cmd` stood in for them. (left by the fix)
 
 ### Inline snapshots
 
-- [ ] **F#: accepting into a call that does not start its line writes source the compiler rejects** (reproduced)
-  - `src/DiffEngine/Inline/InlinePatcher.cs:498-507` (`TryAppend`), `:1382-1392` (`RenderArgument`), `:1617-1638` (`IndentForSpan`): both indents are measured from the line's leading whitespace, and F#'s offside rule needs the continuation right of the column the expression starts at.
-  - Append onto `do! Verifier.Verify("findPerson", person).ToTask()`, which is the shape of Verify's own Expecto sample, writes `.Snapshot("c").ToTask()` on the next line at the column of `Verifier`: `error FS0010: Unexpected symbol '.' in expression`. Set to a value of two lines after `let! _ =` fails the same way, at `.ToTask()`.
-  - By the reviewer's runs under `dotnet fsi`: after `do!`, Append fails and Set compiles. After `let! x =`, `let x =` and a one line `let f () =`, both fail. A call that starts its line, and one after `return!`, compile. `FsCompilerRoundTripTests` only uses calls that start their line.
-  - Fix: for F#, when the call is not the first token on its line, measure from the column the call expression starts at. Add the `do!`, `let!`, `let` and one line shapes to `FsCompilerRoundTripTests`.
-
-- [ ] **C#: Append lands after `ConfigureAwait`, `ToTask` or `GetAwaiter`, and `CanAnchor` says the site can host it** (reproduced)
-  - `InlinePatcher.cs:478` and `:689-740` (`WalkChain`): `SourceLanguage.ChainTerminator` is null for C#, and only F# has `"ToTask"` (`FsLanguage.cs:31`), so the end of the chain is always where it is inserted.
-  - `await Verify(value).ConfigureAwait(false);` becomes `await Verify(value).ConfigureAwait(false)` then `.Snapshot("new");`, which is CS1061: a `ConfiguredTaskAwaitable` has no `Snapshot`. `anchorOnly` returns Applied before the chain is walked (`:473-476`), so Verify's `InlineAnchor.CanHost` declares the verification inline.
-  - Fix: treat `ToTask`, `ConfigureAwait` and `GetAwaiter` as terminators in both languages, and insert in front of the first.
-
-- [ ] **Queue identity is the line alone: a partial accept then a re-run duplicates entries, and a settle can take another test's** (reported: read)
-  - `InlineQueue.cs:44-59` (`Enqueue`), `:241-248` (`Settle`), and `InlineStaging.cs:125-127` for staged trios.
-  - Entries for A, B and C at lines 10, 20 and 30 of one file. Accepting A adds five lines, and the re-run sends B and C at 25 and 35. No key matches, so the queue holds B|20, C|30, B|25 and C|35. If B's content changed, accept-all applies the stale B|20 and then refuses the fresh one.
-  - After the same accept, a passing call that moved from line 15 to line 20 settles `file|20`, which is B's stale key. A direct hit is not checked against the member or the value.
-  - Fix: on a direct hit where both members are known and differ, treat it as a miss unless `IsSettledBy(value)` holds. In `Enqueue`, when the key misses, fold into the single entry with the same file, member and anchor. Longer term, have `InlineApplier` report the line delta and rebase the hints of what is left for that file.
-
-- [ ] **Clearing staged trios is never scoped to a framework in practice** (reported: plausible)
-  - `InlineStaging.cs:142-151`, `InlinePatchFile.cs:9-18` and `:31`, `RuntimeMoniker.cs:5`. Verify calls `InlineStaging.Clear` with no origin, and cannot supply one because `RuntimeMoniker` is internal. It also stages through `InlinePatchFile.Write` with `patch.Framework` null, which any origin clears.
-  - A multi-targeted project, no viewer, and a snapshot that differs per framework: net8 fails and stages a trio, net9 passes and its settle deletes it.
-  - What would settle it: a two framework run with `DiffEngine_InlineViewer=false`.
-  - Fix: stamp `RuntimeMoniker.Current` in `InlinePatchFile.Write` when the patch has no framework, and expose a clear that uses the current moniker.
-
-- [ ] **Append takes the first entry point in the member, even one that already has a Snapshot** (reproduced)
-  - `InlinePatcher.cs:456`, `:864-884` (`TryFindCall`), `:487-496`.
-  - `await Verify(a).Snapshot("A");` then `await Verify(b);` in one member, with a hint that an accept higher in the file made stale. The walk restarts at the member and yields `Verify(a)` first, and the answer is NotFound, "The call near line 12 already has a Snapshot call. Re-run the test.", with `Verify(b)` plainly there. A single accept drops the entry.
-  - Fix: in `TryAppend`, take the first entry point with no chained Snapshot, and give today's answer only when every candidate has one.
-
-- [ ] **Remove on `settings.Snapshot(...)` leaves `settings;`** (reproduced)
-  - `InlinePatcher.cs:574-614`: the only shape check is `source[start - 1] != '.'`, and the splice removes `.Snapshot("old")` and keeps the receiver. `settings.Snapshot("old");` becomes `settings;`, which is CS0201. `VerifySettings.Snapshot` is public API, and Verify sends a Remove for it under `NotInline()`.
-  - Fix: when the receiver starts the statement and the call is followed by `;`, remove the statement's line. Otherwise report NotFound.
+- [ ] Verify has to change for the staged trios of a multi-targeted project to be cleared per framework: in `InlineEngine.Settle()`, call `InlineStaging.Settle(MappedSourceFile, inline.Line, inline.MemberName, VerifierSettings.IntermediateDir, SnapshotInSource)` in place of `ClearStaged(...)`. DiffEngine's half is done: the trios are labelled, and `Settle` clears only the running framework's. (left by the fix)
+- [ ] A queued entry is still found by its line, with the member asked second. Three cases remain: a test that carries on past a failed verification and has two call sites only the line tells apart folds them into one; an entry the reporting framework has no content in is not moved, so a multi-target run can keep a stale duplicate; and a settle from the same member is believed on a key hit. Rebasing the hints of a file's remaining entries when one is accepted would close all three, and was not done because a batch accept finds entries by their `Variants` reference. (left by the fix)
+- [ ] An `Append` with a stale hint takes the first call in the member that has no `Snapshot` call. Where an earlier call there is verified through files, or through `settings.Snapshot`, that is the wrong call, as it already was whenever such a call came first. (left by the fix)
+- [ ] A `Remove` with a stale hint can answer AlreadyApplied while its anchored call is still there, because `RemovedAtHint` is asked first. (left by the fix: seen in its fuzzing, and present before it)
 
 ### Tray
 
-- [ ] **"Accept all" deletes the verified file a move in the same sweep just wrote** (read; reported: ran)
-  - `src/DiffEngineTray/Tracker.cs:873-889`: `AcceptAll` accepts every move and then every delete, and `AddMove` (`:165-227`) drops no tracked delete for its target. The wire sweep at `:1004-1040` is the same.
-  - A delete for `Foo.verified.png` is tracked and not accepted. A later run fails on that target, and a move onto it is tracked beside it. Accept all moves the received file into place and then deletes it: both files gone, with no warning.
-  - The stale delete is still there with any library before 20.4.0, which has no `SettleDelete`, when a viewer owns the queue, and when the settle was skipped by the ten minute unowned-port memory.
-  - Fix: in `AddMove`, drop a tracked delete whose file is the move's target. As a second guard, have both delete sweeps skip a file that a tracked or just accepted move targets.
-
-- [ ] **Accept-all lists the deletes after the snapshot sweep, so one that arrived mid-batch is carried out without its patch** (reported: read)
-  - `Tracker.cs:411-436`, `:447-465`, `:880-889`, `:1022-1037` and `OwnedInlineHost.cs:427-441`, `:598-613`: the snapshot keys are taken when the batch starts, and the deletes are read when their turn comes.
-  - A "snapshot moving inline" pair lands while a batch is applying. Its patch is not in the batch, but its delete is in the list taken afterwards, so the verified file goes while the patch is only pending.
-  - Fix: take the delete keys when the batch begins and carry out only those, as the viewer's own batch does (`src/DiffEngineViewer/ViewerSession.cs:994`).
-
-- [ ] **An owner that cannot be asked reads as "nothing pending", so the tray's deletes go ahead** (reported: ran)
-  - `Tracker.cs:447-457`: `if (inline.List().Count == 0) { return false; }`, and `RemoteInlineHost.List` is `TryList(out var pending) ? pending : []` (`RemoteInlineHost.cs:51-72`).
-  - A viewer owns the queue and holds a patch, the tray holds the paired delete, and the viewer does not answer `List` within 500 ms: cold starting, or wedged. Accept all deletes the verified file with the patch never tried.
-  - Fix: let the host tell "port not held" from "held but no answer", and treat the second as refused: deletes held, user told.
-
-- [ ] **The tray's UI thread is MTA, so Debug view's Copy always throws** (reported: ran)
-  - `src/DiffEngineTray/Program.cs:5` is `static async Task Main()` with no `[STAThread]`. `Clipboard.SetText` (`DebugForm.cs:92-109`) throws `ThreadStateException`, which `catch (ExternalException)` does not catch, so it reaches WinForms' Continue or Quit dialog and nothing is copied.
-  - Fix: `[STAThread] static void Main()` that calls `Inner().GetAwaiter().GetResult()`, or `content.SelectAll(); content.Copy();`.
-
-- [ ] **A tray that owns the queue does not stage it at logoff or shutdown** (reported: plausible)
-  - `OwnedInlineHost.cs:746-782`, `Program.cs:129-139`: `Persist()` only runs when `Inner` unwinds after `Application.Run()` returns. Nothing in the tray handles the session ending, which the viewer does. For a tray started at login, that is how its life usually ends.
-  - What would settle it: log off with one pending inline snapshot, then look for the staged `.inlinepatch`.
-  - Fix: a hidden `NativeWindow`, or `SystemEvents.SessionEnding`, that calls `Persist()` on `WM_ENDSESSION`.
-
-- [ ] **A `Move` or `Diff` over 3493 for a pair already tracked replaces its tool with the tray's own choice for the extension** (reported: ran)
-  - `Tracker.cs:198-226`, `:234-246`: the update always rebuilds with the incoming `exe`, and null falls to `DiffTools.TryFindByExtension`. "Open diff tool" on a viewer pair starts `DiffEngineViewer --diff`, which cannot bind and forwards `Diff` to the tray.
-  - Before: `DiffEngineViewer.exe CanKill=False IsViewer=True IsOpen=True`. After: `BCompare.exe CanKill=True IsViewer=False IsOpen=False`. The "Accept open" hot key then skips a pair that is on screen in the viewer.
-  - Fix: when the incoming `exe` is null, keep the tracked `Exe`, `Arguments`, `CanKill`, `KillLockingProcess` and `IsViewer`, and refresh only the target.
-
-### Viewer, Windows head
-
-- [ ] **A decode dropped because its picture left the screen is never retried: a spinner for good** (read; reported: ran)
-  - `src/DiffEngineViewer.Windows/ImageCache.cs:240-257` (`Loaded`): a decode that lands for a path no longer wanted is disposed, and the method returns before `pending.Remove(path)`. `Get` (`:194-198`) then reads the entry in `pending` as already on its way and starts nothing, and `Loading` stays true.
-  - Step past an image entry or a document page before its decode lands, then come back: Tab twice, hold Tab, `]` `]`. Both panes show a spinner until the file's stamp changes, repainted 25 times a second. A decode takes 23 ms for a 1920x1080 png and 89 ms for a 2550x3300 page against a 16 ms frame, so holding Tab through a queue of pictures sticks nearly every one.
-  - `ADecodeForAPictureNoLongerOnScreenIsDropped` pins the drop and never comes back to the path.
-  - Fix: in `Loaded`, remove the pending entry once the stamp matches and before the `wanted` test, or have `Keep` remove pending entries for paths it no longer wants.
-
-- [ ] **The first window is centred for its unscaled size and then scaled in place** (reported: ran)
-  - `ViewerForm.cs:140-141`, `:234-241`, `:374-392`: WinForms centres before `OnHandleCreated` assigns `ClientSize = InitialClientSize(...)`. At 125% on a 3440x1380 working area the margins are left 1161, right 886, top 316, bottom 142. On 1920x1080 at 150% the same arithmetic puts the footer under the taskbar, and `Placement` then remembers those bounds for every later run.
-  - Fix: `CenterToScreen()` straight after the `ClientSize` assignment in the `!sized` branch.
-
-- [ ] **`Raise()` un-maximises a window that was minimised from maximised, and that is then remembered** (reported: ran)
-  - `ViewerForm.cs:482-492`: `if (WindowState == Minimized) { WindowState = Normal; }`. Maximise, minimise, a snapshot arrives: the window comes back at its normal size, and the next hide or close saves it that way.
-  - Fix: `WindowState = maximized ? FormWindowState.Maximized : FormWindowState.Normal;`
-
-- [ ] **One picture path on both sides, panes a pixel apart: the composite is rebuilt forever** (reported: ran)
-  - `ImageCache.cs:297-338`, `:340-365` keep one composite per path. Identical documents share their page pngs, and with an odd panes width the two sides ask for sizes a pixel apart (`ViewerCanvas.cs:517-518`, `:581-583`): 14,609 composites in 2 s with a trivial builder, one side always the stretched copy.
-  - Fix: give both panes' picture space the same width, or keep the composite by size.
+- [ ] "Accept all in" a group from an attached viewer sends one `Accept` per key (`OwnerLink.AcceptGroup`), so the guard that leaves a delete whose file a move in the same sweep wrote does not apply there. (left by the fix)
+- [ ] A delete held back that way stays in the menu with only a log line to say why, and a second "Accept all" carries it out. (left by the fix)
+- [ ] An owning viewer's own batch looks to have the shape the tray's had: `ViewerSession.EnqueueTracked` replaces by key only, and `BeginAcceptAll` takes moves and deletes in queue order, so a delete can follow the move that wrote its file. (left by the fix: read, not run)
+- [ ] A batch that begins between Verify raising a delete and queueing its patch can still carry out the delete without the patch. Closing that needs the two tied together on the wire. (left by the fix)
+- [ ] A logoff also skips `TrayVersionFile.Delete()`, for the reason it skipped the staging. (left by the fix)
+- [ ] The session ending was confirmed by sending the tray-shaped process `WM_QUERYENDSESSION` and `WM_ENDSESSION`, not by logging off. (left by the fix)
 
 ### Viewer, Linux head
 
-- [ ] **Caps Lock turns `a` (accept) into accept-all** (read)
-  - `native/src/deview.cpp:950-974`: letters are decided by the character typed, `'a'` accept and `'A'` accept-all. Caps Lock produces `'A'` without Shift, and `ViewerSession.BeginAcceptAll` starts with no confirmation. The other heads decide by the Shift modifier. With Caps Lock on, d, v, q, n, p, m, r and j also do nothing.
-  - Fix: lower-case the character before the switch, and choose accept-all from `IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)`.
-
-- [ ] **The footer has no overflow handling** (reported: read, by arithmetic against the Linux baselines)
-  - `deview.cpp:1987-2027`: every button is `SameLine()`d, and the status is drawn after the last when nothing is left. A paged document in the queue needs 1199 px of buttons in a 1084 px content width: "Zoom in" starts at x=1128, off the window, and the status at 1213. In file mode the status gets 54 px. The status line is where page numbers, draw failures, the selection, accept-all progress and accept failures are said.
-  - Fix: give the status its own line, and wrap buttons that would pass the content edge. The title row (`:1617-1624`) has the same shape.
-
-- [ ] **No fallback font: every character JetBrains Mono lacks draws as the replacement glyph** (reported: read)
-  - `deview.cpp:2128-2138` is the only `AddFont` call. CJK, Hangul, Arabic, Hebrew, Thai and emoji in a snapshot cannot be reviewed on Linux. Windows and macOS fall back to system fonts.
-  - Fix: merge system fonts with `MergeMode`, found by fontconfig or well known Noto and DejaVu paths, and clip each segment that is not simple to its own cells.
-
-- [ ] **Text cannot be selected in the right pane while the left pane's visible rows are all filler** (reported: read)
-  - `deview.cpp:1244-1260` (line 1253): the start test rejects on `leftHit.textLeft < 0.0f` before looking at which pane was pressed, and `textLeft` is only set by a row that is not filler. That is every pending delete, whose left side is empty, and any scroll position inside a long removed block.
-  - Fix: test `leftHit.textLeft` only when the press is in the left pane, or derive it from the gutter width.
+- [ ] The body is not told about a taller footer. The model's eight chrome lines leave room for two rows of buttons and a status line; a paged document in a window under about 450 px wide needs four, and the last body rows are then hidden. Fixing it means the shim reporting fewer `rows`, which changes what `deview.h` says that field is. (left by the fix)
+- [ ] The machine's fonts are drawn, not shaped: Arabic is unjoined and right to left text is in stored order. Colour emoji fonts and CFF2 variable fonts cannot be read by stb_truetype and are passed over, so a machine whose only CJK font is the variable Noto still shows replacement glyphs. At most fifteen fonts are merged. (left by the fix)
+- [ ] Accept-all reads the Shift key's physical state, since raylib gives no modifiers with a character, so a latched Shift (sticky keys) is a plain accept. (left by the fix)
 
 ### Viewer, macOS head
 
-- [ ] **Keys and clicks share one slot per kind, so a slow frame drops or reorders them** (reported: read)
-  - `native/swift/Sources/Deview/ViewerView.swift:130,143,283,296,361`, `MainMenu.swift:15,26,37`, `Runtime.swift:350-355`: `pump()` dispatches every queued event before returning, and each handler overwrites one field. With the loop busy, Tab then `a` accepts the entry the reader meant to skip, and `d` then a click on another row discards the clicked row, because `Apply` runs the click before the key. The Windows head fixed this with a queue (`ViewerForm.cs:95-116`).
-  - Fix: queue discrete events in `Runtime` and hand over one per `deview_poll_input`. No ABI change.
-
-- [ ] **The footer has no overflow handling: the status is drawn over the buttons, and a document's buttons fall off the window** (reported: read, by arithmetic against the OSX baselines)
-  - `Renderer.swift:346-371`. At the default 1100 pt an image pair in queue mode has buttons ending at x=1015 and "images differ" starting at 977. A paged document's eleven buttons need 1405 pt in queue mode, so "Zoom out" and "Zoom in" cannot be clicked.
-  - Fix: clip the status to the space right of the last button, and give the buttons a second row or less padding when they overflow.
-
-- [ ] **AppKit's nested tracking loops starve the managed loop** (reported: read; what it looks like needs a Mac)
-  - `Runtime.swift:269-270`, `:279-298`, `:350-355`: the scroller knob is tracked inside `NSApp.sendEvent`, so `deview_present` does not return and no frame is presented. Dragging the knob moves it without scrolling the panes until release, and a live resize draws the old slice into the new size. `ILoopHooks` says the native heads have no modal loops.
-  - Fix: track the knob without the modal loop, or add a frame callback to the ABI that Swift calls from `scrolled` and during a live resize.
-
-- [ ] **macOS draws JetBrains Mono's code ligatures** (reported: read, from a committed baseline)
-  - `Renderer.swift:217-233`, `:919-929`: Core Text applies `calt` by default. In `PixelTests.Images.OSX.verified.png` the title's `<>` is one glyph. `!=`, `<=`, `=>`, `->` and `==` in snapshot text are drawn as ligatures, in a tool whose job is to show which characters a snapshot holds.
-  - Fix: create the `CTFont` with `calt` and `liga` off through `kCTFontFeatureSettingsAttribute`, then re-approve the OSX baselines.
+- [ ] None of the four macOS fixes has been run. What would confirm each on a Mac:
+  - Keys and clicks queued: with three entries queued, `pkill -STOP -x DiffEngineViewer`, press Down twice, `pkill -CONT`: the panes scroll two rows. Stopped, Tab then `a`: the second entry is the one accepted.
+  - The scroller's knob: dragging it scrolls the panes while the button is down, and the scroller stays on the right edge through a resize.
+  - The footer: `DiffEngineViewer --diff a.png b.png` at the default size has "images differ" on a line of its own with nothing over "Zoom in"; a PDF pair has two rows of buttons, all of which click.
+  - Ligatures: `!= <= => -> == ...` in a text file are each drawn as separate characters.
+- [ ] Turning ligatures off moves five OSX baselines, which can only be approved from the `received-macos-14` artifact of a CI run: `FileDiff`, `Images`, `ImagesEnlarged`, `Selection` and `Minimal`, each at the title's `<>`, and `Minimal` at the `...` of its folded rows too. If none of the five fails, the setting did not take. If all ten scenes fail, the copy is not the embedded font. (left by the fix)
+- [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. That half of the tracking loop bug needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too. (left by the fix)
+- [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. (left by the fix)
+- [ ] Every auto-repeat of a held `a` or `d` is now handed over, including ones queued during a stall. `event.isARepeat` would drop them. The Windows item under Smaller is the same hazard. (left by the fix)
+- [ ] The title row has the footer's old shape: the subtitle is drawn over a long title. (left by the fix)
 
 
 ## Performance

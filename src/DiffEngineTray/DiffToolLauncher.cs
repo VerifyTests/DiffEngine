@@ -7,10 +7,12 @@ static class DiffToolLauncher
         Launch(move.Exe!, move.Arguments!, move.CanKill, move.Process, _ => move.Process = _);
 
     /// <summary>
-    /// The two start flags the tool itself declares, which is what <c>DiffRunner.LaunchProcess</c>
-    /// launches it with. Hard coded here before, so a console subsystem tool - the bundled viewer
-    /// is one - was started without CreateNoWindow and came up with a console attached, which
-    /// DiffEngine's own launch of the same tool does not do.
+    /// The two start flags the tool itself declares. Hard coded here before, so a console
+    /// subsystem tool - a viewer from before 20.5 is one - was started without CreateNoWindow and
+    /// came up with a console attached, which DiffEngine's own launch of the same tool does not do.
+    /// <c>DiffRunner.LaunchProcess</c> goes further for a tool declared without ShellExecute, and
+    /// starts it so that it inherits nothing from the test host. Nothing here needs that: no test
+    /// run is waiting on this process's output.
     /// <para>
     /// Resolved by path rather than carried on the move, because the payload the tray receives has
     /// no room for them: PiperServer's format is frozen, every stable DiffEngine embeds the client
