@@ -333,17 +333,20 @@ static class ViewerSession
         var went = new HashSet<QueueEntry>(gone, ReferenceEqualityComparer.Instance);
         var queue = new List<QueueEntry>(state.Queue.Count);
         var any = false;
+        var shownAnew = false;
         foreach (var entry in state.Queue)
         {
             if (went.Contains(entry))
             {
                 any = true;
+                shownAnew = true;
                 continue;
             }
 
             if (replacements.TryGetValue(entry, out var fresh))
             {
                 any = true;
+                shownAnew |= !IsRestamped(entry, fresh);
                 queue.Add(fresh);
                 continue;
             }
@@ -356,11 +359,34 @@ static class ViewerSession
             return state;
         }
 
+        // Files written again with what they held, and nothing else: a run that fails the same
+        // way does that every time. Every entry is where it was and shows what it showed, so the
+        // open menu's indexes still mean what they did and nothing on screen is another thing.
+        // The stamps have to be taken all the same, or every pass after reads the file again. As
+        // the same pair arriving again over the socket is taken (Restaged), and for its reason:
+        // going through Remove closed a menu the reader had open, once a run.
+        if (!shownAnew)
+        {
+            return Clamp(state with { Queue = queue });
+        }
+
         // The message is carried rather than cleared, unlike every other path through Remove: this
         // is not something the reader did, and "Accepted Foo" disappearing because an unrelated
         // file went away reads as the accept having been undone.
         return Remove(state, queue, state.Message);
     }
+
+    /// <summary>
+    /// Whether <paramref name="fresh"/> is <paramref name="seen"/> with its files' new stamps and
+    /// nothing else: the copy <see cref="TrackedEntry.MoveAgain"/> makes of an entry whose files
+    /// still hold what it shows. Told by its rows being the very rows, which a copy keeps and an
+    /// entry built from the files again does not.
+    /// </summary>
+    static bool IsRestamped(QueueEntry seen, QueueEntry fresh) =>
+        seen.Key == fresh.Key &&
+        seen.Status == fresh.Status &&
+        ReferenceEquals(seen.LeftRows, fresh.LeftRows) &&
+        ReferenceEquals(seen.RightRows, fresh.RightRows);
 
     /// <summary>
     /// The loop's decision to leave, taken under the host's lock so it cannot cross an arrival:
