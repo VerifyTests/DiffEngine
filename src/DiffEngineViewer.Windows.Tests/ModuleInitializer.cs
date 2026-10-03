@@ -3,6 +3,13 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
+        // First, since it is refused once any window exists. WinForms answers an exception thrown
+        // inside a window message with a dialog offering Continue and Quit, which on a desktop
+        // somebody is working at is a test run waiting for a click nobody knows to make. Thrown
+        // instead, it comes out of the DoEvents that dispatched the message and fails the test.
+        // For the application: the overload without threadScope sets it for the calling thread
+        // alone, and no test runs on the thread a module initializer does.
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException, threadScope: false);
         MachineSettings.Ignore();
         VerifyWinForms.Initialize();
         // Effectively "the same pixels", rather than Verify's 0.98 default. A viewer screen is
