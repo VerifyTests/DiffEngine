@@ -395,7 +395,25 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
+        // A key held past the repeat delay arrives again many times a second, and each one is
+        // queued. That is what a held Down is for. A held a accepted the entry on screen and then
+        // every one that took its place, into source, none of them read, and the ones queued
+        // while a frame was slow were still handed over after the key came up. So what changes
+        // the queue takes a press each, as it does in the WinForms head. Swallowed rather than
+        // passed on: it is still this key.
+        if event.isARepeat, ViewerView.changesQueue(key) {
+            return
+        }
+
         Runtime.shared.post(.key(key))
+    }
+
+    /// The keys that act on the queue rather than on the view: the ones of
+    /// `ViewerSession.ChangesQueue` that a key here can be.
+    private static func changesQueue(_ key: Int32) -> Bool {
+        key == DEVIEW_KEY_ACCEPT.value ||
+            key == DEVIEW_KEY_ACCEPT_ALL.value ||
+            key == DEVIEW_KEY_DISCARD.value
     }
 
     /// Matches ReadKey in deview.cpp and the WinForms head's Map, which is the keymap the docs
