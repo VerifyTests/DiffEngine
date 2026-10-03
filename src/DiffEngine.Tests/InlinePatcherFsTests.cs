@@ -814,6 +814,52 @@ public class InlinePatcherFsTests
         await Assert.That(newSource).IsEqualTo(Test("    Verifier.Verify(15).ToTask()"));
     }
 
+    /// <summary>
+    /// The call on a VerifySettings rather than on a verify call. Taken off the end it left the
+    /// variable standing as an expression of its own, which F# warns about (FS0020) and a project
+    /// that treats warnings as errors refuses. There is no semicolon to say where the statement
+    /// ends, so it is the line, and the statement under it is what says the block still has one.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfACallOnAVariableTakesItsLine()
+    {
+        var source = Test(
+            """
+                let settings = VerifySettings()
+                settings.Snapshot("old")
+                Verifier.Verify(15, settings).ToTask()
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Remove, null, "", out var newSource, out var reason, originalValue: "old");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    let settings = VerifySettings()
+                    Verifier.Verify(15, settings).ToTask()
+                """));
+    }
+
+    /// <summary>
+    /// The last line of its block is the block's value, and taking it away leaves a binding with
+    /// nothing under it. So is a line the next one carries on, or one something else shares.
+    /// </summary>
+    [Test]
+    [Arguments("    let settings = VerifySettings()\n    settings.Snapshot(\"old\")")]
+    [Arguments("    task.Snapshot(\"old\")\n    |> ignore")]
+    [Arguments("    if flag then\n        settings.Snapshot(\"old\")\n    Verifier.Verify(15, settings).ToTask()")]
+    [Arguments("    settings.Snapshot(\"old\"); Verifier.Verify(15, settings).ToTask()")]
+    public async Task RemoveReportsACallItCannotTakeWithItsLine(string body)
+    {
+        var source = Test(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out _, out var reason, originalValue: "old");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Remove the statement by hand");
+    }
+
     [Test]
     public async Task LineCommentedOutCallIsSkipped()
     {

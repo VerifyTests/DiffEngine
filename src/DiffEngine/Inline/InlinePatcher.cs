@@ -601,6 +601,14 @@ static class InlinePatcher
     /// <summary>
     /// Removes the Snapshot call, along with the whitespace and line break that preceded it so no
     /// blank line is left behind.
+    /// <para>
+    /// What it was called on stays, and that has to still be something once the call has gone. A
+    /// verify call is. A variable is not: <c>settings.Snapshot("old");</c> became
+    /// <c>settings;</c>, which is no statement (CS0201), and Snapshot is as public on a
+    /// VerifySettings as on what a verify call returns. So there it is the statement that goes,
+    /// where it can be taken whole (<see cref="TryStatementLines"/>), and the call is reported
+    /// where it cannot.
+    /// </para>
     /// </summary>
     static PatchStatus TryRemove(
         SourceLanguage language,
@@ -653,6 +661,18 @@ static class InlinePatcher
 
         start--;
         var dotStart = start;
+        if (LeavesOnlyItsReceiver(source, scan, dotStart, closeParen))
+        {
+            if (!TryStatementLines(source, scan, lineStarts, nameStart, closeParen, out var from, out var to))
+            {
+                failReason = $"Removing the {methodName} call near line {lineHint} would leave what it is called on as a statement by itself. Remove the statement by hand.";
+                return PatchStatus.NotFound;
+            }
+
+            newSource = Splice(source, from, to, "");
+            return PatchStatus.Applied;
+        }
+
         // Then back over the indentation and line break it sat on
         while (start > 0 &&
                (source[start - 1] == ' ' || source[start - 1] == '\t'))
@@ -677,6 +697,116 @@ static class InlinePatcher
 
         newSource = Splice(source, start, closeParen + 1, "");
         return PatchStatus.Applied;
+    }
+
+    /// <summary>
+    /// Whether taking a call out would leave nothing of its expression but what it was called on:
+    /// the call hangs off a name rather than off another call, and nothing is chained on after it.
+    /// <para>
+    /// Either of those is enough for what is left to read as it did. A call result is a statement
+    /// with one call fewer on the end of it, and with more of the chain to follow, the rest hangs
+    /// off the receiver exactly as it hung off this.
+    /// </para>
+    /// </summary>
+    static bool LeavesOnlyItsReceiver(string source, SourceScan scan, int dot, int closeParen)
+    {
+        var receiverEnd = PreviousToken(source, scan, dot);
+        if (receiverEnd >= 0 &&
+            source[receiverEnd] == ')' &&
+            scan.IsCode(receiverEnd))
+        {
+            return false;
+        }
+
+        var after = closeParen + 1;
+        scan.SkipTrivia(ref after);
+        return after >= source.Length ||
+               source[after] != '.';
+    }
+
+    /// <summary>
+    /// The lines of a statement that is one call and nothing else, from the start of its first
+    /// line to the start of the line after its last, for taking out whole.
+    /// <para>
+    /// Only where taking them out cannot change what is around them, which is a narrower thing
+    /// than being a statement. It has to have its lines to itself, since a line is what goes. In
+    /// C# it has to sit in a block and end in its own semicolon: the body of an <c>if</c> with no
+    /// braces is a statement too, and removing that hands the <c>if</c> whatever came next. F#
+    /// has no semicolon to look for, so the call has to end its line, and something has to follow
+    /// at the same indentation: the last line of a block is the block's value, and a binding left
+    /// with nothing under it does not compile.
+    /// </para>
+    /// </summary>
+    static bool TryStatementLines(string source, SourceScan scan, List<int> lineStarts, int nameStart, int closeParen, out int start, out int end)
+    {
+        start = -1;
+        end = -1;
+        var expressionStart = ExpressionStart(source, scan, nameStart);
+        if (!StartsLine(source, lineStarts, expressionStart))
+        {
+            return false;
+        }
+
+        var cursor = closeParen + 1;
+        var byLayout = scan.Language.IndentationIsSyntax;
+        if (!byLayout)
+        {
+            var before = PreviousToken(source, scan, expressionStart);
+            if (before >= 0 &&
+                !(scan.IsCode(before) && source[before] is ';' or '{' or '}'))
+            {
+                return false;
+            }
+
+            scan.SkipTrivia(ref cursor);
+            if (cursor >= source.Length ||
+                source[cursor] != ';')
+            {
+                return false;
+            }
+
+            cursor++;
+        }
+
+        var lastLine = LineOf(lineStarts, cursor - 1);
+        var lineEnd = lastLine < lineStarts.Count ? lineStarts[lastLine] : source.Length;
+        while (cursor < lineEnd)
+        {
+            if (char.IsWhiteSpace(source[cursor]))
+            {
+                cursor++;
+                continue;
+            }
+
+            // A comment that runs past the end of the line would be cut in two
+            if (scan.TryGetCommentSkip(cursor, out var afterComment) &&
+                afterComment <= lineEnd)
+            {
+                cursor = afterComment;
+                continue;
+            }
+
+            return false;
+        }
+
+        if (byLayout)
+        {
+            // A name at the same indentation is the next statement of the same block. An
+            // operator there carries this one on, and anything further left ends the block
+            var next = lineEnd;
+            scan.SkipTrivia(ref next);
+            if (next >= source.Length ||
+                !scan.IsIdentifierChar(source[next]) ||
+                !StartsLine(source, lineStarts, next) ||
+                LeadingWhitespace(source, lineStarts, next) != LeadingWhitespace(source, lineStarts, expressionStart))
+            {
+                return false;
+            }
+        }
+
+        start = lineStarts[LineOf(lineStarts, expressionStart) - 1];
+        end = lineEnd;
+        return true;
     }
 
     /// <summary>

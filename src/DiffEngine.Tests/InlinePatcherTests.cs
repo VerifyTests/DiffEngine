@@ -1394,6 +1394,130 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// Snapshot is public on VerifySettings, so the call can hang off a variable rather than off a
+    /// verify call. Taking it off the end left <c>settings;</c>, which is no statement at all
+    /// (CS0201). The whole statement is what has stopped being wanted, so its line goes.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfACallOnAVariableTakesItsStatement()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+
+        var status = TryApply(source, 6, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        var settings = new VerifySettings();
+                        await Verify(value, settings);
+                """));
+    }
+
+    // Every line of it, and the comment that trailed it
+    [Test]
+    public async Task RemoveOfAStatementTakesAllOfItsLines()
+    {
+        var source = Method(
+            "        var settings = new VerifySettings();\n" +
+            "        fixture.Settings\n" +
+            "            .Snapshot(\n" +
+            "                \"\"\"\n" +
+            "                old\n" +
+            "                \"\"\"); // inline for now\n" +
+            "        await Verify(value, settings);");
+
+        var status = TryApply(source, 7, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        var settings = new VerifySettings();
+                        await Verify(value, settings);
+                """));
+    }
+
+    [Test]
+    public async Task RemoveOfAStatementWithCrlf()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+        var expected = Method(
+            """
+                    var settings = new VerifySettings();
+                    await Verify(value, settings);
+            """);
+
+        var status = TryApply(source.Replace("\n", "\r\n"), 6, InlinePatchMode.Remove, null, "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(expected.Replace("\n", "\r\n"));
+    }
+
+    /// <summary>
+    /// The second framework's Remove, which finds the line it named holding the verify call that
+    /// used to follow the statement, with nothing chained onto it.
+    /// </summary>
+    [Test]
+    public async Task ReapplyingARemoveOfAStatementIsAlreadyApplied()
+    {
+        var source = Method(
+            """
+                    var settings = new VerifySettings();
+                    settings.Snapshot("old");
+                    await Verify(value, settings);
+            """);
+
+        TryApply(source, 6, InlinePatchMode.Remove, "\"old\"", "", out var removed, out _, memberName: "Test");
+        var status = TryApply(removed, 6, InlinePatchMode.Remove, "\"old\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// Shapes where the call is all its statement does and the statement cannot simply be lifted
+    /// out: an <c>if</c> with no braces would take the next statement for its body, a line shared
+    /// with another statement is not the call's to remove, and a lambda or an awaited variable is
+    /// not a statement of its own at all. Reported, where it used to leave the receiver behind.
+    /// </summary>
+    [Test]
+    [Arguments("        if (flag)\n            settings.Snapshot(\"old\");")]
+    [Arguments("        var settings = new VerifySettings(); settings.Snapshot(\"old\");")]
+    [Arguments("        Configure(_ => _.Snapshot(\"old\"));")]
+    [Arguments("        await task.Snapshot(\"old\");")]
+    public async Task RemoveReportsACallItCannotTakeWithItsStatement(string body)
+    {
+        var source = Method(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out _, out var reason);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("Remove the statement by hand");
+    }
+
+    // With more of the chain to come, the rest hangs off the variable as it hung off the call
+    [Test]
+    public async Task RemoveFromTheMiddleOfAChainOnAVariable()
+    {
+        var source = Method("        await task.Snapshot(\"old\").UseDirectory(\"snapshots\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        await task.UseDirectory(\"snapshots\");"));
+    }
+
+    /// <summary>
     /// A verify call with no Snapshot left is what a Remove leaves behind, and what the same
     /// Remove finds when a second framework's test process applies it. It is done, and saying so
     /// is what stops the search going on to strip a Snapshot call from somewhere else.
