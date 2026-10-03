@@ -116,6 +116,14 @@ public class WindowsPixelTests
         Capture(Fixtures.Document());
 
     /// <summary>
+    /// The right page still being drawn: a spinner where it will go, stood still at twelve o'clock
+    /// in a capture so the baseline holds.
+    /// </summary>
+    [Test]
+    public Task DocumentPageBeingDrawn() =>
+        Capture(Fixtures.DocumentDrawing());
+
+    /// <summary>
     /// A selection dragged across three rows of the received pane. Mirrored in the native suite
     /// over the same range, because the highlight is the one part of a selection the ASCII
     /// snapshots cannot describe - a character grid has no way to invert part of a line without

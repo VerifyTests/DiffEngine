@@ -55,8 +55,14 @@ final class Renderer {
     /// file's write time and length — the same freshness test the queue poller uses, so a re-run
     /// that rewrites a received image refreshes the pane rather than leaving the previous one up.
     ///
-    /// A nil `image` is a remembered failure, so something ImageIO cannot read is attempted once
-    /// rather than on every redraw, and AppKit redraws for a great many reasons.
+    /// A nil `image` once `decoding` is over is a remembered failure, so something ImageIO cannot
+    /// read is attempted once rather than on every redraw, and AppKit redraws for a great many
+    /// reasons.
+    ///
+    /// Decoded and scaled on `work` rather than here, for the window. A page of a document or a
+    /// large screenshot takes tens of milliseconds and more to decode and as long again to scale,
+    /// and done on the main thread the window answered nothing until both were. A capture still
+    /// does both there and then: it draws one frame, and has no later one for them to land in.
     private var pictures: [String: Picture] = [:]
 
     private struct Picture {
@@ -68,6 +74,38 @@ final class Renderer {
         /// scaled costs a resample of every source pixel, and a window showing one did that on
         /// every redraw; this is a copy.
         var scaled: CGImage?
+
+        /// Being decoded on `work`. The pane shows a spinner until it lands.
+        var decoding = false
+
+        /// The size being scaled to on `work`, or nil when nothing is. One at a time, so a window
+        /// being resized is scaled for the size it has when the last one lands, rather than for
+        /// every size it passed through on the way.
+        var scaling: Pixels?
+
+        /// Scaling it failed, so it is drawn as it is, scaled as it is drawn, rather than asked for
+        /// again on every redraw.
+        var unscalable = false
+    }
+
+    /// A size in device pixels, which is what a scaled copy is made at and matched by.
+    private struct Pixels: Equatable {
+        var width: Int
+        var height: Int
+    }
+
+    private let work = DispatchQueue(label: "DiffEngineViewer.pictures", qos: .userInitiated)
+
+    /// What `work` has finished, for `takeFinished` to put in place, and the paths the last frame
+    /// drew, which `work` reads to skip a job for a picture that has left the screen since it was
+    /// asked for. Both behind `gate`, being the only things here two threads touch.
+    private let gate = NSLock()
+    private var finished: [Finished] = []
+    private var wanted: Set<String> = []
+
+    private enum Finished {
+        case decoded(path: String, modified: Date, length: UInt64, image: CGImage?)
+        case scaled(path: String, modified: Date, length: UInt64, size: Pixels, image: CGImage?)
     }
 
     /// One character cell. Measured from the font that was actually loaded, which is what the ABI
@@ -95,6 +133,10 @@ final class Renderer {
         /// Where the two panes' columns ended up, left then right, so a drag selecting text is
         /// resolved against the same numbers that drew it.
         var panes: [PaneColumn] = []
+
+        /// Where a spinner was drawn, standing in for a picture on its way. What `Runtime` redraws
+        /// to turn it, rather than the whole window.
+        var spinners: [CGRect] = []
     }
 
     /// One pane's horizontal extent: the column, and where its row text starts past the gutter.
@@ -161,8 +203,11 @@ final class Renderer {
         (Int32(max(0, size.width - rightInset) / cell.width), Int32(size.height / cell.height))
     }
 
+    /// `capturing` decodes and scales pictures here and now, and stands a spinner still: a capture
+    /// draws one frame, which has to have its pictures in it and come out the same every time.
     @discardableResult
-    func draw(_ frame: Frame, in context: CGContext, size: CGSize) -> Layout {
+    func draw(_ frame: Frame, in context: CGContext, size: CGSize, capturing: Bool = false) -> Layout {
+        takeFinished()
         var layout = Layout()
         context.setFillColor(Palette.background)
         context.fill(CGRect(origin: .zero, size: size))
@@ -220,13 +265,17 @@ final class Renderer {
         // Only the pictures this frame names stay decoded. An entry used to go only when its own
         // path was asked for again and had changed or gone, so every image reviewed in a session
         // was held until the session ended.
-        pictures = pictures.filter { $0.key == frame.left.imagePath || $0.key == frame.right.imagePath }
+        let shown: Set<String> = [frame.left.imagePath, frame.right.imagePath]
+        pictures = pictures.filter { shown.contains($0.key) }
+        gate.lock()
+        wanted = shown
+        gate.unlock()
 
         // Under the rows rather than instead of them. The rows are what every head draws — format,
         // size and byte count, coloured against the other side — and this one can afford to also
         // show the thing they describe.
-        image(frame.left, left: panesLeft, width: half, top: bodyTop, bottom: bodyBottom, line: line, in: context, size)
-        image(frame.right, left: panesLeft + half, width: panesWidth - half, top: bodyTop, bottom: bodyBottom, line: line, in: context, size)
+        image(frame.left, left: panesLeft, width: half, top: bodyTop, bottom: bodyBottom, line: line, capturing: capturing, in: context, size, &layout)
+        image(frame.right, left: panesLeft + half, width: panesWidth - half, top: bodyTop, bottom: bodyBottom, line: line, capturing: capturing, in: context, size, &layout)
 
         if hasQueue {
             let ruleLeft = panesLeft - Renderer.gap / 2
@@ -378,6 +427,9 @@ final class Renderer {
     /// has, and an eight point icon stretched across a pane is an interpolation of them rather than
     /// a look at them. Scaled from the size the model carries rather than from the decoded image,
     /// so all three heads place a picture identically.
+    ///
+    /// A spinner instead while the picture is on its way: a document's page the managed side is
+    /// still drawing, which it says with `imagePending`, or a picture being decoded or scaled here.
     private func image(
         _ pane: Frame.Pane,
         left: CGFloat,
@@ -385,20 +437,37 @@ final class Renderer {
         top: CGFloat,
         bottom: CGFloat,
         line: CGFloat,
+        capturing: Bool,
         in context: CGContext,
-        _ size: CGSize
+        _ size: CGSize,
+        _ layout: inout Layout
     ) {
-        guard !pane.imagePath.isEmpty,
-              pane.imageWidth > 0,
-              pane.imageHeight > 0,
-              let picture = self.picture(pane.imagePath)
-        else {
+        let hasPicture = !pane.imagePath.isEmpty && pane.imageWidth > 0 && pane.imageHeight > 0
+        guard hasPicture || pane.imagePending else {
             return
         }
 
         let imageTop = top + CGFloat(pane.rows.count + 1) * line
         let available = CGSize(width: width - Renderer.gap, height: bottom - imageTop)
         guard available.width > 0, available.height > 0 else {
+            return
+        }
+
+        // Where the picture will be centred once it can be drawn, and so where a spinner stands in
+        // for it until then
+        let space = rect(top: imageTop, left: left, width: available.width, height: available.height, size)
+        guard hasPicture else {
+            spinner(in: space, line: line, capturing: capturing, context, &layout)
+            return
+        }
+
+        let (decoded, loading) = self.picture(pane.imagePath, capturing: capturing)
+        guard let picture = decoded else {
+            // Nothing at all for a picture ImageIO cannot read: the rows have said what it is
+            if loading {
+                spinner(in: space, line: line, capturing: capturing, context, &layout)
+            }
+
             return
         }
 
@@ -417,18 +486,62 @@ final class Renderer {
             height: drawn.height,
             size)
 
+        let device = context.convertToDeviceSpace(bounds).size
+        guard let scaled = self.fitted(pane.imagePath, picture, device: device, capturing: capturing) else {
+            spinner(in: space, line: line, capturing: capturing, context, &layout)
+            return
+        }
+
         checker(bounds, in: context)
 
-        let device = context.convertToDeviceSpace(bounds).size
         context.saveGState()
-        context.interpolationQuality = .high
-        context.draw(fitted(pane.imagePath, picture, device: device), in: bounds)
+        // A copy at another size, mid resize, is stretched into place until this size has been
+        // made, and has to be quick about it rather than good: it is redrawn as soon as that lands
+        let exact = scaled === picture ||
+            (scaled.width == Int(abs(device.width).rounded()) && scaled.height == Int(abs(device.height).rounded()))
+        context.interpolationQuality = exact ? .high : .medium
+        context.draw(scaled, in: bounds)
         context.restoreGState()
 
         // An outline, so a picture whose edges are the colour of the pane still has visible extent.
         context.setStrokeColor(Palette.rule)
         context.setLineWidth(1)
         context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+    }
+
+    /// Something turning, centred in `space`, while the picture that will be centred there is on
+    /// its way: a dim ring, and a brighter quarter of it going round once a second, as the other two
+    /// heads draw it. Stood still in a capture, which has to come out the same every time, and left
+    /// out of a space too small to hold it. Where it went is added to `layout`, which is what
+    /// `Runtime` redraws to turn it.
+    private func spinner(in space: CGRect, line: CGFloat, capturing: Bool, _ context: CGContext, _ layout: inout Layout) {
+        let radius = line.rounded(.down)
+        let thickness = max(2, (line / 6).rounded(.down))
+        guard space.width >= (radius + thickness) * 2,
+              space.height >= (radius + thickness) * 2
+        else {
+            return
+        }
+
+        let centre = CGPoint(x: space.midX.rounded(.down), y: space.midY.rounded(.down))
+        let ring = CGRect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2)
+        let turned = capturing
+            ? 0
+            : CGFloat(ProcessInfo.processInfo.systemUptime.truncatingRemainder(dividingBy: 1)) * 2 * .pi
+
+        context.saveGState()
+        context.setLineWidth(thickness)
+        context.setStrokeColor(Palette.rule)
+        context.strokeEllipse(in: ring)
+        // From twelve o'clock, clockwise. Nothing is flipped here, so twelve o'clock is a half pi
+        // and clockwise is a falling angle.
+        context.setStrokeColor(Palette.dim)
+        context.setLineCap(.round)
+        context.addArc(center: centre, radius: radius, startAngle: .pi / 2 - turned, endAngle: -turned, clockwise: true)
+        context.strokePath()
+        context.restoreGState()
+
+        layout.spinners.append(ring.insetBy(dx: -(thickness + 1), dy: -(thickness + 1)))
     }
 
     private func checker(_ bounds: CGRect, in context: CGContext) {
@@ -459,43 +572,140 @@ final class Renderer {
     /// `picture` scaled down to `device` pixels, kept until the size or the picture changes, or
     /// `picture` itself where it is not being scaled down: drawing at or above its own size costs
     /// little, and drawing the original there leaves what a capture shows exactly as it was.
-    private func fitted(_ path: String, _ picture: CGImage, device: CGSize) -> CGImage {
+    ///
+    /// For the window the copy is made on `work`, and meanwhile this is the copy made for the size
+    /// the pane last had, for the caller to stretch into place, or nil when there has never been
+    /// one, which the pane shows a spinner for.
+    private func fitted(_ path: String, _ picture: CGImage, device: CGSize, capturing: Bool) -> CGImage? {
         let width = Int(abs(device.width).rounded())
         let height = Int(abs(device.height).rounded())
         guard width > 0,
               height > 0,
-              width < picture.width || height < picture.height
+              width < picture.width || height < picture.height,
+              var entry = pictures[path],
+              !entry.unscalable
         else {
             return picture
         }
 
-        if let scaled = pictures[path]?.scaled,
+        if let scaled = entry.scaled,
            scaled.width == width,
            scaled.height == height {
             return scaled
         }
 
+        let size = Pixels(width: width, height: height)
+        if capturing {
+            guard let scaled = Renderer.scale(picture, to: size) else {
+                entry.unscalable = true
+                pictures[path] = entry
+                return picture
+            }
+
+            entry.scaled = scaled
+            pictures[path] = entry
+            return scaled
+        }
+
+        if entry.scaling == nil {
+            entry.scaling = size
+            pictures[path] = entry
+            let (modified, length) = (entry.modified, entry.length)
+            work.async { [weak self] in
+                guard let self, self.isWanted(path) else {
+                    return
+                }
+
+                let scaled = Renderer.scale(picture, to: size)
+                self.post(.scaled(path: path, modified: modified, length: length, size: size, image: scaled))
+            }
+        }
+
+        return entry.scaled
+    }
+
+    private static func scale(_ picture: CGImage, to size: Pixels) -> CGImage? {
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let bitmap = CGContext(
                   data: nil,
-                  width: width,
-                  height: height,
+                  width: size.width,
+                  height: size.height,
                   bitsPerComponent: 8,
                   bytesPerRow: 0,
                   space: space,
                   bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
         else {
-            return picture
+            return nil
         }
 
         bitmap.interpolationQuality = .high
-        bitmap.draw(picture, in: CGRect(x: 0, y: 0, width: width, height: height))
-        guard let scaled = bitmap.makeImage() else {
-            return picture
+        bitmap.draw(picture, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+        return bitmap.makeImage()
+    }
+
+    /// Puts what `work` has finished into the pictures still waiting for it, and says whether
+    /// anything landed, which is a reason to redraw. A result for a picture that has left the
+    /// screen since, or for a file rewritten since, is dropped.
+    @discardableResult
+    func takeFinished() -> Bool {
+        gate.lock()
+        let landed = finished
+        finished = []
+        gate.unlock()
+
+        var changed = false
+        for result in landed {
+            switch result {
+            case let .decoded(path, modified, length, image):
+                guard var entry = pictures[path],
+                      entry.decoding,
+                      entry.modified == modified,
+                      entry.length == length
+                else {
+                    continue
+                }
+
+                entry.decoding = false
+                entry.image = image
+                pictures[path] = entry
+                changed = true
+            case let .scaled(path, modified, length, size, image):
+                guard var entry = pictures[path],
+                      entry.scaling == size,
+                      entry.modified == modified,
+                      entry.length == length
+                else {
+                    continue
+                }
+
+                entry.scaling = nil
+                if let image {
+                    entry.scaled = image
+                } else {
+                    entry.unscalable = true
+                }
+
+                pictures[path] = entry
+                changed = true
+            }
         }
 
-        pictures[path]?.scaled = scaled
-        return scaled
+        return changed
+    }
+
+    private func isWanted(_ path: String) -> Bool {
+        gate.lock()
+        defer {
+            gate.unlock()
+        }
+
+        return wanted.contains(path)
+    }
+
+    private func post(_ result: Finished) {
+        gate.lock()
+        finished.append(result)
+        gate.unlock()
     }
 
     /// Whether a picture `frame` shows is not the one last drawn: its file was rewritten, has
@@ -536,26 +746,49 @@ final class Renderer {
         return false
     }
 
-    private func picture(_ path: String) -> CGImage? {
+    /// The decoded picture at `path`, and whether it is still on its way: being decoded on `work`,
+    /// which the pane shows a spinner for. Nil and not loading is a file ImageIO cannot read.
+    private func picture(_ path: String, capturing: Bool) -> (image: CGImage?, loading: Bool) {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
               let modified = attributes[.modificationDate] as? Date,
               let length = attributes[.size] as? UInt64
         else {
             pictures.removeValue(forKey: path)
-            return nil
+            return (nil, false)
         }
 
-        if let cached = pictures[path], cached.modified == modified, cached.length == length {
-            return cached.image
+        // A capture does not wait on a decode the window started: it cannot.
+        if let cached = pictures[path],
+           cached.modified == modified,
+           cached.length == length,
+           !(cached.decoding && capturing) {
+            return (cached.image, cached.decoding)
         }
 
-        let image = Renderer.decode(path)
-        pictures[path] = Picture(image: image, modified: modified, length: length)
-        return image
+        if capturing {
+            let image = Renderer.decode(path)
+            pictures[path] = Picture(image: image, modified: modified, length: length)
+            return (image, false)
+        }
+
+        pictures[path] = Picture(image: nil, modified: modified, length: length, decoding: true)
+        work.async { [weak self] in
+            guard let self, self.isWanted(path) else {
+                return
+            }
+
+            let image = Renderer.decode(path)
+            self.post(.decoded(path: path, modified: modified, length: length, image: image))
+        }
+
+        return (nil, true)
     }
 
     /// ImageIO rather than NSImage, which would hand back a representation sized for a screen when
     /// what this wants is the file's own pixels. It reads every format the viewer compares.
+    ///
+    /// Decoded now, on whichever thread asked. ImageIO otherwise hands back an image that decodes
+    /// itself the first time it is drawn, which is on the main thread, and is the slow part.
     private static func decode(_ path: String) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
               CGImageSourceGetCount(source) > 0
@@ -563,7 +796,8 @@ final class Renderer {
             return nil
         }
 
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        let options = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
+        return CGImageSourceCreateImageAtIndex(source, 0, options)
     }
 
     /// Clipped to its own rect, so a long line stops at its column instead of running into the

@@ -119,6 +119,14 @@ typedef struct DeviewPane {
     int32_t imagePathLength;
     int32_t imageWidth;
     int32_t imageHeight;
+
+    /*
+     * 1 while a picture for this side is still being drawn - a document's page that has not landed
+     * yet - and 0 otherwise. There is no path or size to go with it, so a renderer shows something
+     * moving centred in the space under the rows, which is where the picture will be centred once it
+     * arrives. The status line says the same in words.
+     */
+    int32_t imagePending;
 } DeviewPane;
 
 typedef struct DeviewButton {
@@ -305,8 +313,10 @@ typedef struct DeviewInput {
  *    Drawing a row as one string let each renderer's fonts decide where a wide or combining
  *    character went, while a selection counted cells, so the two disagreed past the first one.
  *    DeviewRow is widened and DeviewScreen gains an array, the same kind of bump 6 and 8 were.
+ * 10: DeviewPane carries whether its picture is still being drawn, so a head can show that it is
+ *     coming rather than an empty space. A widened array element, the same kind of bump 6 was.
  */
-#define DEVIEW_VERSION 9
+#define DEVIEW_VERSION 10
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

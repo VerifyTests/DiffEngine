@@ -205,7 +205,8 @@ sealed class ScreenPayload
             ImagePathOffset = imagePath,
             ImagePathLength = imagePathLength,
             ImageWidth = pane.Image?.Width ?? 0,
-            ImageHeight = pane.Image?.Height ?? 0
+            ImageHeight = pane.Image?.Height ?? 0,
+            ImagePending = pane.ImagePending ? 1 : 0
         };
     }
 

@@ -177,6 +177,17 @@ apart.
   three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
   line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
   (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
+- No head decodes or scales a picture on its UI thread: WinForms on the pool (`ImageCache`, both
+  the decode and the composite), macOS on a serial `DispatchQueue`, Linux on a decoder thread with
+  only the texture upload on the GL thread. Each draws the same spinner where the picture will be
+  centred until it lands - a dim ring and a brighter quarter turning once a second - and so does a
+  pane whose `ImagePending` the model set, which is a document's page `DocumentWatch` has not
+  drawn yet: there is no path or size then, which is why it is a flag of its own (ABI 10). A
+  capture does everything there and then and stands the spinner at twelve o'clock, since it draws
+  one frame that has to come out the same every time (`ViewerCanvas.Synchronous`, the Swift
+  renderer's `capturing`, `state.capturing` in the shim). A spinner turns by repainting only its own
+  rectangle: WinForms and macOS redraw only when something changed, and the frame is otherwise
+  unchanged for as long as a page takes.
 - Documents (PDF, docx, xlsx, pptx, and SVG and maps drawn beside their text) need **`src/DiffEngineViewer.Documents`**,
   a separate assembly with Morph, Morph.PDFium, Skia, GeoConvert and the OpenXml SDK behind it: tens of MB per
   RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
@@ -195,7 +206,10 @@ apart.
   - In process, by choice: a native fault in PDFium or Skia ends the window. A hang is given up on
     after `DocumentWatch.Timeout`, and a PDF left behind holds PDFium's lock, so PDFs then fail at once.
   - `FileSide.Read` only hashes a document, because it runs on the listener thread a test process
-    waits on. `DocumentWatch` (owned, attached and file modes) does the slow part from a copy taken
+    waits on. `DocumentWatch` (owned, attached and file modes) does the slow part, for the entry on
+    screen only - never the next one ahead of time, because a call into Morph or PDFium cannot be
+    stopped, and one drawing ahead was one the reader waited behind when they picked another entry.
+    It works from a copy taken
     under the cache's hash directory, checked against the hash, so nothing holds a lock on the user's
     file and what is drawn is what the hash says. Text replaces the entry once both sides are read
     (`ViewerSession.TextRead`, by reference, as `Refresh` does); pages go into

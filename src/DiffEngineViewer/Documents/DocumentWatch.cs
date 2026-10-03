@@ -1,8 +1,15 @@
 using System.Globalization;
 
 /// <summary>
-/// Reads the text of the queue's documents and draws their pages, on its own thread: the entry on
-/// screen first, then the one after it, so stepping to it finds it ready.
+/// Reads the text of the queue's documents and draws their pages, on its own thread, for the entry
+/// on screen and no other.
+/// <para>
+/// Not the entry after it as well, though stepping to it would then find it ready. A call into
+/// Morph or PDFium cannot be stopped once it has started, so a document drawn ahead was one the
+/// reader then waited behind whenever they picked any other entry, and a core spent on something
+/// nobody had opened. One that is stepped to is read and drawn then, with the spinner the heads draw
+/// for <see cref="Pane.ImagePending"/> standing in for its page meanwhile.
+/// </para>
 /// <para>
 /// The other half of <see cref="FileSide"/>'s bargain. Reading a file has to stay cheap, because it
 /// happens on the listener thread a test process is waiting on, so a document arrives with its
@@ -74,44 +81,22 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
     }
 
     /// <summary>
-    /// One job: the first thing wanted that is not there yet. True when there was one, so the loop
-    /// goes again without waiting. Public for the tests, which drive it directly rather than waiting
-    /// on a thread.
+    /// One job: the first thing the entry on screen wants that is not there yet. True when there was
+    /// one, so the loop goes again without waiting. Public for the tests, which drive it directly
+    /// rather than waiting on a thread.
+    /// <para>
+    /// The state is read afresh for every job, so a reader who steps on part way through a document
+    /// has the next one started as soon as the job in hand is done, rather than after the rest of the
+    /// one they left.
+    /// </para>
     /// </summary>
     public bool Pump()
     {
         var state = host.State;
         Prune(state);
-        foreach (var entry in Wanted(state))
-        {
-            if (ReadText(state, entry) ||
-                Draw(state, entry))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    static IEnumerable<QueueEntry> Wanted(SessionState state)
-    {
-        if (state.Current is not { } current)
-        {
-            yield break;
-        }
-
-        if (current.IsDocument)
-        {
-            yield return current;
-        }
-
-        var next = state.Selected + 1;
-        if (next < state.Queue.Count &&
-            state.Queue[next] is { IsDocument: true } following)
-        {
-            yield return following;
-        }
+        return state.Current is { IsDocument: true } current &&
+               (ReadText(state, current) ||
+                Draw(state, current));
     }
 
     /// <summary>

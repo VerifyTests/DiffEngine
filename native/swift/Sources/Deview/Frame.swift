@@ -64,6 +64,10 @@ struct Frame: Equatable {
         var imagePath = ""
         var imageWidth: Int32 = 0
         var imageHeight: Int32 = 0
+
+        /// A picture for this side is still being drawn: a document's page that has not landed.
+        /// There is no path or size yet, so a spinner stands in for it, centred where it will go.
+        var imagePending = false
     }
 
     struct QueueItem: Equatable {
@@ -136,6 +140,7 @@ struct Frame: Equatable {
         pane.imagePath = string(screen, source.imagePathOffset, source.imagePathLength)
         pane.imageWidth = source.imageWidth
         pane.imageHeight = source.imageHeight
+        pane.imagePending = source.imagePending != 0
         guard let rows = screen.rows else {
             return pane
         }

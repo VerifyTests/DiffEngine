@@ -135,6 +135,50 @@ public class DocumentScreenTests
         await Assert.That(screen.Right.Image).IsEqualTo(new("render/R2.png", 625, 417, "R2"));
     }
 
+    /// <summary>
+    /// A page still to come is said to be coming, so a head can show something turning where it
+    /// will go: before drawing has started, and while it has not got as far as the page on screen.
+    /// </summary>
+    [Test]
+    public async Task APageStillToComeIsPending()
+    {
+        var state = State(Left, Right, LeftText, RightText);
+        var waiting = ScreenBuilder.Build(state);
+        await Assert.That(waiting.Left.ImagePending).IsTrue();
+        await Assert.That(waiting.Right.ImagePending).IsTrue();
+
+        // The left has drawn the opening page and the right has not started
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], false));
+        state = ViewerSession.Rendered(state, Right.Hash!, Rendering.Started);
+        var drawing = ScreenBuilder.Build(state);
+        await Assert.That(drawing.Left.Image).IsNotNull();
+        await Assert.That(drawing.Left.ImagePending).IsFalse();
+        await Assert.That(drawing.Right.Image).IsNull();
+        await Assert.That(drawing.Right.ImagePending).IsTrue();
+    }
+
+    /// <summary>
+    /// Nothing is coming once drawing has finished or failed, when the header says why there is no
+    /// page, for a side with no file, or in the text view, which has nowhere to put a page.
+    /// </summary>
+    [Test]
+    public async Task NothingIsPendingWhereNoPageIsComing()
+    {
+        var state = State(Left, Right, LeftText, RightText);
+        state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
+        state = ViewerSession.Rendered(state, Right.Hash!, new([], true, "PDFium could not open it."));
+        state = state with { Page = 1 };
+        var stopped = ScreenBuilder.Build(state);
+        await Assert.That(stopped.Left.ImagePending).IsFalse();
+        await Assert.That(stopped.Right.ImagePending).IsFalse();
+
+        var text = ScreenBuilder.Build(State(Left, Right, LeftText, RightText) with { Drawing = DrawingView.Text });
+        await Assert.That(text.Left.ImagePending).IsFalse();
+        await Assert.That(text.Right.ImagePending).IsFalse();
+
+        await Assert.That(ScreenBuilder.Build(State(Left, null, LeftText)).Right.ImagePending).IsFalse();
+    }
+
     [Test]
     public async Task TheTextViewDrawsNothing()
     {

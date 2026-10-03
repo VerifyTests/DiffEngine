@@ -270,6 +270,13 @@ static class Fixtures
         return ViewerSession.Rendered(state, "BB", new([new(rightPage, 200, 260, "RIGHT")], true));
     }
 
+    /// <summary>
+    /// <see cref="Document"/> with the right side's page still being drawn: what a head shows while
+    /// it waits, which is the left page and something turning where the right one will go.
+    /// </summary>
+    public static SessionState DocumentDrawing() =>
+        ViewerSession.Rendered(Document(), "BB", Rendering.Started);
+
     static string WriteImage(string name, byte[] content)
     {
         // A fixed directory and a fixed name: only the file name reaches a pane header, and a

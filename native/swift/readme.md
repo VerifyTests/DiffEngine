@@ -43,6 +43,12 @@ cannot read is remembered as a failure and draws nothing; the property rows abov
 the comparison, which is why those rows are the description and the picture is an addition to it.
 This head is the only one of the three whose decoder reads every format the viewer compares.
 
+**Pictures are decoded and scaled on a serial `DispatchQueue`**, not on the main thread, which is the
+one the window answers on. Results are handed back through a lock-protected list rather than posted
+to the main queue, so they land at a point this side chooses: `present` drains it, and redraws if
+anything came. Until a picture lands, a spinner turns where it will be centred, redrawing only its
+own rectangle; a capture decodes there and then and stands the spinner still, so a baseline holds.
+
 **A hidden start creates no window.** `NSWindow` may only be instantiated on the main thread, and a
 test host runs `[Before(Class)]` on whatever thread it likes, so `deview_init(hidden: 1)` builds
 only the renderer and defers the window until `deview_set_hidden(0)` asks for one. The app always
