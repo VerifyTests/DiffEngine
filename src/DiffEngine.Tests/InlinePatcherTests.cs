@@ -1075,6 +1075,90 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// A call verified through its settings has nothing chained onto it, and with the hint gone
+    /// stale it was the first call the walk met with no Snapshot call: the snapshot of the call
+    /// under it was appended to it. A name Snapshot is called on, passed to a call, says that
+    /// call has one.
+    /// </summary>
+    [Test]
+    [Arguments("settings")]
+    [Arguments("settings: settings")]
+    public async Task AppendWithAStaleHintPassesOverACallVerifiedThroughItsSettings(string argument)
+    {
+        var source = Method(
+            $"""
+                     var settings = new VerifySettings();
+                     settings.Snapshot("A");
+                     await Verify(a, {argument});
+                     await Verify(b);
+             """);
+
+        var status = TryApply(source, 14, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                $"""
+                         var settings = new VerifySettings();
+                         settings.Snapshot("A");
+                         await Verify(a, {argument});
+                         await Verify(b)
+                             .Snapshot("B");
+                 """));
+    }
+
+    const string twoWithNoSnapshot =
+        """
+        class Tests
+        {
+            async Task Test()
+            {
+                await Verify(a).UseDirectory("files");
+                await Throws(() => Verify(b));
+            }
+        }
+
+        """;
+
+    /// <summary>
+    /// Two calls with no Snapshot call, one of them verified through files, and a hint that names
+    /// neither. An append has no anchor to tell them apart by, and the first was taken, which is
+    /// the wrong one whenever the file verified call comes first. Refused, for a re-run to say
+    /// where the call is. The verify call inside the Throws is part of that call, not a third.
+    /// </summary>
+    [Test]
+    public async Task AppendWithAStaleHintIsRefusedWhenTwoCallsCouldTakeIt()
+    {
+        var status = TryApply(Source(twoWithNoSnapshot), 12, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("more than one verify entry point call in its test has no Snapshot call");
+    }
+
+    // The recorded line still names its call, whatever else is in the member
+    [Test]
+    public async Task AppendTakesTheCallOnTheRecordedLineAmongSeveral()
+    {
+        var status = TryApply(Source(twoWithNoSnapshot), 6, InlinePatchMode.Append, null, "B", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Verify(a).UseDirectory(\"files\");\n");
+        await Assert.That(newSource).Contains("await Throws(() => Verify(b))\n            .Snapshot(\"B\");");
+    }
+
+    // One call with none, and a call nested in its arguments, is still one call
+    [Test]
+    public async Task AppendWithAStaleHintTakesTheOnlyCallWithNoSnapshot()
+    {
+        var source = Method("        await Verify(a).Snapshot(\"A\");\n        await Throws(() => Verify(b));");
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("await Throws(() => Verify(b))\n            .Snapshot(\"B\");");
+    }
+
+    /// <summary>
     /// The hint lands on the accepted call this time, which is what a second framework's patch for
     /// that same call site looks like once the first has been accepted. It names that call, so the
     /// call after it is not somewhere else to put the snapshot.

@@ -448,6 +448,14 @@ static class InlinePatcher
     /// accepted already. Stopping there answered "already has a Snapshot call" for a patch whose
     /// own call sat two lines further down, and a single accept dropped the entry.
     /// </para>
+    /// <para>
+    /// And it has to be the only one, where the recorded line names no call. An append carries no
+    /// anchor, so among several calls with no Snapshot call nothing says which it was for, and the
+    /// first was taken: a call verified through files that came earlier in the test was given the
+    /// snapshot of the one after it. That is refused now, and a re-run brings the line the call
+    /// is on. A call passed a name Snapshot is called on (<see cref="TakesASnapshotReceiver"/>)
+    /// has its snapshot and is not one of them.
+    /// </para>
     /// </summary>
     static PatchStatus TryAppend(
         string source,
@@ -467,6 +475,10 @@ static class InlinePatcher
         // Whether a call passed over for having a Snapshot call was holding this very content
         var held = false;
         List<(int Open, int Close)>? passedOver = null;
+        // The call to append to, once the recorded line has turned out not to name one, and the
+        // names Snapshot is called on in the member, read when the first such call is met
+        (int NameStart, int InsertAt)? taken = null;
+        HashSet<string>? snapshotReceivers = null;
         foreach (var (nameStart, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, entryPoints, true))
         {
             // An entry point in the argument list of a call that was passed over is part of that
@@ -479,8 +491,14 @@ static class InlinePatcher
             }
 
             found = true;
-            if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
+            if (!TryScanArguments(source, scan, openParen, out var closeParen, out var commas))
             {
+                // One past the call that was taken is not this patch's to report
+                if (taken is not null)
+                {
+                    break;
+                }
+
                 failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
                 return PatchStatus.NotFound;
             }
@@ -495,8 +513,39 @@ static class InlinePatcher
             var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
             if (chained < 0)
             {
-                newSource = AppendCall(source, scan, lineStarts, nameStart, insertAt, newContent, eol, fileUnit);
-                return PatchStatus.Applied;
+                // The recorded line names its call, and with no member there is nothing to say
+                // how far the walk may go for another
+                if (memberLine is null ||
+                    IsOnHint(lineStarts, nameStart, lineHint))
+                {
+                    newSource = AppendCall(source, scan, lineStarts, nameStart, insertAt, newContent, eol, fileUnit);
+                    return PatchStatus.Applied;
+                }
+
+                passedOver ??= [];
+                passedOver.Add((openParen, closeParen));
+                snapshotReceivers ??= SnapshotReceivers(source, scan, lineStarts, memberLine.Value);
+                if (TakesASnapshotReceiver(source, scan, openParen, closeParen, commas, snapshotReceivers))
+                {
+                    continue;
+                }
+
+                if (taken is not null)
+                {
+                    failReason = $"The call has moved from line {lineHint}, and more than one {entryPointDescription} call in its test has no {methodName} call. Re-run the test.";
+                    return PatchStatus.NotFound;
+                }
+
+                taken = (nameStart, insertAt);
+                continue;
+            }
+
+            // Past the call that was taken, the walk is only looking for a second one like it
+            if (taken is not null)
+            {
+                passedOver ??= [];
+                passedOver.Add((openParen, closeParen));
+                continue;
             }
 
             held |= HoldsContent(source, scan, chained, newContent);
@@ -514,6 +563,12 @@ static class InlinePatcher
 
             passedOver ??= [];
             passedOver.Add((openParen, closeParen));
+        }
+
+        if (taken is { } call)
+        {
+            newSource = AppendCall(source, scan, lineStarts, call.NameStart, call.InsertAt, newContent, eol, fileUnit);
+            return PatchStatus.Applied;
         }
 
         if (!found)
@@ -541,6 +596,92 @@ static class InlinePatcher
 
         failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
         return PatchStatus.NotFound;
+    }
+
+    /// <summary>
+    /// The names a Snapshot call is made on in the member declared at
+    /// <paramref name="memberLine"/>: <c>settings</c> for <c>settings.Snapshot("old");</c>. Plain
+    /// names only, since that is all <see cref="TakesASnapshotReceiver"/> can match an argument to.
+    /// </summary>
+    static HashSet<string> SnapshotReceivers(string source, SourceScan scan, List<int> lineStarts, int memberLine)
+    {
+        var receivers = new HashSet<string>(StringComparer.Ordinal);
+        var lineCount = lineStarts.Count;
+        var floor = Clamp(memberLine, lineCount);
+        var ceiling = Math.Min(NextMemberLine(source, scan, lineStarts, floor), lineCount + 1);
+        for (var line = floor; line < ceiling; line++)
+        {
+            foreach (var (nameStart, _) in CallsOnLine(source, scan, lineStarts, line, snapshotName, false))
+            {
+                var dot = PreviousToken(source, scan, nameStart);
+                if (dot < 0 ||
+                    source[dot] != '.')
+                {
+                    continue;
+                }
+
+                var end = PreviousToken(source, scan, dot);
+                if (end < 0 ||
+                    !scan.IsCode(end) ||
+                    !scan.IsIdentifierChar(source[end]))
+                {
+                    continue;
+                }
+
+                var start = scan.WordStart(end);
+                var before = PreviousToken(source, scan, start);
+                if (before >= 0 &&
+                    source[before] == '.')
+                {
+                    continue;
+                }
+
+                receivers.Add(source.Substring(start, end + 1 - start));
+            }
+        }
+
+        return receivers;
+    }
+
+    /// <summary>
+    /// Whether a call is passed something a Snapshot call is made on in the same member, which is
+    /// a verification that has its snapshot already: <c>settings.Snapshot("old");</c> and then
+    /// <c>Verify(value, settings)</c>.
+    /// <para>
+    /// Asked of a call the recorded line did not name. A patch that appends is for a call with no
+    /// snapshot anywhere, so this one is not it, and with nothing chained onto it, it read as the
+    /// first call still wanting one.
+    /// </para>
+    /// </summary>
+    static bool TakesASnapshotReceiver(string source, SourceScan scan, int openParen, int closeParen, List<int> commas, HashSet<string> receivers)
+    {
+        if (receivers.Count == 0)
+        {
+            return false;
+        }
+
+        var start = openParen + 1;
+        for (var index = 0; index <= commas.Count; index++)
+        {
+            var end = index < commas.Count ? commas[index] : closeParen;
+            var argumentStart = start;
+            var argumentEnd = end;
+            start = end + 1;
+            TrimSpan(source, scan, ref argumentStart, ref argumentEnd);
+            if (argumentStart < argumentEnd)
+            {
+                scan.Language.TryStripArgumentName(source, ref argumentStart, out _);
+            }
+
+            if (argumentStart < argumentEnd &&
+                scan.IsCode(argumentStart) &&
+                receivers.Contains(source.Substring(argumentStart, argumentEnd - argumentStart)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
