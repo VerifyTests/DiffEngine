@@ -69,6 +69,13 @@ final class Renderer {
     /// Set as a draw begins and read only during it.
     private var dirty: CGRect?
 
+    /// Both panes name the one picture in the draw in progress, as a byte equal pair of documents
+    /// does: their pages are kept under the hash of the document. There is one scaled copy a
+    /// picture and the two panes can be a point apart in width, so each would have the copy made
+    /// for its own size in turn, without end. An enlarged pair is not given the chance: it is
+    /// drawn from the picture, as every enlarged picture was before it had a copy.
+    private var shared = false
+
     /// Decoded pictures, keyed by the path the screen model handed over and invalidated by the
     /// file's write time and length — the same freshness test the queue poller uses, so a re-run
     /// that rewrites a received image refreshes the pane rather than leaving the previous one up.
@@ -88,9 +95,14 @@ final class Renderer {
         var modified: Date
         var length: UInt64
 
-        /// The picture scaled down to the device pixels it last filled. Drawing a large picture
-        /// scaled costs a resample of every source pixel, and a window showing one did that on
-        /// every redraw; this is a copy.
+        /// The picture scaled down to the device pixels it was last drawn at: the ones it fills
+        /// when it is fitted, and the ones the whole of it takes, shown or not, when it is enlarged
+        /// and still below its own size. Drawing a large picture scaled costs a resample of every
+        /// source pixel, and a window showing one did that on every redraw; this is a copy.
+        ///
+        /// One copy, for whichever size was asked for last. It is only made narrower than the
+        /// picture or shorter, so at its largest it is about the size the picture is itself. It
+        /// goes when a copy for another size lands, and with the picture.
         var scaled: CGImage?
 
         /// Being decoded on `work`. The pane shows a spinner until it lands.
@@ -399,6 +411,7 @@ final class Renderer {
         // path was asked for again and had changed or gone, so every image reviewed in a session
         // was held until the session ended.
         let shown: Set<String> = [frame.left.imagePath, frame.right.imagePath]
+        shared = !frame.left.imagePath.isEmpty && frame.left.imagePath == frame.right.imagePath
         pictures = pictures.filter { shown.contains($0.key) }
         gate.lock()
         wanted = shown
@@ -701,7 +714,7 @@ final class Renderer {
             width: max(1, (CGFloat(pane.imageWidth) * scale).rounded(.down)),
             height: max(1, (CGFloat(pane.imageHeight) * scale).rounded(.down)))
         if pane.imageZoom > 1 {
-            enlarged(pane, picture, fitted: drawn, top: imageTop, left: left, available: available, in: context, size, &layout)
+            enlarged(pane, picture, fitted: drawn, top: imageTop, left: left, available: available, capturing: capturing, in: context, size, &layout)
             return
         }
 
@@ -746,8 +759,11 @@ final class Renderer {
     /// part around the centre the managed side asked for, moved in as far as it takes to keep the
     /// space full: it does not know how many points a pane has, so it can ask for one at the edge.
     ///
-    /// Drawn straight from the decoded picture, clipped, rather than from a copy scaled to that
-    /// size, which at the last step would be hundreds of megabytes to show one corner of it.
+    /// Past its own size it is drawn straight from the decoded picture, clipped, rather than from a
+    /// copy scaled to that size, which at the last step would be hundreds of megabytes to show one
+    /// corner of it. Below its own size a copy is about the size of the picture at the most, and
+    /// the window draws from one: see `reduced`. A capture draws from the picture at any size, as
+    /// it always has.
     private func enlarged(
         _ pane: Frame.Pane,
         _ picture: CGImage,
@@ -755,6 +771,7 @@ final class Renderer {
         top: CGFloat,
         left: CGFloat,
         available: CGSize,
+        capturing: Bool,
         in context: CGContext,
         _ size: CGSize,
         _ layout: inout Layout
@@ -795,6 +812,15 @@ final class Renderer {
             layout.pictures[layout.pictures.count - 1].down = down
         }
 
+        // Below its own size the window draws it from a copy scaled to the pixels the whole of it
+        // takes: see `reduced`. Asked for here rather than past the test below, as a fitted
+        // picture's copy is, so that a draw which leaves the picture out has still started the
+        // copy the next one will want. Not for a capture, which is one frame with no later one
+        // for a copy to land in, and not when both panes name the one picture.
+        let device = context.convertToDeviceSpace(all).size
+        let reducing = !capturing && !shared && abs(device.width) < CGFloat(picture.width)
+        let made = reducing ? self.fitted(pane.imagePath, picture, device: device, capturing: false) : nil
+
         // Left alone when none of it is being repainted, as a fitted one is
         guard shows(bounds.insetBy(dx: -1, dy: -1)) else {
             return
@@ -804,16 +830,78 @@ final class Renderer {
 
         context.saveGState()
         context.clip(to: bounds)
-        // Its pixels as they are once it is past its own size, which is what zooming that far in
-        // is for: smoothed, a one pixel difference between the two sides is a blur on both.
-        let device = context.convertToDeviceSpace(all).size
-        context.interpolationQuality = abs(device.width) >= CGFloat(picture.width) ? .none : .high
-        context.draw(picture, in: all)
+        if reducing {
+            reduced(made, picture, at: all, device: device, in: context)
+        } else {
+            // Its pixels as they are once it is past its own size, which is what zooming that far
+            // in is for: smoothed, a one pixel difference between the two sides is a blur on both.
+            context.interpolationQuality = abs(device.width) >= CGFloat(picture.width) ? .none : .high
+            context.draw(picture, in: all)
+        }
+
         context.restoreGState()
 
         context.setStrokeColor(Palette.rule)
         context.setLineWidth(1)
         context.stroke(bounds.insetBy(dx: -0.5, dy: -0.5))
+    }
+
+    /// The whole of an enlarged picture that is still below its own size, at `all`, for the
+    /// window. The caller has clipped to the part of it that shows, and `made` is what `fitted`
+    /// had for the pixels the whole of it takes.
+    ///
+    /// Drawn from a copy scaled to those pixels, made on `work` and kept as the fitted one is, in
+    /// its place. Drawn from the picture itself, this was a resample at `.high` of every source
+    /// pixel under the clip on every redraw, and a drag is a redraw a frame: both panes of a pair
+    /// of screenshots, to move them. Where the picture has been dragged to is no part of the copy,
+    /// so a drag is the same copy drawn somewhere else.
+    ///
+    /// Only where the whole of it is narrower than the picture, so the copy is about the picture's
+    /// own size at the most. Until it lands the picture itself is drawn, quickly rather than well,
+    /// and drawn again when it does.
+    private func reduced(_ made: CGImage?, _ picture: CGImage, at all: CGRect, device: CGSize, in context: CGContext) {
+        guard let scaled = made,
+              scaled !== picture,
+              scaled.width == Int(abs(device.width).rounded()),
+              scaled.height == Int(abs(device.height).rounded())
+        else {
+            // The picture itself. As well as it ever was drawn when it is not one to make a copy
+            // of, being within a pixel of its own size or having failed to scale. Quickly
+            // otherwise: the copy for this size is on its way, and whatever `fitted` had to hand
+            // back in the meantime was made for another.
+            context.interpolationQuality = made === picture ? .high : .low
+            context.draw(picture, in: all)
+            return
+        }
+
+        // A pixel of the copy to a pixel of the screen. `all` starts wherever the drag left it,
+        // which is seldom on a pixel, and is the copy's size only to the nearest one. Drawn into
+        // `all` as it stands the copy would be sampled again on every frame: smoothed, each pane
+        // softening its own by a different fraction of a pixel, or not, and losing or doubling a
+        // row or a column of it where the two sizes part. So it goes on the pixel nearest to where
+        // `all` starts, at its own size, which leaves every part of it within about a pixel of
+        // where `all` has it.
+        let target = context.convertToDeviceSpace(all)
+        let placed = context.convertToUserSpace(
+            CGRect(
+                x: Renderer.pixel(target.minX),
+                y: Renderer.pixel(target.minY),
+                width: CGFloat(scaled.width),
+                height: CGFloat(scaled.height)))
+        context.interpolationQuality = .none
+        context.draw(scaled, in: placed)
+    }
+
+    /// The pixel a device coordinate is put on: the nearest, with two things seen to first.
+    ///
+    /// Where a picture has been dragged to goes to the managed side and back as a Float, which
+    /// leaves a coordinate a few ten thousandths of a pixel either side of where it should be,
+    /// and where it should be is often exactly half way between two pixels. So it is taken to the
+    /// nearest eighth of a pixel first. And a half goes up whatever its sign, where `rounded()`
+    /// takes it away from zero and so the other way once a picture's edge has left the window.
+    /// Without the two, a picture dragged a pixel at a time moved by none or by two.
+    private static func pixel(_ value: CGFloat) -> CGFloat {
+        ((value * 8).rounded() / 8 + 0.5).rounded(.down)
     }
 
     /// Something turning, centred in `space`, while the picture that will be centred there is on
@@ -883,6 +971,11 @@ final class Renderer {
     /// For the window the copy is made on `work`, and meanwhile this is the copy made for the size
     /// the pane last had, for the caller to stretch into place, or nil when there has never been
     /// one, which the pane shows a spinner for.
+    ///
+    /// `device` is the size the picture fills when it is fitted, and the size the whole of it
+    /// takes when `enlarged` asks, for one that is still below its own size. Either way it is the
+    /// one copy, so going from one to the other makes it again. Nil is no spinner there: `reduced`
+    /// draws the picture itself until the copy lands.
     private func fitted(_ path: String, _ picture: CGImage, device: CGSize, capturing: Bool) -> CGImage? {
         let width = Int(abs(device.width).rounded())
         let height = Int(abs(device.height).rounded())
