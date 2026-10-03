@@ -4433,6 +4433,10 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
     ImGui::SetCurrentContext(capture);
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+    /* As the window's context declares it, and for its reason: both are drawn by RenderTriangles.
+     * Without it a capture of more than 65,535 vertices in one draw list, which dense text at 4K
+     * comes to, had its indices wrap, and came out scrambled. */
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     ApplyStyle();
