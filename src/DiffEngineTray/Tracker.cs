@@ -28,10 +28,10 @@ class Tracker :
         timer = new(
             ScanFiles,
             TimeSpan.FromSeconds(2),
-            exception =>
-            {
-                ExceptionHandler.Handle("Failed to scan files", exception);
-            });
+            // Logged and no more. This is the timer's own thread, and the handler everything else
+            // uses follows the log with a modal box: no scan ran again until somebody answered it,
+            // and a scan is nothing anybody asked for, so the box arrived out of nowhere
+            exception => Log.Error(exception, "Failed to scan files"));
 
         // Seeded rather than left empty until the first scan two seconds later. The menu reads
         // this cache now, so without it a tray that has just started shows none of what a viewer
@@ -61,21 +61,25 @@ class Tracker :
         return Task.WhenAll(moves.Select(HandleScanMove));
     }
 
-    async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
+    internal async Task HandleScanMove(KeyValuePair<string, TrackedMove> pair)
     {
-        void RemoveAndKill(TrackedMove tacked)
+        // The move this scan looked at, and no other. Everything below is about that one, and a
+        // re-run can replace it while the two files are being compared: taken out by key alone,
+        // the move that went was the fresh one, which nothing had found equal to anything, and the
+        // tool just opened for it was ended. A move that was replaced is left to the next scan.
+        void RemoveAndKill()
         {
-            if (moves.TryRemove(tacked.Temp, out var removed))
+            if (moves.TryRemove(pair))
             {
-                KillProcesses(removed);
-                Release(removed);
+                KillProcesses(pair.Value);
+                Release(pair.Value);
             }
         }
 
         var move = pair.Value;
         if (!File.Exists(move.Temp))
         {
-            RemoveAndKill(pair.Value);
+            RemoveAndKill();
             return;
         }
 
@@ -107,14 +111,15 @@ class Tracker :
                 return;
             }
         }
-        catch (IOException)
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
         {
-            // File is missing, or locked by a diff tool or a running test.
-            // Skip this scan round
+            // File is missing, locked by a diff tool or a running test, or not this account's to
+            // read. Skip this scan round
             return;
         }
 
-        RemoveAndKill(pair.Value);
+        RemoveAndKill();
     }
 
     readonly ConcurrentDictionary<string, (long, DateTime, long, DateTime)> differing = new(StringComparer.OrdinalIgnoreCase);
