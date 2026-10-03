@@ -2894,6 +2894,114 @@ void TextWithin(const char* begin, const char* end, float width)
 }
 
 /*
+ * ImGui reads a label for more than its text. From "##" on it is the item's identity and is not
+ * drawn, which is how two buttons that say the same thing are told apart, and it is so for every
+ * label an item takes: a queue row, a menu item, a button, a pane's header. Those are a file's
+ * name, a test's, a solution's, and a name with "##" in it was cut short there: "Notes##2.txt" in
+ * the queue was "Notes".
+ *
+ * A label is never an identity here, since every item is given one by its index. So one with the
+ * mark in it is drawn by this side, where the item would have drawn it, over an item that is given
+ * no text at all. One without it is left to the item, which is every label there has been.
+ */
+bool Marked(const std::string& label)
+{
+    return label.find("##") != std::string::npos;
+}
+
+void DrawLabel(const ImVec2& position, const std::string& label)
+{
+    ImGui::GetWindowDrawList()->AddText(
+        position,
+        ImGui::GetColorU32(ImGuiCol_Text),
+        label.data(),
+        label.data() + label.size());
+}
+
+bool SelectableLabel(const std::string& label, bool selected = false)
+{
+    if (!Marked(label))
+    {
+        return ImGui::Selectable(label.c_str(), selected);
+    }
+
+    /* Where Selectable puts its text: at the cursor, on the line's baseline. */
+    const ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const ImVec2 position(window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
+    const bool pressed = ImGui::Selectable("##label", selected);
+    DrawLabel(position, label);
+    return pressed;
+}
+
+/* The width of a label's text, all of it. */
+float LabelWidth(const std::string& label)
+{
+    return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
+}
+
+bool ButtonLabel(const std::string& label)
+{
+    if (!Marked(label))
+    {
+        return ImGui::Button(label.c_str());
+    }
+
+    /* The size Button gives itself from its text, and the text where it puts it: inside the
+     * frame's padding. */
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const bool pressed = ImGui::Button(
+        "##label",
+        ImVec2(
+            LabelWidth(label) + style.FramePadding.x * 2.0f,
+            ImGui::GetTextLineHeight() + style.FramePadding.y * 2.0f));
+    const ImVec2 corner = ImGui::GetItemRectMin();
+    DrawLabel(ImVec2(corner.x + style.FramePadding.x, corner.y + style.FramePadding.y), label);
+    return pressed;
+}
+
+/*
+ * The header row of the panes' table, as TableHeadersRow lays it out, for a table with a marked
+ * header: that one is given no text and has its own drawn over it, cut short with an ellipsis at
+ * the column's edge as the table would have cut it.
+ */
+void HeadersRow(const std::string* headers, int first, int columns)
+{
+    ImGui::TableNextRow(ImGuiTableRowFlags_Headers, ImGui::TableGetHeaderRowHeight());
+    for (int column = 0; column < columns; column++)
+    {
+        if (!ImGui::TableSetColumnIndex(column))
+        {
+            continue;
+        }
+
+        ImGui::PushID(column);
+        if (column >= first &&
+            Marked(headers[column - first]))
+        {
+            const std::string& header = headers[column - first];
+            const ImVec2 position = ImGui::GetCursorScreenPos();
+            ImGui::TableHeader("");
+            const float edge = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), column).Max.x;
+            const ImVec2 size = ImGui::CalcTextSize(header.data(), header.data() + header.size());
+            ImGui::RenderTextEllipsis(
+                ImGui::GetWindowDrawList(),
+                position,
+                ImVec2(edge, position.y + size.y),
+                edge,
+                header.data(),
+                header.data() + header.size(),
+                &size);
+        }
+        else
+        {
+            ImGui::TableHeader(ImGui::TableGetColumnName(column));
+        }
+
+        ImGui::PopID();
+    }
+}
+
+/*
  * How the footer is laid out: its buttons, on as many rows as the window's width makes of them,
  * and the status line, right aligned beside the last of those rows or on a line of its own.
  *
@@ -2936,10 +3044,8 @@ Footer LayOutFooter(const DeviewScreen* screen, float width)
         const DeviewButton& button = screen->buttons[index];
         footer.labels.push_back(Copy(screen, button.labelOffset, button.labelLength));
 
-        /* What ImGui::Button makes of a label: its text, less whatever follows a ##, inside the
-         * frame's padding. */
-        const float size =
-            ImGui::CalcTextSize(footer.labels.back().c_str(), nullptr, true).x + style.FramePadding.x * 2.0f;
+        /* What a button makes of a label: its text inside the frame's padding. */
+        const float size = LabelWidth(footer.labels.back()) + style.FramePadding.x * 2.0f;
         const bool wraps = index > 0 && reach + style.ItemSpacing.x + size > width;
         footer.wraps.push_back(wraps);
         if (wraps)
@@ -3085,9 +3191,20 @@ void BuildFrame(const DeviewScreen* screen)
             ImGui::TableSetupColumn(pending, ImGuiTableColumnFlags_WidthFixed, queueWidth);
         }
 
-        ImGui::TableSetupColumn(Copy(screen, left.headerOffset, left.headerLength).c_str());
-        ImGui::TableSetupColumn(Copy(screen, right.headerOffset, right.headerLength).c_str());
-        ImGui::TableHeadersRow();
+        const std::string headers[] = {
+            Copy(screen, left.headerOffset, left.headerLength),
+            Copy(screen, right.headerOffset, right.headerLength)};
+        ImGui::TableSetupColumn(headers[0].c_str());
+        ImGui::TableSetupColumn(headers[1].c_str());
+        if (Marked(headers[0]) ||
+            Marked(headers[1]))
+        {
+            HeadersRow(headers, hasQueue ? 1 : 0, columns);
+        }
+        else
+        {
+            ImGui::TableHeadersRow();
+        }
 
         int bodyRows = left.rowCount > right.rowCount ? left.rowCount : right.rowCount;
         if (screen->queueCount > bodyRows)
@@ -3114,7 +3231,7 @@ void BuildFrame(const DeviewScreen* screen)
                          * saying the marker can be clicked. */
                         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
                         ImGui::PushID(index);
-                        if (ImGui::Selectable(label.c_str(), false))
+                        if (SelectableLabel(label))
                         {
                             state.input.clickedQueueItem = index;
                         }
@@ -3136,7 +3253,7 @@ void BuildFrame(const DeviewScreen* screen)
                         }
 
                         ImGui::PushID(index);
-                        if (ImGui::Selectable(label.c_str(), selected))
+                        if (SelectableLabel(label, selected))
                         {
                             state.input.clickedQueueItem = index;
                         }
@@ -3378,7 +3495,7 @@ void BuildFrame(const DeviewScreen* screen)
         for (int index = 0; index < screen->menuCount; index++)
         {
             ImGui::PushID(index);
-            if (ImGui::Selectable(labels[static_cast<size_t>(index)].c_str()))
+            if (SelectableLabel(labels[static_cast<size_t>(index)]))
             {
                 state.input.clickedMenuItem = index;
             }
@@ -3420,7 +3537,7 @@ void BuildFrame(const DeviewScreen* screen)
         }
 
         ImGui::PushID(index);
-        if (ImGui::Button(footer.labels[static_cast<size_t>(index)].c_str()))
+        if (ButtonLabel(footer.labels[static_cast<size_t>(index)]))
         {
             state.input.clickedButton = index;
         }

@@ -374,6 +374,39 @@ public class PixelTests
     }
 
     /// <summary>
+    /// Names with <c>##</c> in them, everywhere the Linux head hands a name to ImGui as an item's
+    /// label: a queue row, a group's heading, the two pane headers and the items of a menu. ImGui
+    /// takes everything from <c>##</c> on as the item's identity and does not draw it, so each of
+    /// these stopped there. Linux only: no other head has a toolkit that reads a label that way.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 17)]
+    [SkipOnMac("There is no macOS baseline for this scene: it is about how Dear ImGui reads a label, which that head does not use.")]
+    public Task NamesWithHashes()
+    {
+        var state = ViewerSession.EnqueueTracked(
+            SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows),
+            QueueEntry.ForMove(
+                "move:temp/Notes##2.received.txt",
+                "Notes##2 (txt)",
+                null,
+                "temp/Notes##2.received.txt",
+                "code/Notes##2.verified.txt",
+                FileSide.OfText(Fixtures.Received),
+                FileSide.OfText(Fixtures.Expected)));
+        state = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(Fixtures.SolutionFile("Solution##A", "Tests", "A##Tests.cs"), 10));
+        state = ViewerSession.EnqueueInline(
+            state,
+            Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 12));
+        // The fifth row is the move, under the two solutions and their one entry each: the menu
+        // names its files, and opening it selects it, which puts them in the pane headers
+        return Capture(ViewerSession.OpenMenu(state, 4));
+    }
+
+    /// <summary>
     /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
     /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
     /// deview_present did none of them - the window stayed blank and took no keys, and the loop
