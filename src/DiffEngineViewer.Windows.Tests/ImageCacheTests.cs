@@ -222,20 +222,20 @@ public class ImageCacheTests
     public async Task APictureComposedOneWayStandsInUntilTheOtherLands()
     {
         var path = Write("two-ways-posted.png", SamplePng.Build(8, 6, 200, 40, 40));
-        using var posted = new BlockingCollection<Action>();
+        var posted = new Posts();
         using var cache = new ImageCache(posted.Add);
         cache.Get(path, null);
         Func<Image, Size, Bitmap> enlarged = (_, size) => new(size.Width, size.Height);
         cache.Composite(path, new(4, 3), Build, () => { });
-        await Assert.That(posted.TryTake(out var first, TimeSpan.FromSeconds(10))).IsTrue();
-        first!();
+        var first = await posted.Take();
+        first();
         var fitted = cache.Composite(path, new(4, 3), Build, () => { });
 
         var meanwhile = cache.Composite(path, new(4, 3), enlarged, () => { });
         await Assert.That(ReferenceEquals(meanwhile, fitted)).IsTrue();
 
-        await Assert.That(posted.TryTake(out var second, TimeSpan.FromSeconds(10))).IsTrue();
-        second!();
+        var second = await posted.Take();
+        second();
         var landed = cache.Composite(path, new(4, 3), enlarged, () => { });
         await Assert.That(ReferenceEquals(landed, fitted)).IsFalse();
         await Assert.That(posted.Count).IsEqualTo(0);
