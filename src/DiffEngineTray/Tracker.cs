@@ -793,7 +793,16 @@ class Tracker :
         {
             Release(removed);
         }
+
+        Interlocked.Increment(ref restores);
     }
+
+    /// <summary>
+    /// How many times something taken out to be accepted has been put back, which is the one
+    /// change to what is tracked that <see cref="ITrackedFiles.Version"/> cannot see by looking:
+    /// the same object in the same place as before it left.
+    /// </summary>
+    long restores;
 
     /// <summary>
     /// Lets go of the process a move was tracked with, without ending it, once the move has left
@@ -1255,6 +1264,7 @@ class Tracker :
 
     readonly Lock versionGate = new();
     readonly List<object> versioned = [];
+    long versionedRestores;
     long version;
 
     /// <summary>
@@ -1271,16 +1281,29 @@ class Tracker :
     /// Rather than a count of changes, kept wherever the dictionaries are written: there are a
     /// score of such places, and one missed is a viewer that goes on showing a file that left.
     /// </para>
+    /// <para>
+    /// Except for the one change that leaves the same objects behind it. An accept takes its move
+    /// out for as long as the move takes, seconds when a file is locked, and puts the same object
+    /// back when it could not be carried out. The owner takes its tag and then builds its listing,
+    /// so a listing built in that gap goes out without the move, under a tag taken while it was
+    /// there, and once the move was back nothing here looked different from when the tag was
+    /// taken: the viewer was told "unchanged" about a listing missing a pending file. Those are
+    /// two places, <see cref="Restore"/> and the delete that could not be deleted, and they are
+    /// counted.
+    /// </para>
     /// </summary>
     long ITrackedFiles.Version()
     {
         lock (versionGate)
         {
-            if (Unchanged())
+            var restored = Interlocked.Read(ref restores);
+            if (restored == versionedRestores &&
+                Unchanged())
             {
                 return version;
             }
 
+            versionedRestores = restored;
             versioned.Clear();
             foreach (var move in moves)
             {
@@ -1485,6 +1508,7 @@ class Tracker :
         {
             // Re-tracked so it can be retried, and refused so the caller shows why.
             deletes.TryAdd(removed.File, removed);
+            Interlocked.Increment(ref restores);
             return (false, $"Could not delete {removed.Name}. {exception.Message}");
         }
 
