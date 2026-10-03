@@ -83,6 +83,10 @@ DeviewButtonEvent glfwSetMouseButtonCallback(void* window, DeviewButtonEvent cal
 DeviewScrollEvent glfwSetScrollCallback(void* window, DeviewScrollEvent callback);
 DeviewKeyEvent glfwSetKeyCallback(void* window, DeviewKeyEvent callback);
 DeviewCharacterEvent glfwSetCharCallback(void* window, DeviewCharacterEvent callback);
+
+/* What a key types on the layout in use, unshifted, or null for a key that types nothing. The
+ * key is one of GLFW's numbers, or -1 for the key with that scancode. */
+const char* glfwGetKeyName(int key, int scancode);
 }
 
 /* GLFW's own numbers, which its headers would have named. */
@@ -332,7 +336,10 @@ struct State
      */
     struct KeyPress
     {
+        /* GLFW's number for the key, which is where it is on a US keyboard, or -1 for a key it
+         * has no number for, and the window system's own number for it. */
         int key;
+        int scancode;
         int mods;
         bool repeated;
         unsigned int character;
@@ -557,8 +564,7 @@ extern "C" void KeyChanged(void* window, int key, int scancode, int action, int 
     }
 
     state.characterFollows = false;
-    if (action == glfwRelease ||
-        key < 0)
+    if (action == glfwRelease)
     {
         return;
     }
@@ -574,14 +580,15 @@ extern "C" void KeyChanged(void* window, int key, int scancode, int action, int 
         for (const State::KeyPress& waiting : state.keys)
         {
             if (waiting.repeated &&
-                waiting.key == key)
+                waiting.key == key &&
+                waiting.scancode == scancode)
             {
                 return;
             }
         }
     }
 
-    state.keys.push_back({key, mods, repeated, 0});
+    state.keys.push_back({key, scancode, mods, repeated, 0});
     state.characterFollows = true;
 }
 
@@ -1967,10 +1974,88 @@ void PumpInput(float elapsed)
     }
 }
 
+/* The one character a string is, or zero for a string that is none or several. */
+unsigned int OnlyCharacter(const char* text)
+{
+    if (text == nullptr ||
+        *text == '\0')
+    {
+        return 0;
+    }
+
+    unsigned int codepoint = 0;
+    const int length = ImTextCharFromUtf8(&codepoint, text, nullptr);
+    return length > 0 && text[length] == '\0' ? codepoint : 0;
+}
+
+/* Whether the layout in use has a key that types a letter, unshifted. Asked of every key GLFW
+ * names, which are the ones that type something, by their own numbers. */
+bool LayoutTypes(unsigned int letter)
+{
+    for (int key = KEY_APOSTROPHE; key <= 162; key++)
+    {
+        if (OnlyCharacter(glfwGetKeyName(key, 0)) == letter)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Which character a key press is to be read as, in lower case, or zero for none.
+ *
+ * What it typed, where it typed something. While control is held nothing is typed, and it is what
+ * the key types unshifted on the layout in use, which GLFW will say: read by position, as a chord
+ * was, Ctrl+A on AZERTY was the key labelled Q, and Ctrl+C on Dvorak the one labelled J.
+ *
+ * A layout with no Latin letters has neither. Russian, Greek, Hebrew and Arabic type their own
+ * letters from the keys a US keyboard has A to Z on, so not one of this head's letters could be
+ * typed there, and its user had the footer's buttons and nothing else. Then the key is read as
+ * the letter a US keyboard has in its place, which is what such a keyboard has printed on it
+ * beside its own. Only where no key of the layout
+ * types that letter: a layout that has it somewhere else keeps it there and nowhere else, or a
+ * Turkish keyboard's dotless i, which sits where a US keyboard has R, would toggle the drawing.
+ */
+unsigned int LetterOf(const State::KeyPress& press)
+{
+    const unsigned int typed = press.character != 0
+        ? press.character
+        : OnlyCharacter(glfwGetKeyName(press.key, press.scancode));
+    if (typed == 0)
+    {
+        return 0;
+    }
+
+    if (typed < 0x80)
+    {
+        /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
+         * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
+         * pending snapshot written into source, with nothing asked first, by the key that accepts
+         * one - and left D, V, Q, N, P, M, R and J doing nothing. */
+        return typed >= 'A' && typed <= 'Z' ? typed + ('a' - 'A') : typed;
+    }
+
+    if (press.key >= KEY_A &&
+        press.key <= KEY_Z)
+    {
+        const unsigned int letter = static_cast<unsigned int>(press.key - KEY_A) + 'a';
+        if (!LayoutTypes(letter))
+        {
+            return letter;
+        }
+    }
+
+    return 0;
+}
+
 /* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
  * acts once however long it is held. */
 int KeyOf(const State::KeyPress& press)
 {
+    const unsigned int letter = LetterOf(press);
+
     /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
      * session still copies with the chord its user has in their fingers. */
     if ((press.mods & (glfwControl | glfwSuper)) != 0)
@@ -1982,12 +2067,24 @@ int KeyOf(const State::KeyPress& press)
 
         /* Answered before the unmodified keys below, and returning none for anything else: without
          * this ctrl+a fell through to plain A, which accepts. */
+        switch (letter)
+        {
+            case 'c': return DEVIEW_KEY_COPY;
+            case 'a': return DEVIEW_KEY_SELECT_ALL;
+            /* With control as well as without, since that is the chord everything else that zooms
+             * taught. */
+            case '+':
+            case '=': return DEVIEW_KEY_ZOOM_IN;
+            case '-': return DEVIEW_KEY_ZOOM_OUT;
+            case '0': return DEVIEW_KEY_ZOOM_RESET;
+            default: break;
+        }
+
+        /* And by position, as these three always were, for a layout whose key there types
+         * something else unshifted: AZERTY has its digits on Shift. The keypad's are the same
+         * keys on every layout. */
         switch (press.key)
         {
-            case KEY_C: return DEVIEW_KEY_COPY;
-            case KEY_A: return DEVIEW_KEY_SELECT_ALL;
-            /* With control as well as without, since that is the chord everything else that zooms
-             * taught. By position here: a character is not reported while control is held. */
             case KEY_EQUAL:
             case KEY_KP_ADD: return DEVIEW_KEY_ZOOM_IN;
             case KEY_MINUS:
@@ -1998,27 +2095,17 @@ int KeyOf(const State::KeyPress& press)
         }
     }
 
-    /* The key itself held down, rather than read off the case of what was typed: see below. */
+    /* The key itself held down, rather than read off the case of what was typed: see LetterOf. */
     const bool shift = (press.mods & glfwShift) != 0;
 
     /* Letters by the character typed rather than by key position. raylib's key codes are
      * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
      * snapshot written into source by a key meant to quit - while the one labelled A quit.
-     * Characters follow the layout, the way the macOS and Windows heads already do. */
+     * Characters follow the layout, the way the macOS and Windows heads already do. Only a key
+     * that typed something: with Alt held none does, and Alt+A is not this head's to act on. */
     if (press.character != 0)
     {
-        unsigned int character = press.character;
-
-        /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
-         * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
-         * pending snapshot written into source, with nothing asked first, by the key that accepts
-         * one - and left D, V, Q, N, P, M, R and J doing nothing. */
-        if (character >= 'A' && character <= 'Z')
-        {
-            character += 'a' - 'A';
-        }
-
-        switch (character)
+        switch (letter)
         {
             /* Accept all is A with Shift held, which is what the other two heads go by. */
             case 'a': return shift ? DEVIEW_KEY_ACCEPT_ALL : DEVIEW_KEY_ACCEPT;
@@ -2042,6 +2129,17 @@ int KeyOf(const State::KeyPress& press)
         }
     }
 
+    /* The arrows and paging go on for as long as they are held, at the rate the window system
+     * repeats a key: one row a press was all a held arrow scrolled. */
+    switch (press.key)
+    {
+        case KEY_UP: return DEVIEW_KEY_SCROLL_UP;
+        case KEY_DOWN: return DEVIEW_KEY_SCROLL_DOWN;
+        case KEY_PAGE_UP: return DEVIEW_KEY_PAGE_UP;
+        case KEY_PAGE_DOWN: return DEVIEW_KEY_PAGE_DOWN;
+        default: break;
+    }
+
     if (press.repeated)
     {
         return DEVIEW_KEY_NONE;
@@ -2049,10 +2147,6 @@ int KeyOf(const State::KeyPress& press)
 
     switch (press.key)
     {
-        case KEY_UP: return DEVIEW_KEY_SCROLL_UP;
-        case KEY_DOWN: return DEVIEW_KEY_SCROLL_DOWN;
-        case KEY_PAGE_UP: return DEVIEW_KEY_PAGE_UP;
-        case KEY_PAGE_DOWN: return DEVIEW_KEY_PAGE_DOWN;
         case KEY_HOME: return DEVIEW_KEY_HOME;
         case KEY_END: return DEVIEW_KEY_END;
         case KEY_TAB: return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
