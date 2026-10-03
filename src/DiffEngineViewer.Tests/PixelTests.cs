@@ -280,9 +280,40 @@ public class PixelTests
     public Task PaneMenu() =>
         Capture(ViewerSession.OpenPaneMenu(Fixtures.File(), PaneSide.Right));
 
+    /// <summary>
+    /// A document's page under its text, in a window of its own. Its ten buttons leave 54 pixels
+    /// beside them, and the status line - which lines, which page, which pages differ - is the
+    /// one place those are said: it takes a line of its own under the buttons rather than running
+    /// off the window from wherever they ended.
+    /// <para>
+    /// Linux only, until a baseline for the macOS head has been taken on the runner its others
+    /// come from. How a footer that does not fit is laid out is each head's own, so this one says
+    /// nothing about that one.
+    /// </para>
+    /// </summary>
     [Test]
     [PixelTest]
     [NotInParallel(nameof(PixelTests), Order = 13)]
+    [SkipOnMac("There is no macOS baseline for this scene: a footer that does not fit is laid out by each head in its own way.")]
+    public Task DocumentPage() =>
+        Capture(Fixtures.Document());
+
+    /// <summary>
+    /// The same document pending in a queue, which is the fullest footer there is: eleven buttons
+    /// that need 1199 pixels of a window with 1084. They wrap onto a second row, where the last
+    /// used to be drawn past the window's edge and could not be clicked, and the status line goes
+    /// beside what wrapped rather than past that. Linux only, as <see cref="DocumentPage"/> is.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 14)]
+    [SkipOnMac("There is no macOS baseline for this scene: a footer that does not fit is laid out by each head in its own way.")]
+    public Task DocumentPageInQueue() =>
+        Capture(Fixtures.DocumentInQueue());
+
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 15)]
     [SkipOnMac("A capture host never creates the macOS window, and that head waits for the next frame in its event pump rather than after drawing one.")]
     public async Task PresentWaitsForTheNextFrame()
     {

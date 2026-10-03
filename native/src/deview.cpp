@@ -1612,6 +1612,96 @@ bool UpdatePan(const DeviewScreen* screen)
     return true;
 }
 
+/*
+ * One line of text in no more than a width, ending in an ellipsis where it was cut short, so it
+ * reads as cut rather than as all there was. It takes the place in the layout the text would.
+ */
+void TextWithin(const char* begin, const char* end, float width)
+{
+    const float room = std::max(width, 0.0f);
+    const ImVec2 size = ImGui::CalcTextSize(begin, end);
+    const ImVec2 position = ImGui::GetCursorScreenPos();
+    const ImVec2 limit(position.x + room, position.y + size.y);
+    ImGui::Dummy(ImVec2(std::min(size.x, room), size.y));
+    ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), position, limit, limit.x, begin, end, &size);
+}
+
+/*
+ * How the footer is laid out: its buttons, on as many rows as the window's width makes of them,
+ * and the status line, right aligned beside the last of those rows or on a line of its own.
+ *
+ * Worked out before the body is laid out, because the body is given what the footer leaves. A
+ * footer that fits on one line is every footer there used to be, and is still laid out as it was:
+ * each button after the one before, and the status after the last. That was the only layout, so
+ * one that did not fit ran off the window. A paged document pending in a queue has eleven buttons,
+ * 1199 pixels of them in a window with 1084: the last was past the window's edge, where it could
+ * not be clicked, and the status past that, where it could not be read - and the status line is
+ * where the page on screen, a page that could not be drawn, a selection and an accept that failed
+ * are said.
+ */
+struct Footer
+{
+    std::vector<std::string> labels;
+
+    /* Whether each button goes to the start of a new row rather than after the one before it. */
+    std::vector<bool> wraps;
+
+    std::string status;
+    float statusWidth = 0.0f;
+
+    /* On a line of its own under the buttons, for want of room beside the last row of them. */
+    bool statusBelow = false;
+
+    /* What all of it takes from the bottom of the window. */
+    float height = 0.0f;
+};
+
+Footer LayOutFooter(const DeviewScreen* screen, float width)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    Footer footer;
+    int rows = 1;
+
+    /* How far along its row the last button reaches. */
+    float reach = 0.0f;
+    for (int index = 0; index < screen->buttonCount; index++)
+    {
+        const DeviewButton& button = screen->buttons[index];
+        footer.labels.push_back(Copy(screen, button.labelOffset, button.labelLength));
+
+        /* What ImGui::Button makes of a label: its text, less whatever follows a ##, inside the
+         * frame's padding. */
+        const float size =
+            ImGui::CalcTextSize(footer.labels.back().c_str(), nullptr, true).x + style.FramePadding.x * 2.0f;
+        const bool wraps = index > 0 && reach + style.ItemSpacing.x + size > width;
+        footer.wraps.push_back(wraps);
+        if (wraps)
+        {
+            rows++;
+            reach = size;
+        }
+        else
+        {
+            reach += (index > 0 ? style.ItemSpacing.x : 0.0f) + size;
+        }
+    }
+
+    footer.status = Copy(screen, screen->statusOffset, screen->statusLength);
+    if (!footer.status.empty())
+    {
+        footer.statusWidth = ImGui::CalcTextSize(footer.status.c_str()).x;
+        /* Beside the buttons only with room to spare, which is the test it was always put to. */
+        footer.statusBelow =
+            screen->buttonCount > 0 &&
+            width - reach - style.ItemSpacing.x <= footer.statusWidth;
+    }
+
+    footer.height =
+        static_cast<float>(rows) * ImGui::GetFrameHeightWithSpacing() + style.ItemSpacing.y +
+        (footer.statusBelow ? ImGui::GetTextLineHeightWithSpacing() : 0.0f);
+    return footer;
+}
+
 void BuildFrame(const DeviewScreen* screen)
 {
     /* Read by the input pass, which has no screen of its own: Escape means dismiss while one of
@@ -1628,18 +1718,47 @@ void BuildFrame(const DeviewScreen* screen)
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus |
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 
-    Text(screen, screen->titleOffset, screen->titleLength);
+    /*
+     * The title, which stops a character short of the subtitle where it would otherwise run on
+     * under it: the subtitle is drawn in from the right edge wherever the title ended. It is the
+     * title that gives way, because what it says is also in the pane headers and the queue, and
+     * which entry of the queue this is is said only by the subtitle.
+     */
     const std::string subtitle = Copy(screen, screen->subtitleOffset, screen->subtitleLength);
+    const float subtitleWidth = subtitle.empty() ? 0.0f : ImGui::CalcTextSize(subtitle.c_str()).x;
+    const float titleRoom = subtitle.empty()
+        ? ImGui::GetContentRegionAvail().x
+        : ImGui::GetContentRegionAvail().x - subtitleWidth - ImGui::CalcTextSize("M").x;
+    const char* titleBegin;
+    const char* titleEnd;
+    if (Slice(screen, screen->titleOffset, screen->titleLength, &titleBegin, &titleEnd) &&
+        ImGui::CalcTextSize(titleBegin, titleEnd).x > titleRoom)
+    {
+        TextWithin(titleBegin, titleEnd, titleRoom);
+    }
+    else
+    {
+        Text(screen, screen->titleOffset, screen->titleLength);
+    }
+
     if (!subtitle.empty())
     {
-        const float width = ImGui::CalcTextSize(subtitle.c_str()).x;
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - width);
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - subtitleWidth);
         ImGui::TextDisabled("%s", subtitle.c_str());
     }
 
     ImGui::Separator();
 
-    const float footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+    /*
+     * Its height comes off the body, and the managed side is not asked for fewer rows to make up
+     * for it. That side keeps eight lines for everything that is not a row, where this head's
+     * title, headers and one line of footer take under five, so there are 62 pixels and more under
+     * the last row it slices. A second row of buttons takes 23 of them and a line for the status
+     * 17, and a third row of buttons on top of both is a pixel over at most. It is only past
+     * that - four rows, which a paged document's buttons come to in a window under 450 pixels
+     * wide - that the last rows of the body are cut off, behind a footer that can at least be read.
+     */
+    const Footer footer = LayOutFooter(screen, ImGui::GetContentRegionAvail().x);
 
     /*
      * The strip the pane scrollbar gets, taken off the body before anything is laid out in it.
@@ -1647,7 +1766,7 @@ void BuildFrame(const DeviewScreen* screen)
      * and went would shift the pane split every time the selection changed.
      */
     const float scrollbarWidth = ImGui::GetStyle().ScrollbarSize;
-    ImGui::BeginChild("##body", ImVec2(-scrollbarWidth, -footer), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild("##body", ImVec2(-scrollbarWidth, -footer.height), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
 
     /* Read back rather than recomputed, so the scrollbar lands against the body whatever the
      * negative sizes above worked out as. */
@@ -2001,9 +2120,9 @@ void BuildFrame(const DeviewScreen* screen)
     for (int index = 0; index < screen->buttonCount; index++)
     {
         const DeviewButton& button = screen->buttons[index];
-        const std::string label = Copy(screen, button.labelOffset, button.labelLength);
         const bool enabled = (button.flags & DEVIEW_BUTTON_ENABLED) != 0;
-        if (index > 0)
+        if (index > 0 &&
+            !footer.wraps[static_cast<size_t>(index)])
         {
             ImGui::SameLine();
         }
@@ -2014,7 +2133,7 @@ void BuildFrame(const DeviewScreen* screen)
         }
 
         ImGui::PushID(index);
-        if (ImGui::Button(label.c_str()))
+        if (ImGui::Button(footer.labels[static_cast<size_t>(index)].c_str()))
         {
             state.input.clickedButton = index;
         }
@@ -2026,18 +2145,27 @@ void BuildFrame(const DeviewScreen* screen)
         }
     }
 
-    const std::string status = Copy(screen, screen->statusOffset, screen->statusLength);
-    if (!status.empty())
+    if (!footer.status.empty())
     {
-        const float width = ImGui::CalcTextSize(status.c_str()).x;
-        ImGui::SameLine();
-        const float available = ImGui::GetContentRegionAvail().x;
-        if (available > width)
+        if (!footer.statusBelow)
         {
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - width);
+            ImGui::SameLine();
         }
 
-        ImGui::TextDisabled("%s", status.c_str());
+        const float available = ImGui::GetContentRegionAvail().x;
+        if (available > footer.statusWidth)
+        {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - footer.statusWidth);
+            ImGui::TextDisabled("%s", footer.status.c_str());
+        }
+        else
+        {
+            /* Wider than the window even with a line to itself. From the left edge then, so that
+             * what is lost is its end, and said to be lost. */
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+            TextWithin(footer.status.data(), footer.status.data() + footer.status.size(), available);
+            ImGui::PopStyleColor();
+        }
     }
 
     ImGui::End();
