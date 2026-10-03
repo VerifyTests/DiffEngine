@@ -3,12 +3,28 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Initialize()
     {
+        ThrowRatherThanAsk();
         MachineSettings.Ignore();
         VerifyWinForms.Initialize();
         VerifierSettings.UseSsimForPng(PngSsimThreshold);
         KeepEnvironmentWritesInProcess();
         PointAtAClosedPort();
     }
+
+    /// <summary>
+    /// An exception thrown inside a window procedure is, by default, caught by WinForms and put
+    /// to whoever is at the machine in a dialog with Continue and Quit on it. A test that throws
+    /// there then waits on a click, on the desktop of someone doing something else. Thrown, it
+    /// fails the test that caused it.
+    /// <para>
+    /// For every thread rather than this one, since a test builds its controls on whichever thread
+    /// it is given, and first here because the mode cannot be changed once a window exists.
+    /// </para>
+    /// </summary>
+    static void ThrowRatherThanAsk() =>
+        System.Windows.Forms.Application.SetUnhandledExceptionMode(
+            System.Windows.Forms.UnhandledExceptionMode.ThrowException,
+            threadScope: false);
 
     /// <summary>
     /// Tests must not write the user environment of the machine running them. The test projects
