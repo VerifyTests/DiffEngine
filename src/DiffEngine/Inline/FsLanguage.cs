@@ -40,6 +40,9 @@ sealed class FsLanguage : SourceLanguage
     internal override bool SuppliesArgumentExpressions => false;
 
     internal override bool IsIdentifierChar(char ch) =>
+        IsNameChar(ch);
+
+    static bool IsNameChar(char ch) =>
         char.IsLetterOrDigit(ch) || ch == '_' || ch == '\'';
 
     internal override bool IsTypeArgumentChar(char ch) =>
@@ -466,8 +469,11 @@ sealed class FsLanguage : SourceLanguage
         if (quotes >= 3 && !verbatim)
         {
             // Triple quoted: verbatim, so there are no escapes to consider and no delimiter to
-            // widen. It ends at the next run of three quotes, interpolation holes included
+            // widen. Its text ends at the next run of three quotes. A hole is not text: it may
+            // hold a string or a comment with three quotes of its own, which end nothing
             var search = cursor + 3;
+            // As many braces open a hole as there are dollars in front, and fewer are text
+            var dollars = interpolated ? cursor - index : 0;
             while (search < source.Length)
             {
                 if (source[search] == '"' &&
@@ -475,6 +481,42 @@ sealed class FsLanguage : SourceLanguage
                 {
                     index = search + 3;
                     return true;
+                }
+
+                if (dollars > 0 &&
+                    source[search] == '{')
+                {
+                    var braces = 1;
+                    while (search + braces < source.Length &&
+                           source[search + braces] == '{')
+                    {
+                        braces++;
+                    }
+
+                    // With one dollar a doubled brace is a brace, so only an odd one out opens.
+                    // With more, the last of a run that is long enough do, and the ones in front
+                    // of them are text
+                    var opens = dollars == 1 ? braces % 2 == 1 : braces >= dollars;
+                    search += braces;
+                    if (!opens)
+                    {
+                        continue;
+                    }
+
+                    search--;
+                    if (!TrySkipHole(source, ref search))
+                    {
+                        index = source.Length;
+                        return true;
+                    }
+
+                    // The rest of the braces that close it
+                    for (var closing = 1; closing < dollars && search < source.Length && source[search] == '}'; closing++)
+                    {
+                        search++;
+                    }
+
+                    continue;
                 }
 
                 search++;
@@ -511,8 +553,9 @@ sealed class FsLanguage : SourceLanguage
 
             if (!verbatim && ch == '\\')
             {
-                // Escape or line continuation: either way the next character is content
-                cursor += 2;
+                // Escape or line continuation: either way the next character is content. Except a
+                // brace where braces open holes, which no backslash escapes
+                cursor += interpolated && cursor + 1 < source.Length && source[cursor + 1] == '{' ? 1 : 2;
                 continue;
             }
 
@@ -548,7 +591,17 @@ sealed class FsLanguage : SourceLanguage
         return true;
     }
 
-    // cursor at '{' of an interpolation hole; skips past the matching '}'
+    /// <summary>
+    /// Steps past an interpolation hole, from its <c>{</c> to past the <c>}</c> that closes it.
+    /// <para>
+    /// A hole is code, and is lexed as code is: a brace in a char literal, a comment, a string or
+    /// a backticked name is not one of the hole's own, and a quote in a char literal or a comment
+    /// opens no string. Counting every brace and taking every quote for a string, as this did,
+    /// <c>$"{'{'}"</c> never closed and <c>$"{'"'}"</c> closed on a string that ran to the end of
+    /// the file, and the calls under either were inside a literal. <c>FsCompilerRoundTripTests</c>
+    /// holds each shape to the compiler.
+    /// </para>
+    /// </summary>
     static bool TrySkipHole(string source, ref int cursor)
     {
         var depth = 1;
@@ -561,6 +614,36 @@ sealed class FsLanguage : SourceLanguage
                 case '@':
                 case '$':
                     if (!TrySkipStringLike(source, ref cursor))
+                    {
+                        cursor++;
+                    }
+
+                    continue;
+                case '\'':
+                    // The rule code has: a tick after a name is part of the name
+                    if (IsNameChar(source[cursor - 1]) ||
+                        !TrySkipCharLiteral(source, ref cursor))
+                    {
+                        cursor++;
+                    }
+
+                    continue;
+                case '(':
+                    if (!TrySkipBlockComment(source, ref cursor))
+                    {
+                        cursor++;
+                    }
+
+                    continue;
+                case '/':
+                    if (!TrySkipLineComment(source, ref cursor))
+                    {
+                        cursor++;
+                    }
+
+                    continue;
+                case '`':
+                    if (!TrySkipQuotedIdentifier(source, ref cursor))
                     {
                         cursor++;
                     }

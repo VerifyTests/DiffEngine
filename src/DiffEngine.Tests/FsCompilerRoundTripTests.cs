@@ -121,6 +121,125 @@ public class FsCompilerRoundTripTests
         "a ` b"
     ];
 
+    /// <summary>
+    /// Lines of code F# compiles, each holding a tick or an interpolated string the scanner has
+    /// to step over as the compiler does, or the call under it is taken to be inside a literal.
+    /// A tick after a name or a type parameter is part of it, and anywhere else opens a char
+    /// literal, which is where a quote that opens no string is written. A hole of
+    /// <c>$"..."</c> holds char literals and comments and no string; one of a triple quoted
+    /// literal holds strings too, a verbatim one that ends in a doubled quote among them. Each is
+    /// here because fsi was asked, and is asked again by
+    /// <see cref="TicksAndHolesAreReadAsTheCompilerReadsThem" />.
+    /// </summary>
+    internal static readonly string[] Code =
+    [
+        "let a' = 1 in ignore a'",
+        "let a'b = 1 in ignore a'b",
+        "let a'' = 1 in ignore a''",
+        "ignore '\"'",
+        "ignore ['a';'\"';'\\'']",
+        "ignore ('\"', '\\\\', '\\\"')",
+        "ignore (1,'\"')",
+        "ignore (id<char>'\"')",
+        "ignore 'a'B",
+        "ignore ('\\065', '\\u0041', '\\U00000041', '\\x41')",
+        "let f (x: 'a) (y: 'a) = x in ignore (f '\"' '\"')",
+        "let x' = '\"' in ignore x'",
+        "let x = 1 in ignore (x,'\"')",
+        "ignore $\"{1}\"",
+        "ignore $\"{{literal}}\"",
+        "ignore $\"{ {| A = 1 |}.A }\"",
+        "ignore $\"{'}'}\"",
+        "ignore $\"{'{'}\"",
+        "ignore $\"{'\"'}\"",
+        "ignore $\"{1:N2}\"",
+        "ignore $\"%d{1}\"",
+        "ignore $@\"c:\\{1}\\\"",
+        "ignore @$\"c:\\{1}\\\"",
+        "ignore $@\"a\"\"{1}\"\"b\"",
+        "ignore $\"a\\\"{1}\\\"\"",
+        "ignore $\"{1 (* } *)}\"",
+        "ignore $\"{1 (* { *)}\"",
+        "ignore $\"{ [ for c in ['}'] -> c ] }\"",
+        "ignore $\"}}\"",
+        "ignore $\"{{\"",
+        "ignore $\"{1}}}\"",
+        "ignore $\"\\{1}\"",
+        "ignore $\"\"\"{\"a\"}\"\"\"",
+        "ignore $\"\"\"{ \"}\" }\"\"\"",
+        "ignore $\"\"\"{ \"{\" }\"\"\"",
+        "ignore $\"\"\"{ '\"' }\"\"\"",
+        "ignore $\"\"\"{ '{' }\"\"\"",
+        "ignore $\"\"\"{ $\"{1}\" }\"\"\"",
+        "ignore $\"\"\"{ @\"a\"\"\" }\"\"\"",
+        "ignore $\"\"\"{ @\"a\"\"b\" }\"\"\"",
+        "ignore $\"\"\"{ \"a\\\"\" }\"\"\"",
+        "ignore $\"\"\"{1}\"\" \"\"\"",
+        "ignore $\"\"\"{ (1, \"}}\") }\"\"\"",
+        "ignore $\"\"\"{ {| A = \"}\" |}.A }\"\"\"",
+        // A backslash escapes no brace, so this is a backslash and then a hole
+        "ignore $\"\\{'\"'}\"",
+        "ignore $\"{1}{'\"'}\"",
+        "let x' = 1 in ignore $\"{x'}{'}'}\"",
+        "let ``a}b`` = 1 in ignore $\"{ ``a}b`` }\"",
+        // A line comment in a hole runs to the end of its line, whatever it holds
+        "ignore $\"{1 // }\n    }\"",
+        "ignore $\"\"\"{ 1 // } \"\"\"\n    }\"\"\"",
+        // Doubled braces are text with one dollar, and what opens a hole with two
+        "ignore $\"\"\"{{ {1} }}\"\"\"",
+        "ignore $\"\"\"{{{'\"'}}}\"\"\"",
+        "ignore $$\"\"\"{{1}} {literal}\"\"\"",
+        "ignore $$\"\"\"{{ \"}}\" }}\"\"\"",
+        "ignore $$\"\"\"{ {{'\"'}} }\"\"\"",
+        "ignore $$\"\"\"{{{'\"'}}}\"\"\"",
+        "ignore $$$\"\"\"{{ {{{'\"'}}} }}\"\"\"",
+        "ignore \"a\"B",
+        "ignore \"\"\"a\"\"\"B"
+    ];
+
+    [Test]
+    [RequiresDotnet]
+    public async Task TicksAndHolesAreReadAsTheCompilerReadsThem()
+    {
+        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes("found"));
+        var builder = new StringBuilder(prelude);
+        // Every line the scanner lost the call under, rather than the first, since one reading
+        // put right is as likely as not to be the reason for the next
+        var lost = new List<string>();
+        for (var index = 0; index < Code.Length; index++)
+        {
+            // The line is the first thing in the body, so a scanner that reads a literal in it as
+            // longer or shorter than it is loses the call under it, and a compiler that does not
+            // take the line has no function to call
+            var snippet = $"let code{index} () =\n    {Code[index]}\n    Verify(\"x\").Snapshot().ToTask()\n";
+            var status = InlinePatcher.TryApply(SourceLanguage.FSharp, snippet, 3, InlinePatchMode.Set, null, null, null, null, false, "found", out var patched, out _);
+            if (status != PatchStatus.Applied)
+            {
+                lost.Add(Code[index]);
+                continue;
+            }
+
+            builder.Append(patched);
+            builder.Append($"check \"code{index}\" (code{index} ()) \"{expected}\"\n\n");
+        }
+
+        await Assert.That(lost).IsEmpty();
+        builder.Append(footer);
+        var path = Path.Combine(Path.GetTempPath(), $"DiffEngineFsCode_{Guid.NewGuid():N}.fsx");
+        await File.WriteAllTextAsync(path, builder.ToString(), new UTF8Encoding(false));
+        try
+        {
+            var (exitCode, output) = RunFsi(path);
+
+            await Assert.That(output).Contains("ALL OK");
+            await Assert.That(exitCode).IsEqualTo(0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     [RequiresDotnet]
     public async Task CommentsAndNamesAreReadAsTheCompilerReadsThem()
