@@ -1000,20 +1000,22 @@ class Tracker :
     /// skipped came back on the next scan two seconds later.
     /// </para>
     /// <para>
-    /// The tracked files here, on the calling thread, and the snapshots on a worker, for the
-    /// reason <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a
-    /// socket, and one slow to answer held the thread drawing everything for as long as that
-    /// took. The menu and the hot key discard the task; tests await it.
+    /// All of it on a worker, as an accept-all's second half is. The snapshots for the reason
+    /// <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a socket,
+    /// and one slow to answer held the thread drawing everything for as long as that took. The
+    /// tracked files because discarding a move ends its diff tool and waits up to half a second
+    /// for each to go, which for a screen full of them was seconds of a tray that drew nothing.
+    /// The files first, so a queue that is slow to answer holds up nothing but itself. The menu
+    /// and the hot key discard the task; tests await it.
     /// </para>
     /// </summary>
-    public Task Clear()
-    {
-        ((ITrackedFiles) this).DiscardAll();
-
-        return Task.Run(() =>
+    public Task Clear() =>
+        Task.Run(() =>
         {
             try
             {
+                DiscardFiles();
+
                 // Only forget the cached snapshots when the owner actually discarded them. It used
                 // to be cleared regardless, so a discard the owner never received still emptied the
                 // menu - and everything came back on the next scan two seconds later
@@ -1023,7 +1025,11 @@ class Tracker :
                 }
                 else
                 {
-                    Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
+                    // Said, and not only logged: the snapshots are still in the menu, under the
+                    // button that was just pressed to be rid of them
+                    var failure = CouldNotDiscard(message);
+                    Log.Error("{Message}", failure);
+                    inlineFailed?.Invoke(failure);
                 }
 
                 // Nothing waits for the next scan to say so: the files went above, whatever the
@@ -1032,9 +1038,48 @@ class Tracker :
             }
             catch (Exception exception)
             {
-                ExceptionHandler.Handle("Failed to discard the pending snapshots", exception);
+                ExceptionHandler.Handle("Failed to discard everything pending", exception);
             }
         });
+
+    /// <summary>
+    /// What a user is told when "Discard (n)" could not discard the snapshots, which stay pending.
+    /// </summary>
+    internal static string CouldNotDiscard(string? message)
+    {
+        if (message is { Length: > 0 })
+        {
+            return $"Could not discard the pending snapshots. {message}";
+        }
+
+        return "Could not discard the pending snapshots.";
+    }
+
+    /// <summary>
+    /// Every tracked move and delete discarded, for <see cref="Clear"/> and for the wire. Virtual
+    /// so a test can see which thread it was asked of.
+    /// </summary>
+    protected virtual int DiscardFiles()
+    {
+        var count = 0;
+        foreach (var delete in deletes.Values.ToList())
+        {
+            if (deletes.TryRemove(delete.File, out _))
+            {
+                count++;
+            }
+        }
+
+        foreach (var move in moves.Values.ToList())
+        {
+            if (moves.TryRemove(move.Temp, out var removed))
+            {
+                InnerDiscard(removed);
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -1377,28 +1422,8 @@ class Tracker :
         return (accepted, kept);
     }
 
-    int ITrackedFiles.DiscardAll()
-    {
-        var count = 0;
-        foreach (var delete in deletes.Values.ToList())
-        {
-            if (deletes.TryRemove(delete.File, out _))
-            {
-                count++;
-            }
-        }
-
-        foreach (var move in moves.Values.ToList())
-        {
-            if (moves.TryRemove(move.Temp, out var removed))
-            {
-                InnerDiscard(removed);
-                count++;
-            }
-        }
-
-        return count;
-    }
+    int ITrackedFiles.DiscardAll() =>
+        DiscardFiles();
 
     (bool ok, string? message) AcceptTracked(TrackedDelete delete)
     {

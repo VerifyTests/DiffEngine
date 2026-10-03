@@ -93,12 +93,20 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
         return AcceptAllSucceeds;
     }
 
+    /// <summary>
+    /// What a bulk discard reports. False is a queue that could not be reached, or one that would
+    /// not discard, with <see cref="DiscardAllMessage"/> as what it said.
+    /// </summary>
+    public bool DiscardAllSucceeds { get; init; } = true;
+
+    public string? DiscardAllMessage { get; init; }
+
     public bool DiscardAll(out string? message)
     {
-        message = null;
+        message = DiscardAllMessage;
         DiscardStarted.Set();
         DiscardBlock?.Wait(TimeSpan.FromSeconds(10));
-        return true;
+        return DiscardAllSucceeds;
     }
 
     public void Focus(PendingSnapshot snapshot)
