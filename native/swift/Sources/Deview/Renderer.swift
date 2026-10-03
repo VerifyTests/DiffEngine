@@ -279,8 +279,10 @@ final class Renderer {
         rule(top: headerTop + line + Renderer.gap, width: size.width, in: context, size)
 
         let bodyTop = Renderer.padding + (line + Renderer.gap) * 2 + Renderer.gap * 2
-        let footerHeight = line + Renderer.gap * 2
-        let capacity = max(1, Int((size.height - bodyTop - footerHeight - Renderer.padding) / line))
+        // Before the body, which ends where the footer begins. The footer is as tall as its
+        // buttons take, and that is more than one row of them once they are wider than the window.
+        let placed = place(frame, width: size.width, line: line)
+        let capacity = max(1, Int((size.height - bodyTop - placed.height - Renderer.padding) / line))
         let rows = min(capacity, max(frame.queue.count, max(frame.left.rows.count, frame.right.rows.count)))
 
         for index in 0 ..< rows {
@@ -339,34 +341,115 @@ final class Renderer {
                 textLeft: panesLeft + half + gutter,
                 width: panesWidth - half)
         ]
-        layout.buttons = footer(frame, size: size, height: footerHeight, line: line, in: context)
+        layout.buttons = footer(frame, placed, size: size, line: line, in: context)
         return layout
     }
 
-    private func footer(_ frame: Frame, size: CGSize, height: CGFloat, line: CGFloat, in context: CGContext) -> [CGRect] {
-        let top = size.height - height - Renderer.padding
+    /// Where the footer's buttons go and how tall that makes it. Worked out before anything is
+    /// drawn, because the body ends where the footer begins.
+    private struct Footer {
+        /// One for each of the frame's buttons, in their order.
+        var slots: [Slot] = []
+
+        /// How many rows the buttons take: one, unless they are wider than the window.
+        var rows = 1
+
+        /// The status has a line of its own above the buttons, for want of room beside them.
+        var statusAbove = false
+
+        var height: CGFloat = 0
+
+        struct Slot {
+            var row = 0
+            var left: CGFloat = 0
+            var width: CGFloat = 0
+        }
+    }
+
+    /// Lays the footer out: the buttons left to right, onto another row where the next would pass
+    /// the window's edge, and the status right of the last of them where there is room for it.
+    ///
+    /// One row used to be all there was. A paged document has eleven buttons, wider together than
+    /// the window opens, so the last of them were off it and could not be clicked. And the status
+    /// was drawn from the right edge whatever was already there, which for an image pair in a
+    /// queue was the last button. A status with no room beside the buttons has a line of its own
+    /// instead, because it is where the page, the zoom, a selection and a failed accept are said.
+    ///
+    /// Where a button goes turns on the buttons and the window's width and nothing else. Not on
+    /// the status, which changes while the pointer is on its way to a button: its line is above
+    /// the buttons for that reason, so they stay where they are as it comes and goes.
+    private func place(_ frame: Frame, width: CGFloat, line: CGFloat) -> Footer {
+        var placed = Footer()
+        let edge = width - Renderer.padding
+        var left = Renderer.padding
+        var end = Renderer.padding
+        for button in frame.buttons {
+            let span = CGFloat(button.label.count + 4) * cell.width
+            // Never the first of its row, which has nowhere better to go however wide it is
+            if left > Renderer.padding, left + span > edge {
+                placed.rows += 1
+                left = Renderer.padding
+            }
+
+            placed.slots.append(Footer.Slot(row: placed.rows - 1, left: left, width: span))
+            end = left + span
+            left = end + Renderer.gap
+        }
+
+        // Room is room right up to the last button, with no gap asked for: a conflicted entry's
+        // line count has always sat two points off its variant button, and reads.
+        let statusWidth = CGFloat(frame.status.count) * cell.width
+        placed.statusAbove = !frame.status.isEmpty && edge - statusWidth < end
+        let row = line + Renderer.gap * 2
+        placed.height = row * CGFloat(placed.rows) + Renderer.gap * CGFloat(placed.rows - 1)
+        if placed.statusAbove {
+            placed.height += line + Renderer.gap
+        }
+
+        return placed
+    }
+
+    private func footer(_ frame: Frame, _ placed: Footer, size: CGSize, line: CGFloat, in context: CGContext) -> [CGRect] {
+        let top = size.height - placed.height - Renderer.padding
         rule(top: top - Renderer.gap, width: size.width, in: context, size)
 
+        let height = line + Renderer.gap * 2
+        let first = placed.statusAbove ? top + line + Renderer.gap : top
         var rects: [CGRect] = []
-        var left = Renderer.padding
-        for button in frame.buttons {
-            let width = CGFloat(button.label.count + 4) * cell.width
-            let bounds = rect(top: top, left: left, width: width, height: height, size)
+        for (button, slot) in zip(frame.buttons, placed.slots) {
+            let bounds = rect(
+                top: first + CGFloat(slot.row) * (height + Renderer.gap),
+                left: slot.left,
+                width: slot.width,
+                height: height,
+                size)
             rects.append(bounds)
 
             context.setFillColor(button.enabled ? Palette.buttonFace : Palette.buttonDisabled)
             context.fill(bounds)
             let label = bounds.insetBy(dx: cell.width * 2, dy: (height - line) / 2)
             text(button.label, in: label, button.enabled ? Palette.text : Palette.dim, context)
-            left += width + Renderer.gap
         }
 
-        if !frame.status.isEmpty {
-            let width = CGFloat(frame.status.count) * cell.width
-            let bounds = rect(top: top + (height - line) / 2, left: size.width - Renderer.padding - width, width: width, height: line, size)
-            text(frame.status, in: bounds, Palette.dim, context)
+        guard !frame.status.isEmpty else {
+            return rects
         }
 
+        let edge = size.width - Renderer.padding
+        let width = CGFloat(frame.status.count) * cell.width
+        if placed.statusAbove {
+            // From the left edge once it is wider than the window, so that what is cut off is its
+            // end, which is the end the text renderer loses.
+            let left = max(Renderer.padding, edge - width)
+            let above = rect(top: top, left: left, width: edge - left, height: line, size)
+            text(frame.status, in: above, Palette.dim, context)
+            return rects
+        }
+
+        // Beside the last row of buttons, against the right edge
+        let last = first + CGFloat(placed.rows - 1) * (height + Renderer.gap)
+        let beside = rect(top: last + (height - line) / 2, left: edge - width, width: width, height: line, size)
+        text(frame.status, in: beside, Palette.dim, context)
         return rects
     }
 
