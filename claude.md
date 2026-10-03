@@ -264,10 +264,21 @@ is awaited, assigned, returned or passed takes only the call.
     is not about it. The same goes for a copy that could not be written. Both throw out of `Pump`
     before anything is marked as started, and `Turn` says why, once, and tries again - the loop
     never ends on a fault, which used to stop every document until the viewer was restarted.
+  - Both sides of the entry on screen are drawn at once, a `Call` each with a clock and a
+    left-behind flag of its own. Drawn one after the other, the right pane was a spinner for every
+    page of the left. Two Office files take a core each; two PDFs take turns at PDFium's lock, which
+    is held only while a page is rasterised, so they too finish in about the time of one. Two PDFs
+    are started one behind the other, the second once the first has landed a page, because blame
+    is told from whose pages stopped first: when one stops inside PDFium the other stops at the
+    lock, and the one that ran out of time first is given up on while the other is put back as
+    not started, with nothing recorded against it. `pdfiumHeld` is a count of PDFs left behind and
+    not yet returned. A call left behind is stopped where its next page lands, by throwing from
+    the page callback, which is the one place it can be.
   - `FileSide.Read` only hashes a document, because it runs on the listener thread a test process
     waits on. `DocumentWatch` (owned, attached and file modes) does the slow part, for the entry on
     screen only - never the next one ahead of time, because a call into Morph or PDFium cannot be
-    stopped, and one drawing ahead was one the reader waited behind when they picked another entry.
+    stopped part way through a conversion or a page, and one drawing ahead was one the reader
+    waited behind when they picked another entry.
     It works from a copy taken
     under the cache's hash directory, checked against the hash, so nothing holds a lock on the user's
     file and what is drawn is what the hash says. Text replaces the entry once both sides are read
