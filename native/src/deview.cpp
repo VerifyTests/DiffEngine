@@ -105,6 +105,13 @@ typedef void (*DeviewGlEntry)(void);
 DeviewGlEntry glfwGetProcAddress(const char* name);
 }
 
+/*
+ * And how much larger than a pixel the desktop wants everything drawn, which under X11 is the
+ * Xft.dpi resource over 96. raylib asks GLFW this only for a window it was told to scale itself,
+ * which this one is not: see State::scale.
+ */
+extern "C" void glfwGetWindowContentScale(void* window, float* across, float* down);
+
 /* GLFW's own numbers, which its headers would have named. */
 constexpr int glfwRelease = 0;
 constexpr int glfwShift = 0x0001;
@@ -309,6 +316,31 @@ struct State
     /* The bytes of each font merged in. ImGui rasterises a glyph out of them when a character is
      * first drawn, so they are kept for as long as the atlas is. */
     std::deque<std::vector<unsigned char>> fontData;
+
+    /*
+     * How much larger than a pixel the desktop wants things drawn: 1 on an ordinary display, 2 on
+     * one whose desktop is set to twice the size, and anything between.
+     *
+     * Nothing here asked. Under X11 a pixel is a pixel whatever the display, so the window was
+     * 1100 by 700 of them and its text 15 to the em on a display with twice as many to the inch,
+     * where everything else on the desktop is twice that: the viewer at half size.
+     *
+     * The window is drawn larger rather than handed to raylib to scale, which it would do by
+     * drawing the same frame through a transform: the text here is rasterised at the size it is
+     * shown, and everything stays in the pixels the pointer is reported in, so nothing that is
+     * hit tested has two sets of coordinates to keep apart. What is scaled is the font, ImGui's
+     * paddings and spacings, the few lengths this file gives in pixels, and the size a window
+     * opens at when there is none remembered. A remembered one is in pixels already.
+     *
+     * Read once, as the window is made: GLFW works it out as it starts and keeps it. Never applied
+     * to a capture, which draws at the size it is told at a scale of 1, on any display.
+     */
+    float scale = 1.0f;
+
+    /* A character cell's width and a row's height in the last frame built for the window, which
+     * is what the grid reported to the managed side is counted in: see MeasureGrid. */
+    float cellWidth = 0.0f;
+    float lineHeight = 0.0f;
 
     /* Whether the last screen carried a context menu, which is what makes Escape and a click
      * outside it a dismissal rather than what they would otherwise mean. */
@@ -565,6 +597,13 @@ struct State
 };
 
 State state;
+
+/* The scale the frame being built is drawn at: the display's for the window's, and 1 for a
+ * capture's. See State::scale. */
+float Scale()
+{
+    return state.capturing ? 1.0f : state.scale;
+}
 
 /* GLFW's refresh callback, called from inside PollInputEvents: the window system has uncovered
  * some of the window, or shown it, and what was there is gone. */
@@ -2339,9 +2378,13 @@ int ReadKey(bool& escape)
  */
 void MeasureGrid()
 {
+    /* As the last frame built for the window found them, once there has been one. Between frames
+     * ImGui answers with the font at the size it was added at, which on a scaled display is not
+     * the size a frame draws it at: asked here, a window at twice the scale was told it had
+     * twice the rows it has. */
     ImGui::SetCurrentContext(state.context);
-    const float width = ImGui::CalcTextSize("M").x;
-    const float height = ImGui::GetTextLineHeightWithSpacing();
+    const float width = state.cellWidth > 0.0f ? state.cellWidth : ImGui::CalcTextSize("M").x;
+    const float height = state.lineHeight > 0.0f ? state.lineHeight : ImGui::GetTextLineHeightWithSpacing();
     state.input.columns = width > 0.0f
         ? static_cast<int32_t>(static_cast<float>(GetScreenWidth()) / width)
         : 0;
@@ -2626,7 +2669,7 @@ void UpdateSelection(
             mouse.x < leftHit.cellLeft ||
             /* The splitter's grab zone overlaps the left pane's edge, and a drag that started
              * there would otherwise also select whatever it began over. */
-            (dividerX >= 0.0f && mouse.x <= dividerX + grabWidth))
+            (dividerX >= 0.0f && mouse.x <= dividerX + grabWidth * Scale()))
         {
             return;
         }
@@ -2727,7 +2770,7 @@ void DrawChecker(ImDrawList* list, const ImVec2& min, const ImVec2& max)
         return;
     }
 
-    const float repeat = checkerSize * 2.0f;
+    const float repeat = checkerSize * Scale() * 2.0f;
     list->AddImage(
         static_cast<ImTextureID>(checker->id),
         min,
@@ -3284,10 +3327,17 @@ void BuildFrame(const DeviewScreen* screen)
     const bool hasQueue = screen->queueCount > 0;
     const int columns = hasQueue ? 3 : 2;
     const float cell = ImGui::CalcTextSize("M").x;
+    if (!state.capturing)
+    {
+        state.cellWidth = cell;
+        state.lineHeight = ImGui::GetTextLineHeightWithSpacing();
+    }
+
     ImVec2 menuAnchor;
     float menuRowTop = 0.0f;
     bool menuAnchored = false;
-    if (state.queueWidth <= 0.0f)
+    if (!state.capturing &&
+        state.queueWidth <= 0.0f)
     {
         state.queueWidth = cell * queueCells;
     }
@@ -3296,7 +3346,13 @@ void BuildFrame(const DeviewScreen* screen)
      * rows the table happens to have. */
     const ImVec2 bodyMin = ImGui::GetCursorScreenPos();
     const ImVec2 bodyAvail = ImGui::GetContentRegionAvail();
-    const float queueWidth = ClampQueueWidth(state.queueWidth, bodyAvail.x, cell);
+
+    /* A capture's queue column is the width it starts at, in its own cells. The window's is in
+     * the window's, which are larger on a scaled display, and may have been dragged. */
+    const float queueWidth = ClampQueueWidth(
+        state.capturing ? cell * queueCells : state.queueWidth,
+        bodyAvail.x,
+        cell);
 
     /* Where the border between the queue and the panes ended up, read back from the table rather
      * than recomputed, and -1 until a row has been laid out. */
@@ -3509,10 +3565,11 @@ void BuildFrame(const DeviewScreen* screen)
     if (dividerX >= 0.0f)
     {
         const ImVec2 resume = ImGui::GetCursorScreenPos();
-        ImGui::SetCursorScreenPos(ImVec2(dividerX - grabWidth, bodyMin.y));
+        const float grab = grabWidth * Scale();
+        ImGui::SetCursorScreenPos(ImVec2(dividerX - grab, bodyMin.y));
         ImGui::InvisibleButton(
             "##queue-splitter",
-            ImVec2(grabWidth * 2.0f + 1.0f, std::max(1.0f, bodyAvail.y)));
+            ImVec2(grab * 2.0f + 1.0f, std::max(1.0f, bodyAvail.y)));
         if (ImGui::IsItemHovered() || ImGui::IsItemActive())
         {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -4038,7 +4095,35 @@ int32_t deview_init(
         return 0;
     }
 
+    void* handle = glfwGetCurrentContext();
+
+    /* Not under 1: a desktop set smaller than a pixel to the pixel is not asking for text below
+     * the size it is legible at. And not a number that is no scale at all. */
+    float across = 1.0f;
+    float down = 1.0f;
+    glfwGetWindowContentScale(handle, &across, &down);
+    state.scale = across > 1.0f && across <= 8.0f ? across : 1.0f;
+    state.cellWidth = 0.0f;
+    state.lineHeight = 0.0f;
+
     state.tracked = false;
+    if (!sized &&
+        state.scale != 1.0f)
+    {
+        /* The size asked for is in the pixels of an ordinary display. As much of it at this
+         * display's scale as its monitor has room for, and in the middle of that monitor, which is
+         * where raylib put the window it has just made at the size it was given. There is no
+         * asking the scale before there is a window to ask it of. */
+        const int monitor = GetCurrentMonitor();
+        const int wide = std::min(static_cast<int>(static_cast<float>(width) * state.scale), GetMonitorWidth(monitor));
+        const int tall = std::min(static_cast<int>(static_cast<float>(height) * state.scale), GetMonitorHeight(monitor));
+        const Vector2 origin = GetMonitorPosition(monitor);
+        SetWindowSize(wide, tall);
+        SetWindowPosition(
+            static_cast<int>(origin.x) + (GetMonitorWidth(monitor) - wide) / 2,
+            static_cast<int>(origin.y) + (GetMonitorHeight(monitor) - tall) / 2);
+    }
+
     if (sized)
     {
         if (OnAMonitor(state.placement))
@@ -4059,7 +4144,6 @@ int32_t deview_init(
     /* No SetTargetFPS: raylib only holds to it inside EndDrawing, which is no longer called. The
      * frame is ended, and waited out, by Rest. And nothing about a window that came before this
      * one says anything about this one, whose clock has started again from nothing. */
-    void* handle = glfwGetCurrentContext();
     glfwSetWindowRefreshCallback(handle, WindowRefreshed);
     state.raylibCrossing = glfwSetCursorEnterCallback(handle, PointerCrossed);
     state.pointerInside = true;
@@ -4100,6 +4184,13 @@ int32_t deview_init(
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     ApplyStyle();
+    if (state.scale != 1.0f)
+    {
+        /* The window's context alone. A capture makes its own, which is left at 1. */
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.ScaleAllSizes(state.scale);
+        style.FontScaleDpi = state.scale;
+    }
 
     if (fontTtf != nullptr && fontLength > 0)
     {
