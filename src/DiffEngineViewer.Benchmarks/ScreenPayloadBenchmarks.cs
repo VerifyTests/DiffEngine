@@ -6,7 +6,9 @@ using BenchmarkDotNet.Attributes;
 // segment. A row of CJK is one per character, and each segment's byte offset was found by counting
 // the row's bytes again from its start, so such a row cost by the square of its length.
 //
-// A window the size of a 4K display: 426 cells across and 130 down at the 9 pixel cell.
+// A window the size of a 4K display: 426 cells across and 130 down at the 9 pixel cell. Lines of
+// 300 characters, since a row is encoded as far as the window is wide rather than the pane, so a
+// long line is where a row's length shows.
 [MemoryDiagnoser]
 public class ScreenPayloadBenchmarks
 {
@@ -52,7 +54,7 @@ public class ScreenPayloadBenchmarks
         var builder = new StringBuilder();
         for (var row = 0; row < 400; row++)
         {
-            for (var column = 0; column < 100; column++)
+            for (var column = 0; column < 300; column++)
             {
                 if (Text == "cjk")
                 {
@@ -62,7 +64,6 @@ public class ScreenPayloadBenchmarks
                 else
                 {
                     builder.Append((char) ('a' + (row + column) % 26));
-                    builder.Append(' ');
                 }
             }
 

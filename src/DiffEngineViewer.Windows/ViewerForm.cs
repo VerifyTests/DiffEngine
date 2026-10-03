@@ -518,10 +518,20 @@ sealed class ViewerForm : Form
 
     public void Apply(Screen screen)
     {
-        // ScreenBuilder allocates a fresh Screen every frame, so record equality would never hit.
-        // Without this the window repaints sixty times a second while sitting idle.
+        // The loop hands over the screen it handed over last frame for as long as nothing has
+        // happened (ScreenCache), which is nearly every frame, and those stop here.
+        if (ReferenceEquals(last, screen))
+        {
+            return;
+        }
+
+        // A new screen need not be a different one: a state can change in a way that does not
+        // show, and record equality stops at the lists, which compare by reference. Without this
+        // such a frame repainted the whole window. Kept as the last one either way, so the frames
+        // after it stop at the reference above.
         if (Same(last, screen))
         {
+            last = screen;
             return;
         }
 

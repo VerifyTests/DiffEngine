@@ -137,10 +137,16 @@ static class SelectionText
     /// selection: the heads that can draw a highlight also draw this, and the one that cannot
     /// still says a selection exists and how much of one.
     /// <para>
-    /// Counted from the spans rather than by building the text, because this runs every frame for
-    /// as long as a selection exists: ctrl+a over a large file built megabytes of string sixty
-    /// times a second only to measure it. The counts are what <see cref="Of"/> would produce - one
-    /// line per non-filler row, joined by one newline each.
+    /// Counted from the spans rather than by building the text, because this runs for every screen
+    /// built while a selection exists, which a drag makes one a frame: ctrl+a over a large file
+    /// built megabytes of string only to measure it. The counts are what <see cref="Of"/> would
+    /// produce - one line per non-filler row, joined by one newline each.
+    /// </para>
+    /// <para>
+    /// Only the two rows a selection ends in are measured against its columns. Every row between
+    /// them is selected whole, so what it adds is the characters it flattens to, which can be
+    /// counted off the row as it is. Flattening each of them, twice, to find the span that covered
+    /// all of it was what made a selection of 100,000 lines cost a whole frame to describe.
     /// </para>
     /// </summary>
     public static string Summary(TextSelection selection, QueueEntry entry)
@@ -159,6 +165,13 @@ static class SelectionText
             }
 
             lines++;
+            if (index > startRow &&
+                index < endRow)
+            {
+                length += FlattenedCharacters(row.Text);
+                continue;
+            }
+
             // Characters rather than cells, which a wide character is two of
             var text = RowText.Flatten(row.Text);
             var span = Span(selection, selection.Side, index, row.Text);
@@ -209,6 +222,30 @@ static class SelectionText
         for (var index = from; index < to; index++)
         {
             if (!char.IsLowSurrogate(text[index]))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// The code points <see cref="RowText.Flatten"/> would leave of a row, without making the row:
+    /// a tab is the four spaces it is drawn as, a carriage return is dropped, and a line feed is
+    /// the space it becomes.
+    /// </summary>
+    static int FlattenedCharacters(string text)
+    {
+        var count = 0;
+        foreach (var character in text)
+        {
+            if (character == '\t')
+            {
+                count += 4;
+            }
+            else if (character != '\r' &&
+                     !char.IsLowSurrogate(character))
             {
                 count++;
             }

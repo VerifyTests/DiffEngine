@@ -21,9 +21,29 @@ sealed class ScreenPayload
     int menuRow;
     int menuPane;
     int pendingCount;
+    Screen? built;
+
+    /// <summary>
+    /// What was encoded, for the tests: a shim reads these through pointers, and nothing here on
+    /// the managed side reads them at all.
+    /// </summary>
+    internal ReadOnlySpan<byte> Strings => CollectionsMarshal.AsSpan(strings);
+
+    internal IReadOnlyList<DeviewRow> Rows => rows;
+
+    internal IReadOnlyList<DeviewSegment> Segments => segments;
 
     public void Build(Screen screen)
     {
+        // The loop hands over the screen it handed over last frame for as long as nothing has
+        // happened (ScreenCache), and a screen is immutable, so the buffers already hold this one.
+        // Encoding it again was most of what an idle frame cost here.
+        if (ReferenceEquals(screen, built))
+        {
+            return;
+        }
+
+        built = screen;
         strings.Clear();
         rows.Clear();
         segments.Clear();
@@ -220,19 +240,30 @@ sealed class ScreenPayload
     /// <summary>
     /// The row's <see cref="CellGrid.Segments"/>, as byte ranges of the UTF-8 the row's text was
     /// just written as at <paramref name="textOffset"/>, so no text is written twice.
+    /// <para>
+    /// Segments come in the order of the text, so where one starts in bytes is where the last one
+    /// ended plus whatever lies between them, and the row is measured once. Each used to count the
+    /// row's bytes again from its start, which for a row of CJK, a segment a character, was the
+    /// row's length squared.
+    /// </para>
     /// </summary>
     void AddSegments(string text, int textOffset)
     {
+        var measured = 0;
+        var bytes = textOffset;
         foreach (var segment in CellGrid.Segments(text))
         {
-            var start = textOffset + Encoding.UTF8.GetByteCount(text.AsSpan(0, segment.Start));
+            bytes += Encoding.UTF8.GetByteCount(text.AsSpan(measured, segment.Start - measured));
+            var length = Encoding.UTF8.GetByteCount(text.AsSpan(segment.Start, segment.Length));
             segments.Add(
                 new()
                 {
-                    TextOffset = start,
-                    TextLength = Encoding.UTF8.GetByteCount(text.AsSpan(segment.Start, segment.Length)),
+                    TextOffset = bytes,
+                    TextLength = length,
                     Column = segment.Column
                 });
+            bytes += length;
+            measured = segment.Start + segment.Length;
         }
     }
 

@@ -285,9 +285,11 @@ static class ViewerProgram
             return 4;
         }
 
+        // One for the loop and for a head's modal loop, which draw the same window on one thread.
+        var screens = new ScreenCache();
         if (window is ILoopHooks hooks)
         {
-            hooks.Frame = () => ModalFrame(host, window, link, preferences);
+            hooks.Frame = () => ModalFrame(host, window, link, preferences, screens);
             hooks.SessionEnding = () =>
             {
                 host.Mutate(_ => _ with {Closing = true});
@@ -326,7 +328,7 @@ static class ViewerProgram
         {
             using (window)
             {
-                Loop(host, window, link, reader, windowCommands, runner, preferences);
+                Loop(host, window, link, reader, windowCommands, runner, preferences, screens);
                 // While there is still a window to ask. Not from the finally: a loop that threw
                 // has a window in no state worth opening the next one from.
                 Remember(window, preferences);
@@ -367,7 +369,7 @@ static class ViewerProgram
     /// A frame from inside a head's modal loop (<see cref="ILoopHooks.Frame"/>): what the loop does
     /// with input, without the present, which the head is already inside of.
     /// </summary>
-    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link, ViewerPreferences preferences)
+    static Screen ModalFrame(SessionHost host, IViewerWindow window, OwnerLink? link, ViewerPreferences preferences, ScreenCache screens)
     {
         var state = host.State;
         var input = window.Poll();
@@ -377,7 +379,7 @@ static class ViewerProgram
             preferences.Remember(state);
         }
 
-        return ScreenBuilder.Build(state);
+        return screens.For(state);
     }
 
     /// <summary>
@@ -419,7 +421,8 @@ static class ViewerProgram
         DocumentWatch? reader,
         ConcurrentQueue<WindowCommand> windowCommands,
         AcceptAllRunner? runner,
-        ViewerPreferences preferences)
+        ViewerPreferences preferences,
+        ScreenCache screens)
     {
         while (true)
         {
@@ -461,8 +464,10 @@ static class ViewerProgram
                 return;
             }
 
+            // The screen of the state last presented, for as long as that is still the state: see
+            // ScreenCache. A frame in which nothing happened builds nothing.
             var state = host.State;
-            if (!window.Present(ScreenBuilder.Build(state)))
+            if (!window.Present(screens.For(state)))
             {
                 return;
             }

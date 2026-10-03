@@ -30,9 +30,17 @@ public class SelectionFrameBenchmarks
         }
     }
 
-    [Benchmark]
+    readonly ScreenCache screens = new();
+
+    // What a frame of a drag still pays, since each one moves the selection's end.
+    [Benchmark(Baseline = true)]
     public object BuildScreen() =>
         ScreenBuilder.Build(selected);
+
+    // And what every frame after ctrl+a pays, for as long as the selection stands.
+    [Benchmark]
+    public object FrameWithNothingChanged() =>
+        screens.For(selected);
 
     static string Text(int lines, int changeEvery)
     {

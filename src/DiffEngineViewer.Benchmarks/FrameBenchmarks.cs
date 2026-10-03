@@ -34,8 +34,16 @@ public class FrameBenchmarks
         state = built;
     }
 
+    readonly ScreenCache screens = new();
+
     // One screen from one state: what every frame paid, and what a change to the state still does.
-    [Benchmark]
+    [Benchmark(Baseline = true)]
     public object BuildScreen() =>
         ScreenBuilder.Build(state);
+
+    // What the loop asks for each frame now: the screen of the state, which is the one in hand
+    // whenever the state is the one the last frame had.
+    [Benchmark]
+    public object FrameWithNothingChanged() =>
+        screens.For(state);
 }
