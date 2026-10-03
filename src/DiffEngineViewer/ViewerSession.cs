@@ -279,7 +279,7 @@ static class ViewerSession
         string? message,
         AcceptProgress? progress = null)
     {
-        var entries = new List<QueueEntry>(Project(state, pending));
+        var entries = Project(state, pending);
         entries.AddRange(changes);
         var queue = QueueProjection.Order(entries);
 
@@ -1632,16 +1632,21 @@ static class ViewerSession
         state.Queue.Where(_ => _.Kind is QueueEntryKind.Move or QueueEntryKind.Delete);
 
     /// <summary>
-    /// And back onto the display list, in display order. Building an entry runs the diff, so an
-    /// entry already built for the same variants is reused, keeping its selected variant, and
-    /// only its status carried across.
+    /// And back onto the display list. Building an entry runs the diff, so an entry already built
+    /// for the same variants is reused, keeping its selected variant, and only its status carried
+    /// across.
+    /// <para>
+    /// In the queue's order, not display order: both callers put the tracked files beside these
+    /// and order the whole list, and ordering here as well was the same work twice for every
+    /// change to the queue, under the lock the render loop takes.
+    /// </para>
     /// <para>
     /// Compared by value rather than by reference, because an attached viewer parses fresh patch
     /// instances out of every refresh and would otherwise re-diff the whole queue five times a
     /// second.
     /// </para>
     /// </summary>
-    static IReadOnlyList<QueueEntry> Project(SessionState state, InlineQueue queue)
+    static List<QueueEntry> Project(SessionState state, InlineQueue queue)
     {
         var existing = state.Queue
             .Where(_ => _.Kind == QueueEntryKind.Inline)
@@ -1666,7 +1671,7 @@ static class ViewerSession
             entries.Add(QueueEntry.ForInline(pending));
         }
 
-        return QueueProjection.Order(entries);
+        return entries;
     }
 
     static bool VariantsMatch(IReadOnlyList<InlineVariant> left, IReadOnlyList<InlineVariant> right)
