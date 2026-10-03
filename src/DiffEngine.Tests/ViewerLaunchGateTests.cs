@@ -376,6 +376,108 @@ public class ViewerLaunchGateTests
     }
 
     /// <summary>
+    /// A slot is for a window, and a viewer that could not be run opened none. With the slot
+    /// kept, a cap of one was used up by the copy that exited on its arguments, and the launch
+    /// after it - of a viewer that would have run - was told too many diff tools were open.
+    /// </summary>
+    [Test]
+    public async Task AFailedLaunchGivesItsSlotBack()
+    {
+        var viewer = new FakeViewer();
+        try
+        {
+            DiffRunner.MaxInstancesToLaunch(1);
+            MaxInstance.ResetCount();
+
+            var failed = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => Exited(2),
+                isOwned: () => false);
+            var notStarted = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => null,
+                isOwned: () => false);
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: viewer.Start,
+                isOwned: viewer.IsUp);
+
+            await Assert.That(failed).IsEqualTo(ViewerLaunchOutcome.Failed);
+            await Assert.That(notStarted).IsEqualTo(ViewerLaunchOutcome.Failed);
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Launched);
+            await Assert.That(viewer.Starts).IsEqualTo(1);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
+    }
+
+    /// <inheritdoc cref="AFailedLaunchGivesItsSlotBack" />
+    [Test]
+    public async Task AFailedLaunchGivesItsSlotBackAsync()
+    {
+        var viewer = new FakeViewer();
+        try
+        {
+            DiffRunner.MaxInstancesToLaunch(1);
+            MaxInstance.ResetCount();
+
+            var failed = await ViewerLaunchGate.LaunchAsync(
+                retry: () => Task.FromResult(true),
+                launch: () => Task.FromResult<Process?>(Exited(2)),
+                Cancel.None,
+                isOwned: () => false);
+            var outcome = await ViewerLaunchGate.LaunchAsync(
+                retry: () => Task.FromResult(true),
+                launch: () => Task.FromResult(viewer.Start()),
+                Cancel.None,
+                isOwned: viewer.IsUp);
+
+            await Assert.That(failed).IsEqualTo(ViewerLaunchOutcome.Failed);
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Launched);
+            await Assert.That(viewer.Starts).IsEqualTo(1);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
+    }
+
+    /// <summary>
+    /// A launch that worked keeps its slot, which is what the cap counts.
+    /// </summary>
+    [Test]
+    public async Task ALaunchThatOpenedAViewerKeepsItsSlot()
+    {
+        var viewer = new FakeViewer();
+        try
+        {
+            DiffRunner.MaxInstancesToLaunch(1);
+            MaxInstance.ResetCount();
+
+            ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: viewer.Start,
+                isOwned: viewer.IsUp);
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: viewer.Start,
+                isOwned: () => false);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Capped);
+            await Assert.That(viewer.Starts).IsEqualTo(1);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
+    }
+
+    /// <summary>
     /// The real probe, against a real bound port, so the default the call sites rely on is not
     /// only ever exercised through a stand-in.
     /// </summary>

@@ -119,4 +119,13 @@ static class MaxInstance
         var count = Interlocked.Increment(ref launchedInstances);
         return count > MaxInstancesToLaunch;
     }
+
+    /// <summary>
+    /// Returns a slot <see cref="Reached" /> granted, for a caller whose launch then opened
+    /// nothing. The cap is on windows, and a slot has to be asked for before there is one, so
+    /// the launch that fails is the only one that knows it was charged for a window that never
+    /// came.
+    /// </summary>
+    public static void GiveBack() =>
+        Interlocked.Decrement(ref launchedInstances);
 }
