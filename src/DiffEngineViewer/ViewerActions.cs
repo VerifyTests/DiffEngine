@@ -24,13 +24,43 @@ record ViewerActions(
     /// </summary>
     public Action<string> DeleteFile { get; init; } = Missing;
 
+    /// <summary>
+    /// Several snapshots of one source file, written with one read and one write, and an outcome
+    /// for each in the order they were given. What a batch calls for the snapshots it claimed
+    /// together: see <see cref="AcceptBatch.Together"/>.
+    /// <para>
+    /// Null applies them one at a time through <see cref="ApplyInline"/>, which is what a caller
+    /// that supplied only that gets: a test's applier is asked about every snapshot, whether or
+    /// not a batch took them together.
+    /// </para>
+    /// </summary>
+    public Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>>? ApplyInlineTogether { get; init; }
+
+    public IReadOnlyList<InlineApplyResult> ApplyTogether(IReadOnlyList<InlinePatch> patches)
+    {
+        if (ApplyInlineTogether is { } together &&
+            patches.Count > 1)
+        {
+            return together(patches);
+        }
+
+        var results = new List<InlineApplyResult>(patches.Count);
+        foreach (var patch in patches)
+        {
+            results.Add(ApplyInline(patch));
+        }
+
+        return results;
+    }
+
     public static readonly ViewerActions Real = new(
         InlineApplier.Apply,
         static (source, destination) => File.Copy(source, destination, true),
         RevealFile.Show)
     {
         MoveFile = Move,
-        DeleteFile = File.Delete
+        DeleteFile = File.Delete,
+        ApplyInlineTogether = InlineApplier.ApplyAll
     };
 
     /// <summary>

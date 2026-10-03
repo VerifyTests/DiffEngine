@@ -31,6 +31,14 @@ public static class InlineKey
     internal static string FoldPath(string path) =>
         caseInsensitivePaths ? path.ToLowerInvariant() : path;
 
+    /// <summary>
+    /// Whether two paths are one file to this machine's file system, without folding either: for
+    /// a caller asking it of every entry in a queue, where a folded copy of each path each time
+    /// is the queue's length in strings.
+    /// </summary>
+    internal static bool SamePath(string left, string right) =>
+        string.Equals(left, right, caseInsensitivePaths ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
     static bool caseInsensitivePaths =
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
         RuntimeInformation.IsOSPlatform(OSPlatform.OSX);

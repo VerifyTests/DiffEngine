@@ -35,7 +35,7 @@ public class BatchBookkeepingTests
             };
             while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
             {
-                state = ViewerSession.ApplyClaimed(entry, actions)(state);
+                state = ViewerSession.ApplyClaimed(state, actions)(state);
                 if (!QueueProjection.Order(state.Queue).SequenceEqual(state.Queue, ReferenceEqualityComparer.Instance))
                 {
                     Assert.Fail($"Out of order after {entry.Name}: {string.Join(", ", state.Queue.Select(_ => _.Name))}");
@@ -71,7 +71,7 @@ public class BatchBookkeepingTests
         while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry &&
                entry.Name != "FourTests.cs:40")
         {
-            state = ViewerSession.ApplyClaimed(entry, actions)(state);
+            state = ViewerSession.ApplyClaimed(state, actions)(state);
         }
 
         await Assert.That(state.Queue.Select(_ => _.Name)).IsEquivalentTo(["TwoTests.cs:20", "ThreeTests.cs:30", "FourTests.cs:40"]);

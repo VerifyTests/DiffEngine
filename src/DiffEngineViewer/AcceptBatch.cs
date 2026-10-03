@@ -49,6 +49,20 @@ record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
     /// </summary>
     public QueueEntry? Current { get; init; }
 
+    /// <summary>
+    /// The other snapshots claimed with <see cref="Current"/>: every one the batch still had to
+    /// do in the same source file, to be written with it in one write.
+    /// <para>
+    /// A snapshot applied on its own reads, patches and rewrites its whole source file, and the
+    /// rewrite is what costs: a file written a moment ago is scanned by whatever watches the drive
+    /// before the next thing can open it, so five hundred snapshots in one file were half a
+    /// minute of writes around a second of patching. Claimed together they are one read and one
+    /// write (<see cref="InlineApplier.ApplyAll"/>), each still with an outcome of its own. So a
+    /// batch goes a file at a time where its snapshots are, and an entry at a time otherwise.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<QueueEntry> Together { get; init; } = [];
+
     public AcceptProgress Progress =>
-        new(Total - Remaining.Count - (Current is null ? 0 : 1), Total);
+        new(Total - Remaining.Count - (Current is null ? 0 : 1 + Together.Count), Total);
 }

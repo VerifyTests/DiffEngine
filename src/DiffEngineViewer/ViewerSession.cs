@@ -801,9 +801,9 @@ static class ViewerSession
         }
 
         state = BeginAcceptGroup(state, menu);
-        while ((state = ClaimNext(state)).Batch?.Current is { } entry)
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
         {
-            state = ApplyClaimed(entry, actions)(state);
+            state = ApplyClaimed(state, actions)(state);
         }
 
         return state;
@@ -979,9 +979,9 @@ static class ViewerSession
         }
 
         state = BeginAcceptAll(state);
-        while ((state = ClaimNext(state)).Batch?.Current is { } entry)
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
         {
-            state = ApplyClaimed(entry, actions)(state);
+            state = ApplyClaimed(state, actions)(state);
         }
 
         return state;
@@ -1120,14 +1120,16 @@ static class ViewerSession
                 continue;
             }
 
+            var remaining = batch.Remaining.Skip(position + 1).ToList();
             return state with
             {
                 Queue = queue,
                 Batch = batch with
                 {
-                    Remaining = batch.Remaining.Skip(position + 1).ToList(),
                     Kept = kept,
-                    Current = entry
+                    Current = entry,
+                    Together = TakeSameFile(queue, entry, remaining),
+                    Remaining = remaining
                 }
             };
         }
@@ -1142,42 +1144,118 @@ static class ViewerSession
     }
 
     /// <summary>
-    /// Applies a claimed entry - the one piece of IO in a batch, done without the lock - and hands
-    /// back the transition that records how it went, for the caller to take the lock for.
-    /// </summary>
-    public static Func<SessionState, SessionState> ApplyClaimed(QueueEntry entry, ViewerActions actions)
-    {
-        if (entry.Kind == QueueEntryKind.Inline)
-        {
-            var result = actions.ApplyInline(entry.Patch!);
-            return _ => RecordInline(_, entry, result);
-        }
-
-        var failure = TryApplyTracked(entry, actions, discarding: false);
-        return _ => RecordTracked(_, entry, failure);
-    }
-
-    /// <summary>
-    /// The transition for a claimed entry whose apply threw rather than answering. InlineApplier
-    /// answers every failure it knows of, so this is an applier that did not, and a batch left
-    /// holding a claimed entry would never finish.
-    /// </summary>
-    public static Func<SessionState, SessionState> FailClaimed(QueueEntry entry, string failure)
-    {
-        if (entry.Kind == QueueEntryKind.Inline)
-        {
-            return _ => RecordInline(_, entry, InlineApplyResult.Failed(failure));
-        }
-
-        return _ => RecordTracked(_, entry, failure);
-    }
-
-    /// <summary>
-    /// A snapshot's outcome, by the batch's rules rather than a single accept's: see
-    /// <see cref="InlineQueue.AcceptInBatch"/>. An entry that changed while its patch was applying,
-    /// because a re-run replaced it, keeps its new content and is not counted.
+    /// The other snapshots the batch still has to do in the same source file as the one just
+    /// claimed, taken out of <paramref name="remaining"/> to be claimed with it: see
+    /// <see cref="AcceptBatch.Together"/>. None for a move or a delete, which is a file of its own.
     /// <para>
-    /// The rules are still asked of an <see cref="InlineQueue"/>, but of one holding this entry
+    /// Claimed, rather than looked ahead to by whoever applies, so that nothing can settle,
+    /// discard or replace one of them between its patch being written and its outcome being
+    /// recorded without the record noticing, as it notices for a single entry.
+    /// </para>
+    /// <para>
+    /// Asked of the queue first, and without making anything, since most claims find no other
+    /// snapshot in their file and a batch makes one claim an entry.
+    /// </para>
+    /// </summary>
+    static IReadOnlyList<QueueEntry> TakeSameFile(IReadOnlyList<QueueEntry> queue, QueueEntry claimed, List<string> remaining)
+    {
+        if (claimed is not { Kind: QueueEntryKind.Inline, Patch: { } patch } ||
+            remaining.Count == 0)
+        {
+            return [];
+        }
+
+        List<QueueEntry>? sameFile = null;
+        foreach (var entry in queue)
+        {
+            if (!ReferenceEquals(entry, claimed) &&
+                entry is { Kind: QueueEntryKind.Inline, Conflicted: false, Patch: not null } &&
+                InlineKey.SamePath(entry.Patch.SourceFile, patch.SourceFile))
+            {
+                sameFile ??= [];
+                sameFile.Add(entry);
+            }
+        }
+
+        if (sameFile is null)
+        {
+            return [];
+        }
+
+        // Only the ones this batch set out to do: a group's batch is some of the queue, and an
+        // entry that arrived after it began is not part of it
+        var waiting = new HashSet<string>(remaining);
+        sameFile.RemoveAll(_ => !waiting.Contains(_.Key));
+        if (sameFile.Count == 0)
+        {
+            return [];
+        }
+
+        var taken = new HashSet<string>(sameFile.Select(_ => _.Key));
+        remaining.RemoveAll(taken.Contains);
+        return sameFile;
+    }
+
+    /// <summary>
+    /// Applies what a state has claimed - the one piece of IO in a batch, done without the lock -
+    /// and hands back the transition that records how it went, for the caller to take the lock for.
+    /// Snapshots claimed together are written together, and each still has an outcome of its own.
+    /// </summary>
+    /// <param name="claimed">The state <see cref="ClaimNext"/> returned, which says what was claimed.</param>
+    /// <param name="actions">What applies it.</param>
+    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions)
+    {
+        if (claimed.Batch is not { Current: { } entry } batch)
+        {
+            return static _ => _;
+        }
+
+        if (entry.Kind != QueueEntryKind.Inline)
+        {
+            var failure = TryApplyTracked(entry, actions, discarding: false);
+            return _ => RecordTracked(_, entry, failure);
+        }
+
+        List<QueueEntry> entries = [entry, ..batch.Together];
+        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList());
+        if (results.Count != entries.Count)
+        {
+            throw new InvalidOperationException($"{entries.Count} snapshots were applied together and {results.Count} outcomes came back.");
+        }
+
+        return _ => RecordInline(_, entries, results);
+    }
+
+    /// <summary>
+    /// The transition for a claim whose apply threw rather than answering. InlineApplier answers
+    /// every failure it knows of, so this is an applier that did not, and a batch left holding
+    /// what it claimed would never finish. Every snapshot of the claim is failed with it, since
+    /// which of them were written is not known.
+    /// </summary>
+    public static Func<SessionState, SessionState> FailClaimed(SessionState claimed, string failure)
+    {
+        if (claimed.Batch is not { Current: { } entry } batch)
+        {
+            return static _ => _;
+        }
+
+        if (entry.Kind != QueueEntryKind.Inline)
+        {
+            return _ => RecordTracked(_, entry, failure);
+        }
+
+        List<QueueEntry> entries = [entry, ..batch.Together];
+        var failed = InlineApplyResult.Failed(failure);
+        var results = entries.Select(_ => failed).ToList();
+        return _ => RecordInline(_, entries, results);
+    }
+
+    /// <summary>
+    /// The outcomes of the snapshots a claim applied, by the batch's rules rather than a single
+    /// accept's: see <see cref="InlineQueue.AcceptInBatch"/>. An entry that changed while its
+    /// patch was applying, because a re-run replaced it, keeps its new content and is not counted.
+    /// <para>
+    /// The rules are still asked of an <see cref="InlineQueue"/>, but of one holding the entry
     /// alone, and what it says is done to the list as it stands: the entry taken out, or given the
     /// status. Every other inline transition rebuilds the whole list from the whole queue, and a
     /// batch did that once an entry, so its own bookkeeping grew with the square of the queue:
@@ -1186,7 +1264,7 @@ static class ViewerSession
     /// is nothing for a rebuild to find.
     /// </para>
     /// </summary>
-    static SessionState RecordInline(SessionState state, QueueEntry entry, InlineApplyResult result)
+    static SessionState RecordInline(SessionState state, IReadOnlyList<QueueEntry> entries, IReadOnlyList<InlineApplyResult> results)
     {
         if (state.Batch is not { } batch)
         {
@@ -1194,29 +1272,30 @@ static class ViewerSession
         }
 
         var tally = batch.Tally;
-        var queue = state.Queue;
-        // By its variants, which is how the batch finds what it started on. A snapshot's only:
-        // every move and delete has none, and may well share the one empty list.
-        var index = -1;
-        for (var position = 0; position < queue.Count; position++)
+        var queue = state.Queue.ToList();
+        for (var claim = 0; claim < entries.Count; claim++)
         {
-            if (queue[position].Kind == QueueEntryKind.Inline &&
-                ReferenceEquals(queue[position].Variants, entry.Variants))
+            var entry = entries[claim];
+            // By its variants, which is how the batch finds what it started on. A snapshot's
+            // only: every move and delete has none, and may well share the one empty list.
+            var index = queue.FindIndex(_ => _.Kind == QueueEntryKind.Inline && ReferenceEquals(_.Variants, entry.Variants));
+            if (index < 0)
             {
-                index = position;
-                break;
+                continue;
             }
-        }
 
-        if (index >= 0)
-        {
-            var claimed = queue[index];
+            var held = queue[index];
             var outcome = InlineQueue
-                .From([new(claimed.Variants, claimed.Status)])
-                .AcceptInBatch(new(entry.Variants, entry.Status), result, ref tally);
-            queue = outcome.Count == 0
-                ? Without(queue, index)
-                : Replace(queue, index, claimed with { Status = outcome.Items[0].Status });
+                .From([new(held.Variants, held.Status)])
+                .AcceptInBatch(new(entry.Variants, entry.Status), results[claim], ref tally);
+            if (outcome.Count == 0)
+            {
+                queue.RemoveAt(index);
+            }
+            else
+            {
+                queue[index] = held with { Status = outcome.Items[0].Status };
+            }
         }
 
         return Remove(
@@ -1225,7 +1304,8 @@ static class ViewerSession
                 Batch = batch with
                 {
                     Tally = tally,
-                    Current = null
+                    Current = null,
+                    Together = []
                 }
             },
             queue,

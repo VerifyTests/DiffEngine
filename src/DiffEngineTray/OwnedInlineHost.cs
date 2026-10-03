@@ -59,16 +59,31 @@ sealed class OwnedInlineHost :
     /// </summary>
     readonly Lock accepting = new();
 
+    /// <summary>
+    /// Several snapshots of one source file, written with one read and one write and answered in
+    /// the order given: what a bulk accept hands a file's snapshots to. The applier a test
+    /// supplied, asked of each in turn, when there is one.
+    /// </summary>
+    readonly Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>> together;
+
     OwnedInlineHost(
         ViewerServer server,
         Action<string> failed,
         IViewerLauncher launcher,
-        Func<InlinePatch, InlineApplyResult> applier)
+        Func<InlinePatch, InlineApplyResult>? applier)
     {
         this.server = server;
         this.failed = failed;
         this.launcher = launcher;
-        this.applier = applier;
+        this.applier = applier ?? InlineApplier.Apply;
+        if (applier is null)
+        {
+            together = InlineApplier.ApplyAll;
+        }
+        else
+        {
+            together = _ => _.Select(applier).ToList();
+        }
     }
 
     /// <summary>
@@ -86,7 +101,7 @@ sealed class OwnedInlineHost :
         int? port = null,
         Func<InlinePatch, InlineApplyResult>? applier = null) =>
         ViewerServer.TryBind(port ?? ViewerClient.Port, out var server)
-            ? new(server, failed, launcher ?? new ProcessViewerLauncher(), applier ?? InlineApplier.Apply)
+            ? new(server, failed, launcher ?? new ProcessViewerLauncher(), applier)
             : null;
 
     public int Port => server.Port;
@@ -613,6 +628,15 @@ sealed class OwnedInlineHost :
     /// listing shows the queue shrinking and says how far the batch has got. Together they left
     /// the window showing an untouched queue for as long as the batch took.
     /// </para>
+    /// <para>
+    /// A file at a time where a file has several. Each snapshot applied on its own rewrote its
+    /// whole source file, and the rewrite is what costs: a file written a moment ago is scanned by
+    /// whatever watches the drive before the next thing can open it, so five hundred snapshots in
+    /// one file were half a minute of writes around a second of patching. So when a snapshot's
+    /// turn comes, the others still to do in its file are looked up with it and written with it,
+    /// one read and one write, each with its own outcome. That is still looked up when its turn
+    /// comes, by the first of the file's, and the wait it is looked up ahead of is the one write.
+    /// </para>
     /// </summary>
     /// <param name="files">
     /// The tracked files the caller sweeps once the snapshots are done, for the progress total.
@@ -638,12 +662,20 @@ sealed class OwnedInlineHost :
         }
 
         var tally = new AcceptAllTally();
+        // The keys still to come to. One is taken out as its turn comes, or earlier, when an
+        // earlier snapshot of its file took it along
+        var waiting = new HashSet<string>(keys);
         foreach (var key in keys)
         {
-            PendingInline? entry;
+            if (!waiting.Remove(key))
+            {
+                continue;
+            }
+
+            List<PendingInline> claimed;
             lock (gate)
             {
-                entry = queue.Find(key);
+                var entry = queue.Find(key);
                 if (entry is null ||
                     entry.Conflicted)
                 {
@@ -652,14 +684,36 @@ sealed class OwnedInlineHost :
                     progress = progress?.Advance();
                     continue;
                 }
+
+                claimed = [entry];
+                foreach (var other in queue.Items)
+                {
+                    if (!ReferenceEquals(other, entry) &&
+                        !other.Conflicted &&
+                        InlineKey.SamePath(other.Patch.SourceFile, entry.Patch.SourceFile) &&
+                        waiting.Remove(other.Key))
+                    {
+                        claimed.Add(other);
+                    }
+                }
             }
 
-            var result = applier(entry.Patch);
-            // Together, so no listing can show the entry gone and the count not yet moved past it
+            var results = claimed.Count == 1
+                ? [applier(claimed[0].Patch)]
+                : together(claimed.Select(_ => _.Patch).ToList());
+            if (results.Count != claimed.Count)
+            {
+                throw new InvalidOperationException($"{claimed.Count} snapshots were applied together and {results.Count} outcomes came back.");
+            }
+
+            // Together, so no listing can show an entry gone and the count not yet moved past it
             lock (gate)
             {
-                queue = queue.AcceptInBatch(entry, result, ref tally);
-                progress = progress?.Advance();
+                for (var index = 0; index < claimed.Count; index++)
+                {
+                    queue = queue.AcceptInBatch(claimed[index], results[index], ref tally);
+                    progress = progress?.Advance();
+                }
             }
 
             Changed?.Invoke();
