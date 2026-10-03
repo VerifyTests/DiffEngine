@@ -127,6 +127,134 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// Rows several times longer than their pane, against a canvas wide enough to hold every one
+    /// of them whole. A row is handed to GDI+ cut to the cells its pane has room for, and the cut
+    /// must not show: every pixel of the narrow pane's rows is the pixel the wide canvas has
+    /// there. Twenty widths a pixel apart, so the cut falls at every offset into a cell it can.
+    /// </summary>
+    [Test]
+    public async Task ARowCutAtItsPaneIsDrawnAsTheWholeOfItIs()
+    {
+        var lines = LongRows();
+        var text = string.Join('\n', lines);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(text, text), columns, rows));
+
+        using var whole = new CanvasHost(5600, 400);
+        var reference = whole.Draw(screen);
+        var cell = whole.Canvas.CellSize();
+        var top = whole.Canvas.BodyTop();
+        // Or the reference is cut as well, and this compares one cut with another
+        var room = (whole.Canvas.Panes().Half - 8 * cell.Width) / cell.Width;
+        await Assert.That(room).IsGreaterThanOrEqualTo(longRowCells);
+
+        var wrong = new List<string>();
+        for (var width = 1100; width < 1120; width++)
+        {
+            using var host = new CanvasHost(width, 400);
+            var drawn = host.Draw(screen);
+            var (left, half, _) = host.Canvas.Panes();
+            // The rule between the panes is drawn over the left one's last pixels but one
+            var rule = left + half - 2;
+            var differing = 0;
+            Point? first = null;
+            for (var y = top; y < top + lines.Length * cell.Height; y++)
+            {
+                for (var x = left + 8 * cell.Width; x < left + half; x++)
+                {
+                    if (x == rule ||
+                        drawn.GetPixel(x, y) == reference.GetPixel(x, y))
+                    {
+                        continue;
+                    }
+
+                    differing++;
+                    first ??= new(x, y);
+                }
+            }
+
+            if (differing > 0)
+            {
+                wrong.Add($"{width} wide: {differing} pixels differ, the first at {first}");
+            }
+        }
+
+        await Assert.That(wrong).IsEmpty();
+    }
+
+    const int longRowCells = 300;
+
+    /// <summary>
+    /// A row of each kind of character the grid places differently, every one 300 cells or just
+    /// under.
+    /// </summary>
+    static string[] LongRows() =>
+    [
+        Filling("{\"id\":1000,\"name\":\"item 1000\",\"tags\":[\"alpha\",\"beta\"],\"price\":12.5},"),
+        Filling("M"),
+        Filling("the quick brown fox jumps over the lazy dog "),
+        // A glyph whose ink starts at its very left, once at each place in four: GDI+ fits glyphs
+        // to whole pixels, which can start one in the last pixel of the cell before its own, and
+        // that is why a cell past the last one showing is kept
+        Filling("Wi. "),
+        Filling("Wi. ", "x"),
+        Filling("Wi. ", "xx"),
+        Filling("Wi. ", "xxx"),
+        Filling("\tcolumn"),
+        Filling("Привет, мир αβγ éñü "),
+        // Wide characters, each a segment of its own, and a row of nothing else, where every
+        // other cut would fall inside one
+        Filling("中文 and ascii "),
+        Filling("中"),
+        // A mark on the character before it, and a family joined into one picture. The long form
+        // of each escape, since neither can be seen in a source file
+        Filling("e\U00000301a\U00000308 marks "),
+        Filling("\U0001F600 \U0001F468\U0000200D\U0001F469\U0000200D\U0001F467 ")
+    ];
+
+    static string Filling(string unit, string lead = "") =>
+        lead + string.Concat(Enumerable.Repeat(unit, (longRowCells - lead.Length) / CellGrid.Cells(RowText.Flatten(unit))));
+
+    /// <summary>
+    /// A megabyte of one line, with one wide character half way along it. The row was segmented
+    /// whole, which walked all of it, and the run before that character was copied out to be cut
+    /// down to the start of it that shows: a megabyte allocated for each such row, on every paint.
+    /// Counted in what a paint allocates, which is the same number on a busy machine.
+    /// </summary>
+    [Test]
+    public async Task AMegabyteRowIsPaintedFromItsStart()
+    {
+        const int megabyte = 1024 * 1024;
+        var line = new string('x', megabyte / 2) + "中" + new string('y', megabyte / 2);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(line, line), columns, rows));
+        using var host = new CanvasHost();
+        // Once before it is measured: the font, the brushes, and anything compiled on first use
+        host.Draw(screen);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var bitmap = host.Draw(screen);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        // The row's own ink, so what was measured is a paint that drew it
+        var cell = host.Canvas.CellSize();
+        var textLeft = host.Canvas.Panes().Left + 8 * cell.Width;
+        var inked = 0;
+        for (var y = host.Canvas.BodyTop(); y < host.Canvas.BodyTop() + cell.Height; y++)
+        {
+            for (var x = textLeft; x < textLeft + 20 * cell.Width; x++)
+            {
+                if (bitmap.GetPixel(x, y).GetBrightness() > 0.6f)
+                {
+                    inked++;
+                }
+            }
+        }
+
+        Console.WriteLine($"{allocated / 1024} KB allocated by a paint of two megabyte rows, {inked} bright pixels in the first");
+        await Assert.That(inked).IsGreaterThan(0);
+        await Assert.That(allocated).IsLessThan(megabyte / 8);
+    }
+
+    /// <summary>
     /// Ten image pairs drawn one after another, each accepted (received moved over
     /// verified) before the next, and then a screen with no picture on it. Nothing needs more than
     /// the two on screen.

@@ -916,10 +916,17 @@ sealed class ViewerCanvas : Control
             font,
             Palette.Dim,
             Cellular(bounds.X, bounds.Y, gutter, bounds.Height));
+        // No more of the row than the pane has cells for. GDI+ lays out every character it is
+        // handed before it clips any of them, so a row handed over whole cost by its length
+        // rather than by what of it showed: 72 rows of long lines were 18 ms a paint where the 54
+        // characters of each that show are 3.5, and every wheel notch and every frame of a
+        // selection drag is a paint. Cut before it is segmented as well, which walked the whole
+        // of a row that was not all ASCII: a megabyte of one was 14 ms a row.
+        var text = RowText.Shown(row.Text, CellsAcross(bounds.Width - gutter));
+
         // Each segment at its column on the grid rather than the row as one string, so a character
         // the font draws wider or narrower than a cell moves nothing after it: see CellGrid. A row
         // of plain text is one segment at column 0, drawn exactly as the whole row was.
-        var text = RowText.Flatten(row.Text);
         foreach (var segment in CellGrid.Segments(text))
         {
             var left = bounds.X + gutter + Offset(segment.Column);
@@ -930,13 +937,29 @@ sealed class ViewerCanvas : Control
 
             Painter.Draw(
                 graphics,
-                // No wider than the pane can show in pixels, which no line of characters can exceed
-                RowText.Clip(text.Substring(segment.Start, segment.Length), bounds.Right - left),
+                // A character takes its marks into its cell with it, however many it has, so the
+                // cells a pane holds do not bound what is in them. As many characters as the pane
+                // is pixels wide does, which only a pile of marks reaches. Not as many as there
+                // are pixels left of it, which this was: an emoji is two, so one whose first
+                // column of pixels was the pane's last was cut to nothing, and a joined sequence
+                // within its own length of the edge lost the last of what it joins
+                RowText.Clip(text.Substring(segment.Start, segment.Length), bounds.Width),
                 font,
                 Palette.Foreground(row.Kind),
                 Cellular(left, bounds.Y, bounds.Right - left, bounds.Height));
         }
     }
+
+    /// <summary>
+    /// How many cells of a row's text <paramref name="width"/> pixels show any part of, and one
+    /// more. A glyph is not confined to its cell: GDI+ fits each to whole pixels, which can start
+    /// one in the last pixel of the cell before its own, so the cell after the last one showing
+    /// can still put ink in the pane. With that one kept, the first cell left out starts a whole
+    /// cell past the edge. And where GDI+ puts a glyph does not depend on what follows it in the
+    /// string, which is what makes the cut one that cannot be seen.
+    /// </summary>
+    int CellsAcross(int width) =>
+        Math.Max(0, (int) Math.Ceiling(width / Advance)) + 1;
 
     void DrawRule(Graphics graphics, int top) =>
         graphics.FillRectangle(Painter.Brush(Palette.Rule), padding, top, Width - padding * 2, 1);

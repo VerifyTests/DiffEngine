@@ -29,6 +29,47 @@ static class RowText
         return text[..length];
     }
 
+    /// <summary>
+    /// The start of a row as a renderer draws it: flattened, and cut where its first
+    /// <paramref name="cells"/> cells end. Exactly what flattening the whole row and cutting it at
+    /// <see cref="CellGrid.Index"/> gives, so a wide character, or a character and its marks, is
+    /// kept whole or not at all, and whatever is segmented and drawn from it lands where it would
+    /// have from the whole row.
+    /// <para>
+    /// For a renderer that knows how many cells its pane holds, where <see cref="Clip"/> counts
+    /// characters and is handed a row already flattened. Read from the front and only as far as
+    /// it takes, because this is asked of every row on every paint and a row can be a megabyte:
+    /// flattening all of one copies it when it holds a tab, and finding its cells walks all of it
+    /// when it holds anything but ASCII.
+    /// </para>
+    /// </summary>
+    public static string Shown(string text, int cells)
+    {
+        // One character past the cells asked for, which is what says the cut has a character
+        // after it rather than being wherever the text read so far ran out.
+        var take = Math.Min(Math.Max(cells, 0), text.Length) + 1;
+        while (take < text.Length)
+        {
+            // Not between the halves of a surrogate pair. The first half alone reads as a
+            // character of its own, where the pair may be a mark on the character before it.
+            var end = char.IsHighSurrogate(text[take - 1]) ? take + 1 : take;
+            var start = Flatten(text[..end]);
+            var cut = CellGrid.Index(start, cells);
+            if (cut < start.Length)
+            {
+                return start[..cut];
+            }
+
+            // Not enough yet, which takes characters that fill no cell: marks, joiners, a
+            // carriage return. Twice as much next, so a row of nothing else costs two reads of
+            // it at most rather than one for every cell.
+            take *= 2;
+        }
+
+        var whole = Flatten(text);
+        return whole[..CellGrid.Index(whole, cells)];
+    }
+
     public static string Flatten(string text)
     {
         if (text.AsSpan().IndexOfAny('\t', '\r', '\n') < 0)
