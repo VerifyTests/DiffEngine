@@ -233,33 +233,8 @@ static class ViewerSession
         queued.LeftHeader == arrived.LeftHeader &&
         queued.RightHeader == arrived.RightHeader &&
         queued.Warning == arrived.Warning &&
-        SameSide(queued.LeftText, queued.LeftImage, queued.LeftDocument, arrived.LeftText, arrived.LeftImage, arrived.LeftDocument) &&
-        SameSide(queued.RightText, queued.RightImage, queued.RightDocument, arrived.RightText, arrived.RightImage, arrived.RightDocument);
-
-    static bool SameSide(
-        string text,
-        ImageFile? image,
-        DocumentFile? document,
-        string arrivedText,
-        ImageFile? arrivedImage,
-        DocumentFile? arrivedDocument)
-    {
-        if (document is { } held &&
-            arrivedDocument is { } sent)
-        {
-            // By its bytes. Its text follows from them, and is read after the entry arrives, so
-            // one of the two may hold it while the other is still waiting for it.
-            return held.Path == sent.Path &&
-                   held.Format == sent.Format &&
-                   held.Length == sent.Length &&
-                   held.Hash == sent.Hash;
-        }
-
-        return document is null &&
-               arrivedDocument is null &&
-               image == arrivedImage &&
-               text == arrivedText;
-    }
+        QueueEntry.SameSide(queued.LeftText, queued.LeftImage, queued.LeftDocument, arrived.LeftText, arrived.LeftImage, arrived.LeftDocument) &&
+        QueueEntry.SameSide(queued.RightText, queued.RightImage, queued.RightDocument, arrived.RightText, arrived.RightImage, arrived.RightDocument);
 
     /// <summary>
     /// Replaces the queue with what its owner reports, for a viewer that is displaying rather

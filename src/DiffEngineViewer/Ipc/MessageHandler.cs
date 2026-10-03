@@ -50,17 +50,34 @@ class MessageHandler(
     /// seam <see cref="OwnerLink"/> materializes the tray's tracked files through. Before the lock
     /// rather than inside it: building an entry reads both files and diffs them, and the render
     /// loop takes the same lock every frame.
+    /// <para>
+    /// A pair that is queued already is asked whether it still says what it said before it is
+    /// built again (<see cref="TrackedEntry.MoveAgain"/>). The queued entry is read outside the
+    /// lock too, and may have gone or changed by the time this one is put in. Either way what is
+    /// put in is what the files were read as, which is all an arrival ever was.
+    /// </para>
     /// </summary>
     void IQueueOwner.TrackMove(string temp, string target)
     {
-        var entry = TrackedEntry.ForMove(temp, target, documents);
+        var entry = Queued(TrackedKeys.ForMove(temp)) is { } queued
+            ? TrackedEntry.MoveAgain(queued, temp, target, documents)
+            : TrackedEntry.ForMove(temp, target, documents);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
     }
 
     void IQueueOwner.TrackDelete(string file)
     {
-        var entry = TrackedEntry.ForDelete(file, documents);
+        var entry = Queued(TrackedKeys.ForDelete(file)) is { } queued
+            ? TrackedEntry.DeleteAgain(queued, file, documents)
+            : TrackedEntry.ForDelete(file, documents);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
+    }
+
+    QueueEntry? Queued(string key)
+    {
+        var state = host.State;
+        var index = IndexOf(state, key);
+        return index < 0 ? null : state.Queue[index];
     }
 
     /// <summary>
