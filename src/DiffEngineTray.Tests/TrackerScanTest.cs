@@ -42,6 +42,31 @@ public class TrackerScanTest :
     }
 
     /// <summary>
+    /// A pair found different is remembered, so the next scan does not read both files through
+    /// again. Nothing forgot it when the move left, so the tray kept one for every received file
+    /// it had ever compared.
+    /// </summary>
+    [Test]
+    public async Task WhatAMoveWasFoundToBeIsForgottenOnceItHasLeft()
+    {
+        await using var tracker = new RecordingTracker();
+        File.WriteAllText(temp, "received");
+        File.WriteAllText(target, "verified");
+        var scanned = tracker.AddMove(temp, target, "theExe", "theArguments", true, null);
+        await tracker.HandleScanMove(new(temp, scanned));
+        await Assert.That(tracker.KnownDiffering).IsEqualTo(1);
+
+        // Still tracked, so still worth knowing
+        await tracker.ScanFiles(Cancel.None);
+        await Assert.That(tracker.KnownDiffering).IsEqualTo(1);
+
+        tracker.Discard(scanned);
+        await tracker.ScanFiles(Cancel.None);
+
+        await Assert.That(tracker.KnownDiffering).IsEqualTo(0);
+    }
+
+    /// <summary>
     /// A file that may not be read is no more a failure of the scan than one that is locked: the
     /// pair cannot be compared this round. Only the locked one was caught, so this one failed the
     /// whole scan, every two seconds, for as long as the move stayed pending.

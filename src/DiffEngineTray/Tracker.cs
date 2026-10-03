@@ -92,6 +92,19 @@ class Tracker :
             deletes.TryRemove(delete.Key, out _);
         }
 
+        // What a pair was last found to be is worth keeping only while the pair is tracked. Here,
+        // once a scan, rather than wherever a move leaves: there are a score of such places, and
+        // a scan that is still comparing a move as it leaves writes its entry after any of them
+        // had run. Left alone, a tray that stays up for weeks kept an entry for every received
+        // file it had ever found different.
+        foreach (var temp in differing.Keys)
+        {
+            if (!moves.ContainsKey(temp))
+            {
+                differing.TryRemove(temp, out _);
+            }
+        }
+
         // A passing re-run sends a settle message, and whoever owns the queue drops the entry
         // then, so there is nothing to expire here. Just refresh the listing that drives the icon.
         snapshots = inline.List();
@@ -168,6 +181,11 @@ class Tracker :
     }
 
     readonly ConcurrentDictionary<string, (long, DateTime, long, DateTime)> differing = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// How many pairs are remembered as found different, for the tests.
+    /// </summary>
+    internal int KnownDiffering => differing.Count;
 
     static (long, DateTime, long, DateTime)? Stamp(TrackedMove move)
     {
