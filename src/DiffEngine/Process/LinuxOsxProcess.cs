@@ -89,7 +89,12 @@
     {
         var errorBuilder = new StringBuilder();
         var outputBuilder = new StringBuilder();
-        const string? arguments = "-o pid,command -x";
+        // -ww for a command line of any length. Into a pipe ps already prints one whole, but
+        // procps takes an exported COLUMNS over that, so a shell with COLUMNS=80 in its
+        // environment cut every line here to 80 characters and no running tool was matched
+        // against its command again. Asked for twice, the width is unlimited whatever the
+        // environment says, to procps and to the BSD ps macOS has
+        const string? arguments = "-ww -o pid,command -x";
         using var process = new Process
         {
             StartInfo = new()
