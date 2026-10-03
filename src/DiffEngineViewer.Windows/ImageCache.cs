@@ -203,6 +203,31 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
     }
 
     /// <summary>
+    /// The decoded picture at <paramref name="path"/> for the UI thread to draw from here and now,
+    /// or null when it is not decoded, or a compose on the pool is reading it: a GDI+ image used
+    /// from two threads at once throws. A compose only ever starts on the UI thread, so one cannot
+    /// begin between this answering and the caller drawing.
+    /// <para>
+    /// For a picture enlarged past its pane, which is drawn a part at a time straight from the
+    /// decoded picture. A composite of the whole of it at sixteen times the size that fits would
+    /// be hundreds of megabytes to show the corner of it that is on screen.
+    /// </para>
+    /// </summary>
+    public Image? Idle(string path) =>
+        entries.TryGetValue(path, out var entry) &&
+        entry.Composing is null
+            ? entry.Image
+            : null;
+
+    /// <summary>
+    /// The picture at <paramref name="path"/> as it was last painted fitted, at whatever size that
+    /// was, or null when it never has been. Something to draw from while <see cref="Idle"/> has
+    /// nothing to give.
+    /// </summary>
+    public Bitmap? Composited(string path) =>
+        entries.TryGetValue(path, out var entry) ? entry.Composite : null;
+
+    /// <summary>
     /// Whether the picture at <paramref name="path"/> is on its way: being decoded, or decoded and
     /// being composed with nothing older to show meanwhile. What a pane shows a spinner for, as
     /// against a picture that is not coming at all because this machine cannot decode it.

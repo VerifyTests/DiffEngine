@@ -137,6 +137,65 @@ public class DocumentRendererTests :
     }
 
     /// <summary>
+    /// The projection asked for is the one drawn in: the same map laid out two ways is two
+    /// pictures, and each is the same picture every time, which is what lets the two sides of a
+    /// comparison be compared in whichever the reader chose.
+    /// </summary>
+    [Test]
+    public async Task AMapDrawsInTheProjectionAskedFor()
+    {
+        var path = Write("projected.geojson", Map("151.21"));
+        var flat = Hashes(Render(path, MapProjection.PlateCarree));
+        var mercator = Hashes(Render(path, MapProjection.WebMercator));
+        var again = Hashes(Render(path, MapProjection.WebMercator));
+
+        await Assert.That(mercator).IsNotEquivalentTo(flat);
+        await Assert.That(again).IsEquivalentTo(mercator);
+    }
+
+    /// <summary>
+    /// Every projection the button cycles through draws a map of a few streets, the conic and the
+    /// world ones included, rather than failing it for being the wrong extent.
+    /// </summary>
+    [Test]
+    [Arguments("Auto")]
+    [Arguments("PlateCarree")]
+    [Arguments("WebMercator")]
+    [Arguments("Lambert")]
+    [Arguments("Goode")]
+    public async Task EveryProjectionDrawsARegionalMap(string projection)
+    {
+        var pages = Render(Write($"{projection}.geojson", Map("151.21")), Enum.Parse<MapProjection>(projection));
+
+        await Assert.That(pages.Count).IsEqualTo(1);
+        await Assert.That(ImageHeader.TryRead(pages[0], out var header)).IsTrue();
+        await Assert.That(header.HasSize).IsTrue();
+    }
+
+    /// <summary>
+    /// And one of the whole world, which is the extent a conic projection is not meant for.
+    /// </summary>
+    [Test]
+    [Arguments("Auto")]
+    [Arguments("PlateCarree")]
+    [Arguments("WebMercator")]
+    [Arguments("Lambert")]
+    [Arguments("Goode")]
+    public async Task EveryProjectionDrawsAWorldMap(string projection)
+    {
+        var world =
+            """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[-170,-80],[170,-80],[170,80],[-170,80],[-170,-80]]]}},
+              {"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[151.21,-33.85]}}
+            ]}
+            """;
+        var pages = Render(Write($"world-{projection}.geojson", world), Enum.Parse<MapProjection>(projection));
+
+        await Assert.That(pages.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
     /// A binary map reads as GeoJSON, so its features and their properties are what the text
     /// compares.
     /// </summary>
@@ -213,11 +272,11 @@ public class DocumentRendererTests :
 
     static DocumentPlugin Plugin { get; } = DocumentPlugin.Find(Path.Combine(AppContext.BaseDirectory, "documents"))!;
 
-    List<byte[]> Render(string path)
+    List<byte[]> Render(string path, MapProjection projection = MapProjection.Auto)
     {
         var pages = Directory.CreateDirectory(Path.Combine(directory, $"{Path.GetFileName(path)}-pages")).FullName;
         var landed = new List<string>();
-        var count = Plugin.Render(path, pages, landed.Add);
+        var count = Plugin.Render(path, pages, landed.Add, projection);
         if (count != landed.Count)
         {
             throw new($"Rendered {count} pages but announced {landed.Count}.");

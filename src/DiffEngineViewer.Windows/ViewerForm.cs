@@ -110,7 +110,8 @@ sealed class ViewerForm : Form
         int QueueItem = -1,
         int RightClickedQueueItem = -1,
         int MenuItem = -1,
-        bool MenuClosed = false);
+        bool MenuClosed = false,
+        int RightClickedPane = -1);
 
     static readonly Discrete nothing = new(Key: CommandKind.None);
 
@@ -122,10 +123,11 @@ sealed class ViewerForm : Form
 
     int scrollTo = -1;
     int scrollDelta;
+    int zoomDelta;
     bool closeRequested;
     bool closingForReal;
 
-    public ViewerForm(string title, int width, int height)
+    public ViewerForm(string title, int width, int height, WindowPlacement? placement = null)
     {
         Text = title;
         if (icon is not null)
@@ -137,6 +139,23 @@ sealed class ViewerForm : Form
         ForeColor = Palette.Text;
         ClientSize = new(width, height);
         StartPosition = FormStartPosition.CenterScreen;
+        if (placement is { } saved &&
+            Restorable(saved, WorkingAreas()) is { } bounds)
+        {
+            // Already in device pixels, on the display they were measured on, so not scaled again
+            sized = true;
+            restored = bounds;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = bounds;
+            // Before the window is shown, so it comes up maximised rather than growing into it,
+            // on the display its bounds are on. Those stay what it restores to.
+            if (saved.Maximized)
+            {
+                maximized = true;
+                WindowState = FormWindowState.Maximized;
+            }
+        }
+
         KeyPreview = true;
 
         footer.Controls.Add(status);
@@ -185,7 +204,13 @@ sealed class ViewerForm : Form
             discrete.Enqueue(new(RightClickedQueueItem: row));
             menuPoint = point;
         };
+        canvas.PaneRightClicked += (side, point) =>
+        {
+            discrete.Enqueue(new(RightClickedPane: (int) side));
+            menuPoint = point;
+        };
         canvas.Scrolled += _ => scrollDelta += _;
+        canvas.Zoomed += _ => zoomDelta += _;
 
         contextMenu.Closed += (_, e) =>
         {
@@ -214,11 +239,137 @@ sealed class ViewerForm : Form
             sized = true;
             ClientSize = InitialClientSize(ClientSize, DeviceDpi, System.Windows.Forms.Screen.FromControl(this).WorkingArea.Size);
         }
+        else if (restored is { } bounds &&
+                 WindowState == FormWindowState.Normal &&
+                 Bounds != bounds)
+        {
+            // Asked for before there was a handle, on a display whose scaling the form had not
+            // met yet. Whatever creating it there did to the size, this is the size it had.
+            Bounds = bounds;
+        }
 
+        restored = null;
         ScaleChrome();
     }
 
     bool sized;
+
+    /// <summary>
+    /// The bounds a remembered placement asked for, until the handle exists and has them.
+    /// </summary>
+    Rectangle? restored;
+
+    /// <summary>
+    /// Whether the window is maximised, or was when it was minimised: a minimised window's own
+    /// state says only that it is minimised, and it comes back as whichever it was.
+    /// </summary>
+    bool maximized;
+
+    /// <summary>
+    /// See <see cref="IViewerWindow.Placement"/>. Read from the window while there is one, and
+    /// what that last came to once there is not.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public WindowPlacement? Placement
+    {
+        get
+        {
+            if (IsHandleCreated &&
+                !IsDisposed)
+            {
+                // Maximised or minimised, the bounds are of neither: RestoreBounds is where the
+                // window goes back to, which is the only size worth opening the next one at.
+                var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+                if (bounds is {Width: > 0, Height: > 0})
+                {
+                    field = new(bounds.X, bounds.Y, bounds.Width, bounds.Height, maximized);
+                }
+            }
+
+            return field;
+        }
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (WindowState != FormWindowState.Minimized)
+        {
+            maximized = WindowState == FormWindowState.Maximized;
+        }
+    }
+
+    static List<Rectangle> WorkingAreas() =>
+        System.Windows.Forms.Screen.AllScreens
+            .Select(_ => _.WorkingArea)
+            .ToList();
+
+    /// <summary>
+    /// Where a remembered window may open, or null when it should open as a new one does.
+    /// <para>
+    /// The displays are not the ones it was remembered on often enough to matter: a laptop taken
+    /// off its dock remembers a window on a monitor that is no longer there, and opening it there
+    /// is a viewer that looks as if it did not start. So it opens where it was only when most of
+    /// it, and its title bar, are on a display there is now; otherwise it is moved onto the one
+    /// it overlaps most, and with none it is not used at all.
+    /// </para>
+    /// <para>
+    /// Left exactly where it was whenever it can be, rather than tidied into the working area. A
+    /// window snapped to an edge sits a few pixels past it, the width of a resize border nobody
+    /// can see, and moving that inside would walk it across the screen a border at a time.
+    /// </para>
+    /// </summary>
+    internal static Rectangle? Restorable(WindowPlacement saved, IReadOnlyList<Rectangle> workingAreas)
+    {
+        var bounds = new Rectangle(saved.X, saved.Y, saved.Width, saved.Height);
+        // Smaller than anything a person could have left it, so not something a window reported
+        if (bounds.Width < minimumRestored.Width ||
+            bounds.Height < minimumRestored.Height)
+        {
+            return null;
+        }
+
+        Rectangle? best = null;
+        long overlap = 0;
+        foreach (var area in workingAreas)
+        {
+            var shared = Rectangle.Intersect(area, bounds);
+            var size = (long) shared.Width * shared.Height;
+            if (size > overlap)
+            {
+                overlap = size;
+                best = area;
+            }
+        }
+
+        if (best is not { } screen)
+        {
+            return null;
+        }
+
+        if (overlap * 2 >= (long) bounds.Width * bounds.Height &&
+            bounds.Top >= screen.Top - edgeSlack &&
+            bounds.Top < screen.Bottom - edgeSlack)
+        {
+            return bounds;
+        }
+
+        var width = Math.Min(bounds.Width, screen.Width);
+        var height = Math.Min(bounds.Height, screen.Height);
+        return new(
+            Math.Clamp(bounds.X, screen.Left, screen.Right - width),
+            Math.Clamp(bounds.Y, screen.Top, screen.Bottom - height),
+            width,
+            height);
+    }
+
+    static readonly Size minimumRestored = new(200, 150);
+
+    /// <summary>
+    /// How far past the top of a display a title bar may be and still be reachable: more than the
+    /// invisible border a snapped window hangs over by, less than the bar itself.
+    /// </summary>
+    const int edgeSlack = 16;
 
     /// <summary>
     /// The size asked for is in logical pixels, and the window is per monitor aware, so it is
@@ -474,6 +625,7 @@ sealed class ViewerForm : Form
     public ViewerInput Drain()
     {
         var drag = canvas.TakeDrag();
+        var pan = canvas.TakePan();
         // Not default: that zeroes every index, and zero is the first button and the first row
         if (!discrete.TryDequeue(out var next))
         {
@@ -498,10 +650,15 @@ sealed class ViewerForm : Form
             DragAnchorRow: drag?.AnchorRow ?? 0,
             DragAnchorColumn: drag?.AnchorColumn ?? 0,
             DragFocusRow: drag?.FocusRow ?? 0,
-            DragFocusColumn: drag?.FocusColumn ?? 0);
+            DragFocusColumn: drag?.FocusColumn ?? 0,
+            ZoomDelta: zoomDelta,
+            PanX: pan?.X ?? -1,
+            PanY: pan?.Y ?? -1,
+            RightClickedPane: next.RightClickedPane);
 
         scrollTo = -1;
         scrollDelta = 0;
+        zoomDelta = 0;
         closeRequested = false;
         return input;
     }
@@ -574,10 +731,18 @@ sealed class ViewerForm : Form
         {
             return code switch
             {
-                Keys.C => CommandKind.Copy,
+                // Insert as well as C: the older chord, and still the one some hands reach for
+                Keys.C or Keys.Insert => CommandKind.Copy,
                 Keys.A => CommandKind.SelectAll,
-                _ => CommandKind.None
+                // With control as well as without, since that is the chord everything else that
+                // zooms taught
+                _ => Zoom(code)
             };
+        }
+
+        if (Zoom(code) is var zoom and not CommandKind.None)
+        {
+            return zoom;
         }
 
         return code switch
@@ -592,6 +757,7 @@ sealed class ViewerForm : Form
             Keys.P => CommandKind.PreviousChange,
             Keys.M => CommandKind.ToggleMinimal,
             Keys.R => CommandKind.ToggleDrawing,
+            Keys.J => CommandKind.NextProjection,
             Keys.OemOpenBrackets => CommandKind.PreviousPage,
             Keys.OemCloseBrackets => CommandKind.NextPage,
             Keys.Tab => shift ? CommandKind.PreviousItem : CommandKind.NextItem,
@@ -602,6 +768,19 @@ sealed class ViewerForm : Form
             _ => CommandKind.None
         };
     }
+
+    /// <summary>
+    /// Plus, minus and zero, on the main keys and on the number pad. Plus is the equals key
+    /// whether or not shift is held: nobody reaches for shift to zoom in.
+    /// </summary>
+    static CommandKind Zoom(Keys code) =>
+        code switch
+        {
+            Keys.Oemplus or Keys.Add => CommandKind.ZoomIn,
+            Keys.OemMinus or Keys.Subtract => CommandKind.ZoomOut,
+            Keys.D0 or Keys.NumPad0 => CommandKind.ZoomReset,
+            _ => CommandKind.None
+        };
 
     /// <summary>
     /// Records all the way down, so this is structural apart from the lists, which compare by
@@ -641,6 +820,7 @@ sealed class ViewerForm : Form
             ? right is null
             : right is not null &&
               left.Row == right.Row &&
+              left.Pane == right.Pane &&
               left.Labels.SequenceEqual(right.Labels);
 
     internal static bool Same(Pane left, Pane right) =>

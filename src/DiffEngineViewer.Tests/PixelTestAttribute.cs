@@ -9,7 +9,11 @@
 /// </summary>
 public sealed class PixelTestAttribute() : SkipAttribute($"Set {Variable}=true to run pixel snapshots.")
 {
-    public const string Variable = "DIFFENGINE_VIEWER_PIXEL_TESTS";
+    /// <summary>
+    /// Named where the module initializer clears every other variable of this prefix, so the one
+    /// it has to leave alone and the one read here cannot become two names.
+    /// </summary>
+    public const string Variable = MachineSettings.PixelTests;
 
     public override Task<bool> ShouldSkip(TestRegisteredContext context) =>
         Task.FromResult(Environment.GetEnvironmentVariable(Variable) != "true");

@@ -68,7 +68,7 @@ public class DocumentSessionTests
     [Test]
     public async Task NoPagesTurnInTheTextView()
     {
-        var state = Drawn(State(Left, Right, LeftText, RightText)) with { Drawing = DrawingView.Text };
+        var state = Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Text);
         await Assert.That(ViewerSession.Apply(state, CommandKind.NextPage)).IsSameReferenceAs(state);
     }
 
@@ -79,7 +79,7 @@ public class DocumentSessionTests
     [Test]
     public async Task ChangesArePagesWhenOnlyThePagesShow()
     {
-        var state = State(Left, Right, LeftText, RightText) with { Drawing = DrawingView.Picture };
+        var state = State(Left, Right, LeftText, RightText).Showing(DrawingView.Picture);
         state = ViewerSession.Rendered(state, Left.Hash!, new([Page("A"), Page("B"), Page("C"), Page("D")], true));
         state = ViewerSession.Rendered(state, Right.Hash!, new([Page("X"), Page("B"), Page("C"), Page("Y")], true));
         await Assert.That(DocumentPages.Current(state)).IsEqualTo(0);
@@ -115,7 +115,7 @@ public class DocumentSessionTests
     [Test]
     public async Task NothingIsSelectedInThePropertyRows()
     {
-        var state = Drawn(State(Left, Right, LeftText, RightText)) with { Drawing = DrawingView.Picture };
+        var state = Drawn(State(Left, Right, LeftText, RightText)).Showing(DrawingView.Picture);
 
         state = ViewerSession.Drag(state, PaneSide.Left, 0, 0, 1, 5);
         await Assert.That(state.Selection).IsNull();

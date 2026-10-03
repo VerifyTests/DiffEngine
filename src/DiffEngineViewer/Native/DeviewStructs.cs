@@ -66,6 +66,15 @@ struct DeviewPane
     /// <see cref="Pane.ImagePending"/>: 1 while the side's picture is still being drawn.
     /// </summary>
     public int ImagePending;
+
+    /// <summary>
+    /// <see cref="ImagePane.Zoom"/>, and the point it is enlarged about. 1 and the middle for a
+    /// picture nobody has zoomed, and for a pane with no picture, where nothing reads them.
+    /// </summary>
+    public float ImageZoom;
+
+    public float ImageCenterX;
+    public float ImageCenterY;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -128,6 +137,12 @@ unsafe struct DeviewScreen
     public DeviewMenuItem* Menu;
     public int MenuCount;
     public int MenuRow;
+
+    /// <summary>
+    /// <see cref="MenuOverlay.Pane"/>: 0 or 1 for a menu opened over a pane, -1 for one on a queue
+    /// row.
+    /// </summary>
+    public int MenuPane;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -156,6 +171,36 @@ struct DeviewInput
     public int DragAnchorColumn;
     public int DragFocusRow;
     public int DragFocusColumn;
+
+    /// <summary>
+    /// Wheel notches the shim decided were for the picture rather than the rows.
+    /// </summary>
+    public int ZoomDelta;
+
+    /// <summary>
+    /// Where a drag has left an enlarged picture's centre, as fractions of it, or -1 for none.
+    /// </summary>
+    public float PanX;
+
+    public float PanY;
+
+    /// <summary>
+    /// A right-click over a pane: 0 left, 1 right, -1 when there is none.
+    /// </summary>
+    public int RightClickedPane;
+}
+
+/// <summary>
+/// <see cref="WindowPlacement"/>, as the shim reports it and takes it back.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+struct DeviewPlacement
+{
+    public int X;
+    public int Y;
+    public int Width;
+    public int Height;
+    public int Maximized;
 }
 
 [Flags]
@@ -216,5 +261,18 @@ enum DeviewKey
     /// </summary>
     ToggleDrawing = 19,
     PreviousPage = 20,
-    NextPage = 21
+    NextPage = 21,
+
+    /// <summary>
+    /// j. Reached from the footer button as well, as the others are.
+    /// </summary>
+    NextProjection = 22,
+
+    /// <summary>
+    /// Plus, minus and zero. The first two have footer buttons; zero does not, and zooming out
+    /// as far as it goes arrives at the same place.
+    /// </summary>
+    ZoomIn = 23,
+    ZoomOut = 24,
+    ZoomReset = 25
 }

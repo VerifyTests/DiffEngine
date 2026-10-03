@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using GeoConvert;
 using Morph;
 using Morph.PDFium;
@@ -54,20 +55,177 @@ public static class DocumentRenderer
 
     /// <summary>
     /// A PDF's text page by page, each under a <c>--- page N ---</c> line, or an Office document as
-    /// Markdown. Throws when the file is not what its extension says.
+    /// Markdown. Throws when the file is not what its extension says, with a message that says so
+    /// in terms of the file: see <see cref="Guard{T}"/>.
     /// </summary>
     public static string Text(string path) =>
-        Extension(path) switch
+        Guard(
+            path,
+            _ => _ switch
+            {
+                ".pdf" => PdfText(path),
+                ".docx" => DocumentConverter.ConvertToMarkdown(path, markdown),
+                ".xlsx" => ExcelConverter.ConvertToMarkdown(path, markdown),
+                ".pptx" => PowerPointConverter.ConvertToMarkdown(path, markdown),
+                // A binary map, so what it holds, as GeoJSON: features in order, their properties,
+                // and their coordinates one per line.
+                ".fgb" or ".geoparquet" or ".kmz" or ".wkb" => GeoJson.WriteString(GeoConverter.Read(path)),
+                _ => throw new NotSupportedException($"There is no text for a {_} file.")
+            });
+
+    /// <summary>
+    /// Reads a document, and when it cannot be read says why in terms of the file rather than of
+    /// whichever library gave up on it.
+    /// <para>
+    /// A snapshot that is not what its extension says is ordinary: a test that wrote half a file
+    /// before it failed, an empty one, an error page saved as a PDF. The message is all a reviewer
+    /// is shown of it, and what the libraries say is about their own insides - "End of Central
+    /// Directory record could not be found" for a Word document that is not a zip archive.
+    /// </para>
+    /// <para>
+    /// Only what a damaged file causes is put this way. A file that is locked, a native library
+    /// that is missing or memory running out is said as it was thrown: calling the document
+    /// unreadable for those sends the reviewer to look at a file there is nothing wrong with.
+    /// </para>
+    /// </summary>
+    static T Guard<T>(string path, Func<string, T> read)
+    {
+        var extension = Extension(path);
+        if (new FileInfo(path).Length == 0)
         {
-            ".pdf" => PdfText(path),
-            ".docx" => DocumentConverter.ConvertToMarkdown(path, markdown),
-            ".xlsx" => ExcelConverter.ConvertToMarkdown(path, markdown),
-            ".pptx" => PowerPointConverter.ConvertToMarkdown(path, markdown),
-            // A binary map, so what it holds, as GeoJSON: features in order, their properties, and
-            // their coordinates one per line.
-            ".fgb" or ".geoparquet" or ".kmz" or ".wkb" => GeoJson.WriteString(GeoConverter.Read(path)),
-            var extension => throw new NotSupportedException($"There is no text for a {extension} file.")
+            throw Said("The file is empty.");
+        }
+
+        try
+        {
+            if (IsArchive(extension))
+            {
+                CheckArchive(path, extension);
+            }
+
+            return read(extension);
+        }
+        catch (Exception exception)
+            when (IsDamage(exception))
+        {
+            throw Said($"Not a readable {Kind(extension)}: {Detail(exception)}", exception);
+        }
+    }
+
+    /// <summary>
+    /// The formats that are a zip archive of parts. Opened as one first, which reads only its
+    /// directory: one that is not an archive at all then says so, rather than what the first
+    /// reader to trip over it happened to be looking for.
+    /// </summary>
+    static bool IsArchive(string extension) =>
+        extension is ".docx" or ".xlsx" or ".pptx" or ".kmz";
+
+    static void CheckArchive(string path, string extension)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            _ = archive.Entries.Count;
+        }
+        catch (InvalidDataException exception)
+        {
+            throw Said(
+                $"Not a readable {Kind(extension)}: it is not a zip archive, or was cut short.",
+                exception);
+        }
+    }
+
+    /// <summary>
+    /// Whether an exception is what reading a damaged file comes to. Everything a parser throws is,
+    /// including the ones that are its own bugs - an index out of range, a null - since bytes that
+    /// are not the format are what walked it there. What is left out is what says something about
+    /// the machine instead.
+    /// </summary>
+    static bool IsDamage(Exception exception) =>
+        !exception.Data.Contains(said) &&
+        exception is not (
+            NotSupportedException or
+            OperationCanceledException or
+            OutOfMemoryException or
+            UnauthorizedAccessException or
+            DllNotFoundException or
+            EntryPointNotFoundException or
+            BadImageFormatException or
+            TypeLoadException or
+            TypeInitializationException or
+            MissingMemberException) &&
+        (exception is not IOException || exception is EndOfStreamException);
+
+    /// <summary>
+    /// What the library said, as one line, without the lead-in that repeats what
+    /// <see cref="Kind"/> has already said: GeoConvert's "Invalid KML data: " and PDFium's "Failed
+    /// to load PDF: ".
+    /// </summary>
+    static string Detail(Exception exception)
+    {
+        var message = exception.Message.AsSpan().Trim();
+        var end = message.IndexOfAny('\r', '\n');
+        if (end >= 0)
+        {
+            message = message[..end].TrimEnd();
+        }
+
+        const string data = " data: ";
+        if (message.StartsWith("Invalid ") &&
+            message.IndexOf(data) is > 0 and var at)
+        {
+            message = message[(at + data.Length)..];
+        }
+
+        const string pdf = "Failed to load PDF: ";
+        if (message.StartsWith(pdf))
+        {
+            message = message[pdf.Length..];
+        }
+
+        if (message.IsEmpty)
+        {
+            return exception.GetType().Name;
+        }
+
+        return message.ToString();
+    }
+
+    static string Kind(string extension) =>
+        extension switch
+        {
+            ".pdf" => "PDF",
+            ".docx" => "Word document",
+            ".xlsx" => "Excel workbook",
+            ".pptx" => "PowerPoint presentation",
+            ".svg" => "SVG",
+            ".geojson" => "GeoJSON map",
+            ".topojson" => "TopoJSON map",
+            ".kml" => "KML map",
+            ".kmz" => "KMZ map",
+            ".gpx" => "GPX map",
+            ".wkt" => "WKT map",
+            ".wkb" => "WKB map",
+            ".fgb" => "FlatGeobuf map",
+            ".geoparquet" => "GeoParquet map",
+            _ => $"{extension} file"
         };
+
+    /// <summary>
+    /// A reason that is already about the file, so <see cref="Guard{T}"/> passes it on as it is
+    /// rather than putting it into words again. Marked rather than a type of its own, because
+    /// InvalidDataException is the type for it and is sealed.
+    /// </summary>
+    static InvalidDataException Said(string message, Exception? inner = null) =>
+        new(message, inner)
+        {
+            Data =
+            {
+                [said] = true
+            }
+        };
+
+    const string said = "DiffEngineViewer.Said";
 
     /// <summary>
     /// Writes every page into <paramref name="directory"/> as a png, calling
@@ -78,7 +236,12 @@ public static class DocumentRenderer
     /// which pages of two documents differ by comparing hashes.
     /// </para>
     /// </summary>
-    public static int Render(string path, string directory, Action<string> landed)
+    /// <param name="projection">
+    /// The name of a <see cref="MapProjection"/>, for a map. A name rather than the value because
+    /// only BCL types cross to here, and one that is not a projection is drawn as <c>Auto</c>
+    /// rather than refused: the map is still worth seeing.
+    /// </param>
+    public static int Render(string path, string directory, string projection, Action<string> landed)
     {
         var options = new ImageExportOptions
         {
@@ -89,29 +252,36 @@ public static class DocumentRenderer
             // ships inside Morph, so it resolves everywhere, and both sides of a diff get it.
             FontFallback = _ => "Aptos"
         };
-        return Extension(path) switch
-        {
-            ".pdf" => RenderPdf(path, directory, landed),
-            ".docx" => Announce(new SkiaDocumentConverter().ConvertToImages(path, directory, options), landed),
-            ".xlsx" => Announce(new SkiaExcelConverter().ConvertToImages(path, directory, options), landed),
-            ".pptx" => Announce(new SkiaPowerPointConverter().ConvertToImages(path, directory, options), landed),
-            ".svg" => RenderSvg(path, directory, landed),
-            ".geojson" or ".topojson" or ".kml" or ".kmz" or ".gpx" or ".wkt" or ".wkb" or ".fgb" or ".geoparquet" =>
-                RenderMap(path, directory, landed),
-            var extension => throw new NotSupportedException($"There are no pages for a {extension} file.")
-        };
+        return Guard(
+            path,
+            _ => _ switch
+            {
+                ".pdf" => RenderPdf(path, directory, landed),
+                ".docx" => Announce(new SkiaDocumentConverter().ConvertToImages(path, directory, options), landed),
+                ".xlsx" => Announce(new SkiaExcelConverter().ConvertToImages(path, directory, options), landed),
+                ".pptx" => Announce(new SkiaPowerPointConverter().ConvertToImages(path, directory, options), landed),
+                ".svg" => RenderSvg(path, directory, landed),
+                ".geojson" or ".topojson" or ".kml" or ".kmz" or ".gpx" or ".wkt" or ".wkb" or ".fgb" or ".geoparquet" =>
+                    RenderMap(path, directory, projection, landed),
+                _ => throw new NotSupportedException($"There are no pages for a {_} file.")
+            });
     }
 
     /// <summary>
     /// GeoConvert's own rasterizer rather than its Skia one: it has no dependency to drift from the
     /// SkiaSharp Morph pins, and draws the same features to the same bytes everywhere.
     /// </summary>
-    static int RenderMap(string path, string directory, Action<string> landed)
+    static int RenderMap(string path, string directory, string projection, Action<string> landed)
     {
         var features = GeoConverter.Read(path);
         if (features.Count == 0)
         {
-            throw new InvalidDataException("The map has no features to draw.");
+            throw Said("The map has no features to draw.");
+        }
+
+        if (!Enum.TryParse<MapProjection>(projection, out var layout))
+        {
+            layout = MapProjection.Auto;
         }
 
         var file = PageFile(directory, 0);
@@ -121,7 +291,8 @@ public static class DocumentRenderer
             new()
             {
                 // The longer side, whichever it is, so a tall map is no larger than a wide one.
-                MaxDimension = 2048
+                MaxDimension = 2048,
+                Projection = layout
             });
         landed(file);
         return 1;
@@ -199,12 +370,12 @@ public static class DocumentRenderer
                 ExternalResources = SvgExternalResourcePolicy.SameDocumentAndDataOnly
             });
         var picture = svg.Load(path, parameters) ??
-                      throw new InvalidDataException("Not an SVG document.");
+                      throw Said("Not an SVG document.");
         var bounds = picture.CullRect;
         var longest = Math.Max(bounds.Width, bounds.Height);
         if (longest <= 0)
         {
-            throw new InvalidDataException("The SVG has no size to be drawn at.");
+            throw Said("The SVG has no size to be drawn at.");
         }
 
         // Vector, so drawn larger than its own size when that is small: the heads never enlarge a
@@ -221,7 +392,7 @@ public static class DocumentRenderer
         {
             if (!svg.Save(stream, SKColors.Transparent, SKEncodedImageFormat.Png, 100, scale, scale))
             {
-                throw new InvalidDataException("The SVG could not be drawn.");
+                throw Said("The SVG could not be drawn.");
             }
         }
 

@@ -41,7 +41,7 @@ public class WindowsPixelTests
     [Before(Class)]
     public static void Open()
     {
-        window = FormsViewerWindow.Open("DiffEngineViewer", width, height, hidden: true, out var error);
+        window = FormsViewerWindow.Open("DiffEngineViewer", width, height, hidden: true, placement: null, out var error);
         if (window is null)
         {
             throw new(error!);
@@ -107,6 +107,24 @@ public class WindowsPixelTests
         Capture(Fixtures.Images());
 
     /// <summary>
+    /// The same comparison six steps in, eight times the size that fits, and dragged to the top
+    /// right corner: each pane filled with the same part of its picture, the pixels as they are
+    /// rather than smoothed, and the checkerboard still under the corner that fades out.
+    /// Mirrored in the native suite, which is what holds the three heads to one enlargement.
+    /// </summary>
+    [Test]
+    public Task ImagesEnlarged()
+    {
+        var state = Fixtures.Images();
+        for (var step = 0; step < 6; step++)
+        {
+            state = ViewerSession.Apply(state, CommandKind.ZoomIn);
+        }
+
+        return Capture(ViewerSession.PanTo(state, 1, 0));
+    }
+
+    /// <summary>
     /// A document's page under its text. Nothing about it is new to this head - the slice is half
     /// the body and the page is an ordinary picture under it - which is the point: no head learns
     /// what a document is.
@@ -114,6 +132,17 @@ public class WindowsPixelTests
     [Test]
     public Task DocumentPage() =>
         Capture(Fixtures.Document());
+
+    /// <summary>
+    /// The page two steps in, twice the size that fits under the text: cut off at the edges of
+    /// the space it has rather than drawn over the rows above it, about its middle.
+    /// </summary>
+    [Test]
+    public Task DocumentPageEnlarged()
+    {
+        var state = ViewerSession.Apply(Fixtures.Document(), CommandKind.ZoomIn);
+        return Capture(ViewerSession.Apply(state, CommandKind.ZoomIn));
+    }
 
     /// <summary>
     /// The right page still being drawn: a spinner where it will go, stood still at twelve o'clock

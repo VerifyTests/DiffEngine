@@ -6,10 +6,50 @@
 static class DocumentPages
 {
     public static Rendering? Of(SessionState state, DocumentFile? side) =>
-        side is { Hash: { } hash } &&
-        state.Renders.TryGetValue(hash, out var rendering)
+        Key(side, state.Projection) is { } key &&
+        state.Renders.TryGetValue(key, out var rendering)
             ? rendering
             : null;
+
+    /// <summary>
+    /// What a side's pages are kept under in <see cref="SessionState.Renders"/>: the hash of its
+    /// bytes, and for a map drawn in a projection the reader chose, that as well. The same bytes
+    /// draw differently in each, and keeping them apart is what makes switching back to one
+    /// already drawn cost nothing.
+    /// <para>
+    /// <see cref="MapProjection.Auto"/> is the bare hash, as every other document is, so a map
+    /// nobody has switched is kept exactly where it always was. Null for a side whose bytes could
+    /// not be read.
+    /// </para>
+    /// </summary>
+    public static string? Key(DocumentFile? side, MapProjection projection)
+    {
+        if (side is not { Hash: { } hash } document)
+        {
+            return null;
+        }
+
+        if (document.IsMap &&
+            projection != MapProjection.Auto)
+        {
+            return $"{hash}{separator}{projection}";
+        }
+
+        return hash;
+    }
+
+    /// <summary>
+    /// The content hash a key was made from, which is what says whether the queue still holds the
+    /// document it was drawn from.
+    /// </summary>
+    public static string HashOf(string key)
+    {
+        var end = key.IndexOf(separator);
+        return end < 0 ? key : key[..end];
+    }
+
+    // Not a character a hex hash can contain
+    const char separator = '.';
 
     public static (Rendering? Left, Rendering? Right) Of(SessionState state, QueueEntry entry) =>
         (Of(state, entry.LeftDocument), Of(state, entry.RightDocument));

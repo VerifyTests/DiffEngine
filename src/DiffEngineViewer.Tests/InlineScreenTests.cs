@@ -144,7 +144,14 @@ public class InlineScreenTests
     static SessionState Conflicted() =>
         Fixtures.Inline(
             Fixtures.Patch(content: Fixtures.Received, framework: "net8.0"),
-            Fixtures.Patch(content: "the quick\nbrown wolf\njumps over\nthe lazy\ndog", framework: "net9.0"),
+            Fixtures.Patch(content:
+                """
+                the quick
+                brown wolf
+                jumps over
+                the lazy
+                dog
+                """, framework: "net9.0"),
             Fixtures.Patch("OtherTests.cs", 12, "\"a\"", "b", framework: "net8.0"));
 
     /// <summary>

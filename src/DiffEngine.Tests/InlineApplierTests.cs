@@ -35,7 +35,13 @@ public class InlineApplierTests
         return result;
     }
 
-    const string source = "class C\n{\n    void M() => Verify(value).Snapshot(\"old\");\n}";
+    const string source =
+        """
+        class C
+        {
+            void M() => Verify(value).Snapshot("old");
+        }
+        """;
 
     // Nothing here queues a patch, so none of them has a reviewable identity. Stated once rather
     // than at every call site below.
@@ -256,7 +262,14 @@ public class InlineApplierTests
     public async Task ContentIsNeverObservedHalfWritten()
     {
         var padding = string.Join("\n", Enumerable.Repeat("    // padding, to widen the window a truncating write would open", 30000));
-        var text = $"class C\n{{\n    void M() => Verify(value).Snapshot(\"old\");\n{padding}\n}}";
+        var text =
+            $$"""
+              class C
+              {
+                  void M() => Verify(value).Snapshot("old");
+              {{padding}}
+              }
+              """;
         var directory = NewDirectory();
         try
         {
@@ -385,11 +398,23 @@ public class InlineApplierTests
     }
 
     // The same file with no Snapshot call yet, for the append case below
-    const string appendable = "class C\n{\n    void M() => Verify(value);\n}";
+    const string appendable =
+        """
+        class C
+        {
+            void M() => Verify(value);
+        }
+        """;
 
     // The shape that started all this: the entry point reached through the caller's own helper,
     // so there is no SettingsTask for a Snapshot call to chain onto
-    const string throughHelper = "class C\n{\n    void M() => SnippetVerifier.Verify(value);\n}";
+    const string throughHelper =
+        """
+        class C
+        {
+            void M() => SnippetVerifier.Verify(value);
+        }
+        """;
 
     /// <summary>
     /// A dry run answers for the append without performing it, so a producer can find out that a
@@ -524,7 +549,14 @@ public class InlineApplierTests
     [Test]
     public async Task NonAsciiUtf8IsPreserved()
     {
-        var text = "class C\n{\n    // café ☕\n    void M() => Verify(value).Snapshot(\"old\");\n}";
+        var text =
+            """
+            class C
+            {
+                // café ☕
+                void M() => Verify(value).Snapshot("old");
+            }
+            """;
         var path = WriteTemp(Utf8(text, bom: false));
         try
         {
@@ -649,7 +681,14 @@ public class InlineApplierTests
     [Arguments(".FS")]
     public async Task FSharpFileGetsAnFSharpLiteral(string extension)
     {
-        var fsharp = "module Tests\n\nlet MyTest () =\n    Verifier.Verify(value).Snapshot(\"old\").ToTask()\n";
+        var fsharp =
+            """
+            module Tests
+
+            let MyTest () =
+                Verifier.Verify(value).Snapshot("old").ToTask()
+
+            """;
         var path = WriteTemp(Utf8(fsharp, bom: false), extension);
         try
         {
@@ -692,7 +731,14 @@ public class InlineApplierTests
     [Test]
     public async Task ParallelAppliesToSameFile()
     {
-        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"oldA\");\n    void B() => Verify(b).Snapshot(\"oldB\");\n}";
+        var multi =
+            """
+            class C
+            {
+                void A() => Verify(a).Snapshot("oldA");
+                void B() => Verify(b).Snapshot("oldB");
+            }
+            """;
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -733,7 +779,14 @@ public class InlineApplierTests
     [Test]
     public async Task ParallelAppliesWithIdenticalLiterals()
     {
-        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"old\");\n    void B() => Verify(b).Snapshot(\"old\");\n}";
+        var multi =
+            """
+            class C
+            {
+                void A() => Verify(a).Snapshot("old");
+                void B() => Verify(b).Snapshot("old");
+            }
+            """;
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -757,7 +810,14 @@ public class InlineApplierTests
     [Test]
     public async Task SequentialAppliesWithIdenticalLiterals()
     {
-        var multi = "class C\n{\n    void A() => Verify(a).Snapshot(\"old\");\n    void B() => Verify(b).Snapshot(\"old\");\n}";
+        var multi =
+            """
+            class C
+            {
+                void A() => Verify(a).Snapshot("old");
+                void B() => Verify(b).Snapshot("old");
+            }
+            """;
         var path = WriteTemp(Utf8(multi, bom: false));
         try
         {
@@ -805,7 +865,13 @@ public class InlineApplierTests
     [Test]
     public async Task CanAnchorFindsACallSite()
     {
-        var path = WriteTemp(Utf8("class C\n{\n    void M() => Verify(value);\n}", bom: false));
+        var path = WriteTemp(Utf8(
+            """
+            class C
+            {
+                void M() => Verify(value);
+            }
+            """, bom: false));
         try
         {
             var result = InlineApplier.CanAnchor(Append(path));
@@ -827,7 +893,13 @@ public class InlineApplierTests
     [Test]
     public async Task CanAnchorRefusesAWrapper()
     {
-        var path = WriteTemp(Utf8("class C\n{\n    void M() => VerifyDocx(document);\n}", bom: false));
+        var path = WriteTemp(Utf8(
+            """
+            class C
+            {
+                void M() => VerifyDocx(document);
+            }
+            """, bom: false));
         try
         {
             var result = InlineApplier.CanAnchor(Append(path));
@@ -843,7 +915,13 @@ public class InlineApplierTests
     [Test]
     public async Task CanAnchorAcceptsADeclaredWrapper()
     {
-        var path = WriteTemp(Utf8("class C\n{\n    void M() => VerifyDocx(document);\n}", bom: false));
+        var path = WriteTemp(Utf8(
+            """
+            class C
+            {
+                void M() => VerifyDocx(document);
+            }
+            """, bom: false));
         try
         {
             var patch = Append(path);
@@ -988,7 +1066,17 @@ public class InlinePatchFileTests
     public async Task PayloadWithoutOriginalValue()
     {
         var read = InlinePatchFile.TryParse(
-            "version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\ntestName:\nframework: net9.0\n",
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            testName:
+            framework: net9.0
+
+            """,
             out var result);
 
         await Assert.That(read).IsTrue();
@@ -1027,14 +1115,31 @@ public class InlinePatchFileTests
     [Test]
     public async Task PreviousVersionFails()
     {
-        var read = InlinePatchFile.TryParse("version: 1\nsourceFile: x\nlineHint: 1\noriginalExpression:\nnewContent: YQ==\n", out _);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 1
+            sourceFile: x
+            lineHint: 1
+            originalExpression:
+            newContent: YQ==
+
+            """, out _);
         await Assert.That(read).IsFalse();
     }
 
     [Test]
     public async Task UnknownModeFails()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Sideways\noriginalExpression:\nnewContent: YQ==\n", out _);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Sideways
+            originalExpression:
+            newContent: YQ==
+
+            """, out _);
         await Assert.That(read).IsFalse();
     }
 
@@ -1074,7 +1179,16 @@ public class InlinePatchFileTests
     [Arguments("99")]
     public async Task UndefinedNumericModeFails(string mode)
     {
-        var read = InlinePatchFile.TryParse($"version: 2\nsourceFile: x\nlineHint: 1\nmode: {mode}\noriginalExpression:\nnewContent: YQ==\n", out _);
+        var read = InlinePatchFile.TryParse(
+            $"""
+              version: 2
+              sourceFile: x
+              lineHint: 1
+              mode: {mode}
+              originalExpression:
+              newContent: YQ==
+
+              """, out _);
         await Assert.That(read).IsFalse();
     }
 
@@ -1083,7 +1197,16 @@ public class InlinePatchFileTests
     [Test]
     public async Task DefinedNumericModeReads()
     {
-        var read = InlinePatchFile.TryParse($"version: 2\nsourceFile: x\nlineHint: 1\nmode: {(int) InlinePatchMode.Append}\noriginalExpression:\nnewContent: YQ==\n", out var patch);
+        var read = InlinePatchFile.TryParse(
+            $"""
+              version: 2
+              sourceFile: x
+              lineHint: 1
+              mode: {(int) InlinePatchMode.Append}
+              originalExpression:
+              newContent: YQ==
+
+              """, out var patch);
         await Assert.That(read).IsTrue();
         await Assert.That(patch!.Mode).IsEqualTo(InlinePatchMode.Append);
     }
@@ -1127,7 +1250,16 @@ public class InlinePatchFileTests
     [Test]
     public async Task WrongVersionFails()
     {
-        var read = InlinePatchFile.TryParse("version: 3\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\n", out _);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 3
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+
+            """, out _);
         await Assert.That(read).IsFalse();
     }
 
@@ -1164,7 +1296,16 @@ public class InlinePatchFileTests
     [Test]
     public async Task AbsentMetadataParsesAsNull()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\n", out var result);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+
+            """, out var result);
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.TestName).IsNull();
@@ -1192,7 +1333,18 @@ public class InlinePatchFileTests
     [Test]
     public async Task MetadataOrderIsFlexible()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\nframework: net8.0\ntestName:\n", out var result);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            framework: net8.0
+            testName:
+
+            """, out var result);
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.Framework).IsEqualTo("net8.0");
@@ -1236,7 +1388,16 @@ public class InlinePatchFileTests
     [Test]
     public async Task AbsentEntryPointsParseAsNull()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Append\noriginalExpression:\nnewContent: YQ==\n", out var result);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Append
+            originalExpression:
+            newContent: YQ==
+
+            """, out var result);
 
         await Assert.That(read).IsTrue();
         await Assert.That(result!.EntryPoints).IsNull();
@@ -1246,7 +1407,17 @@ public class InlinePatchFileTests
     [Test]
     public async Task ABadTestNameBase64Fails()
     {
-        var read = InlinePatchFile.TryParse("version: 2\nsourceFile: x\nlineHint: 1\nmode: Set\noriginalExpression:\nnewContent: YQ==\ntestName: not-base64!\n", out _);
+        var read = InlinePatchFile.TryParse(
+            """
+            version: 2
+            sourceFile: x
+            lineHint: 1
+            mode: Set
+            originalExpression:
+            newContent: YQ==
+            testName: not-base64!
+
+            """, out _);
 
         await Assert.That(read).IsFalse();
     }
@@ -1272,7 +1443,14 @@ public class InlinePatchFileTests
         try
         {
             var source = Path.Combine(directory, "Sample.cs");
-            await File.WriteAllTextAsync(source, "class C\n{\n    void M() => Verify(\"old\");\n}\n");
+            await File.WriteAllTextAsync(source,
+                """
+                class C
+                {
+                    void M() => Verify("old");
+                }
+
+                """);
 
             var name = (string) typeof(InlineApplier)
                 .GetMethod("MutexName", BindingFlags.NonPublic | BindingFlags.Static)!

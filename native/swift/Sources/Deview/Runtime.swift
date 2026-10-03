@@ -43,6 +43,13 @@ final class Runtime {
     /// Keeps App Nap off for as long as the runtime is open: see `open`.
     private var activity: NSObjectProtocol?
 
+    /// How the last window was left, handed over before this one exists and used as it is made.
+    var placement: DeviewPlacement?
+
+    /// Where the right-click that asked for a pane's menu landed, in the view's coordinates, which
+    /// is where the menu is popped.
+    var paneMenuPoint = CGPoint.zero
+
     private init() {
         resetInput()
     }
@@ -117,12 +124,61 @@ final class Runtime {
         window.contentView = view
         window.delegate = delegate
         window.isReleasedWhenClosed = false
-        window.center()
+        if let frame = rememberedFrame() {
+            window.setFrame(frame, display: false)
+        } else {
+            window.center()
+        }
 
         self.view = view
         self.window = window
         self.delegate = delegate
         makeScroller(in: view, renderer)
+    }
+
+    /// Where the last window was, when that is still somewhere it can be reached: its title bar on
+    /// a screen there is now, with enough of its width there to take hold of. Displays come and go
+    /// between runs, and a window opened where one used to be is a viewer that looks as if it did
+    /// not start.
+    ///
+    /// The whole frame, title bar included, in points from the bottom left of the main screen,
+    /// which is what `placementNow` reports. A zoomed window is only a frame here, so there is
+    /// nothing separate to restore.
+    private func rememberedFrame() -> NSRect? {
+        guard let placement, placement.width > 0, placement.height > 0 else {
+            return nil
+        }
+
+        let frame = NSRect(
+            x: CGFloat(placement.x),
+            y: CGFloat(placement.y),
+            width: CGFloat(placement.width),
+            height: CGFloat(placement.height))
+        let reach: CGFloat = 100
+        let reachable = NSScreen.screens.contains { screen in
+            let visible = screen.visibleFrame
+            let overlap = min(frame.maxX, visible.maxX) - max(frame.minX, visible.minX)
+            // A point of slack at the top: the frame was rounded to whole points on its way out
+            return overlap >= reach && frame.maxY <= visible.maxY + 1 && frame.maxY > visible.minY + reach
+        }
+        return reachable ? frame : nil
+    }
+
+    /// The window's frame as it is now, or nil when there is no window, or it is full screen: that
+    /// frame is the display's rather than one the reader chose, and the one they did choose comes
+    /// back when they leave full screen.
+    func placementNow() -> DeviewPlacement? {
+        guard let window, !window.styleMask.contains(.fullScreen) else {
+            return nil
+        }
+
+        let frame = window.frame
+        return DeviewPlacement(
+            x: Int32(frame.minX.rounded()),
+            y: Int32(frame.minY.rounded()),
+            width: Int32(frame.width.rounded()),
+            height: Int32(frame.height.rounded()),
+            maximized: 0)
     }
 
     /// The pane scrollbar.
@@ -250,11 +306,22 @@ final class Runtime {
             return
         }
 
-        guard !menuShown,
-              let view,
-              frame.menuRow >= 0,
-              Int(frame.menuRow) < view.layout.queueItems.count
-        else {
+        guard !menuShown, let view else {
+            return
+        }
+
+        // A pane's menu hangs where the pointer was when it was asked for, which the managed side
+        // never knew. A queue row's hangs under the row.
+        let at: CGPoint
+        if frame.menuPane >= 0 {
+            at = paneMenuPoint
+        } else if frame.menuRow >= 0, Int(frame.menuRow) < view.layout.queueItems.count {
+            // Nothing is flipped, so a row's minY is its bottom edge and a menu placed there hangs
+            // below it. AppKit flips the whole thing near an edge of the screen, which is the
+            // drawn one's other failing.
+            let anchor = view.layout.queueItems[Int(frame.menuRow)]
+            at = CGPoint(x: anchor.minX, y: anchor.minY)
+        } else {
             return
         }
 
@@ -270,11 +337,7 @@ final class Runtime {
             menu.addItem(item)
         }
 
-        // Nothing is flipped, so a row's minY is its bottom edge and a menu placed there hangs
-        // below it. AppKit flips the whole thing near an edge of the screen, which is the drawn
-        // one's other failing.
-        let anchor = view.layout.queueItems[Int(frame.menuRow)]
-        if !menu.popUp(positioning: nil, at: CGPoint(x: anchor.minX, y: anchor.minY), in: view) {
+        if !menu.popUp(positioning: nil, at: at, in: view) {
             // Escape, a click elsewhere, or focus lost. The click that did it was swallowed by the
             // tracking loop, so this is the only way the managed side can hear about it.
             input.menuClosed = 1
@@ -355,6 +418,11 @@ final class Runtime {
         input.dragAnchorColumn = 0
         input.dragFocusRow = 0
         input.dragFocusColumn = 0
+        input.zoomDelta = 0
+        // -1 again: 0 is the left edge of a picture, so a cleared field has to say "no drag".
+        input.panX = -1
+        input.panY = -1
+        input.rightClickedPane = -1
     }
 }
 

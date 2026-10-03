@@ -20,5 +20,5 @@
 |                      |                                                       |                                                       |
 |                      |                                                       |                                                       |
 +----------------------+-------------------------------------------------------+-------------------------------------------------------+
-| [Accept move] [Discard] [Accept all] (Prev change) (Next change) (Changes only)                                        images differ |
+| [Accept move] [Discard] [Accept all] (Prev change) (Next change) (Changes only) (Zoom out) [Zoom in]                   images differ |
 +--------------------------------------------------------------------------------------------------------------------------------------+

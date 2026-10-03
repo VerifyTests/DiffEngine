@@ -17,7 +17,7 @@ using System.Runtime.Loader;
 /// to sit beside the test assembly.
 /// </para>
 /// </summary>
-sealed class DocumentPlugin(Func<string, string> text, Func<string, string, Action<string>, int> render) :
+sealed class DocumentPlugin(Func<string, string> text, Func<string, string, string, Action<string>, int> render) :
     IDisposable
 {
     const string assemblyName = "DiffEngineViewer.Documents";
@@ -65,8 +65,12 @@ sealed class DocumentPlugin(Func<string, string> text, Func<string, string, Acti
     /// Every page as a png in <paramref name="directory"/>, announced through
     /// <paramref name="landed"/> as each is complete. Throws when it cannot be drawn.
     /// </summary>
-    public int Render(string path, string directory, Action<string> landed) =>
-        render(path, directory, landed);
+    /// <param name="projection">
+    /// How a map is laid out. Crosses as its name, which is all the two assemblies share, and
+    /// means nothing to a document that is not a map.
+    /// </param>
+    public int Render(string path, string directory, Action<string> landed, MapProjection projection = MapProjection.Auto) =>
+        render(path, directory, projection.ToString(), landed);
 
     /// <summary>
     /// Where text and pages are drawn to, made on first use so a viewer that never meets a document
@@ -143,20 +147,20 @@ sealed class DocumentPlugin(Func<string, string> text, Func<string, string, Acti
     /// </summary>
     sealed class Binding(string assembly)
     {
-        readonly Lazy<(Func<string, string> Text, Func<string, string, Action<string>, int> Render)> methods = new(() => Bind(assembly));
+        readonly Lazy<(Func<string, string> Text, Func<string, string, string, Action<string>, int> Render)> methods = new(() => Bind(assembly));
 
         public string Text(string path) =>
             methods.Value.Text(path);
 
-        public int Render(string path, string directory, Action<string> landed) =>
-            methods.Value.Render(path, directory, landed);
+        public int Render(string path, string directory, string projection, Action<string> landed) =>
+            methods.Value.Render(path, directory, projection, landed);
     }
 
     /// <summary>
     /// By name, with BCL types only on the boundary, so nothing in the documents assembly is the
     /// same type in two load contexts and it needs no reference back to this one.
     /// </summary>
-    static (Func<string, string> Text, Func<string, string, Action<string>, int> Render) Bind(string assembly)
+    static (Func<string, string> Text, Func<string, string, string, Action<string>, int> Render) Bind(string assembly)
     {
         var context = new DocumentLoadContext(assembly);
         var type = context
@@ -164,7 +168,7 @@ sealed class DocumentPlugin(Func<string, string> text, Func<string, string, Acti
             .GetType(typeName, throwOnError: true)!;
         return (
             type.GetMethod("Text")!.CreateDelegate<Func<string, string>>(),
-            type.GetMethod("Render")!.CreateDelegate<Func<string, string, Action<string>, int>>());
+            type.GetMethod("Render")!.CreateDelegate<Func<string, string, string, Action<string>, int>>());
     }
 
     /// <summary>

@@ -81,13 +81,15 @@ Nothing is staged for inline review. A newly launched viewer gets the patch in a
 | `m` | Show only the changes, or every line (also the **Changes only** button) |
 | `r` | Cycle a [document](#documents) between text and picture, picture only, and text only (also the button naming the next view) |
 | `[` `]` | Previous and next page of a document (also **Prev page** and **Next page**) |
+| `j` | Draw a [map](#maps) in the next projection (also the **Projection** button) |
+| `+` `-` `0` | [Zoom](#zooming) a picture in, out, and back to fitted (also **Zoom in** and **Zoom out**, and the wheel over a picture) |
 | `Tab` `Shift+Tab` | Next and previous pending item |
 | `a` | Accept |
 | `Shift+A` | Accept all |
 | `d` | Discard |
 | `v` | Cycle the variants of a conflicted snapshot (also the Variant button) |
 | `Ctrl+A` | Select all of one pane |
-| `Ctrl+C` | Copy the selection |
+| `Ctrl+C` | Copy the selection (`Ctrl+Insert` as well, on Windows) |
 | `q` `Esc` | Close |
 
 
@@ -105,6 +107,8 @@ A fold is only a view. A selection that spans one copies the lines it stands for
 Drag across either pane to select text, and `Ctrl+C` to copy it. `Ctrl+A` selects one whole pane: the one something is already selected in, or the received side when nothing is. On macOS the Edit menu carries both, so `Cmd+C` and `Cmd+A` work there too.
 
 A selection belongs to one pane. Dragging out of it keeps extending within the side the drag started in rather than crossing into the other, because the two sides are different documents. It survives scrolling, so a range taller than the window is a drag plus a wheel. The status line says how much is selected, and a click with no drag behind it clears it.
+
+Right-clicking a pane offers the same without the keys: **Copy selection** when there is one, **Copy all** for the whole of that side, and **Select all** for that pane. It leaves the selection as it is, since copying what has been dragged across is the usual reason to open it, and a pane with nothing in it has no menu.
 
 What lands on the clipboard is what is on screen: tabs already expanded to the four spaces the panes draw them as, and no line numbers or change markers. Filler rows are left out — the blank lines that keep the two panes aligned where one side has no line are padding rather than content, so pasting a selection back gives the file's lines and nothing else.
 
@@ -138,6 +142,8 @@ Every row of the pending column answers a right-click:
  * Every entry also offers **Copy selection** when there is one, and a **Copy** item per pane, named after that pane, which copies the whole side. A side with nothing in it — the expected side of a brand new snapshot, or what is left after a delete — gets no item rather than one that copies nothing.
 
 Right-clicking an entry selects it first, so the menu acts on what is highlighted. Opening a file manager is always local — the files are on this machine, wherever the queue lives.
+
+The panes answer one too, with only the [copying](#selecting-and-copying): nothing in it accepts or discards, so a click meant to copy cannot land on either.
 
 On Windows and macOS this is the real OS menu, so it also takes the arrow keys, Enter, Escape and type-to-select, flips rather than clips near the edge of a screen, and is readable by a screen reader. A click that dismisses it is consumed doing so, which is why right-clicking a different row while a menu is open takes two clicks. On Linux it is drawn by the viewer, and any other click or key closes it.
 
@@ -177,7 +183,7 @@ Each pane lists what its own side is — format, pixel dimensions and byte count
 
 The extension decides, not the content. A `.png` holding something that is not one is still an image side, and says its format was not recognized instead of rendering the bytes as text.
 
-Each pane also draws the picture itself, one blank line under those rows: fitted to the space, never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three heads place it identically, from the size the file's own header gave rather than from whatever their decoder reported. Pictures are decoded and scaled off the window's thread, so a large one never stops the window responding, and a spinner turns where it will appear until it is ready. Only the pictures of the entry on screen are decoded.
+Each pane also draws the picture itself, one blank line under those rows: fitted to the space, never enlarged past its own size unless [zoomed](#zooming), on a checkerboard so transparency reads as transparent. All three heads place it identically, from the size the file's own header gave rather than from whatever their decoder reported. Pictures are decoded and scaled off the window's thread, so a large one never stops the window responding, and a spinner turns where it will appear until it is ready. Only the pictures of the entry on screen are decoded.
 
 Which formats can be drawn is the platform's answer rather than the viewer's, because each head uses the decoder its toolkit ships with:
 
@@ -192,6 +198,15 @@ A format a head cannot decode draws nothing, and the comparison is still there i
 Accepting is the same act it is for text — copy the received file over the expected one, or forward the move to the tray — so nothing about reviewing an image changes what accepting one does.
 
 
+### Zooming
+
+Any picture can be enlarged: an image, a document's page, an SVG or a map. `+` and `-`, **Zoom in** and **Zoom out**, or the wheel while the pointer is over the picture, move it a step at a time through 150%, 200%, 300% and on to sixteen times the size that fits. `0` goes back to fitted. With `Ctrl` held the wheel zooms wherever the pointer is; without it, the wheel over the rows still scrolls them. On macOS a pinch zooms as well.
+
+Both panes are always enlarged by the same amount about the same point, so they show the same part of each picture. Once a picture is larger than the space under its rows it is cut off at the edges of that space, and dragging it moves both sides together. Past its own size a picture is drawn as the pixels it has rather than smoothed, since a one pixel difference between two snapshots is what zooming that far in is for.
+
+The status line says how far in the view is, `images differ, zoom 400%`, which is also what tells a reader looking at one corner of a page that a corner is what they have. Turning a document's page keeps the zoom and the place; moving to another entry starts fitted again.
+
+
 ## Documents
 
 The standalone tool and the copy installed with [DiffEngineTray](/docs/tray.md) carry a `documents` folder, and with it read `.pdf`, `.docx`, `.xlsx` and `.pptx` files, and draw `.svg` files and [maps](#maps). The copy bundled in the DiffEngine package does not, to stay small: the folder is about 16 MB of libraries and 22 MB of natives per platform. That copy reads these files exactly as it always has, an SVG or a GeoJSON file as text.
@@ -204,6 +219,8 @@ A document is shown one of three ways, and `r`, or the button naming the next on
 | Picture only | The page, under two rows saying what each file is. |
 | Text only | The text, as any text file is shown. |
 
+The view is chosen per type of document and [remembered](#what-is-remembered): a spreadsheet read as its text and a map looked at as its picture each open the way they were last looked at, in the same queue and in the next run.
+
 What the text is depends on the format:
 
  * SVG, and a map that is text: the file itself.
@@ -211,13 +228,15 @@ What the text is depends on the format:
  * PDF: each page's text under a `--- page N ---` line, read with [PDFium](https://pdfium.googlesource.com/pdfium) through [Morph.PDFium](https://github.com/Papyrine/Morph.PDFium).
  * Word, Excel and PowerPoint: the document as Markdown, from [Morph](https://github.com/Papyrine/Morph). Embedded pictures become `image-N` references rather than lines of base64.
 
-Pages are drawn by PDFium for a PDF, by Morph for an Office file and by [Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia) for an SVG. A spreadsheet's pages are its printed pages rather than its sheets. Drawing is deterministic, so the same page always draws to the same bytes, which is how the viewer knows which pages differ. A small SVG is drawn at a reviewable size rather than its own, since a picture is never enlarged on screen.
+Pages are drawn by PDFium for a PDF, by Morph for an Office file and by [Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia) for an SVG. A spreadsheet's pages are its printed pages rather than its sheets. Drawing is deterministic, so the same page always draws to the same bytes, which is how the viewer knows which pages differ. A small SVG is drawn at a reviewable size rather than its own, since a picture is not enlarged on screen until it is zoomed.
 
 A document opens at its first page that differs, the way a text comparison opens at its first change. `[` and `]`, or **Prev page** and **Next page**, turn the page on both sides at once. With only the pictures on screen, **Prev change** and **Next change** move between the pages that differ.
 
 The status line says what is known about the pair as it becomes known: `reading text` and `drawing` while that happens, which page is showing and which differ, `every page draws the same` when the files differ only where nothing shows, and `documents are identical` when the bytes match. Each pane's header names the page it shows, `received.pdf (page 2 of 5)`, or `(no page 6)` when that side has fewer.
 
 Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer, and never holds the window either. Only the entry on screen is read and drawn: with several documents pending, the rest wait until they are opened, rather than keeping the thread busy with documents that may never be looked at. While a page is still being drawn, a spinner turns where it will appear. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: a document that hangs is given up on after two minutes, but one that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
+
+A file that is not the document its extension says is ordinary — a test that failed part way through writing its snapshot, an empty file, an error page saved as a PDF — and is reported rather than drawn. The status line says so once, about the file: `could not read report.received.docx: Not a readable Word document: it is not a zip archive, or was cut short`, or `The file is empty`. Its pane shows what the file is and how large instead of text, its header says `(not drawn)`, and the other side, if it is whole, is still read and drawn. Nothing about it carries over to the next document.
 
 An SVG is drawn with scripts, external images and external elements turned off. A snapshot is test output, and nothing in one gets to reach the network or the disk.
 
@@ -241,6 +260,29 @@ Maps are read and drawn with [GeoConvert](https://github.com/Papyrine/GeoConvert
 | GeoParquet | `.geoparquet` | GeoJSON |
 
 A map is drawn with its longer side 2048 pixels, in the projection GeoConvert picks for its extent. A map with no features is reported as having nothing to draw. Shapefiles are left out, being a set of files where a snapshot is one, and so are `.json`, `.csv` and `.parquet`, which hold far more than maps.
+
+`j`, or the **Projection** button, draws both sides in the next projection, and the button names the one on screen:
+
+| Projection | Is |
+| --- | --- |
+| Auto | Chosen from what the map covers: a conic for a region, equirectangular for a continent, an equal area one for the world. The default. |
+| Equirectangular | Longitude and latitude as x and y. |
+| Web Mercator | The layout of web map tiles. |
+| Lambert conic | Conformal, for a region. |
+| Goode homolosine | Equal area and interrupted, for the world. |
+
+Going round to one already drawn shows it at once, and the one left on is [remembered](#what-is-remembered): the next map, in this run or the next, opens in it.
+
+
+## What is remembered
+
+The viewer keeps a few things from one run to the next, in `viewer.settings` beside the tray's settings: `%LOCALAPPDATA%\DiffEngine` on Windows, `~/.local/share/DiffEngine` on Linux and `~/Library/Application Support/DiffEngine` on macOS.
+
+ * Where the window was, how large, and whether it was maximised. A window left maximised opens maximised, and restoring it goes back to the size it had before. One remembered on a display that is no longer there opens on one that is.
+ * How each type of [document](#documents) was last shown: text and picture, picture only, or text only.
+ * The [projection](#maps) maps were last drawn in.
+
+The file is a `key=value` line each, and deleting it, or a line of it, is how to forget. One that cannot be read or written costs the setting and nothing else.
 
 
 ## With DiffEngineTray

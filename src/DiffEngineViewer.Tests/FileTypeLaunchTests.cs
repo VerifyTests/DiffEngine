@@ -72,7 +72,11 @@ public class FileTypeLaunchTests
             "Rows for the format, the size and the bytes, coloured where the two differ",
             "Each picture drawn under the rows: red on the left, blue on the right",
             "A format this platform's decoder cannot read shows its rows and no picture, which is expected",
-            "The status line says the two are different files");
+            "The status line says the two are different files",
+            "+ or Zoom in, or the wheel over a picture, enlarges both a step, and the status line says zoom 150%",
+            "Enlarged past the space, dragging one picture moves both, and neither is drawn over the rows above",
+            "- or Zoom out steps back, and 0 goes straight to fitted",
+            "Right-clicking either pane offers Copy all, which copies that side's rows");
 
     [Test]
     [Explicit]
@@ -87,7 +91,11 @@ public class FileTypeLaunchTests
             "The status line says page 2 differs",
             "[ and ] or Prev page and Next page turn both sides together",
             "r, or the view button, cycles to Picture only, then Text only, then back",
-            "In Picture only, Prev change and Next change move between the pages that differ");
+            "In Picture only, Prev change and Next change move between the pages that differ",
+            "The view left on is the one the next PDF opens in, in this run and the next",
+            "+ and - zoom the page, the wheel over it does too, and turning the page keeps the zoom and the place",
+            "The wheel over the text still scrolls the text",
+            "Right-clicking the text offers Copy selection once some is selected, Copy all and Select all");
 
     [Test]
     [Explicit]
@@ -134,7 +142,9 @@ public class FileTypeLaunchTests
             "The file itself as the text, the point's coordinates differing",
             "A map drawn under the text: a shaded block, a line across it and a point, the point further east on the left",
             "No page buttons, and the status line says the drawings differ",
-            "r cycles the three views");
+            "r cycles the three views",
+            "j, or the Projection button, draws both sides in the next projection, the button naming the one on screen",
+            "Going round to one already drawn shows it at once, and the one left on is the one the next map opens in");
 
     [Test]
     [Explicit]
@@ -151,7 +161,8 @@ public class FileTypeLaunchTests
             "The status line says reading text, then the line range",
             "The text is GeoJSON, indented, the point's coordinates differing",
             "A map drawn under the text, the point further east on the left",
-            "No page buttons, and the status line says the drawings differ");
+            "No page buttons, and the status line says the drawings differ",
+            "j, or the Projection button, draws both sides in the next projection");
 
     /// <summary>
     /// What a run that fails a lot of document snapshots at once leaves the viewer with: one window
@@ -172,9 +183,9 @@ public class FileTypeLaunchTests
         for (var round = 1; round <= 3; round++)
         {
             pairs.Add(($"Report{round}", ".pdf", LongPdf(round, changed: true), LongPdf(round, changed: false)));
-            pairs.Add(($"Letter{round}", ".docx", Edited(".docx", "Hello World!", $"Hello World {round}!"), File.ReadAllBytes(Sample(".docx"))));
-            pairs.Add(($"Sheet{round}", ".xlsx", Edited(".xlsx", "Dulce", $"Dulce {round}"), File.ReadAllBytes(Sample(".xlsx"))));
-            pairs.Add(($"Slides{round}", ".pptx", Edited(".pptx", "Hello, PowerPoint!", $"Hello, PowerPoint {round}!"), File.ReadAllBytes(Sample(".pptx"))));
+            pairs.Add(($"Letter{round}", ".docx", Edited(".docx", "Hello World!", $"Hello World {round}!"), await File.ReadAllBytesAsync(Sample(".docx"))));
+            pairs.Add(($"Sheet{round}", ".xlsx", Edited(".xlsx", "Dulce", $"Dulce {round}"), await File.ReadAllBytesAsync(Sample(".xlsx"))));
+            pairs.Add(($"Slides{round}", ".pptx", Edited(".pptx", "Hello, PowerPoint!", $"Hello, PowerPoint {round}!"), await File.ReadAllBytesAsync(Sample(".pptx"))));
             pairs.Add(($"Survey{round}", ".fgb", BusyMap(round, moved: true), BusyMap(round, moved: false)));
             pairs.Add(($"Photo{round}", ".jpg", SampleImages.Photo(220, 120, 60), SampleImages.Photo(60, 120, 220)));
             pairs.Add(($"Logo{round}", ".svg", Encoding.UTF8.GetBytes(SvgOf("red")), Encoding.UTF8.GetBytes(SvgOf("blue"))));
@@ -197,7 +208,8 @@ public class FileTypeLaunchTests
             "Step to an entry not opened yet: reading text, then spinners, then its pages",
             "Step back to one already drawn: its pages come back without waiting on drawing again",
             "Step quickly past several: only the one stopped on is drawn, once whatever was under way has finished",
-            "The 4000 by 3000 photos show a spinner briefly while they are decoded and scaled, and resizing the window rescales them without it stalling");
+            "The 4000 by 3000 photos show a spinner briefly while they are decoded and scaled, and resizing the window rescales them without it stalling",
+            "Maximise the window, close it and run this again: it opens maximised, and restoring it goes back to the size it had before");
 
         var results = new List<EngineLaunch>();
         foreach (var (name, extension, received, verified) in pairs)
@@ -213,6 +225,65 @@ public class FileTypeLaunchTests
         await Assert.That(results.Count(_ => _ == EngineLaunch.StartedNewInstance)).IsEqualTo(1);
         await Assert.That(results.Count(_ => _ == EngineLaunch.AlreadyRunningAndSupportsRefresh)).IsEqualTo(pairs.Count - 1);
         await ManualViewer.WaitForClose();
+    }
+
+    /// <summary>
+    /// A received file that is not the document its extension says, one of every kind, beside a
+    /// verified one that is whole: what a test that failed part way through writing its snapshot
+    /// leaves behind.
+    /// </summary>
+    [Test]
+    [Explicit]
+    public async Task DamagedDocuments()
+    {
+        string[] extensions =
+        [
+            ".pdf", ".docx", ".xlsx", ".pptx", ".svg",
+            ".geojson", ".topojson", ".kml", ".gpx", ".wkt",
+            ".kmz", ".wkb", ".fgb", ".geoparquet"
+        ];
+        var directory = ManualViewer.TempDirectory();
+        ManualViewer.Expect(
+            "Damaged documents",
+            $"One window, Pending ({extensions.Length + 1}), a pair of each kind with its received file cut in half, and an empty PDF last",
+            "The window opens and stays answering on every entry: none of them closes it or leaves it waiting",
+            "A PDF, an Office file or a binary map shows its format and bytes rather than text, and the status line says once that it could not be read: Not a readable Word document, and why",
+            "An SVG or a text map shows the half of its text there is, and the status line says it could not be drawn",
+            "The left header says (not drawn), with no spinner left turning",
+            "The verified side, which is whole, is still drawn on the right",
+            "The empty PDF says the file is empty",
+            "r cycles the views on each, the status line saying what that view could not do");
+
+        var results = new List<EngineLaunch>();
+        foreach (var extension in extensions)
+        {
+            var whole = Whole(extension);
+            results.Add(await Pair(directory, $"Damaged{extension.TrimStart('.')}", extension, whole[..(whole.Length / 2)], whole));
+        }
+
+        results.Add(await Pair(directory, "Empty", ".pdf", [], Whole(".pdf")));
+
+        await Assert.That(results.Count(_ => _ == EngineLaunch.StartedNewInstance)).IsEqualTo(1);
+        await ManualViewer.WaitForClose();
+    }
+
+    static byte[] Whole(string extension) =>
+        extension switch
+        {
+            ".pdf" => SamplePdf.Build("alpha", "bravo", "charlie"),
+            ".docx" or ".xlsx" or ".pptx" => File.ReadAllBytes(Sample(extension)),
+            ".svg" => Encoding.UTF8.GetBytes(SvgOf("red")),
+            _ => MapOf(extension, moved: false)
+        };
+
+    static async Task<EngineLaunch> Pair(DirectoryInfo directory, string name, string extension, byte[] received, byte[] verified)
+    {
+        await Assert.That(EngineTools.IsDetectedForExtension(EngineTool.DiffEngineViewer, extension)).IsTrue();
+        var temp = Path.Combine(directory.FullName, $"{name}.received{extension}");
+        var target = Path.Combine(directory.FullName, $"{name}.verified{extension}");
+        await File.WriteAllBytesAsync(temp, received);
+        await File.WriteAllBytesAsync(target, verified);
+        return await EngineRunner.LaunchAsync(EngineTool.DiffEngineViewer, temp, target);
     }
 
     /// <summary>
