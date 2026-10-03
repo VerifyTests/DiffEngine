@@ -58,8 +58,8 @@ sealed class ScreenPayload
         (subtitleOffset, subtitleLength) = Add(screen.Subtitle);
         (statusOffset, statusLength) = Add(screen.Status);
 
-        panes[0] = AddPane(screen.Left, screen.Columns);
-        panes[1] = AddPane(screen.Right, screen.Columns);
+        panes[0] = AddPane(screen.Left, screen.PaneCells);
+        panes[1] = AddPane(screen.Right, screen.PaneCells);
 
         foreach (var button in screen.Buttons)
         {
@@ -188,19 +188,29 @@ sealed class ScreenPayload
             MenuPane = menuPane
         };
 
-    DeviewPane AddPane(Pane pane, int columns)
+    DeviewPane AddPane(Pane pane, int cells)
     {
         var (headerOffset, headerLength) = Add(pane.Header);
         var rowOffset = rows.Count;
         foreach (var row in pane.Rows)
         {
-            // Flattened, so a tab is drawn as the four cells a selection counts it as, and
-            // clipped to the window, for the reason RowText.Clip gives: marshalled and laid out
-            // whole every frame otherwise
-            var text = RowText.Clip(RowText.Flatten(row.Text), columns);
-            var (textOffset, textLength) = Add(text);
+            // Flattened, so a tab is drawn as the four cells a selection counts it as, and cut
+            // where a pane's cells end, for the reason RowText.Shown gives: marshalled and laid
+            // out whole every frame otherwise. In cells, and a pane's rather than the window's.
+            // Cut at the window's width in characters, a row of two cell characters was encoded
+            // four times as far as any pane could show it, a segment a character.
+            //
+            // The cut is found by the walk that segments the row, and what is encoded is that
+            // much of the string the row already is, so a row costs no string of its own. Only a
+            // row much longer than a pane is read from its front first, since flattening and
+            // measuring all of a megabyte line is what RowText.Shown is there to avoid
+            var text = row.Text.Length > cells * 2 + 2
+                ? RowText.Shown(row.Text, cells)
+                : RowText.Flatten(row.Text);
+            var cut = CellGrid.Segments(text, cells, out var end);
+            var (textOffset, textLength) = Add(text.AsSpan(0, end));
             var segmentOffset = segments.Count;
-            AddSegments(text, textOffset);
+            AddSegments(text, cut, textOffset);
             rows.Add(
                 new()
                 {
@@ -247,11 +257,11 @@ sealed class ScreenPayload
     /// row's length squared.
     /// </para>
     /// </summary>
-    void AddSegments(string text, int textOffset)
+    void AddSegments(string text, IReadOnlyList<CellGrid.Segment> cut, int textOffset)
     {
         var measured = 0;
         var bytes = textOffset;
-        foreach (var segment in CellGrid.Segments(text))
+        foreach (var segment in cut)
         {
             bytes += Encoding.UTF8.GetByteCount(text.AsSpan(measured, segment.Start - measured));
             var length = Encoding.UTF8.GetByteCount(text.AsSpan(segment.Start, segment.Length));
@@ -267,7 +277,7 @@ sealed class ScreenPayload
         }
     }
 
-    (int Offset, int Length) Add(string text)
+    (int Offset, int Length) Add(ReadOnlySpan<char> text)
     {
         if (text.Length == 0)
         {

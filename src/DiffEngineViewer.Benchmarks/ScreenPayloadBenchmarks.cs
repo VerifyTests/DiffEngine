@@ -7,8 +7,9 @@ using BenchmarkDotNet.Attributes;
 // the row's bytes again from its start, so such a row cost by the square of its length.
 //
 // A window the size of a 4K display: 426 cells across and 130 down at the 9 pixel cell. Lines of
-// 300 characters, since a row is encoded as far as the window is wide rather than the pane, so a
-// long line is where a row's length shows.
+// 300 characters, which is past the end of a pane whatever the characters are: a row is encoded as
+// far as a pane can show it, 214 cells here, where it was once encoded as far as the window is
+// wide in characters, which for two cell characters was all 300 of them.
 [MemoryDiagnoser]
 public class ScreenPayloadBenchmarks
 {

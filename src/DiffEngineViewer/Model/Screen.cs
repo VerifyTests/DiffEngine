@@ -22,4 +22,20 @@ record Screen(
     // selection-anchored slice.
     int PendingCount,
     // The open context menu, or null. Sliced to the visible rows like everything else.
-    MenuOverlay? Menu = null);
+    MenuOverlay? Menu = null)
+{
+    /// <summary>
+    /// The most cells of row text a pane can show, for a renderer that is handed a row's text
+    /// before it knows where its panes are: no more than this of a row is worth handing it.
+    /// <para>
+    /// A bound rather than a pane's width, which is each head's to decide: its queue column can be
+    /// dragged, and its gutter is as wide as its line numbers. What every head agrees on is that
+    /// the two panes share the window equally, so neither is wider than half of it. Half of
+    /// <see cref="Columns"/> rounded up, since the window's width in cells is rounded down, and
+    /// one more for the cell a pane's edge can cut through. The gutter in front of the text is
+    /// room to spare on top of that.
+    /// </para>
+    /// </summary>
+    public int PaneCells =>
+        (Columns + 1) / 2 + 1;
+}

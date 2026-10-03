@@ -204,6 +204,34 @@ public class CellGridTests
         await Assert.That(CellGrid.Index(text, cell)).IsEqualTo(index);
     }
 
+    /// <summary>
+    /// The segments of the start of a row, found in one walk, are the segments of the row cut
+    /// where its first cells end: every kind of character, cut at every cell.
+    /// </summary>
+    [Test]
+    public async Task TheSegmentsOfTheStartOfARowAreThoseOfTheRowCutThere()
+    {
+        string[] pieces = ["a", "bc", " ", "中", "ｆ", "é", "é̂", "\U0001D400", "\U0001F600", "\U0001F468‍\U0001F469‍\U0001F467", "─", "\uD800", "́", "→"];
+        var random = new Random(31);
+        for (var iteration = 0; iteration < 300; iteration++)
+        {
+            var builder = new StringBuilder();
+            for (var count = random.Next(0, 12); count > 0; count--)
+            {
+                builder.Append(pieces[random.Next(pieces.Length)]);
+            }
+
+            var text = builder.ToString();
+            for (var cells = -1; cells <= CellGrid.Cells(text) + 1; cells++)
+            {
+                var start = CellGrid.Segments(text, cells, out var end);
+
+                await Assert.That(end).IsEqualTo(CellGrid.Index(text, cells));
+                await Assert.That(start.SequenceEqual(CellGrid.Segments(text[..end]))).IsTrue();
+            }
+        }
+    }
+
     [Test]
     public async Task NeverSplitsACharacterFromItsMarks()
     {
