@@ -2193,6 +2193,22 @@ bool LayoutTypes(unsigned int letter)
     return false;
 }
 
+/* Whether the layout in use has a key that types any of the letters a to z, unshifted. */
+bool LayoutIsLatin()
+{
+    for (int key = KEY_APOSTROPHE; key <= 162; key++)
+    {
+        const unsigned int typed = OnlyCharacter(glfwGetKeyName(key, 0));
+        if (typed >= 'a' &&
+            typed <= 'z')
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /*
  * Which character a key press is to be read as, in lower case, or zero for none.
  *
@@ -2234,6 +2250,27 @@ unsigned int LetterOf(const State::KeyPress& press)
         if (!LayoutTypes(letter))
         {
             return letter;
+        }
+    }
+
+    /*
+     * And the five keys that are not letters, on a layout with no Latin letters at all: Russian
+     * and Arabic type letters of their own where a US keyboard has [ and ], so a paged document
+     * had no key for its pages there, and Persian types its own digits, so zoom had no key to
+     * put it back. Only on such a layout. A German keyboard types u with a diaeresis from the
+     * key where [ is and has [ somewhere else, and reading it by position would give a letter
+     * of its user's own language a command.
+     */
+    if (!LayoutIsLatin())
+    {
+        switch (press.key)
+        {
+            case KEY_LEFT_BRACKET: return '[';
+            case KEY_RIGHT_BRACKET: return ']';
+            case KEY_ZERO: return '0';
+            case KEY_MINUS: return '-';
+            case KEY_EQUAL: return '=';
+            default: break;
         }
     }
 
