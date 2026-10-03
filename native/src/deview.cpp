@@ -65,6 +65,32 @@ typedef void (*DeviewRefresh)(void* window);
 DeviewRefresh glfwSetWindowRefreshCallback(void* window, DeviewRefresh callback);
 }
 
+/*
+ * And its callbacks for a mouse button, the wheel, a key and a character. raylib sets all four, and
+ * keeps from them what was so when it last read the window system's events: whether a button is
+ * down, the last wheel message, which keys are down. That is a state, read once a frame, and a
+ * press and a release that arrive between two reads leave it as it was. So these are set over
+ * raylib's, which are kept and still called, and what they are told is kept as what happened: see
+ * State::presses.
+ */
+extern "C"
+{
+typedef void (*DeviewButtonEvent)(void* window, int button, int action, int mods);
+typedef void (*DeviewScrollEvent)(void* window, double across, double down);
+typedef void (*DeviewKeyEvent)(void* window, int key, int scancode, int action, int mods);
+typedef void (*DeviewCharacterEvent)(void* window, unsigned int codepoint);
+DeviewButtonEvent glfwSetMouseButtonCallback(void* window, DeviewButtonEvent callback);
+DeviewScrollEvent glfwSetScrollCallback(void* window, DeviewScrollEvent callback);
+DeviewKeyEvent glfwSetKeyCallback(void* window, DeviewKeyEvent callback);
+DeviewCharacterEvent glfwSetCharCallback(void* window, DeviewCharacterEvent callback);
+}
+
+/* GLFW's own numbers, which its headers would have named. */
+constexpr int glfwRelease = 0;
+constexpr int glfwShift = 0x0001;
+constexpr int glfwControl = 0x0002;
+constexpr int glfwSuper = 0x0008;
+
 namespace
 {
 void ClearCloseFlag()
@@ -270,6 +296,64 @@ struct State
     float scrollRemainder = 0.0f;
 
     /*
+     * What the pointer's buttons, the wheel and the keys have done since each was last taken, as
+     * GLFW reported it: every press and release in the order they came, every wheel message added
+     * up, every key pressed with the character it typed.
+     *
+     * Read as a state once a frame, which is how raylib offers them, a press and a release that
+     * arrived together had never happened, and of several wheel messages only the last had. A tap
+     * on a touchpad is such a press, and so is every click xdotool sends: under Xvfb none of ten
+     * clicks was seen, and three of ten presses of Page Down.
+     *
+     * The presses are ImGui's, handed over at the top of the next frame built. It takes a press and
+     * a release handed over together a frame apart, so what is drawn is clicked as it would be by a
+     * button that was held. Nothing else here asks raylib about a button, so there is no second
+     * account of one to disagree with ImGui's.
+     */
+    struct Press
+    {
+        int button;
+        bool down;
+    };
+
+    std::vector<Press> presses;
+    bool held[3] = {};
+
+    /* The wheel twice over, because it is taken twice: by ImGui with the presses, and by
+     * deview_poll_input for the managed side, which is not at the same moment. */
+    float wheelAcross = 0.0f;
+    float wheelDown = 0.0f;
+    float wheelNotches = 0.0f;
+
+    /*
+     * A key pressed, or repeating while it is held, with the character it typed if it typed one.
+     * Handed to the managed side one a poll, as the other two heads hand theirs, so two keys
+     * between two polls are both acted on and in their order.
+     */
+    struct KeyPress
+    {
+        int key;
+        int mods;
+        bool repeated;
+        unsigned int character;
+    };
+
+    std::deque<KeyPress> keys;
+
+    /* Whether the next character GLFW reports was typed by the key press at the back of the queue,
+     * which is so only straight after that press: GLFW reports the two together. */
+    bool characterFollows = false;
+
+    /* A key has been pressed since Arrived last asked. */
+    bool keyed = false;
+
+    /* raylib's callbacks, which go on being called. */
+    DeviewButtonEvent raylibButton = nullptr;
+    DeviewScrollEvent raylibScroll = nullptr;
+    DeviewKeyEvent raylibKey = nullptr;
+    DeviewCharacterEvent raylibCharacter = nullptr;
+
+    /*
      * The queue column, owned here rather than by the table.
      *
      * ImGuiTableFlags_Resizable would give the drag for free, but it also hands the width to
@@ -434,6 +518,90 @@ State state;
 extern "C" void WindowRefreshed(void* window)
 {
     state.stale = true;
+}
+
+/* The four below are called from inside PollInputEvents too, each ahead of raylib's own. */
+extern "C" void ButtonChanged(void* window, int button, int action, int mods)
+{
+    if (state.raylibButton != nullptr)
+    {
+        state.raylibButton(window, button, action, mods);
+    }
+
+    /* Left, right and middle, which GLFW and ImGui number alike. */
+    if (button >= 0 &&
+        button < 3)
+    {
+        state.presses.push_back({button, action != glfwRelease});
+        state.held[button] = action != glfwRelease;
+    }
+}
+
+extern "C" void WheelTurned(void* window, double across, double down)
+{
+    if (state.raylibScroll != nullptr)
+    {
+        state.raylibScroll(window, across, down);
+    }
+
+    state.wheelAcross += static_cast<float>(across);
+    state.wheelDown += static_cast<float>(down);
+    state.wheelNotches += static_cast<float>(down);
+}
+
+extern "C" void KeyChanged(void* window, int key, int scancode, int action, int mods)
+{
+    if (state.raylibKey != nullptr)
+    {
+        state.raylibKey(window, key, scancode, action, mods);
+    }
+
+    state.characterFollows = false;
+    if (action == glfwRelease ||
+        key < 0)
+    {
+        return;
+    }
+
+    state.keyed = true;
+
+    /* One repeat of a key waiting at a time. A loop that was held up for seconds is handed every
+     * repeat the window system kept for it at once, and would go on scrolling for as long again
+     * after the key was let go. */
+    const bool repeated = action != 1;
+    if (repeated)
+    {
+        for (const State::KeyPress& waiting : state.keys)
+        {
+            if (waiting.repeated &&
+                waiting.key == key)
+            {
+                return;
+            }
+        }
+    }
+
+    state.keys.push_back({key, mods, repeated, 0});
+    state.characterFollows = true;
+}
+
+extern "C" void CharacterTyped(void* window, unsigned int codepoint)
+{
+    if (state.raylibCharacter != nullptr)
+    {
+        state.raylibCharacter(window, codepoint);
+    }
+
+    /* Typed by the press just queued: GLFW reports a key and then its character. One that follows
+     * a repeat that was not queued goes with it, and one that comes by itself is what an input
+     * method composed, which is none of the keys read here. */
+    if (state.characterFollows &&
+        !state.keys.empty())
+    {
+        state.keys.back().character = codepoint;
+    }
+
+    state.characterFollows = false;
 }
 
 /*
@@ -1781,44 +1949,66 @@ void PumpInput(float elapsed)
 
     const Vector2 mouse = GetMousePosition();
     io.AddMousePosEvent(mouse.x, mouse.y);
-    io.AddMouseButtonEvent(ImGuiMouseButton_Left, IsMouseButtonDown(MOUSE_BUTTON_LEFT));
-    io.AddMouseButtonEvent(ImGuiMouseButton_Right, IsMouseButtonDown(MOUSE_BUTTON_RIGHT));
-    io.AddMouseButtonEvent(ImGuiMouseButton_Middle, IsMouseButtonDown(MOUSE_BUTTON_MIDDLE));
 
-    const Vector2 wheel = GetMouseWheelMoveV();
-    io.AddMouseWheelEvent(wheel.x, wheel.y);
+    /* Every press and release since the last frame built, in the order they came. */
+    for (const State::Press& press : state.presses)
+    {
+        io.AddMouseButtonEvent(press.button, press.down);
+    }
+
+    state.presses.clear();
+
+    if (state.wheelAcross != 0.0f ||
+        state.wheelDown != 0.0f)
+    {
+        io.AddMouseWheelEvent(state.wheelAcross, state.wheelDown);
+        state.wheelAcross = 0.0f;
+        state.wheelDown = 0.0f;
+    }
 }
 
-int ReadKey()
+/* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
+ * acts once however long it is held. */
+int KeyOf(const State::KeyPress& press)
 {
     /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
      * session still copies with the chord its user has in their fingers. */
-    const bool control =
-        IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
-        IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
-    if (control)
+    if ((press.mods & (glfwControl | glfwSuper)) != 0)
     {
+        if (press.repeated)
+        {
+            return DEVIEW_KEY_NONE;
+        }
+
         /* Answered before the unmodified keys below, and returning none for anything else: without
          * this ctrl+a fell through to plain A, which accepts. */
-        if (IsKeyPressed(KEY_C)) return DEVIEW_KEY_COPY;
-        if (IsKeyPressed(KEY_A)) return DEVIEW_KEY_SELECT_ALL;
-        /* With control as well as without, since that is the chord everything else that zooms
-         * taught. By position here: a character is not reported while control is held. */
-        if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) return DEVIEW_KEY_ZOOM_IN;
-        if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) return DEVIEW_KEY_ZOOM_OUT;
-        if (IsKeyPressed(KEY_ZERO) || IsKeyPressed(KEY_KP_0)) return DEVIEW_KEY_ZOOM_RESET;
-        return DEVIEW_KEY_NONE;
+        switch (press.key)
+        {
+            case KEY_C: return DEVIEW_KEY_COPY;
+            case KEY_A: return DEVIEW_KEY_SELECT_ALL;
+            /* With control as well as without, since that is the chord everything else that zooms
+             * taught. By position here: a character is not reported while control is held. */
+            case KEY_EQUAL:
+            case KEY_KP_ADD: return DEVIEW_KEY_ZOOM_IN;
+            case KEY_MINUS:
+            case KEY_KP_SUBTRACT: return DEVIEW_KEY_ZOOM_OUT;
+            case KEY_ZERO:
+            case KEY_KP_0: return DEVIEW_KEY_ZOOM_RESET;
+            default: return DEVIEW_KEY_NONE;
+        }
     }
 
     /* The key itself held down, rather than read off the case of what was typed: see below. */
-    const bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    const bool shift = (press.mods & glfwShift) != 0;
 
     /* Letters by the character typed rather than by key position. raylib's key codes are
      * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
      * snapshot written into source by a key meant to quit - while the one labelled A quit.
      * Characters follow the layout, the way the macOS and Windows heads already do. */
-    for (int character = GetCharPressed(); character != 0; character = GetCharPressed())
+    if (press.character != 0)
     {
+        unsigned int character = press.character;
+
         /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
          * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
          * pending snapshot written into source, with nothing asked first, by the key that accepts
@@ -1852,14 +2042,45 @@ int ReadKey()
         }
     }
 
-    if (IsKeyPressed(KEY_UP)) return DEVIEW_KEY_SCROLL_UP;
-    if (IsKeyPressed(KEY_DOWN)) return DEVIEW_KEY_SCROLL_DOWN;
-    if (IsKeyPressed(KEY_PAGE_UP)) return DEVIEW_KEY_PAGE_UP;
-    if (IsKeyPressed(KEY_PAGE_DOWN)) return DEVIEW_KEY_PAGE_DOWN;
-    if (IsKeyPressed(KEY_HOME)) return DEVIEW_KEY_HOME;
-    if (IsKeyPressed(KEY_END)) return DEVIEW_KEY_END;
-    if (IsKeyPressed(KEY_TAB)) return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
-    if (IsKeyPressed(KEY_ESCAPE)) return DEVIEW_KEY_QUIT;
+    if (press.repeated)
+    {
+        return DEVIEW_KEY_NONE;
+    }
+
+    switch (press.key)
+    {
+        case KEY_UP: return DEVIEW_KEY_SCROLL_UP;
+        case KEY_DOWN: return DEVIEW_KEY_SCROLL_DOWN;
+        case KEY_PAGE_UP: return DEVIEW_KEY_PAGE_UP;
+        case KEY_PAGE_DOWN: return DEVIEW_KEY_PAGE_DOWN;
+        case KEY_HOME: return DEVIEW_KEY_HOME;
+        case KEY_END: return DEVIEW_KEY_END;
+        case KEY_TAB: return shift ? DEVIEW_KEY_PREVIOUS_ITEM : DEVIEW_KEY_NEXT_ITEM;
+        case KEY_ESCAPE: return DEVIEW_KEY_QUIT;
+        default: return DEVIEW_KEY_NONE;
+    }
+}
+
+/*
+ * The next key waiting that asks for anything, and whether it was Escape. One a poll: the rest
+ * wait for the polls after it, which is what keeps two keys pressed between two polls both acted
+ * on, and a key pressed and let go between two of raylib's readings acted on at all.
+ */
+int ReadKey(bool& escape)
+{
+    escape = false;
+    while (!state.keys.empty())
+    {
+        const State::KeyPress press = state.keys.front();
+        state.keys.pop_front();
+        const int key = KeyOf(press);
+        if (key != DEVIEW_KEY_NONE)
+        {
+            escape = press.key == KEY_ESCAPE;
+            return key;
+        }
+    }
+
     return DEVIEW_KEY_NONE;
 }
 
@@ -3163,6 +3384,9 @@ bool Changed(const DeviewScreen* screen)
  * back from the managed side as a different screen. It counts all the same, because a window is
  * only left alone when nothing at all is happening to it. By the press rather than by what is
  * down, since raylib reports Caps Lock and Num Lock as held for as long as they are on.
+ *
+ * The buttons, the wheel and the keys are asked of what GLFW's callbacks kept rather than of
+ * raylib, for the reason they are kept: see State::presses.
  */
 bool Arrived()
 {
@@ -3176,26 +3400,26 @@ bool Arrived()
         arrived = true;
     }
 
-    for (const int button : {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE})
-    {
-        if (IsMouseButtonDown(button) ||
-            IsMouseButtonReleased(button))
-        {
-            arrived = true;
-        }
-    }
-
-    const Vector2 wheel = GetMouseWheelMoveV();
-    if (wheel.x != 0.0f ||
-        wheel.y != 0.0f)
+    /* A press or a release waiting to be handed to ImGui, a button held, or one of a press and
+     * release handed over together that ImGui is keeping for the frame after. */
+    if (!state.presses.empty() ||
+        state.held[0] ||
+        state.held[1] ||
+        state.held[2] ||
+        state.context->InputEventsQueue.Size > 0)
     {
         arrived = true;
     }
 
-    /* Taken off raylib's queue, which nothing else here reads: ReadKey asks about keys by name
-     * and takes characters from a queue of their own. */
-    while (GetKeyPressed() != 0)
+    if (state.wheelAcross != 0.0f ||
+        state.wheelDown != 0.0f)
     {
+        arrived = true;
+    }
+
+    if (state.keyed)
+    {
+        state.keyed = false;
         arrived = true;
     }
 
@@ -3330,6 +3554,7 @@ void Rest()
         WaitTime(std::min(left, frameSeconds));
     }
 
+    state.characterFollows = false;
     PollInputEvents();
     state.ended = GetTime();
 }
@@ -3420,7 +3645,21 @@ int32_t deview_init(
     /* No SetTargetFPS: raylib only holds to it inside EndDrawing, which is no longer called. The
      * frame is ended, and waited out, by Rest. And nothing about a window that came before this
      * one says anything about this one, whose clock has started again from nothing. */
-    glfwSetWindowRefreshCallback(glfwGetCurrentContext(), WindowRefreshed);
+    void* handle = glfwGetCurrentContext();
+    glfwSetWindowRefreshCallback(handle, WindowRefreshed);
+    state.raylibButton = glfwSetMouseButtonCallback(handle, ButtonChanged);
+    state.raylibScroll = glfwSetScrollCallback(handle, WheelTurned);
+    state.raylibKey = glfwSetKeyCallback(handle, KeyChanged);
+    state.raylibCharacter = glfwSetCharCallback(handle, CharacterTyped);
+    state.presses.clear();
+    state.keys.clear();
+    state.held[0] = state.held[1] = state.held[2] = false;
+    state.wheelAcross = 0.0f;
+    state.wheelDown = 0.0f;
+    state.wheelNotches = 0.0f;
+    state.scrollRemainder = 0.0f;
+    state.characterFollows = false;
+    state.keyed = false;
     state.presented.clear();
     state.watched.clear();
     state.shown = 0;
@@ -3596,23 +3835,24 @@ void deview_poll_input(DeviewInput* input)
 
     if (state.initialised)
     {
-        state.input.key = ReadKey();
+        bool escape = false;
+        state.input.key = ReadKey(escape);
 
         /* Escape with a menu up dismisses the menu. It reached the managed side as quit, which
          * closes the menu and then runs the command, so Esc-to-dismiss closed the viewer - and on
          * Linux there is no tray to open it again from, so the queue went to staging. */
         if (state.menuOpen &&
-            state.input.key == DEVIEW_KEY_QUIT &&
-            IsKeyPressed(KEY_ESCAPE))
+            escape)
         {
             state.input.key = DEVIEW_KEY_NONE;
             state.input.menuClosed = 1;
         }
 
         /* Whole notches, keeping the fraction. A touchpad sends a fraction of one per frame and
-         * truncating each frame on its own threw every one of them away. */
-        const Vector2 wheel = GetMouseWheelMoveV();
-        state.scrollRemainder += wheel.y;
+         * truncating each frame on its own threw every one of them away. Every wheel message since
+         * the last poll, added up: read off raylib it was the last of them alone. */
+        state.scrollRemainder += state.wheelNotches;
+        state.wheelNotches = 0.0f;
         const int32_t notches = static_cast<int32_t>(state.scrollRemainder);
         state.scrollRemainder -= static_cast<float>(notches);
 
