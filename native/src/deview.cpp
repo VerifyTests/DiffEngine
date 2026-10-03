@@ -72,6 +72,10 @@ DeviewRefresh glfwSetWindowRefreshCallback(void* window, DeviewRefresh callback)
  * press and a release that arrive between two reads leave it as it was. So these are set over
  * raylib's, which are kept and still called, and what they are told is kept as what happened: see
  * State::presses.
+ *
+ * And the one for the pointer crossing the window's edge, which raylib also keeps and nothing
+ * else here could be told by: where the pointer is stays where it last was in the window, for as
+ * long as it is anywhere else. See State::pointerInside.
  */
 extern "C"
 {
@@ -79,6 +83,8 @@ typedef void (*DeviewButtonEvent)(void* window, int button, int action, int mods
 typedef void (*DeviewScrollEvent)(void* window, double across, double down);
 typedef void (*DeviewKeyEvent)(void* window, int key, int scancode, int action, int mods);
 typedef void (*DeviewCharacterEvent)(void* window, unsigned int codepoint);
+typedef void (*DeviewCrossingEvent)(void* window, int entered);
+DeviewCrossingEvent glfwSetCursorEnterCallback(void* window, DeviewCrossingEvent callback);
 DeviewButtonEvent glfwSetMouseButtonCallback(void* window, DeviewButtonEvent callback);
 DeviewScrollEvent glfwSetScrollCallback(void* window, DeviewScrollEvent callback);
 DeviewKeyEvent glfwSetKeyCallback(void* window, DeviewKeyEvent callback);
@@ -354,7 +360,27 @@ struct State
     /* A key has been pressed since Arrived last asked. */
     bool keyed = false;
 
+    /*
+     * Whether the pointer is over the window, by the last crossing GLFW reported, and whether the
+     * last frame was built with it gone.
+     *
+     * ImGui was told where the pointer is on every frame, and raylib goes on answering with the
+     * last place it was in the window. So a pointer that left over a queue row was still on that
+     * row: it stayed lit, and its tooltip came up with the pointer on another window. A pointer
+     * that has left is now reported to ImGui as nowhere, which is what it has for that.
+     *
+     * Not while a button is held. The window system goes on reporting a pointer that was pressed
+     * in the window wherever it is taken, and a selection dragged past the window's edge has to
+     * go on being one.
+     *
+     * Taken to be inside until a crossing says otherwise, so a window that opens under the pointer
+     * and is told of no crossing is no worse off than it was.
+     */
+    bool pointerInside = true;
+    bool pointerGone = false;
+
     /* raylib's callbacks, which go on being called. */
+    DeviewCrossingEvent raylibCrossing = nullptr;
     DeviewButtonEvent raylibButton = nullptr;
     DeviewScrollEvent raylibScroll = nullptr;
     DeviewKeyEvent raylibKey = nullptr;
@@ -527,7 +553,17 @@ extern "C" void WindowRefreshed(void* window)
     state.stale = true;
 }
 
-/* The four below are called from inside PollInputEvents too, each ahead of raylib's own. */
+/* The five below are called from inside PollInputEvents too, each after raylib's own. */
+extern "C" void PointerCrossed(void* window, int entered)
+{
+    if (state.raylibCrossing != nullptr)
+    {
+        state.raylibCrossing(window, entered);
+    }
+
+    state.pointerInside = entered != 0;
+}
+
 extern "C" void ButtonChanged(void* window, int button, int action, int mods)
 {
     if (state.raylibButton != nullptr)
@@ -1954,8 +1990,16 @@ void PumpInput(float elapsed)
     io.DisplaySize = ImVec2(static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight()));
     io.DeltaTime = elapsed;
 
+    /* Nowhere, for a pointer that has left the window: see State::pointerInside. */
     const Vector2 mouse = GetMousePosition();
-    io.AddMousePosEvent(mouse.x, mouse.y);
+    if (state.pointerGone)
+    {
+        io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+    }
+    else
+    {
+        io.AddMousePosEvent(mouse.x, mouse.y);
+    }
 
     /* Every press and release since the last frame built, in the order they came. */
     for (const State::Press& press : state.presses)
@@ -3511,6 +3555,19 @@ bool Arrived()
         arrived = true;
     }
 
+    /* The pointer leaving the window, or coming back to where it left from: raylib's position
+     * for it is the same before and after. */
+    const bool gone =
+        !state.pointerInside &&
+        !state.held[0] &&
+        !state.held[1] &&
+        !state.held[2];
+    if (gone != state.pointerGone)
+    {
+        state.pointerGone = gone;
+        arrived = true;
+    }
+
     if (state.keyed)
     {
         state.keyed = false;
@@ -3741,6 +3798,9 @@ int32_t deview_init(
      * one says anything about this one, whose clock has started again from nothing. */
     void* handle = glfwGetCurrentContext();
     glfwSetWindowRefreshCallback(handle, WindowRefreshed);
+    state.raylibCrossing = glfwSetCursorEnterCallback(handle, PointerCrossed);
+    state.pointerInside = true;
+    state.pointerGone = false;
     state.raylibButton = glfwSetMouseButtonCallback(handle, ButtonChanged);
     state.raylibScroll = glfwSetScrollCallback(handle, WheelTurned);
     state.raylibKey = glfwSetKeyCallback(handle, KeyChanged);
