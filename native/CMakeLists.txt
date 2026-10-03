@@ -36,9 +36,13 @@ set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
 # SUPPORT_CUSTOM_FRAME_CONTROL was: EndDrawing then never put a frame on the screen, never read
 # input and never waited for the next frame, so the Linux window stayed blank, took no keys and
 # spun a core. A capture draws into a texture and never gets that far, which is why the pixel
-# snapshots passed throughout; PixelTests.PresentWaitsForTheNextFrame is what notices. The busy
-# wait loop was on the same way, and would have spun through the whole of every frame's wait once
-# there was one. The rest are formats and features nothing here uses.
+# snapshots passed throughout; PixelTests.PresentWaitsForTheNextFrame is what notices.
+# deview_present has since stopped calling EndDrawing: it puts a frame on the screen only when it
+# differs from the one there, and waits and reads input itself whether it drew or not (Rest in
+# deview.cpp). So nothing rests on this flag any more, and it stays off for whatever ends a frame
+# through raylib next. The busy wait loop was on the same way, and that one still matters: Rest
+# waits with raylib's WaitTime, which would spin through the whole of every frame's wait. The rest
+# are formats and features nothing here uses.
 foreach(flag IN ITEMS
     SUPPORT_CUSTOM_FRAME_CONTROL
     SUPPORT_BUSY_WAIT_LOOP
