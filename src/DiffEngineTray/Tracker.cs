@@ -196,7 +196,7 @@ class Tracker :
                 Process? process = null;
                 if (processId != null)
                 {
-                    ProcessEx.TryGet(processId.Value, out process);
+                    ProcessEx.TryGetTool(processId.Value, exe, out process);
                 }
 
                 var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
@@ -225,7 +225,9 @@ class Tracker :
                     // a menu built before this update - reaches a disposed process through it
                     existing.Process?.Dispose();
                     existing.Process = null;
-                    ProcessEx.TryGet(processId.Value, out process);
+                    // Against the tool the pair was tracked with when this move names none, as
+                    // Retarget keeps that one
+                    ProcessEx.TryGetTool(processId.Value, exe ?? existing.Exe, out process);
                 }
 
                 var move = exe == null

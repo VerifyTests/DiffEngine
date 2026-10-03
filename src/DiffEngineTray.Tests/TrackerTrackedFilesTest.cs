@@ -291,12 +291,14 @@ public class TrackerTrackedFilesTest :
         var tool = FileLockUtils.StartFileLockProcess(file);
         try
         {
-            tracker.AddMove(temp, target, "theExe", "theArguments", true, tool.Id);
+            // Named as the tool, since a process running something else is not tracked
+            var exe = tool.MainModule!.FileName;
+            tracker.AddMove(temp, target, exe, "theArguments", true, tool.Id);
 
             ((ITrackedFiles) tracker).AddMove(temp, target);
 
             var move = tracker.Moves.Single();
-            await Assert.That(move.Exe).IsEqualTo("theExe");
+            await Assert.That(move.Exe).IsEqualTo(exe);
             await Assert.That(move.Arguments).IsEqualTo("theArguments");
             await Assert.That(move.CanKill).IsTrue();
             await Assert.That(move.IsViewer).IsFalse();

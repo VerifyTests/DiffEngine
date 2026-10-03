@@ -27,7 +27,7 @@ public class TrackerMoveTest :
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         using var process = Process.GetCurrentProcess();
         var processId = process.Id;
-        var tracked = tracker.AddMove(file1, file1, "theExe", "theArguments", false, processId);
+        var tracked = tracker.AddMove(file1, file1, Environment.ProcessPath, "theArguments", false, processId);
         await Assert.That(tracker.Moves).HasSingleItem();
         await Assert.That(tracked.Process!.Id).IsEqualTo(process.Id);
         await Assert.That(tracker.TrackingAny).IsTrue();
@@ -124,11 +124,16 @@ public class TrackerMoveTest :
         var tool = FileLockUtils.StartFileLockProcess(toolLock);
         try
         {
-            // Nothing by this name exists, so if the launcher gets past the process it starts nothing
-            var exe = Path.Combine(Path.GetTempPath(), $"ReviewReproNoSuchTool_{Guid.NewGuid()}.exe");
+            // Nothing at this path exists, so if the launcher gets past the process it starts
+            // nothing. Named as the tool is, since a process running something else is not tracked
+            var exe = Path.Combine(
+                Path.GetTempPath(),
+                $"ReviewReproNoSuchTool_{Guid.NewGuid()}",
+                Path.GetFileName(tool.MainModule!.FileName));
 
             // What the menu captured when it opened
             var shown = tracker.AddMove(temp, target, exe, "theArguments", false, tool.Id);
+            await Assert.That(shown.Process).IsNotNull();
             // The re-run's move, landing while that menu is open
             tracker.AddMove(temp, target, exe, "theArguments", false, tool.Id);
 

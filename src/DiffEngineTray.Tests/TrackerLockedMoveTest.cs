@@ -118,7 +118,9 @@ public class TrackerLockedMoveTest :
         var toolProcess = FileLockUtils.StartFileLockProcess(temp2);
         try
         {
-            var tracked = tracker.AddMove(temp1, target1, "theExe", "theArguments", true, toolProcess.Id);
+            // Named as the tool, since a process running something else is not tracked
+            var tracked = tracker.AddMove(temp1, target1, toolProcess.MainModule!.FileName, "theArguments", true, toolProcess.Id);
+            await Assert.That(tracked.Process).IsNotNull();
             tracker.Accept(tracked);
 
             var pending = tracker.Moves.Single();
