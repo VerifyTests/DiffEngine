@@ -217,6 +217,38 @@ public class InlineStagingTests
         await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
     }
 
+    /// <summary>
+    /// The queue's rule for an entry under the key, on disk. A passing call that an accept above
+    /// it moved onto a line another test staged at is not that test's call site, and its clear
+    /// used to take the trio for being at the line.
+    /// </summary>
+    [Test]
+    public async Task ClearFromAnotherMemberAtATriosLineLeavesTheTrio()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", line: 42, member: "TestB"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, "TestA", value: "what the passing call holds");
+
+        await Assert.That(cleared).IsEqualTo(0);
+        await Assert.That(project.StagedFiles().Count).IsEqualTo(3);
+    }
+
+    // A test renamed since it staged: the line still names it, and the value says it settled
+    [Test]
+    public async Task ClearFromARenamedMemberTakesTheTrioItsValueSettles()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        InlineStaging.Persist([new(Patch(source, "new", line: 42, member: "OldName"))]);
+
+        var cleared = InlineStaging.Clear(source, 42, "NewName", value: "new");
+
+        await Assert.That(cleared).IsEqualTo(1);
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
     [Test]
     public async Task ClearByMemberTakesACallSiteTheValueSettles()
     {

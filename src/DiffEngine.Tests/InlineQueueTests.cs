@@ -11,8 +11,9 @@ public class InlineQueueTests
         string content = "new",
         string? framework = null,
         string? testName = null,
-        string? member = null) =>
-        new(source, line, "\"old\"", content)
+        string? member = null,
+        string expression = "\"old\"") =>
+        new(source, line, expression, content)
         {
             Framework = framework,
             TestName = testName,
@@ -76,6 +77,183 @@ public class InlineQueueTests
         await Assert.That(queue.Count).IsEqualTo(2);
     }
 
+    /// <summary>
+    /// Three tests in one file with a snapshot pending each. Accepting the first writes its
+    /// literal into the source, and the re-run reports the other two from five lines further down.
+    /// Their keys name nothing by then, so each was queued a second time beside the entry it
+    /// should have updated: four entries for two snapshots, the stale one of each first in line
+    /// for a bulk accept.
+    /// </summary>
+    [Test]
+    public async Task ARerunFromWhereItsCallSiteMovedToUpdatesItsEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 10, content: "a", member: "TestA"))
+            .Enqueue(Patch(line: 20, content: "b", member: "TestB"))
+            .Enqueue(Patch(line: 30, content: "c", member: "TestC"))
+            .Accept(InlineKey.For("Sample.cs", 10), _ => InlineApplyResult.Applied, out _)
+            .Enqueue(Patch(line: 25, content: "b, as it is now", member: "TestB"))
+            .Enqueue(Patch(line: 35, content: "c", member: "TestC"));
+
+        await Assert.That(queue.Items.Select(_ => $"{_.Name} {_.Patch.NewContent}")).IsEquivalentTo(
+        [
+            "Sample.cs:25 b, as it is now",
+            "Sample.cs:35 c"
+        ]);
+    }
+
+    /// <summary>
+    /// Every variant goes to the new line, not only the one the re-run came from. Left where they
+    /// were, the same content from two frameworks no longer matched - a patch is compared line and
+    /// all - and an entry that had agreed with itself turned into a conflict.
+    /// </summary>
+    [Test]
+    public async Task AMovedEntryTakesEveryFrameworksVariantWithIt()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 20, content: "eight", framework: "net8.0", member: "TestB"))
+            .Enqueue(Patch(line: 20, content: "nine", framework: "net9.0", member: "TestB"))
+            .Enqueue(Patch(line: 25, content: "nine", framework: "net8.0", member: "TestB"));
+
+        var entry = queue.Items.Single();
+        await Assert.That(entry.Key).IsEqualTo(InlineKey.For("Sample.cs", 25));
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Variants[0].Origins).IsEquivalentTo(["net9.0", "net8.0"]);
+        await Assert.That(entry.Variants[0].Patch.LineHint).IsEqualTo(25);
+    }
+
+    /// <summary>
+    /// The patches a queue holds are shared with whatever is displaying them, so an entry that
+    /// moves is given copies and the ones it held are left saying what they said.
+    /// </summary>
+    [Test]
+    public async Task AMovedEntryLeavesThePatchItHeldAlone()
+    {
+        var first = Patch(line: 20, content: "b", member: "TestB");
+
+        var queue = InlineQueue.Empty
+            .Enqueue(first)
+            .Enqueue(Patch(line: 25, content: "b", member: "TestB"));
+
+        await Assert.That(queue.Items.Single().Patch.LineHint).IsEqualTo(25);
+        await Assert.That(first.LineHint).IsEqualTo(20);
+    }
+
+    /// <summary>
+    /// Two entries that read alike from here: one member, the same literal in the source at both.
+    /// Nothing says which of them a patch from a third line is, and folding into the wrong one
+    /// replaces a snapshot that is still pending, so it is queued beside them, as it always was.
+    /// </summary>
+    [Test]
+    public async Task ARerunFromAnotherLineIsQueuedBesideEntriesItCannotTellApart()
+    {
+        var queue = InlineQueue
+            .From(
+            [
+                new(Patch(line: 20, content: "first", member: "MyTest")),
+                new(Patch(line: 30, content: "second", member: "MyTest"))
+            ])
+            .Enqueue(Patch(line: 25, content: "first", member: "MyTest"));
+
+        await Assert.That(queue.Count).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// One framework stopped at the first call of a test, and another passed that one and stopped
+    /// at the second, which holds the same literal. Two call sites, and from here they differ only
+    /// by line and by who reported them: taking the second for the first one moved would put the
+    /// first framework's snapshot on the second call.
+    /// </summary>
+    [Test]
+    public async Task ARerunDoesNotMoveAnEntryAnotherFrameworkQueued()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 20, content: "eight", framework: "net8.0", member: "MyTest"))
+            .Enqueue(Patch(line: 25, content: "nine", framework: "net9.0", member: "MyTest"));
+
+        await Assert.That(queue.Items.Select(_ => $"{_.Name} {_.OriginsLabel}")).IsEquivalentTo(
+        [
+            "Sample.cs:20 net8.0",
+            "Sample.cs:25 net9.0"
+        ]);
+    }
+
+    /// <summary>
+    /// A member is a name, and one file can declare it twice: a class per scenario, each with its
+    /// own Works. The test name is what says the second patch is not the first one moved.
+    /// </summary>
+    [Test]
+    public async Task ARerunDoesNotTakeTheEntryOfTheSameMemberInAnotherClass()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 10, content: "a", testName: "First.Works", member: "Works"))
+            .Enqueue(Patch(line: 40, content: "b", testName: "Second.Works", member: "Works"));
+
+        await Assert.That(queue.Items.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:10", "Sample.cs:40"]);
+    }
+
+    // Nor of the same member in another file, which a base class and its partial make ordinary
+    [Test]
+    public async Task ARerunDoesNotTakeTheEntryOfTheSameMemberInAnotherFile()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 10, content: "a", member: "Works"))
+            .Enqueue(Patch("B.cs", 40, content: "b", member: "Works"));
+
+        await Assert.That(queue.Items.Select(_ => _.Name)).IsEquivalentTo(["A.cs:10", "B.cs:40"]);
+    }
+
+    /// <summary>
+    /// The move that put one call site on the line another was queued under. Both entries are
+    /// stale by the same accept, and the first re-run to arrive lands on the other one's key.
+    /// Folded into it, the other test's snapshot was replaced by this one's, and this one's own
+    /// entry was left behind stale. It updates its own instead, and keeps the key it had until the
+    /// other entry has moved off the line.
+    /// </summary>
+    [Test]
+    public async Task ARerunOntoALineAnotherMembersEntryIsUnderLeavesThatEntryAlone()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 20, content: "b", member: "TestB"))
+            .Enqueue(Patch(line: 30, content: "c", member: "TestC"))
+            .Enqueue(Patch(line: 30, content: "b, as it is now", member: "TestB"));
+
+        await Assert.That(queue.Items.Select(_ => $"{_.Name} {_.Patch.MemberName} {_.Patch.NewContent}")).IsEquivalentTo(
+        [
+            "Sample.cs:20 TestB b, as it is now",
+            "Sample.cs:30 TestC c"
+        ]);
+
+        // The other test's re-run moves its entry off the line, and the next run of this one
+        // finds the line free
+        queue = queue
+            .Enqueue(Patch(line: 40, content: "c", member: "TestC"))
+            .Enqueue(Patch(line: 30, content: "b, as it is now", member: "TestB"));
+
+        await Assert.That(queue.Items.Select(_ => $"{_.Name} {_.Patch.MemberName}")).IsEquivalentTo(
+        [
+            "Sample.cs:30 TestB",
+            "Sample.cs:40 TestC"
+        ]);
+    }
+
+    /// <summary>
+    /// A patch with no entry of its own, arriving at a line another member's entry is under. The
+    /// two are not one call site, and folding them said they were: a second framework's patch for
+    /// one test became a conflicting variant of another test's snapshot.
+    /// </summary>
+    [Test]
+    public async Task APatchFromAnotherMemberTakesTheLineRatherThanJoiningTheEntry()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 30, content: "c", framework: "net8.0", member: "TestC"))
+            .Enqueue(Patch(line: 30, content: "x", framework: "net9.0", member: "TestX"));
+
+        var entry = queue.Items.Single();
+        await Assert.That(entry.Conflicted).IsFalse();
+        await Assert.That(entry.Patch.MemberName).IsEqualTo("TestX");
+    }
+
     [Test]
     public async Task SettleRemoves()
     {
@@ -129,6 +307,51 @@ public class InlineQueueTests
     }
 
     /// <summary>
+    /// After an accept higher in the file, a passing call sits on the line a later test's entry
+    /// was queued under. Its settle names that entry by key and nothing checked whose it was, so a
+    /// snapshot that was still failing left the queue.
+    /// </summary>
+    [Test]
+    public async Task SettleFromAnotherMemberAtAnEntrysLineLeavesTheEntry()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch(line: 20, framework: "net10.0", member: "TestB"));
+
+        var settled = queue.Settle(InlineKey.For("Sample.cs", 20), "net10.0", "TestA", "what the passing call holds");
+
+        await Assert.That(settled).IsSameReferenceAs(queue);
+    }
+
+    /// <summary>
+    /// And the entry the settle was for is still found, by its member, under the line it was
+    /// queued at before the move.
+    /// </summary>
+    [Test]
+    public async Task SettleFromAnotherMemberAtAnEntrysLineStillSettlesItsOwn()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 15, content: "a", member: "TestA", expression: "\"was a\""))
+            .Enqueue(Patch(line: 20, content: "b", member: "TestB"));
+
+        var settled = queue.Settle(InlineKey.For("Sample.cs", 20), null, "TestA", "was a");
+
+        await Assert.That(settled.Items.Single().Patch.MemberName).IsEqualTo("TestB");
+    }
+
+    /// <summary>
+    /// A test renamed while its snapshot was pending: the member no longer matches, the line does,
+    /// and the call passes holding what the entry was waiting to become.
+    /// </summary>
+    [Test]
+    public async Task SettleFromARenamedMemberTakesTheEntryItsValueSettles()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 20, content: "new", member: "OldName"))
+            .Settle(InlineKey.For("Sample.cs", 20), null, "NewName", "new");
+
+        await Assert.That(queue.Count).IsEqualTo(0);
+    }
+
+    /// <summary>
     /// The moved line again, with the value the settle now carries. Passing with the value it was
     /// anchored to is the code under test producing that again.
     /// </summary>
@@ -162,9 +385,11 @@ public class InlineQueueTests
     [Test]
     public async Task SettleByMemberWithAValueChoosesAmongSeveral()
     {
+        // Two literals, since two calls in one member anchored to the same one are a single call
+        // site to the queue: see ARerunFromWhereItsCallSiteMovedToUpdatesItsEntry
         var queue = InlineQueue.Empty
-            .Enqueue(Patch(line: 42, content: "first", member: "MyTest"))
-            .Enqueue(Patch(line: 48, content: "second", member: "MyTest"))
+            .Enqueue(Patch(line: 42, content: "first", member: "MyTest", expression: "\"one\""))
+            .Enqueue(Patch(line: 48, content: "second", member: "MyTest", expression: "\"two\""))
             .Settle(InlineKey.For("Sample.cs", 807), null, "MyTest", "second");
 
         await Assert.That(queue.Items.Single().Patch.NewContent).IsEqualTo("first");
@@ -190,8 +415,8 @@ public class InlineQueueTests
     public async Task SettleLeavesAnAmbiguousMemberAlone()
     {
         var queue = InlineQueue.Empty
-            .Enqueue(Patch(line: 42, member: "MyTest"))
-            .Enqueue(Patch(line: 48, member: "MyTest"));
+            .Enqueue(Patch(line: 42, member: "MyTest", expression: "\"one\""))
+            .Enqueue(Patch(line: 48, member: "MyTest", expression: "\"two\""));
 
         await Assert.That(queue.Settle(InlineKey.For("Sample.cs", 807), null, "MyTest"))
             .IsSameReferenceAs(queue);

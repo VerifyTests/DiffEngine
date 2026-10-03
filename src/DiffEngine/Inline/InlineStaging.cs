@@ -122,8 +122,14 @@ public static class InlineStaging
             return 0;
         }
 
+        // A trio staged at the line is the call site's unless it was staged from another member,
+        // which is the same test the queue makes of an entry under the key
+        // (InlineQueue.Settle): the line was that trio's before an accept above it moved this call
+        // onto it, and the snapshot it holds is still failing
         var matching = staged
-            .Where(_ => _.Patch.LineHint == line)
+            .Where(_ => _.Patch.LineHint == line &&
+                        !(_.Patch.IsAnotherMembers(memberName) &&
+                          !(value is not null && _.Patch.IsSettledBy(value))))
             .ToList();
 
         if (matching.Count == 0 &&

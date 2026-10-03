@@ -42,16 +42,21 @@ static class ViewerSession
         var selected = current is null ? 0 : IndexOf(queue, current.Key);
         if (selected < 0)
         {
-            selected = 0;
+            // Enqueueing takes no entry away, so one that is no longer under its key has gone with
+            // its call site to the line this patch reports: an accept above it moved the call, and
+            // the queue took the re-run for what it was (InlineQueue.Enqueue). It is still the
+            // entry being read, and the first in the list is not
+            selected = Math.Max(IndexOf(queue, key), 0);
         }
 
         // Start the reader over, at the first change, only when the text under them changed.
         // Folding into an entry further down the list is not it, and neither is a re-send of what
         // is already there: Fold reports an identical patch as unchanged and Project hands back
         // the same entry, so a continuous runner re-sending the same failing snapshot every few
-        // seconds used to bounce the reader to the top on every run.
+        // seconds used to bounce the reader to the top on every run. Asked of the entry rather
+        // than of the key, since a patch can reach the entry on screen under a key that is not the
+        // patch's own: the one it had before its call site moved
         var replaced = current is not null &&
-                       current.Key == key &&
                        !ReferenceEquals(queue[selected], current);
 
         var next = state with
@@ -291,6 +296,13 @@ static class ViewerSession
 
         var key = state.Current?.Key;
         var selected = key is null ? -1 : IndexOf(queue, key);
+        if (selected < 0)
+        {
+            // Gone from under its key is not always gone. An accept above a call site moves it,
+            // and the owner takes its entry to the line the re-run reports it at
+            selected = IndexOfMoved(queue, state.Current);
+        }
+
         var next = state with
         {
             Queue = queue,
@@ -1578,6 +1590,37 @@ static class ViewerSession
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// Where the entry for <paramref name="current"/>'s call site is once the owner has taken it to
+    /// another line, by the test <see cref="InlineQueue.Enqueue"/> recognised the move with. -1
+    /// when none answers to it, or more than one does.
+    /// </summary>
+    static int IndexOfMoved(IReadOnlyList<QueueEntry> queue, QueueEntry? current)
+    {
+        if (current?.Patch is not { } patch)
+        {
+            return -1;
+        }
+
+        var found = -1;
+        for (var index = 0; index < queue.Count; index++)
+        {
+            if (queue[index].Patch?.IsSameCallSite(patch) != true)
+            {
+                continue;
+            }
+
+            if (found >= 0)
+            {
+                return -1;
+            }
+
+            found = index;
+        }
+
+        return found;
     }
 
     /// <summary>

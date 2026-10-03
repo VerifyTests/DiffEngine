@@ -31,6 +31,77 @@ public class ReEnqueueTests
     }
 
     /// <summary>
+    /// A re-run reporting the entry on screen from another line: an accept higher in the file
+    /// moved its call site. The queue takes the entry to that line rather than adding a second
+    /// one, so the key the selection was following has gone, and the entry it was following is
+    /// under the patch's. The reader stays on it rather than landing on the first in the list.
+    /// </summary>
+    [Test]
+    public async Task A_re_run_from_the_line_its_call_site_moved_to_stays_on_screen()
+    {
+        var state = Fixtures.Inline(Site(10, "First", "one"), Site(30, "Second", "two"));
+        state = ViewerSession.Apply(state, CommandKind.NextItem);
+        await Assert.That(state.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 30));
+
+        var again = ViewerSession.EnqueueInline(state, Site(36, "Second", "two, as it is now"));
+
+        await Assert.That(again.Queue.Count).IsEqualTo(2);
+        await Assert.That(again.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 36));
+        await Assert.That(again.Current.LeftText).IsEqualTo("two, as it is now");
+    }
+
+    /// <summary>
+    /// The same re-run arriving at a line another test's entry is still under. A queue holds one
+    /// entry to a key, so the entry on screen keeps the key it had and takes the content, and the
+    /// other test's entry is left as it was.
+    /// </summary>
+    [Test]
+    public async Task A_re_run_onto_the_line_of_another_entry_updates_the_one_on_screen()
+    {
+        var state = Fixtures.Inline(Site(20, "First", "one"), Site(30, "Second", "two"));
+        await Assert.That(state.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 20));
+
+        var again = ViewerSession.EnqueueInline(state, Site(30, "First", "one, as it is now"));
+
+        await Assert.That(again.Queue.Select(_ => $"{_.Key} {_.LeftText}")).IsEquivalentTo(
+        [
+            $"{InlineKey.For("A.cs", 20)} one, as it is now",
+            $"{InlineKey.For("A.cs", 30)} two"
+        ]);
+        await Assert.That(again.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 20));
+    }
+
+    /// <summary>
+    /// The same move seen from a window displaying somebody else's queue. The first entry was
+    /// accepted and the owner took the other two to the lines the re-run reported, so the key the
+    /// selection was following is in no listing any more. Held by its index instead, the reader
+    /// was put on the entry after the one they had been reading.
+    /// </summary>
+    [Test]
+    public async Task An_owner_taking_the_entry_on_screen_to_another_line_keeps_it_on_screen()
+    {
+        var pending = Fixtures.Pending(Site(10, "First", "one"), Site(20, "Second", "two"), Site(30, "Third", "three"));
+        var state = ViewerSession.Apply(Fixtures.Attached(pending), CommandKind.NextItem);
+        await Assert.That(state.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 20));
+
+        var moved = pending
+            .Accept(InlineKey.For("A.cs", 10), _ => InlineApplyResult.Applied, out _)
+            .Enqueue(Site(26, "Second", "two"))
+            .Enqueue(Site(36, "Third", "three"));
+        var synced = ViewerSession.Sync(state, moved, [], null);
+
+        await Assert.That(synced.Queue.Count).IsEqualTo(2);
+        await Assert.That(synced.Current!.Key).IsEqualTo(InlineKey.For("A.cs", 26));
+    }
+
+    static InlinePatch Site(int line, string member, string content) =>
+        new("A.cs", line, "\"old\"", content)
+        {
+            TestName = $"Tests.{member}",
+            MemberName = member
+        };
+
+    /// <summary>
     /// Scrolled away from where the entry opened, so neither staying put nor starting again can
     /// pass by coincidence.
     /// </summary>
