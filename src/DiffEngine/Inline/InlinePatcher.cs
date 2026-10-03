@@ -609,6 +609,11 @@ static class InlinePatcher
     /// where it can be taken whole (<see cref="TryStatementLines"/>), and the call is reported
     /// where it cannot.
     /// </para>
+    /// <para>
+    /// Only where the variable would be left as the statement, though. Awaited, assigned, returned
+    /// or passed, it is still a value with the call gone (<see cref="IsTakenAsAValue"/>), and the
+    /// statement reads as it would have run without the snapshot.
+    /// </para>
     /// </summary>
     static PatchStatus TryRemove(
         SourceLanguage language,
@@ -661,7 +666,8 @@ static class InlinePatcher
 
         start--;
         var dotStart = start;
-        if (LeavesOnlyItsReceiver(source, scan, dotStart, closeParen))
+        if (LeavesOnlyItsReceiver(source, scan, dotStart, closeParen) &&
+            !IsTakenAsAValue(source, scan, lineStarts, nameStart))
         {
             if (!TryStatementLines(source, scan, lineStarts, nameStart, closeParen, out var from, out var to))
             {
@@ -722,6 +728,56 @@ static class InlinePatcher
         scan.SkipTrivia(ref after);
         return after >= source.Length ||
                source[after] != '.';
+    }
+
+    /// <summary>
+    /// Whether something takes the value of the expression a call ends: it is awaited, returned,
+    /// assigned or passed.
+    /// <para>
+    /// What the call was called on is then still something with the call gone.
+    /// <c>await task.Snapshot("old");</c> reads <c>await task;</c> and
+    /// <c>var kept = task.Snapshot("old");</c> reads <c>var kept = task;</c>, each as it would
+    /// have run without the snapshot. It is a statement that was nothing but the call that leaves
+    /// a name standing by itself.
+    /// </para>
+    /// <para>
+    /// A lambda's body is left out on purpose. <c>_ => _.Snapshot("old")</c> would be left as
+    /// <c>_ => _</c>, which is no body for a lambda that returns nothing. And where indentation is
+    /// syntax, only what takes it sits on the same line: the <c>=</c> a line above is the one a
+    /// whole body hangs off, and the line under it is that body's first statement.
+    /// </para>
+    /// </summary>
+    static bool IsTakenAsAValue(string source, SourceScan scan, List<int> lineStarts, int nameStart)
+    {
+        var expressionStart = ExpressionStart(source, scan, nameStart);
+        var before = PreviousToken(source, scan, expressionStart);
+        if (before < 0 ||
+            !scan.IsCode(before))
+        {
+            return false;
+        }
+
+        if (scan.Language.IndentationIsSyntax &&
+            LineOf(lineStarts, before) != LineOf(lineStarts, expressionStart))
+        {
+            return false;
+        }
+
+        // Passed, or assigned, or compared: an equals sign that ends a comparison takes a value as
+        // much as one that assigns. The arrow of a lambda ends in the other character
+        if (source[before] is '(' or ',' or '=')
+        {
+            return true;
+        }
+
+        if (!scan.IsIdentifierChar(source[before]))
+        {
+            return false;
+        }
+
+        var wordStart = scan.WordStart(before);
+        var word = source.Substring(wordStart, before + 1 - wordStart);
+        return word is "await" or "return";
     }
 
     /// <summary>

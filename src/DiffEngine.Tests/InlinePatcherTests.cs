@@ -1487,14 +1487,13 @@ public class InlinePatcherTests
     /// <summary>
     /// Shapes where the call is all its statement does and the statement cannot simply be lifted
     /// out: an <c>if</c> with no braces would take the next statement for its body, a line shared
-    /// with another statement is not the call's to remove, and a lambda or an awaited variable is
-    /// not a statement of its own at all. Reported, where it used to leave the receiver behind.
+    /// with another statement is not the call's to remove, and a lambda's body is not a statement
+    /// of its own at all. Reported, where it used to leave the receiver behind.
     /// </summary>
     [Test]
     [Arguments("        if (flag)\n            settings.Snapshot(\"old\");")]
     [Arguments("        var settings = new VerifySettings(); settings.Snapshot(\"old\");")]
     [Arguments("        Configure(_ => _.Snapshot(\"old\"));")]
-    [Arguments("        await task.Snapshot(\"old\");")]
     public async Task RemoveReportsACallItCannotTakeWithItsStatement(string body)
     {
         var source = Method(body);
@@ -1503,6 +1502,29 @@ public class InlinePatcherTests
 
         await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
         await Assert.That(reason).Contains("Remove the statement by hand");
+    }
+
+    /// <summary>
+    /// Awaited, assigned, returned or passed, what the call was on is still a value with the call
+    /// gone, so the call alone is taken and the statement reads as it would have run without the
+    /// snapshot. Only a statement that was nothing but the call leaves a name standing by itself.
+    /// </summary>
+    [Test]
+    [Arguments("        await task.Snapshot(\"old\");", "        await task;")]
+    [Arguments("        var kept = task.Snapshot(\"old\");", "        var kept = task;")]
+    [Arguments("        kept = task.Snapshot(\"old\");", "        kept = task;")]
+    [Arguments("        return task.Snapshot(\"old\");", "        return task;")]
+    [Arguments("        Run(task.Snapshot(\"old\"));", "        Run(task);")]
+    [Arguments("        Run(first, task.Snapshot(\"old\"));", "        Run(first, task);")]
+    [Arguments("        var same = other == task.Snapshot(\"old\");", "        var same = other == task;")]
+    public async Task RemoveOfACallWhoseValueIsTakenLeavesWhatItWasOn(string body, string expected)
+    {
+        var source = Method(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"old\"", "", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method(expected));
     }
 
     // With more of the chain to come, the rest hangs off the variable as it hung off the call

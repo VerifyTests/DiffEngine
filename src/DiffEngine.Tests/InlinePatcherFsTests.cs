@@ -842,6 +842,24 @@ public class InlinePatcherFsTests
     }
 
     /// <summary>
+    /// Bound or passed on the same line, what the call was on is still a value with the call gone,
+    /// so the call alone is taken. The <c>=</c> a line above is another matter: a whole body hangs
+    /// off that one, and the line under it is the body's first statement.
+    /// </summary>
+    [Test]
+    [Arguments("    let kept = task.Snapshot(\"old\")\n    kept.ToTask()", "    let kept = task\n    kept.ToTask()")]
+    [Arguments("    run (task.Snapshot(\"old\"))", "    run (task)")]
+    public async Task RemoveOfACallWhoseValueIsTakenLeavesWhatItWasOn(string body, string expected)
+    {
+        var source = Test(body);
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, null, "", out var newSource, out var reason, originalValue: "old");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(Test(expected));
+    }
+
+    /// <summary>
     /// The last line of its block is the block's value, and taking it away leaves a binding with
     /// nothing under it. So is a line the next one carries on, or one something else shares.
     /// </summary>
