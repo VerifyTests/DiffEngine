@@ -15,6 +15,15 @@ interface ITrackedFiles
 
     IReadOnlyList<ViewerResponseDelete> Deletes();
 
+    /// <summary>
+    /// A number that is another one whenever <see cref="Moves"/> or <see cref="Deletes"/> would
+    /// list anything differently from the last time it was asked for, and cheap to ask for when
+    /// they would not: the owner asks on every poll of an attached viewer, to tell it nothing
+    /// changed without listing anything. It may also move when nothing listed did, which costs one
+    /// listing.
+    /// </summary>
+    long Version();
+
     bool Has(string key);
 
     /// <summary>

@@ -1085,6 +1085,77 @@ class Tracker :
                 _.File))
             .ToList();
 
+    readonly Lock versionGate = new();
+    readonly List<object> versioned = [];
+    long version;
+
+    /// <summary>
+    /// By which objects are tracked, compared with the ones tracked the last time this was asked.
+    /// <para>
+    /// Everything a listing carries of a move or a delete is fixed when the object is made, and a
+    /// change to either is another object in its place, so the same objects are the same listing.
+    /// Walking the two dictionaries and comparing references allocates nothing but the walk, where
+    /// describing every entry to hash the descriptions was a megabyte for a couple of hundred of
+    /// them. A dictionary nothing has touched is walked in the same order each time. One that was
+    /// touched and put back as it was may not be, which reads as a change and costs a listing.
+    /// </para>
+    /// <para>
+    /// Rather than a count of changes, kept wherever the dictionaries are written: there are a
+    /// score of such places, and one missed is a viewer that goes on showing a file that left.
+    /// </para>
+    /// </summary>
+    long ITrackedFiles.Version()
+    {
+        lock (versionGate)
+        {
+            if (Unchanged())
+            {
+                return version;
+            }
+
+            versioned.Clear();
+            foreach (var move in moves)
+            {
+                versioned.Add(move.Value);
+            }
+
+            foreach (var delete in deletes)
+            {
+                versioned.Add(delete.Value);
+            }
+
+            return ++version;
+        }
+    }
+
+    bool Unchanged()
+    {
+        var index = 0;
+        foreach (var move in moves)
+        {
+            if (index == versioned.Count ||
+                !ReferenceEquals(versioned[index], move.Value))
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        foreach (var delete in deletes)
+        {
+            if (index == versioned.Count ||
+                !ReferenceEquals(versioned[index], delete.Value))
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        return index == versioned.Count;
+    }
+
     void ITrackedFiles.AddMove(string temp, string target)
     {
         // No exe, arguments or process: the sender's diff tool details do not cross the viewer

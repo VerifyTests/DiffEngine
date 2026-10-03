@@ -390,6 +390,66 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Send(new(ViewerVerb.ListFull, Body: focused.Tag)).Unchanged).IsTrue();
     }
 
+    /// <summary>
+    /// What the tag says of the tracked files has to move with everything a listing carries of
+    /// them, and a move keeps its key through a change of target: counting them, or going by
+    /// their keys, would answer this one unchanged.
+    /// </summary>
+    [Test]
+    public async Task ATrackedMoveThatChangedOrLeftIsNeverAnsweredUnchanged()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        var tag = pair.Send(new(ViewerVerb.ListFull)).Tag;
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull, Body: tag)).Unchanged).IsTrue();
+
+        var elsewhere = move.Target + ".elsewhere";
+        pair.Tracker.AddMove(move.Temp, elsewhere, null, null, false, null);
+        var retargeted = pair.Send(new(ViewerVerb.ListFull, Body: tag));
+        await Assert.That(retargeted.Unchanged).IsFalse();
+        await Assert.That(retargeted.Moves.Single().Target).IsEqualTo(elsewhere);
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull, Body: retargeted.Tag)).Unchanged).IsTrue();
+
+        pair.Tracker.Discard(pair.Tracker.Moves.Single());
+        var gone = pair.Send(new(ViewerVerb.ListFull, Body: retargeted.Tag));
+        await Assert.That(gone.Unchanged).IsFalse();
+        await Assert.That(gone.Moves).IsEmpty();
+    }
+
+    /// <summary>
+    /// An attached viewer asks whether the listing changed five times a second, and the answer
+    /// used to be made by describing every tracked move and delete and hashing the lot: half a
+    /// megabyte of garbage a poll for a few hundred pending files, to say that nothing happened.
+    /// </summary>
+    [Test]
+    public async Task AskingWhetherTheListingChangedDoesNotDescribeEveryTrackedFile()
+    {
+        await using var pair = new TrayOwned();
+        for (var i = 0; i < 100; i++)
+        {
+            pair.AddMove();
+            pair.AddDelete();
+        }
+
+        IQueueOwner owner = pair.Host;
+        var tag = owner.ListingTag();
+
+        // No awaiting until the count is read, since the count is this thread's
+        const int asks = 100;
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var unchanged = true;
+        for (var i = 0; i < asks; i++)
+        {
+            unchanged &= owner.ListingTag() == tag;
+        }
+
+        var each = (GC.GetAllocatedBytesForCurrentThread() - before) / asks;
+
+        await Assert.That(unchanged).IsTrue();
+        // The tag's own string and two enumerators, with room to spare
+        await Assert.That(each).IsLessThan(2000);
+    }
+
     [Test]
     public async Task ViewerDiscardOfOneSnapshotReachesTheTray()
     {
