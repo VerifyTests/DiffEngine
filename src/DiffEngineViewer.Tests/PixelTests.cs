@@ -407,6 +407,115 @@ public class PixelTests
     }
 
     /// <summary>
+    /// Two pictures fitted at a third of their size: white, with a black line one pixel wide every
+    /// sixteen, across and down. Sampled between its own pixels and no others, which is all a
+    /// picture near its own size needs, a line survives only where a sample lands on it, so a grid
+    /// came out with some of its lines faint and some gone. The Linux head now draws a picture
+    /// under half its size from reduced copies of it, in which every line is there and fainter.
+    /// <para>
+    /// Linux only. How a picture is reduced is each head's own toolkit's, so this one says
+    /// nothing about the others.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 18)]
+    [SkipOnMac("There is no macOS baseline for this scene: how a picture is reduced is each head's own.")]
+    public Task ImagesReduced()
+    {
+        var left = WriteBitmap("grid.received.bmp", 1600, 1200, 255, 16);
+        var right = WriteBitmap("grid.verified.bmp", 1200, 1600, 255, 16);
+        return Capture(
+            ViewerSession.EnqueueFile(
+                SessionState.Start(ViewerMode.File, Fixtures.Columns, Fixtures.Rows),
+                QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right))));
+    }
+
+    /// <summary>
+    /// A picture longer on one side than a texture can be, beside one that is not. The rows say
+    /// what it is, as they do for a format the head has no decoder for, and nothing is drawn under
+    /// them: it was a black box the shape of the picture, which is what GL makes of a texture it
+    /// was handed and would not take.
+    /// <para>
+    /// Linux only, and only where the limit is what it is under Mesa's software rasteriser, which
+    /// is what these baselines are pinned to: 16384 pixels, one fewer than this picture is wide.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 19)]
+    [SkipOnMac("There is no macOS baseline for this scene: it is about the largest texture the Linux head's GL takes.")]
+    public Task ImageTooLargeForATexture()
+    {
+        var left = WriteBitmap("wide.received.bmp", 16385, 512, 160, 0);
+        var right = WriteBitmap("wide.verified.bmp", 160, 120, 160, 0);
+        return Capture(
+            ViewerSession.EnqueueFile(
+                SessionState.Start(ViewerMode.File, Fixtures.Columns, Fixtures.Rows),
+                QueueEntry.ForFiles(left, right, FileSide.Read(left), FileSide.Read(right))));
+    }
+
+    /// <summary>
+    /// An eight bit greyscale bitmap of one shade, with a black line one pixel wide every
+    /// <paramref name="spacing"/> pixels across and down when that is not zero. A bitmap because
+    /// it is its header, a palette and its pixels, with nothing to compress, so its bytes are the
+    /// same on every runtime: the pane prints how many there are.
+    /// </summary>
+    static string WriteBitmap(string name, int width, int height, byte shade, int spacing)
+    {
+        const int headers = 14 + 40;
+        const int palette = 256 * 4;
+        // Each row is padded to a multiple of four bytes
+        var stride = (width + 3) / 4 * 4;
+        var bytes = new byte[headers + palette + stride * height];
+        bytes[0] = (byte) 'B';
+        bytes[1] = (byte) 'M';
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(2), bytes.Length);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(10), headers + palette);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(14), 40);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(18), width);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(22), height);
+        // One plane, eight bits a pixel, uncompressed
+        BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(26), 1);
+        BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(28), 8);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(34), stride * height);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(46), 256);
+        for (var index = 0; index < 256; index++)
+        {
+            bytes.AsSpan(headers + index * 4, 3).Fill((byte) index);
+        }
+
+        for (var y = 0; y < height; y++)
+        {
+            // Rows are stored from the bottom one up
+            var row = bytes.AsSpan(headers + palette + (height - 1 - y) * stride, width);
+            row.Fill(shade);
+            if (spacing == 0)
+            {
+                continue;
+            }
+
+            if (y % spacing == 0)
+            {
+                row.Clear();
+                continue;
+            }
+
+            for (var x = 0; x < width; x += spacing)
+            {
+                row[x] = 0;
+            }
+        }
+
+        // A fixed directory and a fixed name, as Fixtures.Images has and for its reason
+        var directory = Path.Combine(Path.GetTempPath(), "deview-fixture-images");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, name);
+        File.WriteAllBytes(path, bytes);
+        return path;
+    }
+
+    /// <summary>
     /// raylib does three things at the end of a frame, behind one flag: puts it on the screen,
     /// reads input, and waits for the next frame. raylib 6.0's CMake turned that flag on, so
     /// deview_present did none of them - the window stayed blank and took no keys, and the loop

@@ -95,6 +95,16 @@ DeviewCharacterEvent glfwSetCharCallback(void* window, DeviewCharacterEvent call
 const char* glfwGetKeyName(int key, int scancode);
 }
 
+/*
+ * And GLFW's way to an entry point of the GL the window was made with, for the one thing asked of
+ * GL that rlgl has no call for: how large a texture it will take. See TextureLimit.
+ */
+extern "C"
+{
+typedef void (*DeviewGlEntry)(void);
+DeviewGlEntry glfwGetProcAddress(const char* name);
+}
+
 /* GLFW's own numbers, which its headers would have named. */
 constexpr int glfwRelease = 0;
 constexpr int glfwShift = 0x0001;
@@ -195,8 +205,8 @@ struct CachedTexture
     /* Whether the frame being built asked for this picture. What ForgetUnusedPictures keeps. */
     bool used = false;
 
-    /* Sampled as its own pixels rather than smoothed: see SampleAsPixels. */
-    bool point = false;
+    /* How it is sampled now, which is by how it was last drawn: see Sample. */
+    int sampling = 0;
 
     /* Some of it can be seen through, so it is drawn over a checkerboard: see SeeThrough. */
     bool translucent = false;
@@ -233,6 +243,10 @@ struct Decoder
     std::deque<Decode> requests;
     std::vector<Decode> done;
     bool stopping = false;
+
+    /* The longest side of a texture the window's GL takes, read on its thread before this one
+     * was started: see TextureLimit. */
+    int textureLimit = 0;
 };
 
 /*
@@ -834,38 +848,99 @@ char RowMarker(int kind)
 /* ---- pictures ---- */
 
 /*
- * How a picture's texture is sampled, set once as it is made.
+ * The three ways a picture's texture is sampled, by the size it is drawn at.
  *
- * Bilinear, which is the whole of what a fitted picture needs: it is only ever drawn at its own
- * size or smaller. Clamped at its edges rather than repeating, which is raylib's default: sampled
- * at its last column, a repeating texture takes in its first, and a picture that is opaque on the
- * left and clear on the right grew a line of its left edge down its right.
+ * Smoothed between its own pixels, which is all a picture drawn at its own size or a little under
+ * needs. As the pixels it has, once it is enlarged past its own size, which is what zooming that
+ * far in is for: smoothed, a one pixel difference between the two sides is a blur on both. And
+ * from its reduced copies, once it is drawn at under half its size. Smoothing looks at the four
+ * pixels nearest each point it samples and at none of the ones between two such points, so a
+ * screenshot fitted at a third of its size lost whichever of its one pixel lines fell between
+ * them, and its small text came apart. The reduced copies are each half the size of the one
+ * before, every pixel of them an average of the ones it stands for, so a thin line is fainter
+ * there and not gone.
+ */
+constexpr int sampleSmoothed = 0;
+constexpr int sampleAsPixels = 1;
+constexpr int sampleReduced = 2;
+
+/*
+ * How a picture's texture is sampled as it is made: smoothed. Clamped at its edges rather than
+ * repeating, which is raylib's default: sampled at its last column, a repeating texture takes in
+ * its first, and a picture that is opaque on the left and clear on the right grew a line of its
+ * left edge down its right.
  */
 void PrepareTexture(CachedTexture& entry)
 {
     SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
     SetTextureWrap(entry.texture, TEXTURE_WRAP_CLAMP);
-    entry.point = false;
+    entry.sampling = sampleSmoothed;
 }
 
-/*
- * A picture enlarged past its own size is drawn as the pixels it has, which is what zooming that
- * far in is for: smoothed, a one pixel difference between the two sides is a blur on both. Every
- * other picture is smoothed. Changed only when it has to be, since it is a texture parameter and
- * this is asked every frame.
- */
-void SampleAsPixels(const std::string& path, bool point)
+/* Changed only when it has to be, since it is a texture parameter and this is asked every
+ * frame. A picture whose reduced copies could not be made is smoothed instead. */
+void Sample(const std::string& path, int sampling)
 {
     const auto found = state.pictures.find(path);
     if (found == state.pictures.end() ||
-        !found->second.loaded ||
-        found->second.point == point)
+        !found->second.loaded)
     {
         return;
     }
 
-    SetTextureFilter(found->second.texture, point ? TEXTURE_FILTER_POINT : TEXTURE_FILTER_BILINEAR);
-    found->second.point = point;
+    CachedTexture& entry = found->second;
+    if (sampling == sampleReduced &&
+        entry.texture.mipmaps <= 1)
+    {
+        sampling = sampleSmoothed;
+    }
+
+    if (entry.sampling == sampling)
+    {
+        return;
+    }
+
+    SetTextureFilter(
+        entry.texture,
+        sampling == sampleAsPixels ? TEXTURE_FILTER_POINT :
+        sampling == sampleReduced ? TEXTURE_FILTER_TRILINEAR :
+        TEXTURE_FILTER_BILINEAR);
+    entry.sampling = sampling;
+}
+
+/*
+ * The longest side of a texture the window's GL will take, or zero where it would not say.
+ *
+ * A picture past it cannot be drawn. Handed to GL all the same, it came back as a texture with a
+ * name and no pixels, which draws as black: a box of it where the picture should be, in place of
+ * the nothing a picture this head cannot show is drawn as. It is 16384 under Mesa's software
+ * rasteriser, and a screenshot of the whole of a long page is past that.
+ *
+ * Asked of GL by name, through GLFW, since rlgl reads this number only to log it. On the thread
+ * that owns the context, once.
+ */
+int TextureLimit()
+{
+    static int limit = -1;
+    if (limit < 0)
+    {
+        limit = 0;
+        typedef void (*GetIntegers)(unsigned int name, int* values);
+        const GetIntegers getIntegers = reinterpret_cast<GetIntegers>(glfwGetProcAddress("glGetIntegerv"));
+        if (getIntegers != nullptr)
+        {
+            constexpr unsigned int maxTextureSize = 0x0D33;
+            getIntegers(maxTextureSize, &limit);
+        }
+    }
+
+    return limit;
+}
+
+bool FitsATexture(const Image& image, int limit)
+{
+    return limit <= 0 ||
+           (image.width <= limit && image.height <= limit);
 }
 
 /*
@@ -920,6 +995,52 @@ bool SeeThrough(const Image& image)
     return false;
 }
 
+/*
+ * A picture read off the disk and made ready to be a texture: whether any of it can be seen
+ * through, and its reduced copies, which are made here because here is off the window's thread
+ * for every picture but a capture's. The file, stb_image and raylib's resampling, and nothing
+ * that touches GL. A picture no texture can hold is left as it was read, since nothing will be
+ * made of it.
+ */
+Image ReadPicture(const std::string& path, int textureLimit, bool& translucent)
+{
+    Image image = LoadImage(path.c_str());
+    translucent = SeeThrough(image);
+    if (image.data != nullptr &&
+        FitsATexture(image, textureLimit))
+    {
+        ImageMipmaps(&image);
+    }
+
+    return image;
+}
+
+/*
+ * The texture for a picture that has been read, or false for one there is none for: a file that
+ * could not be read, a picture longer on a side than a texture can be, or a context that would
+ * not make one. On the thread that owns the context.
+ */
+bool MakeTexture(const Image& image, bool translucent, CachedTexture& entry)
+{
+    if (image.data == nullptr ||
+        !FitsATexture(image, TextureLimit()))
+    {
+        return false;
+    }
+
+    const Texture2D texture = LoadTextureFromImage(image);
+    if (!IsTextureValid(texture))
+    {
+        return false;
+    }
+
+    entry.texture = texture;
+    entry.loaded = true;
+    entry.translucent = translucent;
+    PrepareTexture(entry);
+    return true;
+}
+
 void DecodeLoop(std::shared_ptr<Decoder> decoder)
 {
     std::unique_lock<std::mutex> lock(decoder->mutex);
@@ -935,9 +1056,7 @@ void DecodeLoop(std::shared_ptr<Decoder> decoder)
         decoder->requests.pop_front();
         lock.unlock();
 
-        /* The file and stb_image under it, and nothing that touches GL. */
-        decode.image = LoadImage(decode.path.c_str());
-        decode.translucent = SeeThrough(decode.image);
+        decode.image = ReadPicture(decode.path, decoder->textureLimit, decode.translucent);
 
         lock.lock();
         if (decoder->stopping)
@@ -955,6 +1074,7 @@ void RequestDecode(const std::string& path, std::uintmax_t length, std::filesyst
     if (!state.decoder)
     {
         state.decoder = std::make_shared<Decoder>();
+        state.decoder->textureLimit = TextureLimit();
         std::thread(DecodeLoop, state.decoder).detach();
     }
 
@@ -1048,21 +1168,12 @@ bool TakeDecoded()
             CachedTexture& entry = found->second;
             entry.decoding = false;
             landed = true;
-            if (decode.image.data != nullptr)
+            if (MakeTexture(decode.image, decode.translucent, entry))
             {
-                const Texture2D texture = LoadTextureFromImage(decode.image);
-                if (IsTextureValid(texture))
-                {
-                    entry.texture = texture;
-                    entry.loaded = true;
-                    entry.translucent = decode.translucent;
-                    PrepareTexture(entry);
-
-                    /* GL hands out the name of a texture that has been unloaded again, so a frame
-                     * drawn with this one can be, number for number, a frame drawn with the one
-                     * that had the name before it. */
-                    state.stale = true;
-                }
+                /* GL hands out the name of a texture that has been unloaded again, so a frame
+                 * drawn with this one can be, number for number, a frame drawn with the one
+                 * that had the name before it. */
+                state.stale = true;
             }
         }
 
@@ -1188,21 +1299,11 @@ const CachedTexture* Picture(const std::string& path, bool& loading)
     entry.used = true;
     if (state.capturing)
     {
-        /* What LoadTexture does, taken apart so the pixels can be looked at on the way through. */
-        const Image image = LoadImage(path.c_str());
-        if (image.data != nullptr)
-        {
-            const Texture2D texture = LoadTextureFromImage(image);
-            if (IsTextureValid(texture))
-            {
-                entry.texture = texture;
-                entry.loaded = true;
-                entry.translucent = SeeThrough(image);
-                PrepareTexture(entry);
-            }
-
-            UnloadImage(image);
-        }
+        /* What the decoder's thread and then TakeDecoded do, here and now. */
+        bool translucent = false;
+        const Image image = ReadPicture(path, TextureLimit(), translucent);
+        MakeTexture(image, translucent, entry);
+        UnloadImage(image);
     }
     else
     {
@@ -2747,10 +2848,13 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
     ImVec2 size = fitted;
     ImVec2 uvMin(0.0f, 0.0f);
     ImVec2 uvMax(1.0f, 1.0f);
-    SampleAsPixels(
+    const float drawnWidth = fitted.x * (pane.imageZoom > 1.0f ? pane.imageZoom : 1.0f);
+    const float ownWidth = static_cast<float>(decoded->texture.width);
+    Sample(
         path,
-        pane.imageZoom > 1.0f &&
-        fitted.x * pane.imageZoom >= static_cast<float>(decoded->texture.width));
+        pane.imageZoom > 1.0f && drawnWidth >= ownWidth ? sampleAsPixels :
+        drawnWidth * 2.0f < ownWidth ? sampleReduced :
+        sampleSmoothed);
     if (pane.imageZoom > 1.0f)
     {
         const ImVec2 whole(fitted.x * pane.imageZoom, fitted.y * pane.imageZoom);
