@@ -59,6 +59,7 @@ sealed class FormsViewerWindow :
             return false;
         }
 
+        form.LoopReturned();
         form.Apply(screen);
         // Every frame rather than only on a changed screen: a spinner turns while nothing about the
         // screen changes, which is the whole time a page is being drawn

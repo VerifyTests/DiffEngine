@@ -176,18 +176,18 @@ sealed class ViewerForm : Form
         scrollBar.Scroll += (_, e) =>
         {
             scrollTo = e.NewValue;
-            // The thumb is tracked in the scroll bar's own modal loop, from the first ThumbTrack
-            // until the release
-            if (e.Type == ScrollEventType.ThumbTrack)
-            {
-                EnterModal();
-                return;
-            }
-
+            // Every part of the bar is tracked in its own modal loop, from the press until the
+            // release: an arrow or the trough held down as much as the thumb dragged, which was
+            // the only one this entered for, so holding an arrow moved nothing until it was let
+            // go. EndScroll is what the bar sends as that loop ends, whichever part it was, and
+            // ThumbPosition comes just ahead of it.
             if (e.Type is ScrollEventType.ThumbPosition or ScrollEventType.EndScroll)
             {
                 ExitModal();
+                return;
             }
+
+            EnterModal();
         };
         modalFrames.Tick += (_, _) =>
         {
@@ -453,6 +453,15 @@ sealed class ViewerForm : Form
 
     void ExitModal() =>
         modalFrames.Stop();
+
+    /// <summary>
+    /// The loop is presenting a frame of its own, so nothing is holding the thread: whatever modal
+    /// loop was entered has returned. Its exit is normally what says so. A scroll sent to the bar
+    /// by something other than a press - an accessibility tool, say - need not be followed by an
+    /// EndScroll, and frames would then come from the timer as well as the loop from there on.
+    /// </summary>
+    public void LoopReturned() =>
+        ExitModal();
 
     const int enterSizeMove = 0x0231;
     const int exitSizeMove = 0x0232;

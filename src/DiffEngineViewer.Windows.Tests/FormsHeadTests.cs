@@ -613,7 +613,60 @@ public class FormsHeadTests
     /// </para>
     /// </summary>
     [Test]
-    public async Task DraggingTheThumbStillRunsFrames()
+    public Task DraggingTheThumbStillRunsFrames() =>
+        WithTheLeftButtonHeld(() => TrackTheBar(BarPart.Thumb));
+
+    /// <summary>
+    /// The arrow at the foot of the bar, pressed and held for half a second. user32 tracks that in
+    /// the loop it tracks the thumb in, sending a line down and then one for every repeat, and the
+    /// panes follow only if frames come from inside it. They were entered for the thumb alone, so
+    /// the panes stood still for as long as the arrow was held and jumped when it was let go.
+    /// </summary>
+    [Test]
+    public Task HoldingTheArrowStillRunsFrames() =>
+        WithTheLeftButtonHeld(() => TrackTheBar(BarPart.Arrow));
+
+    /// <summary>
+    /// The trough under the thumb, held: a page down and then one for every repeat, from the same
+    /// loop.
+    /// </summary>
+    [Test]
+    public Task HoldingTheTroughStillRunsFrames() =>
+        WithTheLeftButtonHeld(() => TrackTheBar(BarPart.Trough));
+
+    /// <summary>
+    /// A line down sent to the bar with no press behind it, and so with no EndScroll after it:
+    /// nothing is tracking, and the frames started for a loop that never was stop when the real
+    /// loop next presents.
+    /// </summary>
+    [Test]
+    public async Task AScrollWithNoEndStopsItsFramesAtTheNextPresent()
+    {
+        using var form = new ViewerForm("title", 800, 600)
+        {
+            Frame = () => ScreenBuilder.Build(Fixtures.File())
+        };
+        var bar = Field<VScrollBar>(form, "scrollBar");
+        var frames = Field<System.Windows.Forms.Timer>(form, "modalFrames");
+
+        typeof(ScrollBar)
+            .GetMethod("OnScroll", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(bar, [new ScrollEventArgs(ScrollEventType.SmallIncrement, 1)]);
+        var entered = frames.Enabled;
+        form.LoopReturned();
+
+        await Assert.That(entered).IsTrue();
+        await Assert.That(frames.Enabled).IsFalse();
+    }
+
+    enum BarPart
+    {
+        Thumb,
+        Arrow,
+        Trough
+    }
+
+    static async Task WithTheLeftButtonHeld(Func<Task> track)
     {
         var keys = new byte[256];
         GetKeyboardState(keys);
@@ -622,7 +675,7 @@ public class FormsHeadTests
         SetKeyboardState(keys);
         try
         {
-            await DragTheThumb();
+            await track();
         }
         finally
         {
@@ -650,7 +703,7 @@ public class FormsHeadTests
         await Assert.That(bar.LargeChange).IsEqualTo(ScreenBuilder.PaneRows(host.State));
     }
 
-    static async Task DragTheThumb()
+    static async Task TrackTheBar(BarPart part)
     {
         using var host = new FormHost(Fixtures.File(Lines(400, 3), Lines(400)));
         host.Settle();
@@ -661,7 +714,17 @@ public class FormsHeadTests
         };
         GetScrollBarInfo(bar.Handle, objectClient, ref info);
         var x = bar.Width / 2;
-        var y = (info.ThumbTop + info.ThumbBottom) / 2;
+        // The arrow is a square at the foot of the bar, and the trough is what lies between the
+        // thumb and it
+        var arrowTop = bar.Height - info.LineButton;
+        var y = part switch
+        {
+            BarPart.Thumb => (info.ThumbTop + info.ThumbBottom) / 2,
+            BarPart.Arrow => arrowTop + info.LineButton / 2,
+            _ => (info.ThumbBottom + arrowTop) / 2
+        };
+        // Only the thumb is dragged. An arrow or the trough is held where it was pressed.
+        var (dragged, released) = part == BarPart.Thumb ? (y + 40, y + 80) : (y, y);
 
         var clock = Stopwatch.StartNew();
         var scrolls = new List<string>();
@@ -690,9 +753,9 @@ public class FormsHeadTests
         var release = new Thread(() =>
         {
             Thread.Sleep(500);
-            PostMessage(handle, mouseMove, leftButtonFlag, Point(x, y + 80));
+            PostMessage(handle, mouseMove, leftButtonFlag, Point(x, released));
             Thread.Sleep(50);
-            PostMessage(handle, leftButtonUp, IntPtr.Zero, Point(x, y + 80));
+            PostMessage(handle, leftButtonUp, IntPtr.Zero, Point(x, released));
             // Only if the bar never let go, so a failure here cannot hang the run.
             for (var wait = 0; wait < 60 && !Volatile.Read(ref done); wait++)
             {
@@ -701,7 +764,7 @@ public class FormsHeadTests
 
             if (!Volatile.Read(ref done))
             {
-                PostMessage(handle, leftButtonUp, IntPtr.Zero, Point(x, y + 80));
+                PostMessage(handle, leftButtonUp, IntPtr.Zero, Point(x, released));
                 PostMessage(handle, cancelMode, IntPtr.Zero, IntPtr.Zero);
             }
         })
@@ -713,7 +776,7 @@ public class FormsHeadTests
         try
         {
             PostMessage(handle, leftButtonDown, leftButtonFlag, Point(x, y));
-            PostMessage(handle, mouseMove, leftButtonFlag, Point(x, y + 40));
+            PostMessage(handle, mouseMove, leftButtonFlag, Point(x, dragged));
             release.Start();
             var pump = Stopwatch.StartNew();
             Application.DoEvents();
@@ -728,10 +791,13 @@ public class FormsHeadTests
         }
 
         Console.WriteLine(
-            $"one DoEvents took {pumped}ms; scroll bar's own loop filtered {filtered} messages; " +
+            $"{part}: one DoEvents took {pumped}ms; scroll bar's own loop filtered {filtered} messages; " +
             $"Scroll events: {string.Join(", ", scrolls)}; frames during it: {tops.Count}, scroll tops {string.Join(" ", tops.Distinct())}");
         await Assert.That(tops.Count).IsGreaterThan(5);
         await Assert.That(tops.Max()).IsGreaterThan(0);
+        // Left with the loop: frames that went on coming from the timer afterwards would be a
+        // second loop beside the real one
+        await Assert.That(Field<System.Windows.Forms.Timer>(host.Form, "modalFrames").Enabled).IsFalse();
     }
 
     /// <summary>
