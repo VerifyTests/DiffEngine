@@ -193,6 +193,56 @@ public class ImageCacheTests
     }
 
     /// <summary>
+    /// A picture is composed two ways: fitted over its checkerboard, and enlarged with nothing
+    /// under it. Either of those at the size the other is asked for is still not the other, so it
+    /// is composed again rather than handed over because the sizes happen to match.
+    /// </summary>
+    [Test]
+    public async Task APictureComposedOneWayIsNotTheOtherAtThatSize()
+    {
+        var path = Write("two-ways.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var cache = new ImageCache();
+        await Assert.That(cache.Get(path, null)).IsNotNull();
+        Func<Image, Size, Bitmap> fitted = (_, size) => new(size.Width, size.Height);
+        Func<Image, Size, Bitmap> enlarged = (_, size) => new(size.Width, size.Height);
+
+        var first = cache.Composite(path, new(4, 3), fitted);
+        var other = cache.Composite(path, new(4, 3), enlarged);
+        var again = cache.Composite(path, new(4, 3), enlarged);
+
+        await Assert.That(ReferenceEquals(first, other)).IsFalse();
+        await Assert.That(ReferenceEquals(other, again)).IsTrue();
+        await Assert.That(cache.Composed).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// And on the pool as for a new size: what is there stands in until the other way lands.
+    /// </summary>
+    [Test]
+    public async Task APictureComposedOneWayStandsInUntilTheOtherLands()
+    {
+        var path = Write("two-ways-posted.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        cache.Get(path, null);
+        Func<Image, Size, Bitmap> enlarged = (_, size) => new(size.Width, size.Height);
+        cache.Composite(path, new(4, 3), Build, () => { });
+        await Assert.That(posted.TryTake(out var first, TimeSpan.FromSeconds(10))).IsTrue();
+        first!();
+        var fitted = cache.Composite(path, new(4, 3), Build, () => { });
+
+        var meanwhile = cache.Composite(path, new(4, 3), enlarged, () => { });
+        await Assert.That(ReferenceEquals(meanwhile, fitted)).IsTrue();
+
+        await Assert.That(posted.TryTake(out var second, TimeSpan.FromSeconds(10))).IsTrue();
+        second!();
+        var landed = cache.Composite(path, new(4, 3), enlarged, () => { });
+        await Assert.That(ReferenceEquals(landed, fitted)).IsFalse();
+        await Assert.That(posted.Count).IsEqualTo(0);
+        await Assert.That(cache.Composed).IsEqualTo(2);
+    }
+
+    /// <summary>
     /// The window composes on the pool as well: scaling a page of a document on the UI thread held
     /// it for tens of milliseconds a size. Until the first lands there is nothing to draw, and the
     /// pane shows that it is coming.

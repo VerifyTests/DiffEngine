@@ -308,6 +308,50 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// A picture no larger than one square of the checkerboard behind it has no dark square under
+    /// it at all. The dark squares are handed to GDI+ as one list, and it takes a list of nothing
+    /// as a mistake, which would fail the compose and leave an icon of eight pixels drawn as
+    /// nothing. Composed on the pool, as the window does, where a compose that fails is one that
+    /// never lands rather than one that throws out of a paint.
+    /// </summary>
+    [Test]
+    public async Task APictureNoLargerThanOneSquareOfTheCheckerboardIsDrawn()
+    {
+        var directory = Directory.CreateTempSubdirectory("deview-small-picture-").FullName;
+        try
+        {
+            var received = Path.Combine(directory, "icon.received.png");
+            var verified = Path.Combine(directory, "icon.verified.png");
+            await File.WriteAllBytesAsync(received, SamplePng.Build(8, 6, 198, 64, 64));
+            await File.WriteAllBytesAsync(verified, SamplePng.Build(8, 6, 64, 150, 198));
+            var entry = QueueEntry.ForFiles(received, verified, FileSide.Read(received), FileSide.Read(verified));
+            var screen = ScreenBuilder.Build(
+                ViewerSession.Resize(
+                    ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File, columns, rows), entry),
+                    columns,
+                    rows));
+            using var host = new CanvasHost();
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (host.Canvas.Composed() < 2 &&
+                   DateTime.UtcNow < deadline)
+            {
+                Application.DoEvents();
+                host.Draw(screen);
+                Thread.Sleep(10);
+            }
+
+            var drawn = host.Draw(screen);
+
+            await Assert.That(Bounds(drawn, _ => _ is {R: 198, G: 64, B: 64})).IsNotNull();
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// One picture on both sides, which a page that two identical documents share is, on a canvas
     /// an odd number of pixels wide. The right pane is then a pixel wider than the left, and a
     /// picture fitted to each was asked for at two sizes. The cache keeps one composite per

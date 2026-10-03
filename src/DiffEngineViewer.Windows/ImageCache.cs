@@ -15,7 +15,10 @@
 /// held the window for over 100 ms. And the picture as painted, at the size it was painted
 /// (<see cref="Composite(string, Size, Func{Image, Size, Bitmap})"/>): scaling it and drawing the
 /// checkerboard under it on every paint cost 46 to 66 ms a paint for that pair, where copying the
-/// result costs almost nothing.
+/// result costs almost nothing. One such at a time for a picture: fitted, or, while it is enlarged
+/// to no more than half its own size, the whole of it at that size for the part that shows to be
+/// copied out of. Past that nothing more is held, since the whole of it would be up to the
+/// decoded picture's size again.
 /// </para>
 /// <para>
 /// Both are made off the UI thread when there is somewhere to post the result, which the window
@@ -66,6 +69,22 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         /// <see cref="ImageCache.Composite(string, Size, Func{Image, Size, Bitmap})"/>.
         /// </summary>
         public Bitmap? Composite { get; set; }
+
+        /// <summary>
+        /// What made <see cref="Composite"/>. A picture is composed two ways, fitted over its
+        /// checkerboard and enlarged with nothing under it, and one of those at the size the
+        /// other is asked for is still not the other.
+        /// </summary>
+        public Func<Image, Size, Bitmap>? Composer { get; set; }
+
+        /// <summary>
+        /// Whether <see cref="Composite"/> is what <paramref name="build"/> makes at
+        /// <paramref name="size"/>.
+        /// </summary>
+        public bool Holds(Size size, Func<Image, Size, Bitmap> build) =>
+            Composite is { } composite &&
+            composite.Size == size &&
+            Composer == build;
 
         /// <summary>
         /// The size a compose on the pool is making, or null when none is.
@@ -208,9 +227,9 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
     /// from two threads at once throws. A compose only ever starts on the UI thread, so one cannot
     /// begin between this answering and the caller drawing.
     /// <para>
-    /// For a picture enlarged past its pane, which is drawn a part at a time straight from the
-    /// decoded picture. A composite of the whole of it at sixteen times the size that fits would
-    /// be hundreds of megabytes to show the corner of it that is on screen.
+    /// For a picture enlarged past half its own size, which is drawn a part at a time straight
+    /// from the decoded picture. A composite of the whole of it at sixteen times the size that fits
+    /// would be hundreds of megabytes to show the corner of it that is on screen.
     /// </para>
     /// </summary>
     public Image? Idle(string path) =>
@@ -220,9 +239,9 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
             : null;
 
     /// <summary>
-    /// The picture at <paramref name="path"/> as it was last painted fitted, at whatever size that
-    /// was, or null when it never has been. Something to draw from while <see cref="Idle"/> has
-    /// nothing to give.
+    /// The picture at <paramref name="path"/> as it was last composed, fitted or enlarged, at
+    /// whatever size that was, or null when it never has been. Something to draw from while
+    /// <see cref="Idle"/> has nothing to give.
     /// </summary>
     public Bitmap? Composited(string path) =>
         entries.TryGetValue(path, out var entry) ? entry.Composite : null;
@@ -268,8 +287,9 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
 
     /// <summary>
     /// The picture at <paramref name="path"/> as it is painted at <paramref name="size"/>, built
-    /// by <paramref name="build"/> from the decoded picture the first time that size is asked for
-    /// and kept until another size is, or the picture goes. Null when the picture is not decoded.
+    /// by <paramref name="build"/> from the decoded picture the first time that size is asked of
+    /// it and kept until another size is, or another way of building it, or the picture goes. Null
+    /// when the picture is not decoded.
     /// Built here and now: for a caller that has to have it this frame, such as a capture.
     /// </summary>
     public Bitmap? Composite(string path, Size size, Func<Image, Size, Bitmap> build)
@@ -280,24 +300,24 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
             return null;
         }
 
-        if (entry.Composite is { } composite &&
-            composite.Size == size)
+        if (entry.Holds(size, build))
         {
-            return composite;
+            return entry.Composite;
         }
 
         entry.Composite?.Dispose();
         entry.Composite = build(entry.Image, size);
+        entry.Composer = build;
         Composed++;
         return entry.Composite;
     }
 
     /// <summary>
     /// The picture at <paramref name="path"/> as it is painted at <paramref name="size"/>, composed
-    /// on the pool when that size has not been, after which <paramref name="loaded"/> is called on
-    /// the UI thread. Meanwhile the composite at whatever size it was last made, for the caller to
-    /// stretch into place, or null when there has never been one. With nowhere to post the result
-    /// this composes here and now.
+    /// on the pool when it has not been at that size and by <paramref name="build"/>, after which
+    /// <paramref name="loaded"/> is called on the UI thread. Meanwhile the composite at whatever
+    /// size it was last made, for the caller to stretch into place, or null when there has never
+    /// been one. With nowhere to post the result this composes here and now.
     /// <para>
     /// One compose at a time per picture. A resize asks for a new size every frame, and the one
     /// asked for when the compose in hand finishes is the one composed next, so a drag ends with
@@ -317,10 +337,9 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
             return null;
         }
 
-        if (entry.Composite is { } composite &&
-            composite.Size == size)
+        if (entry.Holds(size, build))
         {
-            return composite;
+            return entry.Composite;
         }
 
         if (entry.Composing is null &&
@@ -341,13 +360,13 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
                         entry.EndRead();
                     }
                 },
-                built => Landed(path, entry, built, loaded));
+                built => Landed(path, entry, built, build, loaded));
         }
 
         return entry.Composite;
     }
 
-    void Landed(string path, Entry entry, Bitmap? built, Action loaded)
+    void Landed(string path, Entry entry, Bitmap? built, Func<Image, Size, Bitmap> build, Action loaded)
     {
         entry.Composing = null;
         // Only into the entry it was made from. One the cache has since let go of, for a picture
@@ -370,6 +389,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
 
         entry.Composite?.Dispose();
         entry.Composite = built;
+        entry.Composer = build;
         Composed++;
         loaded();
     }
