@@ -192,7 +192,7 @@ the comment there about not caching "nothing staged" asks for.
   still projected from the same `Screen.Menu` the other heads draw. A row is handed to GDI+ cut to
   the cells its pane has, and one more (`RowText.Shown`, read from the front of the row and cut
   before it is segmented): GDI+ lays out every character it is given before it clips any, so 72
-  rows of 2,000 character lines were 18 ms a paint, and a megabyte line 28. A picture zoomed to
+  rows of 2,000 character lines were 15 ms a paint, and a megabyte line 24. A picture zoomed to
   half its own size or less is copied out of one scaled copy, made on the pool and kept in
   `ImageCache`'s composite slot with pan out of the key, where it was scaled from full resolution
   on every paint, 50 ms for a 4000 by 3000 pair. Between half and full size nothing is kept, since
