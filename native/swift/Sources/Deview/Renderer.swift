@@ -407,10 +407,18 @@ final class Renderer {
         let panesWidth = max(cell.width * 2, content - Renderer.padding - panesLeft)
         let half = (panesWidth / 2).rounded(.down)
 
-        text(frame.title, in: rect(top: Renderer.padding, left: Renderer.padding, width: size.width - Renderer.padding * 2, height: line, size), Palette.text, context)
+        // A title that would run on under the subtitle stops a character short of it, where the
+        // subtitle used to be drawn over whatever of the title had got that far. It is the title
+        // that gives way, as in the Linux head: what it says is also in the pane headers and the
+        // queue, and which entry of the queue this is is said only by the subtitle. One that fits
+        // has the whole row, as it always had, so it is drawn exactly as it was.
+        let titleWidth = size.width - Renderer.padding * 2
+        let subtitleWidth = CGFloat(frame.subtitle.count) * cell.width
+        let runsUnder = !frame.subtitle.isEmpty && CGFloat(frame.title.count) * cell.width > titleWidth - subtitleWidth
+        let titleRoom = runsUnder ? titleWidth - subtitleWidth - cell.width : titleWidth
+        text(frame.title, in: rect(top: Renderer.padding, left: Renderer.padding, width: titleRoom, height: line, size), Palette.text, context)
         if !frame.subtitle.isEmpty {
-            let width = CGFloat(frame.subtitle.count) * cell.width
-            text(frame.subtitle, in: rect(top: Renderer.padding, left: size.width - Renderer.padding - width, width: width, height: line, size), Palette.dim, context)
+            text(frame.subtitle, in: rect(top: Renderer.padding, left: size.width - Renderer.padding - subtitleWidth, width: subtitleWidth, height: line, size), Palette.dim, context)
         }
 
         let firstRule = Renderer.padding + line + Renderer.gap
