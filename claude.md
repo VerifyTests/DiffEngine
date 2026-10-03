@@ -129,7 +129,14 @@ whenever something precedes the call on its line (`do!`, `let! x =`): the offsid
 appended `Snapshot` call goes in front of `ToTask`, `ConfigureAwait` or `GetAwaiter` in either
 language, none of which returns something to call it on. And a `Remove` of
 `settings.Snapshot("old");` takes the statement, since `settings;` is none, while one whose value
-is awaited, assigned, returned or passed takes only the call.
+is awaited, assigned, returned or passed takes only the call. A Remove of a call with a line to
+itself keeps that line, empty, when the line under it holds a Snapshot call: the same Remove is
+applied once per framework, and a sibling with the same literal would otherwise come up onto the
+recorded line and lose its own. F# lexes inside a block comment, so the scanner steps over
+strings, char literals and `(*)` there, and over a double backticked name in code, all held to
+`dotnet fsi`. An `InlinePatchFile` says an original value is present and empty on a line of its
+own, since an older reader skips a line it does not know and rejects a known field that is not
+base64. A snapshot's key is built once an entry.
 
 An accept reads, lexes and rewrites the whole source file, and the rewrite is what costs: a file
 written a moment ago is scanned by whatever watches the drive before the next thing can open it,
@@ -196,7 +203,11 @@ the comment there about not caching "nothing staged" asks for.
   half its own size or less is copied out of one scaled copy, made on the pool and kept in
   `ImageCache`'s composite slot with pan out of the key, where it was scaled from full resolution
   on every paint, 50 ms for a 4000 by 3000 pair. Between half and full size nothing is kept, since
-  the copy would cost up to the decoded picture again.
+  the copy would cost up to the decoded picture again. Frames are handed over from inside user32's
+  own loop for every part of the scroll bar, not the thumb alone, and `Present` stops that timer.
+  An Alt chord is no command. A held key gives one accept or discard (the repeat flag, read in
+  `ProcessCmdKey`, for what `ViewerSession.ChangesQueue` names), while navigation keeps its
+  repeats. A minimised window waits between frames as a hidden one does.
 - macOS renders with **AppKit and Core Text** (`native/swift/`), Linux with **raylib and Dear
   ImGui** (`native/`). Both implement the same C ABI, so the managed interop layer is identical.
 - macOS took the same treatment as Windows: a real menu bar, an `NSMenu` context menu, `NSView`
@@ -220,7 +231,14 @@ the comment there about not caching "nothing staged" asks for.
   copy's slot, except in a capture, past its own size, or when both panes name one picture. None
   of this head can be compiled or run from Windows: CI's `macos-14` job is the first build, and
   its OSX baselines come from that job's `received-*` artifacts. That job only captures, so it
-  exercises none of the clip test and none of `reduced`.
+  exercises none of the clip test and none of `reduced`. A picture or a scaled copy that lands
+  during a draw clipped to less than the window is owed a whole redraw, which `takeFinished`
+  reports at the next present. The pump returns as soon as an event leaves input, and waits a
+  tenth of a second for a window that is ordered out, miniaturised or covered, which the managed
+  side is not told. A wheel is told from a trackpad by `hasPreciseScrollingDeltas`, and a
+  control-click is taken in `mouseDown`, since the view has no `NSMenu` for AppKit to ask for.
+  A drag reports the frame's own centre on an axis its picture cannot move on, as the Linux head
+  does: only when the space is what cut the picture short can it move.
 - Linux draws its own menu, so it keeps that baseline. Its tooltip and pane scrollbar are ImGui's,
   the scrollbar being `ScrollbarEx` driven in rows rather than pixels so its travel is exactly
   `ViewerSession`'s clamp. Its footer wraps as the macOS one does (`LayOutFooter`), with two
@@ -243,7 +261,19 @@ the comment there about not caching "nothing staged" asks for.
   about in `deview_present` before a window is left alone, or the window keeps the frame before.
   The checkerboard is one quad of a two by two texture set to repeat, behind a picture that has a
   pixel to see through, which the decoder looks for as it decodes: it was a quad a dark square,
-  113,000 triangles a frame at 4K, behind opaque pictures too.
+  113,000 triangles a frame at 4K, behind opaque pictures too. Input comes from GLFW's mouse
+  button, scroll, key, character and cursor-enter callbacks, set over raylib's and still calling
+  them, not from raylib's state read once a frame: a press and release that arrive together were
+  never seen that way. Presses go to ImGui in order and keys to the managed side one a poll, and
+  those queues are among what `deview_present` asks before leaving a window alone. A control chord
+  is read by what its key types, a layout with no Latin letters falls back to position, and arrows
+  and paging repeat. A pointer that has left the window is nowhere to ImGui unless a button is
+  held. A label with `##` in it is drawn by the shim over an item given no text, since ImGui hides
+  what follows the mark. Pictures get mipmaps on the decoder thread and are sampled from them
+  under half size, and one past `GL_MAX_TEXTURE_SIZE` is not drawn. The window is scaled by GLFW's
+  content scale (`Xft.dpi` over 96), read once and without `FLAG_WINDOW_HIGHDPI`; a capture never
+  is, and `MeasureGrid` reports the cells of the last window frame. An Xvfb used to check a layout
+  or a scale needs `-noreset`, or the setting is gone before the viewer connects.
 - Group headers fold. `SessionState.Collapsed` holds `QueueItem.GroupKey`s and `QueueProjection`
   skips their members, so the marker rides in the label and no head or ABI field knows about it.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
@@ -472,6 +502,20 @@ the comment there about not caching "nothing staged" asks for.
   implementation removes the failure mode instead of detecting it.
 - Plain text, every value base64, for the same reason `InlinePatchFile` is: snapshot text contains
   quotes, braces and newlines, and the `inline` body carries an `InlinePatchFile` payload verbatim.
+- A connection is one exchange, except for the library's telling sends to an owner that says it
+  keeps one. An owner ends an ordinary reply with `keeps: 1`; a client that sees it opens one
+  more connection with `keep: 1` and sends its settles, retires, moves and deletes down that,
+  each ended by an empty line and answered the same way (`ViewerClient.TrySend(ViewerMessage)`).
+  The client closes first, so a connection per settle left a port in TIME_WAIT for two minutes
+  per passing inline verification: 2,576 settles left 2,576, and now leave one. Skipping settles
+  instead was not safe, since one skipped for a snapshot another process queued leaves it on
+  offer. An older owner never says the line and gets a connection each, an older client skips
+  it, and a send that finds its connection gone falls back to the ordinary exchange. So a field
+  can only ever be added as a new line. `ViewerServer.Stop` closes kept connections.
+- `ViewerServer.Serve` is the accept loop with its accept handed in. A failed accept is retried
+  at once, and from the second in a row after 100 ms: with no descriptors left a failure persists,
+  and the loop took a core. A send whose caller cancelled throws `OperationCanceledException` and
+  records nothing about the port.
 - Compiles for every DiffEngine target, so the socket calls carry `#if` branches for the
   frameworks with no cancellation overloads. `ViewerProtocolTests` runs on all of them.
 - `ViewerServer`'s accept loop awaits with `ConfigureAwait(false)`, one of two places that matter
@@ -590,6 +634,17 @@ the comment there about not caching "nothing staged" asks for.
   back through `Application.Run()`.
 - A move that arrives for a tracked pair with no tool keeps the tool it was tracked with
   (`Tracker.Retarget`): one over the viewer port carries two paths and nothing else.
+- A move's process id is believed only when the image it names has the file name of the
+  payload's `Exe` (`ProcessEx.TryGetTool`): a library from before `ProcessCleanup.StillRunning`
+  can send an id that has since been reused, and the tray would kill whatever holds it. A tool
+  started through a `.cmd`, or one whose image cannot be read, is tracked with no process. A
+  move lets go of its process wherever it leaves for good (`Tracker.Release`).
+- `ITrackedFiles.Version` is what `ListingTag` asks about the tracked files: the identity of the
+  tracked objects, so `TrackedMove` and `TrackedDelete` must stay immutable in everything a
+  listing carries. The scan removes a move by key and value, so one staged again since it looked
+  is left. `Tracker.Clear` hands the queue's discard to a worker, as a single discard does. A hot
+  key's action is caught in `KeyRegister`, because a throw from a message filter comes out of
+  `Application.Run()`.
 - Allows accepting/discarding diffs from system tray
 
 **Packaging.Tests (`src/Packaging.Tests/`):**
@@ -622,4 +677,7 @@ the comment there about not caching "nothing staged" asks for.
 - `ViewerClient` remembers a port found unowned for ten minutes (`RecheckUnownedAfter`), and the library's telling sends - settle, retire, move, delete, the first inline or diff send - skip the connect while that stands. A refused loopback connection costs two seconds on Windows (firewall stealth mode drops the reset), and a green run settles once per inline verification, which was six minutes for a class of 188 inline tests. Probes (`IsOwned`), the hosts and `InlineQueueClient` always ask and correct the memory; so does `SettleAppliedInline`, being one send per accept. Asking, on Windows, is the operating system's listener table first (`ListenerTable`, shared with `PiperClient`): no listener on the port means nobody to connect to, said without the two seconds, and a listener or a table that cannot be read leaves the connect to answer. So the first telling send of a test process, the launch gate's probe and each of its polls no longer wait to be refused. By port alone, whichever address, since the table is only believed when it says nobody is there. Not for a port that accepted a connection in the last second (`TrustOwnerFor`), because reading the table is reading every connection the machine has, and a run of settles to a live owner would pay more for each than the connect costs
 - `TrayDisabledChecker` respects `DiffEngine_TrayDisabled` env var, behind `DiffRunner.TrayDisabled`. Separate from `Disabled` because tracking a pending move is separate from launching a tool: every exit of `InnerLaunch`, `Disabled` included, still calls `AddMove`. `PendingFiles.TrayAvailable` is the single gate
 - Tests use TUnit and Verify for snapshot testing
+- The three WinForms test and benchmark hosts set `UnhandledExceptionMode.ThrowException` from a module initializer with `threadScope: false`. The one argument overload covers only the thread that calls it, which leaves every test thread showing WinForms' dialog on the desktop of whoever is running the tests, and waiting for a click. Never run a test that throws inside a window message in a build without it. `DiffEngineTray.Tests` also declines the tray's "open an issue" box (`IssueLauncher.Declined`) and records what was asked in `ModuleInitializer.IssuesAsked`
+- `MachineSettings.Ignore` clears `DiffEngine_Disabled`, so a snapshot test that is expected to fail is run with a build server variable such as `TEAMCITY_VERSION` set, or Verify tells the real tray about it
+- `ps` is asked with `-ww`: procps lets an exported `COLUMNS` cut every command line `ProcessCleanup` reads
 - The native pixel snapshots (`PixelTests`) are opt in through `DIFFENGINE_VIEWER_PIXEL_TESTS`, which `MachineSettings.Ignore` has to leave alone: it clears every `DiffEngine_*` variable without regard to case, and clearing that one skipped them on the CI job that sets it, silently, for as long as nobody looked. Every call into the shim goes through one thread (`OnShimThread`), because on Linux the window's GL context belongs to the thread that made it and each test starts on whichever pool thread picks it up. The Linux baselines reproduce in an `ubuntu:24.04` container set up as the `unix` job in `build.yml` is - the shim built from source, Xvfb, llvmpipe - which is also the only way to run the C++ at all from Windows
