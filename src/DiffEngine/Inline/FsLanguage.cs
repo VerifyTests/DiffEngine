@@ -112,7 +112,7 @@ sealed class FsLanguage : SourceLanguage
                     break;
             }
 
-            scan.MarkCode(index);
+            // Code, which is whatever the map was not told otherwise about
             index++;
         }
 

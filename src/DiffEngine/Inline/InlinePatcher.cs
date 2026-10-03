@@ -126,7 +126,9 @@ static class InlinePatcher
         failReason = "";
         var eol = DetectEol(source);
         var lineStarts = BuildLineStarts(source);
-        var scan = language.Scan(source);
+        // Everything that reads the scan does so before this returns, the searches that are
+        // enumerated lazily included, so its map goes back to the pool on the way out
+        using var scan = language.Scan(source);
         var memberLine = MemberLine(source, scan, lineStarts, lineHint, memberName);
 
         if (mode == InlinePatchMode.Remove)
@@ -1913,12 +1915,18 @@ static class InlinePatcher
         return true;
     }
 
+    // A copy of the whole source for every patch, so the only copy where the framework allows it:
+    // a builder holds the text once itself before it makes the string
     static string Splice(string source, int start, int end, string replacement) =>
+#if NET6_0_OR_GREATER
+        string.Concat(source.AsSpan(0, start), replacement, source.AsSpan(end));
+#else
         new StringBuilder(source.Length - (end - start) + replacement.Length)
             .Append(source, 0, start)
             .Append(replacement)
             .Append(source, end, source.Length - end)
             .ToString();
+#endif
 
     static string DetectEol(string source)
     {

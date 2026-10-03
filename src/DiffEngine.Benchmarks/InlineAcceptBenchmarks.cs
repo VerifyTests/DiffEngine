@@ -147,8 +147,11 @@ public class InlineAcceptBenchmarks
 
     // The lexing every one of those starts with
     [Benchmark]
-    public bool Lex() =>
-        SourceLanguage.CSharp.Scan(source).IsCode(0);
+    public bool Lex()
+    {
+        using var scan = SourceLanguage.CSharp.Scan(source);
+        return scan.IsCode(0);
+    }
 
     // A benchmark that measured five hundred refusals would look like a very fast applier
     int Every(int count)

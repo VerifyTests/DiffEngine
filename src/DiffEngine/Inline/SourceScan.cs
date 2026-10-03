@@ -1,3 +1,5 @@
+using System.Buffers;
+
 /// <summary>
 /// A one pass lexical map of a source file: where the comments, strings and char literals are, and
 /// therefore which offsets are code.
@@ -14,85 +16,174 @@
 /// because nothing that reads the map can do without it: whatever is looking at an offset is about
 /// to ask what an identifier character is, or how a literal is written.
 /// </para>
+/// <para>
+/// Built again for every patch, over the whole file, so what it is made of shows on a large one. A
+/// map as long as the source and three hash tables of its comments and literals came to two
+/// megabytes a patch for a ten thousand line file, most of it in arrays large enough to be
+/// collected only with the oldest generation. So the map is rented, which is why a scan is
+/// disposed, and the spans are kept in the order the lexer found them rather than hashed.
+/// </para>
 /// </summary>
-sealed class SourceScan(SourceLanguage language, string source)
+sealed class SourceScan(SourceLanguage language, string source) :
+    IDisposable
 {
-    readonly bool[] code = new bool[source.Length];
+    /// <summary>
+    /// True at every offset inside a comment or a literal. Rented, and longer than the source.
+    /// </summary>
+    bool[] skipped = Rent(source.Length);
 
     /// <summary>
-    /// Start of a comment or literal to the offset just past it.
+    /// Where each comment or literal starts and the offset just past it, in source order. The
+    /// spans cannot overlap, so both lists are sorted and either end of a span is found by
+    /// searching for it.
     /// </summary>
-    readonly Dictionary<int, int> skips = new();
+    readonly List<int> starts = [];
 
-    /// <summary>
-    /// The same spans keyed the other way round, for a scan working backwards. Ends are unique
-    /// because the spans cannot overlap.
-    /// </summary>
-    readonly Dictionary<int, int> skipEnds = new();
+    readonly List<int> ends = [];
 
     /// <summary>
     /// Which of the spans are comments. A literal is content, so the two cannot be treated alike
     /// where trivia is being stepped over or trimmed off.
     /// </summary>
-    readonly HashSet<int> comments = [];
+    readonly List<bool> comments = [];
 
     public SourceLanguage Language { get; } = language;
 
     public string Source { get; } = source;
 
-    /// <summary>
-    /// Records a comment or literal spanning <paramref name="start"/> to <paramref name="end"/>.
-    /// Called by the lexer on <see cref="SourceLanguage"/> as it fills the map.
-    /// </summary>
-    public void AddSkip(int start, int end, bool comment)
+    static bool[] Rent(int length)
     {
-        skips.Add(start, end);
-        skipEnds[end] = start;
-        if (comment)
+        var rented = ArrayPool<bool>.Shared.Rent(length);
+        Array.Clear(rented, 0, length);
+        return rented;
+    }
+
+    /// <summary>
+    /// Hands the map back. A scan asked anything after this throws rather than answer from an
+    /// array that some other scan may by then be filling.
+    /// </summary>
+    public void Dispose()
+    {
+        var rented = skipped;
+        skipped = [];
+        if (rented.Length > 0)
         {
-            comments.Add(start);
+            ArrayPool<bool>.Shared.Return(rented);
         }
     }
 
-    public void MarkCode(int index) => code[index] = true;
+    /// <summary>
+    /// Records a comment or literal spanning <paramref name="start"/> to <paramref name="end"/>.
+    /// Called by the lexer on <see cref="SourceLanguage"/> as it fills the map, in the order it
+    /// meets them, which is the order the searches below rely on. Everything it does not record
+    /// is code.
+    /// </summary>
+    public void AddSkip(int start, int end, bool comment)
+    {
+        starts.Add(start);
+        ends.Add(end);
+        comments.Add(comment);
+        skipped.AsSpan(start, end - start).Fill(true);
+    }
 
     /// <summary>
     /// True when the offset is outside every comment, string and char literal.
     /// </summary>
     public bool IsCode(int index) =>
         index >= 0 &&
-        index < code.Length &&
-        code[index];
+        index < Source.Length &&
+        !skipped[index];
 
     /// <summary>
     /// When a comment or literal starts at <paramref name="index"/>, <paramref name="end"/> is the
     /// offset just past it. Lets a structural scan step over trivia without lexing it again.
     /// </summary>
-    public bool TryGetSkip(int index, out int end) =>
-        skips.TryGetValue(index, out end);
+    public bool TryGetSkip(int index, out int end)
+    {
+        var span = SpanStartingAt(index);
+        end = span < 0 ? 0 : ends[span];
+        return span >= 0;
+    }
 
     /// <summary>
     /// <see cref="TryGetSkip"/> for a scan working backwards: when a comment or literal ends at
     /// <paramref name="end"/>, <paramref name="start"/> is where it began.
     /// </summary>
-    public bool TryGetSkipEndingAt(int end, out int start) =>
-        skipEnds.TryGetValue(end, out start);
+    public bool TryGetSkipEndingAt(int end, out int start)
+    {
+        var span = SpanEndingAt(end);
+        start = span < 0 ? 0 : starts[span];
+        return span >= 0;
+    }
 
     /// <summary>
     /// As <see cref="TryGetSkip"/>, but only for comments.
     /// </summary>
-    public bool TryGetCommentSkip(int index, out int end) =>
-        skips.TryGetValue(index, out end) &&
-        comments.Contains(index);
+    public bool TryGetCommentSkip(int index, out int end)
+    {
+        var span = SpanStartingAt(index);
+        if (span < 0 ||
+            !comments[span])
+        {
+            end = 0;
+            return false;
+        }
+
+        end = ends[span];
+        return true;
+    }
 
     /// <summary>
     /// True when a comment ends at <paramref name="end"/>, with <paramref name="start"/> set to
     /// where it began. Only comments: a literal is content, and trimming one off a span would be
     /// trimming off the value.
     /// </summary>
-    public bool TryGetCommentEndingAt(int end, out int start) =>
-        skipEnds.TryGetValue(end, out start) &&
-        comments.Contains(start);
+    public bool TryGetCommentEndingAt(int end, out int start)
+    {
+        var span = SpanEndingAt(end);
+        if (span < 0 ||
+            !comments[span])
+        {
+            start = 0;
+            return false;
+        }
+
+        start = starts[span];
+        return true;
+    }
+
+    /// <summary>
+    /// Which span starts at <paramref name="index"/>, or -1. These are asked of nearly every
+    /// offset a search steps over, and nearly all of those are code, which the map answers
+    /// without a search: a span cannot start on an offset that is.
+    /// </summary>
+    int SpanStartingAt(int index)
+    {
+        if (index < 0 ||
+            index >= Source.Length ||
+            !skipped[index])
+        {
+            return -1;
+        }
+
+        return starts.BinarySearch(index);
+    }
+
+    /// <summary>
+    /// Which span ends just before <paramref name="end"/>, or -1. The offset before it is the
+    /// span's last, so it is not code either.
+    /// </summary>
+    int SpanEndingAt(int end)
+    {
+        if (end <= 0 ||
+            end > Source.Length ||
+            !skipped[end - 1])
+        {
+            return -1;
+        }
+
+        return ends.BinarySearch(end);
+    }
 
     /// <summary>
     /// Advances past whitespace and comments.
@@ -132,7 +223,7 @@ sealed class SourceScan(SourceLanguage language, string source)
     {
         index--;
         while (index >= 0 &&
-               (char.IsWhiteSpace(Source[index]) || !code[index]))
+               (char.IsWhiteSpace(Source[index]) || skipped[index]))
         {
             index--;
         }
