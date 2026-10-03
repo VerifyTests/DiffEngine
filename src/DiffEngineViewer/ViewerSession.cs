@@ -857,26 +857,139 @@ static class ViewerSession
                 .Select(_ => _.Key)
                 .ToList());
 
+    /// <summary>
+    /// A whole group discard in one call, for a caller that already holds the state: the steps
+    /// <see cref="AcceptAllRunner"/> takes a mutation at a time, taken back to back.
+    /// </summary>
     static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
-        var all = Members(state, menu);
-        var keys = all
-            .Where(_ => _.Kind == QueueEntryKind.Inline)
-            .Select(_ => _.Key)
-            .ToList();
-        var pending = Pending(state);
-        var queue = pending;
-        foreach (var key in keys)
+        // For the reason AcceptAllInline gives
+        if (state.Batch is not null)
         {
-            queue = queue.Discard(key, out _);
+            return state;
         }
 
-        return DiscardTrackedIn(
-            state,
-            Rebuild(state, pending, queue),
-            $"Discarded {keys.Count}",
-            actions,
-            TrackedKeysOf(all));
+        return Carry(BeginDiscard(state, Members(state, menu)), actions);
+    }
+
+    /// <summary>
+    /// Starts a discard of every member of the group the open menu's header describes, without
+    /// throwing any file away yet: see <see cref="BeginDiscardAll"/>. The state as it is, less
+    /// the menu, when there is no group to discard.
+    /// </summary>
+    public static SessionState BeginDiscardGroup(SessionState state)
+    {
+        if (state.Menu is not { } menu)
+        {
+            return state;
+        }
+
+        state = state with { Menu = null };
+        if (state.Mode != ViewerMode.Inline)
+        {
+            return state;
+        }
+
+        return BeginDiscard(state, Members(state, menu));
+    }
+
+    /// <summary>
+    /// Starts a discard of everything in a queue this process owns. The snapshots are dropped and
+    /// the pending deletes untracked here and now, since neither touches a file. The moves are
+    /// left in the queue as a batch to carry out through <see cref="ClaimNext"/> and
+    /// <see cref="ApplyClaimed"/>, one received file thrown away per step and outside the lock:
+    /// see <see cref="AcceptBatch.Discarding"/>. With no move among them it is finished where it
+    /// started. A no-op while a batch is already running.
+    /// </summary>
+    public static SessionState BeginDiscardAll(SessionState state) =>
+        BeginDiscard(state, null);
+
+    /// <param name="state">The state to start it in.</param>
+    /// <param name="members">
+    /// The entries to discard, for a group header acting on its own members. Null discards
+    /// everything, which is what the unqualified discard-all means.
+    /// </param>
+    static SessionState BeginDiscard(SessionState state, IReadOnlyList<QueueEntry>? members)
+    {
+        if (state.Mode != ViewerMode.Inline ||
+            state.Batch is not null)
+        {
+            return state;
+        }
+
+        var pending = Pending(state);
+        InlineQueue discarded;
+        string said;
+        if (members is null)
+        {
+            discarded = pending.DiscardAll(out said);
+        }
+        else
+        {
+            var keys = members
+                .Where(_ => _.Kind == QueueEntryKind.Inline)
+                .Select(_ => _.Key)
+                .ToList();
+            discarded = pending;
+            foreach (var key in keys)
+            {
+                discarded = discarded.Discard(key, out _);
+            }
+
+            said = $"Discarded {keys.Count}";
+        }
+
+        var only = members is null ? null : TrackedKeysOf(members).ToHashSet();
+        var remaining = new List<QueueEntry>();
+        var moves = new List<string>();
+        var untracked = 0;
+        foreach (var entry in Rebuild(state, pending, discarded))
+        {
+            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
+                (only is not null && !only.Contains(entry.Key)))
+            {
+                remaining.Add(entry);
+                continue;
+            }
+
+            // Discarding a pending delete leaves the file alone and only untracks it
+            if (entry.Kind == QueueEntryKind.Delete)
+            {
+                untracked++;
+                continue;
+            }
+
+            moves.Add(entry.Key);
+            remaining.Add(entry);
+        }
+
+        var batch = new AcceptBatch(moves, moves.Count)
+        {
+            Discarding = true,
+            Said = said,
+            Swept = untracked
+        };
+        var begun = Remove(state, remaining, null);
+        // No received file to throw away, so nothing to report progress on
+        if (moves.Count == 0)
+        {
+            return Finish(begun, batch);
+        }
+
+        return begun with { Batch = batch };
+    }
+
+    /// <summary>
+    /// Whatever batch a state holds, carried out to its end in one call.
+    /// </summary>
+    static SessionState Carry(SessionState state, ViewerActions actions)
+    {
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
+        {
+            state = ApplyClaimed(state, actions)(state);
+        }
+
+        return state;
     }
 
     static List<QueueEntry> Members(SessionState state, MenuState menu) =>
@@ -1215,7 +1328,7 @@ static class ViewerSession
 
         if (entry.Kind != QueueEntryKind.Inline)
         {
-            var failure = TryApplyTracked(entry, actions, discarding: false);
+            var failure = TryApplyTracked(entry, actions, batch.Discarding);
             return _ => RecordTracked(_, entry, failure);
         }
 
@@ -1367,6 +1480,16 @@ static class ViewerSession
     /// </summary>
     static SessionState Finish(SessionState state, AcceptBatch batch)
     {
+        // A discard says what its beginning said of the snapshots, then the files: worded the way
+        // an owning tray words its own, with what stayed pending counted rather than hidden
+        if (batch.Discarding)
+        {
+            return Remove(
+                state with { Batch = null },
+                state.Queue,
+                WithFiles(batch.Said, batch.Swept, batch.Kept));
+        }
+
         var conflicted = 0;
         foreach (var entry in state.Queue)
         {
@@ -1402,60 +1525,19 @@ static class ViewerSession
     static List<QueueEntry> Without(IReadOnlyList<QueueEntry> queue, int index) =>
         [..queue.Take(index), ..queue.Skip(index + 1)];
 
+    /// <summary>
+    /// A whole discard-all in one call, for a caller that already holds the state: what
+    /// <see cref="AcceptAllInline"/> is to an accept-all, and the same batch underneath.
+    /// </summary>
     static SessionState DiscardAllInline(SessionState state, ViewerActions actions)
     {
-        var discarded = Pending(state).DiscardAll(out var message);
-        return DiscardTrackedIn(state, Rebuild(state, discarded), message, actions);
-    }
-
-    /// <summary>
-    /// The tracked half of a bulk discard, worded the way an owning tray words its own: the inline
-    /// summary, then ", plus n files" with what stayed pending counted rather than hidden. Both
-    /// say the same thing about the same files, whichever process is holding them.
-    /// <para>
-    /// Only discards go this way now. A bulk accept is an <see cref="AcceptBatch"/>, an entry at a
-    /// time and outside the lock, because accepting is where the time goes: a discard throws a
-    /// received file away or untracks a delete, and neither waits on anything.
-    /// </para>
-    /// </summary>
-    /// <param name="state">The state the discard was asked of.</param>
-    /// <param name="queue">Its queue, with the snapshots already discarded.</param>
-    /// <param name="message">What the snapshots' half of the discard said.</param>
-    /// <param name="actions">What throws a received file away.</param>
-    /// <param name="only">
-    /// The keys to discard, for a group header acting on its own members. Null discards every
-    /// tracked entry, which is what the unqualified discard-all means.
-    /// </param>
-    static SessionState DiscardTrackedIn(
-        SessionState state,
-        IReadOnlyList<QueueEntry> queue,
-        string message,
-        ViewerActions actions,
-        IReadOnlyCollection<string>? only = null)
-    {
-        var remaining = new List<QueueEntry>(queue.Count);
-        var swept = 0;
-        var kept = 0;
-        foreach (var entry in queue)
+        // For the reason AcceptAllInline gives
+        if (state.Batch is not null)
         {
-            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
-                (only is not null && !only.Contains(entry.Key)))
-            {
-                remaining.Add(entry);
-                continue;
-            }
-
-            if (TryApplyTracked(entry, actions, discarding: true) is not { } failure)
-            {
-                swept++;
-                continue;
-            }
-
-            kept++;
-            remaining.Add(entry with { Status = failure });
+            return state;
         }
 
-        return Remove(state, remaining, WithFiles(message, swept, kept));
+        return Carry(BeginDiscardAll(state), actions);
     }
 
     /// <summary>

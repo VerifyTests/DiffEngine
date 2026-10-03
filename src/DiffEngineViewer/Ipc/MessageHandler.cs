@@ -116,7 +116,7 @@ class MessageHandler(
             withPatches);
         if (!withPatches)
         {
-            return ViewerResponse.Listing(items, progress: state.Progress);
+            return ViewerResponse.Listing(items, progress: state.ListedProgress);
         }
 
         return ViewerResponse.Listing(
@@ -129,7 +129,7 @@ class MessageHandler(
                 .Where(_ => _.Kind == QueueEntryKind.Delete)
                 .Select(_ => new ViewerResponseDelete(_.Key, _.Name, _.Solution, _.LeftFile!))
                 .ToList(),
-            progress: state.Progress);
+            progress: state.ListedProgress);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ class MessageHandler(
                 generation++;
             }
 
-            return $"{instance}.{generation}.{state.Progress?.Build()}";
+            return $"{instance}.{generation}.{state.ListedProgress?.Build()}";
         }
     }
 
@@ -239,8 +239,30 @@ class MessageHandler(
         return runner.Drive();
     }
 
-    string? IQueueOwner.DiscardAll() =>
-        host.Mutate(_ => ViewerSession.Apply(_, CommandKind.DiscardAll, actions)).Message;
+    /// <summary>
+    /// As <see cref="IQueueOwner.AcceptAll"/>, and for its reason: each received file is thrown
+    /// away outside the lock, a mutation a file, where one mutation around all of them kept the
+    /// render loop and every arrival waiting for as long as the deletes took.
+    /// </summary>
+    string? IQueueOwner.DiscardAll()
+    {
+        // A batch already running is not this one, and beginning is a no-op while it runs. It is
+        // waited out and the discard begun after it, which is what asking mid batch came to when
+        // a discard was one mutation queued behind the batch's next
+        var waiting = false;
+        host.Mutate(_ =>
+        {
+            waiting = _.Batch is not null;
+            return ViewerSession.BeginDiscardAll(_);
+        });
+        if (waiting)
+        {
+            runner.Drive();
+            host.Mutate(ViewerSession.BeginDiscardAll);
+        }
+
+        return runner.Drive();
+    }
 
     void IQueueOwner.Window(WindowCommand command, string? key)
     {

@@ -722,6 +722,18 @@ static class ViewerProgram
                 {
                     return ViewerSession.BeginAcceptGroup(state);
                 }
+
+                // And the bulk discards, which throw a received file away for every pending
+                // pair: the same batch, the same worker
+                if (command.Kind == CommandKind.DiscardAll)
+                {
+                    return ViewerSession.BeginDiscardAll(state);
+                }
+
+                if (command.Kind == CommandKind.DiscardGroup)
+                {
+                    return ViewerSession.BeginDiscardGroup(state);
+                }
             }
 
             return ViewerSession.Apply(state, command, ViewerActions.Real);
