@@ -115,7 +115,7 @@ public class TrackerLockedMoveTest :
             (_, _) => LockedFilesResponse.Ignore);
         var lockProcess = FileLockUtils.StartFileLockProcess(target1);
         // Stands in for the diff tool: a killable process the move is tracking
-        var toolProcess = FileLockUtils.StartFileLockProcess(temp2);
+        var toolProcess = FileLockUtils.StartFileLockProcess(temp2, shows: temp1);
         try
         {
             // Named as the tool, since a process running something else is not tracked

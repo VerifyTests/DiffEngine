@@ -75,13 +75,19 @@ static class ProcessEx
     /// ended.</item>
     /// <item>An image that cannot be read. One this account cannot open was never held by
     /// <see cref="TryGet"/> either, and one that has exited has nothing left to end.</item>
+    /// <item>Another copy of the tool, which is running the right image for another pair or for
+    /// somebody's own use: see <see cref="WasStartedFor"/>.</item>
     /// </list>
     /// <para>
     /// A launcher that is itself an executable - a shim that starts the real tool and waits - is
     /// the image the sender started and the id it sent, so it matches as it always did.
     /// </para>
     /// </summary>
-    public static bool TryGetTool(int id, string? exe, [NotNullWhen(true)] out Process? process)
+    /// <param name="temp">
+    /// The received file of the move, which the tool showing the pair was started with: see
+    /// <see cref="WasStartedFor"/>.
+    /// </param>
+    public static bool TryGetTool(int id, string? exe, string temp, [NotNullWhen(true)] out Process? process)
     {
         if (!TryGet(id, out process))
         {
@@ -89,19 +95,139 @@ static class ProcessEx
         }
 
         var image = ImagePath(process);
-        if (IsSameExecutable(image, exe))
+        if (!IsSameExecutable(image, exe))
+        {
+            Log.Warning(
+                "Process {Id} is not tracked as the diff tool: it is running `{Image}` and the move names `{Exe}`",
+                id,
+                image ?? "an image that could not be read",
+                exe ?? "no tool");
+            process.Dispose();
+            process = null;
+            return false;
+        }
+
+        if (WasStartedFor(CommandLine(process), temp))
         {
             return true;
         }
 
         Log.Warning(
-            "Process {Id} is not tracked as the diff tool: it is running `{Image}` and the move names `{Exe}`",
+            "Process {Id} is not tracked as the diff tool: it is running `{Image}` and was not started with `{Temp}`",
             id,
-            image ?? "an image that could not be read",
-            exe ?? "no tool");
+            image,
+            temp);
         process.Dispose();
         process = null;
         return false;
+    }
+
+    /// <summary>
+    /// Whether a process running the tool is the one showing this pair, by whether it was started
+    /// with the received file on its command line.
+    /// <para>
+    /// The image says which program a process is and not which window. A stale id handed to
+    /// another copy of the same tool - the one open on the next snapshot along, or one somebody
+    /// started by hand for a merge - passed on the image, was tracked as this pair's, and was
+    /// ended when the pair was accepted. Every tool DiffEngine starts is given the two paths as
+    /// arguments, the received file among them exactly as the move carries it, and
+    /// <c>ProcessCleanup.StillRunning</c> asks the same of the command line before a newer library
+    /// sends an id at all. This is that question asked again here, for a library that does not.
+    /// </para>
+    /// <para>
+    /// A process's start time was the other candidate and settles nothing: the id is checked as
+    /// the move arrives, when every process there is to find was started before it, the one that
+    /// took over a closed tool's id included.
+    /// </para>
+    /// <para>
+    /// A command line that cannot be read is not known to be the tool's, and is treated as every
+    /// other such case is.
+    /// </para>
+    /// </summary>
+    internal static bool WasStartedFor(string? commandLine, string temp)
+    {
+        if (commandLine is null ||
+            temp.Length == 0)
+        {
+            return false;
+        }
+
+        var from = 0;
+        while (true)
+        {
+            var found = commandLine.IndexOf(temp, from, StringComparison.OrdinalIgnoreCase);
+            if (found < 0)
+            {
+                return false;
+            }
+
+            // The whole of an argument's path, and not the start of a longer one: the tool open
+            // on `Sample.received.txt.bak` was not started for `Sample.received.txt`
+            var end = found + temp.Length;
+            if (end == commandLine.Length ||
+                commandLine[end] == '"' ||
+                char.IsWhiteSpace(commandLine[end]))
+            {
+                return true;
+            }
+
+            from = found + 1;
+        }
+    }
+
+    [DllImport("ntdll.dll", ExactSpelling = true)]
+    static extern int NtQueryInformationProcess(SafeProcessHandle process, int informationClass, IntPtr information, int length, out int returned);
+
+    // ProcessCommandLineInformation. Answers with a UNICODE_STRING and the characters after it, in
+    // one buffer, and needs no more than the right to query the process: nothing is read out of
+    // the other process's memory, so it is the same call whatever the bitness of either side
+    const int processCommandLine = 60;
+
+    /// <summary>
+    /// The command line a process was started with, asked of the handle that is held, or null
+    /// when it will not say.
+    /// </summary>
+    internal static string? CommandLine(Process process)
+    {
+        try
+        {
+            var handle = process.SafeHandle;
+            // Fails for want of room, and says how much it wants
+            NtQueryInformationProcess(handle, processCommandLine, IntPtr.Zero, 0, out var length);
+            if (length <= 0)
+            {
+                return null;
+            }
+
+            var buffer = Marshal.AllocHGlobal(length);
+            try
+            {
+                if (NtQueryInformationProcess(handle, processCommandLine, buffer, length, out _) != 0)
+                {
+                    return null;
+                }
+
+                // Length in bytes, then MaximumLength, then the pointer at its natural alignment
+                var bytes = (ushort) Marshal.ReadInt16(buffer);
+                var text = Marshal.ReadIntPtr(buffer, IntPtr.Size);
+                if (text == IntPtr.Zero)
+                {
+                    return null;
+                }
+
+                return Marshal.PtrToStringUni(text, bytes / 2);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+        catch (Exception exception)
+            when (exception is Win32Exception or InvalidOperationException or EntryPointNotFoundException)
+        {
+            // Exited, or no longer this account's to ask
+            return null;
+        }
     }
 
     /// <summary>

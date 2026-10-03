@@ -112,7 +112,7 @@ public class TrackerProcessReleaseTest :
         File.WriteAllText(target, "verified");
         var locked = Path.Combine(directory, "locked.txt");
         File.WriteAllText(locked, "");
-        tool = FileLockUtils.StartFileLockProcess(locked);
+        tool = FileLockUtils.StartFileLockProcess(locked, shows: temp);
     }
 
     public void Dispose()

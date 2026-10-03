@@ -25,12 +25,19 @@ public class TrackerMoveTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
-        using var process = Process.GetCurrentProcess();
-        var processId = process.Id;
-        var tracked = tracker.AddMove(file1, file1, Environment.ProcessPath, "theArguments", false, processId);
-        await Assert.That(tracker.Moves).HasSingleItem();
-        await Assert.That(tracked.Process!.Id).IsEqualTo(process.Id);
-        await Assert.That(tracker.TrackingAny).IsTrue();
+        // Stands in for the diff tool showing the pair, started with the received file as one is
+        var process = FileLockUtils.StartFileLockProcess(file3, shows: file1);
+        try
+        {
+            var tracked = tracker.AddMove(file1, file1, process.MainModule!.FileName, "theArguments", false, process.Id);
+            await Assert.That(tracker.Moves).HasSingleItem();
+            await Assert.That(tracked.Process!.Id).IsEqualTo(process.Id);
+            await Assert.That(tracker.TrackingAny).IsTrue();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(process);
+        }
     }
 
     [Test]
@@ -121,7 +128,7 @@ public class TrackerMoveTest :
         var toolLock = file3;
         // Stands in for an auto refresh diff tool that is still open, which is what DiffRunner
         // resends the id of
-        var tool = FileLockUtils.StartFileLockProcess(toolLock);
+        var tool = FileLockUtils.StartFileLockProcess(toolLock, shows: temp);
         try
         {
             // Nothing at this path exists, so if the launcher gets past the process it starts

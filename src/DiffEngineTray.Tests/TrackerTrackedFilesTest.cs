@@ -288,7 +288,7 @@ public class TrackerTrackedFilesTest :
         await File.WriteAllTextAsync(temp, "content");
         // Stands in for the diff tool the sender started for the pair. A process of its own,
         // since the tray kills the tool of a move it may kill
-        var tool = FileLockUtils.StartFileLockProcess(file);
+        var tool = FileLockUtils.StartFileLockProcess(file, shows: temp);
         try
         {
             // Named as the tool, since a process running something else is not tracked
