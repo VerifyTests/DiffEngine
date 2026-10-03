@@ -85,8 +85,7 @@ public func deviewPollInput(_ input: UnsafeMutablePointer<DeviewInput>?) {
         }
     }
 
-    input.pointee = runtime.input
-    runtime.resetInput()
+    input.pointee = runtime.takeInput()
 }
 
 @_cdecl("deview_set_hidden")

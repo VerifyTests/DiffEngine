@@ -40,6 +40,29 @@ final class Runtime {
     var input = DeviewInput()
     var initialised = false
 
+    /// Keys, clicks and menu events, in the order they happened, one handed over per poll.
+    ///
+    /// A slot per kind used to hold them, in `input`, and each handler overwrote its slot. `pump`
+    /// dispatches everything AppKit has queued before it returns, so with a slow frame - the loop
+    /// waiting behind an accept on InlineApplier's mutex - two presses of Down scrolled once, Tab
+    /// then a accepted the entry the reader meant to skip, and d then a click on another row
+    /// discarded the clicked one, which the reader had never looked at: the managed side applies
+    /// a frame's click before its key. The WinForms head queues them for the same reason.
+    ///
+    /// Only these. The wheel adds up, a drag and the scroller say where they are now and a close
+    /// is a flag, so each of those is whole however many events made it, and stays in `input`.
+    private var discrete: [Discrete] = []
+
+    enum Discrete {
+        case key(Int32)
+        case button(Int32)
+        case queueItem(Int32)
+        case rightClickedQueueItem(Int32)
+        case rightClickedPane(Int32)
+        case menuItem(Int32)
+        case menuClosed
+    }
+
     /// Keeps App Nap off for as long as the runtime is open: see `open`.
     private var activity: NSObjectProtocol?
 
@@ -306,7 +329,12 @@ final class Runtime {
             return
         }
 
-        guard !menuShown, let view else {
+        // Not while anything is waiting to be handed over. It happened before this menu could be
+        // shown, and popping holds the managed loop for as long as the menu is up: a key pressed
+        // straight after the right-click would be applied when the menu closed, however much later
+        // that was. Handed over first, it is applied now, and a menu that outlives it is popped on
+        // the frame after.
+        guard !menuShown, discrete.isEmpty, let view else {
             return
         }
 
@@ -340,15 +368,19 @@ final class Runtime {
         if !menu.popUp(positioning: nil, at: at, in: view) {
             // Escape, a click elsewhere, or focus lost. The click that did it was swallowed by the
             // tracking loop, so this is the only way the managed side can hear about it.
-            input.menuClosed = 1
+            post(.menuClosed)
         }
     }
 
     /// Drains what is queued and then blocks until the deadline, which is both the pump and the
     /// frame throttle. Without the second part this would spin a core, since the managed loop
     /// calls straight back in.
+    ///
+    /// Not blocked while input is still waiting to be handed over, which is the next frame's,
+    /// now. It goes one event a poll, and a frame's wait between two of them would hand a held
+    /// key's repeats over more slowly than a fast repeat rate makes them.
     private func pump() {
-        let deadline = Date(timeIntervalSinceNow: 1.0 / 60.0)
+        let deadline = discrete.isEmpty ? Date(timeIntervalSinceNow: 1.0 / 60.0) : Date.distantPast
         while let event = NSApp.nextEvent(matching: .any, until: deadline, inMode: .default, dequeue: true) {
             NSApp.sendEvent(event)
         }
@@ -394,7 +426,43 @@ final class Runtime {
         delegate = nil
         scroller = nil
         menuShown = false
+        discrete = []
         initialised = false
+    }
+
+    /// Records a key, a click or a menu event, behind whatever is already waiting.
+    func post(_ event: Discrete) {
+        discrete.append(event)
+    }
+
+    /// What one poll hands over: everything in `input`, and the discrete event that is next in
+    /// line when there is one. Only the one, so the managed side applies them in the order they
+    /// happened rather than in the order it reads a frame's fields.
+    func takeInput() -> DeviewInput {
+        var taken = input
+        resetInput()
+        guard !discrete.isEmpty else {
+            return taken
+        }
+
+        switch discrete.removeFirst() {
+        case let .key(key):
+            taken.key = key
+        case let .button(index):
+            taken.clickedButton = index
+        case let .queueItem(index):
+            taken.clickedQueueItem = index
+        case let .rightClickedQueueItem(index):
+            taken.rightClickedQueueItem = index
+        case let .rightClickedPane(side):
+            taken.rightClickedPane = side
+        case let .menuItem(index):
+            taken.clickedMenuItem = index
+        case .menuClosed:
+            taken.menuClosed = 1
+        }
+
+        return taken
     }
 
     /// Each event is delivered exactly once, so the poll that read them clears them. The grid is

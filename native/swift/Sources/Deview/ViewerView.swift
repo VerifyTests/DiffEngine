@@ -127,7 +127,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // reason the first click after a menu no longer also selects a row.
         let point = convert(event.locationInWindow, from: nil)
         if let index = layout.buttons.firstIndex(where: { $0.contains(point) }) {
-            Runtime.shared.input.clickedButton = Int32(index)
+            Runtime.shared.post(.button(Int32(index)))
             return
         }
 
@@ -140,7 +140,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
 
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
-            Runtime.shared.input.clickedQueueItem = Int32(index)
+            Runtime.shared.post(.queueItem(Int32(index)))
             return
         }
 
@@ -280,7 +280,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         let point = convert(event.locationInWindow, from: nil)
         if let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
            index < model.queue.count {
-            Runtime.shared.input.rightClickedQueueItem = Int32(index)
+            Runtime.shared.post(.rightClickedQueueItem(Int32(index)))
             return
         }
 
@@ -293,7 +293,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
            point.y <= layout.body.maxY,
            point.x >= layout.panes[0].cellLeft,
            point.x <= layout.body.maxX {
-            Runtime.shared.input.rightClickedPane = point.x >= layout.panes[1].cellLeft ? 1 : 0
+            Runtime.shared.post(.rightClickedPane(point.x >= layout.panes[1].cellLeft ? 1 : 0))
             Runtime.shared.paneMenuPoint = point
             return
         }
@@ -358,7 +358,7 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
-        Runtime.shared.input.key = key
+        Runtime.shared.post(.key(key))
     }
 
     /// Matches ReadKey in deview.cpp and the WinForms head's Map, which is the keymap the docs
