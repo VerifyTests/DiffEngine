@@ -786,6 +786,71 @@ public class InlinePatcherTests
             """);
     }
 
+    /// <summary>
+    /// The three calls that hand back something other than a SettingsTask. A Snapshot call after
+    /// one of them is a call on a ConfiguredTaskAwaitable, a Task or a TaskAwaiter, none of which
+    /// has one, so the append goes in front. The end of the chain used to be the only place C#
+    /// appended, which wrote source that did not compile into a call site the anchor probe had
+    /// already said could host a snapshot.
+    /// </summary>
+    [Test]
+    [Arguments(".ConfigureAwait(false)")]
+    [Arguments(".ToTask()")]
+    [Arguments(".GetAwaiter().GetResult()")]
+    public async Task AppendGoesInFrontOfWhatEndsTheChain(string ending)
+    {
+        var source = Method($"        await Verify(value){ending};");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                $"""
+                         await Verify(value)
+                             .Snapshot("new"){ending};
+                 """));
+    }
+
+    // A chain already across lines keeps its shape: the call takes a line of its own, in front of
+    // the one that ends the chain
+    [Test]
+    public async Task AppendToAMultiLineChainGoesInFrontOfWhatEndsIt()
+    {
+        var source = Method(
+            """
+                    await Verify(value)
+                        .UseDirectory("snapshots")
+                        .ConfigureAwait(false);
+            """);
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                """
+                        await Verify(value)
+                            .UseDirectory("snapshots")
+                            .Snapshot("new")
+                            .ConfigureAwait(false);
+                """));
+    }
+
+    // What the append wrote is what the second framework's identical append then finds, in front
+    // of the call that ends the chain rather than at the end of it
+    [Test]
+    public async Task AppendingTwiceInFrontOfWhatEndsTheChainIsAlreadyApplied()
+    {
+        var source = Method("        await Verify(value).ConfigureAwait(false);");
+
+        TryApply(source, 5, InlinePatchMode.Append, null, "a\nb", out var applied, out _);
+        var status = TryApply(applied, 5, InlinePatchMode.Append, null, "a\nb", out _, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+        await Assert.That(applied).Contains("\"\"\").ConfigureAwait(false);");
+    }
+
     [Test]
     public async Task AppendToAnEntryPointOverload()
     {

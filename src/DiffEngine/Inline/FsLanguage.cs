@@ -24,13 +24,6 @@ sealed class FsLanguage : SourceLanguage
     internal override char NameSeparator => '=';
 
     /// <summary>
-    /// F# does not apply the implicit conversion that lets a SettingsTask be awaited, so an F#
-    /// test ends the chain with ToTask. Snapshot returns the SettingsTask and ToTask does not, so
-    /// an appended call goes in front of it rather than after it.
-    /// </summary>
-    internal override string ChainTerminator => "ToTask";
-
-    /// <summary>
     /// The F# compiler does not implement <see cref="CallerArgumentExpressionAttribute"/> - it
     /// warns FS0202 and leaves the parameter at its default - so an F# patch never carries the
     /// expression its C# equivalent is anchored to, and is located by line hint alone.

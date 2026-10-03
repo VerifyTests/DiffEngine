@@ -436,8 +436,8 @@ static class InlinePatcher
     /// Appends a Snapshot call to the verify invocation, for a snapshot that has never been
     /// accepted. Snapshot terminates the chain, so the insertion point is the end of any calls
     /// already chained onto the invocation rather than the invocation's own closing paren - except
-    /// where the language ends its chain with something Snapshot has to precede, which
-    /// <see cref="WalkChain"/> answers.
+    /// where the chain ends in something Snapshot has to precede, which <see cref="WalkChain"/>
+    /// answers.
     /// </summary>
     static PatchStatus TryAppend(
         string source,
@@ -679,9 +679,25 @@ static class InlinePatcher
     }
 
     /// <summary>
+    /// The calls a Snapshot call has to be appended in front of rather than after: each hands back
+    /// something other than the SettingsTask a Snapshot call is made on, so the chain cannot be
+    /// carried on past one.
+    /// <para>
+    /// The same three in both languages. This used to be ToTask alone, and F#'s alone, because an
+    /// F# test ends its chain that way: F# does not apply the conversion that lets a SettingsTask
+    /// be awaited. C# reaches for all three as readily - a library that configures every await, a
+    /// synchronous test blocking on GetAwaiter - and with nothing to stop at there, an append onto
+    /// <c>await Verify(value).ConfigureAwait(false)</c> went after the ConfigureAwait, where a
+    /// ConfiguredTaskAwaitable has no Snapshot to call (CS1061). The anchor probe had already said
+    /// the call site could host a snapshot, so the verification was inline with nowhere to put one.
+    /// </para>
+    /// </summary>
+    static string[] chainTerminators = ["ToTask", "ConfigureAwait", "GetAwaiter"];
+
+    /// <summary>
     /// Walks the calls chained onto an invocation and returns where a call should be appended:
-    /// the end of the chain, or the point in front of the language's
-    /// <see cref="SourceLanguage.ChainTerminator"/> when the chain ends in one.
+    /// the end of the chain, or the point in front of the first of the
+    /// <see cref="chainTerminators"/> when the chain holds one.
     /// <paramref name="found"/> is the open paren of the first call to <paramref name="name"/>
     /// among them, or -1 where there is none. The position rather than the fact of it, because a
     /// caller deciding what to do about one has to read its argument.
@@ -689,7 +705,6 @@ static class InlinePatcher
     static int WalkChain(string source, SourceScan scan, int index, string name, out int found)
     {
         found = -1;
-        var terminator = scan.Language.ChainTerminator;
         // Where the chain was before the terminating call, which is where an appended one goes:
         // in front of the terminator, and behind the whitespace and line break that introduced it
         var beforeTerminator = -1;
@@ -726,9 +741,8 @@ static class InlinePatcher
                 found = paren;
             }
 
-            if (terminator != null &&
-                beforeTerminator < 0 &&
-                IsCall(source, nameStart, cursor, terminator))
+            if (beforeTerminator < 0 &&
+                IsCall(source, nameStart, cursor, chainTerminators))
             {
                 beforeTerminator = index;
             }
@@ -742,6 +756,19 @@ static class InlinePatcher
     static bool IsCall(string source, int nameStart, int nameEnd, string name) =>
         nameEnd - nameStart == name.Length &&
         string.CompareOrdinal(source, nameStart, name, 0, name.Length) == 0;
+
+    static bool IsCall(string source, int nameStart, int nameEnd, string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (IsCall(source, nameStart, nameEnd, name))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     static string LeadingWhitespace(string source, List<int> lineStarts, int offset)
     {

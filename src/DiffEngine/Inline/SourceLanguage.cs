@@ -86,12 +86,6 @@ public abstract class SourceLanguage
     internal abstract char NameSeparator { get; }
 
     /// <summary>
-    /// A chained call that a Snapshot call has to be appended in front of rather than after, or
-    /// null when the end of the chain is always the insertion point.
-    /// </summary>
-    internal virtual string? ChainTerminator => null;
-
-    /// <summary>
     /// Whether a patch from this language carries the source text of the expected argument, which
     /// is to say whether the compiler honours <see cref="CallerArgumentExpressionAttribute"/>.
     /// <para>

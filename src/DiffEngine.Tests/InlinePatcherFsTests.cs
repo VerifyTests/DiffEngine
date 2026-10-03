@@ -408,6 +408,24 @@ public class InlinePatcherFsTests
                 """));
     }
 
+    // ToTask is not the only way off a SettingsTask, and a test that blocks instead of awaiting
+    // leaves by another: the Snapshot call goes in front of whichever comes first
+    [Test]
+    public async Task AppendGoesInFrontOfGetAwaiter()
+    {
+        var source = Test("    Verifier.Verify(15).GetAwaiter().GetResult() |> ignore");
+
+        var status = TryApply(source, 5, InlinePatchMode.Append, null, "new", out var newSource, out _);
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(
+            Test(
+                """
+                    Verifier.Verify(15)
+                        .Snapshot("new").GetAwaiter().GetResult() |> ignore
+                """));
+    }
+
     [Test]
     public async Task AppendToAMultiLineChain()
     {
