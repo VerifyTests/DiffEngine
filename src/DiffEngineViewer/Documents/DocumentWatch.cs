@@ -1,14 +1,22 @@
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 
 /// <summary>
 /// Reads the text of the queue's documents and draws their pages, on its own thread, for the entry
 /// on screen and no other.
 /// <para>
 /// Not the entry after it as well, though stepping to it would then find it ready. A call into
-/// Morph or PDFium cannot be stopped once it has started, so a document drawn ahead was one the
-/// reader then waited behind whenever they picked any other entry, and a core spent on something
-/// nobody had opened. One that is stepped to is read and drawn then, with the spinner the heads draw
-/// for <see cref="Pane.ImagePending"/> standing in for its page meanwhile.
+/// Morph or PDFium cannot be stopped part way through a conversion or a page, so a document drawn
+/// ahead was one the reader then waited behind whenever they picked any other entry, and a core
+/// spent on something nobody had opened. One that is stepped to is read and drawn then, with the
+/// spinner the heads draw for <see cref="Pane.ImagePending"/> standing in for its page meanwhile.
+/// </para>
+/// <para>
+/// Both sides of that entry are drawn at once, by a call each. Drawn one after the other, the right
+/// pane was a spinner for as long as every page of the left took, and which pages differ was not
+/// known until both were done. Two Office files take a core each. Two PDFs take turns at PDFium's
+/// lock a page at a time, but it is held only while a page is rasterised: encoding the png is most
+/// of what a page costs and is done outside it, so two PDFs also take little longer than one.
 /// </para>
 /// <para>
 /// The other half of <see cref="FileSide"/>'s bargain. Reading a file has to stay cheap, because it
@@ -29,12 +37,17 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
 
     /// <summary>
     /// How long a document may go with nothing coming of it - its text, or its next page - before it
-    /// is reported as failed and left behind. Code in this process cannot be stopped, so this does
-    /// not stop it: it only keeps the documents after it moving.
+    /// is reported as failed and left behind. A call cannot be stopped part way through a page, so
+    /// this does not stop it: it keeps the documents after it moving, and the call ends where its
+    /// next page would have landed.
     /// <para>
     /// Not how long the whole document may take. A long one lands a page every so often for longer
     /// than any one limit, and counted from its start it was given up on part way through, with
     /// pages still arriving.
+    /// </para>
+    /// <para>
+    /// Counted by each call for itself, since the two sides of an entry are drawn at once: one side
+    /// landing pages says nothing about the other having stopped.
     /// </para>
     /// </summary>
     public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(2);
@@ -46,22 +59,19 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
     public bool Hidden { get; set; }
 
     /// <summary>
-    /// Moved on when a job is left behind, so pages it lands afterwards are dropped rather than
-    /// published over whatever replaced it.
+    /// How many PDFs that were left behind have not returned yet. PDFium is serialized behind one
+    /// lock, which a call holds while it rasterises a page, so a PDF started while there is one
+    /// could wait on that call with nothing to bound it. A count rather than a flag, because both
+    /// sides of an entry can be left behind, and the first of them to return says nothing about
+    /// the second. Taken down from the pool as each call returns.
     /// </summary>
-    int generation;
+    int pdfiumHeld;
 
     /// <summary>
-    /// Set while a PDF that was left behind is still inside PDFium, which is serialized behind one
-    /// lock: a PDF started now would wait on that call with nothing to bound it. Written from the
-    /// pool when that call returns.
+    /// When a PDF that was left behind last returned, which is when PDFium was last given back.
+    /// Written from the pool.
     /// </summary>
-    volatile bool pdfiumHeld;
-
-    /// <summary>
-    /// When something last came of the job in hand: when it started, then as each page landed.
-    /// </summary>
-    long progressed;
+    long pdfiumReleased;
 
     /// <summary>
     /// What the last turn that could do nothing said, so that it is said once.
@@ -100,19 +110,24 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
             Unsay();
             return worked ? null : Interval;
         }
-        catch (NotYetException exception)
-        {
-            Say(exception.Message);
-        }
         catch (Exception exception)
         {
-            Say($"Could not read the documents: {exception.Message}");
+            Say(Reason(exception));
         }
 
         // Longer than an idle pass waits: what was in the way is usually still there a moment
         // later, and trying again reads and hashes the document before it finds that out.
         return Interval * 5;
     }
+
+    /// <summary>
+    /// What is in the way of a job, as the status line says it. A job that has only to wait says
+    /// why in its own words; anything else thrown is something that stopped it being read at all.
+    /// </summary>
+    static string Reason(Exception exception) =>
+        exception is NotYetException
+            ? exception.Message
+            : $"Could not read the documents: {exception.Message}";
 
     /// <summary>
     /// Why a turn could do nothing, in the status line. Once for as long as it stays the reason: the
@@ -155,13 +170,14 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         Exception(message);
 
     /// <summary>
-    /// One job: the first thing the entry on screen wants that is not there yet. True when there was
-    /// one, so the loop goes again without waiting. Public for the tests, which drive it directly
-    /// rather than waiting on a thread.
+    /// One job: the first thing the entry on screen wants that is not there yet, which is its text
+    /// and then its pages. True when there was one, so the loop goes again without waiting. Public
+    /// for the tests, which drive it directly rather than waiting on a thread.
     /// <para>
     /// The state is read afresh for every job, so a reader who steps on part way through a document
-    /// has the next one started as soon as the job in hand is done, rather than after the rest of the
-    /// one they left.
+    /// has the next one started as soon as the job in hand is done. Not before: the calls in hand
+    /// cannot be stopped, and a reader stepping through the queue would leave two more drawing
+    /// behind them at every entry, each taking its turn at PDFium ahead of the one on screen.
     /// </para>
     /// </summary>
     public bool Pump()
@@ -221,10 +237,23 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         }
 
         string? text = null;
-        var failure = Run(side.Format, () => text = documents.Text(source));
+        string? failure = null;
+        // Reading text lands nothing, so its wait is counted from the start
+        var call = new Call(side.Format, _ => failure = _);
+        call.Start(() => text = documents.Text(source));
+        Await([call]);
         return failure is null ? new(text, null) : new(null, failure);
     }
 
+    /// <summary>
+    /// The pages of both sides, a call each, waited on together. The same bytes on both sides are
+    /// one drawing.
+    /// <para>
+    /// A side that cannot be started yet says nothing about the other, which is drawn all the same.
+    /// Why it could not be is thrown once the other is done, as it would have been on its own, so
+    /// the turn comes round again for it.
+    /// </para>
+    /// </summary>
     bool Draw(SessionState state, QueueEntry entry)
     {
         if (state.Drawing == DrawingView.Text)
@@ -232,24 +261,75 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
             return false;
         }
 
+        var sides = new List<(DocumentFile Side, string Key)>();
         foreach (var side in Sides(entry))
         {
             if (DocumentPages.Key(side, state.Projection) is { } key &&
-                !state.Renders.ContainsKey(key))
+                !state.Renders.ContainsKey(key) &&
+                sides.All(_ => _.Key != key))
             {
-                Render(side, key, state.Projection);
-                return true;
+                sides.Add((side, key));
             }
         }
 
-        return false;
+        if (sides.Count == 0)
+        {
+            return false;
+        }
+
+        ExceptionDispatchInfo? refused = null;
+
+        Call? Start((DocumentFile Side, string Key) drawing)
+        {
+            try
+            {
+                return Render(drawing.Side, drawing.Key, state.Projection);
+            }
+            catch (Exception exception)
+            {
+                if (refused is null)
+                {
+                    refused = ExceptionDispatchInfo.Capture(exception);
+                    // Said now rather than when the turn hears of it, which is after the other
+                    // side's last page
+                    Say(Reason(exception));
+                }
+
+                return null;
+            }
+        }
+
+        if (sides is [var first, var second] &&
+            first.Side.Format == DocumentFormat.Pdf &&
+            second.Side.Format == DocumentFormat.Pdf)
+        {
+            // Two PDFs are started one behind the other, the second once the first has landed a
+            // page. They share PDFium's lock, and when one of them stops inside it, which one is
+            // told from whose pages stopped first: see LeaveBehind. Started together, neither
+            // has a page to go by, and a second that stopped inside PDFium at once would leave
+            // the first, waiting on the lock since it began, as the one that ran out of time.
+            var lead = Start(first);
+            Await(lead is null ? [] : [lead], () => Start(second));
+        }
+        else
+        {
+            Await([.. sides.Select(Start).OfType<Call>()]);
+        }
+
+        refused?.Throw();
+        return true;
     }
 
+    /// <summary>
+    /// Starts drawing one side, and returns the call that is drawing it. Null when there was nothing
+    /// to start: the file no longer holds the bytes the side describes, which is recorded as why it
+    /// was not drawn.
+    /// </summary>
     /// <param name="key">
     /// What the pages are kept under, which for a map is its hash and the projection it is drawn
     /// in: the same bytes are drawn again for each one the reader switches to.
     /// </param>
-    void Render(DocumentFile side, string key, MapProjection projection)
+    Call? Render(DocumentFile side, string key, MapProjection projection)
     {
         // Everything that can say "not now" comes before anything is recorded. A rendering marked
         // as started is never started again, so one that then could not be - its copy not written,
@@ -258,7 +338,7 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         if (Copy(side) is not { } source)
         {
             host.Mutate(_ => ViewerSession.Rendered(_, key, new([], true, "the file changed while it was being drawn.")));
-            return;
+            return null;
         }
 
         var directory = Path.GetDirectoryName(source)!;
@@ -271,38 +351,55 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
         }
 
         host.Mutate(_ => ViewerSession.Rendered(_, key, Rendering.Started));
-        var token = Volatile.Read(ref generation);
         var pages = new List<RenderedPage>();
+        var call = new Call(side.Format, Ended, Withdraw);
+        call.Start(() => documents.Render(source, directory, Landed, projection));
+        return call;
 
         void Landed(string file)
         {
-            if (token != Volatile.Read(ref generation))
+            var landed = call.Land(() =>
             {
-                return;
-            }
-
-            var page = Page(file);
-            RenderedPage[] landed;
-            lock (pages)
+                pages.Add(Page(file));
+                var soFar = pages.ToArray();
+                host.Mutate(_ => ViewerSession.Rendered(_, key, new(soFar, false)));
+            });
+            if (!landed)
             {
-                pages.Add(page);
-                landed = pages.ToArray();
+                // Nothing more is wanted of a call that was left behind, and between two pages is
+                // the one place it can be stopped. It used to run on to its last page, and a PDF
+                // kept every other PDF waiting until it had drawn all of them.
+                throw new OperationCanceledException($"{Path.GetFileName(side.Path)} was left behind, so no more of it is drawn.");
             }
-
-            // Something came of it, so the wait for the next page starts over
-            Volatile.Write(ref progressed, Stopwatch.GetTimestamp());
-            host.Mutate(_ => ViewerSession.Rendered(_, key, new(landed, false)));
         }
 
-        var failure = Run(side.Format, () => documents.Render(source, directory, Landed, projection));
-
-        RenderedPage[] complete;
-        lock (pages)
+        // Both on the loop's thread, once the call has returned or been left behind. Nothing
+        // lands after either, so the pages are no longer anyone else's to change.
+        void Ended(string? failure)
         {
-            complete = pages.ToArray();
+            var complete = pages.ToArray();
+            host.Mutate(_ => ViewerSession.Rendered(_, key, new(complete, true, failure)));
         }
 
-        host.Mutate(_ => ViewerSession.Rendered(_, key, new(complete, true, failure)));
+        void Withdraw() =>
+            host.Mutate(_ => Withdrawn(_, key));
+    }
+
+    /// <summary>
+    /// A drawing put back to not having been started. No rendering at all is what says a side is
+    /// still to be drawn, to <see cref="Draw"/> and to the spinner alike, so the pages it had go
+    /// with it and are drawn again from the first.
+    /// </summary>
+    static SessionState Withdrawn(SessionState state, string key)
+    {
+        if (!state.Renders.ContainsKey(key))
+        {
+            return state;
+        }
+
+        var renders = new Dictionary<string, Rendering>(state.Renders);
+        renders.Remove(key);
+        return state with { Renders = renders };
     }
 
     /// <summary>
@@ -365,8 +462,8 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
     }
 
     /// <summary>
-    /// A PDF waits while one that was left behind is still inside PDFium, here, where the reader
-    /// can be told why, rather than on PDFium's lock with nothing to bound it. It is read once that
+    /// A PDF waits while one that was left behind has not returned, here, where the reader can be
+    /// told why, rather than on PDFium's lock with nothing to bound it. It is read once every such
     /// call has returned.
     /// <para>
     /// Not a failure of this document, so nothing is recorded against it. It used to be one: every
@@ -376,65 +473,258 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
     void AwaitPdfium(DocumentFile side)
     {
         if (side.Format == DocumentFormat.Pdf &&
-            pdfiumHeld)
+            Volatile.Read(ref pdfiumHeld) > 0)
         {
             throw new NotYetException($"{Path.GetFileName(side.Path)} is waiting for an earlier PDF that is still being read, since PDFium reads one at a time. Restart the viewer if that one never finishes.");
         }
     }
 
     /// <summary>
-    /// One call into the documents assembly, left behind once <see cref="Timeout"/> has passed with
-    /// nothing coming of it. Null when it finished, otherwise why it did not.
+    /// One call into the documents assembly, and what the loop knows of it from outside: when
+    /// something last came of it, and whether it has been left behind. A call has these to itself,
+    /// because the two sides of an entry are drawn at once: one side landing pages says nothing
+    /// about the other having stopped, and giving up on one must not drop what the other goes on
+    /// to land.
     /// </summary>
-    string? Run(DocumentFormat format, Action job)
+    /// <param name="ended">
+    /// The call finished, with why not when it threw, or was given up on, with that as why. Called
+    /// on the loop's thread.
+    /// </param>
+    /// <param name="withdraw">
+    /// The call was left behind for no reason of its own, so what it had started is put back
+    /// rather than failed. Null for a call with nothing to put back.
+    /// </param>
+    sealed class Call(DocumentFormat format, Action<string?> ended, Action? withdraw = null)
     {
-        Volatile.Write(ref progressed, Stopwatch.GetTimestamp());
+        readonly Lock gate = new();
+        readonly TaskCompletionSource landed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        long progressed;
+        bool leftBehind;
 
-        // On the pool, whose threads are background ones, so a call left behind cannot keep the
-        // process alive once the window has closed.
-        var task = Task.Run(job);
+        public DocumentFormat Format => format;
+
+        public Action<string?> Ended => ended;
+
+        public Action? Withdraw => withdraw;
+
+        public Task Task { get; private set; } = Task.CompletedTask;
+
+        /// <summary>
+        /// Done once the call has landed its first page.
+        /// </summary>
+        public Task Landed => landed.Task;
+
+        /// <summary>
+        /// When something last came of it: when it started, then as each page landed.
+        /// </summary>
+        public long Progressed => Volatile.Read(ref progressed);
+
+        public void Start(Action work)
+        {
+            Volatile.Write(ref progressed, Stopwatch.GetTimestamp());
+            // On the pool, whose threads are background ones, so a call left behind cannot keep the
+            // process alive once the window has closed.
+            Task = Task.Run(work);
+        }
+
+        /// <summary>
+        /// Something came of the call, which <paramref name="publish"/> makes known, and the wait
+        /// for the next thing starts over. False, with nothing published, once the call has been
+        /// left behind.
+        /// <para>
+        /// Under the lock <see cref="LeaveBehind"/> takes, so a page cannot reach the state after
+        /// its call was reported as given up on. One that did would put the pane back to drawing
+        /// a document nothing more is coming of.
+        /// </para>
+        /// </summary>
+        public bool Land(Action publish)
+        {
+            lock (gate)
+            {
+                if (leftBehind)
+                {
+                    return false;
+                }
+
+                publish();
+                Volatile.Write(ref progressed, Stopwatch.GetTimestamp());
+            }
+
+            landed.TrySetResult();
+            return true;
+        }
+
+        public void LeaveBehind()
+        {
+            lock (gate)
+            {
+                leftBehind = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Waits on calls until each has returned or been left behind, and tells each how it ended as
+    /// it does, so a side that is done is not held up by one that is not.
+    /// </summary>
+    /// <param name="follow">
+    /// Starts one more call to wait on, once the first has landed a page, or has returned without
+    /// one. Never, when the first is left behind before either: what it would start is a PDF, and
+    /// PDFium is then not free for it. The next turn finds it still to be drawn, and says so.
+    /// </param>
+    void Await(IReadOnlyList<Call> calls, Func<Call?>? follow = null)
+    {
+        var running = calls.ToList();
+        var lead = running.FirstOrDefault();
+        while (true)
+        {
+            if (follow is not null &&
+                (lead is null ||
+                 lead.Landed.IsCompleted ||
+                 lead.Task.IsCompleted))
+            {
+                if (follow() is { } followed)
+                {
+                    running.Add(followed);
+                }
+
+                follow = null;
+            }
+
+            if (running.Count == 0)
+            {
+                return;
+            }
+
+            if (running.Find(_ => _.Task.IsCompleted) is { } returned)
+            {
+                running.Remove(returned);
+                returned.Ended(Thrown(returned.Task));
+                continue;
+            }
+
+            // Asked before the clocks are read. A PDF that returns in between has noted when
+            // before it is counted as gone, so a call is never found out of time against a PDFium
+            // that was given back that instant.
+            var pdfiumWasHeld = Volatile.Read(ref pdfiumHeld) > 0;
+            var (call, remaining) = running
+                .Select(_ => (Call: _, Remaining: Remaining(_)))
+                .MinBy(_ => _.Remaining);
+            if (remaining > TimeSpan.Zero)
+            {
+                // Until one of them returns, or the one nearest to running out of time would, or
+                // the first lands the page another is waiting to be started behind. Any other
+                // page landing does not end the wait, so how long is left is worked out afresh
+                // after it.
+                var wake = running
+                    .Select(_ => _.Task)
+                    .ToList();
+                if (follow is not null)
+                {
+                    wake.Add(lead!.Landed);
+                }
+
+                Task.WaitAny([.. wake], remaining);
+                continue;
+            }
+
+            running.Remove(call);
+            LeaveBehind(call, pdfiumWasHeld);
+            if (call == lead)
+            {
+                follow = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// How long a call has left before it is left behind: <see cref="Timeout"/> from the last thing
+    /// to come of it. For a PDF, from when PDFium was last given back if that is later, since until
+    /// then it may have been waiting on the call that had it.
+    /// </summary>
+    TimeSpan Remaining(Call call)
+    {
+        var since = call.Progressed;
+        if (call.Format == DocumentFormat.Pdf)
+        {
+            since = Math.Max(since, Volatile.Read(ref pdfiumReleased));
+        }
+
+        return Timeout - Stopwatch.GetElapsedTime(since);
+    }
+
+    /// <summary>
+    /// Why a call that has returned did not finish, or null when it did.
+    /// </summary>
+    static string? Thrown(Task task)
+    {
         try
         {
-            while (true)
-            {
-                // Counted from the last page to land. Reading text lands nothing, so for that it
-                // is counted from the start.
-                var remaining = Timeout - Stopwatch.GetElapsedTime(Volatile.Read(ref progressed));
-                if (remaining <= TimeSpan.Zero)
-                {
-                    break;
-                }
-
-                if (task.Wait(remaining))
-                {
-                    return null;
-                }
-            }
+            task.Wait();
+            return null;
         }
         catch (AggregateException exception)
         {
             return (exception.InnerException ?? exception).Message;
         }
-
-        Interlocked.Increment(ref generation);
-        if (format == DocumentFormat.Pdf)
-        {
-            // Set first, so a call that returns in between is one the continuation still clears
-            pdfiumHeld = true;
-            task.ContinueWith(Released, TaskScheduler.Default);
-        }
-
-        return $"gave up after {Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} seconds.";
     }
 
     /// <summary>
-    /// The call that was left behind has returned, so PDFium is free and PDFs can be read again.
+    /// Stops waiting on a call that has gone <see cref="Timeout"/> with nothing coming of it. It is
+    /// reported as given up on, what it lands from here on is dropped, and it is stopped where its
+    /// next page lands.
+    /// <para>
+    /// Except a PDF that ran out of time while another, left behind before it, had still not
+    /// returned. The two sides of an entry take turns at PDFium's lock, so when one of them stops
+    /// inside PDFium the other stops at the lock, and from here both have only stopped landing
+    /// pages. The one inside is taken to be the one that ran out of time first: the other was
+    /// still landing a page, or had only just been started, when the first took the lock, and
+    /// came to it afterwards. So the second is not given up on. It is put back as though it had
+    /// not been started, to be drawn again once PDFium is free, with nothing recorded against it,
+    /// since what stopped it was not about it.
+    /// </para>
     /// </summary>
-    void Released(Task abandoned)
+    void LeaveBehind(Call call, bool pdfiumWasHeld)
     {
-        // Read, so a call that ended by throwing is not left as a fault nothing observed
-        _ = abandoned.Exception;
-        pdfiumHeld = false;
+        call.LeaveBehind();
+        var pdf = call.Format == DocumentFormat.Pdf;
+        if (pdf)
+        {
+            // Counted first, so a call that returns in between is one the continuation still
+            // takes off
+            Interlocked.Increment(ref pdfiumHeld);
+        }
+
+        call.Task.ContinueWith(_ => Returned(call), TaskScheduler.Default);
+
+        if (pdf &&
+            pdfiumWasHeld &&
+            call.Withdraw is { } withdraw)
+        {
+            withdraw();
+            return;
+        }
+
+        call.Ended($"gave up after {Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} seconds.");
+    }
+
+    /// <summary>
+    /// A call that was left behind has returned. If it was a PDF, PDFium is free of it, and once
+    /// every such call has returned PDFs can be read again.
+    /// </summary>
+    void Returned(Call call)
+    {
+        // Read, so a call that ended by throwing is not left as a fault nothing observed. One that
+        // was stopped where its next page landed always ends that way.
+        _ = call.Task.Exception;
+        if (call.Format != DocumentFormat.Pdf)
+        {
+            return;
+        }
+
+        // Noted before the count comes down, so whoever finds PDFium free also finds since when
+        Volatile.Write(ref pdfiumReleased, Stopwatch.GetTimestamp());
+        Interlocked.Decrement(ref pdfiumHeld);
     }
 
     /// <summary>

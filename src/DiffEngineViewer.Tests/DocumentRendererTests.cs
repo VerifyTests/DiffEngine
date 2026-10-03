@@ -243,6 +243,53 @@ public class DocumentRendererTests :
     }
 
     /// <summary>
+    /// The watch draws the two sides of an entry at once, so the renderer is called on two threads
+    /// at a time, and each call has to draw what it draws alone. A page that came out differently
+    /// for having been drawn beside another would be reported as a page that differs.
+    /// </summary>
+    [Test]
+    [Arguments(".pdf")]
+    [Arguments(".docx")]
+    [Arguments(".xlsx")]
+    [Arguments(".pptx")]
+    [Arguments(".svg")]
+    [Arguments(".geojson")]
+    [Arguments(".fgb")]
+    public async Task TwoDrawnAtOnceDrawAsEachDoesAlone(string extension)
+    {
+        var bytes = extension switch
+        {
+            ".pdf" => SamplePdf.Build("alpha", "bravo", "charlie"),
+            ".svg" => Encoding.UTF8.GetBytes(FileTypeLaunchTests.SvgOf("red")),
+            ".geojson" or ".fgb" => FileTypeLaunchTests.MapOf(extension, moved: false),
+            _ => File.ReadAllBytes(Sample($"sample{extension}"))
+        };
+
+        string Copy(string name)
+        {
+            var path = Path.Combine(directory, $"{name}{extension}");
+            File.WriteAllBytes(path, bytes);
+            return path;
+        }
+
+        var alone = Hashes(Render(Copy("alone")));
+        var left = Copy("left");
+        var right = Copy("right");
+
+        // More than once, since two calls that only sometimes get in each other's way are the
+        // kind there would be
+        for (var round = 0; round < 3; round++)
+        {
+            var drawn = await Task.WhenAll(
+                Task.Run(() => Hashes(Render(left))),
+                Task.Run(() => Hashes(Render(right))));
+
+            await Assert.That(drawn[0]).IsEquivalentTo(alone);
+            await Assert.That(drawn[1]).IsEquivalentTo(alone);
+        }
+    }
+
+    /// <summary>
     /// The whole of it as a viewer runs it: a pair read through <see cref="FileSide"/>, then the
     /// watch reading their text and drawing their pages through the real folder, until there is
     /// nothing left to do.
