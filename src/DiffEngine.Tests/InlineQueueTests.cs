@@ -588,6 +588,50 @@ public class InlineQueueTests
     }
 
     /// <summary>
+    /// The same bulk accept with the patches handed over in one call, which is what lets an
+    /// applier write a file once for all the snapshots in it. Nothing else about it differs: the
+    /// conflict is left out, the patches go over in queue order, and each outcome lands on its own
+    /// entry.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllCanHandThePatchesOverTogether()
+    {
+        IReadOnlyList<InlinePatch> handed = [];
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2, content: "eight", framework: "net8.0"))
+            .Enqueue(Patch("B.cs", 2, content: "nine", framework: "net9.0"))
+            .Enqueue(Patch("C.cs", 3))
+            .AcceptAll(
+                _ =>
+                {
+                    handed = _;
+                    return [InlineApplyResult.Applied, InlineApplyResult.NotFound("no Verify or Throws call")];
+                },
+                out var message);
+
+        await Assert.That(string.Join(", ", handed.Select(_ => $"{_.SourceFile}:{_.LineHint}"))).IsEqualTo("A.cs:1, C.cs:3");
+        await Assert.That(string.Join(", ", queue.Items.Select(_ => _.Name))).IsEqualTo("B.cs:2, C.cs:3");
+        await Assert.That(queue.Items[1].Status).IsEqualTo("C.cs:3 not written. no Verify or Throws call");
+        await Assert.That(message).IsEqualTo("Accepted 1, 1 not written, 1 conflict needs review. C.cs:3 not written. no Verify or Throws call");
+    }
+
+    /// <summary>
+    /// An applier that answers for fewer patches than it was given has no outcome for some entry,
+    /// and guessing which would mark a snapshot accepted that nothing wrote.
+    /// </summary>
+    [Test]
+    public void AcceptAllRefusesResultsThatDoNotMatchThePatches()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch("A.cs", 1))
+            .Enqueue(Patch("B.cs", 2));
+
+        Assert.Throws<ArgumentException>(
+            () => queue.AcceptAll(_ => [InlineApplyResult.Applied], out var message));
+    }
+
+    /// <summary>
     /// The two phase form: find, apply outside the host's lock, complete. A re-run that replaced
     /// the patch while it was applying keeps its new entry, because the outcome describes the old
     /// one.

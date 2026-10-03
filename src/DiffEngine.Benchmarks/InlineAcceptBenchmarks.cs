@@ -4,9 +4,9 @@ using BenchmarkDotNet.Attributes;
 namespace DiffEngine.Benchmarks;
 
 // Accepting every inline snapshot in one test file, which is what "Accept all" does over a file
-// that holds many: one InlineApplier.Apply per call site, each reading, lexing and rewriting the
-// whole file. A member is twenty lines, so 25 call sites is a 500 line file of 30 KB, and 500 is
-// 10,000 lines and 600 KB.
+// that holds many. A patch at a time, each call reads, lexes and rewrites the whole file, and
+// handed over together the file is read and written once. A member is twenty lines, so 25 call
+// sites is a 500 line file of 30 KB, and 500 is 10,000 lines and 600 KB.
 //
 // The file is a real one, in a directory of its own under the temp folder, because the applier's
 // cost is as much the file system's as the patcher's: a mutex, a read, a temporary written beside
@@ -71,6 +71,23 @@ public class InlineAcceptBenchmarks
         foreach (var patch in patches)
         {
             if (InlineApplier.Apply(patch).Status == InlineApplyStatus.Applied)
+            {
+                applied++;
+            }
+        }
+
+        return Every(applied);
+    }
+
+    // The same patches handed over in one call, which reads and writes the file once
+    [Benchmark]
+    public int AcceptTogether()
+    {
+        File.WriteAllBytes(path, pristine);
+        var applied = 0;
+        foreach (var result in InlineApplier.ApplyAll(patches))
+        {
+            if (result.Status == InlineApplyStatus.Applied)
             {
                 applied++;
             }

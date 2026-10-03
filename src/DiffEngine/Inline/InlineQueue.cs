@@ -593,6 +593,38 @@ public sealed class InlineQueue
             out message);
 
     /// <summary>
+    /// Applies every un-conflicted patch, handing them to <paramref name="apply"/> together.
+    /// <para>
+    /// For an applier that does better with the whole batch than with a patch at a time, which
+    /// <see cref="InlineApplier.ApplyAll(IReadOnlyList{InlinePatch})"/> does: it reads and writes a
+    /// source file once for all the snapshots in it, where the overload above has no choice but
+    /// to rewrite the file for each. What comes back is one result for each patch handed over, in
+    /// the same order.
+    /// </para>
+    /// </summary>
+    public InlineQueue AcceptAll(
+        Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>> apply,
+        out string message)
+    {
+        var entries = Items
+            .Where(_ => !_.Conflicted)
+            .ToList();
+        var results = apply(entries.Select(_ => _.Patch).ToList());
+        if (results.Count != entries.Count)
+        {
+            throw new ArgumentException($"{entries.Count} patches were handed over and {results.Count} results came back.", nameof(apply));
+        }
+
+        var outcomes = new List<(PendingInline Entry, InlineApplyResult Result)>(entries.Count);
+        for (var index = 0; index < entries.Count; index++)
+        {
+            outcomes.Add((entries[index], results[index]));
+        }
+
+        return AcceptAll(outcomes, out message);
+    }
+
+    /// <summary>
     /// The batch counterpart of <see cref="Accept(PendingInline, InlineApplyResult, out string)"/>.
     /// An item with no outcome, or that changed while the batch was applying, was not part of this
     /// accept and is kept untouched rather than counted as a failure — unless it is conflicted,
