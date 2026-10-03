@@ -41,7 +41,7 @@ public class DocumentFileSideTests :
             path,
             19,
             DocumentFormat.Pdf,
-            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("%PDF-1.4 not really"))),
+            Convert.ToHexString(SHA256.HashData("%PDF-1.4 not really"u8.ToArray())),
             Reading: true));
     }
 

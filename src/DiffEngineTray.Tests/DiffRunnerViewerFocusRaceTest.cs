@@ -71,7 +71,7 @@ public class DiffRunnerViewerFocusRaceTest
         await Assert.That(fixture.Launches).IsEqualTo(1);
         // Focus raised the window over the entry that was already there, so nothing re-tracked it:
         // a Diff would have replaced the move, losing the exe and arguments the piper send carries.
-        await Assert.That(fixture.TrackedExe()).IsEqualTo(Exe);
+        await Assert.That(fixture.TrackedExe()).IsEqualTo(exe);
     }
 
     sealed class Fixture :
@@ -124,7 +124,7 @@ public class DiffRunnerViewerFocusRaceTest
         /// that always worked.
         /// </summary>
         public void Track() =>
-            tracker.AddMove(Temp, Target, Exe, "--diff", false, null);
+            tracker.AddMove(Temp, Target, exe, "--diff", false, null);
 
         public bool Tracks(string key) =>
             ((ITrackedFiles) tracker).Has(key);
@@ -169,13 +169,13 @@ public class DiffRunnerViewerFocusRaceTest
     /// Guarded as existing and never started: the pair is the viewer's, so nothing here reaches a
     /// process launch.
     /// </summary>
-    static readonly string Exe = Environment.ProcessPath!;
+    static readonly string exe = Environment.ProcessPath!;
 
     static ResolvedTool Viewer() =>
         new(
-            name: DiffTool.DiffEngineViewer.ToString(),
+            name: nameof(DiffTool.DiffEngineViewer),
             tool: DiffTool.DiffEngineViewer,
-            exePath: Exe,
+            exePath: exe,
             launchArguments: new(
                 Left: (temp, target) => $"\"{target}\" \"{temp}\"",
                 Right: (temp, target) => $"\"{temp}\" \"{target}\""),
