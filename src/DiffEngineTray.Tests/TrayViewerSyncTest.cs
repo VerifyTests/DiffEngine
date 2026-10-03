@@ -211,6 +211,62 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A snapshot moving inline lands while an accept-all is applying: its patch, and the delete of
+    /// the verified file that patch replaces. The batch takes its snapshots as it begins, so the
+    /// patch is not in it, and it used to read the deletes when their turn came, so the delete was.
+    /// The verified file went while the patch replacing it was only pending.
+    /// </summary>
+    [Test]
+    public async Task TrayAcceptAllLeavesADeleteThatArrivedWhileItWasApplying()
+    {
+        using var held = new HeldApply(1);
+        await using var pair = new TrayOwned(held.Apply);
+        pair.Queue(sample, 1);
+        var early = pair.AddDelete();
+
+        var accepting = pair.Tracker.AcceptAll();
+        held.WaitUntilHeld();
+        pair.Queue(other, 7);
+        var late = pair.AddDelete();
+        held.Release();
+        await accepting;
+
+        // What was pending when the batch began went, and what arrived during it is still there
+        await Assert.That(File.Exists(early.File)).IsFalse();
+        await Assert.That(File.Exists(late.File)).IsTrue();
+        await Assert.That(pair.Tracker.Deletes.Select(_ => _.File)).IsEquivalentTo([late.File]);
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(other, 7)]);
+    }
+
+    /// <summary>
+    /// The same arrival during the accept-all a displaying viewer asks for. What came in during
+    /// the batch is not part of it either way, so it is not counted as kept: it is still in the
+    /// window, as the patch beside it is.
+    /// </summary>
+    [Test]
+    public async Task ViewerAcceptAllLeavesADeleteThatArrivedWhileItWasApplying()
+    {
+        using var held = new HeldApply(1);
+        await using var pair = new TrayOwned(held.Apply);
+        pair.Queue(sample, 1);
+        var early = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+        var pumping = Task.Run(pair.Pump);
+        held.WaitUntilHeld();
+        pair.Queue(other, 7);
+        var late = pair.AddDelete();
+        held.Release();
+        var viewer = await pumping;
+
+        await Assert.That(File.Exists(early.File)).IsFalse();
+        await Assert.That(File.Exists(late.File)).IsTrue();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([Key(other, 7), late.Key]);
+        await Assert.That(viewer.Message).IsEqualTo("Accepted 1, plus 1 files");
+    }
+
+    /// <summary>
     /// The arrangement the tray sets up at login: it owns the queue and a viewer displays it. An
     /// accept-all clicked in that viewer runs in the tray, and the window follows it there - each
     /// entry leaving as it lands, and the tray's count in the status line - rather than saying

@@ -88,7 +88,7 @@ public class TrackerMoveOntoDeleteTest :
         tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
         tracker.AddDelete(verified);
 
-        var (accepted, kept) = tracked.AcceptAll(holdDeletes: false);
+        var (accepted, kept) = tracked.AcceptAllTracked(holdDeletes: false);
 
         await Assert.That(accepted).IsEqualTo(1);
         await Assert.That(kept).IsEqualTo(1);
@@ -114,7 +114,7 @@ public class TrackerMoveOntoDeleteTest :
         // the verified file from being deleted
         await using (new FileStream(received, FileMode.Open, FileAccess.Read, FileShare.None))
         {
-            (accepted, kept) = tracked.AcceptAll(holdDeletes: false);
+            (accepted, kept) = tracked.AcceptAllTracked(holdDeletes: false);
         }
 
         await Assert.That(accepted).IsEqualTo(0);

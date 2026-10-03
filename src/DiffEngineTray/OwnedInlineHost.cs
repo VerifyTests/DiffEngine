@@ -415,6 +415,12 @@ sealed class OwnedInlineHost :
     /// same rule for the arrangement where the tray holds the queue, which is the usual one.
     /// </para>
     /// <para>
+    /// The deletes are listed as the batch begins, ahead of the snapshots, and only those are
+    /// carried out. Read when their turn came, they included the delete of a snapshot that moved
+    /// inline while the batch was applying, whose patch the batch never had: the verified file
+    /// went with the patch replacing it still pending.
+    /// </para>
+    /// <para>
     /// The files count towards the progress a listing reports, since a move that is being retried
     /// while a diff tool lets go of it is as much of the wait as any snapshot.
     /// </para>
@@ -427,13 +433,13 @@ sealed class OwnedInlineHost :
         lock (accepting)
         {
             var moves = TrackedFiles?.Moves().Count ?? 0;
-            var deletes = TrackedFiles?.Deletes().Count ?? 0;
-            StartProgress(moves + deletes);
+            var deletes = TrackedFiles?.Deletes().Select(_ => _.Key).ToList() ?? [];
+            StartProgress(moves + deletes.Count);
             try
             {
-                message = AcceptEvery(moves + deletes, out var refused);
-                tracked = TrackedFiles?.AcceptAll(refused, Advance);
-                held = refused && deletes > 0;
+                message = AcceptEvery(moves + deletes.Count, out var refused);
+                tracked = TrackedFiles?.AcceptAll(deletes, refused, Advance);
+                held = refused && deletes.Count > 0;
             }
             finally
             {

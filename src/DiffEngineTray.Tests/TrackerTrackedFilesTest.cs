@@ -153,12 +153,63 @@ public class TrackerTrackedFilesTest :
         await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
-        var (accepted, kept) = tracked.AcceptAll(holdDeletes: false);
+        var (accepted, kept) = tracked.AcceptAllTracked(holdDeletes: false);
 
         await Assert.That(accepted).IsEqualTo(2);
         await Assert.That(kept).IsEqualTo(0);
         await Assert.That(File.Exists(file)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("content");
+    }
+
+    /// <summary>
+    /// The owner lists the deletes as its batch begins and hands them back once its snapshots are
+    /// done. One that arrived in between is not in the batch: it belongs to a patch the batch never
+    /// had, so it is left pending and counted as neither accepted nor kept.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllCarriesOutOnlyTheDeletesListedWhenTheBatchBegan()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddDelete(file);
+        var listed = tracked
+            .Deletes()
+            .Select(_ => _.Key)
+            .ToList();
+        tracker.AddDelete(lateFile);
+
+        var (accepted, kept) = tracked.AcceptAll(listed, holdDeletes: false);
+
+        await Assert.That(accepted).IsEqualTo(1);
+        await Assert.That(kept).IsEqualTo(0);
+        await Assert.That(File.Exists(file)).IsFalse();
+        await Assert.That(File.Exists(lateFile)).IsTrue();
+        await Assert.That(tracker.Deletes.Select(_ => _.File)).IsEquivalentTo([lateFile]);
+    }
+
+    /// <summary>
+    /// A delete that was listed and then settled while the snapshots were applying. There is
+    /// nothing left to carry out, and the progress it was counted into still moves past it.
+    /// </summary>
+    [Test]
+    public async Task AcceptAllPassesOverADeleteThatWentWhileTheBatchRan()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddDelete(file);
+        var listed = tracked
+            .Deletes()
+            .Select(_ => _.Key)
+            .ToList();
+        tracked.Untrack(TrackedKeys.ForDelete(file));
+        var steps = 0;
+
+        var (accepted, kept) = tracked.AcceptAll(listed, holdDeletes: false, () => steps++);
+
+        await Assert.That(accepted).IsEqualTo(0);
+        await Assert.That(kept).IsEqualTo(0);
+        await Assert.That(steps).IsEqualTo(1);
+        await Assert.That(File.Exists(file)).IsTrue();
     }
 
     /// <summary>
@@ -175,7 +226,7 @@ public class TrackerTrackedFilesTest :
         await File.WriteAllTextAsync(temp, "content");
         tracker.AddMove(temp, target, null, null, false, null);
 
-        var (accepted, kept) = tracked.AcceptAll(holdDeletes: true);
+        var (accepted, kept) = tracked.AcceptAllTracked(holdDeletes: true);
 
         await Assert.That(accepted).IsEqualTo(1);
         await Assert.That(kept).IsEqualTo(1);
@@ -203,6 +254,7 @@ public class TrackerTrackedFilesTest :
     public void Dispose()
     {
         File.Delete(file);
+        File.Delete(lateFile);
         if (File.Exists(temp))
         {
             File.Delete(temp);
@@ -217,6 +269,7 @@ public class TrackerTrackedFilesTest :
     }
 
     string file = Path.GetTempFileName();
+    string lateFile = Path.GetTempFileName();
     string tempDirectory;
     string temp;
     string target;

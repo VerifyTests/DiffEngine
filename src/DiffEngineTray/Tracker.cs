@@ -419,19 +419,23 @@ class Tracker :
     /// way, for the same reason.
     /// </para>
     /// </summary>
+    /// <param name="pending">
+    /// The deletes that were pending when the accept-all began, which are the only ones it carries
+    /// out: see <see cref="AcceptOpen"/>.
+    /// </param>
     /// <param name="written">
     /// The files the moves accepted ahead of this were moved onto, which no delete here may remove.
     /// </param>
-    Task AcceptSnapshotsThenDeletes(HashSet<string> written) =>
+    Task AcceptSnapshotsThenDeletes(List<TrackedDelete> pending, HashSet<string> written) =>
         Task.Run(() =>
         {
             try
             {
                 if (!SweepSnapshots(out var failure))
                 {
-                    AcceptAllDeletes(written);
+                    AcceptDeletes(pending, written);
                 }
-                else if (!deletes.IsEmpty)
+                else if (pending.Any(_ => deletes.ContainsKey(_.File)))
                 {
                     failure = failure is null ? DeletesHeld : $"{failure} {DeletesHeld}";
                 }
@@ -878,9 +882,19 @@ class Tracker :
     /// on a worker for the reason <see cref="Accept(PendingSnapshot)"/> gives. The menu and the
     /// hot keys discard it; tests await it so what the other surface should now be showing is
     /// settled rather than in flight.
+    /// <para>
+    /// The deletes are listed here, before anything is accepted, and only those are carried out. A
+    /// snapshot moving inline can land while a batch is applying. Whoever owns the queue took its
+    /// snapshots as the sweep began, so that patch is not in the batch, and the deletes were read
+    /// when their turn came, so its delete was: the verified file went while the patch replacing
+    /// it was only pending. Ahead of the snapshots rather than beside them, because Verify raises
+    /// the delete and then queues the patch, so a delete listed this early has a patch that was
+    /// there to be taken unless the batch began between the two.
+    /// </para>
     /// </summary>
     public Task AcceptOpen()
     {
+        var pending = deletes.Values.ToList();
         var written = AcceptMoves(
             moves.Values
                 .Where(_ => _.IsOpen)
@@ -888,24 +902,31 @@ class Tracker :
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
         // has something to show.
-        return AcceptSnapshotsThenDeletes(written);
+        return AcceptSnapshotsThenDeletes(pending, written);
     }
 
     /// <inheritdoc cref="AcceptOpen"/>
     public Task AcceptAll()
     {
+        var pending = deletes.Values.ToList();
         var written = AcceptMoves(moves.Values);
 
-        return AcceptSnapshotsThenDeletes(written);
+        return AcceptSnapshotsThenDeletes(pending, written);
     }
 
-    void AcceptAllDeletes(HashSet<string> written)
+    void AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
     {
         // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
         // clearing would throw that away. Unguarded, the first bad one also took the rest of the
         // sweep with it, so "Accept all" stopped at the first read-only file
-        foreach (var delete in deletes.Values.ToList())
+        foreach (var delete in pending)
         {
+            // Settled, withdrawn or accepted on its own since the batch began
+            if (!deletes.ContainsKey(delete.File))
+            {
+                continue;
+            }
+
             if (WrittenOrAwaited(delete, written))
             {
                 Log.Information("Kept the pending delete of `{Name}`: a move wrote that file, or is still pending onto it", delete.Name);
@@ -1049,7 +1070,7 @@ class Tracker :
         return (false, null);
     }
 
-    (int accepted, int kept) ITrackedFiles.AcceptAll(bool holdDeletes, Action? advanced)
+    (int accepted, int kept) ITrackedFiles.AcceptAll(IReadOnlyCollection<string> deleteKeys, bool holdDeletes, Action? advanced)
     {
         var accepted = 0;
         var kept = 0;
@@ -1072,8 +1093,17 @@ class Tracker :
             advanced?.Invoke();
         }
 
-        foreach (var delete in deletes.Values.ToList())
+        foreach (var key in deleteKeys)
         {
+            // Settled, withdrawn or accepted on its own since the batch began. Nothing to carry
+            // out, and one fewer to wait for
+            if (!TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) ||
+                !deletes.TryGetValue(file, out var delete))
+            {
+                advanced?.Invoke();
+                continue;
+            }
+
             // Held rather than tried, and left tracked, so it can still be accepted on its own by
             // anyone who knows the file is redundant
             if (!holdDeletes &&

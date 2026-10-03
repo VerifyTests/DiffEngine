@@ -638,8 +638,14 @@ public class OwnedInlineHostTest
         /// </summary>
         public bool? HeldDeletes { get; private set; }
 
-        public (int accepted, int kept) AcceptAll(bool holdDeletes, Action? advanced = null)
+        /// <summary>
+        /// The deletes the last sweep was told it may carry out, null before there was one.
+        /// </summary>
+        public IReadOnlyCollection<string>? SweptDeletes { get; private set; }
+
+        public (int accepted, int kept) AcceptAll(IReadOnlyCollection<string> deleteKeys, bool holdDeletes, Action? advanced = null)
         {
+            SweptDeletes = deleteKeys;
             HeldDeletes = holdDeletes;
             // One step per file the sweep reports, which is what the real tracker calls it for
             for (var file = 0; file < SweepResult.accepted + SweepResult.kept; file++)
@@ -859,6 +865,37 @@ public class OwnedInlineHostTest
 
         await Assert.That(tracked.HeldDeletes).IsFalse();
         await Assert.That(response.Message).IsEqualTo("Accepted 1, plus 1 files");
+    }
+
+    /// <summary>
+    /// The deletes are listed as the batch begins and those are what the sweep is handed once the
+    /// snapshots are done. They were read at that point instead, so a delete that arrived while a
+    /// snapshot was applying was swept with a batch its patch was never in.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptAllSweepsOnlyTheDeletesPendingWhenItBegan()
+    {
+        using var held = new HeldApply(1);
+        using var owner = new Owner(held.Apply);
+        var tracked = new FakeTracked
+        {
+            DeleteList = [new(@"delete:c:\code\early.verified.txt", "early.verified.txt", null, @"c:\code\early.verified.txt")],
+            SweepResult = (1, 0)
+        };
+        owner.Host.TrackedFiles = tracked;
+        owner.Queue();
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        tracked.DeleteList =
+        [
+            ..tracked.DeleteList,
+            new(@"delete:c:\code\late.verified.txt", "late.verified.txt", null, @"c:\code\late.verified.txt")
+        ];
+        held.Release();
+        await accepting;
+
+        await Assert.That(tracked.SweptDeletes!).IsEquivalentTo([@"delete:c:\code\early.verified.txt"]);
     }
 
     /// <summary>
