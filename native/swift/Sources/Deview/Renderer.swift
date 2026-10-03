@@ -236,9 +236,22 @@ final class Renderer {
         var across: CGFloat = 1
         var down: CGFloat = 1
 
+        /// The centre the frame asked for, before it was moved in to keep this space full, and
+        /// whether there is more of the picture than the space shows each way, by a whole point
+        /// or more: which is whether a drag can move it that way.
+        var asked: CGPoint = CGPoint(x: 0.5, y: 0.5)
+        var movesAcross = false
+        var movesDown = false
+
         /// Where a drag of `by` points leaves the centre. The picture follows the pointer, so the
         /// point at the middle moves the other way, and nothing here is flipped, so a drag up the
         /// screen is a positive y and brings what is lower in the picture into view.
+        ///
+        /// The centre is one point for both panes, and the other pane's picture need not be this
+        /// one's shape. So a way this picture cannot move is reported as the frame had it, not as
+        /// this space holds it: all of it shows that way, which held here is the middle, and
+        /// reporting the middle put the other pane's picture back there on the first move of a
+        /// drag that was along the other axis.
         func dragged(by: CGSize) -> CGPoint {
             guard enlarged, whole.width > 0, whole.height > 0 else {
                 return centre
@@ -247,8 +260,8 @@ final class Renderer {
             let x = centre.x - by.width / whole.width
             let y = centre.y + by.height / whole.height
             return CGPoint(
-                x: min(max(x, across / 2), 1 - across / 2),
-                y: min(max(y, down / 2), 1 - down / 2))
+                x: movesAcross ? min(max(x, across / 2), 1 - across / 2) : asked.x,
+                y: movesDown ? min(max(y, down / 2), 1 - down / 2) : asked.y)
         }
     }
 
@@ -824,6 +837,14 @@ final class Renderer {
             layout.pictures[layout.pictures.count - 1].centre = centre
             layout.pictures[layout.pictures.count - 1].across = across
             layout.pictures[layout.pictures.count - 1].down = down
+            // What the frame carried, exactly, so that handing it back changes nothing. And a way
+            // counts as one it can move only where the space is what cut it short: a picture a
+            // fraction of a point wider than what shows of it has nowhere to go that can be seen.
+            layout.pictures[layout.pictures.count - 1].asked = CGPoint(
+                x: CGFloat(pane.imageCenterX),
+                y: CGFloat(pane.imageCenterY))
+            layout.pictures[layout.pictures.count - 1].movesAcross = whole.width.rounded(.down) > shown.width
+            layout.pictures[layout.pictures.count - 1].movesDown = whole.height.rounded(.down) > shown.height
         }
 
         // Below its own size the window draws it from a copy scaled to the pixels the whole of it

@@ -179,7 +179,8 @@ final class ViewerView: NSView, NSViewToolTipOwner {
 
         if panning {
             // Where it is rather than how far it moved, and already inside what the space can show:
-            // the managed side holds one centre for both panes and knows nothing of points.
+            // the managed side holds one centre for both panes and knows nothing of points. A way
+            // this pane's picture cannot move comes back as the frame had it, for the other pane.
             let centre = panFrom.dragged(
                 by: CGSize(width: point.x - panStart.x, height: point.y - panStart.y))
             Runtime.shared.input.panX = Float(centre.x)
