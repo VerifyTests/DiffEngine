@@ -204,8 +204,10 @@ sealed class OwnedInlineHost :
         }
 
         Changed?.Invoke();
-        // A patch arriving with no window open starts one; with one, this is the focus.
-        Show(WindowCommand.Focus, InlineKey.For(patch.SourceFile, patch.LineHint));
+        // A patch arriving with no window open starts one; with one, this raises it. Neither moves
+        // the selection onto the patch: it joins the queue behind whatever is being read, as a pair
+        // does (ViewerMessageHandler.Diff)
+        Show(WindowCommand.Focus, null);
         return count;
     }
 

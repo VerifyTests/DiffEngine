@@ -175,6 +175,7 @@ sealed class ViewerForm : Form
             if (Frame is { } frame)
             {
                 Apply(frame());
+                Animate();
             }
         };
 
@@ -357,10 +358,20 @@ sealed class ViewerForm : Form
     }
 
     /// <summary>
-    /// See <see cref="ViewerCanvas.LoadPictures" />.
+    /// See <see cref="ViewerCanvas.Synchronous" />.
     /// </summary>
-    public void LoadPictures() =>
-        canvas.LoadPictures();
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Synchronous
+    {
+        get => canvas.Synchronous;
+        set => canvas.Synchronous = value;
+    }
+
+    /// <summary>
+    /// See <see cref="ViewerCanvas.Animate" />.
+    /// </summary>
+    public void Animate() =>
+        canvas.Animate();
 
     /// <summary>
     /// The bar follows the model rather than owning the position, so it agrees with the keyboard

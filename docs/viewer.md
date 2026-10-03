@@ -177,7 +177,7 @@ Each pane lists what its own side is — format, pixel dimensions and byte count
 
 The extension decides, not the content. A `.png` holding something that is not one is still an image side, and says its format was not recognized instead of rendering the bytes as text.
 
-Each pane also draws the picture itself, one blank line under those rows: fitted to the space, never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three heads place it identically, from the size the file's own header gave rather than from whatever their decoder reported.
+Each pane also draws the picture itself, one blank line under those rows: fitted to the space, never enlarged past its own size, on a checkerboard so transparency reads as transparent. All three heads place it identically, from the size the file's own header gave rather than from whatever their decoder reported. Pictures are decoded and scaled off the window's thread, so a large one never stops the window responding, and a spinner turns where it will appear until it is ready. Only the pictures of the entry on screen are decoded.
 
 Which formats can be drawn is the platform's answer rather than the viewer's, because each head uses the decoder its toolkit ships with:
 
@@ -217,7 +217,7 @@ A document opens at its first page that differs, the way a text comparison opens
 
 The status line says what is known about the pair as it becomes known: `reading text` and `drawing` while that happens, which page is showing and which differ, `every page draws the same` when the files differ only where nothing shows, and `documents are identical` when the bytes match. Each pane's header names the page it shows, `received.pdf (page 2 of 5)`, or `(no page 6)` when that side has fewer.
 
-Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: a document that hangs is given up on after two minutes, but one that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
+Reading and drawing happen on a thread of their own once the window is up, so a long document never holds a test run waiting on the viewer, and never holds the window either. Only the entry on screen is read and drawn: with several documents pending, the rest wait until they are opened, rather than keeping the thread busy with documents that may never be looked at. While a page is still being drawn, a spinner turns where it will appear. Each document is read from a copy the viewer takes, never the file itself, so it cannot hold a lock that stops it being accepted. They run inside the viewer's process: a document that hangs is given up on after two minutes, but one that crashes PDFium or Skia takes the window with it, and with no tray running, any inline snapshots the window was holding.
 
 An SVG is drawn with scripts, external images and external elements turned off. A snapshot is test output, and nothing in one gets to reach the network or the disk.
 

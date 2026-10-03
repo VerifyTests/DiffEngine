@@ -29,6 +29,11 @@ final class Runtime {
     /// in the meantime.
     private var menuShown = false
 
+    /// When a spinner was last turned, and how often one is: often enough to read as turning, and
+    /// no more, since each step is a redraw.
+    private var lastSpin: TimeInterval = 0
+    private static let spinStep: TimeInterval = 0.04
+
     var window: NSWindow?
     var view: ViewerView?
     var renderer: Renderer?
@@ -155,12 +160,24 @@ final class Runtime {
         // Drawn only when there is something new to draw. The managed loop presents at 60 fps
         // whether or not anything changed, and redrawing the whole window every time kept a core
         // busy for a viewer nobody was touching. What is on screen is the frame plus the pictures
-        // it names, whose files can be rewritten under an unchanged frame. Anything else - a
-        // resize, a splitter drag, a move to a display of another scale - is invalidated by
-        // AppKit or by the view as it happens.
-        if view.model != frame || renderer?.picturesChanged(frame) == true {
+        // it names, whose files can be rewritten under an unchanged frame and which are decoded
+        // off this thread, landing between frames. Anything else - a resize, a splitter drag, a
+        // move to a display of another scale - is invalidated by AppKit or by the view as it
+        // happens.
+        let landed = renderer?.takeFinished() == true
+        if view.model != frame || landed || renderer?.picturesChanged(frame) == true {
             view.model = frame
             view.needsDisplay = true
+        } else if !view.layout.spinners.isEmpty {
+            // A spinner turns while nothing else changes, which is the whole time a picture is on
+            // its way. Only where one is, so turning it does not redraw the whole window.
+            let now = ProcessInfo.processInfo.systemUptime
+            if now - lastSpin >= Runtime.spinStep {
+                lastSpin = now
+                for spinner in view.layout.spinners {
+                    view.setNeedsDisplay(spinner)
+                }
+            }
         }
 
         view.displayIfNeeded()

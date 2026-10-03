@@ -32,11 +32,13 @@ class MessageHandler(
         var count = state
             .Queue
             .Count(_ => _.Kind == QueueEntryKind.Inline);
-        // Brought forward on the entry that arrived, which is what a tray owner does with one of
-        // these. Without it a patch landing in a window that is hidden - which this one is
-        // whenever a tray is running and the queue last emptied - showed up only as a tray icon
-        // on the next scan, and one landing in a window behind the editor showed up not at all
-        ((IQueueOwner) this).Window(WindowCommand.Focus, InlineKey.For(patch.SourceFile, patch.LineHint));
+        // Brought forward, which is what a tray owner does with one of these. Without it a patch
+        // landing in a window that is hidden - which this one is whenever a tray is running and
+        // the queue last emptied - showed up only as a tray icon on the next scan, and one landing
+        // in a window behind the editor showed up not at all. Not onto the patch, though: it joins
+        // the queue behind whatever is being read, as a pair does (ViewerMessageHandler.Diff), and
+        // is on screen at once only when it is all there is
+        ((IQueueOwner) this).Window(WindowCommand.Focus, null);
         return count;
     }
 

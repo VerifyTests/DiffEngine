@@ -177,6 +177,17 @@ apart.
   three fit from `ImagePane.Width/Height` — the file header's numbers, not the decoder's — one blank
   line under the pane's rows, so the placement rule lives once. Headers are sniffed by hand
   (`ImageHeader`) rather than by System.Drawing, which does not exist on macOS or Linux.
+- No head decodes or scales a picture on its UI thread: WinForms on the pool (`ImageCache`, both
+  the decode and the composite), macOS on a serial `DispatchQueue`, Linux on a decoder thread with
+  only the texture upload on the GL thread. Each draws the same spinner where the picture will be
+  centred until it lands - a dim ring and a brighter quarter turning once a second - and so does a
+  pane whose `ImagePending` the model set, which is a document's page `DocumentWatch` has not
+  drawn yet: there is no path or size then, which is why it is a flag of its own (ABI 10). A
+  capture does everything there and then and stands the spinner at twelve o'clock, since it draws
+  one frame that has to come out the same every time (`ViewerCanvas.Synchronous`, the Swift
+  renderer's `capturing`, `state.capturing` in the shim). A spinner turns by repainting only its own
+  rectangle: WinForms and macOS redraw only when something changed, and the frame is otherwise
+  unchanged for as long as a page takes.
 - Documents (PDF, docx, xlsx, pptx, and SVG and maps drawn beside their text) need **`src/DiffEngineViewer.Documents`**,
   a separate assembly with Morph, Morph.PDFium, Skia, GeoConvert and the OpenXml SDK behind it: tens of MB per
   RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
@@ -195,7 +206,10 @@ apart.
   - In process, by choice: a native fault in PDFium or Skia ends the window. A hang is given up on
     after `DocumentWatch.Timeout`, and a PDF left behind holds PDFium's lock, so PDFs then fail at once.
   - `FileSide.Read` only hashes a document, because it runs on the listener thread a test process
-    waits on. `DocumentWatch` (owned, attached and file modes) does the slow part from a copy taken
+    waits on. `DocumentWatch` (owned, attached and file modes) does the slow part, for the entry on
+    screen only - never the next one ahead of time, because a call into Morph or PDFium cannot be
+    stopped, and one drawing ahead was one the reader waited behind when they picked another entry.
+    It works from a copy taken
     under the cache's hash directory, checked against the hash, so nothing holds a lock on the user's
     file and what is drawn is what the hash says. Text replaces the entry once both sides are read
     (`ViewerSession.TextRead`, by reference, as `Refresh` does); pages go into
@@ -364,6 +378,13 @@ apart.
   move key rather than killing anything, since the row is drawn in a window shared with every other
   pending pair. That is what makes ten failing image snapshots one window instead of ten, and it is
   only available to the viewer because no other tool can be told to drop one pair.
+- An arrival raises the window but does not take the selection: the first of a run is the one on
+  screen, and the rest join the queue behind it. So `Diff` and an inline `Enqueue` raise with no
+  key, on both owners, and the tray route's `Focus` is marked `ViewerMessage.Arrived`, which an
+  owner answers the same way (an older one reads past the body and selects, as before). It matters
+  beyond tidiness because `DocumentWatch` draws whatever is on screen: following each arrival in
+  drew every document of a run as it landed. A plain `Focus` still selects, since that is the tray
+  menu or an editor asking for that entry, and an arrival into an empty queue is on screen anyway.
 - The catch that shape creates: every inline transition rebuilds its half of the queue from
   `InlineQueue`, so `ViewerSession.Rebuild` carries the tracked entries across it. Without that,
   accepting one snapshot silently drops the files pending beside it. `Sync` is the one caller that

@@ -45,7 +45,10 @@ static class ScreenBuilder
             paneRows,
             Picture(state, current, PaneSide.Left),
             selection,
-            PaneSide.Left);
+            PaneSide.Left) with
+        {
+            ImagePending = PagePending(state, current, PaneSide.Left)
+        };
         var right = BuildPane(
             Header(state, current, PaneSide.Right),
             view,
@@ -53,7 +56,10 @@ static class ScreenBuilder
             paneRows,
             Picture(state, current, PaneSide.Right),
             selection,
-            PaneSide.Right);
+            PaneSide.Right) with
+        {
+            ImagePending = PagePending(state, current, PaneSide.Right)
+        };
 
         var queue = BuildQueue(state, body, out var top);
         return new(
@@ -152,6 +158,29 @@ static class ScreenBuilder
 
         var page = rendering.Pages[index];
         return new(page.Path, page.Width, page.Height, page.Hash);
+    }
+
+    /// <summary>
+    /// Whether the page a side would show is still to come: waiting its turn, or being drawn and
+    /// not that far yet. Not once drawing has finished or failed, when the header says why there is
+    /// no page, and never in the text view, which has nowhere to put one.
+    /// </summary>
+    static bool PagePending(SessionState state, QueueEntry? entry, PaneSide side)
+    {
+        if (entry is not { IsDocument: true } ||
+            state.Drawing == DrawingView.Text ||
+            Document(entry, side) is not { Hash: not null } document)
+        {
+            return false;
+        }
+
+        if (DocumentPages.Of(state, document) is not { } rendering)
+        {
+            return true;
+        }
+
+        return !rendering.Complete &&
+               DocumentPages.Current(state) >= rendering.Pages.Count;
     }
 
     /// <summary>

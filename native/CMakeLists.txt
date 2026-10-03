@@ -96,7 +96,9 @@ add_library(diffengine_viewer SHARED
   ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
 
 target_include_directories(diffengine_viewer PRIVATE include ${imgui_SOURCE_DIR})
-target_link_libraries(diffengine_viewer PRIVATE raylib)
+# Threads for the thread pictures are decoded on.
+find_package(Threads REQUIRED)
+target_link_libraries(diffengine_viewer PRIVATE raylib Threads::Threads)
 
 # The managed side probes for a bare name; keep it identical on every platform apart from the
 # platform's own prefix and extension.

@@ -167,8 +167,7 @@ public class FormsHeadTests
     {
         using var host = new CanvasHost();
         var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Images(), columns, rows));
-        host.Canvas.Draw(screen);
-        host.Canvas.LoadPictures();
+        host.Canvas.Synchronous = true;
 
         var first = host.Draw(screen);
         var second = host.Draw(screen);
@@ -178,6 +177,49 @@ public class FormsHeadTests
         var red = Bounds(second, _ => _ is {R: 198, G: 64, B: 64});
         await Assert.That(red).IsNotNull();
         await Assert.That(Bounds(first, _ => _ is {R: 198, G: 64, B: 64})).IsEqualTo(red);
+    }
+
+    /// <summary>
+    /// Through the real canvas, loading its pictures the way the window does, on the pool: a
+    /// spinner where each picture goes until it lands, and the pictures once they have, with nothing
+    /// left turning.
+    /// </summary>
+    [Test]
+    public async Task APictureOnItsWayIsASpinnerUntilItLands()
+    {
+        using var host = new CanvasHost();
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Images(), columns, rows));
+
+        var waiting = host.Draw(screen);
+        await Assert.That(host.Canvas.Spinners.Count).IsEqualTo(2);
+        await Assert.That(Bounds(waiting, _ => _ is {R: 198, G: 64, B: 64})).IsNull();
+
+        // Decoded, then composed, each landing through the message loop
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (host.Canvas.Composed() < 2 &&
+               DateTime.UtcNow < deadline)
+        {
+            Application.DoEvents();
+            host.Draw(screen);
+            Thread.Sleep(10);
+        }
+
+        var landed = host.Draw(screen);
+        await Assert.That(host.Canvas.Spinners).IsEmpty();
+        await Assert.That(Bounds(landed, _ => _ is {R: 198, G: 64, B: 64})).IsNotNull();
+    }
+
+    /// <summary>
+    /// A document's page still being drawn has no path or size yet, and a spinner stands where it
+    /// will go.
+    /// </summary>
+    [Test]
+    public async Task APageStillBeingDrawnIsASpinner()
+    {
+        using var host = new CanvasHost();
+        host.Canvas.Synchronous = true;
+        host.Draw(ScreenBuilder.Build(ViewerSession.Resize(Fixtures.DocumentDrawing(), columns, rows)));
+        await Assert.That(host.Canvas.Spinners.Count).IsEqualTo(1);
     }
 
     /// <summary>

@@ -49,6 +49,24 @@ public class FileTypeSampleTests :
         await Assert.That(moved).IsNotEquivalentTo(still);
     }
 
+    /// <summary>
+    /// The heavy ones <see cref="FileTypeLaunchTests.ManyDocuments"/> queues, read as text only:
+    /// drawing them is what takes the time they are there to take.
+    /// </summary>
+    [Test]
+    public async Task TheManyDocumentsAreWhatTheySay()
+    {
+        var report = Plugin.Text(Write("report.pdf", FileTypeLaunchTests.LongPdf(1, changed: true)));
+        await Assert.That(report).Contains("--- page 120 ---");
+        await Assert.That(report).Contains("Report 1, page 30, changed");
+
+        var survey = Plugin.Text(Write("survey.fgb", FileTypeLaunchTests.BusyMap(1, moved: true)));
+        await Assert.That(survey).Contains("\"index\": 399");
+
+        await Assert.That(ImageHeader.TryRead(SampleImages.Photo(220, 120, 60), out var header)).IsTrue();
+        await Assert.That(header).IsEqualTo(new(ImageFormat.Jpeg, 4000, 3000));
+    }
+
     static DocumentPlugin Plugin { get; } = DocumentPlugin.Find(Path.Combine(AppContext.BaseDirectory, "documents"))!;
 
     byte[] Render(string path)

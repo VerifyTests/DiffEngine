@@ -61,6 +61,41 @@ public class DocumentWatchTests :
     }
 
     /// <summary>
+    /// Only the entry on screen is read and drawn. The one after it waits until it is stepped to,
+    /// rather than holding the thread when the reader picks some other entry instead.
+    /// </summary>
+    [Test]
+    public async Task OnlyTheEntryOnScreenIsReadAndDrawn()
+    {
+        var documents = new FakeDocuments();
+        disposables.Add(documents);
+        var first = TrackedEntry.ForMove(Write("first.received.pdf", "alpha"), Write("first.verified.pdf", "bravo"), documents.Plugin);
+        var second = TrackedEntry.ForMove(Write("second.received.pdf", "charlie"), Write("second.verified.pdf", "delta"), documents.Plugin);
+        var state = ViewerSession.EnqueueTracked(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows), first);
+        state = ViewerSession.EnqueueTracked(state, second);
+        var host = new SessionHost(ViewerSession.SelectKey(state, first.Key));
+        var watch = new DocumentWatch(host, documents.Plugin);
+        while (watch.Pump())
+        {
+        }
+
+        await Assert.That(documents.Texts).IsEqualTo(2);
+        await Assert.That(documents.Renders).IsEqualTo(2);
+        var waiting = host.State.Queue.Single(_ => _.Key == second.Key);
+        await Assert.That(waiting.LeftDocument!.Value.Reading).IsTrue();
+        await Assert.That(DocumentPages.Of(host.State, waiting.LeftDocument)).IsNull();
+
+        host.Mutate(_ => ViewerSession.SelectKey(_, second.Key));
+        while (watch.Pump())
+        {
+        }
+
+        await Assert.That(documents.Texts).IsEqualTo(4);
+        await Assert.That(documents.Renders).IsEqualTo(4);
+        await Assert.That(host.State.Current!.LeftText).IsEqualTo("charlie");
+    }
+
+    /// <summary>
     /// Nothing left to do is a pass that does nothing: no job, and the state as it was, so an open
     /// menu stays open through it.
     /// </summary>

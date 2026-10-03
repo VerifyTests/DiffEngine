@@ -18,13 +18,19 @@
 #include "rlgl.h"
 
 #include <algorithm>
+#include <cmath>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 /*
@@ -90,21 +96,56 @@ constexpr float checkerSize = 8.0f;
  * One decoded picture, kept because BuildFrame runs sixty times a second and decoding an image per
  * frame is what turns a window that is merely showing something into one that is busy.
  *
- * A false `loaded` is a remembered failure. raylib is built here with decoders for PNG, JPEG, BMP
- * and GIF and has none for WebP or ICO, so a pane can legitimately carry a path this build cannot
- * read; remembering that means attempting it once rather than once a frame. Nothing is lost when it
- * happens — the rows already say what the file is, and they are the description an image comparison
- * is made of.
+ * A false `loaded` once `decoding` is over is a remembered failure. raylib is built here with
+ * decoders for PNG, JPEG, BMP and GIF and has none for WebP or ICO, so a pane can legitimately carry
+ * a path this build cannot read; remembering that means attempting it once rather than once a frame.
+ * Nothing is lost when it happens — the rows already say what the file is, and they are the
+ * description an image comparison is made of.
  */
 struct CachedTexture
 {
     Texture2D texture{};
     bool loaded = false;
+
+    /* Being decoded on the decoder's thread. The pane shows a spinner until it lands. */
+    bool decoding = false;
+
     std::uintmax_t length = 0;
     std::filesystem::file_time_type written{};
 
     /* Whether the frame being built asked for this picture. What ForgetUnusedPictures keeps. */
     bool used = false;
+};
+
+/*
+ * One picture to decode, or decoded: the path, the stamp the decode was asked for, and once it is
+ * done the pixels, which are empty when raylib could not read the file.
+ */
+struct Decode
+{
+    std::string path;
+    std::uintmax_t length = 0;
+    std::filesystem::file_time_type written{};
+    Image image{};
+};
+
+/*
+ * Pictures are decoded on a thread of their own. Decoded on this one, a picture held the window for
+ * as long as it took, and a page of a document or a large screenshot takes tens of milliseconds and
+ * more. Only the decode moves: uploading the pixels is a GL call, which belongs to the thread that
+ * owns the context, and is the cheap half.
+ *
+ * Shared with that thread through a shared_ptr, and the thread detached rather than joined: a
+ * process that exits without deview_shutdown would otherwise destroy a joinable std::thread, which
+ * terminates the process.
+ */
+struct Decoder
+{
+    std::mutex mutex;
+    std::condition_variable wake;
+    std::deque<Decode> requests;
+    std::vector<Decode> done;
+    bool stopping = false;
 };
 
 struct State
@@ -142,6 +183,13 @@ struct State
     /* Keyed by the path the screen model handed over. std::map rather than unordered, because the
      * entries are handed out as pointers and this one does not move them. */
     std::map<std::string, CachedTexture> pictures;
+
+    /* Started with the first picture asked for, so a window that never shows one never has it. */
+    std::shared_ptr<Decoder> decoder;
+
+    /* Inside deview_capture, which draws one frame that has to come out the same every time: its
+     * pictures are decoded there and then, and a spinner stands still. */
+    bool capturing = false;
 
     /*
      * A text selection being dragged out: whether the button is still down, which pane it went
@@ -289,6 +337,146 @@ char RowMarker(int kind)
 
 /* ---- pictures ---- */
 
+void DecodeLoop(std::shared_ptr<Decoder> decoder)
+{
+    std::unique_lock<std::mutex> lock(decoder->mutex);
+    while (true)
+    {
+        decoder->wake.wait(lock, [&decoder] { return decoder->stopping || !decoder->requests.empty(); });
+        if (decoder->stopping)
+        {
+            return;
+        }
+
+        Decode decode = std::move(decoder->requests.front());
+        decoder->requests.pop_front();
+        lock.unlock();
+
+        /* The file and stb_image under it, and nothing that touches GL. */
+        decode.image = LoadImage(decode.path.c_str());
+
+        lock.lock();
+        if (decoder->stopping)
+        {
+            UnloadImage(decode.image);
+            return;
+        }
+
+        decoder->done.push_back(std::move(decode));
+    }
+}
+
+void RequestDecode(const std::string& path, std::uintmax_t length, std::filesystem::file_time_type written)
+{
+    if (!state.decoder)
+    {
+        state.decoder = std::make_shared<Decoder>();
+        std::thread(DecodeLoop, state.decoder).detach();
+    }
+
+    {
+        const std::lock_guard<std::mutex> lock(state.decoder->mutex);
+        Decode decode;
+        decode.path = path;
+        decode.length = length;
+        decode.written = written;
+        state.decoder->requests.push_back(std::move(decode));
+    }
+
+    state.decoder->wake.notify_one();
+}
+
+/*
+ * Drops a decode not started yet, for a picture no longer on screen, so stepping quickly through a
+ * queue of pictures does not leave the thread decoding every one of them in turn. One already
+ * started finishes, and is thrown away when it lands.
+ */
+void CancelDecode(const std::string& path)
+{
+    if (!state.decoder)
+    {
+        return;
+    }
+
+    const std::lock_guard<std::mutex> lock(state.decoder->mutex);
+    auto& requests = state.decoder->requests;
+    requests.erase(
+        std::remove_if(
+            requests.begin(),
+            requests.end(),
+            [&path](const Decode& request) { return request.path == path; }),
+        requests.end());
+}
+
+void StopDecoder()
+{
+    if (!state.decoder)
+    {
+        return;
+    }
+
+    {
+        const std::lock_guard<std::mutex> lock(state.decoder->mutex);
+        state.decoder->stopping = true;
+        state.decoder->requests.clear();
+        for (auto& decode : state.decoder->done)
+        {
+            UnloadImage(decode.image);
+        }
+
+        state.decoder->done.clear();
+    }
+
+    state.decoder->wake.notify_one();
+    state.decoder.reset();
+}
+
+/*
+ * Uploads what the decoder has finished into the entries still waiting for it. At the top of a
+ * frame, on the thread that owns the GL context. A decode for an entry since forgotten, or for a
+ * file since rewritten, is thrown away.
+ */
+void TakeDecoded()
+{
+    if (!state.decoder)
+    {
+        return;
+    }
+
+    std::vector<Decode> done;
+    {
+        const std::lock_guard<std::mutex> lock(state.decoder->mutex);
+        done.swap(state.decoder->done);
+    }
+
+    for (auto& decode : done)
+    {
+        const auto found = state.pictures.find(decode.path);
+        if (found != state.pictures.end() &&
+            found->second.decoding &&
+            found->second.written == decode.written &&
+            found->second.length == decode.length)
+        {
+            CachedTexture& entry = found->second;
+            entry.decoding = false;
+            if (decode.image.data != nullptr)
+            {
+                const Texture2D texture = LoadTextureFromImage(decode.image);
+                if (IsTextureValid(texture))
+                {
+                    entry.texture = texture;
+                    entry.loaded = true;
+                    /* A picture is only ever scaled down here, so bilinear is the whole of what the
+                     * filter has to do. */
+                    SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+                }
+            }
+        }
+
+        UnloadImage(decode.image);
+    }
+}
+
 void ForgetPicture(const std::string& path)
 {
     const auto found = state.pictures.find(path);
@@ -302,18 +490,27 @@ void ForgetPicture(const std::string& path)
         UnloadTexture(found->second.texture);
     }
 
+    if (found->second.decoding)
+    {
+        CancelDecode(path);
+    }
+
     state.pictures.erase(found);
 }
 
 /*
- * The decoded picture for a path, or null when this build cannot read it.
+ * The decoded picture for a path, or null when there is none to draw: either this build cannot
+ * read it, or it is still being decoded, which `loading` says so the pane can show that it is coming
+ * rather than nothing. A capture decodes here and now, since it draws one frame and has no later one
+ * for a decode to land in.
  *
  * Invalidated by the file's write time and length, which is the same freshness test the managed
  * queue poller uses: a re-run that rewrites a received image has to refresh the pane rather than
  * leave the previous one up.
  */
-const Texture2D* Picture(const std::string& path)
+const Texture2D* Picture(const std::string& path, bool& loading)
 {
+    loading = false;
     if (path.empty())
     {
         return nullptr;
@@ -338,10 +535,13 @@ const Texture2D* Picture(const std::string& path)
     const auto found = state.pictures.find(path);
     if (found != state.pictures.end())
     {
+        /* A capture does not wait on a decode the window started: it cannot. */
         if (found->second.written == written &&
-            found->second.length == length)
+            found->second.length == length &&
+            !(found->second.decoding && state.capturing))
         {
             found->second.used = true;
+            loading = found->second.decoding;
             return found->second.loaded ? &found->second.texture : nullptr;
         }
 
@@ -352,14 +552,21 @@ const Texture2D* Picture(const std::string& path)
     entry.written = written;
     entry.length = length;
     entry.used = true;
-    const Texture2D texture = LoadTexture(path.c_str());
-    if (IsTextureValid(texture))
+    if (state.capturing)
     {
-        entry.texture = texture;
-        entry.loaded = true;
-        /* A picture is only ever scaled down here, so bilinear is the whole of what the filter has
-         * to do. */
-        SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+        const Texture2D texture = LoadTexture(path.c_str());
+        if (IsTextureValid(texture))
+        {
+            entry.texture = texture;
+            entry.loaded = true;
+            SetTextureFilter(entry.texture, TEXTURE_FILTER_BILINEAR);
+        }
+    }
+    else
+    {
+        entry.decoding = true;
+        loading = true;
+        RequestDecode(path, length, written);
     }
 
     const auto inserted = state.pictures.emplace(path, entry).first;
@@ -390,12 +597,18 @@ void ForgetUnusedPictures()
             UnloadTexture(entry->second.texture);
         }
 
+        if (entry->second.decoding)
+        {
+            CancelDecode(entry->first);
+        }
+
         entry = state.pictures.erase(entry);
     }
 }
 
 void UnloadPictures()
 {
+    StopDecoder();
     for (auto& entry : state.pictures)
     {
         if (entry.second.loaded)
@@ -935,10 +1148,11 @@ struct PaneImage
     float pitch = 0.0f;
 };
 
-/* Called from inside the cell, which is the only place these are knowable. */
+/* Called from inside the cell, which is the only place these are knowable. A picture still being
+ * drawn needs them too, for the spinner that stands in for it. */
 void RecordPaneImage(PaneImage& bounds, const DeviewPane& pane, int index)
 {
-    if (pane.imagePathLength <= 0 ||
+    if ((pane.imagePathLength <= 0 && pane.imagePending == 0) ||
         index > 1)
     {
         return;
@@ -980,16 +1194,45 @@ void DrawChecker(ImDrawList* list, const ImVec2& min, const ImVec2& max)
 }
 
 /*
+ * Something turning, centred where a picture will be once it is there to draw: a dim ring, and a
+ * brighter quarter of it going round once a second, as the WinForms head draws it. Stood still in a
+ * capture, which has to come out the same every time. Left out of a space too small to hold it.
+ */
+void DrawSpinner(ImDrawList* list, const ImVec2& centre, float pitch, float width, float height)
+{
+    const float radius = std::floor(pitch);
+    const float thickness = std::max(2.0f, std::floor(pitch / 6.0f));
+    if (width < (radius + thickness) * 2.0f ||
+        height < (radius + thickness) * 2.0f)
+    {
+        return;
+    }
+
+    const float turned = state.capturing
+        ? 0.0f
+        : static_cast<float>(std::fmod(GetTime(), 1.0)) * 2.0f * IM_PI;
+    list->AddCircle(centre, radius, IM_COL32(70, 70, 70, 255), 0, thickness);
+    /* From twelve o'clock, clockwise: y grows downward, so a growing angle turns clockwise. */
+    list->PathArcTo(centre, radius, turned - IM_PI * 0.5f, turned, 0);
+    list->PathStroke(IM_COL32(130, 130, 130, 255), ImDrawFlags_None, thickness);
+}
+
+/*
  * The picture under a pane's rows. Absolutely positioned over the table rather than submitted as a
  * table row, because the rows a pane has and the rows the table has are different numbers: the
  * queue column is usually the tallest, and the space this fills is the pane's share of what the
  * queue is using.
+ *
+ * A spinner instead, while the picture is on its way: a document's page the managed side is still
+ * drawing, which it says with imagePending, or a picture still being decoded here.
  */
 void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const PaneImage& bounds, float bottom)
 {
-    if (pane.imagePathLength <= 0 ||
-        pane.imageWidth <= 0 ||
-        pane.imageHeight <= 0 ||
+    const bool picture =
+        pane.imagePathLength > 0 &&
+        pane.imageWidth > 0 &&
+        pane.imageHeight > 0;
+    if ((!picture && pane.imagePending == 0) ||
         bounds.width <= 0.0f ||
         bounds.first < 0.0f)
     {
@@ -1006,9 +1249,24 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         return;
     }
 
-    const Texture2D* texture = Picture(Copy(screen, pane.imagePathOffset, pane.imagePathLength));
+    ImDrawList* list = ImGui::GetWindowDrawList();
+    const ImVec2 centre = ImFloor(ImVec2(bounds.left + bounds.width * 0.5f, top + available * 0.5f));
+    if (!picture)
+    {
+        DrawSpinner(list, centre, pitch, bounds.width, available);
+        return;
+    }
+
+    bool loading = false;
+    const Texture2D* texture = Picture(Copy(screen, pane.imagePathOffset, pane.imagePathLength), loading);
     if (texture == nullptr)
     {
+        /* Nothing at all for a picture this build cannot decode: the rows have said what it is. */
+        if (loading)
+        {
+            DrawSpinner(list, centre, pitch, bounds.width, available);
+        }
+
         return;
     }
 
@@ -1039,7 +1297,6 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         top + (available - size.y) * 0.5f));
     const ImVec2 max(min.x + size.x, min.y + size.y);
 
-    ImDrawList* list = ImGui::GetWindowDrawList();
     DrawChecker(list, min, max);
     list->AddImage(static_cast<ImTextureID>(texture->id), min, max);
     /* An outline, so a picture whose edges are the colour of the pane still has visible extent. */
@@ -1530,6 +1787,9 @@ int32_t deview_present(const DeviewScreen* screen)
 
     ImGui::SetCurrentContext(state.context);
     PumpInput();
+    /* Before the frame asks for its pictures, so one that finished decoding since the last frame is
+     * drawn in this one. */
+    TakeDecoded();
     ImGui::NewFrame();
     BuildFrame(screen);
     ImGui::Render();
@@ -1626,7 +1886,9 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
     }
 
     ImGui::NewFrame();
+    state.capturing = true;
     BuildFrame(screen);
+    state.capturing = false;
     ImGui::Render();
 
     BeginTextureMode(target);

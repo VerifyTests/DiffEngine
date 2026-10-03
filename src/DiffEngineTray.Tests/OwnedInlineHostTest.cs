@@ -213,6 +213,22 @@ public class OwnedInlineHostTest
     }
 
     /// <summary>
+    /// A snapshot arriving raises the viewer without naming itself, so it joins the queue behind
+    /// whatever is being read rather than taking the selection. The menu's focus, above, names its
+    /// snapshot, because that is someone asking for it.
+    /// </summary>
+    [Test]
+    public async Task AnArrivalRaisesTheViewerWithoutTakingTheSelection()
+    {
+        using var owner = new Owner();
+        owner.Queue();
+
+        var listing = owner.Send(new(ViewerVerb.ListFull));
+        await Assert.That(listing.Window).IsEqualTo(WindowCommand.Focus);
+        await Assert.That(listing.WindowKey).IsNull();
+    }
+
+    /// <summary>
     /// A plain List does not take the stashed window command. It is the documented IDE plugin API
     /// - InlineQueueClient.TryListKeys - and has no window to raise, so taking the command threw
     /// it away: whoever asked could not act on it, and the attached viewer polling beside it never

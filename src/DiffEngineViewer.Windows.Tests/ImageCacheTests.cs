@@ -133,6 +133,123 @@ public class ImageCacheTests
         await Assert.That(cache.Composed).IsEqualTo(2);
     }
 
+    /// <summary>
+    /// The window composes on the pool as well: scaling a page of a document on the UI thread held
+    /// it for tens of milliseconds a size. Until the first lands there is nothing to draw, and the
+    /// pane shows that it is coming.
+    /// </summary>
+    [Test]
+    public async Task AComposeWithSomewhereToPostItIsHandedBack()
+    {
+        var path = Write("composed-posted.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        await Assert.That(cache.Get(path, null)).IsNotNull();
+        var loaded = 0;
+
+        await Assert.That(cache.Composite(path, new(4, 3), Build, () => loaded++)).IsNull();
+        await Assert.That(cache.Loading(path)).IsTrue();
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        handBack!();
+
+        await Assert.That(loaded).IsEqualTo(1);
+        await Assert.That(cache.Loading(path)).IsFalse();
+        await Assert.That(cache.Composite(path, new(4, 3), Build, () => loaded++)!.Size).IsEqualTo(new Size(4, 3));
+    }
+
+    /// <summary>
+    /// Mid resize the size last composed stands in, stretched into place, while the new one is
+    /// made. A spinner on every step of a drag would be worse than a frame or two of a rough picture.
+    /// </summary>
+    [Test]
+    public async Task AResizeShowsTheLastSizeUntilTheNewOneLands()
+    {
+        var path = Write("resized.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        cache.Get(path, null);
+        cache.Composite(path, new(4, 3), Build, () => { });
+        await Assert.That(posted.TryTake(out var first, TimeSpan.FromSeconds(10))).IsTrue();
+        first!();
+        var small = cache.Composite(path, new(4, 3), Build, () => { });
+
+        var meanwhile = cache.Composite(path, new(6, 4), Build, () => { });
+        await Assert.That(ReferenceEquals(meanwhile, small)).IsTrue();
+        await Assert.That(cache.Loading(path)).IsFalse();
+
+        await Assert.That(posted.TryTake(out var second, TimeSpan.FromSeconds(10))).IsTrue();
+        second!();
+        await Assert.That(cache.Composite(path, new(6, 4), Build, () => { })!.Size).IsEqualTo(new Size(6, 4));
+    }
+
+    /// <summary>
+    /// A compose that finishes after its picture left the screen is thrown away rather than put
+    /// back. And the picture it was reading is let go of once it has finished reading, rather than
+    /// disposed under it, which would have failed the compose in the middle of a GDI+ call.
+    /// </summary>
+    [Test]
+    public async Task AComposeForAPictureNoLongerOnScreenIsDropped()
+    {
+        var path = Write("composed-left-behind.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        using var reading = new ManualResetEventSlim();
+        var width = 0;
+        var loaded = 0;
+        cache.Keep([path]);
+        cache.Get(path, null);
+
+        cache.Composite(
+            path,
+            new(4, 3),
+            (picture, size) =>
+            {
+                reading.Wait();
+                width = picture.Width;
+                return new(size.Width, size.Height);
+            },
+            () => loaded++);
+        cache.Keep([]);
+        reading.Set();
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        handBack!();
+
+        await Assert.That(width).IsEqualTo(8);
+        await Assert.That(loaded).IsEqualTo(0);
+    }
+
+    /// <summary>
+    /// A compose that fails is not started again. The pane asks on every step of its spinner, so
+    /// one retried there would turn for good. The picture draws as nothing instead, as one that
+    /// cannot be decoded does.
+    /// </summary>
+    [Test]
+    public async Task AComposeThatFailsIsNotTriedAgain()
+    {
+        var path = Write("uncomposable.png", SamplePng.Build(8, 6, 200, 40, 40));
+        using var posted = new BlockingCollection<Action>();
+        using var cache = new ImageCache(posted.Add);
+        cache.Get(path, null);
+        var attempts = 0;
+        Func<Image, Size, Bitmap> failing = (_, _) =>
+        {
+            attempts++;
+            throw new InvalidOperationException("Out of memory.");
+        };
+
+        cache.Composite(path, new(4, 3), failing, () => { });
+        await Assert.That(posted.TryTake(out var handBack, TimeSpan.FromSeconds(10))).IsTrue();
+        handBack!();
+
+        await Assert.That(cache.Composite(path, new(4, 3), failing, () => { })).IsNull();
+        await Assert.That(cache.Loading(path)).IsFalse();
+        await Assert.That(posted.Count).IsEqualTo(0);
+        await Assert.That(attempts).IsEqualTo(1);
+    }
+
+    static Bitmap Build(Image picture, Size size) =>
+        new(size.Width, size.Height);
+
     [Test]
     public async Task MissingFile()
     {

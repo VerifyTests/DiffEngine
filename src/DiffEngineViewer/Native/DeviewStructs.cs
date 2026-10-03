@@ -61,6 +61,11 @@ struct DeviewPane
     public int ImagePathLength;
     public int ImageWidth;
     public int ImageHeight;
+
+    /// <summary>
+    /// <see cref="Pane.ImagePending"/>: 1 while the side's picture is still being drawn.
+    /// </summary>
+    public int ImagePending;
 }
 
 [StructLayout(LayoutKind.Sequential)]

@@ -95,8 +95,9 @@ static class PendingFiles
     /// </para>
     /// <para>
     /// The window is a <see cref="ViewerVerb.Focus" /> when the tray took the move, because the
-    /// tray tracks it and the queue owner - normally that same tray - only has to raise something
-    /// over it.
+    /// tray tracks it and the queue owner - normally that same tray - only has to raise something.
+    /// Marked <see cref="ViewerMessage.Arrived" />, so the pair joins the queue behind whatever is
+    /// being read rather than taking the selection, as a <see cref="ViewerVerb.Diff" /> does.
     /// </para>
     /// <para>
     /// A refused focus falls through to <see cref="ViewerVerb.Diff" /> rather than being discarded,
@@ -123,7 +124,7 @@ static class PendingFiles
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
             PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null) &&
-            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile))))
+            ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile), ViewerMessage.Arrived)))
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
@@ -177,7 +178,7 @@ static class PendingFiles
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
             await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel) &&
-            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile)), cancel))
+            await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile), ViewerMessage.Arrived), cancel))
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }

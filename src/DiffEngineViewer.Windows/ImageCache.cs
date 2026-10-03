@@ -11,16 +11,21 @@
 /// </para>
 /// <para>
 /// A cache and not a convenience: <c>OnPaint</c> runs on every wheel notch and every resize. Two
-/// things are held for that. The decoded picture, which is decoded off the UI thread when there is
-/// somewhere to post the result (<see cref="Get(string, string?, Action)"/>), because decoding a
-/// pair of 2000 by 1500 pictures held the window for over 100 ms. And the picture as painted, at
-/// the size it was painted (<see cref="Composite"/>): scaling it and drawing the checkerboard under
-/// it on every paint cost 46 to 66 ms a paint for that pair, where copying the result costs
-/// almost nothing.
+/// things are held for that. The decoded picture, because decoding a pair of 2000 by 1500 pictures
+/// held the window for over 100 ms. And the picture as painted, at the size it was painted
+/// (<see cref="Composite(string, Size, Func{Image, Size, Bitmap})"/>): scaling it and drawing the
+/// checkerboard under it on every paint cost 46 to 66 ms a paint for that pair, where copying the
+/// result costs almost nothing.
 /// </para>
 /// <para>
-/// Everything here is touched only from the UI thread. A background decode hands its result back
-/// through <c>post</c>, which is the canvas's BeginInvoke.
+/// Both are made off the UI thread when there is somewhere to post the result, which the window
+/// gives and a capture does not. Composing once per size still cost a page of a document 30 ms or
+/// more on the UI thread, and a resize asks for a new size on every frame of the drag.
+/// </para>
+/// <para>
+/// Everything here is touched only from the UI thread, apart from an entry's decoded picture,
+/// which a compose reads on the pool. A background job hands its result back through <c>post</c>,
+/// which is the canvas's BeginInvoke.
 /// </para>
 /// </summary>
 sealed class ImageCache(Action<Action>? post = null) : IDisposable
@@ -45,18 +50,86 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
     /// <summary>
     /// A null <paramref name="Image"/> is a remembered failure. Kept rather than dropped, so a file
     /// this machine cannot decode is attempted once instead of once per frame.
+    /// <para>
+    /// A class rather than a record: two entries for the same file at the same stamp are still two,
+    /// and a compose finishing has to know whether the entry it was started for is the one cached.
+    /// </para>
     /// </summary>
-    sealed record Entry(Stamp Stamp, Image? Image)
+    sealed class Entry(Stamp stamp, Image? image)
     {
+        public Stamp Stamp { get; } = stamp;
+
+        public Image? Image { get; } = image;
+
         /// <summary>
-        /// The picture as last painted, at the size it was painted: see <see cref="ImageCache.Composite"/>.
+        /// The picture as last painted, at the size it was painted: see
+        /// <see cref="ImageCache.Composite(string, Size, Func{Image, Size, Bitmap})"/>.
         /// </summary>
         public Bitmap? Composite { get; set; }
 
+        /// <summary>
+        /// The size a compose on the pool is making, or null when none is.
+        /// </summary>
+        public Size? Composing { get; set; }
+
+        /// <summary>
+        /// A compose on the pool failed, so none is started again: the pane would ask on every
+        /// step of its spinner, which would turn for good. Drawn as nothing, as a picture that
+        /// cannot be decoded is.
+        /// </summary>
+        public bool Uncomposable { get; set; }
+
+        /// <summary>
+        /// Composes reading <see cref="Image"/> on the pool, and whether the cache has let go of
+        /// it. The picture is disposed once both say so, so leaving an entry whose compose is still
+        /// running neither waits for it nor pulls the picture out from under it.
+        /// </summary>
+        int readers;
+
+        bool released;
+
+        readonly Lock gate = new();
+
+        public bool TryRead()
+        {
+            lock (gate)
+            {
+                if (released)
+                {
+                    return false;
+                }
+
+                readers++;
+                return true;
+            }
+        }
+
+        public void EndRead()
+        {
+            lock (gate)
+            {
+                readers--;
+                if (released &&
+                    readers == 0)
+                {
+                    Image?.Dispose();
+                }
+            }
+        }
+
         public void Dispose()
         {
-            Image?.Dispose();
+            lock (gate)
+            {
+                released = true;
+                if (readers == 0)
+                {
+                    Image?.Dispose();
+                }
+            }
+
             Composite?.Dispose();
+            Composite = null;
         }
     }
 
@@ -125,27 +198,19 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         }
 
         pending[path] = stamp;
-        Task.Run(() => Load(path))
-            .ContinueWith(
-                task =>
-                {
-                    var image = task.Result;
-                    try
-                    {
-                        post(() => Loaded(path, stamp, image, loaded));
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // The window went away before the decode finished, and with it the thread
-                        // this would have been handed to
-                        image?.Dispose();
-                    }
-                },
-                Cancel.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+        Run(() => Load(path), image => Loaded(path, stamp, image, loaded));
         return null;
     }
+
+    /// <summary>
+    /// Whether the picture at <paramref name="path"/> is on its way: being decoded, or decoded and
+    /// being composed with nothing older to show meanwhile. What a pane shows a spinner for, as
+    /// against a picture that is not coming at all because this machine cannot decode it.
+    /// </summary>
+    public bool Loading(string path) =>
+        pending.ContainsKey(path) ||
+        entries.TryGetValue(path, out var entry) &&
+        entry is { Composing: not null, Composite: null };
 
     void Loaded(string path, Stamp stamp, Image? image, Action loaded)
     {
@@ -170,6 +235,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
     /// The picture at <paramref name="path"/> as it is painted at <paramref name="size"/>, built
     /// by <paramref name="build"/> from the decoded picture the first time that size is asked for
     /// and kept until another size is, or the picture goes. Null when the picture is not decoded.
+    /// Built here and now: for a caller that has to have it this frame, such as a capture.
     /// </summary>
     public Bitmap? Composite(string path, Size size, Func<Image, Size, Bitmap> build)
     {
@@ -190,6 +256,125 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         Composed++;
         return entry.Composite;
     }
+
+    /// <summary>
+    /// The picture at <paramref name="path"/> as it is painted at <paramref name="size"/>, composed
+    /// on the pool when that size has not been, after which <paramref name="loaded"/> is called on
+    /// the UI thread. Meanwhile the composite at whatever size it was last made, for the caller to
+    /// stretch into place, or null when there has never been one. With nowhere to post the result
+    /// this composes here and now.
+    /// <para>
+    /// One compose at a time per picture. A resize asks for a new size every frame, and the one
+    /// asked for when the compose in hand finishes is the one composed next, so a drag ends with
+    /// the size it ended on rather than a queue of every size it passed through.
+    /// </para>
+    /// </summary>
+    public Bitmap? Composite(string path, Size size, Func<Image, Size, Bitmap> build, Action loaded)
+    {
+        if (post is null)
+        {
+            return Composite(path, size, build);
+        }
+
+        if (!entries.TryGetValue(path, out var entry) ||
+            entry.Image is null)
+        {
+            return null;
+        }
+
+        if (entry.Composite is { } composite &&
+            composite.Size == size)
+        {
+            return composite;
+        }
+
+        if (entry.Composing is null &&
+            !entry.Uncomposable &&
+            entry.TryRead())
+        {
+            entry.Composing = size;
+            var image = entry.Image;
+            Run(
+                () =>
+                {
+                    try
+                    {
+                        return build(image, size);
+                    }
+                    finally
+                    {
+                        entry.EndRead();
+                    }
+                },
+                built => Landed(path, entry, built, loaded));
+        }
+
+        return entry.Composite;
+    }
+
+    void Landed(string path, Entry entry, Bitmap? built, Action loaded)
+    {
+        entry.Composing = null;
+        // Only into the entry it was made from. One the cache has since let go of, for a picture
+        // left or rewritten, would put back what replaced it
+        if (disposed ||
+            !entries.TryGetValue(path, out var current) ||
+            !ReferenceEquals(current, entry))
+        {
+            built?.Dispose();
+            return;
+        }
+
+        if (built is null)
+        {
+            entry.Uncomposable = true;
+            // Repainted, so the spinner it was showing goes
+            loaded();
+            return;
+        }
+
+        entry.Composite?.Dispose();
+        entry.Composite = built;
+        Composed++;
+        loaded();
+    }
+
+    /// <summary>
+    /// <paramref name="job"/> on the pool, its result handed to <paramref name="done"/> on the UI
+    /// thread. A job that throws hands back null, as a decode that fails does.
+    /// </summary>
+    void Run<T>(Func<T?> job, Action<T?> done)
+        where T : class, IDisposable =>
+        Task.Run(
+                () =>
+                {
+                    try
+                    {
+                        return job();
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                })
+            .ContinueWith(
+                task =>
+                {
+                    var result = task.Result;
+                    try
+                    {
+                        post!(() => done(result));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The window went away before the job finished, and with it the thread
+                        // this would have been handed to
+                        result?.Dispose();
+                    }
+                },
+                Cancel.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
 
     /// <summary>
     /// How many composites have been built, for the tests that pin how often that happens.

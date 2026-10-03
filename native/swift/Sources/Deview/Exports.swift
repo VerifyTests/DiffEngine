@@ -178,7 +178,8 @@ private func capture(
     renderer.draw(
         Frame.decode(screen),
         in: context,
-        size: CGSize(width: CGFloat(width), height: CGFloat(height)))
+        size: CGSize(width: CGFloat(width), height: CGFloat(height)),
+        capturing: true)
 
     guard let image = context.makeImage() else {
         return 0

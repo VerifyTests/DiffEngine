@@ -60,6 +60,9 @@ sealed class FormsViewerWindow :
         }
 
         form.Apply(screen);
+        // Every frame rather than only on a changed screen: a spinner turns while nothing about the
+        // screen changes, which is the whole time a page is being drawn
+        form.Animate();
         Application.DoEvents();
         if (form.IsDisposed)
         {
@@ -168,11 +171,14 @@ sealed class FormsViewerWindow :
             form.Show();
         }
 
+        // One frame, with its pictures in it and any spinner stood still: there is no later paint
+        // for a picture decoded on the pool to land in, and a baseline has to come out the same
+        var wasSynchronous = form.Synchronous;
+        form.Synchronous = true;
         try
         {
             form.ClientSize = new(width, height);
             form.Apply(screen);
-            form.LoadPictures();
             form.PerformLayout();
             // Invalidate only marks dirty; the paint has to have happened before the bitmap.
             form.Surface.Refresh();
@@ -183,6 +189,7 @@ sealed class FormsViewerWindow :
         }
         finally
         {
+            form.Synchronous = wasSynchronous;
             if (!wasVisible)
             {
                 form.Visible = false;

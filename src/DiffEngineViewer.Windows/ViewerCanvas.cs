@@ -50,7 +50,36 @@ sealed class ViewerCanvas : Control
     /// </summary>
     const int checker = 8;
 
+    /// <summary>
+    /// One turn of the spinner, and how often it is redrawn while one is showing: often enough to
+    /// read as turning, and no more, since each step is a paint.
+    /// </summary>
+    const int spinPeriod = 1000;
+
+    const int spinStep = 40;
+
     readonly Font font = MonoFont.Create();
+
+    /// <summary>
+    /// Where the last paint drew a spinner, which is what <see cref="Animate"/> repaints. Only
+    /// those rectangles, so a turning spinner does not redraw every row a few dozen times a second.
+    /// </summary>
+    readonly List<Rectangle> spinners = [];
+
+    long lastSpin;
+
+    /// <summary>
+    /// Pictures are decoded and composed during the paint rather than on the pool, and a spinner
+    /// stands still at twelve o'clock. For a capture, which draws one frame and has no later paint
+    /// for a background job to land in, and has to come out the same every time.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Synchronous { get; set; }
+
+    /// <summary>
+    /// Where the last paint drew a spinner, for the tests.
+    /// </summary>
+    internal IReadOnlyList<Rectangle> Spinners => spinners;
 
     readonly QueueTips tips = new();
 
@@ -157,9 +186,12 @@ sealed class ViewerCanvas : Control
         images.Keep(PicturesOn(value));
         // Started now rather than at the first paint, which is at least a pump away. The pane
         // draws its rows meanwhile, and the picture under them once it is decoded
-        foreach (var image in ImagesOn(value))
+        if (!Synchronous)
         {
-            images.Get(image.Path, image.Hash, Invalidate);
+            foreach (var image in ImagesOn(value))
+            {
+                images.Get(image.Path, image.Hash, Invalidate);
+            }
         }
 
         // A new screen renumbers the rows, so a kept index would describe a different entry.
@@ -168,19 +200,27 @@ sealed class ViewerCanvas : Control
     }
 
     /// <summary>
-    /// Decodes whatever the current screen shows, here and now. For a capture, which draws one frame
-    /// and has no later paint for a background decode to arrive in time for.
+    /// Turns any spinner the last paint drew, a step at a time. Called every frame, from the loop
+    /// that pumps this window, so a spinner turns without a timer of its own and stops the paint
+    /// after the picture lands, which draws none.
     /// </summary>
-    public void LoadPictures()
+    public void Animate()
     {
-        if (screen is null)
+        if (spinners.Count == 0)
         {
             return;
         }
 
-        foreach (var image in ImagesOn(screen))
+        var now = Environment.TickCount64;
+        if (now - lastSpin < spinStep)
         {
-            images.Get(image.Path, image.Hash);
+            return;
+        }
+
+        lastSpin = now;
+        foreach (var spinner in spinners)
+        {
+            Invalidate(spinner);
         }
     }
 
@@ -368,13 +408,14 @@ sealed class ViewerCanvas : Control
     /// The rows a pointer selects in: all the body has room for, or with a picture drawn under a
     /// pane's rows only those rows, since below them is the picture. A document's text and page
     /// share a pane, and a drag over the page selecting text rows nobody can see was the result.
+    /// A page still being drawn takes the same space, under its spinner.
     /// </summary>
     int SelectableRows
     {
         get
         {
-            if (screen!.Left.Image is null &&
-                screen.Right.Image is null)
+            if (screen!.Left is { Image: null, ImagePending: false } &&
+                screen.Right is { Image: null, ImagePending: false })
             {
                 return BodyCapacity;
             }
@@ -387,12 +428,14 @@ sealed class ViewerCanvas : Control
     {
         var graphics = e.Graphics;
         graphics.Clear(Palette.Background);
+        spinners.Clear();
         if (screen is null)
         {
             return;
         }
 
         Painter.Prepare(graphics);
+        var clip = e.ClipRectangle;
         var lineHeight = Cell.Height;
         var hasQueue = screen.Queue.Count > 0;
         var queue = hasQueue ? QueueWidth : 0;
@@ -419,6 +462,14 @@ sealed class ViewerCanvas : Control
         for (var index = 0; index < rows; index++)
         {
             var top = bodyTop + index * lineHeight;
+            // A paint that only turns a spinner is clipped to it, and laying out every row's text
+            // only for all of it to be clipped away would be most of what that paint did
+            if (top + lineHeight <= clip.Top ||
+                top >= clip.Bottom)
+            {
+                continue;
+            }
+
             if (hasQueue)
             {
                 DrawQueueItem(graphics, index, new(padding, top, queue, lineHeight));
@@ -446,12 +497,7 @@ sealed class ViewerCanvas : Control
 
     void DrawImage(Graphics graphics, Pane pane, int left, int width, int bodyTop, int bodyBottom, int lineHeight)
     {
-        if (pane.Image is not { } image)
-        {
-            return;
-        }
-
-        if (images.Get(image.Path, image.Hash, Invalidate) is null)
+        if (pane is { Image: null, ImagePending: false })
         {
             return;
         }
@@ -461,6 +507,28 @@ sealed class ViewerCanvas : Control
         if (available.Width <= 0 ||
             available.Height <= 0)
         {
+            return;
+        }
+
+        // A page still being drawn, which has no size yet: the spinner goes where the page will be
+        // centred once it lands
+        if (pane.Image is not { } image)
+        {
+            DrawSpinner(graphics, available, lineHeight);
+            return;
+        }
+
+        var decoded = Synchronous
+            ? images.Get(image.Path, image.Hash)
+            : images.Get(image.Path, image.Hash, Invalidate);
+        if (decoded is null)
+        {
+            // Nothing at all for a picture this machine cannot decode: the rows have said what it is
+            if (images.Loading(image.Path))
+            {
+                DrawSpinner(graphics, available, lineHeight);
+            }
+
             return;
         }
 
@@ -485,16 +553,28 @@ sealed class ViewerCanvas : Control
             drawn.Height);
 
         // Copied rather than drawn: the checkerboard and the scaled picture are composed once per
-        // picture and size, and every paint after that is a copy of the result
-        var composite = images.Composite(image.Path, drawn, Compose);
+        // picture and size, on the pool, and every paint after that is a copy of the result
+        var composite = Synchronous
+            ? images.Composite(image.Path, drawn, Compose)
+            : images.Composite(image.Path, drawn, Compose, Invalidate);
         if (composite is null)
         {
+            if (images.Loading(image.Path))
+            {
+                DrawSpinner(graphics, available, lineHeight);
+            }
+
             return;
         }
 
         var interpolation = graphics.InterpolationMode;
         var offset = graphics.PixelOffsetMode;
-        graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+        // Pixel for pixel when it was composed at this size. Otherwise it is the size it was last
+        // composed at, mid resize, stretched into place until this size has been composed: rough
+        // for a frame or two, where a spinner would flash on every step of the drag
+        graphics.InterpolationMode = composite.Size == drawn
+            ? InterpolationMode.NearestNeighbor
+            : InterpolationMode.Bilinear;
         graphics.PixelOffsetMode = PixelOffsetMode.Half;
         graphics.DrawImage(composite, bounds);
         // Put back, because the text drawing this shares a Graphics with is set up once by Painter
@@ -508,9 +588,57 @@ sealed class ViewerCanvas : Control
     }
 
     /// <summary>
+    /// Something turning, centred in <paramref name="available"/>, while the picture for it is on
+    /// its way. Stood still in a capture, which has to come out the same every time.
+    /// </summary>
+    void DrawSpinner(Graphics graphics, Rectangle available, int lineHeight)
+    {
+        var radius = lineHeight;
+        var thickness = Math.Max(2, lineHeight / 6);
+        var diameter = radius * 2;
+        if (available.Width < diameter + thickness * 2 ||
+            available.Height < diameter + thickness * 2)
+        {
+            return;
+        }
+
+        var bounds = new Rectangle(
+            available.X + (available.Width - diameter) / 2,
+            available.Y + (available.Height - diameter) / 2,
+            diameter,
+            diameter);
+        var turned = Synchronous ? 0 : Environment.TickCount64 % spinPeriod * 360f / spinPeriod;
+
+        var smoothing = graphics.SmoothingMode;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using (var track = new Pen(Palette.Rule, thickness))
+        {
+            graphics.DrawEllipse(track, bounds);
+        }
+
+        using (var arc = new Pen(Palette.Dim, thickness))
+        {
+            arc.StartCap = LineCap.Round;
+            arc.EndCap = LineCap.Round;
+            // From twelve o'clock, clockwise
+            graphics.DrawArc(arc, bounds, turned - 90, 90);
+        }
+
+        graphics.SmoothingMode = smoothing;
+
+        var dirty = bounds;
+        dirty.Inflate(thickness + 1, thickness + 1);
+        spinners.Add(dirty);
+    }
+
+    /// <summary>
     /// The picture as a pane shows it at <paramref name="size"/>: over the checkerboard, so an image
     /// with transparency reads as one, and scaled with the high quality filter a downscale needs.
     /// Premultiplied, which is what the double buffer it is copied into holds.
+    /// <para>
+    /// Runs on the pool for the window, so nothing it draws with is shared with the UI thread:
+    /// GDI+ objects are not to be used from two threads at once.
+    /// </para>
     /// </summary>
     static Bitmap Compose(Image picture, Size size)
     {
@@ -524,10 +652,15 @@ sealed class ViewerCanvas : Control
         return composite;
     }
 
+    /// <summary>
+    /// With brushes of its own rather than <see cref="Painter.Brush"/>'s, which the UI thread is
+    /// drawing text with while this runs on the pool.
+    /// </summary>
     static void DrawChecker(Graphics graphics, Rectangle bounds)
     {
-        graphics.FillRectangle(Painter.Brush(Palette.CheckerLight), bounds);
-        var dark = Painter.Brush(Palette.CheckerDark);
+        using var light = new SolidBrush(Palette.CheckerLight);
+        using var dark = new SolidBrush(Palette.CheckerDark);
+        graphics.FillRectangle(light, bounds);
         for (var y = bounds.Y; y < bounds.Bottom; y += checker)
         {
             for (var x = bounds.X; x < bounds.Right; x += checker)
