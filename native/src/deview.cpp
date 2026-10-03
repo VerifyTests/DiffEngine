@@ -1010,10 +1010,10 @@ void Sample(const std::string& path, int sampling)
 /*
  * The longest side of a texture the window's GL will take, or zero where it would not say.
  *
- * A picture past it cannot be drawn. Handed to GL all the same, it came back as a texture with a
- * name and no pixels, which draws as black: a box of it where the picture should be, in place of
- * the nothing a picture this head cannot show is drawn as. It is 16384 under Mesa's software
- * rasteriser, and a screenshot of the whole of a long page is past that.
+ * A picture past it cannot be a texture as it is. Handed to GL all the same, it came back as a
+ * texture with a name and no pixels, which draws as black: a box of it where the picture should
+ * be. It is 16384 under Mesa's software rasteriser, and a screenshot of the whole of a long page
+ * is past that. Such a picture is brought down to the limit as it is read: see FitToATexture.
  *
  * Asked of GL by name, through GLFW, since rlgl reads this number only to log it. On the thread
  * that owns the context, once.
@@ -1095,16 +1095,47 @@ bool SeeThrough(const Image& image)
 }
 
 /*
+ * A picture longer on a side than a texture can be, resampled to the largest size of its own shape
+ * that a texture can: every pixel of what is left an average of the ones it stands for, as in a
+ * reduced copy, so a thin line is fainter there and not gone.
+ *
+ * It was drawn as nothing, and a screenshot of the whole of a long page is such a picture. What
+ * the pane then shows is not its pixels, at any zoom: the rows still give the size it has, and
+ * enlarged far enough it is the pixels of this copy.
+ *
+ * On the decoder's thread, for every picture but a capture's, because of what it costs. The copy
+ * is made beside the picture as it was read, so for as long as that takes both are held: a
+ * picture 20,000 pixels square with no alpha channel is 1.2 GB read, and 0.8 GB more for a copy
+ * 16,384 square before the first is given back. Measured where the limit is that, on one thread:
+ * that picture took 2.1 s to read and 1.2 s more to bring down, one 17,000 by 9,000 with an
+ * alpha channel 0.4 s and 0.9 s, and a screenshot 1,920 by 30,000 with one 0.3 s and 0.2 s.
+ */
+void FitToATexture(Image& image, int limit)
+{
+    if (image.data == nullptr ||
+        FitsATexture(image, limit))
+    {
+        return;
+    }
+
+    const double factor = static_cast<double>(limit) / static_cast<double>(std::max(image.width, image.height));
+    ImageResize(
+        &image,
+        std::min(limit, std::max(1, static_cast<int>(std::lround(image.width * factor)))),
+        std::min(limit, std::max(1, static_cast<int>(std::lround(image.height * factor)))));
+}
+
+/*
  * A picture read off the disk and made ready to be a texture: whether any of it can be seen
- * through, and its reduced copies where they are wanted, which are made here because here is off
- * the window's thread for every picture but a capture's. The file, stb_image and raylib's
- * resampling, and nothing that touches GL. A picture no texture can hold is left as it was read,
- * since nothing will be made of it.
+ * through, brought down to a size a texture can hold if it is past that, and its reduced copies
+ * where they are wanted. All of it here because here is off the window's thread for every picture
+ * but a capture's. The file, stb_image and raylib's resampling, and nothing that touches GL.
  */
 Image ReadPicture(const std::string& path, int textureLimit, bool reduced, bool& translucent)
 {
     Image image = LoadImage(path.c_str());
     translucent = SeeThrough(image);
+    FitToATexture(image, textureLimit);
     if (reduced &&
         image.data != nullptr &&
         FitsATexture(image, textureLimit))
@@ -1117,8 +1148,9 @@ Image ReadPicture(const std::string& path, int textureLimit, bool reduced, bool&
 
 /*
  * The texture for a picture that has been read, or false for one there is none for: a file that
- * could not be read, a picture longer on a side than a texture can be, or a context that would
- * not make one. On the thread that owns the context.
+ * could not be read, a picture still longer on a side than a texture can be, which is one read
+ * against another limit than this context's, or a context that would not make one. On the thread
+ * that owns the context.
  */
 bool MakeTexture(const Image& image, bool translucent, CachedTexture& entry)
 {

@@ -432,13 +432,16 @@ public class PixelTests
     }
 
     /// <summary>
-    /// A picture longer on one side than a texture can be, beside one that is not. The rows say
-    /// what it is, as they do for a format the head has no decoder for, and nothing is drawn under
-    /// them: it was a black box the shape of the picture, which is what GL makes of a texture it
-    /// was handed and would not take.
+    /// A picture longer on one side than a texture can be, beside one that is not. It is brought
+    /// down to the largest size of its own shape that a texture takes as it is read, and drawn
+    /// from that, fitted as any other. It was first a black box the shape of the picture, which
+    /// is what GL makes of a texture it was handed and would not take, and then nothing at all
+    /// under rows that said what it was.
     /// <para>
-    /// Linux only, and only where the limit is what it is under Mesa's software rasteriser, which
-    /// is what these baselines are pinned to: 16384 pixels, one fewer than this picture is wide.
+    /// Linux only. It is past the limit where the limit is what it is under Mesa's software
+    /// rasteriser, which is what these baselines are pinned to: 16384 pixels, one fewer than this
+    /// picture is wide. Where a texture can be larger the picture is drawn as it is, and the
+    /// scene is of the same thing by the other way.
     /// </para>
     /// </summary>
     [Test]
