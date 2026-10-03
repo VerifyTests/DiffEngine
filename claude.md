@@ -24,7 +24,14 @@ dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configurati
 
 # Or run the test project directly, which is the fastest loop and takes the same filter
 src/DiffEngine.Tests/bin/Debug/net10.0/DiffEngine.Tests.exe --treenode-filter "/*/*/ClassName/*"
+
+# Benchmarks, one project per assembly they reach into. --filter takes class or method globs
+dotnet run -c Release --project src/DiffEngine.Benchmarks -- --filter "*TextDiff*"
+dotnet run -c Release --project src/DiffEngineViewer.Benchmarks -- --filter "*Frame*"
+dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --filter "*"
 ```
+
+**Benchmarks:** BenchmarkDotNet, run in process with a short job, both set in each project's `Program.cs`. Its default toolchain generates a project under `bin/` and builds it with one `OutDir` for everything it references; DiffEngine references the three viewer heads for build ordering, all three are named `DiffEngineViewer`, and they overwrite one another there, so the default cannot build. Three projects because of what each has to see inside: the library, the viewer's core (which links the library's sources, so one project referencing both finds every shared type ambiguous), and the WinForms head (which only builds for Windows). Each is signed and named in `InternalsVisibleTo`. A benchmark measures the product's own code path, and where a fix replaces a path rather than adding one, the benchmark is committed before the fix so the earlier number can be had again from history. Three iterations settle a cost that is out by multiples and not one that is out by a tenth: pass `--iterationCount` for that.
 
 **Test runner:** TUnit runs on Microsoft.Testing.Platform rather than VSTest, which changes two things about the commands above. Filters are treenode paths given after `--`, as `/Assembly/Namespace/Class/Test` with `*` for any segment; VSTest's `--filter "FullyQualifiedName~ClassName"` matches nothing and exits 5, so a filtered run that reports no failures may have run no tests. And `--nologo` makes any run report "Zero tests ran" and exit 5, whatever else is on the command line, so leave it off.
 
@@ -132,6 +139,7 @@ is awaited, assigned, returned or passed takes only the call.
 - `Definitions` - Static collection of all supported diff tool definitions. Each tool is defined in `Implementation/` folder.
 - `Definition` - Record type describing a diff tool: executable paths, command arguments, supported extensions, OS support, MDI behavior, auto-refresh capability.
 - `DiffTool` - Enum of all supported diff tools (BeyondCompare, P4Merge, VS Code, etc.)
+- `TextDiff` (`TextDiff/`) - The line diff behind a failure message and behind every text pair the viewer shows, which links these files. Myers in linear space over line ids, with three things in front of the textbook. Lines only one side has are marked changed and taken out first (`LineDiff.DiffShared`), since they cannot be unchanged and Myers costs by edits: a re-indented snapshot was all edits, four seconds for 40,000 lines. A diff has a budget of searching (`MyersDiff.Budget`, about a sixth of a second), counted in work rather than lines so that nothing quick is given up on for being long; past it a search settles for a split, which is still a correct diff and may not be the smallest. And a search that settles having passed nothing looks for where the start of each side is in the other (`TryDisplaced`), because a block moved further than the search went lines up on a diagonal it never reached. Up to 10,000 lines between the two sides a diff is always minimal.
 - `ResolvedTool` - A diff tool that was found on the system with its resolved executable path.
 - `BuildServerDetector` - Detects CI/build server environments to disable diff tool launching.
 
@@ -150,6 +158,13 @@ is awaited, assigned, returned or passed takes only the call.
   structure, which is what makes the text snapshots meaningful and keeps three renderers honest.
 - `ViewerProgram.Run(args, OpenWindow)` owns the loop for all heads. A head is a `Main` that
   chooses a renderer; nothing else about the app is per platform.
+- The loop presents sixty times a second and builds a screen only when the state is another one.
+  `ScreenCache` keeps the last `SessionState` and its `Screen`: a state is immutable and only ever
+  replaced, so the same reference is the same screen, and building one a frame was the whole
+  queue's labels and tooltips, megabytes a second, from a window nobody was touching. Handing a
+  head the same `Screen` is also how it learns nothing changed, with no comparison: the WinForms
+  head and `ScreenPayload` both stop at the reference. So anything a screen depends on has to be
+  in the state. A spinner or a picture landing is a head's own business and redraws on its own.
 - Windows renders with **WinForms** and loads no native library. It is pumped through
   `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared. Only the
   grid is owner drawn: the footer, the context menu, the pane scrollbar and the tooltips are real
@@ -196,7 +211,12 @@ is awaited, assigned, returned or passed takes only the call.
   snapshot with `InlineQueue.AcceptInBatch` rather than all at the end - and `OwnerLink.Run` lists
   beside an in-flight send rather than after it, so an attached window follows the owner's batch.
   While `SessionState.Progress` is set the status line shows it and the window refuses anything
-  `ChangesQueue` names.
+  `ChangesQueue` names. "Accept all in" a header is the same batch over that header's members
+  (`BeginAcceptGroup`, `AcceptBatch.Only`), not a transition of its own: in a queue of one solution
+  the header's group is the whole queue. So it goes by the batch's rules, a snapshot the applier
+  would not take staying in the queue with what the applier said, and it counts as still needing
+  review only its own members. Only the bulk discards are still one transition, since a discard
+  waits on nothing.
 - Images (`Images/`, extensions in `DiffEngine/Viewer/ImageExtensions.cs`, linked into the viewer so
   the tool registration and the renderer cannot disagree) are a side, not a mode. `FileSide.Read`
   decides text or picture **by extension**, because the expected side of a new snapshot has no bytes
@@ -322,6 +342,12 @@ is awaited, assigned, returned or passed takes only the call.
   is one segment at column 0 - so a character a fallback font draws at its own width moves nothing
   after it, and the highlight, the hit test and the copy count the same cells. Selection ends snap
   to cluster boundaries (`CellGrid.Snap`), so a wide character is taken whole or not at all.
+  What can go in a run is asked of the embedded font (`FontCoverage`, out of its cmap and hmtx):
+  a glyph at the cell's advance. It was four ranges written down, which left out the font's box
+  drawing, arrows and punctuation, a segment a character each, and took in letters the font lacks,
+  which a fallback font then drew at its own width mid run. The grid still decides width: a
+  character it gives two cells, a mark, and half a surrogate pair are never in a run. A row of
+  nothing but run characters is measured as a row of ASCII is, with no walk through clusters.
 - An entry opens at its first change, not line 1: every path that changes what is being read goes
   through `ViewerSession.Open`, so none resets to row 0 on its own. The minimal view ("Changes
   only", `SessionState.Minimal`) is a second `DiffView` built with each entry - changes plus
@@ -348,7 +374,10 @@ is awaited, assigned, returned or passed takes only the call.
   `OwnerLink.ReadChanges` has always done the equivalent for a displayed queue, on the same 200ms
   cadence and the same `FileStamp` test, which is why the two are worth reading together. A pass
   that finds nothing must return the identical `SessionState`, or the open context menu closes
-  five times a second. It stops short of the tray's third rule, dropping a pair whose two files
+  five times a second. A pass looks at the entry on screen and at up to `Budget` (a hundred) of
+  the others, in turn, so a queue no longer than that is looked at whole as it always was and a
+  thousand pending pairs are not two thousand stats a pass; hidden, the passes are a second apart,
+  as `OwnerLink`'s are. It stops short of the tray's third rule, dropping a pair whose two files
   became byte equal: that check exists because an external diff tool might have converged them,
   and here the viewer is the diff tool. They are ordinary `QueueEntryKind.Move`/`Delete` entries — the same ones an
   attached viewer draws for the tray's — so nothing about how they look or what their menu offers
