@@ -955,6 +955,48 @@ public class InlinePatcherFsTests
         await Assert.That(newSource).Contains("Snapshot(\"new\")");
     }
 
+    /// <summary>
+    /// F# lexes inside a comment, so a close or an open written in a string there is neither, and
+    /// (*) there is the operator. Each of these is one comment to the compiler, which
+    /// <see cref="FsCompilerRoundTripTests" /> asks it; read as text, the comment ended early or
+    /// never, and the call under it was not found.
+    /// </summary>
+    [Test]
+    public async Task ACommentIsLexedAsTheCompilerLexesIt()
+    {
+        foreach (var comment in FsCompilerRoundTripTests.Comments)
+        {
+            var source = Source($"module Tests\n\n{comment}\nlet MyTest () =\n    Verifier.Verify(x).Snapshot().ToTask()\n");
+            var commentLines = comment.Split('\n').Length;
+
+            var status = TryApply(source, 4 + commentLines, InlinePatchMode.Set, null, "new", out var newSource, out var reason);
+
+            await Assert.That(status).IsEqualTo(PatchStatus.Applied).Because($"{comment}: {reason}");
+            await Assert.That(newSource).IsEqualTo(
+                Source($"module Tests\n\n{comment}\nlet MyTest () =\n    Verifier.Verify(x).Snapshot(\"new\").ToTask()\n"));
+        }
+    }
+
+    /// <summary>
+    /// A double backticked name holds anything, and none of it opens a string or a comment. The
+    /// name is still code: it is where the member a patch names is looked for.
+    /// </summary>
+    [Test]
+    public async Task ADoubleBacktickedNameIsSteppedOverWhole()
+    {
+        foreach (var name in FsCompilerRoundTripTests.QuotedNames)
+        {
+            var source = Source($"module Tests\n\nlet ``other {name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n\nlet ``{name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n");
+
+            // A hint that names nothing, so the member is all that finds the call
+            var status = TryApply(source, 1, InlinePatchMode.Set, null, "new", out var newSource, out var reason, memberName: name);
+
+            await Assert.That(status).IsEqualTo(PatchStatus.Applied).Because($"{name}: {reason}");
+            await Assert.That(newSource).IsEqualTo(
+                Source($"module Tests\n\nlet ``other {name}`` () =\n    Verifier.Verify(x).Snapshot().ToTask()\n\nlet ``{name}`` () =\n    Verifier.Verify(x).Snapshot(\"new\").ToTask()\n"));
+        }
+    }
+
     [Test]
     public async Task CallInsideAStringIsSkipped()
     {

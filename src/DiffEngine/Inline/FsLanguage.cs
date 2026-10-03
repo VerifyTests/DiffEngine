@@ -80,6 +80,15 @@ sealed class FsLanguage : SourceLanguage
                     }
 
                     break;
+                case '`':
+                    if (TrySkipQuotedIdentifier(source, ref index))
+                    {
+                        // Stepped over and not recorded: it is a name, which a search for a
+                        // member has to find in code
+                        continue;
+                    }
+
+                    break;
                 case '\'':
                     // Only where the tick cannot be part of the name in front of it, and only
                     // where a closing tick follows within a literal's length. Everything else is
@@ -181,6 +190,19 @@ sealed class FsLanguage : SourceLanguage
 
     /// <summary>
     /// Block comments nest, so the scan counts them rather than stopping at the first close.
+    /// <para>
+    /// And F# lexes inside one, which is what lets a comment hold commented out code: a string in
+    /// a comment is a string, so <c>(* returns "*)" when closed *)</c> and <c>(* see "(*" *)</c>
+    /// are one comment each, and <c>(*)</c> inside one is the operator, neither opening nor
+    /// closing anything. Read as text, the first ended at the quoted close with a string opening
+    /// after it, and the other two never ended, and either way the calls below were inside
+    /// something and not found. What fsi was seen to take as a token in a comment is what is
+    /// stepped over here: a regular string with its escapes, a verbatim one only as <c>@"</c>, a
+    /// triple quoted one, and a char literal, which is where a quote that opens no string is
+    /// written. No interpolation, where <c>$"</c> is a dollar and then a regular string, and no
+    /// backticks, which are text in a comment. <c>FsCompilerRoundTripTests</c> holds each shape to
+    /// the compiler.
+    /// </para>
     /// </summary>
     static bool TrySkipBlockComment(string source, ref int index)
     {
@@ -193,16 +215,27 @@ sealed class FsLanguage : SourceLanguage
         var depth = 1;
         while (cursor < source.Length)
         {
-            if (StartsBlockComment(source, cursor))
+            var ch = source[cursor];
+            var next = cursor + 1 < source.Length ? source[cursor + 1] : '\0';
+            if (ch == '(' &&
+                next == '*')
             {
+                if (cursor + 2 < source.Length &&
+                    source[cursor + 2] == ')')
+                {
+                    // The operator, as it is in code. Stepped over whole, or its last two
+                    // characters would close the comment
+                    cursor += 3;
+                    continue;
+                }
+
                 depth++;
                 cursor += 2;
                 continue;
             }
 
-            if (source[cursor] == '*' &&
-                cursor + 1 < source.Length &&
-                source[cursor + 1] == ')')
+            if (ch == '*' &&
+                next == ')')
             {
                 depth--;
                 cursor += 2;
@@ -215,12 +248,69 @@ sealed class FsLanguage : SourceLanguage
                 continue;
             }
 
+            if (ch == '"' ||
+                (ch == '@' && next == '"'))
+            {
+                // Never false from here: both start a string. One left open runs to the end of
+                // the file, which the compiler refuses outright
+                TrySkipStringLike(source, ref cursor);
+                continue;
+            }
+
+            if (ch == '\'' &&
+                TrySkipCharLiteral(source, ref cursor))
+            {
+                continue;
+            }
+
             cursor++;
         }
 
         // Unterminated: the rest of the file is comment, which is what the compiler sees too
         index = source.Length;
         return true;
+    }
+
+    /// <summary>
+    /// A double backticked identifier, which is how an F# test is usually named and may hold
+    /// anything a line can but a tab and two backticks together:
+    /// <c>``returns "x" (* when asked``</c>. Nothing inside one opens a string or a comment.
+    /// </summary>
+    static bool TrySkipQuotedIdentifier(string source, ref int index)
+    {
+        if (index + 1 >= source.Length ||
+            source[index + 1] != '`')
+        {
+            return false;
+        }
+
+        var cursor = index + 2;
+        while (cursor < source.Length)
+        {
+            var ch = source[cursor];
+            if (ch is '\n' or '\r' or '\t')
+            {
+                return false;
+            }
+
+            if (ch == '`' &&
+                cursor + 1 < source.Length &&
+                source[cursor + 1] == '`')
+            {
+                // Two backticks with nothing between them and the opening pair name nothing
+                if (cursor == index + 2)
+                {
+                    return false;
+                }
+
+                index = cursor + 2;
+                return true;
+            }
+
+            cursor++;
+        }
+
+        return false;
     }
 
     static bool StartsBlockComment(string source, int index) =>
