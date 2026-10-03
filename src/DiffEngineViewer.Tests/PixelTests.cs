@@ -601,6 +601,49 @@ public class PixelTests
         await Assert.That(rested).IsTrue();
     }
 
+    /// <summary>
+    /// A hidden window is handed another screen by every arrival in its queue, and the Linux head
+    /// built and drew each of them into a window nobody could see. Hidden, it now draws none,
+    /// however the screen changes, and the first present after it is shown draws the screen it is
+    /// handed. That what it draws then is the right screen is not something a count can say: it
+    /// was photographed off the X server when this was changed.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 22)]
+    [SkipOnMac("A capture host never creates the macOS window, and the counts are asked of OpenGL, which that head does not draw with.")]
+    public async Task AHiddenWindowIsNotDrawn()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        // The same frame twice, told apart by its status line, so that every present is of a
+        // screen that is not the one before it
+        Screen[] screens =
+        [
+            screen with {Status = "tick"},
+            screen with {Status = "tock"}
+        ];
+        var (hidden, shown) = await OnShimThread(
+            () =>
+            {
+                // A window's first frame is built wherever the window is, and this test may be
+                // the first to present anything
+                window!.Present(screen);
+                var hidden = Drawn(60, screens);
+                window.SetHidden(false);
+                try
+                {
+                    return (hidden, Drawn(1, screens[0]));
+                }
+                finally
+                {
+                    window.SetHidden(true);
+                }
+            });
+
+        await Assert.That(hidden).IsEqualTo(0);
+        await Assert.That(shown).IsEqualTo(1);
+    }
+
     static uint drawnQuery;
 
     /// <summary>

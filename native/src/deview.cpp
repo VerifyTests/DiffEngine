@@ -4272,9 +4272,37 @@ int32_t deview_present(const DeviewScreen* screen)
     bool arrived = TakeDecoded();
     /* And its fonts, for that reason and because a font can only be added between frames. */
     arrived = TakeFonts() || arrived;
-    arrived = Changed(screen) || arrived;
+    const bool changed = Changed(screen);
+    arrived = changed || arrived;
     arrived = Arrived() || arrived;
     arrived = arrived || state.tooltipDue;
+
+    /*
+     * A hidden window is not built for and not drawn into, whatever has arrived. It was, each time
+     * its screen changed, and a viewer hidden behind a tray is handed another screen by every
+     * arrival in its queue: the whole queue laid out and the whole window filled, for nobody.
+     *
+     * What arrived has still been taken in, above, and the fonts for what the screen holds are
+     * still asked for, so that they are there by the time it is shown. Showing it is itself an
+     * arrival, and marks the window stale, so the first present after it builds the screen it is
+     * handed and draws it: see deview_set_hidden and Arrived.
+     *
+     * Not before a frame has been built for the window at all. The grid the managed side slices
+     * its rows by is measured from one, and ImGui has no font to measure with until its first.
+     */
+    if (state.hidden &&
+        state.cellWidth > 0.0f)
+    {
+        if (changed)
+        {
+            FindFontsFor(screen);
+        }
+
+        Rest();
+        MeasureGrid();
+        TrackPlacement();
+        return 1;
+    }
 
     /*
      * A window nothing is happening to is left alone: no frame is built, and nothing is drawn.
