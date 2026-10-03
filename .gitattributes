@@ -6,6 +6,7 @@
 *.xlsx binary
 *.pptx binary
 *.pdf binary
+*.fgb binary
 *.dll binary
 *.so binary
 *.dylib binary

@@ -20,6 +20,7 @@
     <PackageReference Include="Morph" />
     <PackageReference Include="Morph.Skia" />
     <PackageReference Include="Morph.PDFium" />
+    <PackageReference Include="GeoConvert" />
     <!--
     SkiaSharp's net10.0 group brings the Windows and macOS natives only. NoDependencies rather than
     the plain Linux package, so the renderer needs no fontconfig on the machine: Morph finds fonts

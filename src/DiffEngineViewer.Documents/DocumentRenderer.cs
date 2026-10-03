@@ -1,4 +1,5 @@
 using System.Text;
+using GeoConvert;
 using Morph;
 using Morph.PDFium;
 using SkiaSharp;
@@ -9,8 +10,8 @@ using Svg.Skia;
 namespace DiffEngineViewer.Documents;
 
 /// <summary>
-/// What DiffEngineViewer reads documents with: the text of a PDF or an Office document, and every
-/// page of one, or an SVG, as a picture.
+/// What DiffEngineViewer reads documents with: the text of a PDF, an Office document or a binary
+/// map, and every page of one, or an SVG or a map, as a picture.
 /// <para>
 /// Loaded by DiffEngineViewer.Core into an AssemblyLoadContext of its own and reached by name
 /// rather than by reference, so only BCL types cross: nothing here knows Core exists, and no type
@@ -63,6 +64,9 @@ public static class DocumentRenderer
             ".docx" => DocumentConverter.ConvertToMarkdown(path, markdown),
             ".xlsx" => ExcelConverter.ConvertToMarkdown(path, markdown),
             ".pptx" => PowerPointConverter.ConvertToMarkdown(path, markdown),
+            // A binary map, so what it holds, as GeoJSON: features in order, their properties, and
+            // their coordinates one per line.
+            ".fgb" or ".geoparquet" or ".kmz" or ".wkb" => GeoJson.WriteString(GeoConverter.Read(path)),
             var extension => throw new NotSupportedException($"There is no text for a {extension} file.")
         };
 
@@ -93,8 +97,35 @@ public static class DocumentRenderer
             ".xlsx" => Announce(new SkiaExcelConverter().ConvertToImages(path, directory, options), landed),
             ".pptx" => Announce(new SkiaPowerPointConverter().ConvertToImages(path, directory, options), landed),
             ".svg" => RenderSvg(path, directory, landed),
+            ".geojson" or ".topojson" or ".kml" or ".kmz" or ".gpx" or ".wkt" or ".wkb" or ".fgb" or ".geoparquet" =>
+                RenderMap(path, directory, landed),
             var extension => throw new NotSupportedException($"There are no pages for a {extension} file.")
         };
+    }
+
+    /// <summary>
+    /// GeoConvert's own rasterizer rather than its Skia one: it has no dependency to drift from the
+    /// SkiaSharp Morph pins, and draws the same features to the same bytes everywhere.
+    /// </summary>
+    static int RenderMap(string path, string directory, Action<string> landed)
+    {
+        var features = GeoConverter.Read(path);
+        if (features.Count == 0)
+        {
+            throw new InvalidDataException("The map has no features to draw.");
+        }
+
+        var file = PageFile(directory, 0);
+        MapRenderer.RenderPng(
+            features,
+            file,
+            new()
+            {
+                // The longer side, whichever it is, so a tall map is no larger than a wide one.
+                MaxDimension = 2048
+            });
+        landed(file);
+        return 1;
     }
 
     static string PdfText(string path)

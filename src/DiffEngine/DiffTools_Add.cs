@@ -74,7 +74,7 @@ public static partial class DiffTools
         if (diffTool == DiffTool.DiffEngineViewer &&
             ViewerDocuments.Beside(resolvedExePath))
         {
-            extensions.AddRange(DocumentExtensions.Paged.Except(extensions, StringComparer.OrdinalIgnoreCase));
+            extensions.AddRange(DocumentExtensions.Routed.Except(extensions, StringComparer.OrdinalIgnoreCase));
         }
 
         var tool = new ResolvedTool(

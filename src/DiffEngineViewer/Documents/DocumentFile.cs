@@ -8,11 +8,20 @@ enum DocumentFormat
     Word,
     Excel,
     PowerPoint,
-    Svg
+    Svg,
+    GeoJson,
+    TopoJson,
+    Kml,
+    Kmz,
+    Gpx,
+    Wkt,
+    Wkb,
+    FlatGeobuf,
+    GeoParquet
 }
 
 /// <summary>
-/// One side of a comparison that is a document: a PDF, an Office file, or an SVG. The
+/// One side of a comparison that is a document: a PDF, an Office file, an SVG or a map. The
 /// <see cref="ImageFile"/> of documents, and like it deliberately not the bytes.
 /// <para>
 /// Only read this way by a viewer with its documents folder (<see cref="DocumentPlugin"/>). The
@@ -26,7 +35,7 @@ enum DocumentFormat
 /// </param>
 /// <param name="Reading">
 /// The text is still being read out of the document, which happens on
-/// <see cref="DocumentWatch"/>'s thread rather than here. Never for an SVG, whose text is the file.
+/// <see cref="DocumentWatch"/>'s thread rather than here. Never for one whose text is the file.
 /// </param>
 /// <param name="Unreadable">Why no text could be read out of the document, when none could.</param>
 readonly record struct DocumentFile(
@@ -38,9 +47,26 @@ readonly record struct DocumentFile(
     string? Unreadable = null)
 {
     /// <summary>
-    /// Text that also draws, rather than a document whose text is read out of it.
+    /// One picture rather than pages: an SVG or a map.
     /// </summary>
-    public bool IsDrawn => Format == DocumentFormat.Svg;
+    public bool IsDrawn =>
+        Format is not (
+            DocumentFormat.Pdf or
+            DocumentFormat.Word or
+            DocumentFormat.Excel or
+            DocumentFormat.PowerPoint);
+
+    /// <summary>
+    /// Its text is the file, read as any text file is, rather than read out of it.
+    /// </summary>
+    public bool IsSource =>
+        Format is
+            DocumentFormat.Svg or
+            DocumentFormat.GeoJson or
+            DocumentFormat.TopoJson or
+            DocumentFormat.Kml or
+            DocumentFormat.Gpx or
+            DocumentFormat.Wkt;
 
     /// <summary>
     /// Whether this side's text is the document's, rather than nothing yet or nothing at all.
@@ -64,6 +90,15 @@ readonly record struct DocumentFile(
             ".docx" => DocumentFormat.Word,
             ".xlsx" => DocumentFormat.Excel,
             ".pptx" => DocumentFormat.PowerPoint,
+            ".geojson" => DocumentFormat.GeoJson,
+            ".topojson" => DocumentFormat.TopoJson,
+            ".kml" => DocumentFormat.Kml,
+            ".kmz" => DocumentFormat.Kmz,
+            ".gpx" => DocumentFormat.Gpx,
+            ".wkt" => DocumentFormat.Wkt,
+            ".wkb" => DocumentFormat.Wkb,
+            ".fgb" => DocumentFormat.FlatGeobuf,
+            ".geoparquet" => DocumentFormat.GeoParquet,
             _ => DocumentFormat.Svg
         };
 
@@ -74,6 +109,15 @@ readonly record struct DocumentFile(
             DocumentFormat.Word => "Word",
             DocumentFormat.Excel => "Excel",
             DocumentFormat.PowerPoint => "PowerPoint",
+            DocumentFormat.GeoJson => "GeoJSON map",
+            DocumentFormat.TopoJson => "TopoJSON map",
+            DocumentFormat.Kml => "KML map",
+            DocumentFormat.Kmz => "KMZ map",
+            DocumentFormat.Gpx => "GPX map",
+            DocumentFormat.Wkt => "WKT map",
+            DocumentFormat.Wkb => "WKB map",
+            DocumentFormat.FlatGeobuf => "FlatGeobuf map",
+            DocumentFormat.GeoParquet => "GeoParquet map",
             _ => "SVG"
         };
 }
