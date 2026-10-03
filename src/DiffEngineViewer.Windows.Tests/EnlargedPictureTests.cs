@@ -357,7 +357,7 @@ public class EnlargedPictureTests
     /// </summary>
     sealed class Host : IDisposable
     {
-        readonly Form form = new()
+        readonly Form form = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-4000, -2000),

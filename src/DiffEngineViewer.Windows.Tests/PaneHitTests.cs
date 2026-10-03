@@ -189,7 +189,7 @@ public class PaneHitTests
     /// </summary>
     sealed class Host : IDisposable
     {
-        readonly Form form = new()
+        readonly Form form = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-2000, -2000),

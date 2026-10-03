@@ -544,6 +544,48 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// A key posted by one of these tests is that key, on a thread that takes Alt to be down as
+    /// much as on any other. A form reads a key message beside whatever its thread takes to be
+    /// held, and Alt with Down is no command: these failed, once, on a machine somebody was
+    /// using, the way this did until a frame said what was held before pumping.
+    /// </summary>
+    [Test]
+    public async Task APostedKeyIsNoChordWhateverTheThreadTakesToBeHeld()
+    {
+        using var host = new FormHost(Fixtures.File(Lines(300, 3), Lines(300)));
+        host.Settle();
+        var before = ScreenBuilder.Build(host.State).Left.ScrollTop;
+
+        ThreadKeys.Hold(Keys.Menu);
+        host.PostKey(Keys.Down);
+        host.Frame();
+
+        await Assert.That(ScreenBuilder.Build(host.State).Left.ScrollTop - before).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// The form these tests post to is never the window the keyboard goes to, and neither is the
+    /// one a canvas is hosted in. Each was, shown the ordinary way: off every display and still
+    /// the foreground window, so whatever was typed at the machine while a test ran was taken
+    /// from what it was meant for and applied here as commands.
+    /// </summary>
+    [Test]
+    public async Task AFormATestPostsToDoesNotTakeTheKeyboard()
+    {
+        using var host = new FormHost(Fixtures.File());
+        host.Settle();
+        using var canvas = new CanvasHost();
+        Application.DoEvents();
+
+        var foreground = GetForegroundWindow();
+        await Assert.That(foreground).IsNotEqualTo(host.Form.Handle);
+        await Assert.That(foreground).IsNotEqualTo(canvas.Canvas.FindForm()!.Handle);
+    }
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    /// <summary>
     /// d pressed while one entry is on screen, then a click on another row, both before the
     /// pump runs. In the order they happened, the first entry is discarded and the second selected.
     /// </summary>
@@ -865,7 +907,7 @@ public class FormsHeadTests
         SendMessage(canvas.Handle, leftButtonDown, leftButtonFlag, Point(press.X, press.Y));
         var captured = canvas.Capture;
 
-        using var other = new Form
+        using var other = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-4000, -2000),
@@ -898,7 +940,7 @@ public class FormsHeadTests
         var y = canvas.BodyTop() + 40;
 
         SendMessage(canvas.Handle, leftButtonDown, leftButtonFlag, Point(splitter, y));
-        using var other = new Form
+        using var other = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-4000, -2000),
@@ -1202,7 +1244,7 @@ public class FormsHeadTests
     /// </summary>
     sealed class CanvasHost : IDisposable
     {
-        readonly Form form = new()
+        readonly Form form = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-4000, -2000),
@@ -1266,7 +1308,10 @@ public class FormsHeadTests
             {
                 StartPosition = FormStartPosition.Manual,
                 Location = new(-4000, -2000),
-                ShowInTaskbar = false
+                ShowInTaskbar = false,
+                // Or it is the foreground window for as long as the test runs, and whatever is
+                // typed at the machine meanwhile arrives here beside what the test posts
+                Parked = true
             };
             Form.Show();
             Canvas = Field<ViewerCanvas>(Form, "canvas");
@@ -1281,6 +1326,9 @@ public class FormsHeadTests
         public ViewerInput Frame()
         {
             Form.Apply(ScreenBuilder.Build(State));
+            // What is posted here is a key and no chord, whatever is held at the keyboard as
+            // this runs: see ThreadKeys
+            ThreadKeys.ReleaseModifiers();
             Application.DoEvents();
             var input = Form.Drain();
             Apply(input);

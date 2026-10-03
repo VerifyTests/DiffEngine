@@ -235,6 +235,19 @@ sealed class ViewerForm : Form
     }
 
     /// <summary>
+    /// Shown without being made the window the keyboard goes to. For a form that is shown only
+    /// so that it will paint and take messages, somewhere nobody can see it: a capture, and the
+    /// tests that post input to one. Shown as a window ordinarily is, it took the keyboard from
+    /// whatever the person at the machine was typing into for as long as it was up, and what
+    /// they typed next was this window's commands.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Parked { get; set; }
+
+    protected override bool ShowWithoutActivation =>
+        Parked;
+
+    /// <summary>
     /// Once the handle exists, because DeviceDpi is only meaningful then, and again whenever the
     /// window moves to a display with different scaling.
     /// </summary>

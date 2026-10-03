@@ -68,6 +68,28 @@ public class PictureZoomTests
     }
 
     /// <summary>
+    /// With control held the wheel is for the picture wherever the pointer is, as it is in
+    /// everything else that shows one. Held is what the thread takes to be held, which is also
+    /// why the tests beside this one say that nothing is.
+    /// </summary>
+    [Test]
+    public async Task WithControlHeldTheWheelZoomsOverTheRows()
+    {
+        using var host = new Host();
+        host.Draw(Fixtures.File());
+        var zoomed = 0;
+        var scrolled = 0;
+        host.Canvas.Zoomed += _ => zoomed += _;
+        host.Canvas.Scrolled += _ => scrolled += _;
+
+        host.Wheel(new(width / 4, height / 2), 120, control: true);
+        host.Wheel(new(width / 4, height / 2), 120);
+
+        await Assert.That(zoomed).IsEqualTo(1);
+        await Assert.That(scrolled).IsEqualTo(1);
+    }
+
+    /// <summary>
     /// Dragging right brings what is to the left of the middle into view, by as much of the
     /// enlarged picture as the pointer crossed. Reported once per move and then not again.
     /// </summary>
@@ -152,7 +174,7 @@ public class PictureZoomTests
     /// </summary>
     sealed class Host : IDisposable
     {
-        readonly Form form = new()
+        readonly Form form = new ParkedForm
         {
             StartPosition = FormStartPosition.Manual,
             Location = new(-2000, -2000),
@@ -182,11 +204,21 @@ public class PictureZoomTests
             Canvas.DrawToBitmap(bitmap, new(0, 0, Canvas.Width, Canvas.Height));
         }
 
-        public void Wheel(Point at, int delta)
+        public void Wheel(Point at, int delta, bool control = false)
         {
+            // Whether control is held is not in the message as WinForms reads it. It asks the
+            // thread, which would otherwise answer with whatever is held at the keyboard as this
+            // runs: see ThreadKeys
+            ThreadKeys.ReleaseModifiers();
+            if (control)
+            {
+                ThreadKeys.Hold(Keys.ControlKey);
+            }
+
             // The one mouse message whose point is in screen coordinates
             var screen = Canvas.PointToScreen(at);
             SendMessage(Canvas.Handle, mouseWheel, new(delta << 16), Pack(screen));
+            ThreadKeys.ReleaseModifiers();
         }
 
         public void Press(Point at) =>

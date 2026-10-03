@@ -176,13 +176,15 @@ sealed class FormsViewerWindow :
 
         // DrawToBitmap sends a paint message, and a window that has never been shown does not
         // answer one: the result is a correctly sized image of nothing. Shown off to the side
-        // rather than at the default position, so a capture run does not steal focus mid screen.
+        // rather than at the default position, and without being activated: off to the side it
+        // was still the foreground window, with the keyboard, for as long as the capture took.
         var wasVisible = form.Visible;
         if (!wasVisible)
         {
             form.StartPosition = FormStartPosition.Manual;
             form.Location = new(-2000, -2000);
             form.ShowInTaskbar = false;
+            form.Parked = true;
             form.Show();
         }
 
@@ -208,6 +210,7 @@ sealed class FormsViewerWindow :
             if (!wasVisible)
             {
                 form.Visible = false;
+                form.Parked = false;
             }
         }
 
