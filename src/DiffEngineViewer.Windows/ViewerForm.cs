@@ -814,6 +814,15 @@ sealed class ViewerForm : Form
         }
     }
 
+    /// <summary>
+    /// The cells the canvas has now, under whatever the footer has come to. ScreenBuilder
+    /// subtracts Chrome to get the body, so adding it back asks for exactly the rows the canvas
+    /// can draw rather than a guess from a fixed cell height.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public (int Columns, int Rows) Grid =>
+        (canvas.ColumnCapacity, canvas.BodyCapacity + ScreenBuilder.Chrome);
+
     public ViewerInput Drain()
     {
         var drag = canvas.TakeDrag();
@@ -830,10 +839,8 @@ sealed class ViewerForm : Form
             ClickedQueueItem: next.QueueItem,
             ScrollDelta: scrollDelta,
             CloseRequested: closeRequested,
-            Columns: canvas.ColumnCapacity,
-            // ScreenBuilder subtracts Chrome to get the body, so adding it back asks for exactly
-            // the rows the canvas can draw rather than a guess from a fixed cell height.
-            Rows: canvas.BodyCapacity + ScreenBuilder.Chrome,
+            Columns: Grid.Columns,
+            Rows: Grid.Rows,
             RightClickedQueueItem: next.RightClickedQueueItem,
             ClickedMenuItem: next.MenuItem,
             MenuClosed: next.MenuClosed,

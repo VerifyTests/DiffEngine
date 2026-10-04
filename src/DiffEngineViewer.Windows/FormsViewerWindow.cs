@@ -174,6 +174,42 @@ sealed class FormsViewerWindow :
             return false;
         }
 
+        return Sized(
+            screen,
+            width,
+            height,
+            () =>
+            {
+                // Invalidate only marks dirty; the paint has to have happened before the bitmap.
+                form.Surface.Refresh();
+
+                using var bitmap = new Bitmap(width, height);
+                form.Surface.DrawToBitmap(bitmap, new(0, 0, width, height));
+                bitmap.Save(pngPath, DrawingImageFormat.Png);
+                return true;
+            });
+    }
+
+    /// <summary>
+    /// The grid a capture of <paramref name="screen"/> at this size draws: the window's cells
+    /// once the footer that screen's buttons and status come to has been laid out.
+    /// <para>
+    /// A capture is handed a screen already built, and built for the whole window it shows only
+    /// the rows that fit over its footer: a footer of two rows of buttons and a status under
+    /// them left the last rows of the screen undrawn. The window never does that, since it
+    /// reports its grid every frame and is handed a screen sliced to it. This is that report
+    /// for a capture, so its caller can build the screen again for the rows there are. What a
+    /// status says can turn on the rows, so the footer is the first screen's.
+    /// </para>
+    /// </summary>
+    internal (int Columns, int Rows) MeasureGrid(Screen screen, int width, int height) =>
+        Sized(screen, width, height, () => form.Grid);
+
+    /// <summary>
+    /// With the form showing <paramref name="screen"/> at this size, as a capture has it.
+    /// </summary>
+    T Sized<T>(Screen screen, int width, int height, Func<T> read)
+    {
         // DrawToBitmap sends a paint message, and a window that has never been shown does not
         // answer one: the result is a correctly sized image of nothing. Shown off to the side
         // rather than at the default position, and without being activated: off to the side it
@@ -197,12 +233,7 @@ sealed class FormsViewerWindow :
             form.ClientSize = new(width, height);
             form.Apply(screen);
             form.PerformLayout();
-            // Invalidate only marks dirty; the paint has to have happened before the bitmap.
-            form.Surface.Refresh();
-
-            using var bitmap = new Bitmap(width, height);
-            form.Surface.DrawToBitmap(bitmap, new(0, 0, width, height));
-            bitmap.Save(pngPath, DrawingImageFormat.Png);
+            return read();
         }
         finally
         {
@@ -213,8 +244,6 @@ sealed class FormsViewerWindow :
                 form.Parked = false;
             }
         }
-
-        return true;
     }
 
     public void Dispose()
