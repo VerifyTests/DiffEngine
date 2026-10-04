@@ -628,7 +628,7 @@ public class InlineQueueTests
             .Enqueue(Patch("B.cs", 2));
 
         Assert.Throws<ArgumentException>(
-            () => queue.AcceptAll(_ => [InlineApplyResult.Applied], out var message));
+            () => queue.AcceptAll(_ => [InlineApplyResult.Applied], out _));
     }
 
     /// <summary>

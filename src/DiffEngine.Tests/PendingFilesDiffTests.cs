@@ -21,10 +21,10 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording();
 
-        var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
+        var result = await PendingFiles.AddDiffAsync(Viewer(), temp, target, Cancel.None);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Temp}:{Target}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{temp}:{target}"]);
     }
 
     [Test]
@@ -32,10 +32,10 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording();
 
-        var result = PendingFiles.AddDiff(Viewer(), Temp, Target);
+        var result = PendingFiles.AddDiff(Viewer(), temp, target);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Temp}:{Target}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{temp}:{target}"]);
     }
 
     /// <summary>
@@ -48,13 +48,13 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording {Refuse = ViewerVerb.Diff};
 
-        var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
+        var result = await PendingFiles.AddDiffAsync(Viewer(), temp, target, Cancel.None);
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
         await Assert.That(owner.Heard).IsEquivalentTo(
         [
-            $"{ViewerVerb.Diff}:{Temp}:{Target}",
-            $"{ViewerVerb.Move}:{Temp}:{Target}"
+            $"{ViewerVerb.Diff}:{temp}:{target}",
+            $"{ViewerVerb.Move}:{temp}:{target}"
         ]);
     }
 
@@ -63,12 +63,12 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording {Refuse = ViewerVerb.Diff};
 
-        PendingFiles.AddDiff(Viewer(), Temp, Target);
+        PendingFiles.AddDiff(Viewer(), temp, target);
 
         await Assert.That(owner.Heard).IsEquivalentTo(
         [
-            $"{ViewerVerb.Diff}:{Temp}:{Target}",
-            $"{ViewerVerb.Move}:{Temp}:{Target}"
+            $"{ViewerVerb.Diff}:{temp}:{target}",
+            $"{ViewerVerb.Move}:{temp}:{target}"
         ]);
     }
 
@@ -92,7 +92,7 @@ public class PendingFilesDiffTests
         MaxInstance.ResetCount();
         try
         {
-            var result = await PendingFiles.AddDiffAsync(Viewer(), Temp, Target, Cancel.None);
+            var result = await PendingFiles.AddDiffAsync(Viewer(), temp, target, Cancel.None);
 
             await Assert.That(result).IsEqualTo(LaunchResult.TooManyRunningDiffTools);
         }
@@ -113,9 +113,9 @@ public class PendingFilesDiffTests
     {
         using var owner = new Recording();
 
-        PendingFiles.SettleDiff(Temp);
+        PendingFiles.SettleDiff(temp);
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Settle}:{TrackedKeys.ForMove(Temp)}:"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Settle}:{TrackedKeys.ForMove(temp)}:"]);
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public class PendingFilesDiffTests
     {
         using var absent = new NoOwner();
 
-        await Assert.That(() => PendingFiles.SettleDiff(Temp)).ThrowsNothing();
+        await Assert.That(() => PendingFiles.SettleDiff(temp)).ThrowsNothing();
     }
 
     /// <summary>
@@ -145,14 +145,14 @@ public class PendingFilesDiffTests
         DiffRunner.Disabled = false;
         try
         {
-            DiffRunner.SettleDelete(Stale);
+            DiffRunner.SettleDelete(stale);
         }
         finally
         {
             DiffRunner.Disabled = previousDisabled;
         }
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Settle}:{TrackedKeys.ForDelete(Stale)}:"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Settle}:{TrackedKeys.ForDelete(stale)}:"]);
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ public class PendingFilesDiffTests
         DiffRunner.Disabled = true;
         try
         {
-            DiffRunner.SettleDelete(Stale);
+            DiffRunner.SettleDelete(stale);
         }
         finally
         {
@@ -181,7 +181,7 @@ public class PendingFilesDiffTests
     {
         using var absent = new NoOwner();
 
-        await Assert.That(() => PendingFiles.SettleDelete(Stale)).ThrowsNothing();
+        await Assert.That(() => PendingFiles.SettleDelete(stale)).ThrowsNothing();
     }
 
     /// <summary>
@@ -192,9 +192,9 @@ public class PendingFilesDiffTests
     [Test]
     public async Task AViewerIsReopenedIntoItsQueueAndNeverKilled()
     {
-        var (arguments, canKill) = PendingFiles.RelaunchFor(Viewer(), Temp, Target);
+        var (arguments, canKill) = PendingFiles.RelaunchFor(Viewer(), temp, target);
 
-        await Assert.That(arguments).IsEqualTo($"--diff \"{Temp}\" \"{Target}\"");
+        await Assert.That(arguments).IsEqualTo($"--diff \"{temp}\" \"{target}\"");
         // One window holds every pending pair, so killing it takes the rest with it.
         await Assert.That(canKill).IsFalse();
     }
@@ -202,16 +202,16 @@ public class PendingFilesDiffTests
     [Test]
     public async Task AnOrdinaryToolKeepsItsOwnArgumentsAndStaysKillable()
     {
-        var (arguments, canKill) = PendingFiles.RelaunchFor(Other(isMdi: false), Temp, Target);
+        var (arguments, canKill) = PendingFiles.RelaunchFor(Other(isMdi: false), temp, target);
 
-        await Assert.That(arguments).IsEqualTo($"\"{Temp}\" \"{Target}\"");
+        await Assert.That(arguments).IsEqualTo($"\"{temp}\" \"{target}\"");
         await Assert.That(canKill).IsTrue();
     }
 
     [Test]
     public async Task AnMdiToolIsNotKillableEither()
     {
-        var (_, canKill) = PendingFiles.RelaunchFor(Other(isMdi: true), Temp, Target);
+        var (_, canKill) = PendingFiles.RelaunchFor(Other(isMdi: true), temp, target);
 
         await Assert.That(canKill).IsFalse();
     }
@@ -232,10 +232,10 @@ public class PendingFilesDiffTests
         {
             var result = await DiffRunner.InnerLaunchAsync(
                 NeverResolved,
-                Page,
-                PageTarget,
+                page,
+                pageTarget,
                 null,
-                Document,
+                document,
                 Resolves(Viewer(documents: true)));
 
             await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
@@ -246,7 +246,7 @@ public class PendingFilesDiffTests
             MaxInstance.ResetCount();
         }
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{page}:{pageTarget} from {document}"]);
     }
 
     [Test]
@@ -255,16 +255,17 @@ public class PendingFilesDiffTests
         using var owner = new Recording();
         using var enabled = new Enabled();
 
+        // ReSharper disable once MethodHasAsyncOverload
         var result = DiffRunner.InnerLaunch(
             NeverResolved,
-            Page,
-            PageTarget,
+            page,
+            pageTarget,
             null,
-            Document,
+            document,
             Resolves(Viewer(documents: true)));
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{page}:{pageTarget} from {document}"]);
     }
 
     /// <summary>
@@ -281,10 +282,10 @@ public class PendingFilesDiffTests
 
         var result = await DiffRunner.InnerLaunchAsync(
             NoTool,
-            Page,
-            PageTarget,
+            page,
+            pageTarget,
             null,
-            Document,
+            document,
             Resolves(Viewer(documents: true)));
 
         await Assert.That(result).IsEqualTo(LaunchResult.NoDiffToolFound);
@@ -303,14 +304,14 @@ public class PendingFilesDiffTests
 
         var result = await DiffRunner.InnerLaunchAsync(
             NoTool,
-            Page,
-            PageTarget,
+            page,
+            pageTarget,
             null,
-            Document,
+            document,
             Resolves(Other(isMdi: false)));
 
         await Assert.That(result).IsEqualTo(LaunchResult.NoDiffToolFound);
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{page}:{pageTarget} from {document}"]);
     }
 
     /// <summary>
@@ -327,14 +328,14 @@ public class PendingFilesDiffTests
 
         var result = await DiffRunner.InnerLaunchAsync(
             Resolves(viewer),
-            Page,
-            PageTarget,
+            page,
+            pageTarget,
             null,
-            Document,
+            document,
             Resolves(viewer));
 
         await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Page}:{PageTarget} from {Document}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{page}:{pageTarget} from {document}"]);
     }
 
     /// <summary>
@@ -351,10 +352,10 @@ public class PendingFilesDiffTests
         {
             var result = await DiffRunner.InnerLaunchAsync(
                 NeverResolved,
-                Page,
-                PageTarget,
+                page,
+                pageTarget,
                 null,
-                Document,
+                document,
                 Resolves(Viewer(documents: true)));
 
             await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
@@ -364,7 +365,7 @@ public class PendingFilesDiffTests
             DiffRunner.Disabled = previousDisabled;
         }
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{page}:{pageTarget} from {document}"]);
     }
 
     /// <summary>
@@ -385,7 +386,7 @@ public class PendingFilesDiffTests
 
     [Test]
     public async Task AnotherToolDrawsNothing() =>
-        await Assert.That(PendingFiles.Draws(Other(isMdi: false), Document)).IsFalse();
+        await Assert.That(PendingFiles.Draws(Other(isMdi: false), document)).IsFalse();
 
     /// <summary>
     /// A page a document no longer has: the delete of its verified file, saying which document.
@@ -396,13 +397,13 @@ public class PendingFilesDiffTests
         using var owner = new Recording();
         using var enabled = new Enabled();
 
-        DiffRunner.AddDerivedDelete(Stale, Document);
-        await DiffRunner.AddDerivedDeleteAsync(Stale, Document);
+        await DiffRunner.AddDerivedDeleteAsync(stale, document);
+        await DiffRunner.AddDerivedDeleteAsync(stale, document);
 
         await Assert.That(owner.Heard).IsEquivalentTo(
         [
-            $"{ViewerVerb.Delete}:{Stale}: from {Document}",
-            $"{ViewerVerb.Delete}:{Stale}: from {Document}"
+            $"{ViewerVerb.Delete}:{stale}: from {document}",
+            $"{ViewerVerb.Delete}:{stale}: from {document}"
         ]);
     }
 
@@ -415,9 +416,9 @@ public class PendingFilesDiffTests
         using var owner = new Recording();
         using var enabled = new Enabled();
 
-        DiffRunner.AddDelete(Stale);
+        await DiffRunner.AddDeleteAsync(stale);
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{Stale}:"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{stale}:"]);
     }
 
     /// <summary>
@@ -430,14 +431,14 @@ public class PendingFilesDiffTests
         using var owner = new Recording();
         using var enabled = new Enabled();
 
-        DiffRunner.AddDerivedDelete(Stale, Stale);
+        await DiffRunner.AddDerivedDeleteAsync(stale, stale);
 
-        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{Stale}:"]);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{stale}:"]);
     }
 
-    const string Document = @"c:\temp\Sample.Test.received.pdf";
-    const string Page = @"c:\temp\Sample.Test#page_0001.received.png";
-    const string PageTarget = @"c:\code\Sample.Test#page_0001.verified.png";
+    const string document = @"c:\temp\Sample.Test.received.pdf";
+    const string page = @"c:\temp\Sample.Test#page_0001.received.png";
+    const string pageTarget = @"c:\code\Sample.Test#page_0001.verified.png";
 
     static DiffRunner.TryResolveTool Resolves(ResolvedTool tool) =>
         ([NotNullWhen(true)] out ResolvedTool? resolved) =>
@@ -485,9 +486,9 @@ public class PendingFilesDiffTests
             supportsText: true,
             useShellExecute: false);
 
-    const string Temp = @"c:\temp\Sample.Test.received.png";
-    const string Target = @"c:\code\Sample.Test.verified.png";
-    const string Stale = @"c:\code\Sample.Stale.verified.txt";
+    const string temp = @"c:\temp\Sample.Test.received.png";
+    const string target = @"c:\code\Sample.Test.verified.png";
+    const string stale = @"c:\code\Sample.Stale.verified.txt";
 
     /// <summary>
     /// Carries the identity the route branches on. Never started: an owner answers every time.
