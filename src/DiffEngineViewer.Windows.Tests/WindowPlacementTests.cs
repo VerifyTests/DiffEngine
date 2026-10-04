@@ -144,26 +144,33 @@ public class WindowPlacementTests
     [Test]
     public async Task AFormLeftMaximisedOpensMaximisedAndRestoresToWhereItWas()
     {
-        var bounds = OnThisDisplay();
-        WindowPlacement? left;
-        using (var first = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false)))
+        // Maximised, which no parked window can be: it covers a display and is the window the
+        // keyboard goes to. So on a desktop nobody is at
+        var (bounds, left, reopened, reopenedAs, restoredTo) = UnseenDesktop.Run(() =>
         {
-            first.Show();
-            first.WindowState = FormWindowState.Maximized;
-            left = first.Placement;
-        }
+            var bounds = OnThisDisplay();
+            WindowPlacement? left;
+            using (var first = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false)))
+            {
+                first.Show();
+                first.WindowState = FormWindowState.Maximized;
+                left = first.Placement;
+            }
+
+            using var second = new ViewerForm("title", 800, 600, left);
+            second.Show();
+            var reopened = second.WindowState;
+            var reopenedAs = second.Placement;
+
+            second.WindowState = FormWindowState.Normal;
+
+            return (bounds, left, reopened, reopenedAs, second.Bounds);
+        });
 
         await Assert.That(left).IsEqualTo(new WindowPlacement(bounds.X, bounds.Y, bounds.Width, bounds.Height, true));
-
-        using var second = new ViewerForm("title", 800, 600, left);
-        second.Show();
-
-        await Assert.That(second.WindowState).IsEqualTo(FormWindowState.Maximized);
-        await Assert.That(second.Placement).IsEqualTo(left);
-
-        second.WindowState = FormWindowState.Normal;
-
-        await Assert.That(second.Bounds).IsEqualTo(bounds);
+        await Assert.That(reopened).IsEqualTo(FormWindowState.Maximized);
+        await Assert.That(reopenedAs).IsEqualTo(left);
+        await Assert.That(restoredTo).IsEqualTo(bounds);
     }
 
     /// <summary>
@@ -173,14 +180,19 @@ public class WindowPlacementTests
     [Test]
     public async Task AFormMinimisedFromMaximisedIsRememberedAsMaximised()
     {
-        var bounds = OnThisDisplay();
-        using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
-        form.Show();
-        form.WindowState = FormWindowState.Maximized;
+        var (bounds, placement) = UnseenDesktop.Run(() =>
+        {
+            var bounds = OnThisDisplay();
+            using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
+            form.Show();
+            form.WindowState = FormWindowState.Maximized;
 
-        form.WindowState = FormWindowState.Minimized;
+            form.WindowState = FormWindowState.Minimized;
 
-        await Assert.That(form.Placement).IsEqualTo(new WindowPlacement(bounds.X, bounds.Y, bounds.Width, bounds.Height, true));
+            return (bounds, form.Placement);
+        });
+
+        await Assert.That(placement).IsEqualTo(new WindowPlacement(bounds.X, bounds.Y, bounds.Width, bounds.Height, true));
     }
 
     /// <summary>
@@ -212,6 +224,11 @@ public class WindowPlacementTests
 
     /// <summary>
     /// Bounds that are on whatever display the tests are running on, since a form really opens.
+    /// <para>
+    /// Opens, in three of these tests, is a handle and no more: the window is made, asked where it
+    /// is and never shown, so there is nothing of it on the desktop to park. The two that show
+    /// one do it on <see cref="UnseenDesktop" />, which has the same displays.
+    /// </para>
     /// </summary>
     static Rectangle OnThisDisplay()
     {

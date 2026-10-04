@@ -1,9 +1,13 @@
 /// <summary>
 /// Bringing the window up for a snapshot that has just arrived. The queue owner asks for this over
 /// the socket, and it is the only thing that puts a new snapshot in front of anyone.
+/// <para>
+/// Which is to say in front of whoever is at the machine, with their keyboard: a raise that did
+/// not do that would not be one. So every window here is raised on <see cref="UnseenDesktop" />,
+/// where it is raised for real and nobody is there.
+/// </para>
 /// </summary>
 [NotInParallel]
-[TUnit.Core.Executors.STAThreadExecutor]
 public class ViewerFormRaiseTests
 {
     /// <summary>
@@ -14,12 +18,17 @@ public class ViewerFormRaiseTests
     [Test]
     public async Task Restores_a_minimised_window()
     {
-        using var form = new ViewerForm("title", 800, 600);
-        form.WindowState = FormWindowState.Minimized;
+        var state = UnseenDesktop.Run(() =>
+        {
+            using var form = new ViewerForm("title", 800, 600);
+            form.WindowState = FormWindowState.Minimized;
 
-        form.Raise();
+            form.Raise();
 
-        await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Normal);
+            return form.WindowState;
+        });
+
+        await Assert.That(state).IsEqualTo(FormWindowState.Normal);
     }
 
     /// <summary>
@@ -29,12 +38,17 @@ public class ViewerFormRaiseTests
     [Test]
     public async Task Leaves_a_maximised_window_maximised()
     {
-        using var form = new ViewerForm("title", 800, 600);
-        form.WindowState = FormWindowState.Maximized;
+        var state = UnseenDesktop.Run(() =>
+        {
+            using var form = new ViewerForm("title", 800, 600);
+            form.WindowState = FormWindowState.Maximized;
 
-        form.Raise();
+            form.Raise();
 
-        await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Maximized);
+            return form.WindowState;
+        });
+
+        await Assert.That(state).IsEqualTo(FormWindowState.Maximized);
     }
 
     /// <summary>
@@ -45,31 +59,42 @@ public class ViewerFormRaiseTests
     [Test]
     public async Task Restores_a_window_minimised_from_maximised_as_maximised()
     {
-        // Shown, since what it was minimised from is learnt from the window as it resizes, and
-        // transparent, so a maximised window does not flash over whoever is running the tests
-        using var form = new ViewerForm("title", 800, 600)
+        var (state, placement) = UnseenDesktop.Run(() =>
         {
-            Opacity = 0,
-            ShowInTaskbar = false
-        };
-        form.Show();
-        form.WindowState = FormWindowState.Maximized;
-        form.WindowState = FormWindowState.Minimized;
+            // Shown, since what it was minimised from is learnt from the window as it resizes,
+            // and transparent, so that on a machine with only the one desktop a maximised window
+            // does not flash over whoever is running the tests
+            using var form = new ViewerForm("title", 800, 600)
+            {
+                Opacity = 0,
+                ShowInTaskbar = false
+            };
+            form.Show();
+            form.WindowState = FormWindowState.Maximized;
+            form.WindowState = FormWindowState.Minimized;
 
-        form.Raise();
+            form.Raise();
 
-        await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Maximized);
-        await Assert.That(form.Placement!.Value.Maximized).IsTrue();
+            return (form.WindowState, form.Placement);
+        });
+
+        await Assert.That(state).IsEqualTo(FormWindowState.Maximized);
+        await Assert.That(placement!.Value.Maximized).IsTrue();
     }
 
     [Test]
     public async Task Shows_a_hidden_window()
     {
-        using var form = new ViewerForm("title", 800, 600);
-        form.Visible = false;
+        var visible = UnseenDesktop.Run(() =>
+        {
+            using var form = new ViewerForm("title", 800, 600);
+            form.Visible = false;
 
-        form.Raise();
+            form.Raise();
 
-        await Assert.That(form.Visible).IsTrue();
+            return form.Visible;
+        });
+
+        await Assert.That(visible).IsTrue();
     }
 }
