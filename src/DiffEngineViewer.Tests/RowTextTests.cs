@@ -1,10 +1,6 @@
 /// <summary>
-/// The start of a row, which is all of it this head hands to GDI+: no more than its pane has cells
-/// for, cut where the grid would cut it, and found without reading the rest of the row.
-/// <para>
-/// Here rather than beside <c>CellGridTests</c> because this head is what asks for it. Nothing in
-/// it is about WinForms.
-/// </para>
+/// The start of a row, which is all of it the WinForms head hands to GDI+: no more than its pane
+/// has cells for, cut where the grid would cut it, and found without reading the rest of the row.
 /// </summary>
 public class RowTextTests
 {
