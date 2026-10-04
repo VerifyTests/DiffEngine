@@ -205,8 +205,8 @@ record SessionState(
     /// their status line from it and refuses what changes the queue until it has gone.
     /// </summary>
     public AcceptProgress? ListedProgress =>
-        Batch is { Discarding: true } discard
-            ? discard.Progress with { Discarding = true }
+        Batch is { Discarding: true }
+            ? Batch.Progress with { Discarding = true }
             : Progress;
 
     public QueueEntry? Current =>

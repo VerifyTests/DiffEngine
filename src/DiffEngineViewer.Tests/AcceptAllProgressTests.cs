@@ -11,7 +11,7 @@ public class AcceptAllProgressTests
     {
         var state = ViewerSession.BeginAcceptAll(Pending());
         var seen = new List<string>();
-        while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
+        while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is not null)
         {
             seen.Add($"{ScreenBuilder.Build(state).Status}, {state.Queue.Count} pending");
             state = ViewerSession.ApplyClaimed(state, Fixtures.Applied)(state);
@@ -82,12 +82,11 @@ public class AcceptAllProgressTests
         };
         var state = ViewerSession.BeginAcceptAll(Pending());
         state = ViewerSession.ClaimNext(state);
-        var first = state.Batch!.Current!;
         state = ViewerSession.ApplyClaimed(state, actions)(state);
 
         var next = state.Batch!.Remaining[0];
         state = ViewerSession.Settle(state, next);
-        while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is { } entry)
+        while ((state = ViewerSession.ClaimNext(state)).Batch?.Current is not null)
         {
             state = ViewerSession.ApplyClaimed(state, actions)(state);
         }

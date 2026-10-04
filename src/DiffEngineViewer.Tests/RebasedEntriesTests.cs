@@ -27,13 +27,15 @@ public class RebasedEntriesTests
 
         var after = ViewerSession.Apply(state, CommandKind.Accept, Fixtures.Applying(Grew));
 
-        await Assert.That(after.Queue.Select(_ => _.Name)).IsEquivalentTo(["SampleTests.cs:93", "OtherTests.cs:88", "SampleTests.cs:95"]);
+        await Assert.That(after.Queue.Select(_ => _.Name))
+            .IsEquivalentTo(["SampleTests.cs:93", "OtherTests.cs:88", "SampleTests.cs:95"]);
         var moved = after.Queue.Single(_ => _.Name == "SampleTests.cs:93");
         await Assert.That(moved.Key).IsEqualTo(InlineKey.For("SampleTests.cs", 93));
         await Assert.That(moved.Patch!.LineHint).IsEqualTo(93);
         await Assert.That(moved.Variants.Single().Patch).IsSameReferenceAs(moved.Patch);
         // The same diff, not one made again
-        await Assert.That(moved.LeftRows).IsSameReferenceAs(before.Single(_ => _.Name == "SampleTests.cs:88").LeftRows);
+        await Assert.That(moved.LeftRows)
+            .IsSameReferenceAs(before.Single(_ => _.Name == "SampleTests.cs:88").LeftRows);
         // And another file's entry is the entry it was
         await Assert.That(after.Queue.Single(_ => _.Name == "OtherTests.cs:88"))
             .IsSameReferenceAs(before.Single(_ => _.Name == "OtherTests.cs:88"));

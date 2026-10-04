@@ -61,9 +61,9 @@ record ViewerActions(
     public IReadOnlyList<InlineApplyResult> ApplyTogether(IReadOnlyList<InlinePatch> patches, Func<int, bool>? wanted = null)
     {
         if (wanted is not null &&
-            ApplyInlineWanted is { } asking)
+            ApplyInlineWanted != null)
         {
-            return asking(patches, wanted);
+            return ApplyInlineWanted(patches, wanted);
         }
 
         if (ApplyInlineTogether != null &&
