@@ -20,7 +20,7 @@ public class SessionEndWindowTest
         }
 
         // Agreed to. Refusing would hold up the logoff, and there is nothing here worth that
-        await Assert.That(query).IsEqualTo(new IntPtr(1));
+        await Assert.That(query).IsEqualTo(new(1));
         await Assert.That(heard).IsEqualTo(1);
     }
 

@@ -79,7 +79,7 @@ public class BatchBookkeepingTests
         await Assert.That(state.Queue.Single(_ => _.Name == "ThreeTests.cs:30").Status!).Contains("no Verify call");
         // The very entry, not one rebuilt to look like it: nothing about it changed
         await Assert.That(state.Queue.Single(_ => _.Name == "FourTests.cs:40")).IsSameReferenceAs(untouched);
-        await Assert.That(state.Batch!.Tally).IsEqualTo(new AcceptAllTally(1, 1, 1, state.Batch.Tally.Failure));
+        await Assert.That(state.Batch!.Tally).IsEqualTo(new(1, 1, 1, state.Batch.Tally.Failure));
     }
 
     /// <summary>
