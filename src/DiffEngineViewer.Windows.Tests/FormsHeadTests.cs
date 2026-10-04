@@ -262,28 +262,36 @@ public class FormsHeadTests
     [Test]
     public async Task EveryPictureEverDrawnStaysDecoded()
     {
-        var directory = TempDirectory("deview-review-cache");
-        using var host = new CanvasHost();
-        for (var index = 0; index < 10; index++)
+        // A folder of this test's own: under one fixed name, two runs on a machine at once moved
+        // and deleted each other's pictures
+        var directory = Directory.CreateTempSubdirectory("deview-review-cache-").FullName;
+        try
         {
-            var received = Path.Combine(directory, $"Test{index}.received.png");
-            var verified = Path.Combine(directory, $"Test{index}.verified.png");
-            await File.WriteAllBytesAsync(received, SamplePng.Build(400, 300, 200, 40, 40));
-            await File.WriteAllBytesAsync(verified, SamplePng.Build(400, 300, 40, 40, 200));
-            var entry = QueueEntry.ForFiles(received, verified, FileSide.Read(received), FileSide.Read(verified));
-            var state = ViewerSession.Resize(
-                ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File, columns, rows), entry),
-                columns,
-                rows);
-            host.Draw(ScreenBuilder.Build(state));
-            ViewerActions.Real.MoveFile(received, verified);
-        }
+            using var host = new CanvasHost();
+            for (var index = 0; index < 10; index++)
+            {
+                var received = Path.Combine(directory, $"Test{index}.received.png");
+                var verified = Path.Combine(directory, $"Test{index}.verified.png");
+                await File.WriteAllBytesAsync(received, SamplePng.Build(400, 300, 200, 40, 40));
+                await File.WriteAllBytesAsync(verified, SamplePng.Build(400, 300, 40, 40, 200));
+                var entry = QueueEntry.ForFiles(received, verified, FileSide.Read(received), FileSide.Read(verified));
+                var state = ViewerSession.Resize(
+                    ViewerSession.EnqueueFile(SessionState.Start(ViewerMode.File, columns, rows), entry),
+                    columns,
+                    rows);
+                host.Draw(ScreenBuilder.Build(state));
+                ViewerActions.Real.MoveFile(received, verified);
+            }
 
-        host.Draw(ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows)));
-        var (count, bytes) = host.Canvas.CachedImages();
-        Directory.Delete(directory, true);
-        Console.WriteLine($"{count} decoded pictures held, {bytes / 1024} KB of pixels, on a screen showing none");
-        await Assert.That(count).IsLessThanOrEqualTo(2);
+            host.Draw(ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows)));
+            var (count, bytes) = host.Canvas.CachedImages();
+            Console.WriteLine($"{count} decoded pictures held, {bytes / 1024} KB of pixels, on a screen showing none");
+            await Assert.That(count).IsLessThanOrEqualTo(2);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     /// <summary>
@@ -1202,13 +1210,6 @@ public class FormsHeadTests
         }
 
         return builder.ToString();
-    }
-
-    static string TempDirectory(string name)
-    {
-        var path = Path.Combine(Path.GetTempPath(), name);
-        Directory.CreateDirectory(path);
-        return path;
     }
 
     static T Field<T>(object target, string name) =>
