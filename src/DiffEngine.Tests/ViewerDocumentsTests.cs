@@ -63,7 +63,7 @@ public class ViewerDocumentsTests :
 
     [Test]
     [Arguments(".pdf")]
-    [Arguments(".geojson")]
+    [Arguments(".topojson")]
     [Arguments(".fgb")]
     public async Task DocumentsAreNotOfferedToACopyThatCannot(string extension)
     {

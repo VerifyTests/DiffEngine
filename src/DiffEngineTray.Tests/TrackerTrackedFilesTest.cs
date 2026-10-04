@@ -267,7 +267,7 @@ public class TrackerTrackedFilesTest :
         var arguments = $"--diff \"{temp}\" \"{target}\"";
         tracker.AddMove(temp, target, viewerExe, arguments, false, null);
 
-        ((ITrackedFiles) tracker).AddMove(temp, target);
+        ((ITrackedFiles) tracker).AddMove(temp, target, null);
 
         var move = tracker.Moves.Single();
         await Assert.That(move.Exe).IsEqualTo(viewerExe);
@@ -295,7 +295,7 @@ public class TrackerTrackedFilesTest :
             var exe = tool.MainModule!.FileName;
             tracker.AddMove(temp, target, exe, "theArguments", true, tool.Id);
 
-            ((ITrackedFiles) tracker).AddMove(temp, target);
+            ((ITrackedFiles) tracker).AddMove(temp, target, null);
 
             var move = tracker.Moves.Single();
             await Assert.That(move.Exe).IsEqualTo(exe);
@@ -322,7 +322,7 @@ public class TrackerTrackedFilesTest :
         tracker.AddMove(temp, target, viewerExe, "--diff", false, null);
         var moved = Path.Combine(Path.GetTempPath(), $"TrackedFilesTest_{Guid.NewGuid():N}.Other.verified.bin");
 
-        ((ITrackedFiles) tracker).AddMove(temp, moved);
+        ((ITrackedFiles) tracker).AddMove(temp, moved, null);
 
         var move = tracker.Moves.Single();
         await Assert.That(move.Target).IsEqualTo(moved);

@@ -66,6 +66,43 @@ public class DebugReportTests :
     }
 
     /// <summary>
+    /// A page of a document and a page it no longer has, each saying which pending move it was
+    /// derived from, and whether that file is still there. The document itself says nothing of
+    /// one, as every file that stands alone does, so the reports above are what they were.
+    /// </summary>
+    [Test]
+    public async Task Derived()
+    {
+        await using var tracker = new RecordingTracker();
+        var document = Path.Combine(directory, "Sample.Test.received.pdf");
+        var page = Path.Combine(directory, "Sample.Test#page_0001.received.png");
+        var stale = Path.Combine(directory, "Sample.Test#page_0002.verified.png");
+        // There, as pending files are: the tracker's scan drops what has gone
+        await File.WriteAllTextAsync(document, "");
+        await File.WriteAllTextAsync(page, "");
+        await File.WriteAllTextAsync(stale, "");
+        const string viewer = @"C:\tools\DiffEngineViewer.exe";
+        tracker.AddMove(
+            document,
+            Path.Combine(directory, "Sample.Test.verified.pdf"),
+            viewer,
+            "--diff",
+            canKill: false,
+            processId: null);
+        tracker.AddMove(
+            page,
+            Path.Combine(directory, "Sample.Test#page_0001.verified.png"),
+            viewer,
+            "--diff",
+            canKill: false,
+            processId: null,
+            source: document);
+        tracker.AddDelete(stale, document);
+
+        await Verify(DebugReport.Build(tracker, now), settings);
+    }
+
+    /// <summary>
     /// The usual arrangement: the tray started first, so it holds the queue and the patches are in
     /// this process rather than in a viewer.
     /// </summary>

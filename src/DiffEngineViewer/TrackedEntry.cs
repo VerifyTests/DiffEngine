@@ -12,23 +12,58 @@
 /// </summary>
 static class TrackedEntry
 {
-    public static QueueEntry ForMove(string temp, string target, DocumentPlugin? documents = null) =>
+    /// <param name="temp">The received file.</param>
+    /// <param name="target">The file it belongs at.</param>
+    /// <param name="documents">The viewer's documents folder, which the files are read with.</param>
+    /// <param name="source">
+    /// The received file of the pending move this one was derived from, as the sender said it, or
+    /// null: see <see cref="QueueEntry.SourceKey"/>.
+    /// </param>
+    public static QueueEntry ForMove(string temp, string target, DocumentPlugin? documents = null, string? source = null) =>
         QueueEntry.ForMove(
             TrackedKeys.ForMove(temp),
             $"{Name(target)} ({Extension(target)})",
             SolutionDirectoryFinder.Find(target),
+            KeyOfSource(source),
             temp,
             target,
             FileSide.Read(temp, documents),
             FileSide.Read(target, documents));
 
-    public static QueueEntry ForDelete(string file, DocumentPlugin? documents = null) =>
+    /// <inheritdoc cref="ForMove"/>
+    public static QueueEntry ForDelete(string file, DocumentPlugin? documents = null, string? source = null) =>
         QueueEntry.ForDelete(
             TrackedKeys.ForDelete(file),
             Path.GetFileName(file),
             SolutionDirectoryFinder.Find(file),
+            KeyOfSource(source),
             file,
             FileSide.Read(file, documents));
+
+    /// <summary>
+    /// The key the source is queued under, which is the key <see cref="ForMove"/> gives a move
+    /// for that received file. The same thing a tray's listing says, so an entry reads the same
+    /// whichever process is holding it.
+    /// </summary>
+    static string? KeyOfSource(string? source)
+    {
+        if (source is null)
+        {
+            return null;
+        }
+
+        return TrackedKeys.ForMove(source);
+    }
+
+    /// <summary>
+    /// What an entry that arrived again was derived from. An arrival that names a source says so.
+    /// One that names none keeps what the queued entry had, because naming none is also what a
+    /// pair handed on by something that was never told looks like - a viewer started by hand on
+    /// the two files - and a source that has stopped being pending costs nothing to remember: an
+    /// entry is shown beneath its source only while the source is in the queue.
+    /// </summary>
+    static string? KeyOfSource(QueueEntry queued, string? source) =>
+        KeyOfSource(source) ?? queued.SourceKey;
 
     /// <summary>
     /// The entry for a pair whose files have been read again: the queued one with the files' new
@@ -39,9 +74,14 @@ static class TrackedEntry
     /// the pair on every run. So the sides are asked as they were read, before anything is built
     /// from them. A <c>with</c> keeps the rows the queued entry already has.
     /// </para>
+    /// <para>
+    /// <paramref name="source" /> is what an arrival said the pair was derived from. The watch,
+    /// which is reading a file again and has been told nothing, passes none.
+    /// </para>
     /// </summary>
-    public static QueueEntry MoveAgain(QueueEntry queued, string temp, string target, DocumentPlugin? documents = null)
+    public static QueueEntry MoveAgain(QueueEntry queued, string temp, string target, DocumentPlugin? documents = null, string? source = null)
     {
+        var sourceKey = KeyOfSource(queued, source);
         var tempSide = FileSide.Read(temp, documents);
         var targetSide = FileSide.Read(target, documents);
         if (queued.Kind == QueueEntryKind.Move &&
@@ -54,28 +94,34 @@ static class TrackedEntry
             return queued with
             {
                 LeftStamp = tempSide.Stamp,
-                RightStamp = targetSide.Stamp
+                RightStamp = targetSide.Stamp,
+                SourceKey = sourceKey
             };
         }
 
-        return QueueEntry.ForMove(queued.Key, queued.Name, queued.Solution, temp, target, tempSide, targetSide);
+        return QueueEntry.ForMove(queued.Key, queued.Name, queued.Solution, sourceKey, temp, target, tempSide, targetSide);
     }
 
     /// <summary>
     /// As <see cref="MoveAgain"/>, for a pending delete, whose one file is its right side.
     /// </summary>
-    public static QueueEntry DeleteAgain(QueueEntry queued, string file, DocumentPlugin? documents = null)
+    public static QueueEntry DeleteAgain(QueueEntry queued, string file, DocumentPlugin? documents = null, string? source = null)
     {
+        var sourceKey = KeyOfSource(queued, source);
         var current = FileSide.Read(file, documents);
         if (queued.Kind == QueueEntryKind.Delete &&
             queued.LeftFile == file &&
             queued.Warning == current.Warning &&
             Shows(queued.RightText, queued.RightImage, queued.RightDocument, current))
         {
-            return queued with { LeftStamp = current.Stamp };
+            return queued with
+            {
+                LeftStamp = current.Stamp,
+                SourceKey = sourceKey
+            };
         }
 
-        var fresh = QueueEntry.ForDelete(queued.Key, queued.Name, queued.Solution, file, current);
+        var fresh = QueueEntry.ForDelete(queued.Key, queued.Name, queued.Solution, sourceKey, file, current);
         if (!queued.Written)
         {
             return fresh;

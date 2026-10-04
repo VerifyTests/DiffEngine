@@ -449,7 +449,9 @@ the comment there about not caching "nothing staged" asks for.
     footer buttons reach the same commands from a shim built before them.
   - DiffEngine offers the viewer `DocumentExtensions.Routed` only when `ViewerDocuments.Beside` finds
     the folder by the resolved exe (beside, one up, or in the tool store behind a shim). That is
-    the paged formats and every map: a `.geojson` is no text extension to DiffEngine, unlike `.svg`.
+    the paged formats and every map. Which maps need it is EmptyFiles' call: a `.topojson`, a `.wkt`
+    and the binary ones are no text extension to DiffEngine, while `.geojson`, `.gpx` and `.kml` are
+    (since EmptyFiles 8.20.0), so like `.svg` they are offered to any text tool with or without the folder.
   - A map is drawn as an SVG is, one picture with no page commands (`DocumentFile.IsDrawn`). Its
     text is the file for the text formats and GeoJSON read out of it for the binary ones
     (`DocumentFile.IsSource`), so a FlatGeobuf is read by `DocumentWatch` as a PDF is but draws
@@ -753,6 +755,47 @@ the comment there about not caching "nothing staged" asks for.
   key's action is caught in `KeyRegister`, because a throw from a message filter comes out of
   `Application.Run()`.
 - Allows accepting/discarding diffs from system tray
+
+**Source and derived files (`DiffRunner.LaunchDerived`, `QueueProjection.Derivation`):**
+- A snapshot library that splits a document into files (Verify's converters: a png and the text
+  of each page, a csv per sheet) says so. A derived pending file names its **source** by the
+  source's received path: one level, only while the source is itself pending, and the caller
+  launches the source first. Not "group", which here already means solution.
+- The marker is additive on all three wires and is only ever relayed. `source:` on a `move`,
+  `diff` or `delete` request (`ViewerMessage.Source`); a `derived: key|source key` line of its
+  own on a listing (`ViewerResponseMove.SourceKey`), as `held:` is and for its reason; and a
+  trailing `"Source"` on the piper's Move and Delete payloads, which are byte for byte what they
+  were without it. A new payload `Type` would be dropped whole by an older tray, where a property
+  it does not know is skipped and the file still tracked. `IQueueOwner.TrackMove` and
+  `TrackDelete` take the source as a required argument, so no owner can leave it out.
+- The policy is the library's and has one condition, `PendingFiles.Draws`: the tool resolved for
+  the source is the viewer, the source is a document, and that copy reads documents
+  (`ViewerDocuments.ReadBy`). Then `InnerLaunch` tracks the derived pair and answers
+  `AlreadyRunningAndSupportsRefresh` before a tool is resolved for it: no window, nothing against
+  `MaxInstance`, and no empty target written for a tool that would have required one. In every
+  other case the launch is the one it always was, with the source said to whatever tracks the
+  pair. That is what keeps the other diff tools working, and why the tray decides none of it.
+  `PendingFiles.AddDerived` gives a tray the viewer's exe and `RelaunchFor` arguments, so the
+  file counts as open and "Accept all open" takes it. Nobody to take it falls through to the
+  ordinary launch.
+- The tray stores and relays (`TrackedMove.Source`, `TrackedDelete.Source`), and its menu is
+  unchanged. A source changing makes a new tracked object, since `ITrackedFiles.Version` is their
+  identity. `Tracker.UntrackDerivedFrom` drops the derived moves of a settled document whose
+  received files have gone, which would otherwise be ordinary rows until the next scan.
+- The fold is the viewer's and is a view (`QueueProjection.Derivation`): D sits beneath S when
+  `D.SourceKey == S.Key`, S is a move naming no source of its own, `S.IsDocument`, and the two
+  share a solution. Anything else is an ordinary row, which is the degrade for an older owner, a
+  document accepted on its own, and a viewer with no documents folder. `Order` puts attached
+  entries straight after their source, `Walk` gives them a slot only while the source's key is in
+  `SessionState.Unfolded`, and the selection never rests on an entry with no row (`Seen`). Labels
+  only, so no head and no ABI changed: the menu's Expand and Collapse, and a click on the row of
+  the document already selected (`ViewerProgram.ClickEntry`).
+- A window's accept or discard of a document with files beneath it is a batch over them all
+  (`ViewerSession.BeginAcceptWithDerived`, `AcceptBatch.Cascade`), the document last
+  (`FilesInBatchOrder`): taken first it left its files behind as ordinary rows, one frame each.
+  The batch's rules stand, so a file that fails is kept and counted. An accept by key over the
+  wire is still one entry, as asked; an attached viewer sends the derived files as a group accept
+  and then the document (`ViewerProgram.DispatchWithDerived`).
 
 **Packaging.Tests (`src/Packaging.Tests/`):**
 - Opens each `.nupkg` a Release build drops in `nugets` and snapshots its entry list, plus a few

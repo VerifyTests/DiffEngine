@@ -394,16 +394,26 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                 held = null;
             }
 
-            changes.Add(Read(
+            var pair = Read(
                 held,
                 () => QueueEntry.ForMove(
                     move.Key,
                     move.Name,
                     move.Group,
+                    move.SourceKey,
                     move.Temp,
                     move.Target,
                     FileSide.Read(move.Temp, documents),
-                    FileSide.Read(move.Target, documents))));
+                    FileSide.Read(move.Target, documents)));
+            // What the owner says it was derived from, on an entry kept because its files have
+            // not changed. A run that stops naming a source rewrites nothing. The same entry when
+            // the owner says what it said before, for the reason Read gives
+            if (pair.SourceKey != move.SourceKey)
+            {
+                pair = pair with { SourceKey = move.SourceKey };
+            }
+
+            changes.Add(pair);
         }
 
         foreach (var delete in response.Deletes)
@@ -421,6 +431,7 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                     delete.Key,
                     delete.Name,
                     delete.Group,
+                    delete.SourceKey,
                     delete.File,
                     FileSide.Read(delete.File, documents)));
             // Why the owner's accept-all would leave it, where it would, said on the entry where a
@@ -437,6 +448,12 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                     Status = delete.Held,
                     StatusIsHold = isHold
                 };
+            }
+
+            // As on a move above
+            if (entry.SourceKey != delete.SourceKey)
+            {
+                entry = entry with { SourceKey = delete.SourceKey };
             }
 
             changes.Add(entry);

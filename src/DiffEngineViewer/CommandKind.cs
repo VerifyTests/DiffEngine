@@ -79,6 +79,13 @@ enum CommandKind
     ToggleGroup,
 
     /// <summary>
+    /// Show or hide the files derived from the document on screen, which are otherwise beneath it
+    /// with no rows of their own. View only, as <see cref="ToggleGroup"/> is: hidden or shown,
+    /// they are accepted and discarded with the document.
+    /// </summary>
+    ToggleDerived,
+
+    /// <summary>
     /// Select every line of one pane, the side of whatever is already selected. View only, and
     /// applied locally even when the queue belongs to someone else: what is on screen is this
     /// process's to read however it likes.

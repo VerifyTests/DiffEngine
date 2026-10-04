@@ -9,7 +9,8 @@ class TrackedMove
         string? group,
         string extension,
         bool killLockingProcess = false,
-        bool isViewer = false)
+        bool isViewer = false,
+        string? source = null)
     {
         Temp = temp;
         Target = target;
@@ -22,6 +23,7 @@ class TrackedMove
         Group = group;
         KillLockingProcess = killLockingProcess;
         IsViewer = isViewer;
+        Source = source;
     }
 
     public string Extension { get; }
@@ -34,6 +36,14 @@ class TrackedMove
     public Process? Process { get; set; }
     public string? Group { get; }
     public bool KillLockingProcess { get; }
+
+    /// <summary>
+    /// The received file of the pending move this one was derived from, or null: a page of a
+    /// document whose document is pending too. Only carried here. The tray lists the two as the
+    /// two pending files they are, and a viewer showing the queue is what puts one beneath the
+    /// other, since it is the one drawing the document.
+    /// </summary>
+    public string? Source { get; }
 
     /// <summary>
     /// Whether the tool showing this pair is the viewer, which is the one tool that opens no

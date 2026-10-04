@@ -73,6 +73,10 @@ An item with no tag was said by whoever made the fix it follows from. A tag says
 - [ ] `DocumentWatch` does nothing for a window a head reports as unseen, as for a hidden one, so pages are not drawn until it is seen again. On macOS that now includes a wholly covered window: if `occlusionState` is ever wrong, pages stall.
 - [ ] Both sides of a document are drawn at once, and four things about that could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`.
 - [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back.
+- [ ] Files derived from a document fold beneath it only where the viewer is drawing the document. A document accepted from the tray's menu, or by a viewer older than the fold, leaves its derived files as ordinary rows: the tray's accept is of one file, and its menu lists each derived file as it lists any move.
+- [ ] A folded document has only its menu and a second click on its row to unfold it. A key for it is a `DeviewKey` value on both native heads, which was left out so the fold changed no ABI.
+- [ ] The header's position still counts the files beneath a folded document, so `Tab` from a document with five of them goes from `1 of 7` to `7 of 7`. A folded solution reads the same way.
+- [ ] The fold's rows, menu and footer are labels the three heads are handed, and were checked through the model and the ASCII screen. No pixel capture of a folded or unfolded document was added, and neither native head was run with one.
 
 
 ## Viewer, Windows head

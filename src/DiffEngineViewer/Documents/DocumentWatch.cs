@@ -744,18 +744,42 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
                 entry.Key,
                 entry.Name,
                 entry.Solution,
+                entry.SourceKey,
                 entry.LeftFile!,
                 entry.TargetFile!,
                 FileSide.Read(entry.LeftFile!, documents),
                 FileSide.Read(entry.TargetFile!, documents)),
-            QueueEntryKind.Delete => QueueEntry.ForDelete(
-                entry.Key,
-                entry.Name,
-                entry.Solution,
-                entry.LeftFile!,
-                FileSide.Read(entry.LeftFile!, documents)),
+            QueueEntryKind.Delete => StillHeld(
+                entry,
+                QueueEntry.ForDelete(
+                    entry.Key,
+                    entry.Name,
+                    entry.Solution,
+                    entry.SourceKey,
+                    entry.LeftFile!,
+                    FileSide.Read(entry.LeftFile!, documents))),
             _ => entry
         };
+
+    /// <summary>
+    /// A delete held because a move wrote its file is still held once its text has been read: the
+    /// hold is about what happened to the file, and reading it changes none of that. Built again
+    /// without it, the delete came back unmarked, and the next accept-all removed the file a move
+    /// had just put there. <see cref="TrackedEntry.DeleteAgain"/> carries it for the same reason.
+    /// </summary>
+    static QueueEntry StillHeld(QueueEntry entry, QueueEntry fresh)
+    {
+        if (!entry.Written)
+        {
+            return fresh;
+        }
+
+        return fresh with
+        {
+            Written = true,
+            Status = entry.Status
+        };
+    }
 
     IReadOnlySet<string>? held;
 

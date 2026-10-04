@@ -172,6 +172,106 @@ public static partial class DiffRunner
             encoding);
     }
 
+    /// <summary>
+    /// Launch a diff tool for a file that was derived from another: a page of a document, the text
+    /// read out of one, anything a snapshot library computed from a source it is also verifying.
+    /// <para>
+    /// <paramref name="sourceTempFile" /> is the received file of that source, exactly as it was
+    /// given as <c>tempFile</c> to the launch for it. Pass it only while the source is itself
+    /// pending, and launch the source first.
+    /// </para>
+    /// <para>
+    /// When the source went to DiffEngineViewer, and the viewer is drawing it as a document, no
+    /// tool is opened for this file: it is tracked, and the viewer shows it beneath the document
+    /// and accepts the two together. That is a pair handed to something already on screen, so it
+    /// is reported as <see cref="LaunchResult.AlreadyRunningAndSupportsRefresh" />, and costs
+    /// nothing against <see cref="MaxInstancesToLaunch" />. In every other case - the source is
+    /// in Word or Beyond Compare, or in no tool at all - this is
+    /// <see cref="Launch(string, string, Encoding?)" />, with the source said to whoever tracks
+    /// the pair.
+    /// </para>
+    /// <para>
+    /// A name of its own rather than an overload: three strings in a row beside the overloads
+    /// that take a tool read as one of those.
+    /// </para>
+    /// </summary>
+    public static LaunchResult LaunchDerived(string tempFile, string targetFile, string sourceTempFile, Encoding? encoding)
+    {
+        GuardFiles(tempFile, targetFile);
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+
+        return InnerLaunch(
+            ([NotNullWhen(true)] out tool) =>
+                DiffTools.TryFindForInputFilePath(tempFile, out tool),
+            tempFile,
+            targetFile,
+            encoding,
+            SourceOf(tempFile, sourceTempFile));
+    }
+
+    /// <inheritdoc cref="LaunchDerived(string, string, string, Encoding?)" />
+    public static Task<LaunchResult> LaunchDerivedAsync(string tempFile, string targetFile, string sourceTempFile, Encoding? encoding)
+    {
+        GuardFiles(tempFile, targetFile);
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+
+        return InnerLaunchAsync(
+            ([NotNullWhen(true)] out tool) =>
+                DiffTools.TryFindForInputFilePath(tempFile, out tool),
+            tempFile,
+            targetFile,
+            encoding,
+            SourceOf(tempFile, sourceTempFile));
+    }
+
+    /// <summary>
+    /// <see cref="LaunchDerived(string, string, string, Encoding?)" /> for a file the caller knows
+    /// to be text whatever its extension says, as <see cref="LaunchForText" /> is to
+    /// <see cref="Launch(string, string, Encoding?)" />.
+    /// </summary>
+    public static LaunchResult LaunchDerivedForText(string tempFile, string targetFile, string sourceTempFile, Encoding? encoding)
+    {
+        GuardFiles(tempFile, targetFile);
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+
+        return InnerLaunch(
+            ([NotNullWhen(true)] out tool) =>
+                DiffTools.TryFindForText(out tool),
+            tempFile,
+            targetFile,
+            encoding,
+            SourceOf(tempFile, sourceTempFile));
+    }
+
+    /// <inheritdoc cref="LaunchDerivedForText" />
+    public static Task<LaunchResult> LaunchDerivedForTextAsync(string tempFile, string targetFile, string sourceTempFile, Encoding? encoding)
+    {
+        GuardFiles(tempFile, targetFile);
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+
+        return InnerLaunchAsync(
+            ([NotNullWhen(true)] out tool) =>
+                DiffTools.TryFindForText(out tool),
+            tempFile,
+            targetFile,
+            encoding,
+            SourceOf(tempFile, sourceTempFile));
+    }
+
+    /// <summary>
+    /// A file is not derived from itself. Said here rather than left to whoever tracks it, where
+    /// an entry naming itself as its source would be hidden beneath an entry that is not there.
+    /// </summary>
+    static string? SourceOf(string file, string source)
+    {
+        if (InlineKey.SamePath(file, source))
+        {
+            return null;
+        }
+
+        return source;
+    }
+
     public static void AddDelete(string file)
     {
         if (Disabled)
@@ -179,7 +279,7 @@ public static partial class DiffRunner
             return;
         }
 
-        DiffEngineTray.AddDelete(file);
+        PendingFiles.AddDelete(file);
     }
 
     public static Task AddDeleteAsync(string file)
@@ -189,7 +289,40 @@ public static partial class DiffRunner
             return Task.CompletedTask;
         }
 
-        return DiffEngineTray.AddDeleteAsync(file);
+        return PendingFiles.AddDeleteAsync(file, Cancel.None);
+    }
+
+    /// <summary>
+    /// <see cref="AddDelete" /> for a file that was derived from another, which that other no
+    /// longer produces: a page a document has lost. <paramref name="sourceTempFile" /> is as on
+    /// <see cref="LaunchDerived(string, string, string, Encoding?)" />, and the delete is raised
+    /// after the launch for the source, never before it.
+    /// <para>
+    /// A viewer drawing the source shows the delete beneath it and carries it out when the source
+    /// is accepted. Anything else holds it as the ordinary delete it also is.
+    /// </para>
+    /// </summary>
+    public static void AddDerivedDelete(string file, string sourceTempFile)
+    {
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+        if (Disabled)
+        {
+            return;
+        }
+
+        PendingFiles.AddDelete(file, SourceOf(file, sourceTempFile));
+    }
+
+    /// <inheritdoc cref="AddDerivedDelete" />
+    public static Task AddDerivedDeleteAsync(string file, string sourceTempFile)
+    {
+        Guard.AgainstEmpty(sourceTempFile, nameof(sourceTempFile));
+        if (Disabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        return PendingFiles.AddDeleteAsync(file, Cancel.None, SourceOf(file, sourceTempFile));
     }
 
     /// <summary>
@@ -227,11 +360,39 @@ public static partial class DiffRunner
             encoding);
     }
 
-    static LaunchResult InnerLaunch(TryResolveTool tryResolveTool, string tempFile, string targetFile, Encoding? encoding)
+    /// <param name="tryResolveTool">The tool for the pair.</param>
+    /// <param name="tempFile">The received file.</param>
+    /// <param name="targetFile">The file it belongs at.</param>
+    /// <param name="encoding">For an empty target a tool needs written first.</param>
+    /// <param name="source">
+    /// The received file of the pending move this pair was derived from, or null for a pair that
+    /// stands alone, which is every pair any caller but the derived launches sends.
+    /// </param>
+    /// <param name="tryResolveSource">
+    /// The tool for <paramref name="source" />. Null resolves it from its path, the way the launch
+    /// for the source itself did. Handed in by the tests, which have a stand-in for a viewer.
+    /// </param>
+    internal static LaunchResult InnerLaunch(
+        TryResolveTool tryResolveTool,
+        string tempFile,
+        string targetFile,
+        Encoding? encoding,
+        string? source = null,
+        TryResolveTool? tryResolveSource = null)
     {
+        // Before the pair's own tool is resolved. A file shown beneath its source needs none, and
+        // resolving one writes an empty target for a tool that requires it, which the viewer
+        // would then draw the page against.
+        if (source is not null &&
+            DrawnWithSource(source, tryResolveSource, out var viewer) &&
+            PendingFiles.AddDerived(viewer, tempFile, targetFile, source))
+        {
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
         if (ShouldExitLaunch(tryResolveTool, targetFile, encoding, out var tool, out var result))
         {
-            DiffEngineTray.AddMove(tempFile, targetFile, null, null, false, null);
+            PendingFiles.AddMove(tempFile, targetFile, null, null, false, null, source);
             return result.Value;
         }
 
@@ -243,7 +404,7 @@ public static partial class DiffRunner
         // this method.
         if (PendingFiles.IsViewer(tool))
         {
-            return PendingFiles.AddDiff(tool, tempFile, targetFile);
+            return PendingFiles.AddDiff(tool, tempFile, targetFile, source);
         }
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
@@ -254,7 +415,7 @@ public static partial class DiffRunner
         {
             if (tool.AutoRefresh)
             {
-                DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process);
+                PendingFiles.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process, source);
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
@@ -267,30 +428,45 @@ public static partial class DiffRunner
         if (!replacing &&
             MaxInstance.Reached())
         {
-            DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
+            PendingFiles.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null, source);
             return LaunchResult.TooManyRunningDiffTools;
         }
 
         var processId = LaunchProcess(tool, arguments);
         ProcessCleanup.Track(command, processId);
 
-        DiffEngineTray.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
+        PendingFiles.AddMove(tempFile, targetFile, tool.ExePath, arguments, canKill, processId, source);
 
         return LaunchResult.StartedNewInstance;
     }
 
-    static async Task<LaunchResult> InnerLaunchAsync(TryResolveTool tryResolveTool, string tempFile, string targetFile, Encoding? encoding)
+    /// <inheritdoc cref="InnerLaunch" />
+    internal static async Task<LaunchResult> InnerLaunchAsync(
+        TryResolveTool tryResolveTool,
+        string tempFile,
+        string targetFile,
+        Encoding? encoding,
+        string? source = null,
+        TryResolveTool? tryResolveSource = null)
     {
+        // As above: a file shown beneath its source has no tool to resolve
+        if (source is not null &&
+            DrawnWithSource(source, tryResolveSource, out var viewer) &&
+            await PendingFiles.AddDerivedAsync(viewer, tempFile, targetFile, source, Cancel.None))
+        {
+            return LaunchResult.AlreadyRunningAndSupportsRefresh;
+        }
+
         if (ShouldExitLaunch(tryResolveTool, targetFile, encoding, out var tool, out var result))
         {
-            await DiffEngineTray.AddMoveAsync(tempFile, targetFile, null, null, false, null);
+            await PendingFiles.AddMoveAsync(tempFile, targetFile, null, null, false, null, Cancel.None, source);
             return result.Value;
         }
 
         // As above: the viewer has no window of its own for this pair to reason about.
         if (PendingFiles.IsViewer(tool))
         {
-            return await PendingFiles.AddDiffAsync(tool, tempFile, targetFile, Cancel.None);
+            return await PendingFiles.AddDiffAsync(tool, tempFile, targetFile, Cancel.None, source);
         }
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
@@ -301,7 +477,7 @@ public static partial class DiffRunner
         {
             if (tool.AutoRefresh)
             {
-                await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process);
+                await PendingFiles.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processCommand.Process, Cancel.None, source);
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
@@ -312,16 +488,49 @@ public static partial class DiffRunner
         if (!replacing &&
             MaxInstance.Reached())
         {
-            await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null);
+            await PendingFiles.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, Cancel.None, source);
             return LaunchResult.TooManyRunningDiffTools;
         }
 
         var processId = LaunchProcess(tool, arguments);
         ProcessCleanup.Track(command, processId);
 
-        await DiffEngineTray.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processId);
+        await PendingFiles.AddMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, processId, Cancel.None, source);
 
         return LaunchResult.StartedNewInstance;
+    }
+
+    /// <summary>
+    /// Whether the tool the source went to is a viewer drawing it as a document, and so already
+    /// showing what was derived from it: see <see cref="PendingFiles.Draws" />.
+    /// <para>
+    /// Resolved from the source's path, as its own launch resolved it, so the two agree about
+    /// where the source is. Not while launching is turned off: nothing was opened for the source
+    /// then, and the pair is tracked as every pair is.
+    /// </para>
+    /// </summary>
+    static bool DrawnWithSource(string source, TryResolveTool? tryResolveSource, [NotNullWhen(true)] out ResolvedTool? viewer)
+    {
+        viewer = null;
+        if (Disabled ||
+            !TryResolveSource(source, tryResolveSource, out var tool) ||
+            !PendingFiles.Draws(tool, source))
+        {
+            return false;
+        }
+
+        viewer = tool;
+        return true;
+    }
+
+    static bool TryResolveSource(string source, TryResolveTool? tryResolveSource, [NotNullWhen(true)] out ResolvedTool? tool)
+    {
+        if (tryResolveSource is null)
+        {
+            return DiffTools.TryFindForInputFilePath(source, out tool);
+        }
+
+        return tryResolveSource(out tool);
     }
 
     static bool ShouldExitLaunch(
@@ -439,5 +648,5 @@ public static partial class DiffRunner
         Guard.AgainstEmpty(targetFile, nameof(targetFile));
     }
 
-    delegate bool TryResolveTool([NotNullWhen(true)] out ResolvedTool? resolved);
+    internal delegate bool TryResolveTool([NotNullWhen(true)] out ResolvedTool? resolved);
 }

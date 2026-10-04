@@ -18,11 +18,11 @@ static class ViewerMessageHandler
             case ViewerVerb.Settle:
                 return Settle(owner, message.Key, message.Body, message.Member, message.Value);
             case ViewerVerb.Move:
-                return Move(owner, message.Key, message.Body);
+                return Move(owner, message.Key, message.Body, message.Source);
             case ViewerVerb.Diff:
-                return Diff(owner, message.Key, message.Body);
+                return Diff(owner, message.Key, message.Body, message.Source);
             case ViewerVerb.Delete:
-                return Delete(owner, message.Key);
+                return Delete(owner, message.Key, message.Source);
             case ViewerVerb.List:
                 return owner.Listing(false);
             case ViewerVerb.ListFull:
@@ -92,8 +92,12 @@ static class ViewerMessageHandler
     /// move is. What DiffEngine knows beside them — the diff tool it launched and that tool's
     /// process id — is the tray's kill machinery and means nothing to an owner that does not have
     /// any, so it is not sent.
+    /// <para>
+    /// What it was derived from is sent, since that is about the file rather than about a tool:
+    /// see <see cref="ViewerMessage.Source"/>.
+    /// </para>
     /// </summary>
-    static ViewerResponse Move(IQueueOwner owner, string? temp, string? target)
+    static ViewerResponse Move(IQueueOwner owner, string? temp, string? target, string? source)
     {
         if (temp is null ||
             target is null)
@@ -101,7 +105,7 @@ static class ViewerMessageHandler
             return ViewerResponse.Error("Move requires a key and a body");
         }
 
-        owner.TrackMove(temp, target);
+        owner.TrackMove(temp, target, source);
         return ViewerResponse.Success();
     }
 
@@ -116,7 +120,7 @@ static class ViewerMessageHandler
     /// without a window - a tray - starts a viewer onto its queue.
     /// </para>
     /// </summary>
-    static ViewerResponse Diff(IQueueOwner owner, string? temp, string? target)
+    static ViewerResponse Diff(IQueueOwner owner, string? temp, string? target, string? source)
     {
         if (temp is null ||
             target is null)
@@ -124,19 +128,19 @@ static class ViewerMessageHandler
             return ViewerResponse.Error("Diff requires a key and a body");
         }
 
-        owner.TrackMove(temp, target);
+        owner.TrackMove(temp, target, source);
         owner.Window(WindowCommand.Focus, null);
         return ViewerResponse.Success();
     }
 
-    static ViewerResponse Delete(IQueueOwner owner, string? file)
+    static ViewerResponse Delete(IQueueOwner owner, string? file, string? source)
     {
         if (file is null)
         {
             return ViewerResponse.Error("Delete requires a key");
         }
 
-        owner.TrackDelete(file);
+        owner.TrackDelete(file, source);
         return ViewerResponse.Success();
     }
 

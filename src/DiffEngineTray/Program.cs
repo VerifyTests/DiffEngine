@@ -259,8 +259,20 @@ static class Program
                     payload.Exe,
                     payload.Arguments,
                     payload.CanKill,
-                    payload.ProcessId);
+                    payload.ProcessId,
+                    Source(payload.Source));
             },
-            payload => tracker.AddDelete(payload.File),
+            payload => tracker.AddDelete(payload.File, Source(payload.Source)),
             cancel);
+
+    // An empty one names nothing, as on the viewer port
+    static string? Source(string? source)
+    {
+        if (string.IsNullOrEmpty(source))
+        {
+            return null;
+        }
+
+        return source;
+    }
 }

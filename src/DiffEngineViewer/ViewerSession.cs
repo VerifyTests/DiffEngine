@@ -194,10 +194,15 @@ static class ViewerSession
         if (currentKey is null ||
             replacedCurrent)
         {
-            return Open(next);
+            next = Open(next);
         }
 
-        return Clamp(next);
+        // An arrival can put the entry being read beneath another: a document arriving after one
+        // of its pages, which the tray's route does not prevent, or the page arriving again and
+        // naming it. The document is then what is read. Otherwise the reader stays where they
+        // were, so a page arriving beneath the document on screen changes its count and nothing
+        // else
+        return Seen(next);
     }
 
     /// <summary>
@@ -317,6 +322,9 @@ static class ViewerSession
         queued.Kind == arrived.Kind &&
         queued.Name == arrived.Name &&
         queued.Solution == arrived.Solution &&
+        // Not something a pane shows, but it decides where the entry sits in the queue, and an
+        // entry kept where it stood would stay beneath a source it has stopped being derived from
+        queued.SourceKey == arrived.SourceKey &&
         queued.LeftFile == arrived.LeftFile &&
         queued.TargetFile == arrived.TargetFile &&
         queued.LeftHeader == arrived.LeftHeader &&
@@ -385,7 +393,8 @@ static class ViewerSession
             return Reopen(next);
         }
 
-        return Clamp(next);
+        // As EnqueueTracked: a listing can put the entry being read beneath its source
+        return Seen(next);
     }
 
     /// <summary>
@@ -563,13 +572,16 @@ static class ViewerSession
         }
 
         var selected = Select(state, row.EntryIndex);
+        var entry = selected.Queue[row.EntryIndex];
         return selected with
         {
             Menu = new(
                 fullRow,
                 ContextMenu.ForEntry(
-                    selected.Queue[row.EntryIndex],
-                    selected.LiveSelection is { IsEmpty: false }),
+                    entry,
+                    selected.LiveSelection is { IsEmpty: false },
+                    QueueProjection.DerivedCount(selected.Queue, row.EntryIndex),
+                    selected.Unfolded.Contains(entry.Key)),
                 [row.EntryIndex])
         };
     }
@@ -746,6 +758,8 @@ static class ViewerSession
                 return menu is null || !inline ? state : DiscardGroup(state, menu, actions);
             case CommandKind.ToggleGroup:
                 return menu?.GroupKey is not { } key ? state : Toggle(state, key);
+            case CommandKind.ToggleDerived:
+                return ToggleDerived(state);
             case CommandKind.RevealSource:
                 return Reveal(state, actions);
             case CommandKind.ScrollUp:
@@ -1007,7 +1021,11 @@ static class ViewerSession
     /// The entries to discard, for a group header acting on its own members. Null discards
     /// everything, which is what the unqualified discard-all means.
     /// </param>
-    static SessionState BeginDiscard(SessionState state, IReadOnlyList<QueueEntry>? members)
+    /// <param name="cascade">
+    /// The name of the document the batch is the discard of, when it is one: see
+    /// <see cref="AcceptBatch.Cascade"/>.
+    /// </param>
+    static SessionState BeginDiscard(SessionState state, IReadOnlyList<QueueEntry>? members, string? cascade = null)
     {
         if (state.Mode != ViewerMode.Inline ||
             state.Batch is not null)
@@ -1038,10 +1056,11 @@ static class ViewerSession
         }
 
         var only = members is null ? null : TrackedKeysOf(members).ToHashSet();
+        var rebuilt = Rebuild(state, pending, discarded);
         var remaining = new List<QueueEntry>();
-        var moves = new List<string>();
+        var discarding = new HashSet<string>();
         var untracked = 0;
-        foreach (var entry in Rebuild(state, pending, discarded))
+        foreach (var entry in rebuilt)
         {
             if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
                 (only is not null && !only.Contains(entry.Key)))
@@ -1057,15 +1076,19 @@ static class ViewerSession
                 continue;
             }
 
-            moves.Add(entry.Key);
+            discarding.Add(entry.Key);
             remaining.Add(entry);
         }
 
+        // A document after the files beneath it, as an accept takes them, and for its reason.
+        // Asked of the list the deletes have left, which is the one the batch works through
+        var moves = FilesInBatchOrder(remaining, discarding.Contains);
         var batch = new AcceptBatch(moves, moves.Count)
         {
             Discarding = true,
             Said = said,
-            Swept = untracked
+            Swept = untracked,
+            Cascade = cascade
         };
         var begun = Remove(state, remaining, null);
         // No received file to throw away, so nothing to report progress on
@@ -1225,7 +1248,11 @@ static class ViewerSession
     /// The keys to accept, for a group header acting on its own members. Null accepts everything,
     /// which is what the unqualified accept-all means.
     /// </param>
-    static SessionState BeginAccept(SessionState state, IReadOnlyCollection<string>? only)
+    /// <param name="cascade">
+    /// The name of the document the batch is the accept of, when it is one: see
+    /// <see cref="AcceptBatch.Cascade"/>.
+    /// </param>
+    static SessionState BeginAccept(SessionState state, IReadOnlyCollection<string>? only, string? cascade = null)
     {
         if (state.Mode != ViewerMode.Inline ||
             state.Batch is not null)
@@ -1235,7 +1262,8 @@ static class ViewerSession
 
         var batch = new AcceptBatch([], 0)
         {
-            Only = only?.ToHashSet()
+            Only = only?.ToHashSet(),
+            Cascade = cascade
         };
         var keys = new List<string>();
         foreach (var entry in state.Queue)
@@ -1247,14 +1275,7 @@ static class ViewerSession
             }
         }
 
-        foreach (var entry in state.Queue)
-        {
-            if (entry.Kind is QueueEntryKind.Move or QueueEntryKind.Delete &&
-                batch.Covers(entry.Key))
-            {
-                keys.Add(entry.Key);
-            }
-        }
+        keys.AddRange(FilesInBatchOrder(state.Queue, batch.Covers));
 
         batch = batch with
         {
@@ -1274,6 +1295,137 @@ static class ViewerSession
             Message = null,
             Menu = null
         };
+    }
+
+    /// <summary>
+    /// The keys of the moves and deletes a batch covers, in the order it takes them: queue order,
+    /// but a document after the files shown beneath it.
+    /// <para>
+    /// Taken first, the document left the queue with its files still in it, and what is shown
+    /// beneath a document that has gone is an ordinary row. A batch over a document and its
+    /// twenty pages put twenty rows on screen and took them away one at a time, for an accept
+    /// whose whole point was that they were never rows. Last, it leaves when they have.
+    /// </para>
+    /// <para>
+    /// For every batch, since an accept-all and a header's accept go the same way for the same
+    /// reason. It decides nothing about what is taken: whether a delete is held is still asked as
+    /// its turn comes (<see cref="ClaimNext"/>).
+    /// </para>
+    /// </summary>
+    static List<string> FilesInBatchOrder(IReadOnlyList<QueueEntry> queue, Func<string, bool> covers)
+    {
+        var keys = new List<string>();
+        string? document = null;
+        var documentIndex = -1;
+        for (var index = 0; index < queue.Count; index++)
+        {
+            var entry = queue[index];
+            // What is beneath a document directly follows it, so the first entry that is not
+            // beneath it is where it goes
+            if (document is not null &&
+                QueueProjection.SourceOf(queue, index) != documentIndex)
+            {
+                keys.Add(document);
+                document = null;
+            }
+
+            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
+                !covers(entry.Key))
+            {
+                continue;
+            }
+
+            if (QueueProjection.DerivedCount(queue, index) > 0)
+            {
+                document = entry.Key;
+                documentIndex = index;
+                continue;
+            }
+
+            keys.Add(entry.Key);
+        }
+
+        if (document is not null)
+        {
+            keys.Add(document);
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Starts an accept of the document on screen together with every file shown beneath it: the
+    /// accept a window makes of an entry that has any (see <see cref="QueueProjection"/>). The
+    /// state as it is, less the menu, for an entry that has none, which is accepted the ordinary
+    /// way.
+    /// <para>
+    /// A batch over those entries rather than a transition of its own, as "Accept all in" a
+    /// header is, and for its reason: a document with fifty pages is fifty-one files to move, and
+    /// moved inside one transition they held the lock the render loop takes. So it goes by the
+    /// batch's rules too. A file that could not be moved stays in the queue saying why, a delete
+    /// a move has written the file of is kept, and the rest go.
+    /// </para>
+    /// <para>
+    /// Only the window's accept. An accept by key over the wire is carried out as asked, one
+    /// entry, as it always was: that is another surface saying which file it means.
+    /// </para>
+    /// </summary>
+    public static SessionState BeginAcceptWithDerived(SessionState state)
+    {
+        state = state with { Menu = null };
+        if (WithDerived(state) is not { } entries)
+        {
+            return state;
+        }
+
+        return BeginAccept(
+            state,
+            entries.Select(_ => _.Key).ToList(),
+            entries[0].Name);
+    }
+
+    /// <summary>
+    /// <see cref="BeginAcceptWithDerived"/>, for a discard: the document's received file thrown
+    /// away with those of the files derived from it, and the deletes among them untracked.
+    /// </summary>
+    public static SessionState BeginDiscardWithDerived(SessionState state)
+    {
+        state = state with { Menu = null };
+        if (WithDerived(state) is not { } entries)
+        {
+            return state;
+        }
+
+        return BeginDiscard(state, entries, entries[0].Name);
+    }
+
+    /// <summary>
+    /// Whether the entry on screen has files shown beneath it, which is when a window's accept or
+    /// discard of it is one of <see cref="BeginAcceptWithDerived"/> and
+    /// <see cref="BeginDiscardWithDerived"/> rather than of the entry alone.
+    /// </summary>
+    public static bool HasDerived(SessionState state) =>
+        state.Mode == ViewerMode.Inline &&
+        state.Current is not null &&
+        QueueProjection.DerivedCount(state.Queue, state.Selected) > 0;
+
+    /// <summary>
+    /// The entry on screen and what is shown beneath it, the entry first, or null when nothing is.
+    /// </summary>
+    static List<QueueEntry>? WithDerived(SessionState state)
+    {
+        if (!HasDerived(state))
+        {
+            return null;
+        }
+
+        List<QueueEntry> entries = [state.Current!];
+        foreach (var index in QueueProjection.DerivedFrom(state.Queue, state.Selected))
+        {
+            entries.Add(state.Queue[index]);
+        }
+
+        return entries;
     }
 
     /// <summary>
@@ -1736,6 +1888,22 @@ static class ViewerSession
     /// </summary>
     static SessionState Finish(SessionState state, AcceptBatch batch)
     {
+        // One document and what was derived from it, which says so rather than counting files
+        // beside a count of snapshots there were none of
+        if (batch.Cascade is { } document)
+        {
+            var said = OfDocument(batch.Discarding ? "Discarded" : "Accepted", document, batch.Swept, batch.Kept);
+            if (batch.KeptForAMove)
+            {
+                said = $"{said}. {DeletesKept}";
+            }
+
+            return Remove(
+                state with { Batch = null },
+                state.Queue,
+                said);
+        }
+
         // A discard says what its beginning said of the snapshots, then the files: worded the way
         // an owning tray words its own, with what stayed pending counted rather than hidden
         if (batch.Discarding)
@@ -1766,6 +1934,31 @@ static class ViewerSession
             state with { Batch = null },
             state.Queue,
             message);
+    }
+
+    /// <summary>
+    /// What an accept or a discard of a document with its derived files says when it is done:
+    /// the document and how many went with it, or, where any stayed, how many of the lot went.
+    /// What stayed is still in the queue saying why, the document among them if it was the one.
+    /// </summary>
+    /// <param name="did">Accepted, or Discarded.</param>
+    /// <param name="document">The document's name.</param>
+    /// <param name="swept">The files that went, the document among them when it did.</param>
+    /// <param name="kept">The files that stayed.</param>
+    static string OfDocument(string did, string document, int swept, int kept)
+    {
+        if (kept > 0)
+        {
+            return $"{did} {swept} of {swept + kept} files of {document} ({kept} kept)";
+        }
+
+        var derived = Math.Max(0, swept - 1);
+        if (derived == 1)
+        {
+            return $"{did} {document} and 1 derived file";
+        }
+
+        return $"{did} {document} and {derived} derived files";
     }
 
     /// <summary>
@@ -2655,6 +2848,46 @@ static class ViewerSession
     }
 
     /// <summary>
+    /// Shows or hides the files derived from the document on screen. Nothing to do for an entry
+    /// with none, which is every entry but a document that arrived with its pages.
+    /// <para>
+    /// Hiding them can hide the entry being read, when that is one of them, and the selection
+    /// then goes to the document they went under.
+    /// </para>
+    /// </summary>
+    static SessionState ToggleDerived(SessionState state)
+    {
+        if (state.Current is not { } current ||
+            QueueProjection.DerivedCount(state.Queue, state.Selected) == 0)
+        {
+            return state;
+        }
+
+        var unfolded = new HashSet<string>(state.Unfolded);
+        if (!unfolded.Add(current.Key))
+        {
+            unfolded.Remove(current.Key);
+        }
+
+        return Seen(state with { Unfolded = unfolded });
+    }
+
+    /// <summary>
+    /// The state with its selection on an entry that has a row, where the one it is on has none:
+    /// see <see cref="NearestVisible"/>. The same state otherwise, clamped, which is what every
+    /// path through here went on to do.
+    /// </summary>
+    static SessionState Seen(SessionState state)
+    {
+        if (NearestVisible(state) is { } visible)
+        {
+            return Select(state, visible);
+        }
+
+        return Clamp(state);
+    }
+
+    /// <summary>
     /// Where the selection goes when it is under a fold, or null when it is not. The column follows
     /// the selection, so leaving it there would leave the whole list with nothing highlighted,
     /// while the panes and Accept went on acting on an entry nobody could see. Forward first,
@@ -2664,13 +2897,20 @@ static class ViewerSession
     /// For a fold, and for the entry being read going: an index kept across that can name the
     /// first entry of a folded group that follows it.
     /// </para>
+    /// <para>
+    /// An entry hidden beneath the document it was derived from goes to that document instead,
+    /// where the document has a row: it is the same change being read, from the entry that
+    /// stands for it, and the one after it is some other test's.
+    /// </para>
     /// </summary>
     static int? NearestVisible(SessionState state)
     {
         // Nothing folded, nothing hidden: every entry has a row, the selected one among them. The
         // answer the walk below would give, without the walk, which is every entry of the queue
-        // and is asked after each entry a batch takes out.
-        if (state.Collapsed.Count == 0)
+        // and is asked after each entry a batch takes out. A queue with a document's files
+        // beneath it has entries with no row and nothing folded, so that is asked too
+        if (state.Collapsed.Count == 0 &&
+            !QueueProjection.AnyDerived(state.Queue))
         {
             return null;
         }
@@ -2680,6 +2920,13 @@ static class ViewerSession
             visible.Contains(state.Selected))
         {
             return null;
+        }
+
+        var source = QueueProjection.SourceOf(state.Queue, state.Selected);
+        if (source >= 0 &&
+            visible.Contains(source))
+        {
+            return source;
         }
 
         var before = -1;
@@ -2759,6 +3006,21 @@ static class ViewerSession
     /// </summary>
     static SessionState Reveal(SessionState state, int index)
     {
+        // An entry beneath the document it was derived from has no row until that is unfolded,
+        // whatever else is or is not folded
+        var source = QueueProjection.SourceOf(state.Queue, index);
+        if (source >= 0 &&
+            !state.Unfolded.Contains(state.Queue[source].Key))
+        {
+            state = state with
+            {
+                Unfolded = new HashSet<string>(state.Unfolded)
+                {
+                    state.Queue[source].Key
+                }
+            };
+        }
+
         if (state.Collapsed.Count == 0 ||
             QueueProjection.VisibleEntries(state).Contains(index))
         {

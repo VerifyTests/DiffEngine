@@ -33,4 +33,18 @@ static class ViewerDocuments
             Path.Combine(directory, ".store", "diffengineviewer.*", "*", "diffengineviewer.*", "*", "tools", "*", "any", "documents", assembly),
             out _);
     }
+
+    /// <summary>
+    /// The same question of a viewer that has already been resolved, answered from what resolving
+    /// it concluded rather than by looking at the disk again: it was given the routed extensions
+    /// exactly when <see cref="Beside" /> held. Asked once per file derived from a document, which
+    /// a test with a hundred pages asks a hundred times.
+    /// <para>
+    /// It is also the only way to ask about a file the viewer reaches as the text tool. An SVG is
+    /// routed nowhere new, so the extension that resolved the viewer for it says nothing about
+    /// whether that copy draws it.
+    /// </para>
+    /// </summary>
+    public static bool ReadBy(ResolvedTool viewer) =>
+        viewer.BinaryExtensions.Contains(DocumentExtensions.Paged[0]);
 }

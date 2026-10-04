@@ -617,6 +617,25 @@ static class ViewerProgram
         Math.Max(10, input.Rows) == state.Rows;
 
     /// <summary>
+    /// A left click on an entry's row, which selects it. On the document already on screen it
+    /// folds or unfolds what was derived from it instead: that row carries the marker a header
+    /// does, and a marker that did nothing when clicked would be the only one. The first click on
+    /// a document is still only a selection, so reading one never unfolds it, and so is a click
+    /// with a menu open, which is the click closing it.
+    /// </summary>
+    static SessionState ClickEntry(SessionState state, int index)
+    {
+        if (index == state.Selected &&
+            state.Menu is null &&
+            ViewerSession.HasDerived(state))
+        {
+            return ViewerSession.Apply(state, CommandKind.ToggleDerived);
+        }
+
+        return ViewerSession.Apply(state, Command.Select(index));
+    }
+
+    /// <summary>
     /// One frame of input against one state. Internal so SelectionTests can drive a drag and a
     /// copy the way a head does, since the clipboard and the drag are only connected here.
     /// </summary>
@@ -659,7 +678,7 @@ static class ViewerProgram
             var row = input.ClickedQueueItem < rows.Count ? rows[input.ClickedQueueItem] : null;
             if (row?.EntryIndex >= 0)
             {
-                state = ViewerSession.Apply(state, Command.Select(row.EntryIndex));
+                state = ClickEntry(state, row.EntryIndex);
             }
             else if (row?.GroupKey is { } group)
             {
@@ -798,6 +817,21 @@ static class ViewerProgram
                 {
                     return ViewerSession.BeginDiscardGroup(state);
                 }
+
+                // A document with files shown beneath it is accepted and discarded with them,
+                // which is a batch as a header's is: one file a step, each outside the lock
+                if (ViewerSession.HasDerived(state))
+                {
+                    if (command.Kind == CommandKind.Accept)
+                    {
+                        return ViewerSession.BeginAcceptWithDerived(state);
+                    }
+
+                    if (command.Kind == CommandKind.Discard)
+                    {
+                        return ViewerSession.BeginDiscardWithDerived(state);
+                    }
+                }
             }
 
             return ViewerSession.Apply(state, command, ViewerActions.Real);
@@ -813,6 +847,12 @@ static class ViewerProgram
         if (command.Kind is CommandKind.AcceptGroup or CommandKind.DiscardGroup)
         {
             return DispatchGroup(state, command.Kind, link);
+        }
+
+        if (command.Kind is CommandKind.Accept or CommandKind.Discard &&
+            ViewerSession.HasDerived(state))
+        {
+            return DispatchWithDerived(state, command.Kind, link);
         }
 
         var verb = Remote(command.Kind);
@@ -927,6 +967,55 @@ static class ViewerProgram
             {
                 link.Post(ViewerVerb.Discard, entry.Key);
             }
+        }
+
+        return state with
+        {
+            Message = "Waiting for the queue owner.",
+            Menu = null
+        };
+    }
+
+    /// <summary>
+    /// An accept or a discard of a document, against someone else's queue, with the files shown
+    /// beneath it: what <see cref="ViewerSession.BeginAcceptWithDerived"/> is to a queue this
+    /// process owns, sent as keys.
+    /// <para>
+    /// The files derived from it first, as the group they are, so a delete among them the owner
+    /// holds is left out the way a header's accept leaves it (<see cref="OwnerLink.PostAcceptGroup"/>).
+    /// Then the document, by its key, as any accept of one entry is sent. Both are posted to one
+    /// queue and sent in order, so the document is the last to leave: sent first, it left its
+    /// files in the listing as rows of their own for as long as they took to follow it.
+    /// </para>
+    /// <para>
+    /// An owner that predates all this needs nothing new to do it. It is sent accepts by key,
+    /// which it has always carried out. What it cannot do is say which files were derived from
+    /// which, and with none said nothing is shown beneath anything, so this is never reached.
+    /// </para>
+    /// </summary>
+    static SessionState DispatchWithDerived(SessionState state, CommandKind kind, OwnerLink link)
+    {
+        var source = state.Current!;
+        var derived = QueueProjection
+            .DerivedFrom(state.Queue, state.Selected)
+            .Select(_ => state.Queue[_])
+            .ToList();
+        if (kind == CommandKind.Accept)
+        {
+            link.PostAcceptGroup(
+                KeysOf(derived, QueueEntryKind.Move),
+                [],
+                KeysOf(derived, QueueEntryKind.Delete));
+            link.Post(ViewerVerb.Accept, source.Key);
+        }
+        else
+        {
+            foreach (var entry in derived)
+            {
+                link.Post(ViewerVerb.Discard, entry.Key);
+            }
+
+            link.Post(ViewerVerb.Discard, source.Key);
         }
 
         return state with

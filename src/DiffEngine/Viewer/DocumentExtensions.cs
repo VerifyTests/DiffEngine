@@ -22,8 +22,10 @@ static class DocumentExtensions
     ];
 
     /// <summary>
-    /// Maps whose text is the file, drawn by GeoConvert. Not text extensions to DiffEngine, so they
-    /// are routed as the paged ones are.
+    /// Maps whose text is the file, drawn by GeoConvert. Routed as the paged ones are, which is what
+    /// offers a viewer for those that are no text extension to DiffEngine (.topojson and .wkt). The
+    /// rest are text extensions, so like <see cref="Drawn"/> they go to any text tool, and a viewer
+    /// without the folder shows them as the text they are.
     /// </summary>
     public static readonly string[] TextMaps =
     [

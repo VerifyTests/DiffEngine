@@ -1,0 +1,21 @@
+﻿[- Sample.Test (pdf) (5)]
+  temp/Sample.Test.received.pdf
+  to code/Sample.Test.verified.pdf
+  5 files derived from it are accepted or discarded with it
+[  (txt)]
+  temp/Sample.Test.received.txt
+  to code/Sample.Test.verified.txt
+[  #page_0001 (png)]
+  temp/Sample.Test#page_0001.received.png
+  to code/Sample.Test#page_0001.verified.png
+[  #page_0001 (txt)]
+  temp/Sample.Test#page_0001.received.txt
+  to code/Sample.Test#page_0001.verified.txt
+[  #page_0002 (png)]
+  temp/Sample.Test#page_0002.received.png
+  to code/Sample.Test#page_0002.verified.png
+[  #page_0003.verified.png]
+  code/Sample.Test#page_0003.verified.png
+[Other.Test (txt)]
+  temp/sample.received.txt
+  to code/sample.verified.txt

@@ -212,17 +212,48 @@ The case it exists for is a test suite that needs the launch to happen but does 
 <a id='snippet-PiperTest.DeleteJson.verified.txt'></a>
 ```txt
 {
+"Type":"Delete",
+"File":"theFilePath"
+}
+```
+<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteJson.verified.txt#L1-L4' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+
+### Derived from another file
+
+A move or a delete of a file that was [derived from a document](/docs/viewer.md#files-derived-from-a-document) names the temp file of the pending move it was derived from, in a `Source` property that is absent otherwise:
+
+<!-- snippet: PiperTest.MoveWithSourceJson.verified.txt -->
+<a id='snippet-PiperTest.MoveWithSourceJson.verified.txt'></a>
+```txt
+{
 "Type":"Move",
 "Temp":"theTempFilePath",
 "Target":"theTargetFilePath",
 "CanKill":true,
 "Exe":"theExePath",
 "Arguments":"TheArguments",
-"ProcessId":1000
+"ProcessId":1000,
+"Source":"theSourceTempFilePath"
 }
 ```
-<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngineTray.Tests/PiperTest.MoveWithSourceJson.verified.txt#L1-L10' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+<!-- snippet: PiperTest.DeleteWithSourceJson.verified.txt -->
+<a id='snippet-PiperTest.DeleteWithSourceJson.verified.txt'></a>
+```txt
+{
+"Type":"Delete",
+"File":"theFilePath",
+"Source":"theSourceTempFilePath"
+}
+```
+<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteWithSourceJson.verified.txt#L1-L5' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The tray tracks such a file as it tracks any other, so it is listed in the menu and taken by an accept-all. The property is only passed on to the viewer, which is what folds the file beneath its document. A tray older than the property ignores it.
 
 
 ## Logging Directory

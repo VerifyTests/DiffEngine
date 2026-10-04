@@ -29,13 +29,30 @@ record ViewerResponseItem(string Key, string Name, string? Status, string? Patch
 /// A tracked file move riding a full listing, so a viewer displaying the tray's queue can render
 /// it from the two local paths and accept or discard it by key.
 /// </summary>
-record ViewerResponseMove(string Key, string Name, string? Group, string Temp, string Target);
+record ViewerResponseMove(string Key, string Name, string? Group, string Temp, string Target)
+{
+    /// <summary>
+    /// The key of the pending move this one was derived from, or null when it stands alone: a
+    /// page of a document whose document is pending too. A reader that draws the source as a
+    /// document shows this beneath it and accepts the two together. The key rather than the
+    /// path, so a reader matches it against <see cref="Key"/> and never has to build one.
+    /// <para>
+    /// On a line of its own (<c>derived</c>) rather than a sixth field of <c>move</c>, which a
+    /// reader that predates it would refuse the whole listing over. That reader skips the line,
+    /// and an owner that predates it sends none, which reads as standing alone.
+    /// </para>
+    /// </summary>
+    public string? SourceKey { get; init; }
+}
 
 /// <summary>
 /// A tracked pending delete riding a full listing.
 /// </summary>
 record ViewerResponseDelete(string Key, string Name, string? Group, string File)
 {
+    /// <inheritdoc cref="ViewerResponseMove.SourceKey"/>
+    public string? SourceKey { get; init; }
+
     /// <summary>
     /// Why the owner's accept-all would leave this delete pending, in words for whoever is looking
     /// at it, or null when it would carry it out: a move was accepted onto the file since the
@@ -73,8 +90,8 @@ record ViewerResponse(
     string? WindowKey = null)
 {
     /// <summary>
-    /// The tray's tracked moves, on a full listing from a tray owner. A viewer that owns the
-    /// queue never has any: DiffEngine only sends moves and deletes to a running tray.
+    /// The owner's tracked moves, on a full listing: a tray's, or the ones a viewer that owns the
+    /// queue holds itself, which is where DiffEngine sends them when no tray is running.
     /// </summary>
     public IReadOnlyList<ViewerResponseMove> Moves { get; init; } = [];
 
@@ -197,6 +214,7 @@ record ViewerResponse(
         {
             var group = move.Group is null ? "" : ViewerPayload.Encode(move.Group);
             builder.Append($"move: {ViewerPayload.Encode(move.Key)}|{ViewerPayload.Encode(move.Name)}|{group}|{ViewerPayload.Encode(move.Temp)}|{ViewerPayload.Encode(move.Target)}\n");
+            AppendDerived(builder, move.Key, move.SourceKey);
         }
 
         foreach (var delete in Deletes)
@@ -207,9 +225,22 @@ record ViewerResponse(
             {
                 builder.Append($"held: {ViewerPayload.Encode(delete.Key)}|{ViewerPayload.Encode(delete.Held)}\n");
             }
+
+            AppendDerived(builder, delete.Key, delete.SourceKey);
         }
 
         return builder.ToString();
+    }
+
+    // One line name for moves and deletes alike: their keys are prefixed, so a key says which it is
+    static void AppendDerived(StringBuilder builder, string key, string? sourceKey)
+    {
+        if (sourceKey is null)
+        {
+            return;
+        }
+
+        builder.Append($"derived: {ViewerPayload.Encode(key)}|{ViewerPayload.Encode(sourceKey)}\n");
     }
 
     public static bool TryParse(string text, [NotNullWhen(true)] out ViewerResponse? response)
@@ -235,6 +266,7 @@ record ViewerResponse(
         var deletes = new List<ViewerResponseDelete>();
         Dictionary<string, List<ViewerResponseVariant>>? variants = null;
         Dictionary<string, string>? holds = null;
+        Dictionary<string, string>? sources = null;
         foreach (var (name, value) in lines)
         {
             switch (name)
@@ -342,6 +374,16 @@ record ViewerResponse(
                     holds ??= new(StringComparer.Ordinal);
                     holds[heldKey] = reason;
                     continue;
+                case "derived":
+                    // The same two fields a hold is, so the same parse
+                    if (!TryParseHeld(value, out var derivedKey, out var sourceKey))
+                    {
+                        return false;
+                    }
+
+                    sources ??= new(StringComparer.Ordinal);
+                    sources[derivedKey] = sourceKey;
+                    continue;
                 default:
                     continue;
             }
@@ -374,6 +416,30 @@ record ViewerResponse(
                 if (holds.TryGetValue(deletes[index].Key, out var reason))
                 {
                     deletes[index] = deletes[index] with { Held = reason };
+                }
+            }
+        }
+
+        // And as the holds are: by key, whichever of the two lists the key is in. A source that
+        // is not listed is kept, since whether it is pending is the reader's question to ask of
+        // the queue it has, and an empty one is none.
+        if (sources is not null)
+        {
+            for (var index = 0; index < moves.Count; index++)
+            {
+                if (sources.TryGetValue(moves[index].Key, out var sourceKey) &&
+                    sourceKey.Length > 0)
+                {
+                    moves[index] = moves[index] with { SourceKey = sourceKey };
+                }
+            }
+
+            for (var index = 0; index < deletes.Count; index++)
+            {
+                if (sources.TryGetValue(deletes[index].Key, out var sourceKey) &&
+                    sourceKey.Length > 0)
+                {
+                    deletes[index] = deletes[index] with { SourceKey = sourceKey };
                 }
             }
         }

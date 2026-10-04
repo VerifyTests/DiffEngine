@@ -413,6 +413,113 @@ public class ViewerProtocolTests
         await Assert.That(ViewerResponse.TryParse(text.Replace(holdLine, "held: only-one-field"), out _)).IsFalse();
     }
 
+    /// <summary>
+    /// What a move or a delete was derived from is a line of its own, as a hold is and for its
+    /// reason: the lines it belongs to keep their five and four fields, so a reader that predates
+    /// it reads the listing as it always has. One line name for both, since a key says which of
+    /// the two it is.
+    /// </summary>
+    [Test]
+    public async Task ADerivedFileNamesItsSourceOnALineOfItsOwn()
+    {
+        var listing = ViewerResponse.Listing(
+            [],
+            moves:
+            [
+                new(@"move:c:\temp\a.received.pdf", "a (pdf)", null, @"c:\temp\a.received.pdf", @"c:\code\a.verified.pdf"),
+                new(@"move:c:\temp\a#page_0001.received.png", "a#page_0001 (png)", null, @"c:\temp\a#page_0001.received.png", @"c:\code\a#page_0001.verified.png")
+                {
+                    SourceKey = @"move:c:\temp\a.received.pdf"
+                }
+            ],
+            deletes:
+            [
+                new(@"delete:c:\code\a#page_0002.verified.png", "a#page_0002.verified.png", null, @"c:\code\a#page_0002.verified.png")
+                {
+                    SourceKey = @"move:c:\temp\a.received.pdf"
+                }
+            ]);
+
+        var text = listing.Build();
+        await Assert.That(Fields(text, "move: ").Select(_ => _.Length)).IsEquivalentTo([5, 5]);
+        await Assert.That(Fields(text, "delete: ").Single().Length).IsEqualTo(4);
+        await Assert.That(Fields(text, "derived: ").Select(_ => _.Length)).IsEquivalentTo([2, 2]);
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Moves.Select(_ => _.SourceKey)).IsEquivalentTo([null, @"move:c:\temp\a.received.pdf"]);
+        await Assert.That(parsed.Deletes.Single().SourceKey).IsEqualTo(@"move:c:\temp\a.received.pdf");
+    }
+
+    /// <summary>
+    /// Both directions of an older peer, as for a hold. An owner that predates the line sends
+    /// none, which reads as every file standing alone. And a line is matched to its file by key
+    /// once every line is in, so it need not follow it, and one for a file the listing does not
+    /// carry is dropped rather than refused.
+    /// <para>
+    /// A source that is not in the listing is kept as it was said. Whether the source is pending
+    /// is the reader's to ask of the queue it has, and it changes from one listing to the next.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task ADerivedLineIsOptionalAndMatchedByKey()
+    {
+        var derived = new ViewerResponseMove("move:page", "page", null, "page", "target")
+        {
+            SourceKey = "move:gone"
+        };
+        var text = ViewerResponse.Listing([], moves: [derived]).Build();
+        var derivedLine = text.Split('\n').Single(_ => _.StartsWith("derived: ", StringComparison.Ordinal));
+
+        await Assert.That(ViewerResponse.TryParse(text, out var whole)).IsTrue();
+        await Assert.That(whole!.Moves.Single().SourceKey).IsEqualTo("move:gone");
+
+        await Assert.That(ViewerResponse.TryParse(text.Replace($"{derivedLine}\n", ""), out var older)).IsTrue();
+        await Assert.That(older!.Moves.Single().SourceKey).IsNull();
+
+        // Ahead of its move
+        var moveLine = text.Split('\n').Single(_ => _.StartsWith("move: ", StringComparison.Ordinal));
+        var reordered = text
+            .Replace($"{derivedLine}\n", "")
+            .Replace($"{moveLine}\n", $"{derivedLine}\n{moveLine}\n");
+        await Assert.That(ViewerResponse.TryParse(reordered, out var early)).IsTrue();
+        await Assert.That(early!.Moves.Single().SourceKey).IsEqualTo("move:gone");
+
+        var orphan = ViewerResponse.Listing([]).Build() + derivedLine + "\n";
+        await Assert.That(ViewerResponse.TryParse(orphan, out var none)).IsTrue();
+        await Assert.That(none!.Moves).IsEmpty();
+    }
+
+    [Test]
+    public async Task AMalformedDerivedLineRejectsTheResponse()
+    {
+        var text = ViewerResponse.Listing(
+            [],
+            moves:
+            [
+                new("move:page", "page", null, "page", "target")
+                {
+                    SourceKey = "move:document"
+                }
+            ]).Build();
+        var derivedLine = text.Split('\n').Single(_ => _.StartsWith("derived: ", StringComparison.Ordinal));
+
+        await Assert.That(ViewerResponse.TryParse(text.Replace(derivedLine, "derived: only-one-field"), out _)).IsFalse();
+    }
+
+    /// <summary>
+    /// A listing with nothing derived in it is the listing it has always been, to the byte: the
+    /// line is only there for a file that has a source.
+    /// </summary>
+    [Test]
+    public async Task AListingWithNothingDerivedSaysNothingOfIt()
+    {
+        var text = ViewerResponse.Listing(
+            [],
+            moves: [new("move:x", "x", null, "x", "y")],
+            deletes: [new("delete:z", "z", null, "z")]).Build();
+
+        await Assert.That(text).DoesNotContain("derived:");
+    }
+
     [Test]
     public async Task AListingWithoutTrackedItemsParsesEmpty()
     {
@@ -603,6 +710,74 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// What a pending file was derived from rides the same three verbs, as a field of its own, and
+    /// reaches the owner beside the paths: a page of a document whose document is pending too.
+    /// </summary>
+    [Test]
+    public async Task ADerivedFileReachesTheOwnerWithItsSource()
+    {
+        var owner = new FakeOwner((true, null));
+        const string source = @"c:\temp\a.received.pdf";
+
+        Send(owner, new(ViewerVerb.Move, @"c:\temp\a#page_0001.received.png", @"c:\code\a#page_0001.verified.png")
+        {
+            Source = source
+        });
+        Send(owner, new(ViewerVerb.Diff, @"c:\temp\a#page_0002.received.png", @"c:\code\a#page_0002.verified.png")
+        {
+            Source = source
+        });
+        Send(owner, new(ViewerVerb.Delete, @"c:\code\a#page_0003.verified.png")
+        {
+            Source = source
+        });
+
+        await Assert.That(owner.Tracked).IsEquivalentTo(
+        [
+            @"move c:\temp\a#page_0001.received.png > c:\code\a#page_0001.verified.png from c:\temp\a.received.pdf",
+            @"move c:\temp\a#page_0002.received.png > c:\code\a#page_0002.verified.png from c:\temp\a.received.pdf",
+            @"delete c:\code\a#page_0003.verified.png from c:\temp\a.received.pdf"
+        ]);
+
+        // Over the wire, as an owner in another process is sent it, rather than handed the record
+        static void Send(FakeOwner owner, ViewerMessage message)
+        {
+            if (!ViewerMessage.TryParse(message.Build(), out var parsed))
+            {
+                throw new("The message did not survive its own format.");
+            }
+
+            ViewerMessageHandler.Handle(owner, parsed);
+        }
+    }
+
+    /// <summary>
+    /// A file with no source is sent as it always was, to the byte, so an owner from before the
+    /// field is sent nothing it has not always been sent. And one from before it reads past it:
+    /// see <see cref="AnUnknownFieldIsIgnored" />, which is that owner's half.
+    /// </summary>
+    [Test]
+    public async Task AMessageWithoutASourceBuildsAsBefore()
+    {
+        var text = new ViewerMessage(ViewerVerb.Move, "temp", "target").Build();
+
+        await Assert.That(text).IsEqualTo($"version: 1\nverb: move\nkey: {ViewerPayload.Encode("temp")}\nbody: {ViewerPayload.Encode("target")}\n");
+        await Assert.That(ViewerMessage.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Source).IsNull();
+    }
+
+    /// <summary>
+    /// An empty source names nothing, so it is none, rather than a file derived from the file
+    /// with no name.
+    /// </summary>
+    [Test]
+    public async Task AnEmptySourceIsNone()
+    {
+        await Assert.That(ViewerMessage.TryParse("version: 1\nverb: move\nsource: \n", out var parsed)).IsTrue();
+        await Assert.That(parsed!.Source).IsNull();
+    }
+
+    /// <summary>
     /// The pair whose diff tool is the viewer itself: tracked exactly as a move, and then raised,
     /// which is the whole difference between the two verbs. The focus names no entry, so the pair
     /// joins the queue behind whatever is being read rather than taking the selection.
@@ -720,11 +895,23 @@ public class ViewerProtocolTests
 
         public List<string> Tracked { get; } = [];
 
-        public void TrackMove(string temp, string target) =>
-            Tracked.Add($"move {temp} > {target}");
+        public void TrackMove(string temp, string target, string? source) =>
+            Tracked.Add($"move {temp} > {target}{From(source)}");
 
-        public void TrackDelete(string file) =>
-            Tracked.Add($"delete {file}");
+        public void TrackDelete(string file, string? source) =>
+            Tracked.Add($"delete {file}{From(source)}");
+
+        // Nothing where there is none, so what a file with no source is recorded as stays what
+        // the tests from before there were sources assert
+        static string From(string? source)
+        {
+            if (source is null)
+            {
+                return "";
+            }
+
+            return $" from {source}";
+        }
 
         public ViewerResponse Listing(bool withPatches) => ViewerResponse.Listing([]);
 

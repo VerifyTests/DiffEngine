@@ -1,9 +1,4 @@
 ﻿{
-"Type":"Move",
-"Temp":"theTempFilePath",
-"Target":"theTargetFilePath",
-"CanKill":true,
-"Exe":"theExePath",
-"Arguments":"TheArguments",
-"ProcessId":1000
+"Type":"Delete",
+"File":"theFilePath"
 }
