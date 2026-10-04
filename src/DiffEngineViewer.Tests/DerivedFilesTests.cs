@@ -402,9 +402,11 @@ public class DerivedFilesTests
         var state = Fixtures.DocumentWithDerived();
         var failed = state with
         {
-            Queue = state.Queue
-                .Select(_ => _.Name == "Sample.Test#page_0002 (png)" ? _ with { Status = "the file is locked" } : _)
-                .ToList()
+            Queue =
+            [
+                .. state.Queue
+                    .Select(_ => _.Name == "Sample.Test#page_0002 (png)" ? _ with {Status = "the file is locked"} : _)
+            ]
         };
 
         await Assert.That(QueueProjection.Rows(failed)[0].Status).IsEqualTo("the file is locked");
@@ -511,7 +513,7 @@ public class DerivedFilesTests
             });
 
             var sourceKey = TrackedKeys.ForMove(document);
-            await Assert.That(host.State.Queue.Select(_ => _.SourceKey)).IsEquivalentTo(new string?[] {sourceKey, sourceKey});
+            await Assert.That(host.State.Queue.Select(_ => _.SourceKey)).IsEquivalentTo([sourceKey, sourceKey]);
             var listing = handler.Handle(new(ViewerVerb.ListFull));
             await Assert.That(ViewerResponse.TryParse(listing.Build(), out var parsed)).IsTrue();
             await Assert.That(parsed!.Moves.Single().SourceKey).IsEqualTo(sourceKey);
@@ -535,9 +537,10 @@ public class DerivedFilesTests
     }
 
     static List<string> Labels(SessionState state) =>
-        QueueProjection.Rows(state)
+    [
+        .. QueueProjection.Rows(state)
             .Select(_ => _.Label)
-            .ToList();
+    ];
 
     /// <summary>
     /// Actions that write down what they were asked to do to which file, by its name.
