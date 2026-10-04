@@ -1391,7 +1391,19 @@ static class ViewerSession
     /// </summary>
     /// <param name="claimed">The state <see cref="ClaimNext"/> returned, which says what was claimed.</param>
     /// <param name="actions">What applies it.</param>
-    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions)
+    /// <param name="current">
+    /// The session's state as it is when asked, for a batch carried out a step at a time while
+    /// other threads change the queue. With it, a snapshot is asked about as its file is about to
+    /// be written (<see cref="StillClaimed"/>), and one that has been settled, discarded or
+    /// replaced since it was claimed is left out of the write. Null for a batch carried out
+    /// inside one transition, where nothing else can have touched the queue.
+    /// <para>
+    /// Read, and never by taking the session's lock. The question is asked with the source
+    /// file's lock held, and a single accept arriving over the socket holds the session's lock
+    /// while it waits for that same file: each would wait on the other for good.
+    /// </para>
+    /// </param>
+    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions, Func<SessionState>? current = null)
     {
         if (claimed.Batch is not { Current: { } entry } batch)
         {
@@ -1405,13 +1417,40 @@ static class ViewerSession
         }
 
         List<QueueEntry> entries = [entry, ..batch.Together];
-        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList());
+        Func<int, bool>? wanted = current is null ? null : _ => StillClaimed(current().Queue, entries[_]);
+        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList(), wanted);
         if (results.Count != entries.Count)
         {
             throw new InvalidOperationException($"{entries.Count} snapshots were applied together and {results.Count} outcomes came back.");
         }
 
         return _ => RecordInline(_, entries, results);
+    }
+
+    /// <summary>
+    /// Whether a snapshot a batch claimed is still in the queue as it was claimed: found by its
+    /// variants, which is how recording its outcome finds it.
+    /// <para>
+    /// Not there, it was discarded, or settled by a test that started passing, and its patch
+    /// would put back a literal nobody wants. There under other variants, a re-run replaced its
+    /// content, a second framework made a conflict of it, or one of its frameworks settled: what
+    /// is pending now is another entry, which a bulk accept would not have recorded an outcome
+    /// against either. Written anyway, both went into the source with the rest of their file and
+    /// were counted nowhere.
+    /// </para>
+    /// </summary>
+    static bool StillClaimed(IReadOnlyList<QueueEntry> queue, QueueEntry claimed)
+    {
+        foreach (var entry in queue)
+        {
+            if (entry.Kind == QueueEntryKind.Inline &&
+                ReferenceEquals(entry.Variants, claimed.Variants))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

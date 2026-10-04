@@ -658,9 +658,21 @@ public sealed class InlineQueue
     /// is this, once per outcome. An entry that changed while its patch was applying is left alone
     /// and not counted, found by its variants the way the two phase accept finds it.
     /// </para>
+    /// <para>
+    /// Nor is one whose patch was withdrawn (<see cref="InlineApplyStatus.Withdrawn"/>): the host
+    /// said, as the file was about to be written, that the entry was no longer the one it had
+    /// claimed, so nothing of it was written and there is no accept or failure to count. The
+    /// entry is normally gone by now, which is why it was unwanted. One that is here all the
+    /// same is left as it is.
+    /// </para>
     /// </summary>
     internal InlineQueue AcceptInBatch(PendingInline entry, InlineApplyResult result, ref AcceptAllTally tally)
     {
+        if (result.Status == InlineApplyStatus.Withdrawn)
+        {
+            return this;
+        }
+
         var items = Items.ToList();
         var index = items.FindIndex(_ => ReferenceEquals(_.Variants, entry.Variants));
         if (index < 0)

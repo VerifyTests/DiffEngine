@@ -365,6 +365,263 @@ public class InlineApplierBatchTests
         await Assert.That(InlineApplier.ApplyAll([])).IsEmpty();
 
     /// <summary>
+    /// A patch that stops being wanted while its file is waited for is not in what is written.
+    /// A queue owner hands a file's snapshots over together, and one discarded, or settled by a
+    /// test that started passing, before the write went into the source with the rest. The file
+    /// is what it would be had the patch never been handed over, and so is what every other
+    /// patch is told, the lines each moved included: whoever holds what is left of the file
+    /// brings it along by those.
+    /// </summary>
+    [Test]
+    public async Task AnUnwantedPatchIsNotInWhatIsWritten()
+    {
+        using var asked = new TempSource(Members(4));
+        using var without = new TempSource(Members(4));
+        var swaps = 0;
+
+        var results = InlineApplier.ApplyAll(
+            [Set(asked.FullName, 0), Set(asked.FullName, 1), Set(asked.FullName, 2), Set(asked.FullName, 3)],
+            (temporary, destination) =>
+            {
+                swaps++;
+                File.Replace(temporary, destination, null);
+            },
+            _ => _ != 1);
+        var control = InlineApplier.ApplyAll([Set(without.FullName, 0), Set(without.FullName, 2), Set(without.FullName, 3)]);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Applied, Withdrawn, Applied, Applied");
+        await Assert.That(asked.Text).IsEqualTo(without.Text);
+        await Assert.That(asked.Text).Contains("\"old 1\"");
+        await Assert.That(asked.Text).DoesNotContain("new 1");
+        await Assert.That(Outcomes([results[0], results[2], results[3]])).IsEqualTo(Outcomes(control));
+        await Assert.That(results[1].MovedBy).IsEqualTo(0);
+        await Assert.That(swaps).IsEqualTo(1);
+        // Every member is where the results taken in order say it is, the one left alone too
+        var lines = asked.Text.Split('\n');
+        for (var member = 0; member < 4; member++)
+        {
+            var line = results.Aggregate(member + 3, (current, result) => result.Rebase(current));
+            await Assert.That(lines[line - 1]).Contains($"void M{member}()");
+        }
+    }
+
+    /// <summary>
+    /// The same over a batch where a patch reads as it does because of one before it: the same
+    /// patch twice, a second patch for a call site already taken, a call site that was never
+    /// there. Whichever are taken back, the file and every outcome left are those of the batch
+    /// without them. A patch that made no edit is not asked about, since there is nothing of it
+    /// to leave out, and keeps the answer it had.
+    /// </summary>
+    [Test]
+    [Arguments("0")]
+    [Arguments("1")]
+    [Arguments("2")]
+    [Arguments("3")]
+    [Arguments("4")]
+    [Arguments("5")]
+    [Arguments("6")]
+    [Arguments("7")]
+    [Arguments("0 1")]
+    [Arguments("1 2")]
+    [Arguments("0 3")]
+    [Arguments("4 6 7")]
+    [Arguments("0 1 2 3 4 5 6 7")]
+    public async Task WithoutTheUnwantedIsWhatNeverHandingThemOverLeaves(string takenBack)
+    {
+        var unwanted = takenBack.Split(' ').Select(int.Parse).ToList();
+        using var asked = new TempSource(Members(6));
+        using var without = new TempSource(Members(6));
+
+        static InlinePatch[] Patches(string path) =>
+        [
+            Set(path, 0),
+            Set(path, 3),
+            // The same patch again, which finds its own literal already there
+            Set(path, 3),
+            // The call site the first one took, with different content: its anchor has gone
+            Set(path, 0, content: "something else\nagain"),
+            Set(path, 1),
+            // Never was in the file
+            Set(path, 2, anchor: "\"not in the source\""),
+            Set(path, 5),
+            Set(path, 4)
+        ];
+
+        var questions = new List<int>();
+        var results = InlineApplier.ApplyAll(
+            Patches(asked.FullName),
+            _ =>
+            {
+                questions.Add(_);
+                return !unwanted.Contains(_);
+            });
+        var kept = Enumerable.Range(0, 8).Where(_ => !unwanted.Contains(_)).ToList();
+        var all = Patches(without.FullName);
+        var control = InlineApplier.ApplyAll(kept.Select(_ => all[_]).ToList());
+
+        await Assert.That(asked.Text).IsEqualTo(without.Text);
+        await Assert.That(Outcomes(kept.Select(_ => results[_]))).IsEqualTo(Outcomes(control));
+        // Once each at most, and only of a patch with an edit to leave out
+        await Assert.That(questions.Distinct().Count()).IsEqualTo(questions.Count);
+        foreach (var index in unwanted)
+        {
+            if (questions.Contains(index))
+            {
+                await Assert.That(results[index].Status).IsEqualTo(InlineApplyStatus.Withdrawn);
+            }
+            else
+            {
+                await Assert.That(results[index].Status).IsNotEqualTo(InlineApplyStatus.Applied);
+                await Assert.That(results[index].Status).IsNotEqualTo(InlineApplyStatus.Withdrawn);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The second of two patches for one call site makes no edit while the first is there, and
+    /// is the one that edits once the first is taken back. It had not been asked about, so it
+    /// is asked then, and left out as well when it is not wanted either.
+    /// </summary>
+    [Test]
+    public async Task APatchThatOnlyEditsOnceAnotherIsTakenBackIsAskedAboutToo()
+    {
+        using var file = new TempSource(Members(3));
+        using var without = new TempSource(Members(3));
+        var questions = new List<int>();
+
+        var results = InlineApplier.ApplyAll(
+            [Set(file.FullName, 1), Set(file.FullName, 1), Set(file.FullName, 2)],
+            _ =>
+            {
+                questions.Add(_);
+                return _ == 2;
+            });
+        var control = InlineApplier.ApplyAll([Set(without.FullName, 2)]);
+
+        await Assert.That(string.Join(", ", questions)).IsEqualTo("0, 2, 1");
+        await Assert.That(Statuses(results)).IsEqualTo("Withdrawn, Withdrawn, Applied");
+        await Assert.That(file.Text).IsEqualTo(without.Text);
+        await Assert.That(file.Text).Contains("\"old 1\"");
+        await Assert.That(Outcomes([results[2]])).IsEqualTo(Outcomes(control));
+    }
+
+    /// <summary>
+    /// The question is asked once the file is patched in memory and before it is written, which
+    /// is as late as it can be asked: the file on disk is still as it was read.
+    /// </summary>
+    [Test]
+    public async Task TheQuestionIsAskedBeforeAnythingIsWritten()
+    {
+        using var file = new TempSource(Members(3));
+        var before = file.Text;
+        var onDisk = new List<string>();
+        var swaps = 0;
+
+        InlineApplier.ApplyAll(
+            [Set(file.FullName, 0), Set(file.FullName, 1), Set(file.FullName, 2)],
+            (temporary, destination) =>
+            {
+                swaps++;
+                File.Replace(temporary, destination, null);
+            },
+            _ =>
+            {
+                onDisk.Add($"{swaps} {file.Text == before}");
+                return true;
+            });
+
+        await Assert.That(string.Join(", ", onDisk)).IsEqualTo("0 True, 0 True, 0 True");
+        await Assert.That(swaps).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// With every edit taken back there is nothing to write, and the file an editor has open is
+    /// not touched.
+    /// </summary>
+    [Test]
+    public async Task NothingWantedIsNothingWritten()
+    {
+        using var file = new TempSource(Members(2));
+        var before = file.Text;
+        var swaps = 0;
+
+        var results = InlineApplier.ApplyAll(
+            [Set(file.FullName, 0), Set(file.FullName, 1, content: "old 1"), Set(file.FullName, 1)],
+            (_, _) => swaps++,
+            _ => false);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Withdrawn, AlreadyApplied, Withdrawn");
+        await Assert.That(swaps).IsEqualTo(0);
+        await Assert.That(file.Text).IsEqualTo(before);
+    }
+
+    /// <summary>
+    /// A patch taken back is asked about where it was in what the caller handed over, whichever
+    /// file it is for, and the other files are written as they were going to be.
+    /// </summary>
+    [Test]
+    public async Task APatchIsAskedAboutByWhereTheCallerPutIt()
+    {
+        using var first = new TempSource(Members(2));
+        using var second = new TempSource(Members(2));
+
+        var results = InlineApplier.ApplyAll(
+            [
+                Set(first.FullName, 0),
+                Set(second.FullName, 1),
+                Set(first.FullName, 1),
+                Set(second.FullName, 0)
+            ],
+            _ => _ != 2);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Applied, Applied, Withdrawn, Applied");
+        await Assert.That(first.Text).Contains("new 0");
+        await Assert.That(first.Text).Contains("\"old 1\"");
+        await Assert.That(second.Text).Contains("new 0");
+        await Assert.That(second.Text).Contains("new 1");
+    }
+
+    /// <summary>
+    /// A write that fails fails what it was carrying, and a patch taken back before it was not
+    /// among that: nothing of it was going to be written either way.
+    /// </summary>
+    [Test]
+    public async Task AWriteThatFailsLeavesAPatchTakenBackAsItWas()
+    {
+        using var file = new TempSource(Members(3));
+        var before = file.Text;
+
+        var results = InlineApplier.ApplyAll(
+            [Set(file.FullName, 0), Set(file.FullName, 1), Set(file.FullName, 2)],
+            (_, _) => throw new IOException("The process cannot access the file."),
+            _ => _ != 1);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Failed, Withdrawn, Failed");
+        await Assert.That(file.Text).IsEqualTo(before);
+    }
+
+    /// <summary>
+    /// A question that throws is taken as yes: the patch was handed over to be written, and the
+    /// outcomes of the patches beside it are not lost to it.
+    /// </summary>
+    [Test]
+    public async Task AQuestionThatThrowsIsTakenAsWanted()
+    {
+        using var file = new TempSource(Members(2));
+
+        var results = InlineApplier.ApplyAll(
+            [Set(file.FullName, 0), Set(file.FullName, 1)],
+            _ => throw new InvalidOperationException("the queue went away"));
+
+        await Assert.That(Statuses(results)).IsEqualTo("Applied, Applied");
+        await Assert.That(file.Text).Contains("new 1");
+    }
+
+    // Everything a host reads off a result, the lines it moved included
+    static string Outcomes(IEnumerable<InlineApplyResult> results) =>
+        string.Join("\n", results.Select(_ => $"{_.Status} {_.MovedFrom} {_.MovedBy} {_.Message ?? "-"}"));
+
+    /// <summary>
     /// A batch lexes its file once and carries the scan from each patch to the next. What each
     /// patch is told, and what the source comes to, has to be what lexing the whole text again
     /// for every patch gives. Patches of every mode, in an order made at random: literals that
