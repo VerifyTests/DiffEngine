@@ -863,7 +863,7 @@ public class DocumentWatchTests :
         }
         finally
         {
-            cancel.Cancel();
+            await cancel.CancelAsync();
             await loop;
         }
     }

@@ -75,7 +75,7 @@ public class DocumentRendererTests :
     public async Task AFontTheMachineLacksIsDrawnInAptos()
     {
         var path = Path.Combine(directory, "missing-font.docx");
-        File.WriteAllBytes(path, SampleDocx.Build("No Such Family Anywhere", "alpha"));
+        await File.WriteAllBytesAsync(path, SampleDocx.Build("No Such Family Anywhere", "alpha"));
         await Assert.That(Plugin.Text(path)).Contains("alpha");
         await Assert.That(Render(path)).IsNotEmpty();
     }
@@ -262,7 +262,7 @@ public class DocumentRendererTests :
             ".pdf" => SamplePdf.Build("alpha", "bravo", "charlie"),
             ".svg" => Encoding.UTF8.GetBytes(FileTypeLaunchTests.SvgOf("red")),
             ".geojson" or ".fgb" => FileTypeLaunchTests.MapOf(extension, moved: false),
-            _ => File.ReadAllBytes(Sample($"sample{extension}"))
+            _ => await File.ReadAllBytesAsync(Sample($"sample{extension}"))
         };
 
         string Copy(string name)

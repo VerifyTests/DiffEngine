@@ -16,9 +16,9 @@ public class TrackerScanTest :
     public async Task AMoveReplacedWhileItWasBeingComparedIsKept()
     {
         await using var tracker = new RecordingTracker();
-        File.WriteAllText(temp, "same");
-        File.WriteAllText(target, "same");
-        File.WriteAllText(other, "different");
+        await File.WriteAllTextAsync(temp, "same");
+        await File.WriteAllTextAsync(target, "same");
+        await File.WriteAllTextAsync(other, "different");
         // What the scan read, and then what a re-run made of it before the scan had finished
         var scanned = tracker.AddMove(temp, target, "theExe", "theArguments", true, null);
         var fresh = tracker.AddMove(temp, other, "theExe", "theArguments", true, null);
@@ -32,8 +32,8 @@ public class TrackerScanTest :
     public async Task AMoveThatCameToEqualItsTargetIsDropped()
     {
         await using var tracker = new RecordingTracker();
-        File.WriteAllText(temp, "same");
-        File.WriteAllText(target, "same");
+        await File.WriteAllTextAsync(temp, "same");
+        await File.WriteAllTextAsync(target, "same");
         var scanned = tracker.AddMove(temp, target, "theExe", "theArguments", true, null);
 
         await tracker.HandleScanMove(new(temp, scanned));
@@ -50,8 +50,8 @@ public class TrackerScanTest :
     public async Task WhatAMoveWasFoundToBeIsForgottenOnceItHasLeft()
     {
         await using var tracker = new RecordingTracker();
-        File.WriteAllText(temp, "received");
-        File.WriteAllText(target, "verified");
+        await File.WriteAllTextAsync(temp, "received");
+        await File.WriteAllTextAsync(target, "verified");
         var scanned = tracker.AddMove(temp, target, "theExe", "theArguments", true, null);
         await tracker.HandleScanMove(new(temp, scanned));
         await Assert.That(tracker.KnownDiffering).IsEqualTo(1);
@@ -75,8 +75,8 @@ public class TrackerScanTest :
     public async Task ATargetThatMayNotBeReadIsPassedOver()
     {
         await using var tracker = new RecordingTracker();
-        File.WriteAllText(temp, "same");
-        File.WriteAllText(target, "same");
+        await File.WriteAllTextAsync(temp, "same");
+        await File.WriteAllTextAsync(target, "same");
         var scanned = tracker.AddMove(temp, target, "theExe", "theArguments", true, null);
 
         var info = new FileInfo(target);
