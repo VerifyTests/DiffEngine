@@ -59,7 +59,15 @@ public class DocumentScreenTests
 
     [Test]
     public Task CouldNotReadTheText() =>
-        Verify(Fixtures.Render(State(Left, Right with { Unreadable = "it is encrypted." }, LeftText, "")));
+        Verify(
+            Fixtures.Render(
+                State(
+                    Left,
+                    Right with
+                    {
+                        Unreadable = "it is encrypted."
+                    },
+                    LeftText, "")));
 
     [Test]
     public Task CouldNotDraw()

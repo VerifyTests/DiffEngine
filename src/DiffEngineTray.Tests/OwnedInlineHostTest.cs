@@ -639,8 +639,8 @@ public class OwnedInlineHostTest
         // The lists are replaced when a test changes them, so which lists they are says it
         public long Version() =>
             HashCode.Combine(
-                System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(MoveList),
-                System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(DeleteList));
+                RuntimeHelpers.GetHashCode(MoveList),
+                RuntimeHelpers.GetHashCode(DeleteList));
 
         public bool Has(string key) =>
             MoveList.Any(_ => _.Key == key) ||

@@ -53,8 +53,13 @@ public class MoveOntoDeleteTests
     [Test]
     public async Task A_delete_of_another_file_is_carried_out()
     {
-        var disk = new Disk();
-        disk.Files["code/extra.verified.txt"] = "stale";
+        var disk = new Disk
+        {
+            Files =
+            {
+                ["code/extra.verified.txt"] = "stale"
+            }
+        };
         var state = Queued(Fixtures.Delete(), Fixtures.Move(), Fixtures.Delete("other.verified.txt"));
 
         var swept = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);

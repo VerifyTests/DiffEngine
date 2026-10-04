@@ -1372,7 +1372,10 @@ static class ViewerSession
     /// </summary>
     public static SessionState BeginAcceptWithDerived(SessionState state)
     {
-        state = state with { Menu = null };
+        state = state with
+        {
+            Menu = null
+        };
         if (WithDerived(state) is not { } entries)
         {
             return state;

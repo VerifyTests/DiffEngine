@@ -250,7 +250,7 @@ public class MenuBuilderTest :
 
     // False for a window any of whose parents is hidden, which is what says a window that is
     // shown is still not on a screen
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [DllImport("user32.dll")]
     static extern bool IsWindowVisible(IntPtr handle);
 
     /// <summary>

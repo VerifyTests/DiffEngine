@@ -890,9 +890,8 @@ sealed class ViewerCanvas : Control
     /// </summary>
     void DrawSpinner(Graphics graphics, Rectangle available, int lineHeight)
     {
-        var radius = lineHeight;
         var thickness = Math.Max(2, lineHeight / 6);
-        var diameter = radius * 2;
+        var diameter = lineHeight * 2;
         if (available.Width < diameter + thickness * 2 ||
             available.Height < diameter + thickness * 2)
         {

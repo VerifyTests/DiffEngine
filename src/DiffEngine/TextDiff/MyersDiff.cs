@@ -342,19 +342,18 @@ static class MyersDiff
         var n = a.Length;
         var m = b.Length;
         var maxD = (n + m + 1) / 2;
-        var offset = maxD;
         // Only the diagonals this search can get to are cleared and read, the ones within its
         // deepest edit of the middle and one more either side for the neighbours each step reads.
         // Clearing the vectors whole cost by the length for every split, and a diff that settles
         // makes a split every few hundred elements: that was the length squared again by another
         // road. What lies outside holds whatever an earlier search left, so nothing may read it.
         var reach = Math.Min(maxD, limit + 1);
-        var low = offset - reach;
-        var high = offset + reach;
+        var low = maxD - reach;
+        var high = maxD + reach;
         forward[low..(high + 1)].Fill(-1);
         reverse[low..(high + 1)].Fill(-1);
-        forward[offset + 1] = 0;
-        reverse[offset + 1] = 0;
+        forward[maxD + 1] = 0;
+        reverse[maxD + 1] = 0;
 
         var delta = n - m;
         // With an odd difference the forward search reaches the overlap first.
@@ -369,7 +368,7 @@ static class MyersDiff
         {
             for (var k = -d + forwardStart; k <= d - forwardEnd; k += 2)
             {
-                var index = offset + k;
+                var index = maxD + k;
                 int x;
                 if (k == -d ||
                     (k != d && forward[index - 1] < forward[index + 1]))
@@ -401,7 +400,7 @@ static class MyersDiff
                 }
                 else if (front)
                 {
-                    var reverseIndex = offset + delta - k;
+                    var reverseIndex = maxD + delta - k;
                     if (reverseIndex >= low &&
                         reverseIndex <= high &&
                         reverse[reverseIndex] != -1 &&
@@ -417,7 +416,7 @@ static class MyersDiff
 
             for (var k = -d + reverseStart; k <= d - reverseEnd; k += 2)
             {
-                var index = offset + k;
+                var index = maxD + k;
                 int x;
                 if (k == -d ||
                     (k != d && reverse[index - 1] < reverse[index + 1]))
@@ -449,7 +448,7 @@ static class MyersDiff
                 }
                 else if (!front)
                 {
-                    var forwardIndex = offset + delta - k;
+                    var forwardIndex = maxD + delta - k;
                     if (forwardIndex >= low &&
                         forwardIndex <= high &&
                         forward[forwardIndex] != -1)
@@ -458,7 +457,7 @@ static class MyersDiff
                         if (forwardX >= n - x)
                         {
                             splitX = forwardX;
-                            splitY = forwardX - (forwardIndex - offset);
+                            splitY = forwardX - (forwardIndex - maxD);
                             depth = d + 1;
                             return true;
                         }
@@ -470,7 +469,7 @@ static class MyersDiff
             {
                 depth = d + 1;
                 settled = true;
-                var furthest = TryFurthest(n, m, d, offset, forward, reverse, out splitX, out splitY, out var matched);
+                var furthest = TryFurthest(n, m, d, maxD, forward, reverse, out splitX, out splitY, out var matched);
                 passed = matched;
                 if (TryDisplaced(a, b, depth, matched, out var displacedX, out var displacedY, out var run))
                 {
@@ -494,13 +493,13 @@ static class MyersDiff
     /// A run of this many elements found by <see cref="TryDisplaced"/> is taken as the sequences
     /// lining up there rather than as a line that happens to repeat.
     /// </summary>
-    const int DisplacedRun = 16;
+    const int displacedRun = 16;
 
     /// <summary>
     /// As far as a run is followed to see how long it is. Past this it is long enough, and the
     /// rest of it is walked once, by whoever is handed the split.
     /// </summary>
-    const int RunCap = 4096;
+    const int runCap = 4096;
 
     /// <summary>
     /// A better place to split than the furthest point, when a search settled having found next
@@ -534,7 +533,7 @@ static class MyersDiff
         var inB = b[..Math.Min(b.Length, window)].IndexOf(a[0]);
         var runA = inA > 0 ? Run(a[inA..], b) : 0;
         var runB = inB > 0 ? Run(a, b[inB..]) : 0;
-        var needed = Math.Max(DisplacedRun, matched + 1);
+        var needed = Math.Max(displacedRun, matched + 1);
         var fromA = runA >= needed;
         var fromB = runB >= needed;
         if (fromA &&
@@ -557,7 +556,7 @@ static class MyersDiff
 
     static int Run(ReadOnlySpan<int> a, ReadOnlySpan<int> b)
     {
-        var length = Math.Min(RunCap, Math.Min(a.Length, b.Length));
+        var length = Math.Min(runCap, Math.Min(a.Length, b.Length));
         var run = 0;
         while (run < length &&
                a[run] == b[run])
