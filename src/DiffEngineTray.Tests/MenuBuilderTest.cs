@@ -78,7 +78,7 @@ public class MenuBuilderTest :
             tracker);
         // The tracked items are built on Opening and exist only while the menu is up, so a test
         // that reads Items without this one sees the six fixed entries and nothing else
-        menu.Show(0, 0);
+        Open(menu);
 
         var item = menu.Items
             .OfType<System.Windows.Forms.ToolStripDropDownButton>()
@@ -187,16 +187,70 @@ public class MenuBuilderTest :
             emptyAction,
             emptyAction,
             tracker);
-        menu.Show(0, 0);
+        Open(menu);
 
         var item = menu.Items
             .OfType<System.Windows.Forms.ToolStripDropDownButton>()
             .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
+        // Before it is shown, as the menu was: a drop down is a window of its own
+        item.DropDown.TopLevel = false;
         item.ShowDropDown();
 
         await Verify(Draw(item.DropDown), "png", settings);
         menu.Close();
     }
+
+    /// <summary>
+    /// Opened, for the items an open builds, with nothing put on the desktop. A menu is a top
+    /// level window, and shown as one it came up at the top left of the screen of whoever was at
+    /// the machine, over what they were doing, for as long as the test took. Not top level it is
+    /// a child of no window that is on a screen, and still opens, lays out, paints and closes as
+    /// it does under the tray's icon. Verify.WinForms draws a menu the same way, which is why the
+    /// tests here that only hand it one never showed anything.
+    /// </summary>
+    static void Open(System.Windows.Forms.ContextMenuStrip menu)
+    {
+        menu.TopLevel = false;
+        menu.Show();
+    }
+
+    /// <summary>
+    /// What <see cref="Open" /> is for, asked of Windows rather than of WinForms: a menu that is
+    /// open as far as its own events and items go, in a window nobody can see. The drop down is
+    /// here because it is a second window, and has to be told separately.
+    /// </summary>
+    [Test]
+    public async Task AMenuOpenedByATestIsNotOnTheDesktop()
+    {
+        await using var tracker = new RecordingTracker(
+            inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null)));
+        var menu = MenuBuilder.Build(
+            emptyAction,
+            emptyAction,
+            tracker);
+        Open(menu);
+        var item = menu.Items
+            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
+            .Single();
+        item.DropDown.TopLevel = false;
+        item.ShowDropDown();
+
+        var menuOpen = menu.Visible;
+        var menuSeen = IsWindowVisible(menu.Handle);
+        var dropDownOpen = item.DropDown.Visible;
+        var dropDownSeen = IsWindowVisible(item.DropDown.Handle);
+        menu.Close();
+
+        await Assert.That(menuOpen).IsTrue();
+        await Assert.That(menuSeen).IsFalse();
+        await Assert.That(dropDownOpen).IsTrue();
+        await Assert.That(dropDownSeen).IsFalse();
+    }
+
+    // False for a window any of whose parents is hidden, which is what says a window that is
+    // shown is still not on a screen
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr handle);
 
     /// <summary>
     /// Drawn rather than handed to Verify.WinForms, which renders a control by parenting it to a
@@ -305,7 +359,7 @@ public class MenuBuilderTest :
                 tracker);
             var fixedCount = menu.Items.Count;
 
-            menu.Show(0, 0);
+            Open(menu);
             var opened = menu.Items
                 .Cast<System.Windows.Forms.ToolStripItem>()
                 .Skip(fixedCount)
@@ -339,7 +393,7 @@ public class MenuBuilderTest :
             tracker);
         var fixedCount = menu.Items.Count;
 
-        menu.Show(0, 0);
+        Open(menu);
         var tracked = menu.Items
             .Cast<System.Windows.Forms.ToolStripItem>()
             .Skip(fixedCount)
@@ -353,7 +407,7 @@ public class MenuBuilderTest :
         }
 
         menu.Close();
-        menu.Show(0, 0);
+        Open(menu);
         menu.Close();
 
         await Assert.That(tracked).IsNotEmpty();
