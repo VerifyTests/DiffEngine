@@ -34,15 +34,29 @@ record MenuState(int Row, IReadOnlyList<MenuItem> Items, IReadOnlyList<int> Memb
 /// </summary>
 static class ContextMenu
 {
-    public static IReadOnlyList<MenuItem> ForEntry(QueueEntry entry, bool hasSelection)
+    /// <param name="entry">The entry the menu is for.</param>
+    /// <param name="hasSelection">Whether pane text is selected, and so can be copied.</param>
+    /// <param name="derived">
+    /// How many files are shown beneath the entry, which is a document's: see
+    /// <see cref="QueueProjection"/>. Its accept and discard take them with it and say how many,
+    /// and it gains the item that shows or hides them.
+    /// </param>
+    /// <param name="unfolded">Whether those files have rows of their own at the moment.</param>
+    public static IReadOnlyList<MenuItem> ForEntry(QueueEntry entry, bool hasSelection, int derived = 0, bool unfolded = false)
     {
         var items = new List<MenuItem>();
         switch (entry.Kind)
         {
             case QueueEntryKind.Move:
-                items.Add(new("Accept move", CommandKind.Accept));
-                items.Add(new("Discard", CommandKind.Discard));
+                items.Add(new(WithDerived("Accept move", derived), CommandKind.Accept));
+                items.Add(new(WithDerived("Discard", derived), CommandKind.Discard));
                 items.Add(new("Open target directory", CommandKind.RevealSource));
+                if (derived > 0)
+                {
+                    // After the three every move has, so those keep the places a hand has learned
+                    items.Add(new(unfolded ? "Collapse" : "Expand", CommandKind.ToggleDerived));
+                }
+
                 break;
             case QueueEntryKind.Delete:
                 items.Add(new("Accept delete", CommandKind.Accept));
@@ -72,6 +86,21 @@ static class ContextMenu
         AddCopy(items, entry, PaneSide.Left, CommandKind.CopyLeft);
         AddCopy(items, entry, PaneSide.Right, CommandKind.CopyRight);
         return items;
+    }
+
+    /// <summary>
+    /// An acting label saying how many files go with the entry, where any do: <c>Accept move +6</c>.
+    /// The footer's buttons say it the same way, and for the same reason: an accept that takes
+    /// seven files should not read as one that takes one.
+    /// </summary>
+    public static string WithDerived(string label, int derived)
+    {
+        if (derived == 0)
+        {
+            return label;
+        }
+
+        return $"{label} +{derived}";
     }
 
     /// <summary>

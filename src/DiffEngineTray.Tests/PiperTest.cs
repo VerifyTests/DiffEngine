@@ -48,8 +48,18 @@ public class PiperTest :
                 true,
                 1000));
 
+    // The delete payload. This snapshotted a move for as long as the builder for a delete was
+    // private, and the documentation showing it under "Add pending delete" showed a move too
     [Test]
     public Task DeleteJson() =>
+        Verify(PiperClient.BuildDeletePayload("theFilePath"));
+
+    /// <summary>
+    /// A file derived from another names it, last, in a property a tray from before it has no
+    /// member for and so skips: see <see cref="AnOlderTrayReadsADerivedMoveAsAnOrdinaryOne" />.
+    /// </summary>
+    [Test]
+    public Task MoveWithSourceJson() =>
         Verify(
             PiperClient.BuildMovePayload(
                 "theTempFilePath",
@@ -57,7 +67,25 @@ public class PiperTest :
                 "theExePath",
                 "TheArguments",
                 true,
-                1000));
+                1000,
+                "theSourceTempFilePath"));
+
+    [Test]
+    public Task DeleteWithSourceJson() =>
+        Verify(PiperClient.BuildDeletePayload("theFilePath", "theSourceTempFilePath"));
+
+    /// <summary>
+    /// With no source the payloads are what they have always been, to the byte, so nothing about
+    /// a file that stands alone is new to any tray.
+    /// </summary>
+    [Test]
+    public async Task APayloadWithNoSourceIsUnchanged()
+    {
+        await Assert.That(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1, null))
+            .IsEqualTo(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1));
+        await Assert.That(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1)).DoesNotContain("Source");
+        await Assert.That(PiperClient.BuildDeletePayload("a")).DoesNotContain("Source");
+    }
 
     [Test]
     public async Task Delete()
@@ -70,6 +98,61 @@ public class PiperTest :
         await source.CancelAsync();
         await task;
         await Verify(received);
+    }
+
+    [Test]
+    public async Task ADerivedMoveAndDeleteReachTheTrayWithTheirSource()
+    {
+        MovePayload? move = null;
+        DeletePayload? delete = null;
+        using var source = new CancelSource();
+        var task = PiperServer.Start(_ => move = _, _ => delete = _, source.Token);
+        await PiperClient.SendMoveAsync("Page", "PageTarget", "theExe", "TheArguments", false, null, source.Token, "Document");
+        await PiperClient.SendDeleteAsync("StalePage", source.Token, "Document");
+        await Task.Delay(1000, source.Token);
+        await source.CancelAsync();
+        await task;
+
+        await Assert.That(move!.Temp).IsEqualTo("Page");
+        await Assert.That(move.Source).IsEqualTo("Document");
+        await Assert.That(delete!.File).IsEqualTo("StalePage");
+        await Assert.That(delete.Source).IsEqualTo("Document");
+    }
+
+    /// <summary>
+    /// What a tray from before the property makes of a payload that has it. That tray's payload
+    /// type is this one without the member, and it reads with the same serializer and the same
+    /// options, so a type with the members it had stands in for it.
+    /// <para>
+    /// This is the whole case for a property rather than a payload type of its own. A type an
+    /// older tray did not know would be logged and dropped (<see cref="UnknownTypeIgnored" />),
+    /// and the send is fire and forget, so the file would be pending in nothing.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task AnOlderTrayReadsADerivedMoveAsAnOrdinaryOne()
+    {
+        var payload = PiperClient.BuildMovePayload("Page", "PageTarget", "theExe", "TheArguments", false, null, "Document");
+
+        var older = Serializer.Deserialize<MoveBeforeSources>(payload);
+
+        await Assert.That(older.Temp).IsEqualTo("Page");
+        await Assert.That(older.Target).IsEqualTo("PageTarget");
+        await Assert.That(older.Exe).IsEqualTo("theExe");
+        await Assert.That(older.Arguments).IsEqualTo("TheArguments");
+        await Assert.That(older.CanKill).IsFalse();
+        await Assert.That(older.ProcessId).IsNull();
+    }
+
+    // MovePayload as every tray had it before a move could name a source
+    class MoveBeforeSources
+    {
+        public string Temp { get; set; } = null!;
+        public string Target { get; set; } = null!;
+        public string? Exe { get; set; } = null!;
+        public string? Arguments { get; set; } = null!;
+        public bool CanKill { get; set; }
+        public int? ProcessId { get; set; }
     }
 
     [Test]

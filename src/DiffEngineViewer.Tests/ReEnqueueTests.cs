@@ -232,6 +232,7 @@ public class ReEnqueueTests
             "move:temp/sample.received.txt",
             "Sample.Test (txt)",
             null,
+            null,
             "temp/sample.received.txt",
             "code/sample.verified.txt",
             new(received, new FileStamp(written, 1), null, null),
@@ -248,6 +249,7 @@ public class ReEnqueueTests
         return QueueEntry.ForMove(
             "move:temp/sample.received.pdf",
             "Sample.Test (pdf)",
+            null,
             null,
             "temp/sample.received.pdf",
             "code/sample.verified.pdf",

@@ -282,15 +282,15 @@ sealed class OwnedInlineHost :
     /// this tray when the sending process saw no tray as it started and so addressed the queue
     /// owner instead — and this tray is the queue owner.
     /// </summary>
-    void IQueueOwner.TrackMove(string temp, string target)
+    void IQueueOwner.TrackMove(string temp, string target, string? source)
     {
-        TrackedFiles?.AddMove(temp, target);
+        TrackedFiles?.AddMove(temp, target, source);
         Changed?.Invoke();
     }
 
-    void IQueueOwner.TrackDelete(string file)
+    void IQueueOwner.TrackDelete(string file, string? source)
     {
-        TrackedFiles?.AddDelete(file);
+        TrackedFiles?.AddDelete(file, source);
         Changed?.Invoke();
     }
 

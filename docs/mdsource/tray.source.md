@@ -190,6 +190,17 @@ snippet: PiperTest.MoveJson.verified.txt
 snippet: PiperTest.DeleteJson.verified.txt
 
 
+### Derived from another file
+
+A move or a delete of a file that was [derived from a document](/docs/viewer.md#files-derived-from-a-document) names the temp file of the pending move it was derived from, in a `Source` property that is absent otherwise:
+
+snippet: PiperTest.MoveWithSourceJson.verified.txt
+
+snippet: PiperTest.DeleteWithSourceJson.verified.txt
+
+The tray tracks such a file as it tracks any other, so it is listed in the menu and taken by an accept-all. The property is only passed on to the viewer, which is what folds the file beneath its document. A tray older than the property ignores it.
+
+
 ## Logging Directory
 
 Beside the installed tool, so it moves with the target framework the tray is built for:

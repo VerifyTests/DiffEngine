@@ -29,11 +29,16 @@ interface IQueueOwner
     /// port fills, which is what a tray started after the test process needs: that process's
     /// tray check is cached, so its moves come here for the rest of its life.
     /// </para>
+    /// <para>
+    /// <paramref name="source" /> is the received file of the pending move this one was derived
+    /// from, or null: see <see cref="ViewerMessage.Source" />. A parameter with no default, so an
+    /// owner cannot track a file and quietly drop what it was derived from.
+    /// </para>
     /// </summary>
-    void TrackMove(string temp, string target);
+    void TrackMove(string temp, string target, string? source);
 
     /// <inheritdoc cref="TrackMove"/>
-    void TrackDelete(string file);
+    void TrackDelete(string file, string? source);
 
     /// <summary>
     /// The whole listing response rather than just its items, because an owner answers with its

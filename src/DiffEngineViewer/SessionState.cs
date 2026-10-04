@@ -49,6 +49,23 @@ record SessionState(
     public IReadOnlySet<string> Collapsed { get; init; } = new HashSet<string>();
 
     /// <summary>
+    /// The documents whose derived files have rows of their own, by the document's
+    /// <see cref="QueueEntry.Key"/>: see <see cref="QueueProjection"/>.
+    /// <para>
+    /// A set of its own rather than more keys in <see cref="Collapsed"/>, because it says the
+    /// opposite thing. A header shows its entries until it is folded, and a document hides its
+    /// files until it is unfolded, so in one set either every document's key would have to be
+    /// added as it arrived, on each of the paths an entry arrives by, or one absent key would
+    /// have to mean shown for a header and hidden for a document.
+    /// </para>
+    /// <para>
+    /// A view like <see cref="Collapsed"/>, and by key for the reason it is by name: what is
+    /// unfolded stays unfolded across a re-run that sends the document and its files again.
+    /// </para>
+    /// </summary>
+    public IReadOnlySet<string> Unfolded { get; init; } = new HashSet<string>();
+
+    /// <summary>
     /// The pane text the reader has selected, or null. Carried here rather than in the frame
     /// because a drag survives scrolling, resizing and anything else that rebuilds a
     /// <see cref="Screen"/>, which is every frame.

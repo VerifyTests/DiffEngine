@@ -54,6 +54,8 @@ This value can be changed using an environment variable or by explicitly specify
 
 The count includes [DiffEngineViewer](/docs/viewer.md), but only when a viewer has to be started. Handing a pair to one already on screen opens no window and so spends nothing.
 
+Neither does a file [derived from a document](/docs/viewer.md#files-derived-from-a-document) the viewer is drawing: it is shown beneath the document rather than in a tool of its own. A document split into a file per page would otherwise spend the whole allowance on one test.
+
 
 ### Using an environment variable
 
@@ -319,9 +321,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
   * Scanned paths:
     * `%USERPROFILE%\.dotnet\tools\DiffEngineViewer.exe`
     * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray\*\tools\*\any\viewer\win-x64\DiffEngineViewer.exe`
-    * `%NUGET_PACKAGES%\diffengine\20.6.0\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%NUGET_PACKAGES%\diffengine\20.7.0-beta.1\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%NUGET_PACKAGES%\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
-    * `%USERPROFILE%\.nuget\packages\diffengine\20.6.0\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.nuget\packages\diffengine\20.7.0-beta.1\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%USERPROFILE%\.nuget\packages\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%PATH%DiffEngineViewer.exe`
 
@@ -337,9 +339,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
-    * `%NUGET_PACKAGES%/diffengine/20.6.0/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/20.7.0-beta.1/tools/viewer/osx-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
-    * `%HOME%/.nuget/packages/diffengine/20.6.0/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/20.7.0-beta.1/tools/viewer/osx-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
@@ -355,9 +357,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
-    * `%NUGET_PACKAGES%/diffengine/20.6.0/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/20.7.0-beta.1/tools/viewer/linux-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
-    * `%HOME%/.nuget/packages/diffengine/20.6.0/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/20.7.0-beta.1/tools/viewer/linux-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 

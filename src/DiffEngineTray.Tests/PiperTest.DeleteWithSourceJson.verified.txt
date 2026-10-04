@@ -1,0 +1,5 @@
+﻿{
+"Type":"Delete",
+"File":"theFilePath",
+"Source":"theSourceTempFilePath"
+}

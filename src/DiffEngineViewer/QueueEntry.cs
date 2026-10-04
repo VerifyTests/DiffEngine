@@ -183,6 +183,21 @@ record QueueEntry(
     public bool Written { get; init; }
 
     /// <summary>
+    /// On a move or a delete: the key of the pending move it was derived from, or null when it
+    /// stands alone. A page of a document, say, whose document is pending too.
+    /// <para>
+    /// Only what was said about the file. Whether it is shown beneath that move is decided where
+    /// the queue is laid out (<see cref="QueueProjection"/>), since it turns on whether that move
+    /// is in the queue and is a document being drawn, neither of which an entry knows of another.
+    /// </para>
+    /// <para>
+    /// A parameter of <see cref="ForMove"/> and <see cref="ForDelete"/> with no default, so every
+    /// place that builds a tracked entry again has to say where its source went.
+    /// </para>
+    /// </summary>
+    public string? SourceKey { get; init; }
+
+    /// <summary>
     /// Whether one side of an entry holds what a side that arrived, or was read again, holds.
     /// </summary>
     public static bool SameSide(
@@ -271,6 +286,7 @@ record QueueEntry(
         string key,
         string name,
         string? group,
+        string? sourceKey,
         string temp,
         string target,
         FileSide tempSide,
@@ -299,12 +315,16 @@ record QueueEntry(
             LeftImage: tempSide.Image,
             RightImage: targetSide.Image,
             LeftDocument: tempSide.Document,
-            RightDocument: targetSide.Document);
+            RightDocument: targetSide.Document)
+        {
+            SourceKey = sourceKey
+        };
 
     public static QueueEntry ForDelete(
         string key,
         string name,
         string? group,
+        string? sourceKey,
         string file,
         FileSide current) =>
         new(
@@ -332,7 +352,10 @@ record QueueEntry(
             // The file on the right is the one that goes, so a picture being deleted is the right
             // side's picture. Nothing is on the left, which is the point of the entry.
             RightImage: current.Image,
-            RightDocument: current.Document);
+            RightDocument: current.Document)
+        {
+            SourceKey = sourceKey
+        };
 
     static (string header, string text, string? warning) Expected(InlinePatch patch)
     {

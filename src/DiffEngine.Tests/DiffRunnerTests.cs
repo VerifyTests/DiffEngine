@@ -98,6 +98,28 @@ public class DiffRunnerTests
         #endregion
     }
 
+    static async Task LaunchDerived()
+    {
+        var documentTargetFile = "";
+        var documentTempFile = "";
+        var pageTargetFile = "";
+        var pageTempFile = "";
+        var stalePageFile = "";
+
+        #region DiffRunnerLaunchDerived
+
+        // The document first: what is derived from it names it
+        await DiffRunner.LaunchAsync(documentTempFile, documentTargetFile);
+
+        // A file computed from the document, named by the document's temp file
+        await DiffRunner.LaunchDerivedAsync(pageTempFile, pageTargetFile, documentTempFile, null);
+
+        // A file the document no longer produces
+        await DiffRunner.AddDerivedDeleteAsync(stalePageFile, documentTempFile);
+
+        #endregion
+    }
+
     [Test]
     [Skip("Explicit")]
     public async Task KillAsync()

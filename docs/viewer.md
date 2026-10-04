@@ -209,6 +209,7 @@ Every row of the pending column answers a right-click:
 
  * An inline snapshot offers **Accept**, **Discard** and **Open source file**, plus **Show next variant** when frameworks disagree about it.
  * A move offers **Accept move**, **Discard** and **Open target directory**; a delete offers **Accept delete**, **Discard** and **Open directory**.
+ * A document with [files derived from it](#files-derived-from-a-document) counts them in the first two, **Accept move +5** and **Discard +5**, and adds **Expand** or **Collapse**.
  * A solution header offers **Accept all in ...** and **Discard all in ...** for that solution only, and a test sub-header the same for that test's changes. Bulk accepts skip conflicted snapshots, the way accept-all does.
  * Every entry also offers **Copy selection** when there is one, and a **Copy** item per pane, named after that pane, which copies the whole side. A side with nothing in it — the expected side of a brand new snapshot, or what is left after a delete — gets no item rather than one that copies nothing.
 
@@ -243,7 +244,7 @@ When [DiffEngineTray](/docs/tray.md) owns the queue, the viewer also lists the t
 
 **Accept all** on a tray-owned queue sweeps everything the window shows: deletes, moves and snapshots, with conflicted snapshots skipped and anything locked kept pending and counted. The deletes are the ones pending when it began, and are held back when a snapshot was not written. One for a file that a move in the same sweep has written is left pending.
 
-A viewer that owns the queue itself never shows moves or deletes, because DiffEngine only sends them to a running tray.
+A viewer that owns the queue itself is sent them directly when [no tray is running](#with-no-tray), and shows them the same way.
 
 
 ## Images
@@ -312,6 +313,36 @@ A file that is not the document its extension says is ordinary — a test that f
 An SVG is drawn with scripts, external images and external elements turned off. A snapshot is test output, and nothing in one gets to reach the network or the disk.
 
 DiffEngine offers the viewer for `.pdf`, `.docx`, `.xlsx`, `.pptx` and the map extensions only when the copy it resolved carries the folder. The viewer is last in the default tool order, so Word, Excel, Beyond Compare or DeltaWalker are still preferred where installed.
+
+
+### Files derived from a document
+
+A snapshot library often verifies more than the document itself: a png of each page, the text read out of it, a csv per sheet. Each is a received file of its own, and each would be a row of its own, asking for one change to be accepted again once per file, when the document's row has already shown its pages and its text.
+
+So a caller can say that a file was derived from a document, with `DiffRunner.LaunchDerived` in place of `DiffRunner.Launch`. [Verify](https://github.com/VerifyTests/Verify) does, for what its converters split out of a document. While the viewer is drawing that document, a derived file opens no tool of its own, spends nothing against [MaxInstancesToLaunch](/docs/diff-tool.md#maxinstancestolaunch), and has no row. It is counted on the document's:
+
+```
++ Sample.Test (pdf) (5)
+```
+
+Accepting the document accepts the files beneath it as well, the document last, and the button and the menu say how many: **Accept move +5**. **Discard +5** discards them the same way. A file that could not be written stays pending and the closing message counts it, as an accept-all does. A page the document no longer has is a pending delete beneath it, carried out when the document is accepted. **Accept all** counts and takes every file, folded or not.
+
+The row's marker is the one a header has. **Expand** in the row's right-click menu, or a click on the row once it is the one selected, gives each derived file a row under the document, named by what it adds to the document's name:
+
+```
+- Sample.Test (pdf) (5)
+  (txt)
+  #page_0001 (png)
+  #page_0001 (txt)
+  #page_0002 (png)
+  #page_0003.verified.png
+```
+
+Selected, a derived file is the ordinary pair it also is, and its **Accept move** takes that file alone. `Tab` steps over the files of a folded document, a folded document's row carries the `!` of a failure beneath it, and anything that selects a derived file from outside the window unfolds its document.
+
+Folding needs the document on screen as a document. A derived file is an ordinary row when its document is not pending, when the copy of the viewer running has no `documents` folder, or when the document was accepted on its own from the tray's menu. When the document went to another tool, such as Word or Beyond Compare, each derived file is opened in its own tool as it always has been. The viewer is last in the default [tool order](/docs/diff-tool.order.md), so on a machine with one of those installed it has to be ordered first for a document to reach it.
+
+What is accepted unseen is accepted on the strength of the viewer's own drawing of the document, which is not necessarily the renderer that produced the page files. Expanding the row shows them.
 
 
 ### Maps

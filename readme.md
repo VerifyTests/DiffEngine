@@ -40,6 +40,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [NuGet](#nuget)
   * [Supported Tools](#supported-tools)
   * [Launching a tool](#launching-a-tool)
+    * [Files derived from another](#files-derived-from-another)
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
@@ -109,6 +110,30 @@ await DiffRunner.LaunchAsync(tempFile, targetFile);
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
+### Files derived from another
+
+A snapshot of a document is often several files: the document, and what was computed from it, such as a png of each page, its text, or a csv per sheet. A file of the second kind can be launched as derived from the first:
+
+<!-- snippet: DiffRunnerLaunchDerived -->
+<a id='snippet-DiffRunnerLaunchDerived'></a>
+```cs
+// The document first: what is derived from it names it
+await DiffRunner.LaunchAsync(documentTempFile, documentTargetFile);
+
+// A file computed from the document, named by the document's temp file
+await DiffRunner.LaunchDerivedAsync(pageTempFile, pageTargetFile, documentTempFile, null);
+
+// A file the document no longer produces
+await DiffRunner.AddDerivedDeleteAsync(stalePageFile, documentTempFile);
+```
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L109-L120' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerLaunchDerived' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The source is named by its temp file, is launched first, and is named only while it is itself pending.
+
+This changes nothing for most tools: each derived file is launched exactly as `Launch` would launch it. The exception is [DiffEngineViewer](/docs/viewer.md#files-derived-from-a-document) when it is drawing the source as a document. It already shows the pages and the text, so the derived files open no tool, do not count towards [MaxInstancesToLaunch](/docs/diff-tool.md#maxinstancestolaunch), and are accepted or discarded together with the document.
+
+
 ## Closing a tool
 
 A tool can be closed using the following:
@@ -118,7 +143,7 @@ A tool can be closed using the following:
 ```cs
 DiffRunner.Kill(file1, file2);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L108-L112' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffRunnerTests.cs#L130-L134' title='Snippet source file'>snippet source</a> | <a href='#snippet-DiffRunnerKill' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of MDI behavior.
