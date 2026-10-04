@@ -157,18 +157,68 @@ public class TrackerMoveOntoDeleteTest :
     }
 
     /// <summary>
-    /// A test run that raises the delete again has looked at the file the move wrote and still
-    /// says nothing produces it. That is the later statement, and the next sweep carries it out.
+    /// A delete raised again says nothing about when it was decided. A run has a process for each
+    /// target framework, and one that looked at the file before the move was accepted raises the
+    /// delete after it, in the same words a run that looked at what the move wrote would use.
+    /// Raising it again used to let go of the hold, so that process cost the snapshot the move
+    /// had just put there at the next "Accept all".
     /// </summary>
     [Test]
-    public async Task ADeleteRaisedAgainAfterTheWriteIsCarriedOut()
+    public async Task ADeleteRaisedAgainOverTheFileTheMoveLeftIsStillHeld()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+        var before = tracked.Version();
+
+        tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.WroteItsFile);
+        // Nothing a listing carries has changed
+        await Assert.That(tracked.Version()).IsEqualTo(before);
+        await tracker.AcceptAll();
+
+        await Assert.That(await File.ReadAllTextAsync(verified)).IsEqualTo("received");
+        await Assert.That(tracker.Deletes).HasSingleItem();
+    }
+
+    /// <summary>
+    /// The hold keeps what the move put there. Once the file is seen to be something else, there
+    /// is nothing of the move's left for it to keep, and a delete raised then is carried out.
+    /// </summary>
+    [Test]
+    public async Task ADeleteRaisedAgainOverAFileWrittenSinceIsCarriedOut()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
         var delete = tracker.AddDelete(verified);
         await tracker.AcceptAll();
+        await File.WriteAllTextAsync(verified, "written by something else since");
 
         tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await tracker.AcceptAll();
+
+        await Assert.That(File.Exists(verified)).IsFalse();
+        await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// Discarded and raised afresh, it is a delete like any other: the hold was the tracked
+    /// delete's, and that one has gone.
+    /// </summary>
+    [Test]
+    public async Task AHeldDeleteDiscardedAndRaisedAfreshIsCarriedOut()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+        tracked.Discard(TrackedKeys.ForDelete(verified));
+
+        var delete = tracker.AddDelete(verified);
         await Assert.That(tracker.HeldReason(delete)).IsNull();
         await tracker.AcceptAll();
 

@@ -660,16 +660,51 @@ class Tracker :
             updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
-                // Raised again, so by a run that looked at the file as it is now. Whatever a move
-                // wrote there since the delete was first raised, this is the later statement
-                if (existing.Written)
+                // Raised again, which says nothing about when it was decided. A run has a process
+                // for each target framework, and one that looked at the file before the move was
+                // accepted sends the same message after it as a run that looked at what the move
+                // wrote. Taken for the later statement, the first let go of the hold, and the
+                // next "Accept all" deleted what had just been accepted. So the hold stands while
+                // the file is as the move left it, and goes only when it is seen to be something
+                // else: what the hold was keeping is then no longer there to keep
+                if (existing.Written &&
+                    ChangedSinceWritten(existing))
                 {
                     existing.Written = false;
+                    existing.WrittenAs = null;
                     Interlocked.Increment(ref restores);
                 }
 
                 return existing;
             });
+
+    /// <summary>
+    /// Whether a delete's file is seen to differ from what the move left. Not when either look
+    /// at it failed: a hold is let go on what is known, and kept on what is not.
+    /// </summary>
+    static bool ChangedSinceWritten(TrackedDelete delete) =>
+        delete.WrittenAs is { } written &&
+        Stamp(delete.File) is { } now &&
+        now != written;
+
+    static (long Length, DateTime Written)? Stamp(string file)
+    {
+        try
+        {
+            var info = new FileInfo(file);
+            if (!info.Exists)
+            {
+                return null;
+            }
+
+            return (info.Length, info.LastWriteTimeUtc);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Why an accept-all leaves a delete pending, where it would: null when it would carry it
@@ -759,8 +794,13 @@ class Tracker :
     /// other, and a second "Accept all" deleted the snapshot the first had just accepted. The same
     /// went for a move accepted on its own and an accept-all after it.
     /// </para>
+    /// <para>
+    /// It does not offer running the tests again, which used to let go of the hold: see
+    /// <see cref="AddDelete"/>. The price is that a delete a later run truly wants stays held
+    /// until it is accepted on its own.
+    /// </para>
     /// </summary>
-    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway, or run the tests again.";
+    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway.";
 
     /// <summary>
     /// A move still pending is going to write the file. Not remembered: it is true for as long as
@@ -773,6 +813,8 @@ class Tracker :
         if (deletes.TryGetValue(target, out var delete) &&
             !delete.Written)
         {
+            // The stamp first, so nobody finds the flag set and the stamp yet to be
+            delete.WrittenAs = Stamp(target);
             delete.Written = true;
             // A listing says why a delete is held, so this is a change to what one carries
             Interlocked.Increment(ref restores);

@@ -215,7 +215,7 @@ public class TrayViewerSyncTest
     /// and the window attached to it showed that delete like any other, with "1 kept" for an
     /// answer when it asked for an accept-all. The hold rides the listing, and is the entry's
     /// status: why while the move is pending, why once it has been accepted, and nothing once a
-    /// run raises the delete again - a change to a tracked object that is still the same object,
+    /// run raises the delete again over a file written since - a change to a tracked object that is still the same object,
     /// which the listing's tag has to move for all the same.
     /// </summary>
     [Test]
@@ -235,6 +235,13 @@ public class TrayViewerSyncTest
         await Assert.That(viewer.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {Tracker.DeletesKept([delete])}");
         await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
 
+        // Raised again over the file as the move left it, which a process that decided before
+        // the move was accepted does too: still held
+        pair.Tracker.AddDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        await File.WriteAllTextAsync(move.Target, "written by something else since");
         pair.Tracker.AddDelete(move.Target);
 
         await Assert.That(pair.Pump().Queue.Single().Status).IsNull();
@@ -1215,6 +1222,17 @@ public class TrayViewerSyncTest
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
         await Assert.That(response.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {ViewerSession.DeletesKept}");
         await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+
+        // Raised again over the file as the move left it, which a process that decided before
+        // the move was accepted does too: still held, as a tray holds it
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+
+        await File.WriteAllTextAsync(move.Target, "written by something else since");
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsNull();
     }
 
     /// <summary>
