@@ -1248,6 +1248,46 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A viewer that owns the queue throws its pending received files away a step at a time, and
+    /// none of its listings said it was doing so: a window attached to it, or a tray, saw the
+    /// queue shrink for no reason given. Listed from inside each delete, which is the discard
+    /// part way through, over the socket and into a window displaying that queue.
+    /// </summary>
+    [Test]
+    public async Task AnOwningViewersDiscardIsOnItsListings()
+    {
+        ViewerOwned? owned = null;
+        SessionHost? window = null;
+        OwnerLink? link = null;
+        var listed = new List<(int Done, int Total, bool Discarding)>();
+        var said = new List<string>();
+        owned = new(
+            deleting: _ =>
+            {
+                var progress = owned!.Send(new(ViewerVerb.ListFull)).Progress;
+                listed.Add(progress is null ? (-1, -1, false) : (progress.Done, progress.Total, progress.Discarding));
+                link!.Pump();
+                said.Add(window!.State.Progress?.Describe() ?? "nothing");
+            });
+        await using var pair = owned;
+        using var noTray = new NoTray();
+        window = new(SessionState.Start(ViewerMode.Inline));
+        link = new(window, pair.Port);
+        foreach (var move in new[] { pair.StageMove(), pair.StageMove() })
+        {
+            await File.WriteAllTextAsync(move.Target, "verified");
+            PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        }
+
+        var response = pair.Send(new(ViewerVerb.DiscardAll));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(listed).IsEquivalentTo([(0, 2, true), (1, 2, true)]);
+        await Assert.That(said).IsEquivalentTo(["Discarding 1 of 2", "Discarding 2 of 2"]);
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Progress).IsNull();
+    }
+
+    /// <summary>
     /// A tray that owns the queue answers these too, and routes them into the same tracked files
     /// the piper port fills. That is not theoretical: a test process that started before the tray
     /// has its tray check cached false for good, so its pending files arrive this way for the rest
@@ -1488,7 +1528,12 @@ public class TrayViewerSyncTest
     /// </summary>
     sealed class ViewerOwned : IAsyncDisposable
     {
-        public ViewerOwned(Func<ViewerSidePatch, ViewerSideApplyResult>? applier = null)
+        /// <param name="applier">What applying a snapshot answers, when not that it was applied.</param>
+        /// <param name="deleting">
+        /// Told of a file as it is about to be deleted, which for a bulk discard is the batch
+        /// part way through.
+        /// </param>
+        public ViewerOwned(Func<ViewerSidePatch, ViewerSideApplyResult>? applier = null, Action<string>? deleting = null)
         {
             if (!ViewerSideServer.TryBind(0, out var bound))
             {
@@ -1515,7 +1560,11 @@ public class TrayViewerSyncTest
                 // The real ones, so accepting a pending file here is the file operation itself
                 // rather than a recording of one.
                 MoveFile = ViewerActions.Real.MoveFile,
-                DeleteFile = ViewerActions.Real.DeleteFile
+                DeleteFile = _ =>
+                {
+                    deleting?.Invoke(_);
+                    ViewerActions.Real.DeleteFile(_);
+                }
             };
             var handler = new SessionMessageHandler(Window, actions, Windows.Enqueue);
             listening = server.Listen(handler.Handle, cancel.Token);

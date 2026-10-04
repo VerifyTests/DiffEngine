@@ -83,7 +83,8 @@ record ViewerResponse(
     /// <summary>
     /// How far the accept-all the owner is running has got, on a listing taken while one is, and
     /// null the rest of the time. A reader that predates it skips the line, as it skips any name it
-    /// does not know.
+    /// does not know. A bulk discard's too, with a <c>discarding</c> line beside the counts
+    /// (<see cref="AcceptProgress.Discarding"/>).
     /// </summary>
     public AcceptProgress? Progress { get; init; }
 
@@ -153,6 +154,13 @@ record ViewerResponse(
         {
             // Plain too: two counts
             builder.Append($"progress: {Progress.Build()}\n");
+            if (Progress.Discarding)
+            {
+                // A line of its own rather than a third count, which a reader that predates it
+                // would refuse the whole listing over. That reader skips this, and is left with
+                // a batch under way
+                builder.Append("discarding: true\n");
+            }
         }
 
         if (Written is { } written)
@@ -218,6 +226,7 @@ record ViewerResponse(
         WindowCommand? window = null;
         string? windowKey = null;
         AcceptProgress? progress = null;
+        var discarding = false;
         bool? written = null;
         string? tag = null;
         var unchanged = false;
@@ -254,6 +263,9 @@ record ViewerResponse(
                         return false;
                     }
 
+                    continue;
+                case "discarding":
+                    discarding = value == "true";
                     continue;
                 case "written":
                     written = value == "true";
@@ -370,7 +382,11 @@ record ViewerResponse(
         {
             Moves = moves,
             Deletes = deletes,
-            Progress = progress,
+            // After the loop, so the line does not have to follow the counts it is about. With
+            // no counts it says nothing
+            Progress = discarding && progress is not null
+                ? progress with { Discarding = true }
+                : progress,
             Written = written,
             Tag = tag,
             Unchanged = unchanged
