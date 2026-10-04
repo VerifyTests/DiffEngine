@@ -149,6 +149,12 @@ constexpr float minPaneCells = 12.0f;
 constexpr float grabWidth = 4.0f;
 
 /*
+ * The lines the managed side keeps for everything that is not a row of the body, which it takes
+ * off the rows it is told the window has. Keep in sync with ScreenBuilder.Chrome.
+ */
+constexpr int chromeRows = 8;
+
+/*
  * deview_init's fontSize is an em size, which is what Core Text and GDI+ take and therefore what
  * the other two heads render at. ImGui's stb_truetype loader scales by pixel height instead
  * (stbtt_ScaleForPixelHeight in imgui_draw.cpp), so the same 15 came out as an em of about 11 and
@@ -354,6 +360,10 @@ struct State
      * is what the grid reported to the managed side is counted in: see MeasureGrid. */
     float cellWidth = 0.0f;
     float lineHeight = 0.0f;
+
+    /* How many rows the body had room for in the last frame built for the window, above whatever
+     * footer that frame laid out, or -1 before there has been one: see MeasureGrid. */
+    int32_t bodyRows = -1;
 
     /* Whether the last screen carried a context menu, which is what makes Escape and a click
      * outside it a dismissal rather than what they would otherwise mean. */
@@ -2606,6 +2616,14 @@ int ReadKey(bool& escape)
  *
  * A row is one text line plus the spacing between rows, which is what the table the panes are
  * drawn in lays out on.
+ *
+ * And no more rows than the body has room for, with the lines the managed side takes off for
+ * everything else added back. That side keeps eight lines where this head's title, headers and one
+ * line of footer take under five, so a footer of two or three lines fits in what is over and the
+ * window's height in rows is the answer, as it always was. A taller one does not: a paged
+ * document's buttons come to four rows in a window under 450 pixels wide, and the body is given
+ * what the footer leaves, so the last rows the managed side sliced were under it. They are taken
+ * off here instead, counted from where the last frame put the body's first row and its bottom.
  */
 void MeasureGrid()
 {
@@ -2622,6 +2640,10 @@ void MeasureGrid()
     state.input.rows = height > 0.0f
         ? static_cast<int32_t>(static_cast<float>(GetScreenHeight()) / height)
         : 0;
+    if (state.bodyRows >= 0)
+    {
+        state.input.rows = std::min(state.input.rows, state.bodyRows + chromeRows);
+    }
 }
 
 /* ---- the frame ---- */
@@ -3530,13 +3552,12 @@ void BuildFrame(const DeviewScreen* screen)
     ImGui::Separator();
 
     /*
-     * Its height comes off the body, and the managed side is not asked for fewer rows to make up
-     * for it. That side keeps eight lines for everything that is not a row, where this head's
-     * title, headers and one line of footer take under five, so there are 62 pixels and more under
-     * the last row it slices. A second row of buttons takes 23 of them and a line for the status
-     * 17, and a third row of buttons on top of both is a pixel over at most. It is only past
-     * that - four rows, which a paged document's buttons come to in a window under 450 pixels
-     * wide - that the last rows of the body are cut off, behind a footer that can at least be read.
+     * Its height comes off the body. The managed side keeps eight lines for everything that is not
+     * a row, where this head's title, headers and one line of footer take under five, so there are
+     * 62 pixels and more under the last row it slices. A second row of buttons takes 23 of them
+     * and a line for the status 17, and a third row of buttons on top of both is a pixel over at
+     * most. Past that - four rows, which a paged document's buttons come to in a window under 450
+     * pixels wide - the managed side is asked for fewer rows: see MeasureGrid.
      */
     const Footer footer = LayOutFooter(screen, ImGui::GetContentRegionAvail().x);
 
@@ -3736,6 +3757,17 @@ void BuildFrame(const DeviewScreen* screen)
         }
 
         ImGui::EndTable();
+    }
+
+    if (!state.capturing)
+    {
+        /* What MeasureGrid holds the rows it reports to: how many of them there is room for
+         * between the body's first and its bottom, which is where the footer begins. Unknown for
+         * a frame with no rows, which says nothing about where one would be. */
+        const float pitch = leftHit.pitch > 0.0f ? leftHit.pitch : ImGui::GetTextLineHeightWithSpacing();
+        state.bodyRows = leftHit.first >= 0.0f && pitch > 0.0f
+            ? std::max(0, static_cast<int32_t>((bodyMin.y + bodyAvail.y - leftHit.first) / pitch))
+            : -1;
     }
 
     if (screen->paneCount >= 2)

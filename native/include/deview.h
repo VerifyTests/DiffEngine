@@ -294,6 +294,15 @@ typedef struct DeviewInput {
      * The window size in character cells, not pixels. Measured here from the font that was
      * actually loaded, because this side is the only one that knows it. Reporting pixels and
      * having the managed side divide by a constant is what left the viewer with no DPI handling.
+     *
+     * rows is the window's height in rows, and no more than the body has room for with the eight
+     * lines the managed side keeps for everything that is not a row (ScreenBuilder.Chrome) added
+     * back. Those eight lines are more than a title, the headers and a footer of one row take, and
+     * a footer that fits in what is over costs nothing. One that does not - buttons that wrap onto
+     * a third and fourth row in a narrow window - is laid out over the bottom of the body, so the
+     * rows it covers are taken off here, and the managed side slices a body that ends above it.
+     * Counted from the last frame laid out for the window, the only place a footer's height is
+     * known.
      */
     int32_t columns;
     int32_t rows;
@@ -402,8 +411,11 @@ typedef struct DeviewPlacement {
  *     widened array element again, in the same bump because they shipped together.
  *     And DeviewInput reports a right-click over a pane, which DeviewScreen answers with a menu
  *     that names the pane rather than a queue row.
+ * 12: DeviewInput.rows is fewer than the window's height in rows where the footer is taller than
+ *     the managed side allows for, by the rows of the body that footer covers. No struct moved:
+ *     what a field means did, and a library from before reports rows that a tall footer hides.
  */
-#define DEVIEW_VERSION 11
+#define DEVIEW_VERSION 12
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

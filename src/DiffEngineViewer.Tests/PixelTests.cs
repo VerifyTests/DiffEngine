@@ -647,6 +647,77 @@ public class PixelTests
         await Assert.That(shown).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// A footer taller than the lines the model keeps for it takes its rows from the body: the
+    /// Linux head reports fewer rows for a window whose footer is that tall, and the screen built
+    /// for what it reports ends above the footer. It reported the window's height in rows whatever
+    /// the footer came to, so the last rows of the body were sliced, handed over and laid out
+    /// under the buttons.
+    /// <para>
+    /// The rows are asked of the window, shown for as long as that takes, since a capture measures
+    /// nothing: first with the one row of buttons a pair of files has, which fits in what the
+    /// model allows, and then with those buttons eight times over, which is five rows. That is
+    /// more than any real screen has at this width, and is what a paged document has in a window
+    /// under 450 pixels wide, a size the one window these tests share is never given. The picture
+    /// is the second screen, built for the rows the window reported for it: forty lines a side,
+    /// of which the last one sliced is the one above the footer.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 23)]
+    [SkipOnMac("A capture host never creates the macOS window, and it is the window whose rows are measured.")]
+    public async Task ATallFooterTakesRowsFromTheBody()
+    {
+        const int measuredRows = height / 17;
+        var state = ViewerSession.Resize(Fixtures.File(Fixtures.Long(true), Fixtures.Long(false)), columns, measuredRows);
+        var (fitting, tall) = await OnShimThread(
+            () =>
+            {
+                window!.SetHidden(false);
+                try
+                {
+                    return (Measured(ScreenBuilder.Build(state)), Measured(TallFooter(state)));
+                }
+                finally
+                {
+                    window.SetHidden(true);
+                }
+            });
+
+        await Assert.That(fitting).IsEqualTo(measuredRows);
+        await Assert.That(tall).IsLessThan(measuredRows);
+        await Capture(TallFooter(ViewerSession.Resize(state, columns, tall)));
+    }
+
+    /// <summary>
+    /// The rows the window reports once it has laid a screen out. Three presents, since a table
+    /// can take a second frame to settle on where its rows are.
+    /// </summary>
+    static int Measured(Screen screen)
+    {
+        for (var frame = 0; frame < 3; frame++)
+        {
+            window!.Present(screen);
+        }
+
+        return window!.Poll().Rows;
+    }
+
+    static Screen TallFooter(SessionState state)
+    {
+        var screen = ScreenBuilder.Build(state);
+        return screen with
+        {
+            Buttons =
+            [
+                .. Enumerable
+                    .Range(1, 8)
+                    .SelectMany(_ => screen.Buttons.Select(button => button with {Label = $"{button.Label} {_}"}))
+            ]
+        };
+    }
+
     static uint drawnQuery;
 
     /// <summary>
@@ -702,9 +773,11 @@ public class PixelTests
         public static extern void GetQueryObject(uint id, uint name, out uint value);
     }
 
-    static async Task Capture(SessionState state, int gridRows = rows)
+    static Task Capture(SessionState state, int gridRows = rows) =>
+        Capture(ScreenBuilder.Build(ViewerSession.Resize(state, columns, gridRows)));
+
+    static async Task Capture(Screen screen)
     {
-        var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, gridRows));
         var path = Path.Combine(Path.GetTempPath(), $"deview-{Guid.NewGuid():N}.png");
         try
         {

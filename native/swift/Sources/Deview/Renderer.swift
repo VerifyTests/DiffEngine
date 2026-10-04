@@ -43,6 +43,14 @@ final class Renderer {
     /// line lands in the same column in both.
     private static let gutterCells: CGFloat = 8
 
+    /// The lines the managed side keeps for everything that is not a row of the body, which it
+    /// takes off the rows it is told the window has. Keep in sync with ScreenBuilder.Chrome.
+    private static let chromeRows = 8
+
+    /// How many rows the body had room for in the window's last draw, above whatever footer that
+    /// draw laid out, and the size the window was then. Nil before there has been one: see `grid`.
+    private var room: (size: CGSize, rows: Int)?
+
     private let font: CTFont
     private let ascent: CGFloat
     private let descent: CGFloat
@@ -370,8 +378,21 @@ final class Renderer {
 
     /// The window size in character cells, which is what version 2 of the ABI reports. Net of the
     /// scroller, because a column the scroller is sitting on is not a column the diff can use.
+    ///
+    /// And no more rows than the body has room for, with the lines the managed side takes off for
+    /// everything else added back. That side keeps eight lines, which is 64 points more than this
+    /// head's title, headers and a footer of one row take, so a footer of three rows of buttons,
+    /// or two and a status line, fits in what is over and the window's height in rows is the
+    /// answer, as it always was. A taller one does not, and the body ends where the footer
+    /// begins, so the last one or two rows the managed side sliced were not drawn. They are taken
+    /// off here instead, counted by the window's last draw, when that was at this size.
     func grid(for size: CGSize) -> (columns: Int32, rows: Int32) {
-        (Int32(max(0, size.width - rightInset) / cell.width), Int32(size.height / cell.height))
+        var rows = Int(size.height / cell.height)
+        if let room, room.size == size {
+            rows = min(rows, room.rows + Renderer.chromeRows)
+        }
+
+        return (Int32(max(0, size.width - rightInset) / cell.width), Int32(rows))
     }
 
     /// `capturing` decodes and scales pictures here and now, and stands a spinner still: a capture
@@ -450,7 +471,14 @@ final class Renderer {
         // Before the body, which ends where the footer begins. The footer is as tall as its
         // buttons take, and that is more than one row of them once they are wider than the window.
         let placed = place(frame, width: size.width, line: line)
-        let capacity = max(1, Int((size.height - bodyTop - placed.height - Renderer.padding) / line))
+        let fits = Int(max(0, size.height - bodyTop - placed.height - Renderer.padding) / line)
+        let capacity = max(1, fits)
+        // What `grid` holds the rows it reports to. Not a capture's, which is drawn at a size of
+        // its own and is no window.
+        if !capturing {
+            room = (size: size, rows: fits)
+        }
+
         let rows = min(capacity, max(frame.queue.count, max(frame.left.rows.count, frame.right.rows.count)))
 
         for index in 0 ..< rows {
