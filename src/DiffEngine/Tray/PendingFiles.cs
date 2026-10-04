@@ -48,42 +48,61 @@ static class PendingFiles
         DiffEngineTray.IsRunning &&
         !DiffRunner.TrayDisabled;
 
-    public static void AddDelete(string file)
+    /// <summary>
+    /// <paramref name="source" /> is the received file of the pending move this delete was derived
+    /// from, or null: a page a document no longer has, whose document is pending. It rides both
+    /// sends. It does not ride the launch, which has only a command line an older copy has to be
+    /// able to read: a delete that had to start its own viewer is held as an ordinary one.
+    /// </summary>
+    public static void AddDelete(string file, string? source = null)
     {
         if (TrayAvailable &&
-            PiperClient.SendDelete(file))
+            PiperClient.SendDelete(file, source))
         {
             return;
         }
 
-        if (ViewerClient.TrySend(new(ViewerVerb.Delete, file)))
+        if (ViewerClient.TrySend(Delete(file, source)))
         {
             return;
         }
 
         ViewerLaunchGate.Launch(
-            () => ViewerClient.TrySend(new(ViewerVerb.Delete, file)),
+            () => ViewerClient.TrySend(Delete(file, source)),
             () => ViewerLauncher.LaunchDelete(file));
     }
 
-    public static async Task AddDeleteAsync(string file, Cancel cancel)
+    /// <inheritdoc cref="AddDelete"/>
+    public static async Task AddDeleteAsync(string file, Cancel cancel, string? source = null)
     {
         if (TrayAvailable &&
-            await PiperClient.SendDeleteAsync(file, cancel))
+            await PiperClient.SendDeleteAsync(file, cancel, source))
         {
             return;
         }
 
-        if (await ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel))
+        if (await ViewerClient.TrySendAsync(Delete(file, source), cancel))
         {
             return;
         }
 
         await ViewerLaunchGate.LaunchAsync(
-            () => ViewerClient.TrySendAsync(new(ViewerVerb.Delete, file), cancel),
+            () => ViewerClient.TrySendAsync(Delete(file, source), cancel),
             () => Task.FromResult(ViewerLauncher.LaunchDelete(file)),
             cancel);
     }
+
+    static ViewerMessage Delete(string file, string? source) =>
+        new(ViewerVerb.Delete, file)
+        {
+            Source = source
+        };
+
+    static ViewerMessage Pair(ViewerVerb verb, string tempFile, string targetFile, string? source) =>
+        new(verb, tempFile, targetFile)
+        {
+            Source = source
+        };
 
     /// <summary>
     /// A failing pair whose resolved diff tool is the viewer itself.
@@ -116,14 +135,19 @@ static class PendingFiles
     /// that viewer does not know the tray's files, so the focus can never find the key. The pair is
     /// tracked on both sides there rather than shown by neither.
     /// </para>
+    /// <para>
+    /// <paramref name="source" /> is what the pair was derived from, when the viewer is the tool
+    /// for a file whose source it is not drawing: it rides every send, and not the launch, as on
+    /// <see cref="AddDelete" />.
+    /// </para>
     /// </summary>
-    public static LaunchResult AddDiff(ResolvedTool tool, string tempFile, string targetFile)
+    public static LaunchResult AddDiff(ResolvedTool tool, string tempFile, string targetFile, string? source = null)
     {
         // No process, and the arguments and CanKill from the one place that answers that, because
         // the tray works out the same two values for itself when a move arrives without them.
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
-            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null) &&
+            PiperClient.SendMove(tempFile, targetFile, tool.ExePath, arguments, canKill, null, source) &&
             ViewerClient.TrySend(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile), ViewerMessage.Arrived)))
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
@@ -131,16 +155,16 @@ static class PendingFiles
 
         // A port recently found unowned is not asked again: the gate below probes for itself
         // before launching, and its probe corrects the memory when an owner has arrived since
-        if (ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile), out var response, skipIfUnowned: true))
+        if (ViewerClient.TrySend(Pair(ViewerVerb.Diff, tempFile, targetFile, source), out var response, skipIfUnowned: true))
         {
             return response.Ok
                 ? LaunchResult.AlreadyRunningAndSupportsRefresh
-                : Refused(tempFile, targetFile);
+                : Refused(tempFile, targetFile, source);
         }
 
         return Launched(
             ViewerLaunchGate.Launch(
-                () => ViewerClient.TrySend(new(ViewerVerb.Diff, tempFile, targetFile)),
+                () => ViewerClient.TrySend(Pair(ViewerVerb.Diff, tempFile, targetFile, source)),
                 () => ViewerLauncher.LaunchDiff(tempFile, targetFile)));
     }
 
@@ -172,23 +196,23 @@ static class PendingFiles
     /// second viewer cannot change that answer and would bind nothing, so the pair goes over as a
     /// plain move: a row with nothing raised over it, which every owner has always understood.
     /// </summary>
-    static LaunchResult Refused(string tempFile, string targetFile) =>
-        ViewerClient.TrySend(new(ViewerVerb.Move, tempFile, targetFile))
+    static LaunchResult Refused(string tempFile, string targetFile, string? source) =>
+        ViewerClient.TrySend(Pair(ViewerVerb.Move, tempFile, targetFile, source))
             ? LaunchResult.AlreadyRunningAndSupportsRefresh
             : LaunchResult.NoDiffToolFound;
 
     /// <inheritdoc cref="AddDiff"/>
-    public static async Task<LaunchResult> AddDiffAsync(ResolvedTool tool, string tempFile, string targetFile, Cancel cancel)
+    public static async Task<LaunchResult> AddDiffAsync(ResolvedTool tool, string tempFile, string targetFile, Cancel cancel, string? source = null)
     {
         var (arguments, canKill) = RelaunchFor(tool, tempFile, targetFile);
         if (TrayAvailable &&
-            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel) &&
+            await PiperClient.SendMoveAsync(tempFile, targetFile, tool.ExePath, arguments, canKill, null, cancel, source) &&
             await ViewerClient.TrySendAsync(new(ViewerVerb.Focus, TrackedKeys.ForMove(tempFile), ViewerMessage.Arrived), cancel))
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
         }
 
-        var outcome = await ViewerClient.SendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel, skipIfUnowned: true);
+        var outcome = await ViewerClient.SendAsync(Pair(ViewerVerb.Diff, tempFile, targetFile, source), cancel, skipIfUnowned: true);
         if (outcome == SendOutcome.Accepted)
         {
             return LaunchResult.AlreadyRunningAndSupportsRefresh;
@@ -196,16 +220,77 @@ static class PendingFiles
 
         if (outcome == SendOutcome.Refused)
         {
-            return await ViewerClient.TrySendAsync(new(ViewerVerb.Move, tempFile, targetFile), cancel)
+            return await ViewerClient.TrySendAsync(Pair(ViewerVerb.Move, tempFile, targetFile, source), cancel)
                 ? LaunchResult.AlreadyRunningAndSupportsRefresh
                 : LaunchResult.NoDiffToolFound;
         }
 
         return Launched(
             await ViewerLaunchGate.LaunchAsync(
-                () => ViewerClient.TrySendAsync(new(ViewerVerb.Diff, tempFile, targetFile), cancel),
+                () => ViewerClient.TrySendAsync(Pair(ViewerVerb.Diff, tempFile, targetFile, source), cancel),
                 () => Task.FromResult(ViewerLauncher.LaunchDiff(tempFile, targetFile)),
                 cancel));
+    }
+
+    /// <summary>
+    /// Whether <paramref name="tool" /> will show <paramref name="file" /> as a document: its text,
+    /// and its pages drawn. That is the viewer, a copy of it that has its documents folder, and a
+    /// file of a type that folder reads.
+    /// <para>
+    /// It is what decides whether a file derived from <paramref name="file" /> needs a window of
+    /// its own (see <see cref="AddDerived" />). A page of a document the viewer is drawing is
+    /// already on screen, beside the page it replaces. The same page beside a document Word or
+    /// Beyond Compare is showing, or beside a text file the viewer is showing as text, is not, and
+    /// is opened as it always has been.
+    /// </para>
+    /// </summary>
+    public static bool Draws(ResolvedTool tool, string file) =>
+        IsViewer(tool) &&
+        DocumentExtensions.Is(file) &&
+        ViewerDocuments.ReadBy(tool);
+
+    /// <summary>
+    /// A pending file derived from a document the viewer is drawing: tracked, and nothing opened
+    /// for it. True when something took it, and false when nothing did, which leaves the caller
+    /// to open it as any other pair.
+    /// <para>
+    /// Tracked as a pair the viewer shows, on both routes. To a tray that means the viewer's own
+    /// executable and the arguments <see cref="AddDiff" /> sends, so the pair counts as open - the
+    /// window it is drawn in is on screen - and "accept all open" takes the pages with the
+    /// document rather than leaving them behind, and "open diff tool" raises the queue the row is
+    /// in. Without the focus <see cref="AddDiff" /> follows that with: the document has the
+    /// window, and this row sits beneath it.
+    /// </para>
+    /// <para>
+    /// Never through the launch gate. The source went first, and its own send held the gate until
+    /// a viewer had the queue, so nobody answering here means the source is in no viewer either:
+    /// capped, failed to start, or closed since. A viewer started for a page could not be told
+    /// what the page was derived from, which is the only reason to start one for it.
+    /// </para>
+    /// </summary>
+    public static bool AddDerived(ResolvedTool viewer, string tempFile, string targetFile, string source)
+    {
+        var (arguments, canKill) = RelaunchFor(viewer, tempFile, targetFile);
+        if (TrayAvailable &&
+            PiperClient.SendMove(tempFile, targetFile, viewer.ExePath, arguments, canKill, null, source))
+        {
+            return true;
+        }
+
+        return ViewerClient.TrySend(Pair(ViewerVerb.Move, tempFile, targetFile, source));
+    }
+
+    /// <inheritdoc cref="AddDerived"/>
+    public static async Task<bool> AddDerivedAsync(ResolvedTool viewer, string tempFile, string targetFile, string source, Cancel cancel)
+    {
+        var (arguments, canKill) = RelaunchFor(viewer, tempFile, targetFile);
+        if (TrayAvailable &&
+            await PiperClient.SendMoveAsync(tempFile, targetFile, viewer.ExePath, arguments, canKill, null, cancel, source))
+        {
+            return true;
+        }
+
+        return await ViewerClient.TrySendAsync(Pair(ViewerVerb.Move, tempFile, targetFile, source), cancel);
     }
 
     /// <summary>
@@ -312,23 +397,30 @@ static class PendingFiles
         return (tool.GetArguments(temp, target), !tool.IsMdi);
     }
 
+    /// <summary>
+    /// <paramref name="source" /> is the received file of the pending move this one was derived
+    /// from, or null. Here it is only said, to whoever tracks the pair: the tool that opened a
+    /// window for it has opened it already.
+    /// </summary>
     public static void AddMove(
         string tempFile,
         string targetFile,
         string? exe,
         string? arguments,
         bool canKill,
-        int? processId)
+        int? processId,
+        string? source = null)
     {
         if (TrayAvailable &&
-            PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId))
+            PiperClient.SendMove(tempFile, targetFile, exe, arguments, canKill, processId, source))
         {
             return;
         }
 
-        ViewerClient.TrySend(new(ViewerVerb.Move, tempFile, targetFile));
+        ViewerClient.TrySend(Pair(ViewerVerb.Move, tempFile, targetFile, source));
     }
 
+    /// <inheritdoc cref="AddMove"/>
     public static async Task AddMoveAsync(
         string tempFile,
         string targetFile,
@@ -336,14 +428,15 @@ static class PendingFiles
         string? arguments,
         bool canKill,
         int? processId,
-        Cancel cancel)
+        Cancel cancel,
+        string? source = null)
     {
         if (TrayAvailable &&
-            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel))
+            await PiperClient.SendMoveAsync(tempFile, targetFile, exe, arguments, canKill, processId, cancel, source))
         {
             return;
         }
 
-        await ViewerClient.TrySendAsync(new(ViewerVerb.Move, tempFile, targetFile), cancel);
+        await ViewerClient.TrySendAsync(Pair(ViewerVerb.Move, tempFile, targetFile, source), cancel);
     }
 }

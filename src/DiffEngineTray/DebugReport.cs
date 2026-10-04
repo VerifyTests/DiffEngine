@@ -48,6 +48,7 @@ static class DebugReport
             AppendEntry(builder, index, delete.Name);
             AppendField(builder, "File", WithExistence(delete.File));
             AppendField(builder, "Group", delete.Group);
+            AppendSource(builder, delete.Source);
             // Only where there is one: why "Accept all" would leave this delete pending
             if (tracker.HeldReason(delete) is { } held)
             {
@@ -64,6 +65,7 @@ static class DebugReport
             AppendField(builder, "Target", WithExistence(move.Target));
             AppendField(builder, "Extension", move.Extension);
             AppendField(builder, "Group", move.Group);
+            AppendSource(builder, move.Source);
             AppendField(builder, "Exe", move.Exe);
             AppendField(builder, "Arguments", move.Arguments);
             AppendField(builder, "CanKill", move.CanKill);
@@ -87,6 +89,22 @@ static class DebugReport
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// What a move or a delete was derived from, only where it was derived from something: a page
+    /// of a document that is pending too. With whether that file is there, since a source that has
+    /// gone is one whose pages a viewer has stopped showing beneath it.
+    /// <para>
+    /// Not labelled Source, which a snapshot below already uses for the file its literal is in.
+    /// </para>
+    /// </summary>
+    static void AppendSource(StringBuilder builder, string? source)
+    {
+        if (source != null)
+        {
+            AppendField(builder, "DerivedFrom", WithExistence(source));
+        }
     }
 
     /// <summary>

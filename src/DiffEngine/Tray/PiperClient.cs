@@ -2,25 +2,45 @@
 {
     public static int Port = 3492;
 
-    public static bool SendDelete(string file) =>
-        Send(BuildDeletePayload(file));
+    public static bool SendDelete(string file, string? source = null) =>
+        Send(BuildDeletePayload(file, source));
 
     public static Task<bool> SendDeleteAsync(
         string file,
-        Cancel cancel = default)
+        Cancel cancel = default,
+        string? source = null)
     {
-        var payload = BuildDeletePayload(file);
+        var payload = BuildDeletePayload(file, source);
         return SendAsync(payload, cancel);
     }
 
-    static string BuildDeletePayload(string file) =>
-        $$"""
-          {
-          "Type":"Delete",
-          "File":"{{file.JsonEscape()}}"
-          }
+    /// <summary>
+    /// <paramref name="source" /> is the received file of the pending move this delete was derived
+    /// from: see <see cref="BuildMovePayload" />, where it rides the same way.
+    /// </summary>
+    public static string BuildDeletePayload(string file, string? source = null)
+    {
+        // The payload every tray has always been sent, to the byte, when there is no source
+        if (source == null)
+        {
+            return $$"""
+                     {
+                     "Type":"Delete",
+                     "File":"{{file.JsonEscape()}}"
+                     }
 
-          """;
+                     """;
+        }
+
+        return $$"""
+                 {
+                 "Type":"Delete",
+                 "File":"{{file.JsonEscape()}}",
+                 "Source":"{{source.JsonEscape()}}"
+                 }
+
+                 """;
+    }
 
     public static bool SendMove(
         string tempFile,
@@ -28,8 +48,9 @@
         string? exe,
         string? arguments,
         bool canKill,
-        int? processId) =>
-        Send(BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId));
+        int? processId,
+        string? source = null) =>
+        Send(BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId, source));
 
     public static Task<bool> SendMoveAsync(
         string tempFile,
@@ -38,13 +59,29 @@
         string? arguments,
         bool canKill,
         int? processId,
-        Cancel cancel = default)
+        Cancel cancel = default,
+        string? source = null)
     {
-        var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId);
+        var payload = BuildMovePayload(tempFile, targetFile, exe, arguments, canKill, processId, source);
         return SendAsync(payload, cancel);
     }
 
-    public static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId)
+    /// <summary>
+    /// <paramref name="source" /> is the received file of the pending move this one was derived
+    /// from, or null: a page of a document whose document is pending too.
+    /// <para>
+    /// A property added to the payload a tray already reads, rather than a payload type of its
+    /// own, and that is the point of it. A tray from before it skips a property it has no member
+    /// for - as every tray skips <c>Type</c>, which it reads by substring - and tracks the move
+    /// as the ordinary one it also is. A type it did not know would be logged and dropped, and
+    /// this send is fire and forget: the file would be pending in nothing, with no way to tell.
+    /// </para>
+    /// <para>
+    /// Last, and absent rather than null when there is none, so the payload a move with no source
+    /// sends is the one it always has been.
+    /// </para>
+    /// </summary>
+    public static string BuildMovePayload(string tempFile, string targetFile, string? exe, string? arguments, bool canKill, int? processId, string? source = null)
     {
         var builder = new StringBuilder(
             $$"""
@@ -71,6 +108,15 @@
                 $"""
                  ,
                  "ProcessId":{processId}
+                 """);
+        }
+
+        if (source != null)
+        {
+            builder.Append(
+                $"""
+                 ,
+                 "Source":"{source.JsonEscape()}"
                  """);
         }
 

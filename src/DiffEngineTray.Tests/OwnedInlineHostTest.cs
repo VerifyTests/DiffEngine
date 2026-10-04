@@ -685,11 +685,22 @@ public class OwnedInlineHostTest
 
         public List<string> Added { get; } = [];
 
-        public void AddMove(string temp, string target) =>
-            Added.Add($"move {temp} > {target}");
+        public void AddMove(string temp, string target, string? source) =>
+            Added.Add($"move {temp} > {target}{From(source)}");
 
-        public void AddDelete(string file) =>
-            Added.Add($"delete {file}");
+        public void AddDelete(string file, string? source) =>
+            Added.Add($"delete {file}{From(source)}");
+
+        // Nothing where there is none, so a file with no source is recorded as it always was
+        static string From(string? source)
+        {
+            if (source is null)
+            {
+                return "";
+            }
+
+            return $" from {source}";
+        }
 
         public List<string> Untracked { get; } = [];
 

@@ -37,7 +37,7 @@ public class TrackerMoveOntoDeleteTest :
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(verified);
 
-        ((ITrackedFiles) tracker).AddMove(received, verified);
+        ((ITrackedFiles) tracker).AddMove(received, verified, null);
 
         await Assert.That(tracker.Deletes).IsEmpty();
     }

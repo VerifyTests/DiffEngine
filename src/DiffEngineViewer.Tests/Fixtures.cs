@@ -164,11 +164,13 @@ static class Fixtures
         string name = "Sample.Test (txt)",
         string? solution = null,
         string left = Received,
-        string right = Expected) =>
+        string right = Expected,
+        string? sourceKey = null) =>
         QueueEntry.ForMove(
             $"move:temp/{name}",
             name,
             solution,
+            sourceKey,
             "temp/sample.received.txt",
             "code/sample.verified.txt",
             FileSide.OfText(left),
@@ -177,11 +179,13 @@ static class Fixtures
     public static QueueEntry Delete(
         string name = "extra.verified.txt",
         string? solution = null,
-        string content = Expected) =>
+        string content = Expected,
+        string? sourceKey = null) =>
         QueueEntry.ForDelete(
             $"delete:code/{name}",
             name,
             solution,
+            sourceKey,
             $"code/{name}",
             FileSide.OfText(content));
 
@@ -255,8 +259,8 @@ static class Fixtures
     /// </summary>
     public static SessionState Document()
     {
-        var leftPage = WriteImage("page.received.png", SamplePng.Build(200, 260, 198, 64, 64));
-        var rightPage = WriteImage("page.verified.png", SamplePng.Build(200, 260, 64, 150, 198));
+        var leftPage = receivedPage.Value;
+        var rightPage = verifiedPage.Value;
         var left = new DocumentFile("sample.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
         var right = new DocumentFile("sample.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
         var state = ViewerSession.EnqueueFile(
@@ -284,8 +288,8 @@ static class Fixtures
     /// </summary>
     public static SessionState DocumentInQueue()
     {
-        var leftPage = WriteImage("page.received.png", SamplePng.Build(200, 260, 198, 64, 64));
-        var rightPage = WriteImage("page.verified.png", SamplePng.Build(200, 260, 64, 150, 198));
+        var leftPage = receivedPage.Value;
+        var rightPage = verifiedPage.Value;
         var left = new DocumentFile("temp/sample.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
         var right = new DocumentFile("code/sample.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
         var state = ViewerSession.EnqueueTracked(
@@ -294,6 +298,7 @@ static class Fixtures
                 "move:temp/sample.received.pdf",
                 "Sample.Test (pdf)",
                 null,
+                null,
                 "temp/sample.received.pdf",
                 "code/sample.verified.pdf",
                 new(Long(false), null, null, null, left),
@@ -301,6 +306,108 @@ static class Fixtures
         state = ViewerSession.Rendered(state, "AA", new([new(leftPage, 200, 260, "LEFT")], true));
         return ViewerSession.Rendered(state, "BB", new([new(rightPage, 200, 260, "RIGHT")], true));
     }
+
+    /// <summary>
+    /// The key of the document <see cref="DocumentMove"/> builds, which is what a file derived
+    /// from it names as its source.
+    /// </summary>
+    public const string DocumentKey = "move:temp/Sample.Test.received.pdf";
+
+    /// <summary>
+    /// A document as a pending move, named and keyed the way a tracked one is: by its verified
+    /// file, so what is derived from it reads as that name and something more.
+    /// </summary>
+    public static QueueEntry DocumentMove(string? solution = null)
+    {
+        var left = new DocumentFile("temp/Sample.Test.received.pdf", 1_234, DocumentFormat.Pdf, "AA");
+        var right = new DocumentFile("code/Sample.Test.verified.pdf", 1_240, DocumentFormat.Pdf, "BB");
+        return QueueEntry.ForMove(
+            DocumentKey,
+            "Sample.Test (pdf)",
+            solution,
+            null,
+            "temp/Sample.Test.received.pdf",
+            "code/Sample.Test.verified.pdf",
+            new(Long(false), null, null, null, left),
+            new(Long(true), null, null, null, right));
+    }
+
+    /// <summary>
+    /// A file a snapshot library split out of <see cref="DocumentMove"/>, as a pending move of its
+    /// own that says so: <c>#page_0001</c> and <c>png</c> for a page drawn, an empty suffix and
+    /// <c>txt</c> for what was read out of the whole document.
+    /// </summary>
+    public static QueueEntry DerivedMove(
+        string suffix,
+        string extension,
+        string? solution = null,
+        string? sourceKey = DocumentKey,
+        string left = Received,
+        string right = Expected) =>
+        QueueEntry.ForMove(
+            $"move:temp/Sample.Test{suffix}.received.{extension}",
+            $"Sample.Test{suffix} ({extension})",
+            solution,
+            sourceKey,
+            $"temp/Sample.Test{suffix}.received.{extension}",
+            $"code/Sample.Test{suffix}.verified.{extension}",
+            FileSide.OfText(left),
+            FileSide.OfText(right));
+
+    /// <summary>
+    /// A page the document no longer has: the pending delete of the file it used to be.
+    /// </summary>
+    public static QueueEntry DerivedDelete(
+        string suffix,
+        string extension,
+        string? solution = null,
+        string? sourceKey = DocumentKey) =>
+        QueueEntry.ForDelete(
+            $"delete:code/Sample.Test{suffix}.verified.{extension}",
+            $"Sample.Test{suffix}.verified.{extension}",
+            solution,
+            sourceKey,
+            $"code/Sample.Test{suffix}.verified.{extension}",
+            FileSide.OfText(Expected));
+
+    /// <summary>
+    /// What one failing document test leaves in a queue this process owns: the document, the
+    /// files derived from it - two pages drawn, the text of one, what was read out of the whole
+    /// document, and a page it has lost - and one pending file of some other test after them.
+    /// <para>
+    /// The derived files arrive out of order, as they do over a tray's port, so where they end up
+    /// is the queue's doing. The document has its page drawn, as <see cref="DocumentInQueue"/>
+    /// has, so a screen of it says which page it is on rather than that it is still drawing.
+    /// </para>
+    /// </summary>
+    public static SessionState DocumentWithDerived()
+    {
+        var leftPage = receivedPage.Value;
+        var rightPage = verifiedPage.Value;
+        var state = SessionState.Start(ViewerMode.Inline, Columns, Rows);
+        QueueEntry[] arrivals =
+        [
+            DocumentMove(),
+            DerivedMove("#page_0002", "png"),
+            DerivedDelete("#page_0003", "png"),
+            DerivedMove("#page_0001", "txt"),
+            DerivedMove("#page_0001", "png"),
+            DerivedMove("", "txt"),
+            Move("Other.Test (txt)")
+        ];
+        foreach (var entry in arrivals)
+        {
+            state = ViewerSession.EnqueueTracked(state, entry);
+        }
+
+        state = ViewerSession.Rendered(state, "AA", new([new(leftPage, 200, 260, "LEFT")], true));
+        return ViewerSession.Rendered(state, "BB", new([new(rightPage, 200, 260, "RIGHT")], true));
+    }
+
+    // The page every document scene draws, written once: the scenes are built by tests running
+    // side by side, and a second write of the same file would meet the first.
+    static readonly Lazy<string> receivedPage = new(() => WriteImage("page.received.png", SamplePng.Build(200, 260, 198, 64, 64)));
+    static readonly Lazy<string> verifiedPage = new(() => WriteImage("page.verified.png", SamplePng.Build(200, 260, 64, 150, 198)));
 
     static string WriteImage(string name, byte[] content)
     {

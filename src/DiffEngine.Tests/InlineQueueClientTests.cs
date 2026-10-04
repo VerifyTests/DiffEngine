@@ -377,11 +377,11 @@ public class InlineQueueClientTests
             }
         }
 
-        void IQueueOwner.TrackMove(string temp, string target)
+        void IQueueOwner.TrackMove(string temp, string target, string? source)
         {
         }
 
-        void IQueueOwner.TrackDelete(string file)
+        void IQueueOwner.TrackDelete(string file, string? source)
         {
         }
 

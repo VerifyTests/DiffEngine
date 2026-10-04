@@ -67,6 +67,7 @@ public class TrackedLabelTests
             $"move:{project}",
             "sample.verified.txt",
             "SolutionA",
+            null,
             $"temp/{project}/sample.received.txt",
             $"code/SolutionA/{project}/sample.verified.txt",
             FileSide.OfText("received"),
@@ -77,6 +78,7 @@ public class TrackedLabelTests
             $"delete:{project}",
             "extra.verified.txt",
             "SolutionA",
+            null,
             $"code/SolutionA/{project}/extra.verified.txt",
             FileSide.OfText("expected"));
 }

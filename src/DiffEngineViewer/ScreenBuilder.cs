@@ -332,10 +332,13 @@ static class ScreenBuilder
             _ => "Accept"
         };
 
+        // And with how many files go with it, where the entry is a document with its pages beneath
+        // it: accepting it accepts those, and a button that takes seven files says so
+        var derived = current is null ? 0 : QueueProjection.DerivedCount(state.Queue, state.Selected);
         var buttons = new List<Button>
         {
-            new(accept, enabled, CommandKind.Accept),
-            new("Discard", enabled, CommandKind.Discard),
+            new(ContextMenu.WithDerived(accept, derived), enabled, CommandKind.Accept),
+            new(ContextMenu.WithDerived("Discard", derived), enabled, CommandKind.Discard),
             // Enabled from one, not two. Shift+A has always accepted a queue of one, and a button
             // that refuses what the key it names does reads as a bug rather than a nicety.
             new("Accept all", state.Queue.Count > 0 && idle, CommandKind.AcceptAll)

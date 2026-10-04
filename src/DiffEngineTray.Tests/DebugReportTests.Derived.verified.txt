@@ -1,0 +1,42 @@
+﻿DiffEngineTray TheVersion
+Captured: 2024-10-01 13:45:30
+Inline queue: owned by another process on port {Port}
+Tracking: True
+
+Deletes (1)
+-----------
+[1] Sample.Test#page_0002.verified.png
+    File:               {Directory}\Sample.Test#page_0002.verified.png (exists)
+    Group:              <null>
+    DerivedFrom:        {Directory}\Sample.Test.received.pdf (exists)
+
+Moves (2)
+---------
+[1] Sample.Test
+    Temp:               {Directory}\Sample.Test.received.pdf (exists)
+    Target:             {Directory}\Sample.Test.verified.pdf (missing)
+    Extension:          pdf
+    Group:              <null>
+    Exe:                C:\tools\DiffEngineViewer.exe
+    Arguments:          --diff
+    CanKill:            False
+    KillLockingProcess: False
+    Process:            none
+    IsOpen:             True
+
+[2] Sample.Test#page_0001
+    Temp:               {Directory}\Sample.Test#page_0001.received.png (exists)
+    Target:             {Directory}\Sample.Test#page_0001.verified.png (missing)
+    Extension:          png
+    Group:              <null>
+    DerivedFrom:        {Directory}\Sample.Test.received.pdf (exists)
+    Exe:                C:\tools\DiffEngineViewer.exe
+    Arguments:          --diff
+    CanKill:            False
+    KillLockingProcess: False
+    Process:            none
+    IsOpen:             True
+
+Snapshots (0)
+-------------
+none

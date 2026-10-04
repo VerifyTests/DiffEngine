@@ -28,6 +28,17 @@ record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
         Only.Contains(key);
 
     /// <summary>
+    /// The name of the document this batch is the accept or the discard of, with the files derived
+    /// from it, or null for any other batch: see <see cref="ViewerSession.BeginAcceptWithDerived"/>.
+    /// <para>
+    /// It changes nothing about how the batch goes, only what it says when it is done. To the
+    /// reviewer that was one accept of one document, and "Accepted 0, plus 7 files" is the answer
+    /// to a question they did not ask.
+    /// </para>
+    /// </summary>
+    public string? Cascade { get; init; }
+
+    /// <summary>
     /// How the snapshots have gone, which is the first half of what the batch says when it is done.
     /// </summary>
     public AcceptAllTally Tally { get; init; }

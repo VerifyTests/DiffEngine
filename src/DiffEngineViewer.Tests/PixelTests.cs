@@ -391,6 +391,7 @@ public class PixelTests
                 "move:temp/Notes##2.received.txt",
                 "Notes##2 (txt)",
                 null,
+                null,
                 "temp/Notes##2.received.txt",
                 "code/Notes##2.verified.txt",
                 FileSide.OfText(Fixtures.Received),

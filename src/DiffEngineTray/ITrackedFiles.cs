@@ -60,10 +60,16 @@ interface ITrackedFiles
     /// That happens when the sending process saw no tray at startup and this tray started after
     /// it: that check is cached for the life of the sender, so its files come the other way for
     /// good, and dropping them would lose them.
+    /// <para>
+    /// <paramref name="source" /> is the received file of the pending move this one was derived
+    /// from, or null. With no default, as on <see cref="IQueueOwner.TrackMove"/>, so nothing
+    /// between the wire and the tracker can leave it behind.
+    /// </para>
     /// </summary>
-    void AddMove(string temp, string target);
+    void AddMove(string temp, string target, string? source);
 
-    void AddDelete(string file);
+    /// <inheritdoc cref="AddMove"/>
+    void AddDelete(string file, string? source);
 
     /// <summary>
     /// Drop a tracked move or delete without touching the file, for a test that started passing.

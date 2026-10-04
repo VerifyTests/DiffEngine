@@ -42,6 +42,17 @@ snippet: DiffRunnerLaunch
 Note that this method will respect the above [difference behavior](/docs/diff-tool.md#detected-difference-behavior) in terms of Auto refresh and MDI behaviors.
 
 
+### Files derived from another
+
+A snapshot of a document is often several files: the document, and what was computed from it, such as a png of each page, its text, or a csv per sheet. A file of the second kind can be launched as derived from the first:
+
+snippet: DiffRunnerLaunchDerived
+
+The source is named by its temp file, is launched first, and is named only while it is itself pending.
+
+This changes nothing for most tools: each derived file is launched exactly as `Launch` would launch it. The exception is [DiffEngineViewer](/docs/viewer.md#files-derived-from-a-document) when it is drawing the source as a document. It already shows the pages and the text, so the derived files open no tool, do not count towards [MaxInstancesToLaunch](/docs/diff-tool.md#maxinstancestolaunch), and are accepted or discarded together with the document.
+
+
 ## Closing a tool
 
 A tool can be closed using the following:

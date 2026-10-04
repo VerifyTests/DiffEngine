@@ -71,6 +71,7 @@ public class ImageScreenTests
                 "move:temp/sample.received.png",
                 "Sample.Test (png)",
                 null,
+                null,
                 "temp/sample.received.png",
                 "code/sample.verified.png",
                 Received(),
@@ -87,6 +88,7 @@ public class ImageScreenTests
             QueueEntry.ForDelete(
                 "delete:code/extra.verified.png",
                 "extra.verified.png",
+                null,
                 null,
                 "code/extra.verified.png",
                 Expected()))));

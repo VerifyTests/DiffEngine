@@ -57,19 +57,19 @@ class MessageHandler(
     /// put in is what the files were read as, which is all an arrival ever was.
     /// </para>
     /// </summary>
-    void IQueueOwner.TrackMove(string temp, string target)
+    void IQueueOwner.TrackMove(string temp, string target, string? source)
     {
         var entry = Queued(TrackedKeys.ForMove(temp)) is { } queued
-            ? TrackedEntry.MoveAgain(queued, temp, target, documents)
-            : TrackedEntry.ForMove(temp, target, documents);
+            ? TrackedEntry.MoveAgain(queued, temp, target, documents, source)
+            : TrackedEntry.ForMove(temp, target, documents, source);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
     }
 
-    void IQueueOwner.TrackDelete(string file)
+    void IQueueOwner.TrackDelete(string file, string? source)
     {
         var entry = Queued(TrackedKeys.ForDelete(file)) is { } queued
-            ? TrackedEntry.DeleteAgain(queued, file, documents)
-            : TrackedEntry.ForDelete(file, documents);
+            ? TrackedEntry.DeleteAgain(queued, file, documents, source)
+            : TrackedEntry.ForDelete(file, documents, source);
         RefuseWhenClosing(host.Mutate(_ => ViewerSession.EnqueueTracked(_, entry)));
     }
 
@@ -123,7 +123,12 @@ class MessageHandler(
             items,
             moves: queue
                 .Where(_ => _.Kind == QueueEntryKind.Move)
-                .Select(_ => new ViewerResponseMove(_.Key, _.Name, _.Solution, _.LeftFile!, _.TargetFile!))
+                .Select(_ => new ViewerResponseMove(_.Key, _.Name, _.Solution, _.LeftFile!, _.TargetFile!)
+                {
+                    // As a tray owner says it, so whoever shows this queue lays it out as this
+                    // process's own window does
+                    SourceKey = _.SourceKey
+                })
                 .ToList(),
             deletes: queue
                 .Where(_ => _.Kind == QueueEntryKind.Delete)
@@ -131,7 +136,8 @@ class MessageHandler(
                 {
                     // As a tray owner says it, so whoever shows this queue leaves the delete out
                     // of a bulk accept for the reason this process's own batch would
-                    Held = ViewerSession.HeldReason(queue, _)
+                    Held = ViewerSession.HeldReason(queue, _),
+                    SourceKey = _.SourceKey
                 })
                 .ToList(),
             progress: state.ListedProgress);

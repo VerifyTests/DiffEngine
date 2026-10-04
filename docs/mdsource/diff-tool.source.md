@@ -47,6 +47,8 @@ This value can be changed using an environment variable or by explicitly specify
 
 The count includes [DiffEngineViewer](/docs/viewer.md), but only when a viewer has to be started. Handing a pair to one already on screen opens no window and so spends nothing.
 
+Neither does a file [derived from a document](/docs/viewer.md#files-derived-from-a-document) the viewer is drawing: it is shown beneath the document rather than in a tool of its own. A document split into a file per page would otherwise spend the whole allowance on one test.
+
 
 ### Using an environment variable
 

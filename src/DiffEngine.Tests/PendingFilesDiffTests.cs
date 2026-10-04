@@ -2,6 +2,8 @@
 // lives, and these tests have to hold it down.
 #pragma warning disable CS0618
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// The route a pair takes when the diff tool resolved for it is the viewer itself: queued with
 /// whoever owns the queue rather than given a process and a window of its own.
@@ -214,6 +216,261 @@ public class PendingFilesDiffTests
         await Assert.That(canKill).IsFalse();
     }
 
+    /// <summary>
+    /// A page of a document the viewer is drawing is on screen already, in that document, so it is
+    /// tracked with what it was derived from and nothing is opened for it. Not even resolved: the
+    /// tool handed in here throws if it is asked for, and a cap of zero would refuse a launch.
+    /// </summary>
+    [Test]
+    public async Task AFileDerivedFromADocumentTheViewerDrawsIsTrackedAndNothingIsOpened()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+        DiffRunner.MaxInstancesToLaunch(0);
+        MaxInstance.ResetCount();
+        try
+        {
+            var result = await DiffRunner.InnerLaunchAsync(
+                NeverResolved,
+                Page,
+                PageTarget,
+                null,
+                Document,
+                Resolves(Viewer(documents: true)));
+
+            await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
+        }
+        finally
+        {
+            MaxInstance.ResetAppDomainValue();
+            MaxInstance.ResetCount();
+        }
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+    }
+
+    [Test]
+    public async Task ASyncDerivedFileIsTrackedTheSameWay()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        var result = DiffRunner.InnerLaunch(
+            NeverResolved,
+            Page,
+            PageTarget,
+            null,
+            Document,
+            Resolves(Viewer(documents: true)));
+
+        await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+    }
+
+    /// <summary>
+    /// Nobody answering means the document is in no viewer either, since its own send went first
+    /// and waited for one. So the page is opened as any pair is, which here finds no tool for it.
+    /// What matters is that it was asked: tracked beneath a document nobody is showing, it would
+    /// be a pending file with no window and no row.
+    /// </summary>
+    [Test]
+    public async Task WithNobodyShowingTheDocumentADerivedFileIsOpenedAsAnyOther()
+    {
+        using var absent = new NoOwner();
+        using var enabled = new Enabled();
+
+        var result = await DiffRunner.InnerLaunchAsync(
+            NoTool,
+            Page,
+            PageTarget,
+            null,
+            Document,
+            Resolves(Viewer(documents: true)));
+
+        await Assert.That(result).IsEqualTo(LaunchResult.NoDiffToolFound);
+    }
+
+    /// <summary>
+    /// A document that went to Word, or Beyond Compare, or anything that is not a viewer drawing
+    /// it, leaves its pages to be opened as they always were. What they were derived from is
+    /// still said, to whoever tracks them.
+    /// </summary>
+    [Test]
+    public async Task ADocumentInAnotherToolLeavesItsDerivedFilesToTheirOwnTools()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        var result = await DiffRunner.InnerLaunchAsync(
+            NoTool,
+            Page,
+            PageTarget,
+            null,
+            Document,
+            Resolves(Other(isMdi: false)));
+
+        await Assert.That(result).IsEqualTo(LaunchResult.NoDiffToolFound);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+    }
+
+    /// <summary>
+    /// And so does a viewer with no documents folder, which shows the document as nothing it can
+    /// read: the copy bundled in the package, for one. Where the page's own tool is that viewer,
+    /// the page is shown, as a pair of its own, and says what it was derived from.
+    /// </summary>
+    [Test]
+    public async Task AViewerThatCannotDrawTheDocumentShowsItsDerivedFilesAsPairs()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+        var viewer = Viewer(documents: false);
+
+        var result = await DiffRunner.InnerLaunchAsync(
+            Resolves(viewer),
+            Page,
+            PageTarget,
+            null,
+            Document,
+            Resolves(viewer));
+
+        await Assert.That(result).IsEqualTo(LaunchResult.AlreadyRunningAndSupportsRefresh);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Diff}:{Page}:{PageTarget} from {Document}"]);
+    }
+
+    /// <summary>
+    /// Launching turned off turns off the launch, not the tracking, as for every pair. Nothing
+    /// was opened for the document either, so its page is tracked as any pair is, source said.
+    /// </summary>
+    [Test]
+    public async Task WhileDisabledADerivedFileIsStillTracked()
+    {
+        using var owner = new Recording();
+        var previousDisabled = DiffRunner.Disabled;
+        DiffRunner.Disabled = true;
+        try
+        {
+            var result = await DiffRunner.InnerLaunchAsync(
+                NeverResolved,
+                Page,
+                PageTarget,
+                null,
+                Document,
+                Resolves(Viewer(documents: true)));
+
+            await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
+        }
+        finally
+        {
+            DiffRunner.Disabled = previousDisabled;
+        }
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{Page}:{PageTarget} from {Document}"]);
+    }
+
+    /// <summary>
+    /// What the viewer draws is decided by the copy that resolved and by the file: a copy with its
+    /// documents folder, and a file that folder reads. An SVG is the one it reaches as the text
+    /// tool, so the extension that resolved the viewer for it says nothing either way.
+    /// </summary>
+    [Test]
+    [Arguments(@"c:\temp\a.received.pdf", true, true)]
+    [Arguments(@"c:\temp\a.received.docx", true, true)]
+    [Arguments(@"c:\temp\a.received.svg", true, true)]
+    [Arguments(@"c:\temp\a.received.pdf", false, false)]
+    [Arguments(@"c:\temp\a.received.svg", false, false)]
+    [Arguments(@"c:\temp\a.received.html", true, false)]
+    [Arguments(@"c:\temp\a.received.png", true, false)]
+    public async Task AViewerDrawsWhatItsDocumentsFolderReads(string file, bool documents, bool expected) =>
+        await Assert.That(PendingFiles.Draws(Viewer(documents), file)).IsEqualTo(expected);
+
+    [Test]
+    public async Task AnotherToolDrawsNothing() =>
+        await Assert.That(PendingFiles.Draws(Other(isMdi: false), Document)).IsFalse();
+
+    /// <summary>
+    /// A page a document no longer has: the delete of its verified file, saying which document.
+    /// </summary>
+    [Test]
+    public async Task ADerivedDeleteReachesTheOwnerWithItsSource()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        DiffRunner.AddDerivedDelete(Stale, Document);
+        await DiffRunner.AddDerivedDeleteAsync(Stale, Document);
+
+        await Assert.That(owner.Heard).IsEquivalentTo(
+        [
+            $"{ViewerVerb.Delete}:{Stale}: from {Document}",
+            $"{ViewerVerb.Delete}:{Stale}: from {Document}"
+        ]);
+    }
+
+    /// <summary>
+    /// And an ordinary delete says nothing of one, as it never has.
+    /// </summary>
+    [Test]
+    public async Task ADeleteWithNoSourceSaysNothingOfOne()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        DiffRunner.AddDelete(Stale);
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{Stale}:"]);
+    }
+
+    /// <summary>
+    /// A file is not derived from itself, and one that says it is would be hidden beneath an
+    /// entry that is not there. Said by the library, so no owner has to guard against it.
+    /// </summary>
+    [Test]
+    public async Task AFileNamingItselfAsItsSourceHasNone()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        DiffRunner.AddDerivedDelete(Stale, Stale);
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{Stale}:"]);
+    }
+
+    const string Document = @"c:\temp\Sample.Test.received.pdf";
+    const string Page = @"c:\temp\Sample.Test#page_0001.received.png";
+    const string PageTarget = @"c:\code\Sample.Test#page_0001.verified.png";
+
+    static DiffRunner.TryResolveTool Resolves(ResolvedTool tool) =>
+        ([NotNullWhen(true)] out ResolvedTool? resolved) =>
+        {
+            resolved = tool;
+            return true;
+        };
+
+    static bool NoTool([NotNullWhen(true)] out ResolvedTool? resolved)
+    {
+        resolved = null;
+        return false;
+    }
+
+    static bool NeverResolved([NotNullWhen(true)] out ResolvedTool? resolved) =>
+        throw new("A file shown beneath its source has no tool to resolve.");
+
+    /// <summary>
+    /// Launching switched on for a test, and put back after it. DisabledChecker turns it off for
+    /// build servers and AI CLIs, and these drive the real launch path.
+    /// </summary>
+    sealed class Enabled :
+        IDisposable
+    {
+        readonly bool previous = DiffRunner.Disabled;
+
+        public Enabled() =>
+            DiffRunner.Disabled = false;
+
+        public void Dispose() =>
+            DiffRunner.Disabled = previous;
+    }
+
     static ResolvedTool Other(bool isMdi) =>
         new(
             name: "Fake",
@@ -235,7 +492,11 @@ public class PendingFilesDiffTests
     /// <summary>
     /// Carries the identity the route branches on. Never started: an owner answers every time.
     /// </summary>
-    static ResolvedTool Viewer() =>
+    /// <param name="documents">
+    /// Whether it is a copy with its documents folder, which is said by the extensions it was
+    /// resolved with: a copy that has one is given the routed ones.
+    /// </param>
+    static ResolvedTool Viewer(bool documents = false) =>
         new(
             name: nameof(DiffTool.DiffEngineViewer),
             tool: DiffTool.DiffEngineViewer,
@@ -245,7 +506,7 @@ public class PendingFilesDiffTests
                 Right: (temp, target) => $"\"{temp}\" \"{target}\""),
             isMdi: false,
             autoRefresh: false,
-            binaryExtensions: [],
+            binaryExtensions: documents ? DocumentExtensions.Routed : [],
             requiresTarget: false,
             supportsText: true,
             useShellExecute: false);
@@ -288,7 +549,10 @@ public class PendingFilesDiffTests
                 {
                     lock (Heard)
                     {
-                        Heard.Add($"{message.Verb}:{message.Key}:{message.Body}");
+                        // Nothing where there is none, so what a file with no source is heard as
+                        // stays what the tests from before there were sources assert
+                        var from = message.Source is null ? "" : $" from {message.Source}";
+                        Heard.Add($"{message.Verb}:{message.Key}:{message.Body}{from}");
                     }
 
                     if (message.Verb == Refuse)

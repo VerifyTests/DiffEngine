@@ -231,13 +231,24 @@ class Tracker :
         !deletes.IsEmpty ||
         snapshots.Count > 0;
 
+    /// <param name="temp">The received file.</param>
+    /// <param name="target">The file it belongs at.</param>
+    /// <param name="exe">The tool showing the pair, or null when the sender named none.</param>
+    /// <param name="arguments">What that tool was started with.</param>
+    /// <param name="canKill">Whether that tool may be closed when the pair is accepted.</param>
+    /// <param name="processId">The process showing the pair, where one was started for it.</param>
+    /// <param name="source">
+    /// The received file of the pending move this one was derived from, or null: see
+    /// <see cref="TrackedMove.Source"/>.
+    /// </param>
     public TrackedMove AddMove(
         string temp,
         string target,
         string? exe,
         string? arguments,
         bool canKill,
-        int? processId)
+        int? processId,
+        string? source = null)
     {
         var exeFile = Path.GetFileName(exe);
         var targetFile = Path.GetFileName(target);
@@ -262,7 +273,7 @@ class Tracker :
                     ProcessEx.TryGetTool(processId.Value, exe, temp, out process);
                 }
 
-                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
+                var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process, source);
 
                 if (exeFile == null)
                 {
@@ -294,8 +305,8 @@ class Tracker :
                 }
 
                 var move = exe == null
-                    ? Retarget(existing, target, process)
-                    : BuildTrackedMove(temp, exe, arguments, canKill, target, process);
+                    ? Retarget(existing, target, process, source)
+                    : BuildTrackedMove(temp, exe, arguments, canKill, target, process, source);
 
                 if (exeFile == null)
                 {
@@ -322,8 +333,12 @@ class Tracker :
     /// forwards the pair here as a Diff. The pair then read as another tool's with no window, so
     /// "Accept open" passed over it while it was on screen, and it had become killable.
     /// </para>
+    /// <para>
+    /// What the pair was derived from is kept the same way when this move names none. The one
+    /// "Open diff tool" forwards is exactly that: two paths, from a viewer that was never told.
+    /// </para>
     /// </summary>
-    static TrackedMove Retarget(TrackedMove existing, string target, Process? process) =>
+    static TrackedMove Retarget(TrackedMove existing, string target, Process? process, string? source) =>
         new(
             existing.Temp,
             target,
@@ -334,9 +349,15 @@ class Tracker :
             SolutionDirectoryFinder.Find(target),
             Path.GetExtension(target).TrimStart('.'),
             existing.KillLockingProcess,
-            existing.IsViewer);
+            existing.IsViewer,
+            source ?? existing.Source);
 
-    static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool? canKill, string target, Process? process)
+    /// <summary>
+    /// <paramref name="source" /> is taken as it arrived, null included. A move that names its
+    /// tool is a run saying everything it knows about the pair, and a run whose source has
+    /// stopped being pending says so by naming none.
+    /// </summary>
+    static TrackedMove BuildTrackedMove(string temp, string? exe, string? arguments, bool? canKill, string target, Process? process, string? source)
     {
         var solution = SolutionDirectoryFinder.Find(target);
         var extension = Path.GetExtension(target).TrimStart('.');
@@ -387,7 +408,8 @@ class Tracker :
             solution,
             extension,
             killLockingProcess,
-            PendingFiles.IsViewerExe(exe));
+            PendingFiles.IsViewerExe(exe),
+            source);
     }
 
     /// <summary>
@@ -648,18 +670,32 @@ class Tracker :
         ToggleActive();
     }
 
-    public TrackedDelete AddDelete(string file) =>
+    /// <param name="file">The file a passing test no longer produces.</param>
+    /// <param name="source">
+    /// The received file of the pending move the delete was derived from, or null: see
+    /// <see cref="TrackedDelete.Source"/>.
+    /// </param>
+    public TrackedDelete AddDelete(string file, string? source = null) =>
         deletes.AddOrUpdate(
             file,
             addValueFactory: key =>
             {
                 Log.Information("DeleteAdded. File:{file}", file);
                 var solution = SolutionDirectoryFinder.Find(key);
-                return new(key, solution);
+                return new(key, solution, source);
             },
             updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
+                // A listing carries what a delete was derived from, and the objects tracked are
+                // what says whether a listing has changed, so one raised again under another
+                // source is another delete. A new one is not marked either, which is right: it
+                // was raised by a run that looked at the file as it is now
+                if (!string.Equals(existing.Source, source, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new(existing.File, existing.Group, source);
+                }
+
                 // Raised again, so by a run that looked at the file as it is now. Whatever a move
                 // wrote there since the delete was first raised, this is the later statement
                 if (existing.Written)
@@ -1289,8 +1325,25 @@ class Tracker :
                 $"{_.Name} ({_.Extension})",
                 _.Group,
                 _.Temp,
-                _.Target))
+                _.Target)
+            {
+                SourceKey = KeyOfSource(_.Source)
+            })
             .ToList();
+
+    /// <summary>
+    /// What a listing says a file was derived from: the key its source is listed under, so a
+    /// reader matches one key against another and never builds one.
+    /// </summary>
+    static string? KeyOfSource(string? source)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        return TrackedKeys.ForMove(source);
+    }
 
     IReadOnlyList<ViewerResponseDelete> ITrackedFiles.Deletes()
     {
@@ -1310,7 +1363,8 @@ class Tracker :
                 _.File)
             {
                 // What the menu says beside it, for a viewer showing this queue to say too
-                Held = HeldReason(_, awaited.Contains(_.File))
+                Held = HeldReason(_, awaited.Contains(_.File)),
+                SourceKey = KeyOfSource(_.Source)
             })
             .ToList();
     }
@@ -1405,17 +1459,18 @@ class Tracker :
         return index == versioned.Count;
     }
 
-    void ITrackedFiles.AddMove(string temp, string target)
+    void ITrackedFiles.AddMove(string temp, string target, string? source)
     {
         // No exe, arguments or process: the sender's diff tool details do not cross the viewer
         // port, so this is resolved from the extension exactly as a piper move with no exe is.
-        AddMove(temp, target, null, null, false, null);
+        // What the pair was derived from does cross it, being about the file and not a tool.
+        AddMove(temp, target, null, null, false, null, source);
         Refresh();
     }
 
-    void ITrackedFiles.AddDelete(string file)
+    void ITrackedFiles.AddDelete(string file, string? source)
     {
-        AddDelete(file);
+        AddDelete(file, source);
         Refresh();
     }
 
@@ -1440,11 +1495,45 @@ class Tracker :
             }
 
             Release(removed);
+            UntrackDerivedFrom(removed);
             return true;
         }
 
         return TrackedKeys.TryStrip(key, TrackedKeys.DeletePrefix, out var file) &&
                deletes.TryRemove(file, out _);
+    }
+
+    /// <summary>
+    /// The moves derived from one that has just been settled, where their own received file has
+    /// gone as well: dropped now, rather than by the scan up to two seconds on.
+    /// <para>
+    /// A run that passes deletes every received file it had left, and settles what the viewer was
+    /// showing. That is the document. Its pages had no window to settle - they were tracked and
+    /// shown beneath it - so for those two seconds they stood in a viewer as a row each, with
+    /// nothing to show, where a moment before there had been one row for the lot.
+    /// </para>
+    /// <para>
+    /// The scan's own first rule, applied early, and so only to a file that is not there. A page
+    /// that still differs has been written again by the same run, and stays.
+    /// </para>
+    /// </summary>
+    void UntrackDerivedFrom(TrackedMove source)
+    {
+        foreach (var pair in moves)
+        {
+            var move = pair.Value;
+            if (!string.Equals(move.Source, source.Temp, StringComparison.OrdinalIgnoreCase) ||
+                File.Exists(move.Temp))
+            {
+                continue;
+            }
+
+            // By key and value, as the scan removes one, so a move staged again since is left
+            if (moves.TryRemove(pair))
+            {
+                Release(move);
+            }
+        }
     }
 
     (bool ok, string? message) ITrackedFiles.Accept(string key)
