@@ -342,7 +342,7 @@ public class EnlargedPictureTests
                 graphics.FillRectangle(
                     index % 2 == 0 ? darkBrush : lightBrush,
                     across
-                        ? new Rectangle(index * stripe, 0, stripe, picture.Height)
+                        ? new(index * stripe, 0, stripe, picture.Height)
                         : new Rectangle(0, index * stripe, picture.Width, stripe));
             }
         }

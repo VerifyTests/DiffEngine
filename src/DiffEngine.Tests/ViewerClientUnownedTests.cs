@@ -363,9 +363,9 @@ public class ViewerClientUnownedTests
     {
         using var owner = new Owner();
         using var cancel = new CancelSource();
-        cancel.Cancel();
+        await cancel.CancelAsync();
 
-        await Assert.That(async () => await ViewerClient.SendAsync(settle, cancel.Token, owner.Port))
+        await Assert.That(() => ViewerClient.SendAsync(settle, cancel.Token, owner.Port))
             .Throws<OperationCanceledException>();
 
         await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsFalse();
@@ -394,7 +394,7 @@ public class ViewerClientUnownedTests
         };
         using var cancel = new CancelSource(TimeSpan.FromMilliseconds(200));
 
-        await Assert.That(async () => await ViewerClient.SendAsync(settle, cancel.Token, port))
+        await Assert.That(() => ViewerClient.SendAsync(settle, cancel.Token, port))
             .Throws<OperationCanceledException>();
 
         await Assert.That(ViewerClient.FoundUnowned(port)).IsFalse();

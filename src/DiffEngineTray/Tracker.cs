@@ -910,7 +910,7 @@ class Tracker :
 
         // The files this batch moved a received file onto, for the deletes swept after it: see
         // WrittenOrAwaited.
-        public readonly HashSet<string> Written = new(StringComparer.OrdinalIgnoreCase);
+        public readonly HashSet<string> Written = [with(StringComparer.OrdinalIgnoreCase)];
     }
 
     /// <returns>The files a received file was moved onto.</returns>
@@ -1332,9 +1332,10 @@ class Tracker :
     {
         var pending = deletes.Values.ToList();
         var written = AcceptMoves(
-            moves.Values
+        [
+            .. moves.Values
                 .Where(_ => _.IsOpen)
-                .ToList());
+        ]);
 
         // Every pending snapshot is open by definition: the viewer only stays running while it
         // has something to show.
@@ -1385,7 +1386,7 @@ class Tracker :
     /// The menu says the same beside each of them, for whoever missed the balloon.
     /// </summary>
     internal static string DeletesKept(IReadOnlyList<TrackedDelete> kept) =>
-        DeletesKept(kept.Select(_ => _.Name).ToList());
+        DeletesKept([.. kept.Select(_ => _.Name)]);
 
     /// <summary>
     /// By name, for the wire's accept-all, which knows the deletes it kept as a listing has them.
@@ -1426,7 +1427,8 @@ class Tracker :
         moves.GetValueOrDefault(temp);
 
     IReadOnlyList<ViewerResponseMove> ITrackedFiles.Moves() =>
-        moves.Values
+    [
+        .. moves.Values
             .Select(_ => new ViewerResponseMove(
                 TrackedKeys.ForMove(_.Temp),
                 $"{_.Name} ({_.Extension})",
@@ -1436,7 +1438,7 @@ class Tracker :
             {
                 SourceKey = KeyOfSource(_.Source)
             })
-            .ToList();
+    ];
 
     /// <summary>
     /// What a listing says a file was derived from: the key its source is listed under, so a
@@ -1475,18 +1477,20 @@ class Tracker :
             awaited.Add(target);
         }
 
-        return deletes.Values
-            .Select(_ => new ViewerResponseDelete(
-                TrackedKeys.ForDelete(_.File),
-                _.Name,
-                _.Group,
-                _.File)
-            {
-                // What the menu says beside it, for a viewer showing this queue to say too
-                Held = HeldReason(_, awaited.Contains(_.File)),
-                SourceKey = KeyOfSource(_.Source)
-            })
-            .ToList();
+        return
+        [
+            .. deletes.Values
+                .Select(_ => new ViewerResponseDelete(
+                    TrackedKeys.ForDelete(_.File),
+                    _.Name,
+                    _.Group,
+                    _.File)
+                {
+                    // What the menu says beside it, for a viewer showing this queue to say too
+                    Held = HeldReason(_, awaited.Contains(_.File)),
+                    SourceKey = KeyOfSource(_.Source)
+                })
+        ];
     }
 
     readonly Lock versionGate = new();

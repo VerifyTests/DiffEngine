@@ -73,9 +73,9 @@ public class ScreenPayloadTests
 
         await Assert.That(screen.PaneCells).IsEqualTo(101);
         // Fifty one characters are the first to reach a hundred and one cells, at two cells each
-        await Assert.That(Text(payload, 0)).IsEqualTo(new string('漢', 51));
+        await Assert.That(Text(payload, 0)).IsEqualTo(new('漢', 51));
         await Assert.That(payload.Rows[0].SegmentCount).IsEqualTo(51);
-        await Assert.That(Text(payload, 1)).IsEqualTo(new string('a', 101));
+        await Assert.That(Text(payload, 1)).IsEqualTo(new('a', 101));
         // A tab is the four cells it is drawn as
         await Assert.That(Text(payload, 2)).IsEqualTo("    " + new string('a', 97));
         await Assert.That(Text(payload, 3)).IsEqualTo("short");

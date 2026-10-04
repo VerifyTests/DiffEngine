@@ -54,10 +54,10 @@ public class CorruptDocumentTests :
     public async Task AnArchiveOfSomethingElseIsNotAWordDocument()
     {
         var path = Path.Combine(directory, "other.docx");
-        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        using (var archive = await ZipFile.OpenAsync(path, ZipArchiveMode.Create))
         {
-            using var writer = new StreamWriter(archive.CreateEntry("readme.txt").Open());
-            writer.Write("not a document");
+            using var writer = new StreamWriter(await archive.CreateEntry("readme.txt").OpenAsync());
+            await writer.WriteAsync("not a document");
         }
 
         await Assert.That(Failure(() => Plugin.Text(path))).StartsWith("Not a readable Word document: ");

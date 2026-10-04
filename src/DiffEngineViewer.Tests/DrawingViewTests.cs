@@ -83,7 +83,7 @@ public class DrawingViewTests :
         var opened = new ViewerPreferences(path).Apply(PdfThenSvg());
         await Assert.That(opened.Drawing).IsEqualTo(DrawingView.Text);
         await Assert.That(ViewerSession.Apply(opened, Command.Select(1)).Drawing).IsEqualTo(DrawingView.Picture);
-        await Assert.That(File.ReadAllLines(path)).IsEquivalentTo(["drawing.Pdf=Text", "drawing.Svg=Picture"]);
+        await Assert.That(await File.ReadAllLinesAsync(path)).IsEquivalentTo(["drawing.Pdf=Text", "drawing.Svg=Picture"]);
     }
 
     /// <summary>

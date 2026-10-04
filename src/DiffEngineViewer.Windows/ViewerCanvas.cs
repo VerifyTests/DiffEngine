@@ -682,7 +682,7 @@ sealed class ViewerCanvas : Control
             graphics.DrawImage(
                 scaled,
                 bounds,
-                new Rectangle(
+                new(
                     Math.Clamp(Whole(placement.Source.X * size.Width), 0, size.Width - bounds.Width),
                     Math.Clamp(Whole(placement.Source.Y * size.Height), 0, size.Height - bounds.Height),
                     bounds.Width,

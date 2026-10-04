@@ -68,7 +68,7 @@ public class QueueChangeBenchmarks
     public object OneAccept() =>
         Changed(ViewerSession.Apply(state, CommandKind.Accept, applied), Entries - 1);
 
-    SessionState Changed(SessionState changed, int count)
+    static SessionState Changed(SessionState changed, int count)
     {
         if (changed.Queue.Count != count)
         {

@@ -113,8 +113,8 @@ public class WindowPlacementTests
     [Test]
     public async Task CentredIsTheMiddleOfTheDisplayItIsOn()
     {
-        await Assert.That(ViewerForm.Centred(display, new(1100, 700))).IsEqualTo(new Point(410, 170));
-        await Assert.That(ViewerForm.Centred(second, new(1500, 900))).IsEqualTo(new Point(2450, 250));
+        await Assert.That(ViewerForm.Centred(display, new(1100, 700))).IsEqualTo(new(410, 170));
+        await Assert.That(ViewerForm.Centred(second, new(1500, 900))).IsEqualTo(new(2450, 250));
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public class WindowPlacementTests
     /// </summary>
     [Test]
     public async Task AWindowLargerThanTheDisplayIsCentredFromItsTopLeft() =>
-        await Assert.That(ViewerForm.Centred(second, new(3000, 1600))).IsEqualTo(new Point(1920, 0));
+        await Assert.That(ViewerForm.Centred(second, new(3000, 1600))).IsEqualTo(new(1920, 0));
 
     [Test]
     public async Task AFormOpensAtTheBoundsItIsGiven()

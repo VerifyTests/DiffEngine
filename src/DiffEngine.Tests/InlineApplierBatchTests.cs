@@ -17,7 +17,7 @@ public class InlineApplierBatchTests
         using var together = new TempSource(Members(6));
         using var inTurn = new TempSource(Members(6));
 
-        InlinePatch[] Patches(string path) =>
+        static InlinePatch[] Patches(string path) =>
         [
             Set(path, 0),
             Set(path, 3),

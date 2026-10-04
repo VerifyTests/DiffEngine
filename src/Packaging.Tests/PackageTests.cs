@@ -241,7 +241,7 @@ public class PackageTests
 
         if (paths.Contains(depsJson))
         {
-            await using var stream = archive.GetEntry(root + depsJson)!.Open();
+            await using var stream = await archive.GetEntry(root + depsJson)!.OpenAsync();
             var document = await JsonDocument.ParseAsync(stream);
             foreach (var library in document.RootElement.GetProperty("targets").EnumerateObject().SelectMany(_ => _.Value.EnumerateObject()))
             {

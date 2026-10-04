@@ -201,7 +201,7 @@ public class FsCompilerRoundTripTests
     [RequiresDotnet]
     public async Task TicksAndHolesAreReadAsTheCompilerReadsThem()
     {
-        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes("found"));
+        var expected = Convert.ToBase64String("found"u8.ToArray());
         var builder = new StringBuilder(prelude);
         // Every line the scanner lost the call under, rather than the first, since one reading
         // put right is as likely as not to be the reason for the next
@@ -244,7 +244,7 @@ public class FsCompilerRoundTripTests
     [RequiresDotnet]
     public async Task CommentsAndNamesAreReadAsTheCompilerReadsThem()
     {
-        var expected = Convert.ToBase64String(Encoding.UTF8.GetBytes("found"));
+        var expected = Convert.ToBase64String("found"u8.ToArray());
         var builder = new StringBuilder(prelude);
         for (var index = 0; index < Comments.Length; index++)
         {
@@ -453,12 +453,12 @@ public class FsCompilerRoundTripTests
         // own was. The empty line is between two statements of a computation expression here,
         // and inside one chain, which has to still be one expression
         builder.Append(Patch("let removedBang () =\n    capture {\n        do! Verify(\"x\")\n                .Snapshot(\"dup\").ToTask()\n        do! Verify(\"y\").Snapshot(\"dup\").ToTask()\n    }\n", 4, InlinePatchMode.Remove, "", "dup"));
-        builder.Append($"check \"removedBang\" (removedBang ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("xdup"))}\"\n\n");
+        builder.Append($"check \"removedBang\" (removedBang ()) \"{Convert.ToBase64String("xdup"u8.ToArray())}\"\n\n");
         builder.Append(Patch("let removedChain () =\n    Verify(\"x\")\n        .Snapshot(\"dup\")\n        .Snapshot(\"kept\").ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
-        builder.Append($"check \"removedChain\" (removedChain ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("kept"))}\"\n\n");
+        builder.Append($"check \"removedChain\" (removedChain ()) \"{Convert.ToBase64String("kept"u8.ToArray())}\"\n\n");
         // And where a statement was, taken whole for being a call on a name and nothing else
         builder.Append(Patch("let removedStatement () =\n    let first = Verify(\"x\")\n    first.Snapshot(\"dup\")\n    first.Snapshot(\"dup\")\n    first.ToTask()\n", 3, InlinePatchMode.Remove, "", "dup"));
-        builder.Append($"check \"removedStatement\" (removedStatement ()) \"{Convert.ToBase64String(Encoding.UTF8.GetBytes("x"))}\"\n\n");
+        builder.Append($"check \"removedStatement\" (removedStatement ()) \"{Convert.ToBase64String("x"u8.ToArray())}\"\n\n");
 
         builder.Append(footer);
         return builder.ToString();

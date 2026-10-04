@@ -132,8 +132,8 @@ public class PictureZoomTests
         {
             var wide = Path.Combine(directory, "wide.received.png");
             var tall = Path.Combine(directory, "tall.verified.png");
-            File.WriteAllBytes(wide, SamplePng.Build(160, 120, 198, 64, 64));
-            File.WriteAllBytes(tall, SamplePng.Build(120, 160, 64, 150, 198));
+            await File.WriteAllBytesAsync(wide, SamplePng.Build(160, 120, 198, 64, 64));
+            await File.WriteAllBytesAsync(tall, SamplePng.Build(120, 160, 64, 150, 198));
             using var host = new Host();
             var state = Enlarged(
                 ViewerSession.EnqueueFile(

@@ -101,7 +101,7 @@ public class ToolProcessTests
 
             // Once more, for a file that exists a moment before its line is in it
             await Task.Delay(250);
-            await Assert.That(File.ReadAllText(written).Trim())
+            await Assert.That((await File.ReadAllTextAsync(written)).Trim())
                 .IsEqualTo($"{Path.Combine(folder, "Sample received.txt")}|{Path.Combine(folder, "Sample verified.txt")}");
         }
         finally
@@ -130,7 +130,7 @@ public class ToolProcessTests
     public async Task AToolThatCannotBeStartedSaysWhichOne()
     {
         var exe = Path.Combine(TempDirectory, "not-an-executable.exe");
-        File.WriteAllText(exe, "not an executable");
+        await File.WriteAllTextAsync(exe, "not an executable");
 
         var exception = Assert.Throws<Exception>(() => DiffRunner.LaunchProcess(Tool(exe), "\"a.txt\" \"b.txt\""));
 

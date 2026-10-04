@@ -1365,7 +1365,7 @@ public class ViewerProtocolTests
         await Task.Delay(500);
         var during = Volatile.Read(ref accepts) - before;
         var waits = counted.Elapsed.TotalMilliseconds / ViewerServer.FailedAcceptWait.TotalMilliseconds;
-        cancel.Cancel();
+        await cancel.CancelAsync();
         await Wait(serving);
 
         await Assert.That(before).IsGreaterThan(1);

@@ -28,7 +28,7 @@ sealed class ViewerPreferences
     /// The keys set here that are not in the file yet, because the write that would have put them
     /// there failed. Empty whenever the file can be written.
     /// </summary>
-    readonly HashSet<string> unsaved = new(StringComparer.Ordinal);
+    readonly HashSet<string> unsaved = [with(StringComparer.Ordinal)];
 
     /// <param name="path">The file to keep them in, or null to keep them for this process only.</param>
     public ViewerPreferences(string? path = null)
