@@ -412,6 +412,66 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// "Accept all in" a group, from a window attached to the tray, over a move and the delete
+    /// pending on the file it writes. The window sent an accept per key, and the tray carries out
+    /// an accept by key as asked, so the received file was moved into place and then deleted. A
+    /// group accept is a bulk accept: the delete the tray holds is left, as the tray's own
+    /// accept-all leaves it, the one beside it goes, and the held one still goes when it is
+    /// accepted on its own.
+    /// </summary>
+    [Test]
+    public async Task AViewerGroupAcceptLeavesADeleteTheTrayHolds()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        var held = TrackedKeys.ForDelete(move.Target);
+        var free = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.PostAcceptGroup([move.Key], [], [held, free.Key]);
+
+        var viewer = pair.Pump();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(File.Exists(free.File)).IsFalse();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([held]);
+        await Assert.That(viewer.Message).IsEqualTo(OwnerLink.DeletesKept);
+        await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        pair.Link.Post(ViewerSideVerb.Accept, held);
+
+        await Assert.That(pair.Pump().Queue).IsEmpty();
+        await Assert.That(File.Exists(move.Target)).IsFalse();
+    }
+
+    /// <summary>
+    /// The same from a window attached to a viewer that owns the queue, which holds the delete by
+    /// the same rule and says so on the same line of its listing.
+    /// </summary>
+    [Test]
+    public async Task AViewerGroupAcceptLeavesADeleteAnOwningViewerHolds()
+    {
+        await using var pair = new ViewerOwned();
+        using var noTray = new NoTray();
+        var move = pair.StageMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        await DiffRunner.AddDeleteAsync(move.Target);
+        var held = TrackedKeys.ForDelete(move.Target);
+        var attached = new SessionHost(SessionState.Start(ViewerMode.Inline));
+        var link = new OwnerLink(attached, pair.Port);
+        await Assert.That(link.Pump()).IsTrue();
+
+        link.PostAcceptGroup([move.Key], [], [held]);
+
+        await Assert.That(link.Pump()).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(attached.State.Keys()).IsEquivalentTo([held]);
+        await Assert.That(attached.State.Message).IsEqualTo(OwnerLink.DeletesKept);
+    }
+
+    /// <summary>
     /// The tray answers an unchanged listing without it, but its tracked files change on their own
     /// scan rather than through the queue, and a focus it has stashed only reaches a window on a
     /// listing. Neither may be taken for unchanged.
@@ -1419,6 +1479,7 @@ public class TrayViewerSyncTest
         }
 
         public SessionHost Window { get; }
+        public int Port => server.Port;
         public RecordingTracker Tracker { get; }
         public List<ViewerSidePatch> Applied { get; } = [];
         public List<string> Failures { get; } = [];
