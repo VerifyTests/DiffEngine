@@ -74,19 +74,22 @@ public class KeyNameTests
     [Test]
     public async Task A_bad_key_leaves_the_hot_key_unbound()
     {
-        using var register = new KeyRegister(0);
-
-        // Nothing is registered with the OS for a key that is not one, so the handle above is
-        // never used and no hot key is taken from the machine running this
-        var bound = register.TryAddBinding(
-            KeyBindingIds.AcceptAll,
-            shift: true,
-            control: false,
-            alt: false,
-            "Ctrl+A",
-            () => throw new("Not bound, so never invoked"));
+        var desktop = new Desktop();
+        bool bound;
+        using (var register = desktop.Register())
+        {
+            bound = register.TryAddBinding(
+                KeyBindingIds.AcceptAll,
+                shift: true,
+                control: false,
+                alt: false,
+                "Ctrl+A",
+                () => throw new("Not bound, so never invoked"));
+        }
 
         await Assert.That(bound).IsFalse();
+        // A key that is not one is never taken as far as the desktop
+        await Assert.That(desktop.Asked).IsEmpty();
     }
 
     /// <summary>
@@ -105,12 +108,36 @@ public class KeyNameTests
             }
         };
         await using var tracker = new RecordingTracker();
-        using var register = new KeyRegister(0);
+        var desktop = new Desktop();
         var warnings = new List<string>();
 
-        Program.ReBindKeys(settings, register, tracker, warnings.Add);
+        using (var register = desktop.Register())
+        {
+            Program.ReBindKeys(settings, register, tracker, warnings.Add);
+        }
 
         await Assert.That(warnings).HasSingleItem();
         await Assert.That(warnings[0]).Contains("Ctrl+A");
+        await Assert.That(desktop.Asked).IsEmpty();
+    }
+
+    /// <summary>
+    /// What a register asks of the desktop, answered here and written down. These tests bind only
+    /// names that are no key, which stop before anything is asked, but a register built on the
+    /// real desktop would take a hot key from the whole machine the day one of them changed.
+    /// </summary>
+    class Desktop
+    {
+        public List<(int id, KeyModifiers modifiers, Keys key)> Asked { get; } = [];
+
+        public KeyRegister Register() =>
+            new(
+                IntPtr.Zero,
+                (_, id, modifiers, key) =>
+                {
+                    Asked.Add((id, modifiers, key));
+                    return true;
+                },
+                (_, _) => true);
     }
 }
