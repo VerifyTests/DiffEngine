@@ -513,7 +513,7 @@ public class DerivedFilesTests
             });
 
             var sourceKey = TrackedKeys.ForMove(document);
-            await Assert.That(host.State.Queue.Select(_ => _.SourceKey)).IsEquivalentTo([sourceKey, sourceKey]);
+            await Assert.That(host.State.Queue.Select(_ => _.SourceKey)).IsEquivalentTo(new string?[] {sourceKey, sourceKey});
             var listing = handler.Handle(new(ViewerVerb.ListFull));
             await Assert.That(ViewerResponse.TryParse(listing.Build(), out var parsed)).IsTrue();
             await Assert.That(parsed!.Moves.Single().SourceKey).IsEqualTo(sourceKey);
