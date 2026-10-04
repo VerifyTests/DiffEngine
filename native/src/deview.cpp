@@ -527,6 +527,11 @@ struct State
         float across = 1.0f;
         float down = 1.0f;
 
+        /* The centre the frame asked for, before it was moved in to keep this space full: one
+         * point for both panes, so it can be somewhere this pane cannot show and the other can. */
+        float askedX = 0.5f;
+        float askedY = 0.5f;
+
         /* Whether there is more of it across, and down, than the space shows: whether the space
          * cut it short that way, which is the only way it can be moved. */
         bool movesAcross = false;
@@ -538,12 +543,15 @@ struct State
     /*
      * An enlarged picture being dragged: where the button went down, and how the picture was placed
      * then, which the whole drag is measured from. Measured from the last frame instead, a drag
-     * would drift by whatever each frame's clamp took off it.
+     * would drift by whatever each frame's clamp took off it. And how the other pane's was placed
+     * then, since how far that one can go is part of how far the drag can take the centre the two
+     * share.
      */
     bool panning = false;
     int32_t panSide = 0;
     ImVec2 panStart{};
     PictureSpace panFrom{};
+    PictureSpace panOther{};
 
     /*
      * Where the right-click that asked for a pane's menu landed, which is where the menu hangs: the
@@ -3175,6 +3183,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         space.centreY = centreY;
         space.across = across;
         space.down = down;
+        space.askedX = pane.imageCenterX;
+        space.askedY = pane.imageCenterY;
         space.movesAcross = std::floor(whole.x) > size.x;
         space.movesDown = std::floor(whole.y) > size.y;
     }
@@ -3223,6 +3233,12 @@ bool OverPicture(float x, float y)
     return false;
 }
 
+/* A centre moved in as far as it takes for a space showing so much of its picture to stay full. */
+float KeptCentre(float centre, float shown)
+{
+    return std::min(std::max(centre, shown * 0.5f), 1.0f - shown * 0.5f);
+}
+
 /*
  * An enlarged picture taken hold of and moved, reduced to the centre the managed side takes.
  *
@@ -3262,6 +3278,7 @@ bool UpdatePan(const DeviewScreen* screen)
                 state.panSide = side;
                 state.panStart = mouse;
                 state.panFrom = space;
+                state.panOther = state.pictureSpaces[1 - side];
                 break;
             }
         }
@@ -3279,8 +3296,7 @@ bool UpdatePan(const DeviewScreen* screen)
     }
 
     /*
-     * The picture follows the pointer, so the point at the middle moves the other way, as far as
-     * this pane's picture can go.
+     * The picture follows the pointer, so the point at the middle moves the other way.
      *
      * Only the way it can go at all. The centre is one point for both panes, and the two pictures
      * need not be the same shape: one that is all in view from top to bottom has nowhere to go
@@ -3288,16 +3304,23 @@ bool UpdatePan(const DeviewScreen* screen)
      * drag. So dragging it sideways took the other pane's picture back to its middle row, from
      * wherever it had been dragged to. An axis this pane's picture cannot move on is reported as
      * the frame's own centre, the one the managed side handed over, which leaves it where it is.
+     *
+     * And on an axis both can move on, as far as the one that can go further. What is moved is
+     * the centre the frame asked for, not the one this pane drew about, and it is kept inside what
+     * the pane that shows less of its picture can show. Moved from this pane's own and kept to
+     * this pane's range, the first move of a drag brought the other pane's picture in from
+     * wherever beyond that range it had been dragged to.
      */
     const State::PictureSpace& from = state.panFrom;
+    const State::PictureSpace& other = state.panOther;
     const DeviewPane& pane = screen->panes[state.panSide];
-    const float x = from.centreX - (mouse.x - state.panStart.x) / from.wholeWidth;
-    const float y = from.centreY - (mouse.y - state.panStart.y) / from.wholeHeight;
+    const float across = other.enlarged && other.movesAcross ? std::min(from.across, other.across) : from.across;
+    const float down = other.enlarged && other.movesDown ? std::min(from.down, other.down) : from.down;
     state.input.panX = from.movesAcross
-        ? std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f)
+        ? KeptCentre(KeptCentre(from.askedX, across) - (mouse.x - state.panStart.x) / from.wholeWidth, across)
         : pane.imageCenterX;
     state.input.panY = from.movesDown
-        ? std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f)
+        ? KeptCentre(KeptCentre(from.askedY, down) - (mouse.y - state.panStart.y) / from.wholeHeight, down)
         : pane.imageCenterY;
 
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))

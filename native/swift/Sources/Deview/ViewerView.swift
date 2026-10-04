@@ -22,6 +22,10 @@ final class ViewerView: NSView, NSViewToolTipOwner {
     private var panStart = NSPoint.zero
     private var panFrom = Renderer.PictureSpace()
 
+    /// How the other pane's picture was placed then, or nil when that pane has none: how far it
+    /// can go is part of how far the drag can take the centre the two share.
+    private var panOther: Renderer.PictureSpace?
+
     /// Where the last frame put things. Read by `Runtime` to anchor the context menu, which is a
     /// real `NSMenu` and so is popped from outside the drawing code.
     private(set) var layout = Renderer.Layout()
@@ -158,10 +162,12 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // A picture enlarged past its space is taken hold of and moved. Before the text below it,
         // so the same press is not also the start of a selection in the rows above. One that fits
         // has nowhere to go, and a press on it is whatever it always was.
-        if let picture = layout.pictures.first(where: { $0.enlarged && $0.bounds.contains(point) }) {
+        if let index = layout.pictures.firstIndex(where: { $0.enlarged && $0.bounds.contains(point) }) {
             panning = true
             panStart = point
-            panFrom = picture
+            panFrom = layout.pictures[index]
+            // There are two at the most, one a pane, so the other is whichever this is not
+            panOther = layout.pictures.indices.first(where: { $0 != index }).map { layout.pictures[$0] }
             return
         }
 
@@ -189,11 +195,12 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         }
 
         if panning {
-            // Where it is rather than how far it moved, and already inside what the space can show:
+            // Where it is rather than how far it moved, and already inside what the panes can show:
             // the managed side holds one centre for both panes and knows nothing of points. A way
             // this pane's picture cannot move comes back as the frame had it, for the other pane.
             let centre = panFrom.dragged(
-                by: CGSize(width: point.x - panStart.x, height: point.y - panStart.y))
+                by: CGSize(width: point.x - panStart.x, height: point.y - panStart.y),
+                other: panOther)
             Runtime.shared.input.panX = Float(centre.x)
             Runtime.shared.input.panY = Float(centre.y)
             return

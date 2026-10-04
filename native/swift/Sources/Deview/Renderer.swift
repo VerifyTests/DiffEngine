@@ -285,16 +285,41 @@ final class Renderer {
         /// this space holds it: all of it shows that way, which held here is the middle, and
         /// reporting the middle put the other pane's picture back there on the first move of a
         /// drag that was along the other axis.
-        func dragged(by: CGSize) -> CGPoint {
+        ///
+        /// And a way both can move, it goes as far as the one that can go further. What is moved
+        /// is the centre the frame asked for, not the one this space drew about, and it is kept
+        /// inside what the pane showing less of its picture can show: `other` is that pane's
+        /// space, or nil when it has no picture. Moved from this space's own and kept to this
+        /// space's range, the first move of a drag brought the other pane's picture in from
+        /// wherever beyond that range it had been dragged to.
+        func dragged(by: CGSize, other: PictureSpace?) -> CGPoint {
             guard enlarged, whole.width > 0, whole.height > 0 else {
                 return centre
             }
 
-            let x = centre.x - by.width / whole.width
-            let y = centre.y + by.height / whole.height
+            var acrossShown = across
+            var downShown = down
+            if let other, other.enlarged {
+                if other.movesAcross {
+                    acrossShown = min(acrossShown, other.across)
+                }
+
+                if other.movesDown {
+                    downShown = min(downShown, other.down)
+                }
+            }
+
+            let x = PictureSpace.kept(PictureSpace.kept(asked.x, acrossShown) - by.width / whole.width, acrossShown)
+            let y = PictureSpace.kept(PictureSpace.kept(asked.y, downShown) + by.height / whole.height, downShown)
             return CGPoint(
-                x: movesAcross ? min(max(x, across / 2), 1 - across / 2) : asked.x,
-                y: movesDown ? min(max(y, down / 2), 1 - down / 2) : asked.y)
+                x: movesAcross ? x : asked.x,
+                y: movesDown ? y : asked.y)
+        }
+
+        /// A centre moved in as far as it takes for a space showing so much of its picture to
+        /// stay full.
+        private static func kept(_ centre: CGFloat, _ shown: CGFloat) -> CGFloat {
+            min(max(centre, shown / 2), 1 - shown / 2)
         }
     }
 

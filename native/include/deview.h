@@ -140,7 +140,8 @@ typedef struct DeviewPane {
      *
      * The managed side does not know how many pixels a pane has, so it may ask for a centre that
      * would leave part of the space empty. A renderer moves the centre in as far as it takes to
-     * keep the space full, and that clamped centre is the one a drag starts from.
+     * keep the space full. That is for drawing only. A drag starts from the centre asked for,
+     * moved in only as far as the pane that can go further would move it: see DeviewInput.panX.
      */
     float imageZoom;
     float imageCenterX;
@@ -336,8 +337,11 @@ typedef struct DeviewInput {
     int32_t zoomDelta;
 
     /*
-     * Where a drag has left an enlarged picture: the point now at the middle of what shows, as
-     * fractions of the picture's width and height, already kept inside what the space can show.
+     * Where a drag has left an enlarged picture: the centre both panes are to draw about, as
+     * fractions of the picture's width and height. It is the centre the frame asked for that the
+     * drag moves, and it is kept inside what the pane showing less of its picture can show: the
+     * two pictures need not be the same shape, and kept to the dragged pane's own range a drag
+     * brought the other pane's picture in from wherever beyond it that one had been taken.
      * On an axis the dragged picture cannot move on, because all of it shows, it is the centre
      * the frame was drawn with, unchanged: the other pane's picture may be able to move there.
      * panX is -1 on the frames with no such drag, which is almost all of them.
@@ -428,7 +432,8 @@ typedef struct DeviewPlacement {
  *     the managed side allows for, by the rows of the body that footer covers. No struct moved:
  *     what a field means did, and a library from before reports rows that a tall footer hides.
  *     DeviewInput also reports a window nobody can see, at its end, in the same bump because
- *     they shipped together.
+ *     they shipped together. And panX and panY are kept inside what either pane can show, where
+ *     they were kept inside what the dragged one can.
  */
 #define DEVIEW_VERSION 12
 

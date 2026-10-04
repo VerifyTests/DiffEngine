@@ -105,6 +105,53 @@ public class PicturePlacementTests
         await Assert.That(dragged).IsEqualTo(new(0.125, 0.8125));
     }
 
+    /// <summary>
+    /// The centre is one point for both panes, and here it is somewhere the pane beside can show
+    /// and this one cannot: a wide picture beside a tall one, eight times the size that fits, with
+    /// the tall one dragged nearly to its bottom. Dragging the wide one sideways leaves that where
+    /// it is. It came back as far as the wide one's own picture can go, so the tall one jumped.
+    /// </summary>
+    [Test]
+    public async Task ADragAcrossLeavesThePaneBesideWhereItIsDown()
+    {
+        var wide = PicturePlacement.Of(space, Picture(200, 100, zoom: 8, y: 0.875));
+        var tall = PicturePlacement.Of(space, Picture(100, 200, zoom: 8, y: 0.875));
+
+        // What the wide one draws about, which is as far down as it goes
+        await Assert.That(wide.Centre.Y).IsEqualTo(0.8125);
+        await Assert.That(tall.Centre.Y).IsEqualTo(0.875);
+        await Assert.That(wide.Dragged(new(160, 0), tall)).IsEqualTo(new(0.4, 0.875));
+    }
+
+    /// <summary>
+    /// And a drag stops where the pane that can go further does, each way: the wide picture's
+    /// range across and the tall one's down, whichever of the two is under the pointer.
+    /// </summary>
+    [Test]
+    public async Task ADragStopsWhereThePaneThatGoesFurtherDoes()
+    {
+        var wide = PicturePlacement.Of(space, Picture(200, 100, zoom: 8));
+        var tall = PicturePlacement.Of(space, Picture(100, 200, zoom: 8));
+
+        await Assert.That(wide.Dragged(new(100_000, -100_000), tall)).IsEqualTo(new(0.125, 0.90625));
+        await Assert.That(tall.Dragged(new(100_000, -100_000), wide)).IsEqualTo(new(0.125, 0.90625));
+    }
+
+    /// <summary>
+    /// A way the picture cannot move, because all of it shows, is left as the model had it. Kept
+    /// inside what this pane shows it was the middle, on every move of a drag along the other
+    /// way, which took the pane beside back to its middle from wherever it had been dragged to.
+    /// </summary>
+    [Test]
+    public async Task AWayThePictureCannotMoveIsLeftAsTheModelHadIt()
+    {
+        var placement = PicturePlacement.Of(space, Picture(200, 50, zoom: 4, y: 0.2));
+
+        await Assert.That(placement.MovesAcross).IsTrue();
+        await Assert.That(placement.MovesDown).IsFalse();
+        await Assert.That(placement.Dragged(new(80, 50))).IsEqualTo(new(0.4, 0.2));
+    }
+
     static ImagePane Picture(int width, int height, double zoom = 1, double x = 0.5, double y = 0.5) =>
         new("picture.png", width, height, "HASH", zoom, x, y);
 }
