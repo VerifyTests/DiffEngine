@@ -75,7 +75,20 @@ static class TrackedEntry
             return queued with { LeftStamp = current.Stamp };
         }
 
-        return QueueEntry.ForDelete(queued.Key, queued.Name, queued.Solution, file, current);
+        var fresh = QueueEntry.ForDelete(queued.Key, queued.Name, queued.Solution, file, current);
+        if (!queued.Written)
+        {
+            return fresh;
+        }
+
+        // Held because a move wrote this file, which is the very thing that has it read again
+        // with something else in it: what it holds is another thing and why it is held is not.
+        // A run raising the delete again is what lets go of it (ViewerSession.EnqueueTracked)
+        return fresh with
+        {
+            Written = true,
+            Status = queued.Status
+        };
     }
 
     static bool Shows(string text, ImageFile? image, DocumentFile? document, FileSide side) =>

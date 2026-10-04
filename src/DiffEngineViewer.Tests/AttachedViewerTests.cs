@@ -417,6 +417,64 @@ public class AttachedViewerTests
     }
 
     /// <summary>
+    /// A delete the owner's accept-all would leave is marked in the owner's own menu, and looked
+    /// like any other here. What the owner says of it is the entry's status, so the row carries
+    /// the mark a failure does and its tip says why. The same entry from pump to pump while the
+    /// owner says the same, and unmarked again once the owner lets go of it.
+    /// </summary>
+    [Test]
+    public async Task ADeleteTheOwnerHoldsSaysWhy()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"AttachedViewerTests_{Guid.NewGuid():N}.verified.txt");
+        await File.WriteAllTextAsync(file, "first");
+        try
+        {
+            var held = "Kept by 'Accept all': a move was accepted onto this file.";
+            // ReSharper disable once AccessToModifiedClosure
+            var (server, cancel) = Listing(() => ViewerResponse.Listing(
+                [],
+                deletes:
+                [
+                    new(TrackedKeys.ForDelete(file), "extra.verified.txt", null, file)
+                    {
+                        Held = held
+                    }
+                ]));
+            using (server)
+            using (cancel)
+            {
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+                var link = new OwnerLink(host, server.Port);
+
+                link.Pump();
+                var first = host.State.Queue.Single();
+                await Assert.That(first.Status).IsEqualTo(held);
+                var row = QueueProjection.Rows(host.State).Single(_ => _.Kind == QueueRowKind.Entry);
+                await Assert.That(row.Status).IsEqualTo(held);
+                await Assert.That(row.Tooltip!).Contains(held);
+
+                link.Pump();
+                await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
+
+                // Still said of the entry read again from a file that changed
+                await File.WriteAllTextAsync(file, "second, longer", cancel.Token);
+                link.Pump();
+                await Assert.That(host.State.Queue.Single().RightText).IsEqualTo("second, longer");
+                await Assert.That(host.State.Queue.Single().Status).IsEqualTo(held);
+
+                held = null;
+                link.Pump();
+                await Assert.That(host.State.Queue.Single().Status).IsNull();
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
     /// Accepting a conflicted entry names the variant on screen, and the owner applies exactly
     /// that one.
     /// </summary>
@@ -508,7 +566,82 @@ public class AttachedViewerTests
         }
     }
 
-    static readonly InlinePatch solutionA = Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10);
+    /// <summary>
+    /// "Accept all in" a group sends an accept per key, and the owner carries out an accept by key
+    /// as asked, held or not. So the delete an owner says it holds is not sent, and the one beside
+    /// it is. An owner that predates the hold says nothing of it and is sent both, as it always
+    /// was.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task AGroupAcceptLeavesOutADeleteTheOwnerHolds(bool ownerSaysHeld)
+    {
+        var held = Path.Combine(Path.GetTempPath(), $"AttachedViewerTests_{Guid.NewGuid():N}.verified.txt");
+        var free = Path.Combine(Path.GetTempPath(), $"AttachedViewerTests_{Guid.NewGuid():N}.verified.txt");
+        await File.WriteAllTextAsync(held, "what a move put here");
+        await File.WriteAllTextAsync(free, "stale");
+        try
+        {
+            if (!ViewerServer.TryBind(0, out var server))
+            {
+                throw new("Could not bind an ephemeral port.");
+            }
+
+            var accepted = new ConcurrentQueue<string>();
+            using (server)
+            using (var cancel = new CancelSource())
+            {
+                _ = server.Listen(
+                    message =>
+                    {
+                        if (message.Verb == ViewerVerb.Accept)
+                        {
+                            accepted.Enqueue(message.Key!);
+                            return ViewerResponse.Success("Deleted");
+                        }
+
+                        return ViewerResponse.Listing(
+                            [],
+                            deletes:
+                            [
+                                new(TrackedKeys.ForDelete(held), "held.verified.txt", null, held)
+                                {
+                                    Held = ownerSaysHeld ? "Kept by 'Accept all'" : null
+                                },
+                                new(TrackedKeys.ForDelete(free), "free.verified.txt", null, free)
+                            ]);
+                    },
+                    cancel.Token);
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+                var link = new OwnerLink(host, server.Port);
+                link.Pump();
+
+                link.PostAcceptGroup([], [], [TrackedKeys.ForDelete(held), TrackedKeys.ForDelete(free)]);
+                link.Pump();
+
+                if (ownerSaysHeld)
+                {
+                    await Assert.That(accepted).IsEquivalentTo([TrackedKeys.ForDelete(free)]);
+                    await Assert.That(host.State.Message).IsEqualTo(OwnerLink.DeletesKept);
+                }
+                else
+                {
+                    await Assert.That(accepted).IsEquivalentTo([TrackedKeys.ForDelete(held), TrackedKeys.ForDelete(free)]);
+                    await Assert.That(host.State.Message).IsEqualTo("Deleted");
+                }
+
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(held);
+            File.Delete(free);
+        }
+    }
+
+    static readonly InlinePatch solutionA =Fixtures.Patch(Fixtures.SolutionFile("SolutionA", "Tests", "ATests.cs"), 10);
     static readonly InlinePatch solutionB = Fixtures.Patch(Fixtures.SolutionFile("SolutionB", "Tests", "BTests.cs"), 10);
 
     /// <summary>

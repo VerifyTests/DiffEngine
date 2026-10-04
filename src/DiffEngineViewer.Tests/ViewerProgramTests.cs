@@ -125,6 +125,92 @@ public class ViewerProgramTests
     }
 
     /// <summary>
+    /// A window in the taskbar or the Dock, or wholly behind another, is one nobody is reading,
+    /// and the loop only knew that of a window it had hidden itself: the owner went on being
+    /// listed, the pending files watched and the documents drawn as for one on screen. A head
+    /// says so with each poll now, and what is kept going beside the window is slowed for as long
+    /// as it does.
+    /// </summary>
+    [Test]
+    public async Task AWindowNobodyCanSeeSlowsWhatIsKeptGoingBesideIt()
+    {
+        var host = new SessionHost(Fixtures.File());
+        var link = new OwnerLink(host, port: 1);
+        var watch = new TrackedWatch(host);
+        // None of the three is run, so the reader is never asked for a document: each is only
+        // told whether to slow
+        var reader = new DocumentWatch(host, null!);
+        List<string> slowed = [];
+        var window = new ScriptedWindow(
+            [true, true, false],
+            () => slowed.Add($"{link.Hidden} {watch.Hidden} {reader.Hidden}"));
+
+        ViewerProgram.Loop(host, window, link, reader, watch, new(), null, new(), new());
+
+        // As each frame was presented: before anything was said, after each of the two polls
+        // that said nobody could see the window, and after the one that said somebody could
+        await Assert.That(string.Join(", ", slowed))
+            .IsEqualTo("False False False, True True True, True True True, False False False");
+    }
+
+    /// <summary>
+    /// The two reasons come and go apart. A window hidden from here stays slowed whatever its head
+    /// goes on to say, since a head need not count a window it was told to hide.
+    /// </summary>
+    [Test]
+    public async Task AWindowHiddenFromHereStaysSlowedWhateverItsHeadSays()
+    {
+        var host = new SessionHost(Fixtures.File());
+        var watch = new TrackedWatch(host);
+        List<bool> slowed = [];
+        var window = new ScriptedWindow([true, false], () => slowed.Add(watch.Hidden));
+        ConcurrentQueue<WindowCommand> commands = new();
+        commands.Enqueue(WindowCommand.Hide);
+
+        ViewerProgram.Loop(host, window, null, null, watch, commands, null, new(), new());
+
+        await Assert.That(string.Join(", ", slowed)).IsEqualTo("True, True, True");
+    }
+
+    /// <summary>
+    /// A window that says, poll by poll, whether anybody can see it, and nothing else. It closes
+    /// on the present after its last poll, and tells the test as each present begins.
+    /// </summary>
+    sealed class ScriptedWindow(bool[] unseen, Action presenting) : IViewerWindow
+    {
+        int polls;
+
+        public bool Present(Screen screen)
+        {
+            presenting();
+            return polls < unseen.Length;
+        }
+
+        public ViewerInput Poll() =>
+            // Not default: that zeroes every index, and zero is the first button and the first row
+            new(CommandKind.None, -1, -1, 0, false, Fixtures.Columns, Fixtures.Rows, Unseen: unseen[polls++]);
+
+        public void SetHidden(bool hidden)
+        {
+        }
+
+        public void Focus()
+        {
+        }
+
+        public void SetClipboard(string text)
+        {
+        }
+
+        public bool Capture(Screen screen, int width, int height, string pngPath) =>
+            false;
+
+        public void Dispose()
+        {
+        }
+    }
+
+    /// <summary>
     /// Closed on its first frame, which is all a test of what happens around the loop needs.
     /// </summary>
     sealed class PlacedWindow(WindowPlacement? placement) : IViewerWindow

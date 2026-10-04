@@ -149,6 +149,12 @@ constexpr float minPaneCells = 12.0f;
 constexpr float grabWidth = 4.0f;
 
 /*
+ * The lines the managed side keeps for everything that is not a row of the body, which it takes
+ * off the rows it is told the window has. Keep in sync with ScreenBuilder.Chrome.
+ */
+constexpr int chromeRows = 8;
+
+/*
  * deview_init's fontSize is an em size, which is what Core Text and GDI+ take and therefore what
  * the other two heads render at. ImGui's stb_truetype loader scales by pixel height instead
  * (stbtt_ScaleForPixelHeight in imgui_draw.cpp), so the same 15 came out as an em of about 11 and
@@ -355,6 +361,10 @@ struct State
     float cellWidth = 0.0f;
     float lineHeight = 0.0f;
 
+    /* How many rows the body had room for in the last frame built for the window, above whatever
+     * footer that frame laid out, or -1 before there has been one: see MeasureGrid. */
+    int32_t bodyRows = -1;
+
     /* Whether the last screen carried a context menu, which is what makes Escape and a click
      * outside it a dismissal rather than what they would otherwise mean. */
     bool menuOpen = false;
@@ -517,6 +527,11 @@ struct State
         float across = 1.0f;
         float down = 1.0f;
 
+        /* The centre the frame asked for, before it was moved in to keep this space full: one
+         * point for both panes, so it can be somewhere this pane cannot show and the other can. */
+        float askedX = 0.5f;
+        float askedY = 0.5f;
+
         /* Whether there is more of it across, and down, than the space shows: whether the space
          * cut it short that way, which is the only way it can be moved. */
         bool movesAcross = false;
@@ -528,12 +543,15 @@ struct State
     /*
      * An enlarged picture being dragged: where the button went down, and how the picture was placed
      * then, which the whole drag is measured from. Measured from the last frame instead, a drag
-     * would drift by whatever each frame's clamp took off it.
+     * would drift by whatever each frame's clamp took off it. And how the other pane's was placed
+     * then, since how far that one can go is part of how far the drag can take the centre the two
+     * share.
      */
     bool panning = false;
     int32_t panSide = 0;
     ImVec2 panStart{};
     PictureSpace panFrom{};
+    PictureSpace panOther{};
 
     /*
      * Where the right-click that asked for a pane's menu landed, which is where the menu hangs: the
@@ -2606,6 +2624,14 @@ int ReadKey(bool& escape)
  *
  * A row is one text line plus the spacing between rows, which is what the table the panes are
  * drawn in lays out on.
+ *
+ * And no more rows than the body has room for, with the lines the managed side takes off for
+ * everything else added back. That side keeps eight lines where this head's title, headers and one
+ * line of footer take under five, so a footer of two or three lines fits in what is over and the
+ * window's height in rows is the answer, as it always was. A taller one does not: a paged
+ * document's buttons come to four rows in a window under 450 pixels wide, and the body is given
+ * what the footer leaves, so the last rows the managed side sliced were under it. They are taken
+ * off here instead, counted from where the last frame put the body's first row and its bottom.
  */
 void MeasureGrid()
 {
@@ -2622,6 +2648,10 @@ void MeasureGrid()
     state.input.rows = height > 0.0f
         ? static_cast<int32_t>(static_cast<float>(GetScreenHeight()) / height)
         : 0;
+    if (state.bodyRows >= 0)
+    {
+        state.input.rows = std::min(state.input.rows, state.bodyRows + chromeRows);
+    }
 }
 
 /* ---- the frame ---- */
@@ -3153,6 +3183,8 @@ void DrawPaneImage(const DeviewScreen* screen, const DeviewPane& pane, const Pan
         space.centreY = centreY;
         space.across = across;
         space.down = down;
+        space.askedX = pane.imageCenterX;
+        space.askedY = pane.imageCenterY;
         space.movesAcross = std::floor(whole.x) > size.x;
         space.movesDown = std::floor(whole.y) > size.y;
     }
@@ -3201,6 +3233,12 @@ bool OverPicture(float x, float y)
     return false;
 }
 
+/* A centre moved in as far as it takes for a space showing so much of its picture to stay full. */
+float KeptCentre(float centre, float shown)
+{
+    return std::min(std::max(centre, shown * 0.5f), 1.0f - shown * 0.5f);
+}
+
 /*
  * An enlarged picture taken hold of and moved, reduced to the centre the managed side takes.
  *
@@ -3240,6 +3278,7 @@ bool UpdatePan(const DeviewScreen* screen)
                 state.panSide = side;
                 state.panStart = mouse;
                 state.panFrom = space;
+                state.panOther = state.pictureSpaces[1 - side];
                 break;
             }
         }
@@ -3257,8 +3296,7 @@ bool UpdatePan(const DeviewScreen* screen)
     }
 
     /*
-     * The picture follows the pointer, so the point at the middle moves the other way, as far as
-     * this pane's picture can go.
+     * The picture follows the pointer, so the point at the middle moves the other way.
      *
      * Only the way it can go at all. The centre is one point for both panes, and the two pictures
      * need not be the same shape: one that is all in view from top to bottom has nowhere to go
@@ -3266,16 +3304,23 @@ bool UpdatePan(const DeviewScreen* screen)
      * drag. So dragging it sideways took the other pane's picture back to its middle row, from
      * wherever it had been dragged to. An axis this pane's picture cannot move on is reported as
      * the frame's own centre, the one the managed side handed over, which leaves it where it is.
+     *
+     * And on an axis both can move on, as far as the one that can go further. What is moved is
+     * the centre the frame asked for, not the one this pane drew about, and it is kept inside what
+     * the pane that shows less of its picture can show. Moved from this pane's own and kept to
+     * this pane's range, the first move of a drag brought the other pane's picture in from
+     * wherever beyond that range it had been dragged to.
      */
     const State::PictureSpace& from = state.panFrom;
+    const State::PictureSpace& other = state.panOther;
     const DeviewPane& pane = screen->panes[state.panSide];
-    const float x = from.centreX - (mouse.x - state.panStart.x) / from.wholeWidth;
-    const float y = from.centreY - (mouse.y - state.panStart.y) / from.wholeHeight;
+    const float across = other.enlarged && other.movesAcross ? std::min(from.across, other.across) : from.across;
+    const float down = other.enlarged && other.movesDown ? std::min(from.down, other.down) : from.down;
     state.input.panX = from.movesAcross
-        ? std::min(std::max(x, from.across * 0.5f), 1.0f - from.across * 0.5f)
+        ? KeptCentre(KeptCentre(from.askedX, across) - (mouse.x - state.panStart.x) / from.wholeWidth, across)
         : pane.imageCenterX;
     state.input.panY = from.movesDown
-        ? std::min(std::max(y, from.down * 0.5f), 1.0f - from.down * 0.5f)
+        ? KeptCentre(KeptCentre(from.askedY, down) - (mouse.y - state.panStart.y) / from.wholeHeight, down)
         : pane.imageCenterY;
 
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -3530,13 +3575,12 @@ void BuildFrame(const DeviewScreen* screen)
     ImGui::Separator();
 
     /*
-     * Its height comes off the body, and the managed side is not asked for fewer rows to make up
-     * for it. That side keeps eight lines for everything that is not a row, where this head's
-     * title, headers and one line of footer take under five, so there are 62 pixels and more under
-     * the last row it slices. A second row of buttons takes 23 of them and a line for the status
-     * 17, and a third row of buttons on top of both is a pixel over at most. It is only past
-     * that - four rows, which a paged document's buttons come to in a window under 450 pixels
-     * wide - that the last rows of the body are cut off, behind a footer that can at least be read.
+     * Its height comes off the body. The managed side keeps eight lines for everything that is not
+     * a row, where this head's title, headers and one line of footer take under five, so there are
+     * 62 pixels and more under the last row it slices. A second row of buttons takes 23 of them
+     * and a line for the status 17, and a third row of buttons on top of both is a pixel over at
+     * most. Past that - four rows, which a paged document's buttons come to in a window under 450
+     * pixels wide - the managed side is asked for fewer rows: see MeasureGrid.
      */
     const Footer footer = LayOutFooter(screen, ImGui::GetContentRegionAvail().x);
 
@@ -3736,6 +3780,17 @@ void BuildFrame(const DeviewScreen* screen)
         }
 
         ImGui::EndTable();
+    }
+
+    if (!state.capturing)
+    {
+        /* What MeasureGrid holds the rows it reports to: how many of them there is room for
+         * between the body's first and its bottom, which is where the footer begins. Unknown for
+         * a frame with no rows, which says nothing about where one would be. */
+        const float pitch = leftHit.pitch > 0.0f ? leftHit.pitch : ImGui::GetTextLineHeightWithSpacing();
+        state.bodyRows = leftHit.first >= 0.0f && pitch > 0.0f
+            ? std::max(0, static_cast<int32_t>((bodyMin.y + bodyAvail.y - leftHit.first) / pitch))
+            : -1;
     }
 
     if (screen->paneCount >= 2)
@@ -4489,10 +4544,14 @@ int32_t deview_present(const DeviewScreen* screen)
      * arrival, and marks the window stale, so the first present after it builds the screen it is
      * handed and draws it: see deview_set_hidden and Arrived.
      *
+     * A minimised window the same, which was still built and drawn whenever its screen changed.
+     * Nothing of it is on the screen either, and coming back from the taskbar is an arrival that
+     * marks it stale as being shown is.
+     *
      * Not before a frame has been built for the window at all. The grid the managed side slices
      * its rows by is measured from one, and ImGui has no font to measure with until its first.
      */
-    if (state.hidden &&
+    if ((state.hidden || state.minimised) &&
         state.cellWidth > 0.0f)
     {
         if (changed)
@@ -4637,6 +4696,11 @@ void deview_poll_input(DeviewInput* input)
         }
 
         MeasureGrid();
+
+        /* As it is now, like the grid. Nothing of a window that is hidden or minimised is on the
+         * screen. One behind another window is not known to be: X11 says nothing of it that GLFW
+         * passes on. */
+        state.input.unseen = IsWindowState(FLAG_WINDOW_HIDDEN) || IsWindowMinimized() ? 1 : 0;
     }
 
     *input = state.input;

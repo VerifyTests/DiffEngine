@@ -30,7 +30,8 @@ sealed class TrackedWatch(SessionHost host, DocumentPlugin? documents = null)
     public static TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
-    /// Whether the window is hidden, set by the render loop as it hides and shows it. Nobody is
+    /// Whether the window is hidden, set by the render loop as it hides and shows it, and as its
+    /// head says it is minimised or covered, which nobody can see either. Nobody is
     /// reading a hidden window's rows, so its files are looked at as often as an attached viewer
     /// lists its owner while hidden. Not stopped, because an entry whose received file has gone
     /// is still pending for as long as it is in the queue, and the queue is what gets staged.

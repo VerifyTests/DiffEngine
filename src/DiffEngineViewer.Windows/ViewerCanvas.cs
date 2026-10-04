@@ -849,6 +849,12 @@ sealed class ViewerCanvas : Control
     PicturePlacement panFrom;
 
     /// <summary>
+    /// The placement the other pane's picture had then, or null when it has none: how far that
+    /// one can go is part of how far the drag can take the centre the two share.
+    /// </summary>
+    PicturePlacement? panBeside;
+
+    /// <summary>
     /// Where a drag has left the middle of the picture, until <see cref="TakePan"/> reports it.
     /// </summary>
     PanPoint? pan;
@@ -1180,6 +1186,15 @@ sealed class ViewerCanvas : Control
             Capture = true;
             panStart = e.Location;
             panFrom = PicturePlacement.Of(picture.Available, picture.Image);
+            panBeside = null;
+            foreach (var other in pictures)
+            {
+                if (other != picture)
+                {
+                    panBeside = PicturePlacement.Of(other.Available, other.Image);
+                }
+            }
+
             return;
         }
 
@@ -1237,7 +1252,7 @@ sealed class ViewerCanvas : Control
         {
             // From where the button went down rather than from the last move, so the picture is
             // where the pointer has taken it however the moves in between were reported
-            pan = panFrom.Dragged(new(e.X - panStart.X, e.Y - panStart.Y));
+            pan = panFrom.Dragged(new(e.X - panStart.X, e.Y - panStart.Y), panBeside);
             return;
         }
 

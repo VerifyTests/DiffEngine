@@ -175,6 +175,14 @@ record QueueEntry(
     public bool Conflicted => Variants.Count > 1;
 
     /// <summary>
+    /// On a pending delete this process owns: a move has written its file since the delete was
+    /// raised, and from then on no bulk accept carries the delete out (see
+    /// <see cref="ViewerSession.WroteItsFile"/>). Gone when a run raises the delete again, which
+    /// is a statement made after the write. What <c>TrackedDelete.Written</c> is to the tray.
+    /// </summary>
+    public bool Written { get; init; }
+
+    /// <summary>
     /// Whether one side of an entry holds what a side that arrived, or was read again, holds.
     /// </summary>
     public static bool SameSide(
