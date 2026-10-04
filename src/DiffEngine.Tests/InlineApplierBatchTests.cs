@@ -33,9 +33,15 @@ public class InlineApplierBatchTests
         ];
 
         var batch = InlineApplier.ApplyAll(Patches(together.FullName));
-        var single = Patches(inTurn.FullName)
-            .Select(InlineApplier.Apply)
-            .ToList();
+        // In turn, each asked about the line its call site is on by then: a batch brings a
+        // patch's line along with the edits made above it, where every patch here was recorded
+        // against the file as it started
+        var single = new List<InlineApplyResult>();
+        foreach (var patch in Patches(inTurn.FullName))
+        {
+            var line = single.Aggregate(patch.LineHint, (current, earlier) => earlier.Rebase(current));
+            single.Add(InlineApplier.Apply(patch.At(line)));
+        }
 
         await Assert.That(Statuses(batch)).IsEqualTo(Statuses(single));
         await Assert.That(Statuses(batch)).IsEqualTo("Applied, Applied, AlreadyApplied, NotFound, Applied, NotFound, Applied, Applied");
@@ -236,6 +242,124 @@ public class InlineApplierBatchTests
         await Assert.That(text.Replace("\r\n", "")).DoesNotContain("\n");
     }
 
+    /// <summary>
+    /// An applied patch says which lines it moved, so whoever holds other patches for the file
+    /// can bring their lines along: the lines under the call site, by what the literal grew, and
+    /// none at or above it.
+    /// </summary>
+    [Test]
+    public async Task AnAppliedPatchSaysWhichLinesItMoved()
+    {
+        using var file = new TempSource(Members(4));
+
+        var result = InlineApplier.Apply(Set(file.FullName, 1));
+
+        await Assert.That(result.Status).IsEqualTo(InlineApplyStatus.Applied);
+        await Assert.That(result.MovedBy).IsGreaterThan(0);
+        var lines = file.Text.Split('\n');
+        // Each member was on line member + 3
+        await Assert.That(lines[result.Rebase(3) - 1]).Contains("void M0()");
+        await Assert.That(lines[result.Rebase(4) - 1]).Contains("void M1()");
+        await Assert.That(lines[result.Rebase(5) - 1]).Contains("void M2()");
+        await Assert.That(lines[result.Rebase(6) - 1]).Contains("void M3()");
+        await Assert.That(result.Rebase(4)).IsEqualTo(4);
+        await Assert.That(result.Rebase(5)).IsEqualTo(5 + result.MovedBy);
+    }
+
+    /// <summary>
+    /// A literal that gets shorter moves the lines under it up, and one that stays as long moves
+    /// none.
+    /// </summary>
+    [Test]
+    public async Task ALiteralThatShrinksMovesTheLinesUnderItUp()
+    {
+        using var file = new TempSource(Members(3));
+        var grown = InlineApplier.Apply(Set(file.FullName, 0));
+
+        var shrunk = InlineApplier.Apply(
+            new(file.FullName, 3, null, "one line")
+            {
+                TestName = null,
+                MemberName = "M0",
+                OriginalValue = "new 0\nsecond line"
+            });
+        var same = InlineApplier.Apply(
+            new(file.FullName, 3, null, "another")
+            {
+                TestName = null,
+                MemberName = "M0",
+                OriginalValue = "one line"
+            });
+
+        await Assert.That(shrunk.Status).IsEqualTo(InlineApplyStatus.Applied);
+        await Assert.That(shrunk.MovedBy).IsLessThan(0);
+        await Assert.That(shrunk.MovedBy).IsGreaterThan(-grown.MovedBy - 1);
+        var lines = file.Text.Split('\n');
+        await Assert.That(lines[shrunk.Rebase(grown.Rebase(5)) - 1]).Contains("void M2()");
+        await Assert.That(same.Status).IsEqualTo(InlineApplyStatus.Applied);
+        await Assert.That(same.MovedBy).IsEqualTo(0);
+        await Assert.That(same).IsSameReferenceAs(InlineApplyResult.Applied);
+    }
+
+    /// <summary>
+    /// Each result of a batch counts lines as the patches before it left them, so rebasing a
+    /// line through the results in order gives where it is in the file that was written.
+    /// </summary>
+    [Test]
+    public async Task ABatchsResultsRebaseALineInOrder()
+    {
+        using var file = new TempSource(Members(5));
+
+        var results = InlineApplier.ApplyAll([Set(file.FullName, 2), Set(file.FullName, 0), Set(file.FullName, 3)]);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Applied, Applied, Applied");
+        var lines = file.Text.Split('\n');
+        for (var member = 0; member < 5; member++)
+        {
+            var line = results.Aggregate(member + 3, (current, result) => result.Rebase(current));
+            await Assert.That(lines[line - 1]).Contains($"void M{member}()");
+        }
+    }
+
+    /// <summary>
+    /// An Append is the patch that cannot do without its line: with no anchor, a line that names
+    /// no call leaves it to choose among the member's calls, and it is refused where there are
+    /// two. In a batch the snapshot accepted above it had moved that line, so the second
+    /// snapshot of a file was refused for the accept of the first.
+    /// </summary>
+    [Test]
+    public async Task AnAppendUnderAnEarlierEditIsAskedAboutTheLineItsCallIsOnNow()
+    {
+        using var file = new TempSource(
+            """
+            class C
+            {
+                void M0() => Verify(value0).Snapshot("old 0");
+                Task M1()
+                {
+                    Verify(first);
+                    return Verify(second);
+                }
+            }
+            """);
+        InlinePatch[] patches =
+        [
+            Set(file.FullName, 0),
+            new(file.FullName, 7, null, "appended", InlinePatchMode.Append)
+            {
+                TestName = null,
+                MemberName = "M1"
+            }
+        ];
+
+        var results = InlineApplier.ApplyAll(patches);
+
+        await Assert.That(Statuses(results)).IsEqualTo("Applied, Applied");
+        await Assert.That(file.Text).Contains("Verify(second)");
+        await Assert.That(file.Text).Contains("Verify(first);");
+        await Assert.That(file.Text).DoesNotContain("Verify(second);");
+    }
+
     [Test]
     public async Task AnEmptyBatchIsNoResults() =>
         await Assert.That(InlineApplier.ApplyAll([])).IsEmpty();
@@ -266,13 +390,25 @@ public class InlineApplierBatchTests
             InlineApplier.PatchInTurn(language, ref carried, patches, path, results);
 
             var lexedAgain = source;
+            // Where each edit so far moved the lines, worked out here from the two texts, since
+            // a patch is asked about the line its call site has been moved to
+            var moves = new List<(int From, int By)>();
             for (var index = 0; index < patches.Count; index++)
             {
                 var patch = patches[index];
+                var line = patch.LineHint;
+                foreach (var (from, by) in moves)
+                {
+                    if (line >= from)
+                    {
+                        line += by;
+                    }
+                }
+
                 var status = InlinePatcher.TryApply(
                     language,
                     lexedAgain,
-                    patch.LineHint,
+                    line,
                     patch.Mode,
                     patch.OriginalExpression,
                     patch.OriginalValue,
@@ -284,6 +420,7 @@ public class InlineApplierBatchTests
                     out var reason);
                 if (status == PatchStatus.Applied)
                 {
+                    moves.Add(Moved(lexedAgain, patched));
                     lexedAgain = patched;
                 }
 
@@ -312,6 +449,27 @@ public class InlineApplierBatchTests
         await Assert.That(problems).IsEmpty();
         // Or the batches were all refusals, and agreed about nothing much
         await Assert.That(seen).IsEquivalentTo([InlineApplyStatus.Applied, InlineApplyStatus.AlreadyApplied, InlineApplyStatus.NotFound]);
+    }
+
+    /// <summary>
+    /// Which lines an edit moved, the slow way: the first line that is whole in what the two
+    /// texts end with alike, and how many more lines there are.
+    /// </summary>
+    static (int From, int By) Moved(string before, string after)
+    {
+        var beforeLines = before.Split('\n');
+        var afterLines = after.Split('\n');
+        var limit = Math.Min(beforeLines.Length, afterLines.Length);
+        var same = 0;
+        while (same < limit &&
+               beforeLines[beforeLines.Length - 1 - same] == afterLines[afterLines.Length - 1 - same])
+        {
+            same++;
+        }
+
+        // Counted from the end, so the lines of a literal that were in both texts are not the
+        // edit's. The first of them is 1 based
+        return (beforeLines.Length - same + 1, afterLines.Length - beforeLines.Length);
     }
 
     /// <summary>

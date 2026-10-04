@@ -763,22 +763,32 @@ static class ViewerSession
         var pending = Pending(state);
         InlineQueue accepted;
         string? message;
+        // What the applier answered, for the lines it moved
+        InlineApplyResult? applied = null;
+        InlineApplyResult Apply(InlinePatch patch) =>
+            applied = actions.ApplyInline(patch);
+
         if (current.Conflicted &&
             current.Variants[current.SelectedVariant].Origins is { Count: > 0 } origins &&
             origins[0] is { } origin)
         {
             // The reviewer picked a side by cycling to it; accepting applies exactly what is on
             // screen and resolves the whole call site.
-            accepted = pending.Accept(current.Key, origin, actions.ApplyInline, out message);
+            accepted = pending.Accept(current.Key, origin, Apply, out message);
         }
         else
         {
-            accepted = pending.Accept(current.Key, actions.ApplyInline, out message);
+            accepted = pending.Accept(current.Key, Apply, out message);
         }
 
         var queue = Rebuild(state, pending, accepted);
         if (accepted.Count < pending.Count)
         {
+            if (applied is not null)
+            {
+                queue = Rebased(queue, current.Patch!.SourceFile, [applied]).Queue;
+            }
+
             return Remove(state, queue, message);
         }
 
@@ -1414,6 +1424,29 @@ static class ViewerSession
             }
         }
 
+        // Once every outcome is in, since a claimed entry is found by its variants and one that
+        // has moved has others. What is left of the file - a conflict, a snapshot that was not
+        // written, one that arrived since - goes to where its call site now is
+        var (rebased, moved) = Rebased(queue, entries[0].Patch!.SourceFile, results);
+        if (moved is not null)
+        {
+            // The batch names its entries by key: what it has still to do, where a conflict is
+            // passed over when its turn comes and something else of this file may now stand
+            // under the key it had, and a group's members, which is how its conflicts are
+            // counted at the end
+            batch = batch with
+            {
+                Remaining = batch
+                    .Remaining
+                    .Select(_ => moved.GetValueOrDefault(_, _))
+                    .ToList(),
+                Only = batch
+                    .Only?
+                    .Select(_ => moved.GetValueOrDefault(_, _))
+                    .ToHashSet()
+            };
+        }
+
         return Remove(
             state with
             {
@@ -1424,8 +1457,77 @@ static class ViewerSession
                     Together = []
                 }
             },
-            queue,
-            state.Message);
+            rebased,
+            state.Message,
+            moved);
+    }
+
+    /// <summary>
+    /// The list with the snapshots of <paramref name="sourceFile"/> taken to the lines their
+    /// call sites are on after the edits <paramref name="results"/> report, and the keys that
+    /// changed, old to new, or null when none did. See <see cref="InlineQueue.Rebased"/>, which
+    /// decides it.
+    /// <para>
+    /// Done to the list where it stands and not by rebuilding it from the queue: an entry at
+    /// another line is the same texts and the same diff under another key, and a list ordered
+    /// by solution and test is still in order. Rebuilt, each of them was diffed again, a file's
+    /// worth for every accept in it.
+    /// </para>
+    /// </summary>
+    static (IReadOnlyList<QueueEntry> Queue, Dictionary<string, string>? Moved) Rebased(
+        IReadOnlyList<QueueEntry> queue,
+        string sourceFile,
+        IReadOnlyList<InlineApplyResult> results)
+    {
+        if (!results.Any(_ => _.MovedBy != 0))
+        {
+            return (queue, null);
+        }
+
+        var indexes = new List<int>();
+        for (var index = 0; index < queue.Count; index++)
+        {
+            if (queue[index] is { Kind: QueueEntryKind.Inline, Patch: { } patch } &&
+                InlineKey.SamePath(patch.SourceFile, sourceFile))
+            {
+                indexes.Add(index);
+            }
+        }
+
+        if (indexes.Count == 0)
+        {
+            return (queue, null);
+        }
+
+        var before = InlineQueue.From(indexes.Select(_ => new PendingInline(queue[_].Variants, queue[_].Status)));
+        var after = before.Rebased(sourceFile, results);
+        if (ReferenceEquals(after, before))
+        {
+            return (queue, null);
+        }
+
+        var list = queue.ToList();
+        var moved = new Dictionary<string, string>();
+        for (var position = 0; position < indexes.Count; position++)
+        {
+            var pending = after.Items[position];
+            if (ReferenceEquals(pending, before.Items[position]))
+            {
+                continue;
+            }
+
+            var entry = list[indexes[position]];
+            moved[entry.Key] = pending.Key;
+            list[indexes[position]] = entry with
+            {
+                Key = pending.Key,
+                Name = pending.Name,
+                Patch = pending.Variants[entry.SelectedVariant].Patch,
+                Variants = pending.Variants
+            };
+        }
+
+        return (list, moved);
     }
 
     /// <summary>
@@ -2097,9 +2199,16 @@ static class ViewerSession
     /// an entry that is itself gone falls back to advancing by index.
     /// </para>
     /// </summary>
-    static SessionState Remove(SessionState state, IReadOnlyList<QueueEntry> queue, string? message)
+    static SessionState Remove(SessionState state, IReadOnlyList<QueueEntry> queue, string? message, Dictionary<string, string>? moved = null)
     {
         var key = state.Current?.Key;
+        // An entry taken to another line (Rebased) is still the entry being read
+        if (key is not null &&
+            moved is not null)
+        {
+            key = moved.GetValueOrDefault(key, key);
+        }
+
         var selected = key is null ? -1 : IndexOf(queue, key);
         var next = state with
         {

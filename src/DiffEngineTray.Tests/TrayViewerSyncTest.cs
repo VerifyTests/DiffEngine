@@ -548,6 +548,29 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// An owner takes what is pending for a file to the lines an accept moved its call sites to,
+    /// and both surfaces show them there. After a snapshot that got shorter, the one under it
+    /// can come up onto the very line the accepted one was on: the tray, which reads whether an
+    /// accept failed off the entry still being under its key, must not take that one for it.
+    /// </summary>
+    [Test]
+    public async Task AnEntryThatMovesOntoTheAcceptedLineIsNotAFailedAccept()
+    {
+        await using var pair = new ViewerOwned(_ => ViewerSideApplyResult.AppliedMoving(6, -2));
+        var snapshot = pair.Snapshot(sample, 5);
+        pair.Queue(sample, 7, "under it");
+        pair.Queue(other, 7);
+
+        await pair.Tracker.Accept(snapshot);
+
+        await Assert.That(pair.Failures).IsEmpty();
+        await Assert.That(pair.Applied.Single().LineHint).IsEqualTo(5);
+        await Assert.That(pair.Viewer.Keys()).IsEquivalentTo([Key(sample, 5), Key(other, 7)]);
+        await Assert.That(pair.Viewer.Queue.Single(_ => _.Key == Key(sample, 5)).LeftText).IsEqualTo("under it");
+        await Assert.That(pair.Listing.Select(_ => _.Key)).IsEquivalentTo([Key(sample, 5), Key(other, 7)]);
+    }
+
+    /// <summary>
     /// A failed apply keeps its entry so it can be retried, and both surfaces have to say the same
     /// thing about it — the tray in a balloon, the viewer in the entry's status.
     /// </summary>

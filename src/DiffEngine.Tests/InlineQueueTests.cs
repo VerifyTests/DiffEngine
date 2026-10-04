@@ -784,6 +784,104 @@ public class InlineQueueTests
         await Assert.That(tally).IsEqualTo(new());
     }
 
+    /// <summary>
+    /// An accept moves the call sites under it, and the entries pending for that file go with
+    /// them: the ones under the edit, by what it added, with their variants and status, and no
+    /// entry above it or in another file.
+    /// </summary>
+    [Test]
+    public async Task EntriesUnderAnAcceptedSnapshotGoToTheLinesTheirCallSitesAreOn()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 10, member: "First"))
+            .Enqueue(Patch(line: 20, member: "Second"))
+            .Enqueue(Patch(line: 30, member: "Third", framework: "net9.0", content: "nine"))
+            .Enqueue(Patch(line: 30, member: "Third", framework: "net10.0", content: "ten"))
+            .Enqueue(Patch("Other.cs", 30));
+        var tally = new AcceptAllTally();
+        queue = queue.AcceptInBatch(queue.Items[2], InlineApplyResult.Failed("locked"), ref tally);
+        var held = queue.Items;
+
+        // The snapshot at line 20 is accepted and its literal is four lines longer
+        var accepted = InlineApplyResult.AppliedMoving(21, 4);
+        queue = queue
+            .Accept(held[1], accepted, out _)
+            .Rebased("Sample.cs", [accepted]);
+
+        await Assert.That(queue.Items.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:10", "Sample.cs:34", "Other.cs:30"]);
+        await Assert.That(queue.Items[0]).IsSameReferenceAs(held[0]);
+        await Assert.That(queue.Items[2]).IsSameReferenceAs(held[3]);
+        var moved = queue.Items[1];
+        await Assert.That(moved.Key).IsEqualTo(InlineKey.For("Sample.cs", 34));
+        await Assert.That(moved.Status).IsEqualTo("locked");
+        await Assert.That(moved.Variants.Select(_ => _.Patch.LineHint)).IsEquivalentTo([34, 34]);
+        await Assert.That(moved.Variants.Select(_ => _.Patch.NewContent)).IsEquivalentTo(["nine", "ten"]);
+        // A copy, since what was queued is shared with whoever is showing or applying it
+        await Assert.That(held[2].Patch.LineHint).IsEqualTo(30);
+    }
+
+    /// <summary>
+    /// With the lines kept right, the re-run that follows an accept finds its entry by its key,
+    /// which is what every other way of finding it was a guess at: here a framework that has no
+    /// content in the entry yet, which was queued a second time beside it, and a settle from a
+    /// sibling call in the same member that now stands on the old line, which took the entry.
+    /// </summary>
+    [Test]
+    public async Task AfterAnAcceptARerunAndASettleFindAnEntryByItsKey()
+    {
+        var accepted = InlineApplyResult.AppliedMoving(11, 5);
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 10, member: "First"))
+            .Enqueue(Patch(line: 20, member: "Second", framework: "net9.0"));
+        queue = queue
+            .Accept(queue.Items[0], accepted, out _)
+            .Rebased("Sample.cs", [accepted]);
+
+        // Another framework reports the call site where it is now
+        var rerun = queue.Enqueue(Patch(line: 25, member: "Second", framework: "net10.0"));
+        await Assert.That(rerun.Items.Single().OriginsLabel).IsEqualTo("net9.0 / net10.0");
+
+        // A passing call of the same member, on the line the entry used to have and holding
+        // something else, settles nothing
+        var settled = queue.Settle(InlineKey.For("Sample.cs", 20), "net9.0", "Second", "unrelated");
+        await Assert.That(settled.Items.Single().Key).IsEqualTo(InlineKey.For("Sample.cs", 25));
+    }
+
+    /// <summary>
+    /// A snapshot that got shorter brings the lines under it up, and an entry whose hint was
+    /// already wrong can be standing where another is taken to. A queue holds one entry to a
+    /// key, so that one stays where it was.
+    /// </summary>
+    [Test]
+    public async Task AnEntryIsNotTakenToALineAnotherHolds()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 18, member: "Stale"))
+            .Enqueue(Patch(line: 20, member: "Second"))
+            .Enqueue(Patch(line: 40, member: "Third"));
+
+        var after = queue.Rebased("Sample.cs", [InlineApplyResult.AppliedMoving(19, -2)]);
+
+        await Assert.That(after.Items.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:18", "Sample.cs:20", "Sample.cs:38"]);
+        await Assert.That(after.Items.Select(_ => _.Key).Distinct().Count()).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// Nothing moved is the same queue, so a host can tell, and so can whatever reads a queue's
+    /// identity as its generation.
+    /// </summary>
+    [Test]
+    public async Task AnEditThatMovedNothingLeavesTheQueueAsItIs()
+    {
+        var queue = InlineQueue.Empty
+            .Enqueue(Patch(line: 10))
+            .Enqueue(Patch(line: 20));
+
+        await Assert.That(queue.Rebased("Sample.cs", [InlineApplyResult.Applied, InlineApplyResult.NotFound("gone")])).IsSameReferenceAs(queue);
+        await Assert.That(queue.Rebased("Sample.cs", [InlineApplyResult.AppliedMoving(21, 3)])).IsSameReferenceAs(queue);
+        await Assert.That(queue.Rebased("Other.cs", [InlineApplyResult.AppliedMoving(1, 3)])).IsSameReferenceAs(queue);
+    }
+
     [Test]
     public async Task DiscardRemovesWithoutApplying()
     {

@@ -574,6 +574,9 @@ sealed class OwnedInlineHost :
         lock (gate)
         {
             queue = queue.Accept(entry, result, out message);
+            // Whether or not the completion was taken: the edit is in the file either way, and
+            // what is pending for that file was recorded against the lines as they were
+            queue = queue.Rebased(patch!.SourceFile, [result]);
         }
 
         if (message is null)
@@ -699,6 +702,10 @@ sealed class OwnedInlineHost :
                     queue = queue.AcceptInBatch(claimed[index], results[index], ref tally);
                     progress = progress?.Advance();
                 }
+
+                // After the last of them, since each is found by its variants and an entry
+                // taken to another line has others
+                queue = queue.Rebased(claimed[0].Patch.SourceFile, results);
             }
 
             Changed?.Invoke();
