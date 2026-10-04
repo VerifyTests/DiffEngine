@@ -415,7 +415,10 @@ static class ViewerProgram
         }
     }
 
-    static void Loop(
+    /// <summary>
+    /// Internal so ViewerProgramTests can hand it the watchers it slows and see them slowed.
+    /// </summary>
+    internal static void Loop(
         SessionHost host,
         IViewerWindow window,
         OwnerLink? link,
@@ -426,6 +429,22 @@ static class ViewerProgram
         ViewerPreferences preferences,
         ScreenCache screens)
     {
+        // Two reasons nobody is looking at the window, which come and go apart: it was hidden
+        // from here, by a command or by closing it beside a tray, or its head says nothing of it
+        // is on screen - minimised, or covered where a head can tell. Either slows what is kept
+        // going beside it. A minimised window used to be listed, watched and read as one on
+        // screen, since only hiding it was known here.
+        var hidden = false;
+        var unseen = false;
+
+        void Slow()
+        {
+            var slow = hidden || unseen;
+            link?.Hidden = slow;
+            reader?.Hidden = slow;
+            watch?.Hidden = slow;
+        }
+
         while (true)
         {
             // Every renderer here is single threaded, so socket driven window changes are applied
@@ -439,9 +458,8 @@ static class ViewerProgram
 
                 var hide = command == WindowCommand.Hide;
                 // A focus shows the window as well as raising it
-                link?.Hidden = hide;
-                reader?.Hidden = hide;
-                watch?.Hidden = hide;
+                hidden = hide;
+                Slow();
 
                 if (command == WindowCommand.Focus)
                 {
@@ -476,6 +494,14 @@ static class ViewerProgram
             }
 
             var input = window.Poll();
+            // Said by every poll, and acted on when it changes. Apart from the state, which it is
+            // no part of: a window going to the taskbar is not a frame with input in it.
+            if (input.Unseen != unseen)
+            {
+                unseen = input.Unseen;
+                Slow();
+            }
+
             // Not on a frame with nothing in it, which is almost all of them. The listener thread
             // takes the same lock to accept a snapshot, which can wait ten seconds on
             // InlineApplier's mutex, and taking it every frame put the render loop behind that
@@ -527,9 +553,8 @@ static class ViewerProgram
             {
                 Remember(window, preferences);
                 window.SetHidden(true);
-                link?.Hidden = true;
-                reader?.Hidden = true;
-                watch?.Hidden = true;
+                hidden = true;
+                Slow();
 
                 continue;
             }

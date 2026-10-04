@@ -355,6 +355,19 @@ typedef struct DeviewInput {
      * says which pane it is for in DeviewScreen.menuPane.
      */
     int32_t rightClickedPane;
+
+    /*
+     * 1 while nobody can see the window, and 0 otherwise: minimised, hidden by deview_set_hidden,
+     * or with nothing of it showing where the window system can say so, which AppKit can and X11
+     * cannot. A state, as the grid is, and not an event: reported by every poll for as long as
+     * it is so.
+     *
+     * The managed side keeps things going beside the window for whoever is reading it - it reads
+     * the files behind the rows again, lists the queue's owner, draws a document's pages - and
+     * knew to slow those only for a window it had hidden itself. A window in the taskbar or the
+     * Dock, or behind another, was kept up as one being read.
+     */
+    int32_t unseen;
 } DeviewInput;
 
 /*
@@ -414,6 +427,8 @@ typedef struct DeviewPlacement {
  * 12: DeviewInput.rows is fewer than the window's height in rows where the footer is taller than
  *     the managed side allows for, by the rows of the body that footer covers. No struct moved:
  *     what a field means did, and a library from before reports rows that a tall footer hides.
+ *     DeviewInput also reports a window nobody can see, at its end, in the same bump because
+ *     they shipped together.
  */
 #define DEVIEW_VERSION 12
 

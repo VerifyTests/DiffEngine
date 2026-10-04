@@ -506,6 +506,9 @@ final class Runtime {
     func takeInput() -> DeviewInput {
         var taken = input
         resetInput()
+        // As it is now, like the grid: what slows the pump is said to the managed side as well,
+        // which slows what it keeps going beside a window for whoever is reading it.
+        taken.unseen = unseen ? 1 : 0
         guard !discrete.isEmpty else {
             return taken
         }

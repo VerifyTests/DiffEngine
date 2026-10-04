@@ -846,7 +846,10 @@ sealed class ViewerForm : Form
             ZoomDelta: zoomDelta,
             PanX: pan?.X ?? -1,
             PanY: pan?.Y ?? -1,
-            RightClickedPane: next.RightClickedPane);
+            RightClickedPane: next.RightClickedPane,
+            // In the taskbar, where FormsViewerWindow.FrameWait already slows this head's own
+            // frames. A window behind another is not asked about: Windows has no one answer for it.
+            Unseen: WindowState == FormWindowState.Minimized);
 
         scrollTo = -1;
         scrollDelta = 0;

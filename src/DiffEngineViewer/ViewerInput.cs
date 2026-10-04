@@ -41,4 +41,8 @@ readonly record struct ViewerInput(
     double PanY = -1,
     // A right-click on a pane's text: 0 for the left, 1 for the right, or -1. Opens the menu that
     // copies from it, which the head hangs where the click landed.
-    int RightClickedPane = -1);
+    int RightClickedPane = -1,
+    // Nobody can see the window: it is minimised, or wholly covered where a head can tell. A
+    // state rather than something that happened, so it makes no frame one with input in it. The
+    // loop slows what it keeps going beside the window, as it does for one it hid itself.
+    bool Unseen = false);

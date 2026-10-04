@@ -140,7 +140,8 @@ sealed class NativeViewerWindow : IViewerWindow
             ZoomDelta: input.ZoomDelta,
             PanX: input.PanX,
             PanY: input.PanY,
-            RightClickedPane: input.RightClickedPane);
+            RightClickedPane: input.RightClickedPane,
+            Unseen: input.Unseen != 0);
     }
 
     public void SetHidden(bool hidden) =>

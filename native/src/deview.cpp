@@ -4521,10 +4521,14 @@ int32_t deview_present(const DeviewScreen* screen)
      * arrival, and marks the window stale, so the first present after it builds the screen it is
      * handed and draws it: see deview_set_hidden and Arrived.
      *
+     * A minimised window the same, which was still built and drawn whenever its screen changed.
+     * Nothing of it is on the screen either, and coming back from the taskbar is an arrival that
+     * marks it stale as being shown is.
+     *
      * Not before a frame has been built for the window at all. The grid the managed side slices
      * its rows by is measured from one, and ImGui has no font to measure with until its first.
      */
-    if (state.hidden &&
+    if ((state.hidden || state.minimised) &&
         state.cellWidth > 0.0f)
     {
         if (changed)
@@ -4669,6 +4673,11 @@ void deview_poll_input(DeviewInput* input)
         }
 
         MeasureGrid();
+
+        /* As it is now, like the grid. Nothing of a window that is hidden or minimised is on the
+         * screen. One behind another window is not known to be: X11 says nothing of it that GLFW
+         * passes on. */
+        state.input.unseen = IsWindowState(FLAG_WINDOW_HIDDEN) || IsWindowMinimized() ? 1 : 0;
     }
 
     *input = state.input;
