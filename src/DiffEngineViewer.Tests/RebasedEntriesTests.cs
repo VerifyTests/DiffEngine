@@ -14,7 +14,7 @@ public class RebasedEntriesTests
 
     static SessionState ThreeInOneFile() =>
         Fixtures.Inline(
-            Fixtures.Patch("SampleTests.cs", 42),
+            Fixtures.Patch(),
             Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two"),
             Fixtures.Patch("OtherTests.cs", 88, "\"one\"", "two"),
             Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "four"));
@@ -70,7 +70,7 @@ public class RebasedEntriesTests
     {
         var state = ViewerSession.EnqueueInline(
             Fixtures.Inline(
-                Fixtures.Patch("SampleTests.cs", 42, framework: "net8.0"),
+                Fixtures.Patch(framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two", framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "four", framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 99, "\"five\"", "six", framework: "net8.0")),
@@ -106,7 +106,7 @@ public class RebasedEntriesTests
     {
         var state = ViewerSession.EnqueueInline(
             Fixtures.Inline(
-                Fixtures.Patch("SampleTests.cs", 42, testName: "First", framework: "net8.0"),
+                Fixtures.Patch(testName: "First", framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "four", testName: "First", framework: "net8.0"),
                 Fixtures.Patch("OtherTests.cs", 12, "\"five\"", "six", testName: "Second", framework: "net8.0")),
             Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "nine", testName: "First", framework: "net9.0"));
