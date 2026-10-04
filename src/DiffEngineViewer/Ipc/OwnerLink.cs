@@ -378,14 +378,24 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                 held = null;
             }
 
-            changes.Add(Read(
+            var entry = Read(
                 held,
                 () => QueueEntry.ForDelete(
                     delete.Key,
                     delete.Name,
                     delete.Group,
                     delete.File,
-                    FileSide.Read(delete.File, documents))));
+                    FileSide.Read(delete.File, documents)));
+            // Why the owner's accept-all would leave it, where it would, said on the entry as a
+            // failure is. A delete's status is nothing else here: this process applies nothing,
+            // so nothing of its own is ever recorded against an entry. The same entry when the
+            // owner says what it said before, for the reason Read gives
+            if (entry.Status != delete.Held)
+            {
+                entry = entry with { Status = delete.Held };
+            }
+
+            changes.Add(entry);
         }
 
         return changes;

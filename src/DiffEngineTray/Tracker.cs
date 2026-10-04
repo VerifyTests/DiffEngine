@@ -662,7 +662,12 @@ class Tracker :
                 Log.Information("DeleteUpdated. File:{file}", file);
                 // Raised again, so by a run that looked at the file as it is now. Whatever a move
                 // wrote there since the delete was first raised, this is the later statement
-                existing.Written = false;
+                if (existing.Written)
+                {
+                    existing.Written = false;
+                    Interlocked.Increment(ref restores);
+                }
+
                 return existing;
             });
 
@@ -671,14 +676,19 @@ class Tracker :
     /// out. For the menu and the debug view, which say it beside the delete, and for the sweeps,
     /// which act on it.
     /// </summary>
-    public string? HeldReason(TrackedDelete delete)
+    public string? HeldReason(TrackedDelete delete) =>
+        HeldReason(
+            delete,
+            moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)));
+
+    static string? HeldReason(TrackedDelete delete, bool awaited)
     {
         if (delete.Written)
         {
             return WroteItsFile;
         }
 
-        if (moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)))
+        if (awaited)
         {
             return AwaitsItsFile;
         }
@@ -711,9 +721,12 @@ class Tracker :
 
     void MarkWritten(string target)
     {
-        if (deletes.TryGetValue(target, out var delete))
+        if (deletes.TryGetValue(target, out var delete) &&
+            !delete.Written)
         {
             delete.Written = true;
+            // A listing says why a delete is held, so this is a change to what one carries
+            Interlocked.Increment(ref restores);
         }
     }
 
@@ -816,9 +829,11 @@ class Tracker :
     }
 
     /// <summary>
-    /// How many times something taken out to be accepted has been put back, which is the one
-    /// change to what is tracked that <see cref="ITrackedFiles.Version"/> cannot see by looking:
-    /// the same object in the same place as before it left.
+    /// How many times something taken out to be accepted has been put back, which is a change to
+    /// what is tracked that <see cref="ITrackedFiles.Version"/> cannot see by looking: the same
+    /// object in the same place as before it left. And how many times a delete's
+    /// <see cref="TrackedDelete.Written"/> has changed, which is the other: the one thing a
+    /// listing carries of a tracked object that is not fixed when the object is made.
     /// </summary>
     long restores;
 
@@ -1226,10 +1241,16 @@ class Tracker :
     /// What a user is told about deletes an accept-all kept because of a move onto their file.
     /// The menu says the same beside each of them, for whoever missed the balloon.
     /// </summary>
-    internal static string DeletesKept(IReadOnlyList<TrackedDelete> kept)
+    internal static string DeletesKept(IReadOnlyList<TrackedDelete> kept) =>
+        DeletesKept(kept.Select(_ => _.Name).ToList());
+
+    /// <summary>
+    /// By name, for the wire's accept-all, which knows the deletes it kept as a listing has them.
+    /// </summary>
+    internal static string DeletesKept(IReadOnlyList<string> kept)
     {
         var which = kept.Count == 1
-            ? $"The pending delete of '{kept[0].Name}' was kept"
+            ? $"The pending delete of '{kept[0]}' was kept"
             : $"{kept.Count} pending deletes were kept";
         return $"{which}, since a move was accepted onto the same file, or is still to be, and deleting it would remove what the move put there. Accept a delete on its own to delete its file anyway.";
     }
@@ -1271,14 +1292,28 @@ class Tracker :
                 _.Target))
             .ToList();
 
-    IReadOnlyList<ViewerResponseDelete> ITrackedFiles.Deletes() =>
-        deletes.Values
+    IReadOnlyList<ViewerResponseDelete> ITrackedFiles.Deletes()
+    {
+        // The files the pending moves are onto, gathered once: HeldReason walks the moves for
+        // the one delete it is asked about, which here would be every move for every delete
+        var awaited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var move in moves)
+        {
+            awaited.Add(move.Value.Target);
+        }
+
+        return deletes.Values
             .Select(_ => new ViewerResponseDelete(
                 TrackedKeys.ForDelete(_.File),
                 _.Name,
                 _.Group,
-                _.File))
+                _.File)
+            {
+                // What the menu says beside it, for a viewer showing this queue to say too
+                Held = HeldReason(_, awaited.Contains(_.File))
+            })
             .ToList();
+    }
 
     readonly Lock versionGate = new();
     readonly List<object> versioned = [];
@@ -1308,6 +1343,11 @@ class Tracker :
     /// taken: the viewer was told "unchanged" about a listing missing a pending file. Those are
     /// two places, <see cref="Restore"/> and the delete that could not be deleted, and they are
     /// counted.
+    /// </para>
+    /// <para>
+    /// Why a delete is held rides a listing too (<see cref="HeldReason"/>). Half of that is which
+    /// moves are tracked, which is seen here already, and the other half is a flag set on a
+    /// delete that stays the same object, so its two changes are counted with the restores.
     /// </para>
     /// </summary>
     long ITrackedFiles.Version()

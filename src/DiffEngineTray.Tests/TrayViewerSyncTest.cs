@@ -211,6 +211,54 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// The same pair as the window shows it. The tray marks a delete it would hold in its menu,
+    /// and the window attached to it showed that delete like any other, with "1 kept" for an
+    /// answer when it asked for an accept-all. The hold rides the listing, and is the entry's
+    /// status: why while the move is pending, why once it has been accepted, and nothing once a
+    /// run raises the delete again - a change to a tracked object that is still the same object,
+    /// which the listing's tag has to move for all the same.
+    /// </summary>
+    [Test]
+    public async Task AnAttachedViewerSaysWhyTheTrayHoldsADelete()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        var delete = pair.Tracker.AddDelete(move.Target);
+        var key = TrackedKeys.ForDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single(_ => _.Key == key).Status).IsEqualTo(Tracker.AwaitsItsFile);
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+
+        var viewer = pair.Pump();
+        await Assert.That(viewer.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {Tracker.DeletesKept([delete])}");
+        await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        pair.Tracker.AddDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsNull();
+    }
+
+    /// <summary>
+    /// A move accepted from the tray's own menu, with a window attached: the delete it leaves held
+    /// says so in the window on the next listing.
+    /// </summary>
+    [Test]
+    public async Task AMoveAcceptedInTheTrayMarksItsDeleteInTheAttachedViewer()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        pair.Pump();
+
+        pair.Tracker.Accept(pair.Tracker.Moves.Single());
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+    }
+
+    /// <summary>
     /// A snapshot moving inline lands while an accept-all is applying: its patch, and the delete of
     /// the verified file that patch replaces. The batch takes its snapshots as it begins, so the
     /// patch is not in it, and it used to read the deletes when their turn came, so the delete was.
@@ -1045,6 +1093,30 @@ public class TrayViewerSyncTest
         await Assert.That(full.Deletes.Single().File).IsEqualTo(file);
         // The plain listing drives the tray menu, which reads its own tracker for these.
         await Assert.That(plain.Deletes).IsEmpty();
+    }
+
+    /// <summary>
+    /// The other arrangement's half of the same rule: a viewer that owns the queue holds a delete
+    /// whose file a move wrote, as a tray does, and says why on its listing and in the answer to
+    /// an accept-all, so whoever is attached to it is told what a tray would have told it.
+    /// </summary>
+    [Test]
+    public async Task AnOwningViewerHoldsADeleteItsMoveWroteAndSaysWhy()
+    {
+        await using var pair = new ViewerOwned();
+        using var noTray = new NoTray();
+        var move = pair.StageMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.AwaitsItsFile);
+
+        var response = pair.Send(new(ViewerVerb.AcceptAll));
+
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(response.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {ViewerSession.DeletesKept}");
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
     }
 
     /// <summary>

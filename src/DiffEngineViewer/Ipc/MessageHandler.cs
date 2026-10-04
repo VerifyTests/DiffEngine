@@ -127,7 +127,12 @@ class MessageHandler(
                 .ToList(),
             deletes: queue
                 .Where(_ => _.Kind == QueueEntryKind.Delete)
-                .Select(_ => new ViewerResponseDelete(_.Key, _.Name, _.Solution, _.LeftFile!))
+                .Select(_ => new ViewerResponseDelete(_.Key, _.Name, _.Solution, _.LeftFile!)
+                {
+                    // As a tray owner says it, so whoever shows this queue leaves the delete out
+                    // of a bulk accept for the reason this process's own batch would
+                    Held = ViewerSession.HeldReason(queue, _)
+                })
                 .ToList(),
             progress: state.ListedProgress);
     }

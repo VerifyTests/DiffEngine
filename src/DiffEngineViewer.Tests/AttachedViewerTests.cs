@@ -417,6 +417,64 @@ public class AttachedViewerTests
     }
 
     /// <summary>
+    /// A delete the owner's accept-all would leave is marked in the owner's own menu, and looked
+    /// like any other here. What the owner says of it is the entry's status, so the row carries
+    /// the mark a failure does and its tip says why. The same entry from pump to pump while the
+    /// owner says the same, and unmarked again once the owner lets go of it.
+    /// </summary>
+    [Test]
+    public async Task ADeleteTheOwnerHoldsSaysWhy()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"AttachedViewerTests_{Guid.NewGuid():N}.verified.txt");
+        await File.WriteAllTextAsync(file, "first");
+        try
+        {
+            var held = "Kept by 'Accept all': a move was accepted onto this file.";
+            // ReSharper disable once AccessToModifiedClosure
+            var (server, cancel) = Listing(() => ViewerResponse.Listing(
+                [],
+                deletes:
+                [
+                    new(TrackedKeys.ForDelete(file), "extra.verified.txt", null, file)
+                    {
+                        Held = held
+                    }
+                ]));
+            using (server)
+            using (cancel)
+            {
+                var host = new SessionHost(SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows));
+                var link = new OwnerLink(host, server.Port);
+
+                link.Pump();
+                var first = host.State.Queue.Single();
+                await Assert.That(first.Status).IsEqualTo(held);
+                var row = QueueProjection.Rows(host.State).Single(_ => _.Kind == QueueRowKind.Entry);
+                await Assert.That(row.Status).IsEqualTo(held);
+                await Assert.That(row.Tooltip!).Contains(held);
+
+                link.Pump();
+                await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
+
+                // Still said of the entry read again from a file that changed
+                await File.WriteAllTextAsync(file, "second, longer", cancel.Token);
+                link.Pump();
+                await Assert.That(host.State.Queue.Single().RightText).IsEqualTo("second, longer");
+                await Assert.That(host.State.Queue.Single().Status).IsEqualTo(held);
+
+                held = null;
+                link.Pump();
+                await Assert.That(host.State.Queue.Single().Status).IsNull();
+                await cancel.CancelAsync();
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    /// <summary>
     /// Accepting a conflicted entry names the variant on screen, and the owner applies exactly
     /// that one.
     /// </summary>
