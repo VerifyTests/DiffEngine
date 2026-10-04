@@ -440,7 +440,9 @@ the comment there about not caching "nothing staged" asks for.
     footer buttons reach the same commands from a shim built before them.
   - DiffEngine offers the viewer `DocumentExtensions.Routed` only when `ViewerDocuments.Beside` finds
     the folder by the resolved exe (beside, one up, or in the tool store behind a shim). That is
-    the paged formats and every map: a `.geojson` is no text extension to DiffEngine, unlike `.svg`.
+    the paged formats and every map. Which maps need it is EmptyFiles' call: a `.topojson`, a `.wkt`
+    and the binary ones are no text extension to DiffEngine, while `.geojson`, `.gpx` and `.kml` are
+    (since EmptyFiles 8.20.0), so like `.svg` they are offered to any text tool with or without the folder.
   - A map is drawn as an SVG is, one picture with no page commands (`DocumentFile.IsDrawn`). Its
     text is the file for the text formats and GeoJSON read out of it for the binary ones
     (`DocumentFile.IsSource`), so a FlatGeobuf is read by `DocumentWatch` as a PDF is but draws
