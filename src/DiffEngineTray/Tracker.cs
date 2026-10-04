@@ -687,25 +687,69 @@ class Tracker :
             updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
+                // Raised again, which says nothing about when it was decided. A run has a process
+                // for each target framework, and one that looked at the file before the move was
+                // accepted sends the same message after it as a run that looked at what the move
+                // wrote. Taken for the later statement, the first let go of the hold, and the
+                // next "Accept all" deleted what had just been accepted. So the hold stands while
+                // the file is as the move left it, and goes only when it is seen to be something
+                // else: what the hold was keeping is then no longer there to keep
+                var held = existing.Written &&
+                           !ChangedSinceWritten(existing);
+
                 // A listing carries what a delete was derived from, and the objects tracked are
                 // what says whether a listing has changed, so one raised again under another
-                // source is another delete. A new one is not marked either, which is right: it
-                // was raised by a run that looked at the file as it is now
+                // source is another delete. It keeps the hold, for the reason above
                 if (!string.Equals(existing.Source, source, StringComparison.OrdinalIgnoreCase))
                 {
-                    return new(existing.File, existing.Group, source);
+                    var replacement = new TrackedDelete(existing.File, existing.Group, source);
+                    if (held)
+                    {
+                        replacement.Written = true;
+                        replacement.WrittenAs = existing.WrittenAs;
+                    }
+
+                    return replacement;
                 }
 
-                // Raised again, so by a run that looked at the file as it is now. Whatever a move
-                // wrote there since the delete was first raised, this is the later statement
-                if (existing.Written)
+                if (existing.Written &&
+                    !held)
                 {
                     existing.Written = false;
+                    existing.WrittenAs = null;
                     Interlocked.Increment(ref restores);
                 }
 
                 return existing;
             });
+
+    /// <summary>
+    /// Whether a delete's file is seen to differ from what the move left. Not when either look
+    /// at it failed: a hold is let go on what is known, and kept on what is not.
+    /// </summary>
+    static bool ChangedSinceWritten(TrackedDelete delete) =>
+        delete.WrittenAs is { } written &&
+        Stamp(delete.File) is { } now &&
+        now != written;
+
+    static (long Length, DateTime Written)? Stamp(string file)
+    {
+        try
+        {
+            var info = new FileInfo(file);
+            if (!info.Exists)
+            {
+                return null;
+            }
+
+            return (info.Length, info.LastWriteTimeUtc);
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Why an accept-all leaves a delete pending, where it would: null when it would carry it
@@ -715,7 +759,56 @@ class Tracker :
     public string? HeldReason(TrackedDelete delete) =>
         HeldReason(
             delete,
-            moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)));
+            // Asked on both sides of the walk, since a move is in one or the other and goes
+            // between them: into this as an accept begins, and back out of it as one ends
+            accepting.ContainsKey(delete.File) ||
+            moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)) ||
+            accepting.ContainsKey(delete.File));
+
+    /// <summary>
+    /// The files that moves being accepted right now are onto, and how many moves each.
+    /// <para>
+    /// An accept takes its move out of <see cref="moves"/> for as long as the move takes, which is
+    /// seconds when a file is locked, and only says the file was written
+    /// (<see cref="MarkWritten"/>) once it has been. In between, nothing tracked named the file,
+    /// so a delete pending on it was held for neither reason: a listing taken then said so, and a
+    /// viewer showing this queue sent the delete's key in a group accept, after the move had
+    /// written the file. So a move counts as still to write its file from before it leaves
+    /// <see cref="moves"/> until it has been marked written, dropped or put back.
+    /// </para>
+    /// </summary>
+    readonly ConcurrentDictionary<string, int> accepting = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Takes a move out to be accepted, having first said its file is being written. False when
+    /// the move had already gone, and nothing is then being written.
+    /// </summary>
+    bool TakeToAccept(TrackedMove move, [NotNullWhen(true)] out TrackedMove? removed)
+    {
+        accepting.AddOrUpdate(move.Target, 1, (_, count) => count + 1);
+        if (moves.TryRemove(move.Temp, out removed))
+        {
+            return true;
+        }
+
+        Landed(move);
+        return false;
+    }
+
+    /// <summary>
+    /// The accept of a move is over, however it went: its delete has been marked written, or the
+    /// move is back among the pending ones, or it was dropped having written nothing. Counted as
+    /// a change, since the last of those leaves a delete no longer held and nothing else about
+    /// what is tracked different from a moment before.
+    /// </summary>
+    void Landed(TrackedMove move)
+    {
+        accepting.AddOrUpdate(move.Target, 0, (_, count) => count - 1);
+        // Only ever an entry at none, which another accept of the same file may have raised
+        // again by now and is then left
+        accepting.TryRemove(new(move.Target, 0));
+        Interlocked.Increment(ref restores);
+    }
 
     static string? HeldReason(TrackedDelete delete, bool awaited)
     {
@@ -746,8 +839,13 @@ class Tracker :
     /// other, and a second "Accept all" deleted the snapshot the first had just accepted. The same
     /// went for a move accepted on its own and an accept-all after it.
     /// </para>
+    /// <para>
+    /// It does not offer running the tests again, which used to let go of the hold: see
+    /// <see cref="AddDelete"/>. The price is that a delete a later run truly wants stays held
+    /// until it is accepted on its own.
+    /// </para>
     /// </summary>
-    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway, or run the tests again.";
+    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway.";
 
     /// <summary>
     /// A move still pending is going to write the file. Not remembered: it is true for as long as
@@ -760,6 +858,8 @@ class Tracker :
         if (deletes.TryGetValue(target, out var delete) &&
             !delete.Written)
         {
+            // The stamp first, so nobody finds the flag set and the stamp yet to be
+            delete.WrittenAs = Stamp(target);
             delete.Written = true;
             // A listing says why a delete is held, so this is a change to what one carries
             Interlocked.Increment(ref restores);
@@ -835,19 +935,26 @@ class Tracker :
 
     void AcceptMove(TrackedMove move, AcceptBatch batch)
     {
-        if (!moves.TryRemove(move.Temp, out var removed))
+        if (!TakeToAccept(move, out var removed))
         {
             return;
         }
 
-        if (InnerMove(removed, batch))
+        try
         {
-            Release(removed);
-            return;
-        }
+            if (InnerMove(removed, batch))
+            {
+                Release(removed);
+                return;
+            }
 
-        // Keep the move pending so accepting can be retried
-        Restore(removed);
+            // Keep the move pending so accepting can be retried
+            Restore(removed);
+        }
+        finally
+        {
+            Landed(removed);
+        }
     }
 
     /// <summary>
@@ -1352,9 +1459,22 @@ class Tracker :
         // The files the pending moves are onto, gathered once: HeldReason walks the moves for
         // the one delete it is asked about, which here would be every move for every delete
         var awaited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // The moves being accepted on both sides of the pending ones, since a move is in one or
+        // the other and goes between them: into the first as an accept begins, and back out of
+        // it as one ends
+        foreach (var target in accepting.Keys)
+        {
+            awaited.Add(target);
+        }
+
         foreach (var move in moves)
         {
             awaited.Add(move.Value.Target);
+        }
+
+        foreach (var target in accepting.Keys)
+        {
+            awaited.Add(target);
         }
 
         return
@@ -1676,19 +1796,26 @@ class Tracker :
 
     (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move, AcceptBatch batch)
     {
-        if (!moves.TryRemove(move.Temp, out var removed))
+        if (!TakeToAccept(move, out var removed))
         {
             return (false, null);
         }
 
-        if (InnerMove(removed, batch))
+        try
         {
-            Release(removed);
-            return (true, $"Accepted {removed.Name}");
-        }
+            if (InnerMove(removed, batch))
+            {
+                Release(removed);
+                return (true, $"Accepted {removed.Name}");
+            }
 
-        Restore(removed);
-        return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
+            Restore(removed);
+            return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
+        }
+        finally
+        {
+            Landed(removed);
+        }
     }
 
     /// <summary>

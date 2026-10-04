@@ -60,11 +60,14 @@ sealed class OwnedInlineHost :
     readonly Lock accepting = new();
 
     /// <summary>
-    /// Several snapshots of one source file, written with one read and one write and answered in
-    /// the order given: what a bulk accept hands a file's snapshots to. The applier a test
-    /// supplied, asked of each in turn, when there is one.
+    /// The snapshots of one source file, written with one read and one write and answered in
+    /// the order given: what a bulk accept hands a file's snapshots to, with the question it
+    /// asks of each as the file is about to be written, whether the snapshot is still wanted
+    /// (<see cref="InlineApplier.ApplyAll(IReadOnlyList{InlinePatch}, Func{int, bool})"/>). The
+    /// applier a test supplied, asked of each in turn, when there is one: each is then a write of
+    /// its own, and is asked about before it.
     /// </summary>
-    readonly Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>> together;
+    readonly Func<IReadOnlyList<InlinePatch>, Func<int, bool>, IReadOnlyList<InlineApplyResult>> together;
 
     OwnedInlineHost(
         ViewerServer server,
@@ -82,7 +85,16 @@ sealed class OwnedInlineHost :
         }
         else
         {
-            together = _ => _.Select(applier).ToList();
+            together = (patches, wanted) =>
+            {
+                var results = new List<InlineApplyResult>(patches.Count);
+                for (var index = 0; index < patches.Count; index++)
+                {
+                    results.Add(wanted(index) ? applier(patches[index]) : InlineApplyResult.Withdrawn);
+                }
+
+                return results;
+            };
         }
     }
 
@@ -646,6 +658,12 @@ sealed class OwnedInlineHost :
     /// one read and one write, each with its own outcome. That is still looked up when its turn
     /// comes, by the first of the file's, and the wait it is looked up ahead of is the one write.
     /// </para>
+    /// <para>
+    /// That wait is the file's lock, which another process can hold for seconds, and a snapshot
+    /// discarded or settled in it had already been handed over: it was written with the rest of
+    /// its file. So each is asked about again as the file is about to be written, and one that is
+    /// no longer the entry that was claimed is left out of the write and counted as nothing.
+    /// </para>
     /// </summary>
     /// <param name="files">
     /// The tracked files the caller sweeps once the snapshots are done, for the progress total.
@@ -707,9 +725,29 @@ sealed class OwnedInlineHost :
                 }
             }
 
-            var results = claimed.Count == 1
-                ? [applier(claimed[0].Patch)]
-                : together(claimed.Select(_ => _.Patch).ToList());
+            // Asked as the file is about to be written, with its lock held, so under the gate and
+            // not across anything: nothing here applies with the gate held, so nothing holding
+            // the gate can be waiting for that file. An entry is still the one claimed while the
+            // queue holds its variants, which is how its outcome is recorded below. Without the
+            // question, one discarded or settled while the file was waited for was written with
+            // the rest, and then not found to be counted
+            bool Wanted(int index)
+            {
+                lock (gate)
+                {
+                    foreach (var pending in queue.Items)
+                    {
+                        if (ReferenceEquals(pending.Variants, claimed[index].Variants))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            var results = together(claimed.Select(_ => _.Patch).ToList(), Wanted);
             if (results.Count != claimed.Count)
             {
                 throw new InvalidOperationException($"{claimed.Count} snapshots were applied together and {results.Count} outcomes came back.");

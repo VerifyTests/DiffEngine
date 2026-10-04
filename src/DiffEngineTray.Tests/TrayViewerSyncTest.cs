@@ -13,6 +13,7 @@ using ViewerSideWindowCommand = viewer::DiffEngine.WindowCommand;
 // The viewer's own half of the app.
 using CommandKind = viewer::CommandKind;
 using OwnerLink = viewer::OwnerLink;
+using QueueProjection = viewer::QueueProjection;
 using SessionHost = viewer::SessionHost;
 using SessionMessageHandler = viewer::MessageHandler;
 using SessionState = viewer::SessionState;
@@ -215,7 +216,7 @@ public class TrayViewerSyncTest
     /// and the window attached to it showed that delete like any other, with "1 kept" for an
     /// answer when it asked for an accept-all. The hold rides the listing, and is the entry's
     /// status: why while the move is pending, why once it has been accepted, and nothing once a
-    /// run raises the delete again - a change to a tracked object that is still the same object,
+    /// run raises the delete again over a file written since - a change to a tracked object that is still the same object,
     /// which the listing's tag has to move for all the same.
     /// </summary>
     [Test]
@@ -234,10 +235,62 @@ public class TrayViewerSyncTest
         var viewer = pair.Pump();
         await Assert.That(viewer.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {Tracker.DeletesKept([delete])}");
         await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+        // Marked as held, where the tray's words for why were all the window had and drew the
+        // row as a failure. The tray's menu marks it with the same character (MenuBuilderTest)
+        var row = QueueProjection.Rows(viewer).Single();
+        await Assert.That(row.Label).StartsWith(QueueProjection.HeldMark);
+        await Assert.That(row.Status).IsNull();
+        await Assert.That(row.Tooltip!).Contains(Tracker.WroteItsFile);
+        await Assert.That(MenuBuilder.HeldMark.Trim()).IsEqualTo(QueueProjection.HeldMark.Trim());
 
+        // Raised again over the file as the move left it, which a process that decided before
+        // the move was accepted does too: still held
+        pair.Tracker.AddDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        await File.WriteAllTextAsync(move.Target, "written by something else since");
         pair.Tracker.AddDelete(move.Target);
 
         await Assert.That(pair.Pump().Queue.Single().Status).IsNull();
+    }
+
+    /// <summary>
+    /// A listing taken while the tray has a move out being accepted. The move is not among the
+    /// pending ones and has yet to say it wrote the file, and the listing said the delete on its
+    /// target was held by nothing: a window attached to the tray then sent that delete's key in a
+    /// group accept, after the move had written the file.
+    /// </summary>
+    [Test]
+    public async Task AListingTakenWhileAMoveIsBeingAcceptedHoldsItsDelete()
+    {
+        TrayOwned? owned = null;
+        string? held = null;
+        var listedMoves = -1;
+        owned = new(
+            acceptFailed: _ =>
+            {
+                var listing = owned!.Send(new(ViewerVerb.ListFull));
+                listedMoves = listing.Moves.Count;
+                held = listing.Deletes.Single().Held;
+            });
+        await using var pair = owned;
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        // A target that cannot be written, so the move is refused, and said to be, without a wait
+        File.SetAttributes(move.Target, FileAttributes.ReadOnly);
+        try
+        {
+            pair.Tracker.Accept(pair.Tracker.Moves.Single());
+        }
+        finally
+        {
+            File.SetAttributes(move.Target, FileAttributes.Normal);
+        }
+
+        await Assert.That(listedMoves).IsEqualTo(0);
+        await Assert.That(held).IsEqualTo(Tracker.AwaitsItsFile);
     }
 
     /// <summary>
@@ -1177,6 +1230,61 @@ public class TrayViewerSyncTest
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
         await Assert.That(response.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {ViewerSession.DeletesKept}");
         await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+        // And marks it in its own window as held, not as a failure
+        var row = QueueProjection.Rows(pair.Viewer).Single();
+        await Assert.That(row.Label).StartsWith(QueueProjection.HeldMark);
+        await Assert.That(row.Status).IsNull();
+
+        // Raised again over the file as the move left it, which a process that decided before
+        // the move was accepted does too: still held, as a tray holds it
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+
+        await File.WriteAllTextAsync(move.Target, "written by something else since");
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsNull();
+    }
+
+    /// <summary>
+    /// A viewer that owns the queue throws its pending received files away a step at a time, and
+    /// none of its listings said it was doing so: a window attached to it, or a tray, saw the
+    /// queue shrink for no reason given. Listed from inside each delete, which is the discard
+    /// part way through, over the socket and into a window displaying that queue.
+    /// </summary>
+    [Test]
+    public async Task AnOwningViewersDiscardIsOnItsListings()
+    {
+        ViewerOwned? owned = null;
+        SessionHost? window = null;
+        OwnerLink? link = null;
+        var listed = new List<(int Done, int Total, bool Discarding)>();
+        var said = new List<string>();
+        owned = new(
+            deleting: _ =>
+            {
+                var progress = owned!.Send(new(ViewerVerb.ListFull)).Progress;
+                listed.Add(progress is null ? (-1, -1, false) : (progress.Done, progress.Total, progress.Discarding));
+                link!.Pump();
+                said.Add(window!.State.Progress?.Describe() ?? "nothing");
+            });
+        await using var pair = owned;
+        using var noTray = new NoTray();
+        window = new(SessionState.Start(ViewerMode.Inline));
+        link = new(window, pair.Port);
+        foreach (var move in new[] { pair.StageMove(), pair.StageMove() })
+        {
+            await File.WriteAllTextAsync(move.Target, "verified");
+            PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        }
+
+        var response = pair.Send(new(ViewerVerb.DiscardAll));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(listed).IsEquivalentTo([(0, 2, true), (1, 2, true)]);
+        await Assert.That(said).IsEquivalentTo(["Discarding 1 of 2", "Discarding 2 of 2"]);
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Progress).IsNull();
     }
 
     /// <summary>
@@ -1275,7 +1383,12 @@ public class TrayViewerSyncTest
     /// </summary>
     sealed class TrayOwned : IAsyncDisposable
     {
-        public TrayOwned(Func<InlinePatch, InlineApplyResult>? applier = null)
+        /// <param name="applier">What applying a snapshot answers, when not that it was applied.</param>
+        /// <param name="acceptFailed">
+        /// Told of a move that was refused, from inside its accept: the one place a test can
+        /// stand while a move is out being accepted.
+        /// </param>
+        public TrayOwned(Func<InlinePatch, InlineApplyResult>? applier = null, Action<TrackedMove>? acceptFailed = null)
         {
             Host = OwnedInlineHost.TryOwn(
                        Warnings.Add,
@@ -1287,7 +1400,7 @@ public class TrayViewerSyncTest
                            return applier?.Invoke(patch) ?? InlineApplyResult.Applied;
                        }) ??
                    throw new("Could not bind an ephemeral port.");
-            Tracker = new(inlineFailed: Failures.Add, inline: Host);
+            Tracker = new(acceptFailed: acceptFailed, inlineFailed: Failures.Add, inline: Host);
             // Wired the way Program does, and before serving starts: a queue change arriving over
             // the socket has to reach the listing the tray menu and the icon read, not wait for the
             // next two second scan.
@@ -1415,7 +1528,12 @@ public class TrayViewerSyncTest
     /// </summary>
     sealed class ViewerOwned : IAsyncDisposable
     {
-        public ViewerOwned(Func<ViewerSidePatch, ViewerSideApplyResult>? applier = null)
+        /// <param name="applier">What applying a snapshot answers, when not that it was applied.</param>
+        /// <param name="deleting">
+        /// Told of a file as it is about to be deleted, which for a bulk discard is the batch
+        /// part way through.
+        /// </param>
+        public ViewerOwned(Func<ViewerSidePatch, ViewerSideApplyResult>? applier = null, Action<string>? deleting = null)
         {
             if (!ViewerSideServer.TryBind(0, out var bound))
             {
@@ -1442,7 +1560,11 @@ public class TrayViewerSyncTest
                 // The real ones, so accepting a pending file here is the file operation itself
                 // rather than a recording of one.
                 MoveFile = ViewerActions.Real.MoveFile,
-                DeleteFile = ViewerActions.Real.DeleteFile
+                DeleteFile = _ =>
+                {
+                    deleting?.Invoke(_);
+                    ViewerActions.Real.DeleteFile(_);
+                }
             };
             var handler = new SessionMessageHandler(Window, actions, Windows.Enqueue);
             listening = server.Listen(handler.Handle, cancel.Token);

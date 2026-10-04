@@ -482,8 +482,9 @@ sealed class ViewerCanvas : Control
             Painter.Draw(graphics, $"Pending ({screen.PendingCount})", font, Palette.Text, Cellular(padding, headerTop, queue, lineHeight));
         }
 
-        Painter.Draw(graphics, screen.Left.Header, font, Palette.Text, Cellular(panesLeft, headerTop, half, lineHeight));
-        Painter.Draw(graphics, screen.Right.Header, font, Palette.Text, Cellular(panesLeft + half, headerTop, half, lineHeight));
+        // The left header stops a gap short of the right one, as the left picture does
+        DrawHeader(graphics, screen.Left.Header, Cellular(panesLeft, headerTop, half - gap, lineHeight));
+        DrawHeader(graphics, screen.Right.Header, Cellular(panesLeft + half, headerTop, panesWidth - half, lineHeight));
         DrawRule(graphics, headerTop + lineHeight + gap);
 
         var bodyTop = BodyTop;
@@ -1005,6 +1006,35 @@ sealed class ViewerCanvas : Control
 
         var width = Offset(screen.Subtitle.Length);
         Painter.Draw(graphics, screen.Subtitle, font, Palette.Dim, Cellular(Width - padding - width, padding, width, lineHeight));
+    }
+
+    /// <summary>
+    /// A pane's header, which one too long for its pane ends in an ellipsis, in the last whole
+    /// cell the pane has, as the Linux head's table cuts its own. Clipped at the pane's edge and
+    /// nothing more, the left one stopped at the very pixel the right one starts on, part way
+    /// through a character, and the two read as one line: "(page 1 ofsample.verified.pdf".
+    /// </summary>
+    void DrawHeader(Graphics graphics, string header, RectangleF bounds) =>
+        Painter.Draw(graphics, HeaderShown(header, (int) (bounds.Width / Advance)), font, Palette.Text, bounds);
+
+    internal static string HeaderShown(string header, int cells)
+    {
+        if (CellGrid.Cells(header) <= cells)
+        {
+            return header;
+        }
+
+        // A row is cut after the character its last cell falls in, which for one two cells wide
+        // is a cell past what was asked for. Here that cell is the ellipsis's, so that character
+        // goes instead: it starts in the cell before, which is where the cut then lands.
+        var room = Math.Max(0, cells - 1);
+        var kept = RowText.Shown(header, room);
+        if (CellGrid.Cells(kept) > room)
+        {
+            kept = RowText.Shown(header, room - 1);
+        }
+
+        return kept + "…";
     }
 
     void DrawQueueItem(Graphics graphics, int index, Rectangle bounds)

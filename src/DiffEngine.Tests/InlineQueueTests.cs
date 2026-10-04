@@ -785,6 +785,24 @@ public class InlineQueueTests
     }
 
     /// <summary>
+    /// A patch withdrawn as its file was about to be written is neither an accept nor a failure:
+    /// nothing of it was written, and nothing went wrong. The batch counts nothing for it, so it
+    /// holds no delete, and an entry still here under it is left as it is.
+    /// </summary>
+    [Test]
+    public async Task ABatchStepCountsNothingForAPatchThatWasWithdrawn()
+    {
+        var queue = InlineQueue.Empty.Enqueue(Patch());
+        var tally = new AcceptAllTally();
+
+        var after = queue.AcceptInBatch(queue.Items.Single(), InlineApplyResult.Withdrawn, ref tally);
+
+        await Assert.That(after).IsSameReferenceAs(queue);
+        await Assert.That(tally).IsEqualTo(new());
+        await Assert.That(tally.Refused).IsFalse();
+    }
+
+    /// <summary>
     /// An accept moves the call sites under it, and the entries pending for that file go with
     /// them: the ones under the edit, by what it added, with their variants and status, and no
     /// entry above it or in another file.

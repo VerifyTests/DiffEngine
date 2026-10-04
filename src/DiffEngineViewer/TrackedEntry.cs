@@ -129,10 +129,12 @@ static class TrackedEntry
 
         // Held because a move wrote this file, which is the very thing that has it read again
         // with something else in it: what it holds is another thing and why it is held is not.
-        // A run raising the delete again is what lets go of it (ViewerSession.EnqueueTracked)
+        // Whether a delete raised again lets go of it is asked where it is queued
+        // (ViewerSession.EnqueueTracked)
         return fresh with
         {
             Written = true,
+            WrittenAs = queued.WrittenAs,
             Status = queued.Status
         };
     }

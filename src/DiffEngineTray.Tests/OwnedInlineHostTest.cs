@@ -1098,12 +1098,13 @@ public class OwnedInlineHostTest
 
     /// <summary>
     /// The turn is a file's, because a file's snapshots are written together in one write. So one
-    /// discarded while its own file is being written had already been handed over with the rest
-    /// of the file, and is written with them. It is gone from the queue as it was asked to be, and
-    /// is not counted as accepted: the outcome is of an entry that is no longer there.
+    /// discarded while its own file is waited for had already been handed over with the rest of
+    /// the file, and was written with them: gone from the queue as it was asked to be, and in the
+    /// source all the same. Each is asked about as the file is about to be written now, and one
+    /// that is no longer queued is left out. It is not counted as accepted, as it never was.
     /// </summary>
     [Test]
-    public async Task AnEntryDiscardedWhileItsOwnFileIsWrittenIsNotCounted()
+    public async Task AnEntryDiscardedWhileItsOwnFileIsWaitedForIsNotWritten()
     {
         using var held = new HeldApply(1);
         var applied = new List<InlinePatch>();
@@ -1126,9 +1127,129 @@ public class OwnedInlineHostTest
         held.Release();
         var response = await accepting;
 
-        await Assert.That(applied.Count).IsEqualTo(2);
+        await Assert.That(applied).HasSingleItem();
+        await Assert.That(applied[0].LineHint).IsEqualTo(1);
         await Assert.That(response.Message).IsEqualTo("Accepted 1");
         await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items).IsEmpty();
+    }
+
+    /// <summary>
+    /// A test that started passing settles its entry, and the source already holds what it
+    /// passes with. The patch claimed for it would have put the failing run's content over that.
+    /// </summary>
+    [Test]
+    public async Task AnEntrySettledWhileItsOwnFileIsWaitedForIsNotWritten()
+    {
+        using var held = new HeldApply(1);
+        var applied = new List<InlinePatch>();
+        using var owner = new Owner(
+            patch =>
+            {
+                lock (applied)
+                {
+                    applied.Add(patch);
+                }
+
+                return held.Apply(patch);
+            });
+        owner.Queue(line: 1);
+        owner.Queue(line: 2);
+        owner.Queue(line: 3);
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        owner.Send(new(ViewerVerb.Settle, InlineKey.For(@"c:\repo\SampleTests.cs", 2)));
+        held.Release();
+        var response = await accepting;
+
+        await Assert.That(applied.Select(_ => _.LineHint)).IsEquivalentTo([1, 3]);
+        await Assert.That(response.Message).IsEqualTo("Accepted 2");
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items).IsEmpty();
+    }
+
+    /// <summary>
+    /// One a re-run replaced while its file was waited for is no longer the entry that was
+    /// claimed either. The content it was claimed with is stale, and it used to be written and
+    /// then not recorded. It keeps what the re-run sent, still pending.
+    /// </summary>
+    [Test]
+    public async Task AnEntryReplacedWhileItsOwnFileIsWaitedForIsNotWritten()
+    {
+        using var held = new HeldApply(1);
+        var applied = new List<InlinePatch>();
+        using var owner = new Owner(
+            patch =>
+            {
+                lock (applied)
+                {
+                    applied.Add(patch);
+                }
+
+                return held.Apply(patch);
+            });
+        owner.Queue(line: 1);
+        owner.Queue(line: 2, content: "first run");
+
+        var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+        held.WaitUntilHeld();
+        owner.Queue(line: 2, content: "second run");
+        held.Release();
+        var response = await accepting;
+
+        await Assert.That(applied).HasSingleItem();
+        await Assert.That(response.Message).IsEqualTo("Accepted 1");
+        var left = owner.Host.Queued().Single();
+        await Assert.That(left.Patch.NewContent).IsEqualTo("second run");
+        await Assert.That(left.Status).IsNull();
+    }
+
+    /// <summary>
+    /// Against a real file: the one discarded while the first of its file was being written is
+    /// not in the source afterwards, and the one accepted is.
+    /// </summary>
+    [Test]
+    public async Task AnEntryDiscardedWhileItsFileIsWaitedForIsNotInTheSource()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"OwnedInlineHostTest_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var source = Path.Combine(directory, "SampleTests.cs");
+            await File.WriteAllTextAsync(
+                source,
+                """
+                class C
+                {
+                    void One() => Verify(value).Snapshot("old");
+                    void Two() => Verify(value).Snapshot("old");
+                }
+                """);
+            using var held = new HeldApply(1);
+            using var owner = new Owner(
+                patch =>
+                {
+                    held.Apply(patch);
+                    return InlineApplier.Apply(patch);
+                });
+            owner.Queue(source, 3, content: "one");
+            owner.Queue(source, 4, content: "two");
+
+            var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
+            held.WaitUntilHeld();
+            owner.Send(new(ViewerVerb.Discard, InlineKey.For(source, 4)));
+            held.Release();
+            var response = await accepting;
+
+            await Assert.That(response.Message).IsEqualTo("Accepted 1");
+            var written = await File.ReadAllTextAsync(source);
+            await Assert.That(written).Contains("One() => Verify(value).Snapshot(\"one\")");
+            await Assert.That(written).Contains("Two() => Verify(value).Snapshot(\"old\")");
+            await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items).IsEmpty();
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     /// <summary>

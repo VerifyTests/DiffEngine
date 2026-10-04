@@ -473,22 +473,28 @@ public class ImageCacheTests
     public async Task MissingFile()
     {
         using var cache = new ImageCache();
-        await Assert.That(cache.Get(Path.Combine(Directory(), "gone.png"), null)).IsNull();
+        await Assert.That(cache.Get(Path.Combine(directory, "gone.png"), null)).IsNull();
     }
 
     static string Write(string name, byte[] content)
     {
-        var path = Path.Combine(Directory(), name);
+        var path = Path.Combine(directory, name);
         File.WriteAllBytes(path, content);
         return path;
     }
 
-    static string Directory()
-    {
-        var path = Path.Combine(Path.GetTempPath(), "deview-image-cache");
-        System.IO.Directory.CreateDirectory(path);
-        return path;
-    }
+    // A folder for this run alone. Each test writes a file of its own name, so the tests of one
+    // run never meet, but under one fixed name two runs on a machine at once wrote, rewrote and
+    // deleted each other's pictures.
+    static string directory = "";
+
+    [Before(Class)]
+    public static void CreateDirectory() =>
+        directory = Directory.CreateTempSubdirectory("deview-image-cache-").FullName;
+
+    [After(Class)]
+    public static void DeleteDirectory() =>
+        Directory.Delete(directory, true);
 
     /// <summary>
     /// A picture rewritten with different pixels at the same length and
@@ -498,7 +504,7 @@ public class ImageCacheTests
     [Test]
     public async Task ARewriteWithTheSameStampKeepsTheOldPicture()
     {
-        var path = Path.Combine(Directory(), "Same.received.png");
+        var path = Path.Combine(directory, "Same.received.png");
         await File.WriteAllBytesAsync(path, SamplePng.Build(8, 6, 200, 40, 40));
         var stamp = File.GetLastWriteTimeUtc(path);
         using var cache = new ImageCache();

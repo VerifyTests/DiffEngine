@@ -177,10 +177,36 @@ record QueueEntry(
     /// <summary>
     /// On a pending delete this process owns: a move has written its file since the delete was
     /// raised, and from then on no bulk accept carries the delete out (see
-    /// <see cref="ViewerSession.WroteItsFile"/>). Gone when a run raises the delete again, which
-    /// is a statement made after the write. What <c>TrackedDelete.Written</c> is to the tray.
+    /// <see cref="ViewerSession.WroteItsFile"/>). Gone when the delete is raised again over a
+    /// file that is no longer what the move left (<see cref="WrittenAs"/>), and not when it is
+    /// raised over the file as it was written. What <c>TrackedDelete.Written</c> is to the tray.
     /// </summary>
     public bool Written { get; init; }
+
+    /// <summary>
+    /// The file's stamp as the move left it, read when the move was carried out, or null when it
+    /// could not be read. What a delete raised again is asked against.
+    /// </summary>
+    public FileStamp? WrittenAs { get; init; }
+
+    /// <summary>
+    /// On a pending delete of someone else's queue: <see cref="Status"/> is why its owner's
+    /// accept-all would leave it, which is all a delete's status ever is in a viewer that applies
+    /// nothing itself (<see cref="OwnerLink"/>). The owner's words are its own, so they cannot be
+    /// told from a failure by what they say.
+    /// </summary>
+    public bool StatusIsHold { get; init; }
+
+    /// <summary>
+    /// Whether this is a delete a bulk accept leaves pending and <see cref="Status"/> says why,
+    /// rather than an entry that was tried and failed. The two are marked apart in the queue
+    /// column (<see cref="QueueProjection"/>): one is waiting to be accepted on its own, and the
+    /// other has something wrong with it.
+    /// </summary>
+    public bool Held =>
+        Kind == QueueEntryKind.Delete &&
+        Status is not null &&
+        (StatusIsHold || ViewerSession.IsHold(Status));
 
     /// <summary>
     /// On a move or a delete: the key of the pending move it was derived from, or null when it

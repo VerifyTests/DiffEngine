@@ -434,13 +434,20 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                     delete.SourceKey,
                     delete.File,
                     FileSide.Read(delete.File, documents)));
-            // Why the owner's accept-all would leave it, where it would, said on the entry as a
-            // failure is. A delete's status is nothing else here: this process applies nothing,
-            // so nothing of its own is ever recorded against an entry. The same entry when the
-            // owner says what it said before, for the reason Read gives
-            if (entry.Status != delete.Held)
+            // Why the owner's accept-all would leave it, where it would, said on the entry where a
+            // failure is, and marked as a hold rather than as one. A delete's status is nothing
+            // else here: this process applies nothing, so nothing of its own is ever recorded
+            // against an entry. The same entry when the owner says what it said before, for the
+            // reason Read gives
+            var isHold = delete.Held is not null;
+            if (entry.Status != delete.Held ||
+                entry.StatusIsHold != isHold)
             {
-                entry = entry with { Status = delete.Held };
+                entry = entry with
+                {
+                    Status = delete.Held,
+                    StatusIsHold = isHold
+                };
             }
 
             // As on a move above

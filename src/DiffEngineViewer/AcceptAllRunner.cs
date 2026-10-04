@@ -60,7 +60,10 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
                     Func<SessionState, SessionState> record;
                     try
                     {
-                        record = ViewerSession.ApplyClaimed(claimed, actions);
+                        // With the session to ask, so a snapshot taken back while its file was
+                        // waited for is not written. A read of the state and not a mutation:
+                        // see ApplyClaimed
+                        record = ViewerSession.ApplyClaimed(claimed, actions, () => host.State);
                     }
                     catch (Exception exception)
                     {

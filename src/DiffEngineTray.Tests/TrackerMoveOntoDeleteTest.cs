@@ -157,18 +157,68 @@ public class TrackerMoveOntoDeleteTest :
     }
 
     /// <summary>
-    /// A test run that raises the delete again has looked at the file the move wrote and still
-    /// says nothing produces it. That is the later statement, and the next sweep carries it out.
+    /// A delete raised again says nothing about when it was decided. A run has a process for each
+    /// target framework, and one that looked at the file before the move was accepted raises the
+    /// delete after it, in the same words a run that looked at what the move wrote would use.
+    /// Raising it again used to let go of the hold, so that process cost the snapshot the move
+    /// had just put there at the next "Accept all".
     /// </summary>
     [Test]
-    public async Task ADeleteRaisedAgainAfterTheWriteIsCarriedOut()
+    public async Task ADeleteRaisedAgainOverTheFileTheMoveLeftIsStillHeld()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+        var before = tracked.Version();
+
+        tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.WroteItsFile);
+        // Nothing a listing carries has changed
+        await Assert.That(tracked.Version()).IsEqualTo(before);
+        await tracker.AcceptAll();
+
+        await Assert.That(await File.ReadAllTextAsync(verified)).IsEqualTo("received");
+        await Assert.That(tracker.Deletes).HasSingleItem();
+    }
+
+    /// <summary>
+    /// The hold keeps what the move put there. Once the file is seen to be something else, there
+    /// is nothing of the move's left for it to keep, and a delete raised then is carried out.
+    /// </summary>
+    [Test]
+    public async Task ADeleteRaisedAgainOverAFileWrittenSinceIsCarriedOut()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
         var delete = tracker.AddDelete(verified);
         await tracker.AcceptAll();
+        await File.WriteAllTextAsync(verified, "written by something else since");
 
         tracker.AddDelete(verified);
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await tracker.AcceptAll();
+
+        await Assert.That(File.Exists(verified)).IsFalse();
+        await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// Discarded and raised afresh, it is a delete like any other: the hold was the tracked
+    /// delete's, and that one has gone.
+    /// </summary>
+    [Test]
+    public async Task AHeldDeleteDiscardedAndRaisedAfreshIsCarriedOut()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        tracker.AddDelete(verified);
+        await tracker.AcceptAll();
+        tracked.Discard(TrackedKeys.ForDelete(verified));
+
+        var delete = tracker.AddDelete(verified);
         await Assert.That(tracker.HeldReason(delete)).IsNull();
         await tracker.AcceptAll();
 
@@ -194,6 +244,72 @@ public class TrackerMoveOntoDeleteTest :
 
         await Assert.That(File.Exists(verified)).IsFalse();
         await tracker.AssertEmpty();
+    }
+
+    /// <summary>
+    /// An accept takes its move out of the pending ones for as long as the move takes, and the
+    /// delete on its target was held by nothing meanwhile: not by a pending move, which had left,
+    /// and not by a write, which had yet to be marked. Asked from where a refused move is reported,
+    /// which is inside the accept, before the move is put back.
+    /// </summary>
+    [Test]
+    public async Task ADeleteIsHeldWhileTheMoveOntoItsFileIsBeingAccepted()
+    {
+        RecordingTracker? tracker = null;
+        TrackedDelete? delete = null;
+        var pendingMoves = -1;
+        string? held = null;
+        string? listed = null;
+        tracker = new(
+            acceptFailed: _ =>
+            {
+                pendingMoves = tracker!.Moves.Count;
+                held = tracker.HeldReason(delete!);
+                listed = ((ITrackedFiles) tracker).Deletes().Single().Held;
+            });
+        await using var disposing = tracker;
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        delete = tracker.AddDelete(verified);
+        // A target that cannot be written, so the move is refused, and said to be, without a wait
+        File.SetAttributes(verified, FileAttributes.ReadOnly);
+        try
+        {
+            tracker.Accept(move);
+        }
+        finally
+        {
+            File.SetAttributes(verified, FileAttributes.Normal);
+        }
+
+        await Assert.That(pendingMoves).IsEqualTo(0);
+        await Assert.That(held).IsEqualTo(Tracker.AwaitsItsFile);
+        await Assert.That(listed).IsEqualTo(Tracker.AwaitsItsFile);
+        // Put back, and held for the move that is pending again
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.AwaitsItsFile);
+    }
+
+    /// <summary>
+    /// A move with nothing left to move is dropped having written nothing, and from then on its
+    /// delete is held by nothing. The listing's tag has to move for that, since the delete is the
+    /// same object it was while the move was being accepted.
+    /// </summary>
+    [Test]
+    public async Task AMoveDroppedWhileBeingAcceptedLetsGoOfItsDelete()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        File.Delete(received);
+        var before = tracked.Version();
+
+        tracker.Accept(move);
+
+        await Assert.That(tracker.Moves).IsEmpty();
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await Assert.That(tracked.Deletes().Single().Held).IsNull();
+        await Assert.That(tracked.Version()).IsNotEqualTo(before);
     }
 
     /// <summary>

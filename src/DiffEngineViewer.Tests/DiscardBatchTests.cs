@@ -144,9 +144,62 @@ public class DiscardBatchTests
         await Assert.That(state.Queue.Count).IsEqualTo(2);
         var screen = ScreenBuilder.Build(state);
         await Assert.That(screen.Buttons.Where(_ => _.Command is CommandKind.Accept or CommandKind.Discard or CommandKind.AcceptAll).Any(_ => _.Enabled)).IsFalse();
-        // Not something a listing says: the wire's progress is an accept's, in so many words
-        await Assert.That(state.ListedProgress).IsNull();
+        // And a listing says so, as a discard
+        await Assert.That(state.ListedProgress).IsEqualTo(Discarding(0, 2));
     }
+
+    /// <summary>
+    /// A discard under way was on none of its owner's listings, so whoever displayed the queue
+    /// saw it shrink with nothing saying why, and refused nothing meanwhile. Asked from inside a
+    /// delete, which is the batch part way through: each listing says how far the discard has
+    /// got and that it is one, under a tag of its own, and the one after it says nothing.
+    /// </summary>
+    [Test]
+    public async Task AListingDuringADiscardSaysHowFarItHasGot()
+    {
+        var host = new SessionHost(Mixed());
+        var listed = new List<AcceptProgress>();
+        var tags = new List<string>();
+        IQueueOwner? owner = null;
+        var actions = Deleting(_ =>
+        {
+            listed.Add(owner!.Listing(true).Progress ?? new(-1, -1));
+            tags.Add(owner.ListingTag() ?? "");
+        });
+        owner = new MessageHandler(host, actions, _ => { });
+
+        owner.DiscardAll();
+
+        await Assert.That(listed).IsEquivalentTo([Discarding(0, 2), Discarding(1, 2)]);
+        await Assert.That(owner.Listing(true).Progress).IsNull();
+        tags.Add(owner.ListingTag() ?? "");
+        await Assert.That(tags.Distinct().Count()).IsEqualTo(3);
+    }
+
+    /// <summary>
+    /// What a window displaying that queue does with it: says discarding, in the words the owner's
+    /// own window uses, and refuses what changes the queue until the owner is done.
+    /// </summary>
+    [Test]
+    public async Task AnAttachedWindowFollowsTheOwnersDiscard()
+    {
+        var attached = Fixtures.Attached(Fixtures.Pending(), Fixtures.Move("One.Test (txt)"), Fixtures.Move("Two.Test (txt)"));
+        var state = ViewerSession.Sync(attached, Fixtures.Pending(), [..attached.Queue], null, Discarding(0, 2));
+
+        var screen = ScreenBuilder.Build(state);
+        await Assert.That(screen.Status).IsEqualTo("Discarding 1 of 2");
+        await Assert.That(screen.Buttons.Where(_ => _.Command is CommandKind.Accept or CommandKind.Discard or CommandKind.AcceptAll).Any(_ => _.Enabled)).IsFalse();
+        await Assert.That(ViewerProgram.Apply(state, Input(CommandKind.Discard), null, new Window()).Queue).IsSameReferenceAs(state.Queue);
+
+        var done = ViewerSession.Sync(state, Fixtures.Pending(), [state.Queue[1]], null);
+        await Assert.That(done.Progress).IsNull();
+    }
+
+    static AcceptProgress Discarding(int done, int total) =>
+        new(done, total)
+        {
+            Discarding = true
+        };
 
     // A snapshot, two pending moves and a pending delete
     static SessionState Mixed()

@@ -36,18 +36,51 @@ record ViewerActions(
     /// </summary>
     public Func<IReadOnlyList<InlinePatch>, IReadOnlyList<InlineApplyResult>>? ApplyInlineTogether { get; init; }
 
-    public IReadOnlyList<InlineApplyResult> ApplyTogether(IReadOnlyList<InlinePatch> patches)
+    /// <summary>
+    /// <see cref="ApplyInlineTogether"/> with a question: whether the patch at a position is
+    /// still wanted, asked once the file is patched in memory and before it is written, and a
+    /// patch that is not is left out of the write and answered
+    /// <see cref="InlineApplyStatus.Withdrawn"/>. See
+    /// <see cref="InlineApplier.ApplyAll(IReadOnlyList{InlinePatch}, Func{int, bool})"/>.
+    /// <para>
+    /// For one snapshot as much as for several: the wait a discard or a settle can land in is the
+    /// one for its file's lock, whoever else is in the file.
+    /// </para>
+    /// <para>
+    /// Null leaves the question unasked, which is what a caller that supplied only the others
+    /// gets, as before there was one: only <see cref="InlineApplier"/> knows the moment to ask.
+    /// </para>
+    /// </summary>
+    public Func<IReadOnlyList<InlinePatch>, Func<int, bool>, IReadOnlyList<InlineApplyResult>>? ApplyInlineWanted { get; init; }
+
+    /// <param name="patches">The snapshots of one source file, in the order they are applied.</param>
+    /// <param name="wanted">
+    /// Whether the patch at a position is still to be written, or null where nothing can have
+    /// taken one back: a batch carried out inside one transition.
+    /// </param>
+    public IReadOnlyList<InlineApplyResult> ApplyTogether(IReadOnlyList<InlinePatch> patches, Func<int, bool>? wanted = null)
     {
+        if (wanted is not null &&
+            ApplyInlineWanted is { } asking)
+        {
+            return asking(patches, wanted);
+        }
+
         if (ApplyInlineTogether != null &&
             patches.Count > 1)
         {
             return ApplyInlineTogether(patches);
         }
 
+        // One at a time each is a write of its own, so the moment before each is the moment to
+        // ask about it
         var results = new List<InlineApplyResult>(patches.Count);
-        foreach (var patch in patches)
+        for (var index = 0; index < patches.Count; index++)
         {
-            results.Add(ApplyInline(patch));
+            results.Add(
+                wanted is null || wanted(index)
+                    ? ApplyInline(patches[index])
+                    : InlineApplyResult.Withdrawn);
         }
 
         return results;
@@ -60,7 +93,8 @@ record ViewerActions(
     {
         MoveFile = Move,
         DeleteFile = File.Delete,
-        ApplyInlineTogether = InlineApplier.ApplyAll
+        ApplyInlineTogether = InlineApplier.ApplyAll,
+        ApplyInlineWanted = InlineApplier.ApplyAll
     };
 
     /// <summary>

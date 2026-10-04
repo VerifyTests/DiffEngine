@@ -716,9 +716,11 @@ static class QueueProjection
         SessionState state,
         bool underTestHeader = false) =>
         new(
-            entry.Conflicted ? $"{indent}* {text}" : $"{indent}{text}",
+            $"{indent}{Mark(entry)}{text}",
             index == state.Selected,
-            entry.Status,
+            // What every head marks as a failure, which a hold is not. Why it is held is still
+            // in the tip
+            entry.Held ? null : entry.Status,
             QueueRowKind.Entry,
             index)
         {
@@ -726,8 +728,31 @@ static class QueueProjection
         };
 
     /// <summary>
+    /// What a held delete's label leads with.
+    /// <para>
+    /// A delete a bulk accept left pending carried its reason as its status, and a row with a
+    /// status is drawn by every head as an entry that failed. Nothing failed: the delete is
+    /// waiting to be accepted on its own, and only the tooltip said which of the two a row was.
+    /// In the label, as the conflict marker is and for its reason, so no head and no ABI field
+    /// knows of it. A delete has one variant, so the two never meet.
+    /// </para>
+    /// </summary>
+    public const string HeldMark = "~ ";
+
+    static string Mark(QueueEntry entry)
+    {
+        if (entry.Conflicted)
+        {
+            return "* ";
+        }
+
+        return entry.Held ? HeldMark : "";
+    }
+
+    /// <summary>
     /// What the row cannot say for itself: the whole path behind a bare file name, the test behind
-    /// a call site, every framework behind one variant, and the failure behind a <c>!</c>.
+    /// a call site, every framework behind one variant, the failure behind a <c>!</c>, and why a
+    /// delete marked <c>~</c> is held.
     /// <para>
     /// Null when all of that is already on the row. A tip that repeats its label has told the
     /// reader nothing, so on those rows there is no tip at all rather than an empty one.

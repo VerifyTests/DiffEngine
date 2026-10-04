@@ -26,7 +26,15 @@ enum ViewerLaunchOutcome
     /// Nobody was there to take it and <see cref="MaxInstance" /> had no slot left, so nothing was
     /// started.
     /// </summary>
-    Capped
+    Capped,
+
+    /// <summary>
+    /// What was started could not show what it was given, and staged it before it went
+    /// (<see cref="ViewerExit.Staged" />). No window came of it, as with <see cref="Failed" />, and
+    /// unlike that the work is somewhere: on disk, where accept tooling finds it. A caller that
+    /// stages what nobody took has nothing to stage.
+    /// </summary>
+    Staged
 }
 
 /// <summary>
@@ -64,7 +72,8 @@ enum ViewerLaunchOutcome
 /// already up is not a new instance and spends nothing, which is why the caller cannot ask: it
 /// would charge all twenty of the callers above for the one window between them. Asked after the
 /// ownership probe, so the nineteen that find an owner still forward their work when the cap is
-/// long since reached. And given back when the launch fails, since no window came of it.
+/// long since reached. And given back when the launch fails, or when the viewer staged what it
+/// was given and went, since no window came of either.
 /// </para>
 /// </summary>
 static class ViewerLaunchGate
@@ -118,14 +127,12 @@ static class ViewerLaunchGate
         isOwned ??= () => ViewerClient.IsOwned();
         giveBack ??= canLaunch is null ? MaxInstance.GiveBack : () => { };
         canLaunch ??= () => !MaxInstance.Reached();
-        bool owned;
         gate.Wait();
         try
         {
             // Asked rather than sent, so the decision to launch costs a connect rather than a
             // round trip with a payload on it.
-            owned = isOwned();
-            if (!owned)
+            if (!isOwned())
             {
                 if (!canLaunch())
                 {
@@ -133,22 +140,21 @@ static class ViewerLaunchGate
                 }
 
                 using var viewer = launch();
-                if (viewer is null ||
-                    !WaitForBind(viewer, isOwned))
+                var waited = viewer is null
+                    ? ViewerLaunchOutcome.Failed
+                    : WaitForBind(viewer, isOwned);
+                if (waited != ViewerLaunchOutcome.Launched)
                 {
+                    // Staged or failed, no window came of it
                     giveBack();
-                    return ViewerLaunchOutcome.Failed;
                 }
+
+                return waited;
             }
         }
         finally
         {
             gate.Release();
-        }
-
-        if (!owned)
-        {
-            return ViewerLaunchOutcome.Launched;
         }
 
         return retry() ? ViewerLaunchOutcome.Taken : ViewerLaunchOutcome.Failed;
@@ -176,12 +182,10 @@ static class ViewerLaunchGate
         isOwned ??= () => ViewerClient.IsOwned();
         giveBack ??= canLaunch is null ? MaxInstance.GiveBack : () => { };
         canLaunch ??= () => !MaxInstance.Reached();
-        bool owned;
         await gate.WaitAsync(cancel).ConfigureAwait(false);
         try
         {
-            owned = isOwned();
-            if (!owned)
+            if (!isOwned())
             {
                 if (!canLaunch())
                 {
@@ -189,22 +193,20 @@ static class ViewerLaunchGate
                 }
 
                 using var viewer = await Task.Run(launch, cancel).ConfigureAwait(false);
-                if (viewer is null ||
-                    !await WaitForBindAsync(viewer, isOwned, cancel).ConfigureAwait(false))
+                var waited = viewer is null
+                    ? ViewerLaunchOutcome.Failed
+                    : await WaitForBindAsync(viewer, isOwned, cancel).ConfigureAwait(false);
+                if (waited != ViewerLaunchOutcome.Launched)
                 {
                     giveBack();
-                    return ViewerLaunchOutcome.Failed;
                 }
+
+                return waited;
             }
         }
         finally
         {
             gate.Release();
-        }
-
-        if (!owned)
-        {
-            return ViewerLaunchOutcome.Launched;
         }
 
         return await retry() ? ViewerLaunchOutcome.Taken : ViewerLaunchOutcome.Failed;
@@ -216,61 +218,71 @@ static class ViewerLaunchGate
     /// the launch all the same, because it did happen: the work went over on the command line or
     /// in a payload file, and the cost of giving up early is one more viewer, which is where this began.
     /// <para>
-    /// False when the viewer gave up first, which is the one launch that did not happen. It used to
-    /// be waited on for the whole of <see cref="BindWait" /> with the gate held and then reported
+    /// Failed when the viewer gave up first, which is the one launch that did not happen. It used
+    /// to be waited on for the whole of <see cref="BindWait" /> with the gate held and then reported
     /// like any other, so an inline snapshot was said to be queued when it was nowhere: not in a
     /// queue, and not staged either, since a caller stages only what it is told nobody took.
     /// </para>
+    /// <para>
+    /// Staged when it gave up having staged what it held. That was Failed as well, and the caller
+    /// staged the same snapshot again beside it.
+    /// </para>
     /// </summary>
-    static bool WaitForBind(Process viewer, Func<bool> isOwned)
+    static ViewerLaunchOutcome WaitForBind(Process viewer, Func<bool> isOwned)
     {
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < BindWait)
         {
             // Before the probe, so that an owner some other process started is not taken for the
             // viewer this one did: that owner was never handed the work
-            if (GaveUp(viewer))
+            if (GaveUp(viewer) is { } how)
             {
-                return false;
+                return how;
             }
 
             if (isOwned())
             {
-                return true;
+                return ViewerLaunchOutcome.Launched;
             }
 
             Thread.Sleep(poll);
         }
 
-        return true;
+        return ViewerLaunchOutcome.Launched;
     }
 
     /// <inheritdoc cref="WaitForBind" />
-    static async Task<bool> WaitForBindAsync(Process viewer, Func<bool> isOwned, Cancel cancel)
+    static async Task<ViewerLaunchOutcome> WaitForBindAsync(Process viewer, Func<bool> isOwned, Cancel cancel)
     {
         var elapsed = Stopwatch.StartNew();
         while (elapsed.Elapsed < BindWait)
         {
-            if (GaveUp(viewer))
+            if (GaveUp(viewer) is { } how)
             {
-                return false;
+                return how;
             }
 
             if (isOwned())
             {
-                return true;
+                return ViewerLaunchOutcome.Launched;
             }
 
             await Task.Delay(poll, cancel).ConfigureAwait(false);
         }
 
-        return true;
+        return ViewerLaunchOutcome.Launched;
     }
 
     /// <summary>
-    /// Whether the viewer this call started has exited and said it failed, so it took nothing and
-    /// never will. A copy from before the arguments it was given exits on the first it does not
-    /// know, and an apphost with no runtime to run exits before any of the viewer's own code.
+    /// How the viewer this call started gave up, where it has exited and said it failed, so it
+    /// took nothing and never will: null while it has not. A copy from before the arguments it was
+    /// given exits on the first it does not know, and an apphost with no runtime to run exits
+    /// before any of the viewer's own code.
+    /// <para>
+    /// One exit is told from the rest (<see cref="ViewerExit.Staged" />): the viewer could not
+    /// show what it held and staged it. Only a viewer says that, so an older copy and an apphost
+    /// that never reached the viewer's code are failures, as they were.
+    /// </para>
     /// <para>
     /// A clean exit is not this, and is left to the wait. A viewer that finds the port already
     /// bound hands its work to whoever holds it and exits with zero, and the next probe finds that
@@ -282,17 +294,24 @@ static class ViewerLaunchGate
     /// wait as it was before there was a process to ask.
     /// </para>
     /// </summary>
-    static bool GaveUp(Process viewer)
+    static ViewerLaunchOutcome? GaveUp(Process viewer)
     {
         try
         {
-            return viewer.HasExited &&
-                   viewer.ExitCode != 0;
+            if (!viewer.HasExited ||
+                viewer.ExitCode == 0)
+            {
+                return null;
+            }
+
+            return viewer.ExitCode == ViewerExit.Staged
+                ? ViewerLaunchOutcome.Staged
+                : ViewerLaunchOutcome.Failed;
         }
         catch (Exception exception)
             when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
         {
-            return false;
+            return null;
         }
     }
 

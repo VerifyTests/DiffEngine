@@ -447,6 +447,101 @@ public class ViewerLaunchGateTests
     }
 
     /// <summary>
+    /// A viewer that could not show what it was started with stages it before it goes, and its
+    /// exit used to say only that it failed. So the caller, told that, staged the same snapshot
+    /// again: two trios in two VerifyInline directories until a passing run cleared both. It has
+    /// an exit of its own now, and the gate tells it from a failure. No window came of it either
+    /// way, so the slot goes back as a failed launch's does.
+    /// </summary>
+    [Test]
+    public async Task AViewerThatStagedWhatItWasGivenIsToldFromOneThatFailed()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        // Long enough that waiting it out would show in this test's duration.
+        ViewerLaunchGate.BindWait = TimeSpan.FromSeconds(20);
+        try
+        {
+            var givenBack = 0;
+            var elapsed = Stopwatch.StartNew();
+
+            var outcome = ViewerLaunchGate.Launch(
+                retry: () => true,
+                launch: () => Exited(ViewerExit.Staged),
+                isOwned: () => false,
+                canLaunch: () => true,
+                giveBack: () => givenBack++);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Staged);
+            await Assert.That(givenBack).IsEqualTo(1);
+            await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <inheritdoc cref="AViewerThatStagedWhatItWasGivenIsToldFromOneThatFailed" />
+    [Test]
+    public async Task AViewerThatStagedWhatItWasGivenIsToldFromOneThatFailedAsync()
+    {
+        var previous = ViewerLaunchGate.BindWait;
+        ViewerLaunchGate.BindWait = TimeSpan.FromSeconds(20);
+        try
+        {
+            var givenBack = 0;
+            var elapsed = Stopwatch.StartNew();
+
+            var outcome = await ViewerLaunchGate.LaunchAsync(
+                retry: () => Task.FromResult(true),
+                launch: () => Task.FromResult<Process?>(Exited(ViewerExit.Staged)),
+                Cancel.None,
+                isOwned: () => false,
+                canLaunch: () => true,
+                giveBack: () => givenBack++);
+
+            await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Staged);
+            await Assert.That(givenBack).IsEqualTo(1);
+            await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            ViewerLaunchGate.BindWait = previous;
+        }
+    }
+
+    /// <summary>
+    /// The exits a viewer had before that one are failures still, each of them: 1 for an owner
+    /// that would not take the work, where what was staged could not be written, 2 for arguments
+    /// it does not know, 3 for a throw, 4 for a window that would not open with something left
+    /// unstaged. A caller told any of those keeps what it sent.
+    /// </summary>
+    [Test]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    [Arguments(4)]
+    public async Task EveryOtherExitIsStillAFailure(int code)
+    {
+        var outcome = ViewerLaunchGate.Launch(
+            retry: () => true,
+            launch: () => Exited(code),
+            isOwned: () => false,
+            canLaunch: () => true);
+
+        await Assert.That(outcome).IsEqualTo(ViewerLaunchOutcome.Failed);
+    }
+
+    /// <summary>
+    /// What Verify is told of a staged launch is neither of the answers it had. Not that nobody
+    /// has the snapshot, which is the one answer Verify stages a trio of its own on, and not that
+    /// a viewer is holding it.
+    /// </summary>
+    [Test]
+    public async Task AStagedLaunchIsNeitherQueuedNorNowhere() =>
+        await Assert.That(DiffRunner.InlineResultFor(ViewerLaunchOutcome.Staged)).IsEqualTo(InlineResult.Staged);
+
+    /// <summary>
     /// A launch that worked keeps its slot, which is what the cap counts.
     /// </summary>
     [Test]

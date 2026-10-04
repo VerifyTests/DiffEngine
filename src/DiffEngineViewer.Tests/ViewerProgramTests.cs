@@ -50,8 +50,55 @@ public class ViewerProgramTests
 
         var code = ViewerProgram.Run(new(state), server: null, link: null, NoWindow);
 
+        // And says so, where it used to say only that it failed: whoever launched it stages what
+        // it sent on a failure, and that was a second trio beside this one
+        await Assert.That(code).IsEqualTo(ViewerExit.Staged);
+        await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// Staged is said only where it is so. A snapshot whose source has no project above it has
+    /// nowhere to be staged, and one of two left unwritten is still nowhere: the exit is the
+    /// failure it always was, which is what has the launcher keep the patch it sent.
+    /// </summary>
+    [Test]
+    public async Task AViewerWithNoWindowThatCouldNotStageEverythingSaysItFailed()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var nowhere = Path.Combine(Path.GetTempPath(), $"viewer-persist-{Guid.NewGuid():N}.cs");
+        var state = Fixtures.Inline(
+            Fixtures.Patch(source: source, framework: "net10.0"),
+            Fixtures.Patch(source: nowhere, framework: "net10.0"));
+
+        var code = ViewerProgram.Run(new(state), server: null, link: null, NoWindow);
+
         await Assert.That(code).IsEqualTo(4);
         await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A viewer with nothing of a snapshot in it has staged nothing, whatever it was started for.
+    /// </summary>
+    [Test]
+    public async Task AViewerWithNoWindowAndNoSnapshotsSaysItFailed()
+    {
+        var code = ViewerProgram.Run(new(Fixtures.File()), server: null, link: null, NoWindow);
+
+        await Assert.That(code).IsEqualTo(4);
+    }
+
+    /// <summary>
+    /// A viewer started for a delete or a pair can be holding snapshots other processes sent it
+    /// by the time its window fails, and staging those says nothing of the file it was started
+    /// for. Its launcher is told the launch failed.
+    /// </summary>
+    [Test]
+    public async Task AViewerStartedForAFileNeverSaysStaged()
+    {
+        await Assert.That(ViewerProgram.ForAFile(ViewerExit.Staged)).IsEqualTo(4);
+        await Assert.That(ViewerProgram.ForAFile(0)).IsEqualTo(0);
+        await Assert.That(ViewerProgram.ForAFile(1)).IsEqualTo(1);
     }
 
     /// <summary>

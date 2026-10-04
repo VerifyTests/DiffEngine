@@ -20,7 +20,19 @@ public enum InlineApplyStatus
     /// <summary>
     /// IO, locking, or validation failure. See <see cref="InlineApplyResult.Message"/>.
     /// </summary>
-    Failed
+    Failed,
+
+    /// <summary>
+    /// The patch stopped being wanted while it was waiting to be written, and nothing of it is in
+    /// the file. Not a failure and not an accept: whoever asked for it had already taken it back.
+    /// <para>
+    /// Only from an apply that was handed a question to ask, which is a queue owner's bulk accept:
+    /// a snapshot discarded, or settled by a test that started passing, after its patch was
+    /// claimed and before its file was written. <see cref="InlineApplier.Apply" /> and
+    /// <see cref="InlineApplier.ApplyAll(IReadOnlyList{InlinePatch})" /> never report it.
+    /// </para>
+    /// </summary>
+    Withdrawn
 }
 
 public sealed class InlineApplyResult
@@ -77,6 +89,9 @@ public sealed class InlineApplyResult
 
     public static readonly InlineApplyResult Applied = new(InlineApplyStatus.Applied, null, null);
     public static readonly InlineApplyResult AlreadyApplied = new(InlineApplyStatus.AlreadyApplied, null, null);
+
+    /// <inheritdoc cref="InlineApplyStatus.Withdrawn"/>
+    internal static readonly InlineApplyResult Withdrawn = new(InlineApplyStatus.Withdrawn, null, null);
 
     public static InlineApplyResult NotFound(string message) =>
         new(InlineApplyStatus.NotFound, message, null);

@@ -416,7 +416,23 @@ static class Fixtures
         var directory = Path.Combine(Path.GetTempPath(), "deview-fixture-images");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, name);
-        System.IO.File.WriteAllBytes(path, content);
+        // Left alone when it already holds these bytes, which after a machine's first run it
+        // does. Written on every call, the same picture under a new write time was a file
+        // rewritten to whatever had decoded it: a test in this process or in another run of the
+        // suite that painted it twice composed it twice, and one reading it met the write.
+        try
+        {
+            if (!System.IO.File.Exists(path) ||
+                !System.IO.File.ReadAllBytes(path).AsSpan().SequenceEqual(content))
+            {
+                System.IO.File.WriteAllBytes(path, content);
+            }
+        }
+        catch (IOException)
+        {
+            // Being written by another test, and every writer writes the same bytes
+        }
+
         return path;
     }
 

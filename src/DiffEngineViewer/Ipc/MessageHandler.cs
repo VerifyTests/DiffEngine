@@ -159,7 +159,10 @@ class MessageHandler(
                 generation++;
             }
 
-            return $"{instance}.{generation}.{state.ListedProgress?.Build()}";
+            // Which kind of batch as well as how far: a discard begun as an accept-all ends can
+            // stand at the same counts over the same queue
+            var progress = state.ListedProgress;
+            return $"{instance}.{generation}.{progress?.Build()}{(progress?.Discarding == true ? ".discarding" : "")}";
         }
     }
 

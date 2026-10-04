@@ -19,11 +19,25 @@ namespace DiffEngine;
 record AcceptProgress(int Done, int Total)
 {
     /// <summary>
+    /// Whether the batch is a bulk discard rather than an accept-all: the same steps, each one
+    /// throwing a received file away.
+    /// <para>
+    /// An owning viewer's discard was on no listing, since the progress line says an accept is
+    /// under way to whoever reads it. So a window attached to that viewer saw the queue shrink
+    /// with nothing saying why, and refused nothing meanwhile. It is listed now, as the same
+    /// counts and a line of its own beside them (<see cref="ViewerResponse"/>). A reader from
+    /// before that line skips it and takes the batch for an accept, which is the wrong word and
+    /// the right behaviour: it refuses what changes the queue until the batch is done.
+    /// </para>
+    /// </summary>
+    public bool Discarding { get; init; }
+
+    /// <summary>
     /// The entry being worked on rather than the count finished, which is how a progress line
     /// reads: the first entry is "1 of 40" while it is being applied, not "0 of 40".
     /// </summary>
     public string Describe() =>
-        $"Accepting {Math.Min(Done + 1, Total)} of {Total}";
+        $"{(Discarding ? "Discarding" : "Accepting")} {Math.Min(Done + 1, Total)} of {Total}";
 
     /// <summary>
     /// One more entry dealt with, however it went.

@@ -63,7 +63,7 @@ Exiting the tray writes any still-pending inline snapshots back to disk, under t
 
 "Accept all" will accept all pending moves, deletes and inline snapshots. Snapshots whose target frameworks disagree about the content are skipped rather than picked between; resolve those in the viewer.
 
-The deletes it carries out are the ones that were pending when it began. A delete can be the last copy of a snapshot that is moving inline, so the deletes are held back, and the tray says so, when a snapshot could not be written or when a viewer that owns the queue did not answer. A delete of a file that an accepted move has written is left pending rather than carried out, and stays that way through later "Accept all"s: it is marked `!` in the menu, with the reason. It goes when it is accepted on its own, or when a test run raises the delete again.
+The deletes it carries out are the ones that were pending when it began. A delete can be the last copy of a snapshot that is moving inline, so the deletes are held back, and the tray says so, when a snapshot could not be written or when a viewer that owns the queue did not answer. A delete of a file that an accepted move has written is left pending rather than carried out, and stays that way through later "Accept all"s: it is marked `~` in the menu, with the reason. It goes when it is accepted on its own, or discarded and raised by a later run. A test run raising it again does not release it unless the file has changed since the move wrote it.
 
 A long queue takes a while to accept. An open [DiffEngineViewer](/docs/viewer.md) window shows how far it has got, with each snapshot leaving the list as it lands.
 

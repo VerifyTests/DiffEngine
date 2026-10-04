@@ -52,11 +52,47 @@ public static class InlineApplier
     public static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches) =>
         ApplyAll(patches, Swap);
 
+    /// <summary>
+    /// <see cref="ApplyAll(IReadOnlyList{InlinePatch})"/> for a caller whose patches can stop
+    /// being wanted while they wait: a queue owner's bulk accept, whose queue goes on being
+    /// settled and discarded from while a file is read, patched and written.
+    /// <para>
+    /// A patch is handed over when its file's turn comes and written at the end of it, and the
+    /// wait between is the file's lock, up to ten seconds of it. A snapshot discarded in that
+    /// time, or settled by a test that started passing, was written with the rest of its file:
+    /// the reviewer threw it away and found it in the source. So once a file is patched in
+    /// memory, and before its one write, each patch that edited is asked about, by its position
+    /// in <paramref name="patches"/>. One that is no longer wanted is not in what is written.
+    /// </para>
+    /// <para>
+    /// Not by taking its edit back out, since the patches after it were applied to source that
+    /// held it: the file is patched again from what was read, without it. So every outcome is
+    /// what it would have been had that patch never been handed over, the lines each edit moved
+    /// included, and is true of the file that is written. The patch itself is
+    /// <see cref="InlineApplyStatus.Withdrawn"/>.
+    /// </para>
+    /// <para>
+    /// The question is asked with the file's lock and mutex held, on the thread that applies. It
+    /// must not wait on anything that can be waiting to apply to the same file.
+    /// </para>
+    /// </summary>
+    /// <param name="patches">The patches, in the order they are to be applied.</param>
+    /// <param name="wanted">
+    /// Whether the patch at a position is still to be written. Asked only of a patch that would
+    /// edit its file, and at most once.
+    /// </param>
+    internal static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches, Func<int, bool> wanted) =>
+        ApplyAll(patches, Swap, wanted);
+
     /// <param name="patches">The patches, in the order they are to be applied.</param>
     /// <param name="replace">
     /// The swap. Supplied by the tests, which count how many there were and make one fail.
     /// </param>
-    internal static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches, Action<string, string> replace)
+    /// <param name="wanted">
+    /// Whether the patch at a position is still to be written, or null for a caller whose patches
+    /// are all wanted.
+    /// </param>
+    internal static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches, Action<string, string> replace, Func<int, bool>? wanted = null)
     {
         var results = new InlineApplyResult[patches.Count];
         // Each file's patches in the order they were given, and the files in the order they were
@@ -86,7 +122,10 @@ public static class InlineApplier
 
         foreach (var (fullPath, indexes) in files)
         {
-            var applied = Run(fullPath, indexes.Select(_ => patches[_]).ToList(), write: true, anchorOnly: false, replace);
+            // Asked by where a patch is in the file's own list, and answered by where it was in
+            // the caller's
+            Func<int, bool>? fileWanted = wanted is null ? null : _ => wanted(indexes[_]);
+            var applied = Run(fullPath, indexes.Select(_ => patches[_]).ToList(), write: true, anchorOnly: false, replace, fileWanted);
             for (var position = 0; position < indexes.Count; position++)
             {
                 results[indexes[position]] = applied[position];
@@ -181,7 +220,13 @@ public static class InlineApplier
     /// outcome for each. A failure that is about the file rather than about a patch - a lock that
     /// could not be taken, a file that could not be read - is every patch's outcome.
     /// </summary>
-    static InlineApplyResult[] Run(string fullPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
+    static InlineApplyResult[] Run(
+        string fullPath,
+        IReadOnlyList<InlinePatch> patches,
+        bool write,
+        bool anchorOnly,
+        Action<string, string> replace,
+        Func<int, bool>? wanted = null)
     {
         var normalizedPath = fullPath.ToLowerInvariant();
         // A dry run of a file an earlier one read, and nothing has written since, is answered
@@ -226,7 +271,7 @@ public static class InlineApplier
                     return All(patches, InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}"));
                 }
 
-                return LockedApply(fullPath, normalizedPath, patches, write, anchorOnly, replace);
+                return LockedApply(fullPath, normalizedPath, patches, write, anchorOnly, replace, wanted);
             }
             finally
             {
@@ -249,7 +294,14 @@ public static class InlineApplier
         return results;
     }
 
-    static InlineApplyResult[] LockedApply(string fullPath, string normalizedPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
+    static InlineApplyResult[] LockedApply(
+        string fullPath,
+        string normalizedPath,
+        IReadOnlyList<InlinePatch> patches,
+        bool write,
+        bool anchorOnly,
+        Action<string, string> replace,
+        Func<int, bool>? wanted)
     {
         // Asked here rather than before the lock, because the swap at the end of this method takes
         // the path away for the instant it takes to rename over it. Asked outside, an applier
@@ -317,6 +369,13 @@ public static class InlineApplier
         var results = new InlineApplyResult[patches.Count];
         var read = source;
         var firstToWrite = PatchInTurn(language, ref source, patches, fullPath, results);
+        if (wanted is not null &&
+            firstToWrite >= 0)
+        {
+            // As late as there is: everything from here to the write is this thread's own work
+            firstToWrite = WithoutTheUnwanted(language, read, ref source, patches, fullPath, results, wanted, firstToWrite);
+        }
+
         if (firstToWrite < 0)
         {
             return results;
@@ -386,6 +445,12 @@ public static class InlineApplier
         {
             for (var index = firstToWrite; index < results.Length; index++)
             {
+                // Taken back before the write was tried, and no more in the file for its failing
+                if (results[index].Status == InlineApplyStatus.Withdrawn)
+                {
+                    continue;
+                }
+
                 if (results[index].Status == InlineApplyStatus.Applied)
                 {
                     results[index] = failed;
@@ -408,6 +473,118 @@ public static class InlineApplier
         finally
         {
             scan?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Asks, of each patch whose edit the write is about to carry, whether it is still wanted,
+    /// and leaves the source and the outcomes as they would be had the ones that are not never
+    /// been handed over. Returns the first patch whose edit a write has still to carry, or -1
+    /// when none is left.
+    /// <para>
+    /// The patches are applied again, from the source as it was read, without the unwanted ones.
+    /// An edit cannot be taken back out on its own: each patch after it was judged against source
+    /// that held it, at a line it had moved, and may have been already applied only because of
+    /// it, or not found only because it had taken the anchor. Applied again, each is told what is
+    /// true of the file that will be written, and says which lines it moved in that file.
+    /// </para>
+    /// <para>
+    /// Which can make an edit of a patch that had made none, the second of two for one call site
+    /// when the first is taken back. That one has not been asked about, so it is asked, and the
+    /// file patched once more if it is unwanted too. Each patch is asked once, so this ends.
+    /// </para>
+    /// </summary>
+    /// <param name="language">The language the source is in.</param>
+    /// <param name="read">The source as it was read.</param>
+    /// <param name="source">The patched source, replaced when a patch is taken back out.</param>
+    /// <param name="patches">The patches, in the order they are to be applied.</param>
+    /// <param name="fullPath">The file, for a failure to name.</param>
+    /// <param name="results">The outcomes, replaced when a patch is taken back out.</param>
+    /// <param name="wanted">Whether the patch at a position is still to be written.</param>
+    /// <param name="firstToWrite">The first patch whose edit the write has to carry.</param>
+    static int WithoutTheUnwanted(
+        SourceLanguage language,
+        string read,
+        ref string source,
+        IReadOnlyList<InlinePatch> patches,
+        string fullPath,
+        InlineApplyResult[] results,
+        Func<int, bool> wanted,
+        int firstToWrite)
+    {
+        var asked = new bool[results.Length];
+        var withdrawn = new bool[results.Length];
+        while (firstToWrite >= 0)
+        {
+            var found = false;
+            for (var index = firstToWrite; index < results.Length; index++)
+            {
+                if (asked[index] ||
+                    results[index].Status != InlineApplyStatus.Applied)
+                {
+                    continue;
+                }
+
+                asked[index] = true;
+                if (!IsWanted(wanted, index))
+                {
+                    withdrawn[index] = true;
+                    found = true;
+                }
+            }
+
+            if (!found)
+            {
+                break;
+            }
+
+            var kept = new List<int>(results.Length);
+            for (var index = 0; index < results.Length; index++)
+            {
+                if (withdrawn[index])
+                {
+                    results[index] = InlineApplyResult.Withdrawn;
+                }
+                else
+                {
+                    kept.Add(index);
+                }
+            }
+
+            var keptPatches = new InlinePatch[kept.Count];
+            for (var position = 0; position < keptPatches.Length; position++)
+            {
+                keptPatches[position] = patches[kept[position]];
+            }
+
+            var keptResults = new InlineApplyResult[kept.Count];
+            source = read;
+            var first = PatchInTurn(language, ref source, keptPatches, fullPath, keptResults);
+            for (var position = 0; position < keptResults.Length; position++)
+            {
+                results[kept[position]] = keptResults[position];
+            }
+
+            firstToWrite = first < 0 ? -1 : kept[first];
+        }
+
+        return firstToWrite;
+    }
+
+    /// <summary>
+    /// A question that throws is taken as yes. The patch was handed over to be written, and
+    /// nothing has said otherwise; thrown on from here, the outcomes of the patches beside it
+    /// would be lost with it.
+    /// </summary>
+    static bool IsWanted(Func<int, bool> wanted, int index)
+    {
+        try
+        {
+            return wanted(index);
+        }
+        catch (Exception)
+        {
+            return true;
         }
     }
 

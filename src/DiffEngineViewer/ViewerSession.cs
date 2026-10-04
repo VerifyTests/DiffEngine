@@ -165,17 +165,9 @@ static class ViewerSession
         {
             state = Withdraw(state, entry.TargetFile!);
         }
-        else if (entry.Written)
+        else
         {
-            // A delete raised again, built from the entry that was queued for it
-            // (TrackedEntry.DeleteAgain). Raised by a run that looked at the file as it is now, so
-            // whatever a move wrote there since the delete was first raised, this is the later
-            // statement
-            entry = entry with
-            {
-                Written = false,
-                Status = null
-            };
+            entry = RaisedAgain(state.Queue, entry);
         }
 
         var existing = IndexOf(state.Queue, entry.Key);
@@ -211,6 +203,55 @@ static class ViewerSession
         // were, so a page arriving beneath the document on screen changes its count and nothing
         // else
         return Seen(next);
+    }
+
+    /// <summary>
+    /// A delete that has arrived, with the hold of the one queued for the same file where that
+    /// still stands, and with none otherwise.
+    /// <para>
+    /// A delete raised again says nothing about when it was decided. A run has a process for each
+    /// target framework, and one that looked at the file before the move was accepted raises the
+    /// delete after it, in the same words a run that looked at what the move wrote would use.
+    /// Taken for the later statement, the first let go of the hold, and the next accept-all
+    /// deleted what had just been accepted. So the hold stands while the file is as the move left
+    /// it, and goes only when it is seen to be something else: what the hold was keeping is then
+    /// no longer there to keep. A stamp that could not be read, then or now, is not a file seen
+    /// to differ. The tray's tracker decides it the same way (<c>Tracker.AddDelete</c>).
+    /// </para>
+    /// <para>
+    /// Asked of the entry in the queue rather than of what the arrival was built from
+    /// (<see cref="TrackedEntry.DeleteAgain"/>), which was read outside the lock and may be from
+    /// before the move was carried out.
+    /// </para>
+    /// </summary>
+    static QueueEntry RaisedAgain(IReadOnlyList<QueueEntry> queue, QueueEntry arrived)
+    {
+        var index = IndexOf(queue, arrived.Key);
+        if (index >= 0 &&
+            queue[index] is { Kind: QueueEntryKind.Delete, Written: true } queued &&
+            !(queued.WrittenAs is { } written &&
+              arrived.LeftStamp is { } now &&
+              now != written))
+        {
+            return arrived with
+            {
+                Written = true,
+                WrittenAs = queued.WrittenAs,
+                Status = queued.Status
+            };
+        }
+
+        if (!arrived.Written)
+        {
+            return arrived;
+        }
+
+        return arrived with
+        {
+            Written = false,
+            WrittenAs = null,
+            Status = null
+        };
     }
 
     /// <summary>
@@ -258,10 +299,11 @@ static class ViewerSession
         {
             LeftStamp = entry.LeftStamp,
             RightStamp = entry.RightStamp,
-            // A delete raised again is no longer held for what a move wrote before it was: see
-            // EnqueueTracked. Nothing but a delete is ever marked
-            Written = false,
-            Status = queued.Written ? null : queued.Status
+            // Whether a delete raised again is still held for what a move wrote: see RaisedAgain,
+            // which has said so on the arrival. Nothing but a delete is ever marked
+            Written = entry.Written,
+            WrittenAs = entry.WrittenAs,
+            Status = queued.Written && !entry.Written ? null : queued.Status
         };
         return Clamp(state with
         {
@@ -1546,7 +1588,19 @@ static class ViewerSession
     /// </summary>
     /// <param name="claimed">The state <see cref="ClaimNext"/> returned, which says what was claimed.</param>
     /// <param name="actions">What applies it.</param>
-    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions)
+    /// <param name="current">
+    /// The session's state as it is when asked, for a batch carried out a step at a time while
+    /// other threads change the queue. With it, a snapshot is asked about as its file is about to
+    /// be written (<see cref="StillClaimed"/>), and one that has been settled, discarded or
+    /// replaced since it was claimed is left out of the write. Null for a batch carried out
+    /// inside one transition, where nothing else can have touched the queue.
+    /// <para>
+    /// Read, and never by taking the session's lock. The question is asked with the source
+    /// file's lock held, and a single accept arriving over the socket holds the session's lock
+    /// while it waits for that same file: each would wait on the other for good.
+    /// </para>
+    /// </param>
+    public static Func<SessionState, SessionState> ApplyClaimed(SessionState claimed, ViewerActions actions, Func<SessionState>? current = null)
     {
         if (claimed.Batch is not { Current: { } entry } batch)
         {
@@ -1555,18 +1609,45 @@ static class ViewerSession
 
         if (entry.Kind != QueueEntryKind.Inline)
         {
-            var failure = TryApplyTracked(entry, actions, batch.Discarding);
-            return _ => RecordTracked(_, entry, failure);
+            var failure = TryApplyTracked(entry, actions, batch.Discarding, out var wrote);
+            return _ => RecordTracked(_, entry, failure, wrote);
         }
 
         List<QueueEntry> entries = [entry, ..batch.Together];
-        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList());
+        Func<int, bool>? wanted = current is null ? null : _ => StillClaimed(current().Queue, entries[_]);
+        var results = actions.ApplyTogether(entries.Select(_ => _.Patch!).ToList(), wanted);
         if (results.Count != entries.Count)
         {
             throw new InvalidOperationException($"{entries.Count} snapshots were applied together and {results.Count} outcomes came back.");
         }
 
         return _ => RecordInline(_, entries, results);
+    }
+
+    /// <summary>
+    /// Whether a snapshot a batch claimed is still in the queue as it was claimed: found by its
+    /// variants, which is how recording its outcome finds it.
+    /// <para>
+    /// Not there, it was discarded, or settled by a test that started passing, and its patch
+    /// would put back a literal nobody wants. There under other variants, a re-run replaced its
+    /// content, a second framework made a conflict of it, or one of its frameworks settled: what
+    /// is pending now is another entry, which a bulk accept would not have recorded an outcome
+    /// against either. Written anyway, both went into the source with the rest of their file and
+    /// were counted nowhere.
+    /// </para>
+    /// </summary>
+    static bool StillClaimed(IReadOnlyList<QueueEntry> queue, QueueEntry claimed)
+    {
+        foreach (var entry in queue)
+        {
+            if (entry.Kind == QueueEntryKind.Inline &&
+                ReferenceEquals(entry.Variants, claimed.Variants))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1754,7 +1835,11 @@ static class ViewerSession
     /// one a re-run staged over it since is news, and neither the file operation nor its failure
     /// was about that one.
     /// </summary>
-    static SessionState RecordTracked(SessionState state, QueueEntry entry, string? failure)
+    /// <param name="state">The state to record it in.</param>
+    /// <param name="entry">The entry that was claimed.</param>
+    /// <param name="failure">Why it could not be carried out, or null when it was.</param>
+    /// <param name="wrote">For a move carried out, the stamp of the file it wrote.</param>
+    static SessionState RecordTracked(SessionState state, QueueEntry entry, string? failure, FileStamp? wrote = null)
     {
         if (state.Batch is not { } batch)
         {
@@ -1769,7 +1854,7 @@ static class ViewerSession
             // Whether or not its entry is still there: the file was written either way
             if (!batch.Discarding)
             {
-                queue = MarkWritten(queue, entry);
+                queue = MarkWritten(queue, entry, wrote);
             }
 
             return Remove(
@@ -1884,7 +1969,13 @@ static class ViewerSession
     /// as written and says why it is held from here on (<see cref="WroteItsFile"/>). The same list
     /// when there is none, or when what was carried out was not a move.
     /// </summary>
-    static IReadOnlyList<QueueEntry> MarkWritten(IReadOnlyList<QueueEntry> queue, QueueEntry accepted)
+    /// <param name="queue">The list as it stands.</param>
+    /// <param name="accepted">The entry that was carried out.</param>
+    /// <param name="wrote">
+    /// The stamp of the file the move wrote, for the delete to remember
+    /// (<see cref="QueueEntry.WrittenAs"/>).
+    /// </param>
+    static IReadOnlyList<QueueEntry> MarkWritten(IReadOnlyList<QueueEntry> queue, QueueEntry accepted, FileStamp? wrote)
     {
         if (accepted is not { Kind: QueueEntryKind.Move, TargetFile: { } target })
         {
@@ -1902,6 +1993,7 @@ static class ViewerSession
                 marked[index] = entry with
                 {
                     Written = true,
+                    WrittenAs = wrote,
                     Status = WroteItsFile
                 };
             }
@@ -1964,6 +2056,14 @@ static class ViewerSession
     const string deleteHeld = "Held: a snapshot in this batch could not be written inline, and this file may be the only copy of it left. Accept it on its own to delete it anyway.";
 
     /// <summary>
+    /// Whether a status is one of the reasons a bulk accept of a queue this process owns leaves a
+    /// delete pending, rather than what a failed accept said. For the mark on its row
+    /// (<see cref="QueueEntry.Held"/>).
+    /// </summary>
+    public static bool IsHold(string status) =>
+        status is deleteHeld or WroteItsFile or AwaitsItsFile;
+
+    /// <summary>
     /// Why a bulk accept leaves a pending delete where it is, when it would: null when it would
     /// carry it out. The tray's <c>Tracker.HeldReason</c>, for a queue this process owns, and what
     /// a full listing of that queue says beside the delete.
@@ -2006,8 +2106,13 @@ static class ViewerSession
     /// wrote the file, so that a second accept-all, or one after the move was accepted on its own,
     /// does not delete what was just accepted.
     /// </para>
+    /// <para>
+    /// It does not offer running the tests again, which used to let go of the hold: see
+    /// <see cref="RaisedAgain"/>. The price is that a delete a later run truly wants stays held
+    /// until it is accepted on its own.
+    /// </para>
     /// </summary>
-    public const string WroteItsFile = "Held: a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept it on its own to delete it anyway, or run the tests again.";
+    public const string WroteItsFile = "Held: a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept it on its own to delete it anyway.";
 
     /// <summary>
     /// A move still pending is going to write the file. Not remembered: it is true for as long as
@@ -2031,8 +2136,17 @@ static class ViewerSession
     /// inline apply does.
     /// </para>
     /// </summary>
-    static string? TryApplyTracked(QueueEntry entry, ViewerActions actions, bool discarding)
+    /// <param name="entry">The move or delete.</param>
+    /// <param name="actions">What carries it out.</param>
+    /// <param name="discarding">Whether it is being discarded rather than accepted.</param>
+    /// <param name="wrote">
+    /// For a move that was accepted, the stamp of the file it wrote, read here because this is
+    /// where the file is touched: what a delete pending on that file is later asked against
+    /// (<see cref="RaisedAgain"/>). Null for anything else, and when it could not be read.
+    /// </param>
+    static string? TryApplyTracked(QueueEntry entry, ViewerActions actions, bool discarding, out FileStamp? wrote)
     {
+        wrote = null;
         try
         {
             if (discarding)
@@ -2048,6 +2162,7 @@ static class ViewerSession
             if (entry.Kind == QueueEntryKind.Move)
             {
                 actions.MoveFile(entry.LeftFile!, entry.TargetFile!);
+                wrote = FileSide.StampOf(entry.TargetFile!);
             }
             else
             {
@@ -2075,7 +2190,7 @@ static class ViewerSession
         bool discarding,
         string done)
     {
-        if (TryApplyTracked(entry, actions, discarding) is { } failure)
+        if (TryApplyTracked(entry, actions, discarding, out var wrote) is { } failure)
         {
             var queue = state.Queue
                 .Select(_ => _.Key == entry.Key ? _ with { Status = failure } : _)
@@ -2091,7 +2206,7 @@ static class ViewerSession
         IReadOnlyList<QueueEntry> left = state.Queue.Where(_ => _.Key != entry.Key).ToList();
         if (!discarding)
         {
-            left = MarkWritten(left, entry);
+            left = MarkWritten(left, entry, wrote);
         }
 
         return Remove(state, left, done);

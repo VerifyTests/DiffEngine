@@ -36,12 +36,12 @@ public class WindowsPixelTests
 
     const int rows = 37;
 
-    static IViewerWindow? window;
+    static FormsViewerWindow? window;
 
     [Before(Class)]
     public static void Open()
     {
-        window = FormsViewerWindow.Open("DiffEngineViewer", width, height, hidden: true, placement: null, out var error);
+        window = (FormsViewerWindow?) FormsViewerWindow.Open("DiffEngineViewer", width, height, hidden: true, placement: null, out var error);
         if (window is null)
         {
             throw new(error!);
@@ -209,21 +209,51 @@ public class WindowsPixelTests
     /// the left. In one row the buttons past the window's edge could not be reached at all.
     /// <para>
     /// Fewer rows than the window of the other scenes holds, as the canvas reports fewer once
-    /// the footer is this tall.
+    /// the footer is this tall. The window is asked how many, as the loop asks it every frame,
+    /// and the screen is built for those. Built for the whole window its last rows are under
+    /// the footer, and built for a number worked out by hand, as this was, it was a row short
+    /// of what the window has.
     /// </para>
     /// </summary>
     [Test]
-    public Task FooterThatWraps()
+    public async Task FooterThatWraps()
     {
-        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), 60, 26));
-        return Capture(
-            screen with
+        var grid = window!.MeasureGrid(Wrapping(60, 100), 560, 560);
+
+        // Pinned, as the grid of the other scenes is, so the baseline does not move with a
+        // measurement: this says the pin is what the window reports
+        await Assert.That(grid).IsEqualTo((60, 27));
+        await Capture(Wrapping(grid.Columns, grid.Rows), 560, 560);
+    }
+
+    /// <summary>
+    /// The grid a capture is told is what its footer leaves: a footer of two rows of buttons and
+    /// a status under them leaves fewer rows than the same window with nothing in its footer,
+    /// and no fewer columns.
+    /// </summary>
+    [Test]
+    public async Task ACaptureIsToldTheRowsItsFooterLeaves()
+    {
+        var wrapping = Wrapping(60, 100);
+        var bare = window!.MeasureGrid(
+            wrapping with
             {
-                Status = longStatus
+                Buttons = [],
+                Status = ""
             },
             560,
             560);
+        var under = window.MeasureGrid(wrapping, 560, 560);
+
+        await Assert.That(under.Columns).IsEqualTo(bare.Columns);
+        await Assert.That(under.Rows).IsLessThan(bare.Rows);
     }
+
+    static Screen Wrapping(int columns, int rows) =>
+        ScreenBuilder.Build(ViewerSession.Resize(Fixtures.Document(), columns, rows)) with
+        {
+            Status = longStatus
+        };
 
     static Task Capture(SessionState state) =>
         Capture(ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows)));

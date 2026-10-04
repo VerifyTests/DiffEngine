@@ -86,6 +86,37 @@ public class MoveOntoDeleteTests
     }
 
     /// <summary>
+    /// A held delete's reason is its status, and every head draws a row with a status as an entry
+    /// that failed. Nothing failed, so the row leads with a mark of its own and carries no
+    /// status; why it is held stays in its tip. A delete that was tried and could not be deleted
+    /// is still the failure it was.
+    /// </summary>
+    [Test]
+    public async Task A_held_delete_is_marked_apart_from_a_failed_one()
+    {
+        var disk = new Disk();
+        var state = Queued(Fixtures.Move(), Delete());
+        state = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);
+
+        var held = QueueProjection.Rows(state).Single();
+        await Assert.That(held.Label).IsEqualTo("~ sample.verified.txt");
+        await Assert.That(held.Status).IsNull();
+        await Assert.That(held.Tooltip!).Contains(ViewerSession.WroteItsFile);
+        // Leading, so it is there in a column too narrow for the name
+        await Assert.That(AsciiRenderer.Render(ScreenBuilder.Build(state))).Contains("| > ~ sample.verified");
+
+        var locked = disk.Actions with
+        {
+            DeleteFile = static _ => throw new("The file is locked.")
+        };
+        state = ViewerSession.Apply(state, CommandKind.Accept, locked);
+
+        var failed = QueueProjection.Rows(state).Single();
+        await Assert.That(failed.Label).IsEqualTo("sample.verified.txt");
+        await Assert.That(failed.Status).IsEqualTo("The file is locked.");
+    }
+
+    /// <summary>
     /// Accepted on its own it is carried out, held or not: that is the reviewer saying the file
     /// is redundant.
     /// </summary>
@@ -103,27 +134,99 @@ public class MoveOntoDeleteTests
     }
 
     /// <summary>
-    /// Raised again, so by a run that looked at the file as it is now: the later statement, and
-    /// the hold is let go. Both ways an arrival is taken, since the file a move wrote may or may
-    /// not hold what the delete's entry was showing.
+    /// A delete raised again says nothing about when it was decided: a process of the same run
+    /// that looked at the file before the move was accepted raises it after, as a later run
+    /// would. Raising it again used to let go of the hold, and the next accept-all then deleted
+    /// what had just been accepted. Both ways an arrival is taken, since the entry it is built
+    /// from may or may not show what the queued one does. Nothing here is a file, so no stamp
+    /// was read, and a stamp that is not known is not a file seen to differ.
     /// </summary>
     [Test]
     [Arguments(Fixtures.Expected)]
     [Arguments("something else")]
-    public async Task A_delete_raised_again_is_no_longer_held(string contentNow)
+    public async Task A_delete_raised_again_is_still_held(string contentNow)
     {
         var disk = new Disk();
         var state = Queued(Fixtures.Move(), Delete());
         state = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);
 
         state = ViewerSession.EnqueueTracked(state, Delete(contentNow));
-        await Assert.That(state.Queue.Single().Status).IsNull();
-        await Assert.That(ViewerSession.HeldReason(state.Queue, state.Queue.Single())).IsNull();
+        await Assert.That(state.Queue.Single().Status).IsEqualTo(ViewerSession.WroteItsFile);
+        await Assert.That(ViewerSession.HeldReason(state.Queue, state.Queue.Single())).IsEqualTo(ViewerSession.WroteItsFile);
 
         state = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);
 
-        await Assert.That(state.Queue).IsEmpty();
-        await Assert.That(disk.Files).IsEmpty();
+        await Assert.That(state.Queue.Single().Kind).IsEqualTo(QueueEntryKind.Delete);
+        await Assert.That(disk.Files[target]).IsEqualTo("received");
+    }
+
+    /// <summary>
+    /// The same with files, where the stamps are: raised again over the file as the move left it
+    /// the delete is still held, however many times, and raised over a file written since it is
+    /// a delete like any other, since nothing of what the move put there is left to keep.
+    /// </summary>
+    [Test]
+    public async Task A_delete_raised_again_is_let_go_only_over_a_file_written_since()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"MoveOntoDeleteTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var received = Path.Combine(directory, "sample.received.txt");
+            var verified = Path.Combine(directory, "sample.verified.txt");
+            await File.WriteAllTextAsync(received, "received");
+            await File.WriteAllTextAsync(verified, "verified");
+            var actions = Fixtures.Applied with
+            {
+                MoveFile = ViewerActions.Real.MoveFile,
+                DeleteFile = ViewerActions.Real.DeleteFile
+            };
+            var state = Queued(TrackedEntry.ForMove(received, verified), TrackedEntry.ForDelete(verified));
+            state = ViewerSession.Apply(state, CommandKind.AcceptAll, actions);
+            await Assert.That(state.Queue.Single().WrittenAs).IsNotNull();
+
+            // Twice: the first is built from what the file holds now, and the second finds an
+            // entry already showing that
+            for (var raise = 0; raise < 2; raise++)
+            {
+                state = ViewerSession.EnqueueTracked(state, TrackedEntry.DeleteAgain(state.Queue.Single(), verified));
+                await Assert.That(state.Queue.Single().RightText).IsEqualTo("received");
+                await Assert.That(state.Queue.Single().Status).IsEqualTo(ViewerSession.WroteItsFile);
+                await Assert.That(ViewerSession.HeldReason(state.Queue, state.Queue.Single())).IsEqualTo(ViewerSession.WroteItsFile);
+            }
+
+            await File.WriteAllTextAsync(verified, "written by something else since");
+            state = ViewerSession.EnqueueTracked(state, TrackedEntry.DeleteAgain(state.Queue.Single(), verified));
+            await Assert.That(state.Queue.Single().Status).IsNull();
+            await Assert.That(ViewerSession.HeldReason(state.Queue, state.Queue.Single())).IsNull();
+
+            state = ViewerSession.Apply(state, CommandKind.AcceptAll, actions);
+
+            await Assert.That(state.Queue).IsEmpty();
+            await Assert.That(File.Exists(verified)).IsFalse();
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
+    /// The entry an arrival is built from is read outside the lock, and may be from before the
+    /// move was carried out. The hold is the queued entry's, whatever the arrival says of it.
+    /// </summary>
+    [Test]
+    public async Task A_delete_raised_again_from_an_entry_read_before_the_move_is_still_held()
+    {
+        var disk = new Disk();
+        var state = Queued(Fixtures.Move(), Delete());
+        var readEarlier = state.Queue.Single(_ => _.Kind == QueueEntryKind.Delete);
+        state = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);
+
+        state = ViewerSession.EnqueueTracked(state, readEarlier);
+
+        await Assert.That(ViewerSession.HeldReason(state.Queue, state.Queue.Single())).IsEqualTo(ViewerSession.WroteItsFile);
+        await Assert.That(state.Queue.Single().Status).IsEqualTo(ViewerSession.WroteItsFile);
     }
 
     /// <summary>

@@ -418,9 +418,10 @@ public class AttachedViewerTests
 
     /// <summary>
     /// A delete the owner's accept-all would leave is marked in the owner's own menu, and looked
-    /// like any other here. What the owner says of it is the entry's status, so the row carries
-    /// the mark a failure does and its tip says why. The same entry from pump to pump while the
-    /// owner says the same, and unmarked again once the owner lets go of it.
+    /// like any other here. What the owner says of it is the entry's status, and its tip says
+    /// why. The row leads with the mark of a held delete and is not the row of a failure, which
+    /// it was drawn as when the status was all a row had to go by. The same entry from pump to
+    /// pump while the owner says the same, and unmarked again once the owner lets go of it.
     /// </summary>
     [Test]
     public async Task ADeleteTheOwnerHoldsSaysWhy()
@@ -450,8 +451,10 @@ public class AttachedViewerTests
                 var first = host.State.Queue.Single();
                 await Assert.That(first.Status).IsEqualTo(held);
                 var row = QueueProjection.Rows(host.State).Single(_ => _.Kind == QueueRowKind.Entry);
-                await Assert.That(row.Status).IsEqualTo(held);
+                await Assert.That(row.Label).IsEqualTo("~ extra.verified.txt");
+                await Assert.That(row.Status).IsNull();
                 await Assert.That(row.Tooltip!).Contains(held);
+                await Assert.That(AsciiRenderer.Render(ScreenBuilder.Build(host.State))).DoesNotContain("extra.verified.txt !");
 
                 link.Pump();
                 await Assert.That(host.State.Queue.Single()).IsSameReferenceAs(first);
@@ -465,6 +468,7 @@ public class AttachedViewerTests
                 held = null;
                 link.Pump();
                 await Assert.That(host.State.Queue.Single().Status).IsNull();
+                await Assert.That(QueueProjection.Rows(host.State).Single(_ => _.Kind == QueueRowKind.Entry).Label).IsEqualTo("extra.verified.txt");
                 await cancel.CancelAsync();
             }
         }

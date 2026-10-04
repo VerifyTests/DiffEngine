@@ -984,6 +984,40 @@ public class ViewerProtocolTests
         await Assert.That(parsed!.Progress).IsEqualTo(new(3, 40));
     }
 
+    /// <summary>
+    /// A bulk discard is listed as the counts an accept-all is, and a line beside them saying
+    /// which it is. A reader from before the line skips it, as it skips any name it does not
+    /// know, and is left with a batch under way: it words it as an accept, and refuses what
+    /// changes the queue until it is done, which is what matters.
+    /// </summary>
+    [Test]
+    public async Task ADiscardsProgressSaysItIsOneOnALineOfItsOwn()
+    {
+        var discarding = new AcceptProgress(1, 3)
+        {
+            Discarding = true
+        };
+        var text = ViewerResponse.Listing([], progress: discarding).Build();
+
+        await Assert.That(text).Contains("progress: 1|3\ndiscarding: true\n");
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Progress).IsEqualTo(discarding);
+        await Assert.That(parsed.Progress!.Describe()).IsEqualTo("Discarding 2 of 3");
+
+        // What an older reader makes of it: the same text, less the line it does not know
+        await Assert.That(ViewerResponse.TryParse(text.Replace("discarding: true\n", ""), out var older)).IsTrue();
+        await Assert.That(older!.Progress).IsEqualTo(new(1, 3));
+
+        // The line can come before the counts, and with none it says nothing
+        await Assert.That(ViewerResponse.TryParse(text.Replace("progress: 1|3\ndiscarding: true\n", "discarding: true\nprogress: 1|3\n"), out var swapped)).IsTrue();
+        await Assert.That(swapped!.Progress).IsEqualTo(discarding);
+        await Assert.That(ViewerResponse.TryParse(text.Replace("progress: 1|3\n", ""), out var alone)).IsTrue();
+        await Assert.That(alone!.Progress).IsNull();
+
+        // An accept-all's listing is what it was
+        await Assert.That(ViewerResponse.Listing([], progress: new(1, 3)).Build()).DoesNotContain("discarding");
+    }
+
     [Test]
     public async Task AListingWithNoAcceptRunningSaysNothingOfProgress()
     {

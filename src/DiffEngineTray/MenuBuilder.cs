@@ -261,14 +261,24 @@ static class MenuBuilder
     static string Shortened(string text) =>
         text.Length <= 60 ? text : $"{text[..59].TrimEnd()}…";
 
+    /// <summary>
+    /// What a delete "Accept all" would leave pending is marked with. Not the <c>!</c> of a
+    /// snapshot that failed to apply, which it used to share: nothing failed here, and the delete
+    /// is waiting to be accepted on its own. The character the viewer's queue column leads a held
+    /// delete's row with.
+    /// </summary>
+    internal const string HeldMark = " ~";
+
+    /// <param name="delete">The pending delete.</param>
     /// <param name="held">
-    /// Why "Accept all" leaves this delete pending, when it does. Marked and said the way a
-    /// snapshot that was not written is: a delete an accept-all had just passed over looked like
-    /// every other, and pressing "Accept all" again was the natural thing to try.
+    /// Why "Accept all" leaves this delete pending, when it does. Marked, and said the way a
+    /// snapshot that was not written says why: a delete an accept-all had just passed over looked
+    /// like every other, and pressing "Accept all" again was the natural thing to try.
     /// </param>
+    /// <param name="accept">Accepts this delete on its own.</param>
     static ToolStripDropDownButton BuildDelete(TrackedDelete delete, string? held, Action accept)
     {
-        var marker = held == null ? "" : " !";
+        var marker = held == null ? "" : HeldMark;
         var menu = new ToolStripDropDownButton($"{delete.Name}{marker}")
         {
             DropDownDirection = ToolStripDropDownDirection.Left
