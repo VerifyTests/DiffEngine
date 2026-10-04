@@ -86,6 +86,73 @@ public class FormsHeadTests
     }
 
     /// <summary>
+    /// A left header too long for its pane ends short of where the right one starts. It was cut
+    /// at the very pixel the right pane begins on, so in a narrow window the two read as one
+    /// line. Each is drawn alone here, with nothing else bright on the canvas, so where its ink
+    /// is can be read back.
+    /// </summary>
+    [Test]
+    public async Task ALongLeftHeaderStopsShortOfTheRightOne()
+    {
+        // Full blocks, which the font draws from one edge of a cell to the other, so where a
+        // header's ink starts and stops is where its cells do
+        var header = new string('█', 200);
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), 60, 26)) with
+        {
+            Title = "",
+            Subtitle = ""
+        };
+        var none = new Pane("", [], 0, 0);
+        using var host = new CanvasHost(560, 560);
+
+        var left = Bounds(
+            host.Draw(
+                screen with
+                {
+                    Left = none with
+                    {
+                        Header = header
+                    },
+                    Right = none
+                }),
+            _ => _.GetBrightness() > 0.6f);
+        var right = Bounds(
+            host.Draw(
+                screen with
+                {
+                    Left = none,
+                    Right = none with
+                    {
+                        Header = header
+                    }
+                }),
+            _ => _.GetBrightness() > 0.6f);
+
+        await Assert.That(left).IsNotNull();
+        await Assert.That(right).IsNotNull();
+        Console.WriteLine($"left header's ink ends at {left!.Value.Right}, right header's starts at {right!.Value.Left}");
+        // No less than the gap the canvas keeps between its columns, which is four pixels. The
+        // ellipsis is in the last whole cell, so whatever part of a cell is left over is more
+        await Assert.That(right.Value.Left - left.Value.Right).IsGreaterThanOrEqualTo(4);
+    }
+
+    /// <summary>
+    /// A header is cut to whole cells with an ellipsis in the last of them, and one that fits is
+    /// left as it is. A character two cells wide is kept whole or not at all.
+    /// </summary>
+    [Test]
+    public async Task AHeaderTooLongForItsPaneEndsInAnEllipsis()
+    {
+        await Assert.That(ViewerCanvas.HeaderShown("a.txt (new)", 11)).IsEqualTo("a.txt (new)");
+        await Assert.That(ViewerCanvas.HeaderShown("a.txt (new)", 10)).IsEqualTo("a.txt (ne…");
+        await Assert.That(ViewerCanvas.HeaderShown("文件.txt", 6)).IsEqualTo("文件.…");
+        // Three cells before the ellipsis, and the second character would be half in the fourth
+        await Assert.That(ViewerCanvas.HeaderShown("文件.txt", 4)).IsEqualTo("文…");
+        await Assert.That(ViewerCanvas.HeaderShown("文件.txt", 3)).IsEqualTo("文…");
+        await Assert.That(ViewerCanvas.HeaderShown("a.txt", 0)).IsEqualTo("…");
+    }
+
+    /// <summary>
     /// A bar after characters the font does not draw a cell wide, selected at the column the grid
     /// puts it in: its ink has to be inside the highlight. Drawn as one string, GDI+ put the bar
     /// wherever the fallback font's widths left it - after two CJK characters about a third of a
