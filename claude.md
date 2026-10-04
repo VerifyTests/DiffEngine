@@ -163,8 +163,12 @@ write. Every patch is told what `Apply` would have told it in turn, and `Apply` 
 case of the same code. One thing can only differ: a write that fails fails every patch that
 edited, and any other that would have had to edit the file as it was read, while the rest keep
 what is true of the file. Both batches use it, a file at a time (`AcceptBatch.Together` in the viewer,
-`OwnedInlineHost.AcceptEvery` in the tray), so the moment up to which a snapshot can still be
-withdrawn from a bulk accept is its file's turn rather than its own. A `SourceScan` rents its map
+`OwnedInlineHost.AcceptEvery` in the tray). Each patch that edits is asked about once the file is
+patched in memory and before its one write, with the file's lock held: one no longer wanted,
+discarded or settled while the file was waited for, is `InlineApplyStatus.Withdrawn`, the file is
+patched again from what was read without it, and a batch counts it as nothing. The viewer answers
+from `host.State` without the session's lock, because a wire accept applies inside that lock and
+would wait on the file while the question waited on it; the tray answers under its gate. A `SourceScan` rents its map
 from the pool and is disposed for that reason, and keeps its spans as sorted lists rather than
 hash tables. A batch lexes a file once and carries the scan from one editing patch to the next
 (`SourceScan.Edited`): lexing starts again at the edit's line, never at a line that follows a
@@ -228,7 +232,10 @@ the comment there about not caching "nothing staged" asks for.
   `Application.DoEvents` rather than `Application.Run`, so the shared loop stays shared. Only the
   grid is owner drawn: the footer, the context menu, the pane scrollbar and the tooltips are real
   controls, so they get the OS's keyboard handling, theming and screen reader support. The menu is
-  still projected from the same `Screen.Menu` the other heads draw. A row is handed to GDI+ cut to
+  still projected from the same `Screen.Menu` the other heads draw. A pane's header too long for
+  its pane is cut to whole cells with an ellipsis in the last, the left one a gap short of the
+  right pane (`ViewerCanvas.HeaderShown`), as the Linux head's table cuts its own. A capture's
+  caller asks `FormsViewerWindow.MeasureGrid` for the grid a screen's footer leaves. A row is handed to GDI+ cut to
   the cells its pane has, and one more (`RowText.Shown`, read from the front of the row and cut
   before it is segmented): GDI+ lays out every character it is given before it clips any, so 72
   rows of 2,000 character lines were 15 ms a paint, and a megabyte line 24. A picture zoomed to
@@ -353,8 +360,10 @@ the comment there about not caching "nothing staged" asks for.
   would not take staying in the queue with what the applier said, and it counts as still needing
   review only its own members. The bulk discards are the same batch with `Discarding` set:
   snapshots and pending deletes go as it begins, since nothing of theirs is on disk, and each
-  move's received file is thrown away outside the lock. A discard under way is not on an owner's
-  listings. No inline transition rebuilds the whole list any more. An arrival, a settle, a
+  move's received file is thrown away outside the lock. A discard under way is on an owner's
+  listings as the same counts and a `discarding` line, which an older reader skips and so takes
+  for an accept; an attached window says "Discarding n of m" and refuses what changes the queue.
+  No inline transition rebuilds the whole list any more. An arrival, a settle, a
   discard and a single accept read what changed off the `InlineQueue` before and after, whose
   untouched items come back as the same instances, and edit the list where it stands
   (`TryRebuildChanged`), with `RebuildWhole` as the fallback and as what the tests hold it to.
@@ -662,7 +671,11 @@ the comment there about not caching "nothing staged" asks for.
   anything held the queue is `Failed`, so the caller stages; it used to be waited on for the whole
   of `BindWait` and reported as launched, and an inline snapshot was then in no queue and not
   staged either. A clean exit is left to the wait, since a viewer that hands its work to an owner
-  exits with zero. `ViewerContract` is the other half: resolution passes over a copy older than
+  exits with zero. A viewer that could not show its patch and staged everything it held exits 5
+  (`ViewerExit.Staged`): the gate reports `Staged`, `AddInlineAsync` answers
+  `InlineResult.Staged`, and the caller stages nothing, where both used to stage a trio. It is a
+  failure to any older library and never returned by an older viewer, so `ViewerContract` asks
+  nothing for it, and a viewer started for a delete or a pair never says it. `ViewerContract` is the other half: resolution passes over a copy older than
   20.5.0, which exits on `--payload`, when a newer one is further down the search order.
 - Unless that diff tool is the viewer, which is the `Diff` verb and `--diff <received> <target>`.
   Then the premise above is false — there is no window for the pair yet — so it is tracked exactly
@@ -713,8 +726,14 @@ the comment there about not caching "nothing staged" asks for.
   passes that path as it was given. A tool started through a script, or one that hands over to
   another process and exits, cannot be tracked from here at all.
 - A move that writes a file marks the delete pending on it (`TrackedDelete.Written`), however
-  the move was accepted, and no accept-all carries a marked delete out until a run raises it
-  again; accepting it on its own still does. `Tracker.HeldReason` is what the menu and the debug
+  the move was accepted, and no accept-all carries a marked delete out until it is raised again
+  over a file written since (`TrackedDelete.WrittenAs`, `QueueEntry.WrittenAs`): raised over the
+  file as the move left it, it stays held, since a process that decided before the move sends
+  the same message. Accepting it on its own still does. A move counts as still to write its file
+  from before it leaves `moves` until it lands (`Tracker.accepting`), so a listing taken mid
+  accept holds its delete. A held delete's row leads with `~` in its label and is handed to the
+  heads with no status, so none draws it as a failure (`QueueProjection.HeldMark`,
+  `QueueEntry.Held`), and the tray's menu marks it `~` where a failure is `!`. `Tracker.HeldReason` is what the menu and the debug
   view show, and it rides a full listing as a `held: key|reason` line of its own
   (`ViewerResponseDelete.Held`), since the `delete` line is parsed by field count and an older
   reader skips a line it does not know. An attached viewer shows it as the entry's status and

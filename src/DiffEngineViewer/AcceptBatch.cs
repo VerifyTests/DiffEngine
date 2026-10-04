@@ -95,7 +95,7 @@ record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
     /// <summary>
     /// What the status line says while the batch runs. An accept's is
     /// <see cref="AcceptProgress.Describe"/>, the words a window displaying someone else's batch
-    /// uses too; a discard's is this process's alone, since it is not put on a listing.
+    /// uses too, as it uses a discard's, which is on a listing as the same counts.
     /// </summary>
     public string Describe()
     {
