@@ -81,7 +81,7 @@ public class PiperTest :
     [Test]
     public async Task APayloadWithNoSourceIsUnchanged()
     {
-        await Assert.That(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1, null))
+        await Assert.That(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1))
             .IsEqualTo(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1));
         await Assert.That(PiperClient.BuildMovePayload("a", "b", "c", "d", true, 1)).DoesNotContain("Source");
         await Assert.That(PiperClient.BuildDeletePayload("a")).DoesNotContain("Source");

@@ -84,7 +84,7 @@ public class SameFileBatchTests
     {
         var state = ViewerSession.EnqueueInline(
             Fixtures.Inline(
-                Fixtures.Patch("SampleTests.cs", 42, framework: "net8.0"),
+                Fixtures.Patch(framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two", framework: "net8.0"),
                 Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "four", framework: "net8.0")),
             Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "nine", framework: "net9.0"));
@@ -106,7 +106,7 @@ public class SameFileBatchTests
     public async Task AGroupTakesOnlyItsOwnSnapshotsOfTheFile()
     {
         var state = Fixtures.Inline(
-            Fixtures.Patch("SampleTests.cs", 42, testName: "First"),
+            Fixtures.Patch(testName: "First"),
             Fixtures.Patch("SampleTests.cs", 88, "\"one\"", "two", testName: "First"),
             Fixtures.Patch("SampleTests.cs", 90, "\"three\"", "four", testName: "Second"),
             Fixtures.Patch("SampleTests.cs", 95, "\"five\"", "six", testName: "Second"));

@@ -17,7 +17,7 @@ public class IdleFrameBenchmarks
     {
         ViewerApp.ConfigureUnscaled();
         var directory = Path.Combine(Path.GetTempPath(), "deview-benchmarks", "idle");
-        var state = SessionState.Start(ViewerMode.Inline, 120, 40);
+        var state = SessionState.Start(ViewerMode.Inline);
         for (var index = 0; index < 500; index++)
         {
             state = ViewerSession.EnqueueInline(
