@@ -55,7 +55,7 @@ public class DocumentScreenTests
     /// </summary>
     [Test]
     public Task NewDocument() =>
-        Verify(Fixtures.Render(State(Left, null, LeftText, "")));
+        Verify(Fixtures.Render(State(Left, null, LeftText)));
 
     [Test]
     public Task CouldNotReadTheText() =>
@@ -67,7 +67,7 @@ public class DocumentScreenTests
                     {
                         Unreadable = "it is encrypted."
                     },
-                    LeftText, "")));
+                    LeftText)));
 
     [Test]
     public Task CouldNotDraw()
@@ -131,7 +131,7 @@ public class DocumentScreenTests
 
     static SessionState Damaged(string text, string drawing)
     {
-        var state = State(Left, Right with { Unreadable = text }, LeftText, "");
+        var state = State(Left, Right with { Unreadable = text }, LeftText);
         state = ViewerSession.Rendered(state, Left.Hash!, new([Page("L1")], true));
         return ViewerSession.Rendered(state, Right.Hash!, new([], true, drawing));
     }
