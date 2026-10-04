@@ -211,6 +211,54 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// The same pair as the window shows it. The tray marks a delete it would hold in its menu,
+    /// and the window attached to it showed that delete like any other, with "1 kept" for an
+    /// answer when it asked for an accept-all. The hold rides the listing, and is the entry's
+    /// status: why while the move is pending, why once it has been accepted, and nothing once a
+    /// run raises the delete again - a change to a tracked object that is still the same object,
+    /// which the listing's tag has to move for all the same.
+    /// </summary>
+    [Test]
+    public async Task AnAttachedViewerSaysWhyTheTrayHoldsADelete()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        var delete = pair.Tracker.AddDelete(move.Target);
+        var key = TrackedKeys.ForDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single(_ => _.Key == key).Status).IsEqualTo(Tracker.AwaitsItsFile);
+
+        pair.Link.Post(ViewerSideVerb.AcceptAll, null);
+
+        var viewer = pair.Pump();
+        await Assert.That(viewer.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {Tracker.DeletesKept([delete])}");
+        await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        pair.Tracker.AddDelete(move.Target);
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsNull();
+    }
+
+    /// <summary>
+    /// A move accepted from the tray's own menu, with a window attached: the delete it leaves held
+    /// says so in the window on the next listing.
+    /// </summary>
+    [Test]
+    public async Task AMoveAcceptedInTheTrayMarksItsDeleteInTheAttachedViewer()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        pair.Pump();
+
+        pair.Tracker.Accept(pair.Tracker.Moves.Single());
+
+        await Assert.That(pair.Pump().Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+    }
+
+    /// <summary>
     /// A snapshot moving inline lands while an accept-all is applying: its patch, and the delete of
     /// the verified file that patch replaces. The batch takes its snapshots as it begins, so the
     /// patch is not in it, and it used to read the deletes when their turn came, so the delete was.
@@ -361,6 +409,66 @@ public class TrayViewerSyncTest
         await Assert.That(pair.Applied.Select(_ => _.LineHint)).IsEquivalentTo([1]);
         await Assert.That(File.Exists(delete.File)).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+    }
+
+    /// <summary>
+    /// "Accept all in" a group, from a window attached to the tray, over a move and the delete
+    /// pending on the file it writes. The window sent an accept per key, and the tray carries out
+    /// an accept by key as asked, so the received file was moved into place and then deleted. A
+    /// group accept is a bulk accept: the delete the tray holds is left, as the tray's own
+    /// accept-all leaves it, the one beside it goes, and the held one still goes when it is
+    /// accepted on its own.
+    /// </summary>
+    [Test]
+    public async Task AViewerGroupAcceptLeavesADeleteTheTrayHolds()
+    {
+        await using var pair = new TrayOwned();
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        var held = TrackedKeys.ForDelete(move.Target);
+        var free = pair.AddDelete();
+        pair.Pump();
+
+        pair.Link.PostAcceptGroup([move.Key], [], [held, free.Key]);
+
+        var viewer = pair.Pump();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(File.Exists(free.File)).IsFalse();
+        await Assert.That(viewer.Keys()).IsEquivalentTo([held]);
+        await Assert.That(viewer.Message).IsEqualTo(OwnerLink.DeletesKept);
+        await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+
+        pair.Link.Post(ViewerSideVerb.Accept, held);
+
+        await Assert.That(pair.Pump().Queue).IsEmpty();
+        await Assert.That(File.Exists(move.Target)).IsFalse();
+    }
+
+    /// <summary>
+    /// The same from a window attached to a viewer that owns the queue, which holds the delete by
+    /// the same rule and says so on the same line of its listing.
+    /// </summary>
+    [Test]
+    public async Task AViewerGroupAcceptLeavesADeleteAnOwningViewerHolds()
+    {
+        await using var pair = new ViewerOwned();
+        using var noTray = new NoTray();
+        var move = pair.StageMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        await DiffRunner.AddDeleteAsync(move.Target);
+        var held = TrackedKeys.ForDelete(move.Target);
+        var attached = new SessionHost(SessionState.Start(ViewerMode.Inline));
+        var link = new OwnerLink(attached, pair.Port);
+        await Assert.That(link.Pump()).IsTrue();
+
+        link.PostAcceptGroup([move.Key], [], [held]);
+
+        await Assert.That(link.Pump()).IsTrue();
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(attached.State.Keys()).IsEquivalentTo([held]);
+        await Assert.That(attached.State.Message).IsEqualTo(OwnerLink.DeletesKept);
     }
 
     /// <summary>
@@ -1048,6 +1156,30 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// The other arrangement's half of the same rule: a viewer that owns the queue holds a delete
+    /// whose file a move wrote, as a tray does, and says why on its listing and in the answer to
+    /// an accept-all, so whoever is attached to it is told what a tray would have told it.
+    /// </summary>
+    [Test]
+    public async Task AnOwningViewerHoldsADeleteItsMoveWroteAndSaysWhy()
+    {
+        await using var pair = new ViewerOwned();
+        using var noTray = new NoTray();
+        var move = pair.StageMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        PendingFiles.AddMove(move.Temp, move.Target, null, null, false, null);
+        await DiffRunner.AddDeleteAsync(move.Target);
+
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.AwaitsItsFile);
+
+        var response = pair.Send(new(ViewerVerb.AcceptAll));
+
+        await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
+        await Assert.That(response.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {ViewerSession.DeletesKept}");
+        await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+    }
+
+    /// <summary>
     /// A tray that owns the queue answers these too, and routes them into the same tracked files
     /// the piper port fills. That is not theoretical: a test process that started before the tray
     /// has its tray check cached false for good, so its pending files arrive this way for the rest
@@ -1347,6 +1479,7 @@ public class TrayViewerSyncTest
         }
 
         public SessionHost Window { get; }
+        public int Port => server.Port;
         public RecordingTracker Tracker { get; }
         public List<ViewerSidePatch> Applied { get; } = [];
         public List<string> Failures { get; } = [];

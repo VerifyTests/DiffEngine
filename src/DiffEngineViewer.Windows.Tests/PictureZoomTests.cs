@@ -118,6 +118,55 @@ public class PictureZoomTests
     }
 
     /// <summary>
+    /// The pane beside is part of a drag: a wide picture beside a tall one, enlarged, with the
+    /// centre the two share as far down as the tall one can show, which is further than the wide
+    /// one can. Dragging the wide one sideways reports that centre as far down as it was, where
+    /// it reported it as far down as its own picture goes, and the tall one jumped up to there.
+    /// </summary>
+    [Test]
+    public async Task DraggingOnePictureLeavesTheOtherWhereItWasOnTheOtherAxis()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"deview-pan-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var wide = Path.Combine(directory, "wide.received.png");
+            var tall = Path.Combine(directory, "tall.verified.png");
+            File.WriteAllBytes(wide, SamplePng.Build(160, 120, 198, 64, 64));
+            File.WriteAllBytes(tall, SamplePng.Build(120, 160, 64, 150, 198));
+            using var host = new Host();
+            var state = Enlarged(
+                ViewerSession.EnqueueFile(
+                    SessionState.Start(ViewerMode.File, Fixtures.Columns, Fixtures.Rows),
+                    QueueEntry.ForFiles(wide, tall, FileSide.Read(wide), FileSide.Read(tall))));
+            // As far down as there is, which each pane brings in to as far as its own picture goes
+            state = ViewerSession.PanTo(state, 0.5, 1);
+            host.Draw(state);
+            var screen = ScreenBuilder.Build(ViewerSession.Resize(state, columns, rows));
+            var left = PicturePlacement.Of(host.Canvas.PictureAreas[0], screen.Left.Image!);
+            var right = PicturePlacement.Of(host.Canvas.PictureAreas[1], screen.Right.Image!);
+            var press = Middle(host.Canvas.PictureAreas[0]);
+
+            host.Press(press);
+            host.Move(new(press.X + 40, press.Y));
+            var dragged = host.Canvas.TakePan();
+            host.Release(new(press.X + 40, press.Y));
+
+            // Or the scene is not the one this is about: both move down, the right one further
+            await Assert.That(left.MovesDown).IsTrue();
+            await Assert.That(left.Centre.Y).IsLessThan(right.Centre.Y);
+            await Assert.That(dragged).IsEqualTo(left.Dragged(new(40, 0), right));
+            // To what a float keeps of how much shows, which is what a drag is kept inside
+            await Assert.That(Math.Abs(dragged!.Value.Y - right.Centre.Y)).IsLessThan(0.000001);
+            await Assert.That(dragged.Value.X).IsLessThan(0.5);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// A picture that fits has nowhere to go, so pressing on one and moving is nothing.
     /// </summary>
     [Test]

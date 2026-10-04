@@ -53,8 +53,9 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
     public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// Whether the window is hidden, set by the render loop as it hides and shows it. Nothing is read
-    /// or drawn for a window nobody can see, which a tray-hidden viewer is for whole test runs.
+    /// Whether the window is hidden, set by the render loop as it hides and shows it, and as its
+    /// head says it is minimised or covered. Nothing is read or drawn for a window nobody can see,
+    /// which a tray-hidden viewer is for whole test runs.
     /// </summary>
     public bool Hidden { get; set; }
 

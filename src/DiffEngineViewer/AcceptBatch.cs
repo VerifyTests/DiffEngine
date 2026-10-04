@@ -44,6 +44,13 @@ record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
     public int Kept { get; init; }
 
     /// <summary>
+    /// Whether any of <see cref="Kept"/> is a delete left because of a move onto its file
+    /// (<see cref="ViewerSession.HeldReason"/>), for the batch to say so when it is done: nothing
+    /// failed, and a count of what was kept reads as though something had.
+    /// </summary>
+    public bool KeptForAMove { get; init; }
+
+    /// <summary>
     /// The entry claimed and being applied outside the session's lock, as it was when claimed,
     /// which is what recording the outcome checks the queue against. Null between entries.
     /// </summary>

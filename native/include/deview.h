@@ -140,7 +140,8 @@ typedef struct DeviewPane {
      *
      * The managed side does not know how many pixels a pane has, so it may ask for a centre that
      * would leave part of the space empty. A renderer moves the centre in as far as it takes to
-     * keep the space full, and that clamped centre is the one a drag starts from.
+     * keep the space full. That is for drawing only. A drag starts from the centre asked for,
+     * moved in only as far as the pane that can go further would move it: see DeviewInput.panX.
      */
     float imageZoom;
     float imageCenterX;
@@ -294,6 +295,15 @@ typedef struct DeviewInput {
      * The window size in character cells, not pixels. Measured here from the font that was
      * actually loaded, because this side is the only one that knows it. Reporting pixels and
      * having the managed side divide by a constant is what left the viewer with no DPI handling.
+     *
+     * rows is the window's height in rows, and no more than the body has room for with the eight
+     * lines the managed side keeps for everything that is not a row (ScreenBuilder.Chrome) added
+     * back. Those eight lines are more than a title, the headers and a footer of one row take, and
+     * a footer that fits in what is over costs nothing. One that does not - buttons that wrap onto
+     * a third and fourth row in a narrow window - is laid out over the bottom of the body, so the
+     * rows it covers are taken off here, and the managed side slices a body that ends above it.
+     * Counted from the last frame laid out for the window, the only place a footer's height is
+     * known.
      */
     int32_t columns;
     int32_t rows;
@@ -327,8 +337,11 @@ typedef struct DeviewInput {
     int32_t zoomDelta;
 
     /*
-     * Where a drag has left an enlarged picture: the point now at the middle of what shows, as
-     * fractions of the picture's width and height, already kept inside what the space can show.
+     * Where a drag has left an enlarged picture: the centre both panes are to draw about, as
+     * fractions of the picture's width and height. It is the centre the frame asked for that the
+     * drag moves, and it is kept inside what the pane showing less of its picture can show: the
+     * two pictures need not be the same shape, and kept to the dragged pane's own range a drag
+     * brought the other pane's picture in from wherever beyond it that one had been taken.
      * On an axis the dragged picture cannot move on, because all of it shows, it is the centre
      * the frame was drawn with, unchanged: the other pane's picture may be able to move there.
      * panX is -1 on the frames with no such drag, which is almost all of them.
@@ -346,6 +359,19 @@ typedef struct DeviewInput {
      * says which pane it is for in DeviewScreen.menuPane.
      */
     int32_t rightClickedPane;
+
+    /*
+     * 1 while nobody can see the window, and 0 otherwise: minimised, hidden by deview_set_hidden,
+     * or with nothing of it showing where the window system can say so, which AppKit can and X11
+     * cannot. A state, as the grid is, and not an event: reported by every poll for as long as
+     * it is so.
+     *
+     * The managed side keeps things going beside the window for whoever is reading it - it reads
+     * the files behind the rows again, lists the queue's owner, draws a document's pages - and
+     * knew to slow those only for a window it had hidden itself. A window in the taskbar or the
+     * Dock, or behind another, was kept up as one being read.
+     */
+    int32_t unseen;
 } DeviewInput;
 
 /*
@@ -402,8 +428,14 @@ typedef struct DeviewPlacement {
  *     widened array element again, in the same bump because they shipped together.
  *     And DeviewInput reports a right-click over a pane, which DeviewScreen answers with a menu
  *     that names the pane rather than a queue row.
+ * 12: DeviewInput.rows is fewer than the window's height in rows where the footer is taller than
+ *     the managed side allows for, by the rows of the body that footer covers. No struct moved:
+ *     what a field means did, and a library from before reports rows that a tall footer hides.
+ *     DeviewInput also reports a window nobody can see, at its end, in the same bump because
+ *     they shipped together. And panX and panY are kept inside what either pane can show, where
+ *     they were kept inside what the dragged one can.
  */
-#define DEVIEW_VERSION 11
+#define DEVIEW_VERSION 12
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not

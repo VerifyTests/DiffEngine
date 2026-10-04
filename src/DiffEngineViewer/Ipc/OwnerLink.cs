@@ -98,11 +98,33 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
     /// none at all - holds the deletes too, because a delete is the one thing not safe to guess
     /// about. The deletes held are still queued, to be accepted on their own.
     /// </para>
+    /// <para>
+    /// And never a delete the owner holds because a move wrote its file, or is still to
+    /// (<see cref="ViewerResponseDelete.Held"/>). The owner carries out an accept by key as asked,
+    /// held or not, since that is how a reviewer says the file is redundant; a group accept is a
+    /// bulk accept and says no such thing, so the key is not sent, which is what the owner's own
+    /// accept-all does with it. Left out here rather than asked of the owner through a verb for a
+    /// group, because the listing already says which they are, and an owner that predates the
+    /// hold would not know the verb either: it reports no holds and is sent every key, as before.
+    /// </para>
     /// </summary>
     public void PostAcceptGroup(IReadOnlyList<string> moves, IReadOnlyList<string> snapshots, IReadOnlyList<string> deletes) =>
         Enqueue(() => AcceptGroup(moves, snapshots, deletes));
 
     public const string DeletesHeld = "Deletes kept: a snapshot in this group was not written, and a file being deleted may be the only copy of it left. Accept them on their own to delete them anyway.";
+
+    /// <summary>
+    /// What a group accept says when it left out a delete the owner holds: see
+    /// <see cref="AcceptGroup"/>.
+    /// </summary>
+    public const string DeletesKept = "Deletes kept: a move was accepted onto the same file, or is still to be, and deleting it would remove what the move put there. Accept them on their own to delete them anyway.";
+
+    /// <summary>
+    /// The deletes of the last listing, for a group accept to ask which of them the owner holds.
+    /// Written by the loop and read by a send, which run on different threads, so it is only ever
+    /// replaced whole.
+    /// </summary>
+    volatile IReadOnlyList<ViewerResponseDelete> listedDeletes = [];
 
     void Enqueue(Func<string> send)
     {
@@ -135,12 +157,26 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
             return DeletesHeld;
         }
 
+        // Asked now rather than when the group was posted: the listing held is the latest there
+        // is, and a delete waiting on one of this group's moves is held before that move is
+        // accepted and after it, for one reason and then the other
+        var held = listedDeletes
+            .Where(_ => _.Held is not null)
+            .Select(_ => _.Key)
+            .ToHashSet();
+        var kept = false;
         foreach (var key in deletes)
         {
+            if (held.Contains(key))
+            {
+                kept = true;
+                continue;
+            }
+
             message = Send(new(ViewerVerb.Accept, key, null));
         }
 
-        return message;
+        return kept ? DeletesKept : message;
     }
 
     public bool Pump() =>
@@ -218,6 +254,7 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                 : null;
         }
 
+        listedDeletes = response.Deletes;
         var changes = ReadChanges(response);
         host.Mutate(_ => ViewerSession.Sync(_, pending, changes, message, response.Progress));
 
@@ -378,14 +415,24 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
                 held = null;
             }
 
-            changes.Add(Read(
+            var entry = Read(
                 held,
                 () => QueueEntry.ForDelete(
                     delete.Key,
                     delete.Name,
                     delete.Group,
                     delete.File,
-                    FileSide.Read(delete.File, documents))));
+                    FileSide.Read(delete.File, documents)));
+            // Why the owner's accept-all would leave it, where it would, said on the entry as a
+            // failure is. A delete's status is nothing else here: this process applies nothing,
+            // so nothing of its own is ever recorded against an entry. The same entry when the
+            // owner says what it said before, for the reason Read gives
+            if (entry.Status != delete.Held)
+            {
+                entry = entry with { Status = delete.Held };
+            }
+
+            changes.Add(entry);
         }
 
         return changes;

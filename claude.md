@@ -273,8 +273,11 @@ the comment there about not caching "nothing staged" asks for.
   tenth of a second for a window that is ordered out, miniaturised or covered, which the managed
   side is not told. A wheel is told from a trackpad by `hasPreciseScrollingDeltas`, and a
   control-click is taken in `mouseDown`, since the view has no `NSMenu` for AppKit to ask for.
-  A drag reports the frame's own centre on an axis its picture cannot move on, as the Linux head
-  does: only when the space is what cut the picture short can it move. A repeat of a held key is
+  A drag moves the centre the frame asked for and clamps it to the wider of the two panes'
+  ranges (`PictureSpace.dragged(by:other:)`), with the same arithmetic in the shim and in
+  WinForms (`PicturePlacement.Dragged`): clamped to the dragged pane's own range, a drag pulled
+  the other pane's picture into it. `grid(for:)` reports no more rows than the last window draw
+  left the body under a tall footer. A repeat of a held key is
   dropped for accept, accept all and discard. A picture both panes name keeps a scaled copy for
   each pane (`Picture.spare`), since the panes can be a point apart in width and one copy was
   made again for each in turn without end.
@@ -320,7 +323,12 @@ the comment there about not caching "nothing staged" asks for.
   three quarters of a picture's size up, and mipmaps made only for a picture drawn smaller than
   that, on the decoder thread when first needed. A picture past `GL_MAX_TEXTURE_SIZE` is brought
   down to one that fits as it is read. `PixelTests` has two tests that show the window and count
-  draws through a GL query, `AWindowLeftAloneIsNotDrawn` and `AHiddenWindowIsNotDrawn`.
+  draws through a GL query, `AWindowLeftAloneIsNotDrawn` and `AHiddenWindowIsNotDrawn`, and a
+  third that shows it to ask for its rows, `ATallFooterTakesRowsFromTheBody`. A minimised window
+  is left alone as a hidden one is. `MeasureGrid` reports no more rows than the body had room for
+  in the last window frame plus the model's eight chrome lines (`chromeRows`, kept in step with
+  `ScreenBuilder.Chrome` here and in `Renderer.swift`), so a footer taller than its allowance
+  takes rows from the body and not from under it.
 - Group headers fold. `SessionState.Collapsed` holds `QueueItem.GroupKey`s and `QueueProjection`
   skips their members, so the marker rides in the label and no head or ABI field knows about it.
   Whether an entry is hidden is always read back out of `VisibleEntries`, never recomputed — the
@@ -595,7 +603,11 @@ the comment there about not caching "nothing staged" asks for.
   refuses a library whose version is not an exact match, so a bump and a binaries rebuild land
   together: change `native/`, run `build-native`, merge the PR it opens. Between the two, the
   `native` CI job — the one that loads the committed binaries — reports the mismatch, which is the
-  check working.
+  check working. Version 12 is two things: `DeviewInput.rows` capped by the body's room, and
+  `DeviewInput.unseen`, a state like the grid and not an event, which is a head saying nobody can
+  see its window (hidden or minimised on Linux; ordered out, miniaturised or occluded on macOS;
+  minimised on Windows, through `ViewerInput.Unseen`). `ViewerProgram.Loop` keeps its own `hidden`
+  and the head's `unseen` apart and slows `OwnerLink`, `TrackedWatch` and `DocumentWatch` on either.
 - Built binaries are **committed** to `src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native/`, so a plain
   `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
   with the `build-native` GitHub workflow, which opens a PR.
@@ -703,12 +715,21 @@ the comment there about not caching "nothing staged" asks for.
 - A move that writes a file marks the delete pending on it (`TrackedDelete.Written`), however
   the move was accepted, and no accept-all carries a marked delete out until a run raises it
   again; accepting it on its own still does. `Tracker.HeldReason` is what the menu and the debug
-  view show. "Discard (n)" runs wholly on a worker. A scan that fails three times running is one
+  view show, and it rides a full listing as a `held: key|reason` line of its own
+  (`ViewerResponseDelete.Held`), since the `delete` line is parsed by field count and an older
+  reader skips a line it does not know. An attached viewer shows it as the entry's status and
+  leaves held deletes out of "Accept all in" a group (`OwnerLink.AcceptGroup`), and the wire's
+  accept-all answer ends with `Tracker.DeletesKept`. An owning viewer goes by the same rules for
+  its own files: a move arriving withdraws the delete on its target (`EnqueueTracked`), a move
+  carried out marks it (`QueueEntry.Written`), a batch keeps a marked or awaited delete
+  (`ViewerSession.HeldReason`), a single accept still deletes, and `TrackedEntry.DeleteAgain`
+  carries the mark across the watch's re-read. "Discard (n)" runs wholly on a worker. A scan that fails three times running is one
   balloon for the run. Every tray keeps the `SessionEndWindow` now, and `Program.SessionEnding`
   stages the queue where it is held here and then removes the version marker.
 - `ITrackedFiles.Version` is what `ListingTag` asks about the tracked files: the identity of the
   tracked objects, so `TrackedMove` and `TrackedDelete` must stay immutable in everything a
-  listing carries. The scan removes a move by key and value, so one staged again since it looked
+  listing carries. `TrackedDelete.Written` is the exception, and its changes are counted into the
+  version as the restores are. The scan removes a move by key and value, so one staged again since it looked
   is left. `Tracker.Clear` hands the queue's discard to a worker, as a single discard does. A hot
   key's action is caught in `KeyRegister`, because a throw from a message filter comes out of
   `Application.Run()`.

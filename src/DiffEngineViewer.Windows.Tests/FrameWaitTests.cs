@@ -43,4 +43,32 @@ public class FrameWaitTests
         await Assert.That(visible).IsTrue();
         await Assert.That(FormsViewerWindow.FrameWait(visible, state)).IsEqualTo(100);
     }
+
+    /// <summary>
+    /// And the loop is told, since the wait above slows only this head's own frames: what the loop
+    /// keeps going beside the window went on as for one being read. Shown as the window above is,
+    /// and for its reasons.
+    /// </summary>
+    [Test]
+    public async Task AMinimisedWindowSaysNobodyCanSeeIt()
+    {
+        var (shown, minimised) = UnseenDesktop.Run(() =>
+        {
+            using var form = new ViewerForm("title", 800, 600)
+            {
+                Opacity = 0,
+                ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual,
+                Location = new(-4000, -2000),
+                Parked = true
+            };
+            form.Show();
+            var shown = form.Drain().Unseen;
+            form.WindowState = FormWindowState.Minimized;
+            return (shown, form.Drain().Unseen);
+        });
+
+        await Assert.That(shown).IsFalse();
+        await Assert.That(minimised).IsTrue();
+    }
 }

@@ -161,6 +161,23 @@ static class ViewerSession
             return state;
         }
 
+        if (entry.Kind == QueueEntryKind.Move)
+        {
+            state = Withdraw(state, entry.TargetFile!);
+        }
+        else if (entry.Written)
+        {
+            // A delete raised again, built from the entry that was queued for it
+            // (TrackedEntry.DeleteAgain). Raised by a run that looked at the file as it is now, so
+            // whatever a move wrote there since the delete was first raised, this is the later
+            // statement
+            entry = entry with
+            {
+                Written = false,
+                Status = null
+            };
+        }
+
         var existing = IndexOf(state.Queue, entry.Key);
         if (existing >= 0 &&
             SameContent(state.Queue[existing], entry))
@@ -192,6 +209,30 @@ static class ViewerSession
     }
 
     /// <summary>
+    /// Drops the delete pending on a file a move has just arrived for.
+    /// <para>
+    /// A move onto a file is a run that verified against it, so a delete an earlier run raised for
+    /// that file no longer describes a stale one. DiffRunner.SettleDelete says the same thing, but
+    /// not from a library that predates it, and not while this port was remembered as unowned.
+    /// The delete stayed, and an accept-all moved the received file into place and then deleted
+    /// it. The tray's tracker withdraws one for the same reason (<c>Tracker.AddMove</c>).
+    /// </para>
+    /// </summary>
+    static SessionState Withdraw(SessionState state, string target)
+    {
+        var kept = state.Queue
+            .Where(_ => _.Kind != QueueEntryKind.Delete || !InlineKey.SamePath(_.LeftFile!, target))
+            .ToList();
+        if (kept.Count == state.Queue.Count)
+        {
+            return state;
+        }
+
+        // The message is carried, as Refresh carries it: this is not something the reader did
+        return Remove(state, kept, state.Message);
+    }
+
+    /// <summary>
     /// The entry already queued for a pair that arrived again saying the same thing, with the
     /// files' new stamps and nothing else about the window changed.
     /// <para>
@@ -207,10 +248,15 @@ static class ViewerSession
     static SessionState Restaged(SessionState state, int index, QueueEntry entry)
     {
         var queue = new List<QueueEntry>(state.Queue);
-        queue[index] = queue[index] with
+        var queued = queue[index];
+        queue[index] = queued with
         {
             LeftStamp = entry.LeftStamp,
-            RightStamp = entry.RightStamp
+            RightStamp = entry.RightStamp,
+            // A delete raised again is no longer held for what a move wrote before it was: see
+            // EnqueueTracked. Nothing but a delete is ever marked
+            Written = false,
+            Status = queued.Written ? null : queued.Status
         };
         return Clamp(state with
         {
@@ -1196,7 +1242,8 @@ static class ViewerSession
     /// Entries with nothing left to apply are passed over rather than claimed: one that has gone
     /// since the batch began - settled, discarded, its file taken away - and one a second
     /// framework has since made a conflict of. A delete is held rather than claimed once a
-    /// snapshot in the batch was not written.
+    /// snapshot in the batch was not written, and when a move has written its file or is still
+    /// to (<see cref="HeldReason"/>).
     /// </para>
     /// <para>
     /// A snapshot moving inline arrives as two unrelated entries: the patch that writes the literal
@@ -1224,6 +1271,7 @@ static class ViewerSession
 
         var queue = state.Queue;
         var kept = batch.Kept;
+        var keptForAMove = batch.KeptForAMove;
         for (var position = 0; position < batch.Remaining.Count; position++)
         {
             var index = IndexOf(queue, batch.Remaining[position]);
@@ -1246,6 +1294,18 @@ static class ViewerSession
                 continue;
             }
 
+            // A delete of a file a move wrote, in this batch or before it, or one a move still
+            // pending is going to write. Carried out, the received file was moved into place and
+            // then deleted, and neither was left. Asked as its turn comes, so a move the batch
+            // took first has been recorded by now, and one it has yet to take is still pending
+            if (HeldReason(queue, entry) is { } held)
+            {
+                kept++;
+                keptForAMove = true;
+                queue = Replace(queue, index, entry with { Status = held });
+                continue;
+            }
+
             var remaining = batch.Remaining.Skip(position + 1).ToList();
             return state with
             {
@@ -1253,6 +1313,7 @@ static class ViewerSession
                 Batch = batch with
                 {
                     Kept = kept,
+                    KeptForAMove = keptForAMove,
                     Current = entry,
                     Together = TakeSameFile(queue, entry, remaining),
                     Remaining = remaining
@@ -1265,7 +1326,8 @@ static class ViewerSession
             batch with
             {
                 Remaining = [],
-                Kept = kept
+                Kept = kept,
+                KeptForAMove = keptForAMove
             });
     }
 
@@ -1548,6 +1610,13 @@ static class ViewerSession
         var claimed = index >= 0 && ReferenceEquals(state.Queue[index], entry);
         if (failure is null)
         {
+            var queue = claimed ? Without(state.Queue, index) : state.Queue;
+            // Whether or not its entry is still there: the file was written either way
+            if (!batch.Discarding)
+            {
+                queue = MarkWritten(queue, entry);
+            }
+
             return Remove(
                 state with
                 {
@@ -1557,7 +1626,7 @@ static class ViewerSession
                         Current = null
                     }
                 },
-                claimed ? Without(state.Queue, index) : state.Queue,
+                queue,
                 state.Message);
         }
 
@@ -1602,10 +1671,47 @@ static class ViewerSession
             }
         }
 
+        var message = WithFiles(batch.Tally.Message(conflicted), batch.Swept, batch.Kept);
+        if (batch.KeptForAMove)
+        {
+            message = $"{message}. {DeletesKept}";
+        }
+
         return Remove(
             state with { Batch = null },
             state.Queue,
-            WithFiles(batch.Tally.Message(conflicted), batch.Swept, batch.Kept));
+            message);
+    }
+
+    /// <summary>
+    /// The list once a move has been carried out: a delete pending on the file it wrote is marked
+    /// as written and says why it is held from here on (<see cref="WroteItsFile"/>). The same list
+    /// when there is none, or when what was carried out was not a move.
+    /// </summary>
+    static IReadOnlyList<QueueEntry> MarkWritten(IReadOnlyList<QueueEntry> queue, QueueEntry accepted)
+    {
+        if (accepted is not { Kind: QueueEntryKind.Move, TargetFile: { } target })
+        {
+            return queue;
+        }
+
+        List<QueueEntry>? marked = null;
+        for (var index = 0; index < queue.Count; index++)
+        {
+            var entry = queue[index];
+            if (entry is { Kind: QueueEntryKind.Delete, Written: false } &&
+                InlineKey.SamePath(entry.LeftFile!, target))
+            {
+                marked ??= [..queue];
+                marked[index] = entry with
+                {
+                    Written = true,
+                    Status = WroteItsFile
+                };
+            }
+        }
+
+        return marked ?? queue;
     }
 
     /// <summary>
@@ -1660,6 +1766,64 @@ static class ViewerSession
     }
 
     const string deleteHeld = "Held: a snapshot in this batch could not be written inline, and this file may be the only copy of it left. Accept it on its own to delete it anyway.";
+
+    /// <summary>
+    /// Why a bulk accept leaves a pending delete where it is, when it would: null when it would
+    /// carry it out. The tray's <c>Tracker.HeldReason</c>, for a queue this process owns, and what
+    /// a full listing of that queue says beside the delete.
+    /// </summary>
+    public static string? HeldReason(IReadOnlyList<QueueEntry> queue, QueueEntry delete)
+    {
+        if (delete.Kind != QueueEntryKind.Delete)
+        {
+            return null;
+        }
+
+        if (delete.Written)
+        {
+            return WroteItsFile;
+        }
+
+        foreach (var entry in queue)
+        {
+            if (entry.Kind == QueueEntryKind.Move &&
+                InlineKey.SamePath(entry.TargetFile!, delete.LeftFile!))
+            {
+                return AwaitsItsFile;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A move was accepted onto the file while its delete was pending.
+    /// <para>
+    /// A move that arrives withdraws the delete it finds waiting for its target
+    /// (<see cref="EnqueueTracked"/>), so the two are only pending together when the delete arrived
+    /// second, and which of them is the stale one is then not knowable from here. The move is the
+    /// snapshot arriving and the delete is the last copy leaving, so the move goes ahead and the
+    /// delete waits to be accepted on its own.
+    /// </para>
+    /// <para>
+    /// Remembered on the delete (<see cref="QueueEntry.Written"/>) rather than for the batch that
+    /// wrote the file, so that a second accept-all, or one after the move was accepted on its own,
+    /// does not delete what was just accepted.
+    /// </para>
+    /// </summary>
+    public const string WroteItsFile = "Held: a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept it on its own to delete it anyway, or run the tests again.";
+
+    /// <summary>
+    /// A move still pending is going to write the file. Not remembered: it is true for as long as
+    /// the move is there.
+    /// </summary>
+    public const string AwaitsItsFile = "Held: a pending move is still to be accepted onto this file. Accept it on its own to delete it anyway.";
+
+    /// <summary>
+    /// What a bulk accept says after its counts when it kept a delete for either reason, since
+    /// "1 kept" reads as a failure and this is not one.
+    /// </summary>
+    public const string DeletesKept = "Pending deletes were kept, since a move was accepted onto the same file, or is still to be, and deleting it would remove what the move put there. Accept a delete on its own to delete its file anyway.";
 
     /// <summary>
     /// Accepting a tracked entry is the file operation it describes; discarding one is throwing
@@ -1728,7 +1892,13 @@ static class ViewerSession
             });
         }
 
-        return Remove(state, state.Queue.Where(_ => _.Key != entry.Key).ToList(), done);
+        IReadOnlyList<QueueEntry> left = state.Queue.Where(_ => _.Key != entry.Key).ToList();
+        if (!discarding)
+        {
+            left = MarkWritten(left, entry);
+        }
+
+        return Remove(state, left, done);
     }
 
     static SessionState DiscardInline(SessionState state)

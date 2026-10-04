@@ -449,6 +449,7 @@ sealed class OwnedInlineHost :
         (int accepted, int kept)? tracked;
         string message;
         bool held;
+        List<string> keptForAMove = [];
         lock (accepting)
         {
             var moves = TrackedFiles?.Moves().Count ?? 0;
@@ -459,6 +460,19 @@ sealed class OwnedInlineHost :
                 message = AcceptEvery(moves + deletes.Count, out var refused);
                 tracked = TrackedFiles?.AcceptAll(deletes, refused, Advance);
                 held = refused && deletes.Count > 0;
+                if (!held &&
+                    deletes.Count > 0)
+                {
+                    // The deletes of this batch that are still pending and held for a move: the
+                    // sweep left those because of the move, and counted them as kept beside the
+                    // ones that failed
+                    var listed = deletes.ToHashSet();
+                    keptForAMove = TrackedFiles!
+                        .Deletes()
+                        .Where(_ => _.Held is not null && listed.Contains(_.Key))
+                        .Select(_ => _.Name)
+                        .ToList();
+                }
             }
             finally
             {
@@ -479,6 +493,13 @@ sealed class OwnedInlineHost :
         if (held)
         {
             return $"{message}, plus {clause}. {Tracker.DeletesHeld}";
+        }
+
+        // "1 kept" alone reads as a failure, and a viewer that asked for this has the answer and
+        // nothing else to go on: the tray's own accept-all says the same in its balloon
+        if (keptForAMove.Count > 0)
+        {
+            return $"{message}, plus {clause}. {Tracker.DeletesKept(keptForAMove)}";
         }
 
         return $"{message}, plus {clause}";

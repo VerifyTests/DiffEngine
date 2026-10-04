@@ -23,8 +23,25 @@
 /// The point at the middle of what shows, which is the one asked for moved as far as it has to
 /// be for the picture to fill the space.
 /// </param>
-readonly record struct PicturePlacement(Rectangle Bounds, RectangleF Source, SizeF Size, PanPoint Centre)
+/// <param name="Asked">
+/// The point the model asked for, before it was moved in. One point for both panes, so it can be
+/// somewhere this pane cannot show and the other can.
+/// </param>
+readonly record struct PicturePlacement(Rectangle Bounds, RectangleF Source, SizeF Size, PanPoint Centre, PanPoint Asked)
 {
+    /// <summary>
+    /// Whether there is more of the picture across than the space shows, by a whole pixel or more,
+    /// which is whether a drag can move it that way.
+    /// </summary>
+    public bool MovesAcross =>
+        (int) Size.Width > Bounds.Width;
+
+    /// <summary>
+    /// As <see cref="MovesAcross"/>, down.
+    /// </summary>
+    public bool MovesDown =>
+        (int) Size.Height > Bounds.Height;
+
     public static PicturePlacement Of(Rectangle available, ImagePane image)
     {
         var fit = Math.Min(
@@ -37,7 +54,7 @@ readonly record struct PicturePlacement(Rectangle Bounds, RectangleF Source, Siz
             Math.Max(1, (int) (image.Height * fit)));
         if (image.Zoom <= 1)
         {
-            return new(Centred(available, fitted), new(0, 0, 1, 1), fitted, PanPoint.Centre);
+            return new(Centred(available, fitted), new(0, 0, 1, 1), fitted, PanPoint.Centre, new(image.CenterX, image.CenterY));
         }
 
         var width = fitted.Width * image.Zoom;
@@ -54,22 +71,59 @@ readonly record struct PicturePlacement(Rectangle Bounds, RectangleF Source, Siz
             Centred(available, shown),
             new((float) (centre.X - across / 2), (float) (centre.Y - down / 2), (float) across, (float) down),
             new((float) width, (float) height),
-            centre);
+            centre,
+            new(image.CenterX, image.CenterY));
     }
 
     /// <summary>
     /// The centre after the pointer has dragged the picture <paramref name="by"/> pixels: the
     /// picture follows the pointer, so the point at the middle moves the other way. Kept inside
-    /// what the space can show, which is why it is asked here rather than worked out by the model.
+    /// what the panes can show, which is why it is asked here rather than worked out by the model.
+    /// <para>
+    /// The centre is one point for both panes, and the two pictures need not be the same shape,
+    /// so what is moved is the point the model asked for and not the one this pane drew about,
+    /// and it is kept inside what the pane that shows less of its picture can show. Moved from
+    /// this pane's own and kept to this pane's range, a drag put the other pane's picture where
+    /// this one's could go: back to its middle row on the first move of a drag along the other
+    /// axis, when all of this one shows from top to bottom, and in from its edge when both can
+    /// move and the other can move further.
+    /// </para>
+    /// <para>
+    /// A way this picture cannot move is left as the model had it, whatever the pointer does: the
+    /// picture under the pointer is the one being dragged.
+    /// </para>
     /// </summary>
-    public PanPoint Dragged(Size by)
+    /// <param name="by">How far the pointer has gone since the button went down.</param>
+    /// <param name="other">Where the other pane's picture is, or null when it has none.</param>
+    public PanPoint Dragged(Size by, PicturePlacement? other = null)
     {
-        var across = Source.Width;
-        var down = Source.Height;
+        // How much of its picture shows each way in whichever pane shows less of it
+        double across = Source.Width;
+        double down = Source.Height;
+        if (other is { } beside)
+        {
+            if (beside.MovesAcross)
+            {
+                across = Math.Min(across, beside.Source.Width);
+            }
+
+            if (beside.MovesDown)
+            {
+                down = Math.Min(down, beside.Source.Height);
+            }
+        }
+
         return new(
-            Math.Clamp(Centre.X - by.Width / (double) Size.Width, across / 2.0, 1 - across / 2.0),
-            Math.Clamp(Centre.Y - by.Height / (double) Size.Height, down / 2.0, 1 - down / 2.0));
+            MovesAcross ? Kept(Kept(Asked.X, across) - by.Width / (double) Size.Width, across) : Asked.X,
+            MovesDown ? Kept(Kept(Asked.Y, down) - by.Height / (double) Size.Height, down) : Asked.Y);
     }
+
+    /// <summary>
+    /// A centre moved in as far as it takes for a pane showing <paramref name="shown"/> of its
+    /// picture to stay full.
+    /// </summary>
+    static double Kept(double value, double shown) =>
+        Math.Clamp(value, shown / 2, 1 - shown / 2);
 
     static Rectangle Centred(Rectangle available, Size size) =>
         new(

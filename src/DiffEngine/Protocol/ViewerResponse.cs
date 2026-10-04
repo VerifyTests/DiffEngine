@@ -34,7 +34,22 @@ record ViewerResponseMove(string Key, string Name, string? Group, string Temp, s
 /// <summary>
 /// A tracked pending delete riding a full listing.
 /// </summary>
-record ViewerResponseDelete(string Key, string Name, string? Group, string File);
+record ViewerResponseDelete(string Key, string Name, string? Group, string File)
+{
+    /// <summary>
+    /// Why the owner's accept-all would leave this delete pending, in words for whoever is looking
+    /// at it, or null when it would carry it out: a move was accepted onto the file since the
+    /// delete was raised, or one still pending is going to be. A reader shows it beside the delete
+    /// and leaves the delete out of its own bulk accepts, since an accept by key is carried out
+    /// as asked.
+    /// <para>
+    /// On a line of its own (<c>held</c>) rather than a fifth field of <c>delete</c>, which a
+    /// reader that predates it would refuse the whole listing over. That reader skips the line,
+    /// and an owner that predates it sends none, which reads as nothing held.
+    /// </para>
+    /// </summary>
+    public string? Held { get; init; }
+}
 
 /// <summary>
 /// The reply the queue owner writes before closing the connection.
@@ -180,6 +195,10 @@ record ViewerResponse(
         {
             var group = delete.Group is null ? "" : ViewerPayload.Encode(delete.Group);
             builder.Append($"delete: {ViewerPayload.Encode(delete.Key)}|{ViewerPayload.Encode(delete.Name)}|{group}|{ViewerPayload.Encode(delete.File)}\n");
+            if (delete.Held is not null)
+            {
+                builder.Append($"held: {ViewerPayload.Encode(delete.Key)}|{ViewerPayload.Encode(delete.Held)}\n");
+            }
         }
 
         return builder.ToString();
@@ -206,6 +225,7 @@ record ViewerResponse(
         var moves = new List<ViewerResponseMove>();
         var deletes = new List<ViewerResponseDelete>();
         Dictionary<string, List<ViewerResponseVariant>>? variants = null;
+        Dictionary<string, string>? holds = null;
         foreach (var (name, value) in lines)
         {
             switch (name)
@@ -301,6 +321,15 @@ record ViewerResponse(
 
                     deletes.Add(delete);
                     continue;
+                case "held":
+                    if (!TryParseHeld(value, out var heldKey, out var reason))
+                    {
+                        return false;
+                    }
+
+                    holds ??= new(StringComparer.Ordinal);
+                    holds[heldKey] = reason;
+                    continue;
                 default:
                     continue;
             }
@@ -320,6 +349,19 @@ record ViewerResponse(
                 if (variants.TryGetValue(items[index].Key, out var list))
                 {
                     items[index] = items[index] with { Variants = list };
+                }
+            }
+        }
+
+        // As the variants are: by key, so a hold does not have to follow its delete, and one for
+        // a delete that is not listed is dropped.
+        if (holds is not null)
+        {
+            for (var index = 0; index < deletes.Count; index++)
+            {
+                if (holds.TryGetValue(deletes[index].Key, out var reason))
+                {
+                    deletes[index] = deletes[index] with { Held = reason };
                 }
             }
         }
@@ -442,6 +484,23 @@ record ViewerResponse(
         }
 
         delete = new(key, name, group.Length == 0 ? null : group, file);
+        return true;
+    }
+
+    static bool TryParseHeld(string value, out string key, out string reason)
+    {
+        key = "";
+        reason = "";
+        var parts = value.Split('|');
+        if (parts.Length != 2 ||
+            !ViewerPayload.TryDecode(parts[0], out var decodedKey) ||
+            !ViewerPayload.TryDecode(parts[1], out var decodedReason))
+        {
+            return false;
+        }
+
+        key = decodedKey;
+        reason = decodedReason;
         return true;
     }
 }

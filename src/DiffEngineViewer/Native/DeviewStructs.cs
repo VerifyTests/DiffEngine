@@ -188,6 +188,12 @@ struct DeviewInput
     /// A right-click over a pane: 0 left, 1 right, -1 when there is none.
     /// </summary>
     public int RightClickedPane;
+
+    /// <summary>
+    /// 1 while nobody can see the window: minimised, hidden, or wholly covered where the window
+    /// system says so. A state, reported by every poll, rather than an event.
+    /// </summary>
+    public int Unseen;
 }
 
 /// <summary>

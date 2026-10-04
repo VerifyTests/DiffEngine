@@ -354,6 +354,65 @@ public class ViewerProtocolTests
         await Assert.That(delete.File).IsEqualTo(@"c:\code\extra.verified.txt");
     }
 
+    /// <summary>
+    /// Why a delete is held is a line of its own beside the delete's, which keeps its four fields:
+    /// a reader that predates the line skips it, where a fifth field would have had it refuse the
+    /// whole listing.
+    /// </summary>
+    [Test]
+    public async Task AHeldDeleteSaysWhyOnALineOfItsOwn()
+    {
+        var listing = ViewerResponse.Listing(
+            [],
+            deletes:
+            [
+                new(@"delete:c:\code\held.verified.txt", "held.verified.txt", null, @"c:\code\held.verified.txt")
+                {
+                    Held = "Kept: a move wrote this file | and more"
+                },
+                new(@"delete:c:\code\extra.verified.txt", "extra.verified.txt", null, @"c:\code\extra.verified.txt")
+            ]);
+
+        var text = listing.Build();
+        await Assert.That(Fields(text, "delete: ").Select(_ => _.Length)).IsEquivalentTo([4, 4]);
+        await Assert.That(Fields(text, "held: ").Single().Length).IsEqualTo(2);
+        await Assert.That(ViewerResponse.TryParse(text, out var parsed)).IsTrue();
+        await Assert.That(parsed!.Deletes.Select(_ => _.Held)).IsEquivalentTo(["Kept: a move wrote this file | and more", null]);
+    }
+
+    /// <summary>
+    /// Both directions of an older peer. An owner that predates the line sends none, which reads
+    /// as nothing held. And a hold is matched to its delete by key once every line is in, so one
+    /// naming a delete the listing does not carry is dropped rather than refused.
+    /// </summary>
+    [Test]
+    public async Task AHoldIsOptionalAndMatchedByKey()
+    {
+        var held = new ViewerResponseDelete("delete:a", "a", null, "a")
+        {
+            Held = "why"
+        };
+        var text = ViewerResponse.Listing([], deletes: [held]).Build();
+        var holdLine = text.Split('\n').Single(_ => _.StartsWith("held: ", StringComparison.Ordinal));
+
+        await Assert.That(ViewerResponse.TryParse(text.Replace($"{holdLine}\n", ""), out var older)).IsTrue();
+        await Assert.That(older!.Deletes.Single().Held).IsNull();
+
+        // Ahead of its delete
+        var deleteLine = text.Split('\n').Single(_ => _.StartsWith("delete: ", StringComparison.Ordinal));
+        var reordered = text
+            .Replace($"{holdLine}\n", "")
+            .Replace($"{deleteLine}\n", $"{holdLine}\n{deleteLine}\n");
+        await Assert.That(ViewerResponse.TryParse(reordered, out var early)).IsTrue();
+        await Assert.That(early!.Deletes.Single().Held).IsEqualTo("why");
+
+        var orphan = ViewerResponse.Listing([]).Build() + holdLine + "\n";
+        await Assert.That(ViewerResponse.TryParse(orphan, out var none)).IsTrue();
+        await Assert.That(none!.Deletes).IsEmpty();
+
+        await Assert.That(ViewerResponse.TryParse(text.Replace(holdLine, "held: only-one-field"), out _)).IsFalse();
+    }
+
     [Test]
     public async Task AListingWithoutTrackedItemsParsesEmpty()
     {
