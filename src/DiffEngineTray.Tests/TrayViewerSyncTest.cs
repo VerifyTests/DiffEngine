@@ -241,6 +241,44 @@ public class TrayViewerSyncTest
     }
 
     /// <summary>
+    /// A listing taken while the tray has a move out being accepted. The move is not among the
+    /// pending ones and has yet to say it wrote the file, and the listing said the delete on its
+    /// target was held by nothing: a window attached to the tray then sent that delete's key in a
+    /// group accept, after the move had written the file.
+    /// </summary>
+    [Test]
+    public async Task AListingTakenWhileAMoveIsBeingAcceptedHoldsItsDelete()
+    {
+        TrayOwned? owned = null;
+        string? held = null;
+        var listedMoves = -1;
+        owned = new(
+            acceptFailed: _ =>
+            {
+                var listing = owned!.Send(new(ViewerVerb.ListFull));
+                listedMoves = listing.Moves.Count;
+                held = listing.Deletes.Single().Held;
+            });
+        await using var pair = owned;
+        var move = pair.AddMove();
+        await File.WriteAllTextAsync(move.Target, "verified");
+        pair.Tracker.AddDelete(move.Target);
+        // A target that cannot be written, so the move is refused, and said to be, without a wait
+        File.SetAttributes(move.Target, FileAttributes.ReadOnly);
+        try
+        {
+            pair.Tracker.Accept(pair.Tracker.Moves.Single());
+        }
+        finally
+        {
+            File.SetAttributes(move.Target, FileAttributes.Normal);
+        }
+
+        await Assert.That(listedMoves).IsEqualTo(0);
+        await Assert.That(held).IsEqualTo(Tracker.AwaitsItsFile);
+    }
+
+    /// <summary>
     /// A move accepted from the tray's own menu, with a window attached: the delete it leaves held
     /// says so in the window on the next listing.
     /// </summary>
@@ -1275,7 +1313,12 @@ public class TrayViewerSyncTest
     /// </summary>
     sealed class TrayOwned : IAsyncDisposable
     {
-        public TrayOwned(Func<InlinePatch, InlineApplyResult>? applier = null)
+        /// <param name="applier">What applying a snapshot answers, when not that it was applied.</param>
+        /// <param name="acceptFailed">
+        /// Told of a move that was refused, from inside its accept: the one place a test can
+        /// stand while a move is out being accepted.
+        /// </param>
+        public TrayOwned(Func<InlinePatch, InlineApplyResult>? applier = null, Action<TrackedMove>? acceptFailed = null)
         {
             Host = OwnedInlineHost.TryOwn(
                        Warnings.Add,
@@ -1287,7 +1330,7 @@ public class TrayViewerSyncTest
                            return applier?.Invoke(patch) ?? InlineApplyResult.Applied;
                        }) ??
                    throw new("Could not bind an ephemeral port.");
-            Tracker = new(inlineFailed: Failures.Add, inline: Host);
+            Tracker = new(acceptFailed: acceptFailed, inlineFailed: Failures.Add, inline: Host);
             // Wired the way Program does, and before serving starts: a queue change arriving over
             // the socket has to reach the listing the tray menu and the icon read, not wait for the
             // next two second scan.

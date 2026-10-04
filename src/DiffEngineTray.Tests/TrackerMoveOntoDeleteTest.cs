@@ -197,6 +197,72 @@ public class TrackerMoveOntoDeleteTest :
     }
 
     /// <summary>
+    /// An accept takes its move out of the pending ones for as long as the move takes, and the
+    /// delete on its target was held by nothing meanwhile: not by a pending move, which had left,
+    /// and not by a write, which had yet to be marked. Asked from where a refused move is reported,
+    /// which is inside the accept, before the move is put back.
+    /// </summary>
+    [Test]
+    public async Task ADeleteIsHeldWhileTheMoveOntoItsFileIsBeingAccepted()
+    {
+        RecordingTracker? tracker = null;
+        TrackedDelete? delete = null;
+        var pendingMoves = -1;
+        string? held = null;
+        string? listed = null;
+        tracker = new(
+            acceptFailed: _ =>
+            {
+                pendingMoves = tracker!.Moves.Count;
+                held = tracker.HeldReason(delete!);
+                listed = ((ITrackedFiles) tracker).Deletes().Single().Held;
+            });
+        await using var disposing = tracker;
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        delete = tracker.AddDelete(verified);
+        // A target that cannot be written, so the move is refused, and said to be, without a wait
+        File.SetAttributes(verified, FileAttributes.ReadOnly);
+        try
+        {
+            tracker.Accept(move);
+        }
+        finally
+        {
+            File.SetAttributes(verified, FileAttributes.Normal);
+        }
+
+        await Assert.That(pendingMoves).IsEqualTo(0);
+        await Assert.That(held).IsEqualTo(Tracker.AwaitsItsFile);
+        await Assert.That(listed).IsEqualTo(Tracker.AwaitsItsFile);
+        // Put back, and held for the move that is pending again
+        await Assert.That(tracker.Moves).HasSingleItem();
+        await Assert.That(tracker.HeldReason(delete)).IsEqualTo(Tracker.AwaitsItsFile);
+    }
+
+    /// <summary>
+    /// A move with nothing left to move is dropped having written nothing, and from then on its
+    /// delete is held by nothing. The listing's tag has to move for that, since the delete is the
+    /// same object it was while the move was being accepted.
+    /// </summary>
+    [Test]
+    public async Task AMoveDroppedWhileBeingAcceptedLetsGoOfItsDelete()
+    {
+        await using var tracker = new RecordingTracker();
+        ITrackedFiles tracked = tracker;
+        var move = tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
+        var delete = tracker.AddDelete(verified);
+        File.Delete(received);
+        var before = tracked.Version();
+
+        tracker.Accept(move);
+
+        await Assert.That(tracker.Moves).IsEmpty();
+        await Assert.That(tracker.HeldReason(delete)).IsNull();
+        await Assert.That(tracked.Deletes().Single().Held).IsNull();
+        await Assert.That(tracked.Version()).IsNotEqualTo(before);
+    }
+
+    /// <summary>
     /// Where the reason is read by somebody who was not looking when the balloon went by: beside
     /// the delete in the debug view, as it is in the menu.
     /// </summary>

@@ -679,7 +679,56 @@ class Tracker :
     public string? HeldReason(TrackedDelete delete) =>
         HeldReason(
             delete,
-            moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)));
+            // Asked on both sides of the walk, since a move is in one or the other and goes
+            // between them: into this as an accept begins, and back out of it as one ends
+            accepting.ContainsKey(delete.File) ||
+            moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)) ||
+            accepting.ContainsKey(delete.File));
+
+    /// <summary>
+    /// The files that moves being accepted right now are onto, and how many moves each.
+    /// <para>
+    /// An accept takes its move out of <see cref="moves"/> for as long as the move takes, which is
+    /// seconds when a file is locked, and only says the file was written
+    /// (<see cref="MarkWritten"/>) once it has been. In between, nothing tracked named the file,
+    /// so a delete pending on it was held for neither reason: a listing taken then said so, and a
+    /// viewer showing this queue sent the delete's key in a group accept, after the move had
+    /// written the file. So a move counts as still to write its file from before it leaves
+    /// <see cref="moves"/> until it has been marked written, dropped or put back.
+    /// </para>
+    /// </summary>
+    readonly ConcurrentDictionary<string, int> accepting = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Takes a move out to be accepted, having first said its file is being written. False when
+    /// the move had already gone, and nothing is then being written.
+    /// </summary>
+    bool TakeToAccept(TrackedMove move, [NotNullWhen(true)] out TrackedMove? removed)
+    {
+        accepting.AddOrUpdate(move.Target, 1, (_, count) => count + 1);
+        if (moves.TryRemove(move.Temp, out removed))
+        {
+            return true;
+        }
+
+        Landed(move);
+        return false;
+    }
+
+    /// <summary>
+    /// The accept of a move is over, however it went: its delete has been marked written, or the
+    /// move is back among the pending ones, or it was dropped having written nothing. Counted as
+    /// a change, since the last of those leaves a delete no longer held and nothing else about
+    /// what is tracked different from a moment before.
+    /// </summary>
+    void Landed(TrackedMove move)
+    {
+        accepting.AddOrUpdate(move.Target, 0, (_, count) => count - 1);
+        // Only ever an entry at none, which another accept of the same file may have raised
+        // again by now and is then left
+        accepting.TryRemove(new(move.Target, 0));
+        Interlocked.Increment(ref restores);
+    }
 
     static string? HeldReason(TrackedDelete delete, bool awaited)
     {
@@ -799,19 +848,26 @@ class Tracker :
 
     void AcceptMove(TrackedMove move, AcceptBatch batch)
     {
-        if (!moves.TryRemove(move.Temp, out var removed))
+        if (!TakeToAccept(move, out var removed))
         {
             return;
         }
 
-        if (InnerMove(removed, batch))
+        try
         {
-            Release(removed);
-            return;
-        }
+            if (InnerMove(removed, batch))
+            {
+                Release(removed);
+                return;
+            }
 
-        // Keep the move pending so accepting can be retried
-        Restore(removed);
+            // Keep the move pending so accepting can be retried
+            Restore(removed);
+        }
+        finally
+        {
+            Landed(removed);
+        }
     }
 
     /// <summary>
@@ -1297,9 +1353,22 @@ class Tracker :
         // The files the pending moves are onto, gathered once: HeldReason walks the moves for
         // the one delete it is asked about, which here would be every move for every delete
         var awaited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // The moves being accepted on both sides of the pending ones, since a move is in one or
+        // the other and goes between them: into the first as an accept begins, and back out of
+        // it as one ends
+        foreach (var target in accepting.Keys)
+        {
+            awaited.Add(target);
+        }
+
         foreach (var move in moves)
         {
             awaited.Add(move.Value.Target);
+        }
+
+        foreach (var target in accepting.Keys)
+        {
+            awaited.Add(target);
         }
 
         return deletes.Values
@@ -1583,19 +1652,26 @@ class Tracker :
 
     (bool ok, string? message) AcceptWithoutPrompting(TrackedMove move, AcceptBatch batch)
     {
-        if (!moves.TryRemove(move.Temp, out var removed))
+        if (!TakeToAccept(move, out var removed))
         {
             return (false, null);
         }
 
-        if (InnerMove(removed, batch))
+        try
         {
-            Release(removed);
-            return (true, $"Accepted {removed.Name}");
-        }
+            if (InnerMove(removed, batch))
+            {
+                Release(removed);
+                return (true, $"Accepted {removed.Name}");
+            }
 
-        Restore(removed);
-        return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
+            Restore(removed);
+            return (false, $"Files for '{removed.Name}' are locked. Accept from the tray menu to resolve.");
+        }
+        finally
+        {
+            Landed(removed);
+        }
     }
 
     /// <summary>
