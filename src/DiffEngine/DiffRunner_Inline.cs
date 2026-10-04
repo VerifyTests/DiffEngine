@@ -19,7 +19,16 @@ public enum InlineResult
     /// thing from the caller's side, since in each case the snapshot is pending nowhere. Callers
     /// that want a fallback should use it here.
     /// </summary>
-    NoViewerFound
+    NoViewerFound,
+
+    /// <summary>
+    /// No window is showing the snapshot, and it is staged: the viewer that was started could not
+    /// show it, and wrote it under a <c>VerifyInline</c> directory in the source project's
+    /// <c>obj</c> before it went (<see cref="InlineStaging.Persist" />), where accept tooling finds
+    /// it. A caller that stages on <see cref="NoViewerFound" /> has nothing to stage here, and
+    /// doing so would leave the one snapshot staged twice.
+    /// </summary>
+    Staged
 }
 
 public static partial class DiffRunner
@@ -89,7 +98,7 @@ public static partial class DiffRunner
             async () => await ViewerClient.SendAsync(new(ViewerVerb.Inline, Body: payload), cancel) == SendOutcome.Accepted,
             () => ViewerLauncher.LaunchAsync(patch, payload, file, cancel),
             cancel);
-        if (launched == ViewerLaunchOutcome.Failed)
+        if (launched is ViewerLaunchOutcome.Failed or ViewerLaunchOutcome.Staged)
         {
             // Nothing is left that could read it: no viewer was started, or the one that was has
             // exited. One that got as far as reading it also deleted it, and then this finds
@@ -115,11 +124,17 @@ public static partial class DiffRunner
     /// took nothing. That is a copy too old for the arguments this library gives it, or one with
     /// no runtime to run on.
     /// </para>
+    /// <para>
+    /// One that exited having staged the patch is neither. Nothing holds it in a queue, so it is
+    /// not Queued, and it is not pending nowhere: reported as no viewer, the caller staged it a
+    /// second time, in its own directory, and the two trios stood until a passing run cleared both.
+    /// </para>
     /// </summary>
     internal static InlineResult InlineResultFor(ViewerLaunchOutcome outcome) =>
         outcome switch
         {
             ViewerLaunchOutcome.Launched or ViewerLaunchOutcome.Taken => InlineResult.Queued,
+            ViewerLaunchOutcome.Staged => InlineResult.Staged,
             _ => InlineResult.NoViewerFound
         };
 

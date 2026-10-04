@@ -72,9 +72,10 @@ static class ViewerProgram
                 // between the bind and the send. Whoever launched this was told the patch was
                 // taken, and a refusal used to be read as a hand over, so it is staged rather
                 // than dropped: this process is the only place it exists.
-                InlineStaging.Persist([new(patch)]);
+                var staged = InlineStaging.Persist([new(patch)]);
                 Console.Error.WriteLine("A viewer holds the port but did not accept the patch.");
-                return 1;
+                // Said apart from a failure, so whoever launched this does not stage it again
+                return staged > 0 ? ViewerExit.Staged : 1;
             }
 
             return 0;
@@ -166,9 +167,22 @@ static class ViewerProgram
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
                 TrackedEntry.ForDelete(file, documents));
-            return Run(new(start), server, null, open, documents, preferences);
+            return ForAFile(Run(new(start), server, null, open, documents, preferences));
         }
     }
+
+    /// <summary>
+    /// What a viewer started for a delete or a pair exits with. Never
+    /// <see cref="ViewerExit.Staged" />: snapshots that reached it before its window failed are
+    /// staged, and that says nothing of the file it was started for, which no window is showing.
+    /// </summary>
+    internal static int ForAFile(int code) =>
+        code == ViewerExit.Staged ? noWindow : code;
+
+    /// <summary>
+    /// The window could not be opened, and not everything this viewer held is known to be staged.
+    /// </summary>
+    const int noWindow = 4;
 
     /// <summary>
     /// One failing pair, owning the queue so more can join it.
@@ -204,7 +218,7 @@ static class ViewerProgram
             var start = ViewerSession.EnqueueTracked(
                 SessionState.Start(ViewerMode.Inline),
                 TrackedEntry.ForMove(temp, target, documents));
-            return Run(new(start), server, null, open, documents, preferences);
+            return ForAFile(Run(new(start), server, null, open, documents, preferences));
         }
     }
 
@@ -281,8 +295,15 @@ static class ViewerProgram
             // memory. Staged instead, where accept tooling finds it. A display that is not there
             // or a native library that will not load are both ordinary on Linux, and each used to
             // cost every inline snapshot of the run.
-            PersistOwned(host.State, link);
-            return 4;
+            var held = host.State;
+            var staged = PersistOwned(held, link);
+            // Whoever launched this with a patch stages it itself when told the launch failed, a
+            // second trio beside the one just written. So where everything held is staged, the
+            // exit says that instead. Only then: one that could not be written is still nowhere,
+            // and a failure is the answer that has the launcher keep what it sent.
+            return staged > 0 && staged == OwnedVariants(held)
+                ? ViewerExit.Staged
+                : noWindow;
         }
 
         // One for the loop and for a head's modal loop, which draw the same window on one thread.
@@ -400,6 +421,24 @@ static class ViewerProgram
             state.Queue
                 .Where(_ => _.Kind == QueueEntryKind.Inline)
                 .Select(_ => new PendingInline(_.Variants, _.Status)));
+    }
+
+    /// <summary>
+    /// How many trios <see cref="PersistOwned" /> writes when every one of them can be written:
+    /// one for each variant of each snapshot.
+    /// </summary>
+    static int OwnedVariants(SessionState state)
+    {
+        var variants = 0;
+        foreach (var entry in state.Queue)
+        {
+            if (entry.Kind == QueueEntryKind.Inline)
+            {
+                variants += entry.Variants.Count;
+            }
+        }
+
+        return variants;
     }
 
     /// <summary>
