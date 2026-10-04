@@ -42,9 +42,11 @@ An item with no tag was said by whoever made the fix it follows from. A tag says
 
 ## Tray
 
-- [ ] "Accept all in" a group from an attached viewer sends one `Accept` per key (`OwnerLink.AcceptGroup`), which carries out a held delete, as accepting it on its own does.
-- [ ] A delete held because a move wrote its file is marked in the tray's menu and debug view only. A viewer showing the tray's queue shows it like any other, and the wire's accept-all counts it as kept without saying why: `ViewerResponseDelete` has no field for it. The hold is let go when the delete is raised again, which another framework's process of the same run, having decided before the move was accepted, can do.
-- [ ] An owning viewer's own batch looks to have the shape the tray's had: `ViewerSession.EnqueueTracked` replaces by key only, and `BeginAcceptAll` takes moves and deletes in queue order, so a delete can follow the move that wrote its file. (read, not run)
+- [ ] The hold on a delete is let go when the delete is raised again, which another framework's process of the same run, having decided before the move was accepted, can do. True of the tray's tracker and of an owning viewer's queue (`ViewerSession.EnqueueTracked`) alike.
+- [ ] A tray's listing taken while a move is out of `moves` being accepted, before `MarkWritten`, says the delete on its target is not held. A group accept sent from an attached viewer inside that one poll interval still sends the delete's key, after the move has written the file. `Tracker.HeldReason` does not know of a move in flight. (read, not run)
+- [ ] An owning viewer's delete kept by a batch because a move was still pending keeps that status text if the move is later discarded. `ViewerSession.HeldReason`, the listing and the next batch are right; only the row's tooltip is stale.
+- [ ] A held delete's row carries the same ` !` mark as a failed entry in every renderer, on an owning and an attached viewer. Only the tooltip tells them apart.
+- [ ] A move arriving in an owning viewer withdraws the delete pending on its target, which can be the entry on screen, and closes an open menu as any removal does. The withdrawal and the mark compare paths as the file system does (`InlineKey.SamePath`), case sensitive on Linux, where the tray's rule ignores case throughout. Not run off Windows.
 - [ ] A batch that begins between Verify raising a delete and queueing its patch can still carry out the delete without the patch. Closing that needs the two tied together on the wire.
 - [ ] The session ending, which stages the queue and removes the version marker, was exercised by sending `WM_QUERYENDSESSION` and `WM_ENDSESSION` to the window, not by logging off, and its wiring in `Program.Inner` is read, not run.
 - [ ] A process is believed to be a move's tool only when its command line names the received file. A custom tool that rewrites the path it is given is not tracked as a process: not closed on accept, not counted as open. The command line is read by a call Windows has from 8.1, and was read from PowerShell children only, not a real diff tool.
@@ -66,6 +68,9 @@ An item with no tag was said by whoever made the fix it follows from. A tag says
 - [ ] Past its budget a diff goes by the lines that occur once on each side. Texts made mostly of repeated lines have few, and are still split wherever the search stopped.
 - [ ] A bulk discard under way in an owning viewer is not on its listings, so an attached window or the tray sees the queue shrink with no progress and refuses nothing meanwhile. A discard-all from the tray during an accept-all now waits for it to end.
 - [ ] `ScreenBuilder.Build` for an entry of 100,000 lines is 1.5 to 2.5 ms a screen. (noticed, cause not found)
+- [ ] The rows a native head reports now depend on its footer, and the status line depends on the rows ("lines 1-N"). At a width where one character of status decides whether it gets a line of its own, the two could alternate frame to frame. Not seen; the WinForms head has always had the same loop.
+- [ ] A drag in the pane that can go less far, from a centre beyond its own range, moves only the other pane's picture until the centre is back inside its range. All three heads.
+- [ ] `DocumentWatch` does nothing for a window a head reports as unseen, as for a hidden one, so pages are not drawn until it is seen again. On macOS that now includes a wholly covered window: if `occlusionState` is ever wrong, pages stall.
 - [ ] Both sides of a document are drawn at once, and four things about that could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`.
 - [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back.
 
@@ -80,14 +85,14 @@ An item with no tag was said by whoever made the fix it follows from. A tag says
 - [ ] `ImageCacheTests` and `FormsHeadTests.EveryPictureEverDrawnStaysDecoded` write to fixed folders under the temp folder (`deview-image-cache`, `deview-review-cache`), so two runs of the suite at once on one machine fail each other. (seen)
 - [ ] In a window about 560 wide the left pane's header runs into the right pane's with no gap. It shows in `FooterThatWraps`. (noticed, not looked into)
 - [ ] The test that an exception comes out of a message pump has only been seen to pass, since failing it is what shows the dialog.
-- [ ] A minimised window slows only its own frame wait. `OwnerLink`, `TrackedWatch` and the document reader go by `Hidden`, which only a Hide command sets. The head would have to tell the loop.
+- [ ] A window wholly behind another is not reported as unseen; only a minimised one is.
 
 
 ## Viewer, Linux head
 
-- [ ] The body is not told about a taller footer: a paged document in a window under about 450 px wide needs four footer rows, and the last body rows are then hidden. `rows` in `deview.h` would become the rows the body has room for and the model's eight chrome lines, with `MeasureGrid` here and `Renderer.grid(for:)` on macOS taking off what the footer exceeds its allowance by. No managed change, a `DEVIEW_VERSION` bump, and both binaries built together.
+- [ ] The rows reported are capped by what a tall footer leaves the body (ABI 12). The scene that holds it, `ATallFooterTakesRowsFromTheBody`, repeats a file pair's buttons at 1100 px, since the shared test window cannot be made 450 px wide: a real paged document in a narrow window was not run.
 - [ ] The machine's fonts are drawn, not shaped: Arabic is unjoined and right to left text is in stored order. Colour emoji fonts and CFF2 variable fonts cannot be read by stb_truetype and are passed over, so a machine whose only CJK font is the variable Noto still shows replacement glyphs. At most fifteen fonts are merged.
-- [ ] A minimised window is still built and drawn when its screen changes; only a hidden one is left alone.
+- [ ] A window behind another is not known to be unseen, since GLFW passes nothing on from X11, so its watchers run as for one on screen. That a minimised window is left alone, and the drag, were checked by hand under Xvfb with openbox and xdotool, not in the suite: CI has neither.
 - [ ] An idle window still turns sixty times a second: 3 to 9 ms of processor a second. Waiting on the window system instead would take the managed loop being told when to wake.
 - [ ] Leaving a window alone was run only under Xvfb with Mesa's software rasteriser, with no window manager and under openbox. Not on a GPU, under a compositor, on Wayland or over forwarded X.
 - [ ] Control held for the wheel to zoom is read from the key's physical state, so a latched Control (sticky keys) scrolls instead. GLFW's scroll callback carries no modifiers. (plausible)
@@ -112,11 +117,13 @@ An item with no tag was said by whoever made the fix it follows from. A tag says
   - Text outside Latin: `--diff` two files of Chinese and hold Down. The same symbol for each frame: the new row alone.
   - An enlarged picture: `--diff` two 2880 by 1800 screenshots, `+` once, and drag. Time under `Renderer.enlarged` for each frame: a blit, and one 1560 by 975 bitmap a pane about a tenth of a second after the step.
 - [ ] To confirm on a Mac, from the two rounds of smaller fixes: ten changes, eight of them event handling or window state that no capture exercises. The check for each is in its commit's message.
+- [ ] To confirm on a Mac, from the ABI round. CI's job only captures, so a green build exercises none of the three:
+  - A PDF pair in a window narrow enough for four rows of buttons has its last body row drawn above the footer, and "lines 1-N" in the status drops as the footer grows.
+  - Miniaturise or wholly cover an owning viewer and rewrite a pending received file: the pane follows about a second later rather than within 200 ms, and at once after the window is uncovered.
+  - With a wide and a tall image enlarged, drag the tall one to its bottom edge, then drag the wide one sideways: the tall one does not jump.
 - [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. It needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too.
-- [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. The Linux head's item on `rows` is the fix for both.
 - [ ] A title's width is counted in cells, so a title of characters a fallback font draws wider than a cell can still reach the subtitle. One that fits exactly touches the subtitle with no gap, where Linux keeps a character.
 - [ ] The zoom keys behind Option were not tried on any layout, and zoom reset (`0`) is matched on `charactersIgnoringModifiers` only.
 - [ ] An enlarged pair that is the same picture in both panes is still drawn from the picture rather than from a copy, though with a copy kept for each pane it no longer has to be.
 - [ ] Since macOS 11 a view with an automatic backing store is handed its whole bounds whatever was invalidated, clip included, so the clip test probably leaves nothing out on any supported macOS. A view of the spinner's own would make it pay only if AppKit gives that view a layer of its own, which cannot be checked from here. (read, in Apple's developer forums)
-- [ ] A drag still pulls the other pane's centre into the dragged pane's range on an axis both can move on, when the two pictures differ in shape. Fixing it means moving the centre the frame asked for and clamping to the wider of the two panes' ranges, in both native heads together.
-- [ ] A hidden, miniaturised or covered window comes forward up to a tenth of a second late for a patch arriving over the socket, since the managed side cannot interrupt the pump, and `OwnerLink` and `TrackedWatch` do not slow for a window that is only covered or miniaturised. Both need the ABI to carry it.
+- [ ] A hidden, miniaturised or covered window comes forward up to a tenth of a second late for a patch arriving over the socket, since the managed side cannot interrupt the pump. That needs a way from the listener thread into AppKit's event loop.
