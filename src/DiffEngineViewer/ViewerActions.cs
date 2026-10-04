@@ -66,10 +66,10 @@ record ViewerActions(
             return asking(patches, wanted);
         }
 
-        if (ApplyInlineTogether is { } together &&
+        if (ApplyInlineTogether != null &&
             patches.Count > 1)
         {
-            return together(patches);
+            return ApplyInlineTogether(patches);
         }
 
         // One at a time each is a write of its own, so the moment before each is the moment to

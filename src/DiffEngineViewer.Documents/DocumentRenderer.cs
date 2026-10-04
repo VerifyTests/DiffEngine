@@ -154,7 +154,7 @@ public static class DocumentRenderer
             TypeLoadException or
             TypeInitializationException or
             MissingMemberException) &&
-        (exception is not IOException || exception is EndOfStreamException);
+        exception is not IOException or EndOfStreamException;
 
     /// <summary>
     /// What the library said, as one line, without the lead-in that repeats what
