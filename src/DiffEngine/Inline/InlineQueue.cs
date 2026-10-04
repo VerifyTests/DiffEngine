@@ -703,6 +703,89 @@ public sealed class InlineQueue
     }
 
     /// <summary>
+    /// The queue with every entry of <paramref name="sourceFile"/> taken to the line its call
+    /// site is on once the edits <paramref name="results"/> report have been made, in the order
+    /// they were made. This same queue when nothing moved.
+    /// <para>
+    /// A key is a line, and accepting a snapshot moves every call site under it. The entries
+    /// left behind were then named by lines that had become other calls', and everything that
+    /// finds an entry by its key had to ask whose it was before believing it: a re-run folded
+    /// into another call site's entry or queued a second one beside its own, a settle took an
+    /// entry that was still failing, and the patcher was handed a line that named the wrong
+    /// call. Those questions are still asked, for an edit made by hand or by another process,
+    /// which nothing reports. For an accept made here the lines are simply kept right.
+    /// </para>
+    /// <para>
+    /// A step of its own, after the outcomes are recorded and never part of recording one: a
+    /// batch finds what it claimed by its variants (<see cref="AcceptInBatch"/>), and an entry
+    /// that has moved is another list of them. So whoever accepts calls this once the patches it
+    /// applied to a file have all been answered for.
+    /// </para>
+    /// <para>
+    /// An entry whose new line is another entry's stays where it is: a queue holds one entry to
+    /// a key, and the hint was wrong before the edit for that to happen.
+    /// </para>
+    /// </summary>
+    internal InlineQueue Rebased(string sourceFile, IReadOnlyList<InlineApplyResult> results)
+    {
+        if (!results.Any(_ => _.MovedBy != 0))
+        {
+            return this;
+        }
+
+        // The lines of this file that are spoken for: an entry that stays, and each that moves
+        // once it has
+        HashSet<int>? taken = null;
+        List<(int Index, int Line)>? moving = null;
+        for (var index = 0; index < Items.Count; index++)
+        {
+            var patch = Items[index].Patch;
+            if (!InlineKey.SamePath(patch.SourceFile, sourceFile))
+            {
+                continue;
+            }
+
+            var line = patch.LineHint;
+            foreach (var result in results)
+            {
+                line = result.Rebase(line);
+            }
+
+            taken ??= [];
+            if (line == patch.LineHint)
+            {
+                taken.Add(line);
+            }
+            else
+            {
+                moving ??= [];
+                moving.Add((index, line));
+            }
+        }
+
+        if (moving is null)
+        {
+            return this;
+        }
+
+        var items = Items.ToList();
+        var changed = false;
+        foreach (var (index, line) in moving)
+        {
+            if (!taken!.Add(line))
+            {
+                taken.Add(items[index].Patch.LineHint);
+                continue;
+            }
+
+            items[index] = At(items[index], line);
+            changed = true;
+        }
+
+        return changed ? new(items) : this;
+    }
+
+    /// <summary>
     /// What a bulk accept that has finished counts as still needing review: it never applies an
     /// entry with more than one variant, so whatever the queue holds of those is left for a
     /// reviewer to pick from.

@@ -125,7 +125,11 @@ class RemoteInlineHost : IInlineHost
             return AcceptOutcome.Unknown;
         }
 
-        return pending.Any(_ => _.Key == snapshot.Key)
+        // Still there and saying why. An entry under the key with nothing to say is another one:
+        // an accept moves the lines under it, the owner takes what is pending for the file along
+        // (InlineQueue.Rebased), and after a snapshot that got shorter one of those can come up
+        // onto the line this one was on
+        return pending.Any(_ => _.Key == snapshot.Key && _.Status is not null)
             ? AcceptOutcome.Failed
             : AcceptOutcome.Applied;
     }

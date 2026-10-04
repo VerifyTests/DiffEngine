@@ -872,6 +872,43 @@ public class OwnedInlineHostTest
     }
 
     /// <summary>
+    /// An accept moves the call sites under it, and what is still pending for the file is taken
+    /// to the lines they are on now: by one accept, and by a batch once the outcomes of the file
+    /// are in. Another file's entry stays where it is.
+    /// </summary>
+    [Test]
+    public async Task WhatIsLeftOfAFileGoesToWhereItsCallSitesAre()
+    {
+        // The literal accepted at line 7 is four lines longer
+        using var owner = new Owner(
+            _ => _.LineHint switch
+            {
+                7 => InlineApplyResult.AppliedMoving(8, 4),
+                9 => InlineApplyResult.Failed("the file is held"),
+                _ => InlineApplyResult.Applied
+            });
+        owner.Queue(@"c:\repo\SampleTests.cs", 7);
+        owner.Queue(@"c:\repo\SampleTests.cs", 9);
+        owner.Queue(@"c:\repo\OtherTests.cs", 11);
+
+        var accepted = owner.Host.Accept(owner.Host.List()[0], out _);
+
+        await Assert.That(accepted).IsEqualTo(AcceptOutcome.Applied);
+        await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items.Select(_ => _.Key))
+            .IsEquivalentTo([InlineKey.For(@"c:\repo\SampleTests.cs", 13), InlineKey.For(@"c:\repo\OtherTests.cs", 11)]);
+
+        owner.Queue(@"c:\repo\SampleTests.cs", 7);
+        owner.Queue(@"c:\repo\SampleTests.cs", 9);
+        var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
+
+        // The one at 13 is applied, and the one at 9 is not and is four lines down
+        await Assert.That(response.Message).IsEqualTo("Accepted 3, 1 failed. the file is held");
+        var left = owner.Send(new(ViewerVerb.ListFull)).Items.Single();
+        await Assert.That(left.Key).IsEqualTo(InlineKey.For(@"c:\repo\SampleTests.cs", 13));
+        await Assert.That(left.Status).IsEqualTo("the file is held");
+    }
+
+    /// <summary>
     /// With the applier a tray really has, several snapshots land in one real file.
     /// </summary>
     [Test]

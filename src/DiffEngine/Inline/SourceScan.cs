@@ -162,6 +162,40 @@ sealed class SourceScan(SourceLanguage language, string source) :
     }
 
     /// <summary>
+    /// Which lines an edit of this source moved: the first line, 1 based and in this source, that
+    /// starts at or past the end of what the edit replaced, and how many lines further down it
+    /// and those after it are in <paramref name="edited"/>.
+    /// <para>
+    /// Read off the two texts, as <see cref="Edited"/> reads where to lex again, rather than
+    /// reported by whatever made the edit: every shape the patcher writes is then counted the
+    /// same way, including one it learns later.
+    /// </para>
+    /// </summary>
+    public (int From, int By) LinesMoved(string edited)
+    {
+        var limit = Math.Min(Source.Length, edited.Length);
+        var prefix = CommonPrefix(Source, edited, limit);
+        var suffix = CommonSuffix(Source, edited, limit - prefix);
+        var end = Source.Length - suffix;
+        var by = LineBreaks(edited, prefix, edited.Length - suffix) - LineBreaks(Source, prefix, end);
+        return (LowerBound(LineStarts, end) + 1, by);
+    }
+
+    static int LineBreaks(string text, int start, int end)
+    {
+        var count = 0;
+        foreach (var ch in text.AsSpan(start, end - start))
+        {
+            if (ch == '\n')
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
     /// Where lexing starts again for an edit that begins at <paramref name="offset"/>: the start
     /// of its line, or of an earlier one where that start is inside a comment or a literal, or
     /// follows a backslash.
