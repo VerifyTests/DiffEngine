@@ -7,18 +7,30 @@ static class TrayVersionFile
     public static string FilePath { get; } =
         Path.Combine(Path.GetTempPath(), "DiffEngineTray", "version.txt");
 
-    public static void Write(string informationalVersion)
+    public static void Write(string informationalVersion) =>
+        Write(FilePath, informationalVersion);
+
+    public static void Delete() =>
+        Delete(FilePath);
+
+    public static bool TryRead([NotNullWhen(true)] out Version? version) =>
+        TryRead(FilePath, out version);
+
+    // The three below take the file, for the tests: the marker is one file for the whole machine,
+    // and a test that wrote and deleted it removed the marker of the tray running there.
+
+    internal static void Write(string path, string informationalVersion)
     {
-        var directory = Path.GetDirectoryName(FilePath)!;
+        var directory = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(directory);
-        File.WriteAllText(FilePath, StripSuffix(informationalVersion));
+        File.WriteAllText(path, StripSuffix(informationalVersion));
     }
 
-    public static void Delete()
+    internal static void Delete(string path)
     {
         try
         {
-            File.Delete(FilePath);
+            File.Delete(path);
         }
         catch
         {
@@ -26,17 +38,17 @@ static class TrayVersionFile
         }
     }
 
-    public static bool TryRead([NotNullWhen(true)] out Version? version)
+    internal static bool TryRead(string path, [NotNullWhen(true)] out Version? version)
     {
         version = null;
         try
         {
-            if (!File.Exists(FilePath))
+            if (!File.Exists(path))
             {
                 return false;
             }
 
-            var text = StripSuffix(File.ReadAllText(FilePath).Trim());
+            var text = StripSuffix(File.ReadAllText(path).Trim());
             return Version.TryParse(text, out version);
         }
         catch

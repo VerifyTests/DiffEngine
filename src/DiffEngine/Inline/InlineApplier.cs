@@ -22,9 +22,16 @@ public static class InlineApplier
     /// name.
     /// <para>
     /// Each outcome is the one <see cref="Apply"/> would have reported had it been called on them
-    /// in turn. A patch is applied to what the ones before it left of its file, so the second of
-    /// two for one call site finds the first one's literal there, and a call site that an earlier
-    /// one moved is found where it now is.
+    /// in turn, each asked about the line the edits before it had moved its call site to. A patch
+    /// is applied to what the ones before it left of its file, so the second of two for one call
+    /// site finds the first one's literal there, and a call site that an earlier one moved is
+    /// looked for where it now is: every patch of a batch was recorded against the file as it
+    /// was read, and the line is all an Append has to go by.
+    /// </para>
+    /// <para>
+    /// An applied patch says which lines it moved (<see cref="InlineApplyResult.MovedFrom"/>),
+    /// counted in the file as the patches before it left it, so the results of a file taken in
+    /// order bring any other line of that file along.
     /// </para>
     /// <para>
     /// What differs is when the file is written: once, after the last of its patches, through the
@@ -445,11 +452,25 @@ public static class InlineApplier
                     continue;
                 }
 
-                results[index] = Judge(scan, patches[index], false, fullPath, out var newSource);
+                // Every patch here was recorded against the file as it was read, and each edit
+                // above a call site moves it. So a patch is asked about the line its own is on
+                // now. Asked about the recorded one, the second snapshot of a file was looked
+                // for by a line that had just stopped being its, and an Append whose line names
+                // no call is refused where its member has more than one to choose from
+                var line = patches[index].LineHint;
+                for (var earlier = firstToWrite; earlier >= 0 && earlier < index; earlier++)
+                {
+                    line = results[earlier].Rebase(line);
+                }
+
+                results[index] = Judge(scan, patches[index], false, fullPath, out var newSource, line);
                 if (results[index].Status != InlineApplyStatus.Applied)
                 {
                     continue;
                 }
+
+                var (from, by) = scan.LinesMoved(newSource);
+                results[index] = InlineApplyResult.AppliedMoving(from, by);
 
                 // The next patch is applied to this one's result, as it would have been to the
                 // file this one had written
@@ -492,7 +513,16 @@ public static class InlineApplier
     /// caller is given. <paramref name="newSource"/> is the edited source where the outcome is
     /// Applied, which is all a dry run wanted to know and what a write has still to carry out.
     /// </summary>
-    static InlineApplyResult Judge(SourceScan scan, InlinePatch patch, bool anchorOnly, string fullPath, out string newSource)
+    /// <param name="scan">The source, lexed.</param>
+    /// <param name="patch">The patch asked about.</param>
+    /// <param name="anchorOnly">Whether only a call site to hang a Snapshot call off is asked for.</param>
+    /// <param name="fullPath">The file, for a failure to name.</param>
+    /// <param name="newSource">The edited source, where the outcome is Applied.</param>
+    /// <param name="line">
+    /// The line the call site is taken to be on in this source, where edits made since the patch
+    /// was recorded have moved it. The patch's own when not given.
+    /// </param>
+    static InlineApplyResult Judge(SourceScan scan, InlinePatch patch, bool anchorOnly, string fullPath, out string newSource, int? line = null)
     {
         PatchStatus status;
         string failReason;
@@ -500,7 +530,7 @@ public static class InlineApplier
         {
             status = InlinePatcher.TryApply(
                 scan,
-                patch.LineHint,
+                line ?? patch.LineHint,
                 patch.Mode,
                 patch.OriginalExpression,
                 patch.OriginalValue,

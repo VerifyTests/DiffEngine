@@ -22,19 +22,25 @@ public class FrameWaitTests
     [Test]
     public async Task AMinimisedWindowIsStillVisible()
     {
-        // Shown, since a window never shown is not Visible whatever its state, and transparent
-        // and parked, as ViewerFormRaiseTests shows one, so nothing appears on the desktop
-        using var form = new ViewerForm("title", 800, 600)
+        // Shown, since a window never shown is not Visible whatever its state. Minimising is asked
+        // of Windows by a call that hands the keyboard on, so on a desktop nobody is at, and
+        // parked and transparent besides for a machine that has only the one
+        var (visible, state) = UnseenDesktop.Run(() =>
         {
-            Opacity = 0,
-            ShowInTaskbar = false,
-            StartPosition = FormStartPosition.Manual,
-            Location = new(-4000, -2000)
-        };
-        form.Show();
-        form.WindowState = FormWindowState.Minimized;
+            using var form = new ViewerForm("title", 800, 600)
+            {
+                Opacity = 0,
+                ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual,
+                Location = new(-4000, -2000),
+                Parked = true
+            };
+            form.Show();
+            form.WindowState = FormWindowState.Minimized;
+            return (form.Visible, form.WindowState);
+        });
 
-        await Assert.That(form.Visible).IsTrue();
-        await Assert.That(FormsViewerWindow.FrameWait(form.Visible, form.WindowState)).IsEqualTo(100);
+        await Assert.That(visible).IsTrue();
+        await Assert.That(FormsViewerWindow.FrameWait(visible, state)).IsEqualTo(100);
     }
 }
