@@ -300,9 +300,13 @@ sealed class DocumentWatch(SessionHost host, DocumentPlugin documents)
             }
         }
 
-        if (sides is [var first, var second] &&
-            first.Side.Format == DocumentFormat.Pdf &&
-            second.Side.Format == DocumentFormat.Pdf)
+        if (sides is [
+            {
+                Side.Format: DocumentFormat.Pdf
+            } first,
+            {
+                Side.Format: DocumentFormat.Pdf
+            } second])
         {
             // Two PDFs are started one behind the other, the second once the first has landed a
             // page. They share PDFium's lock, and when one of them stops inside it, which one is

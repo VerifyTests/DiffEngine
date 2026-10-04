@@ -1363,8 +1363,11 @@ static class ViewerSession
     /// <see cref="BeginDiscardWithDerived"/> rather than of the entry alone.
     /// </summary>
     public static bool HasDerived(SessionState state) =>
-        state.Mode == ViewerMode.Inline &&
-        state.Current is not null &&
+        state is
+        {
+            Mode: ViewerMode.Inline,
+            Current: not null
+        } &&
         QueueProjection.DerivedCount(state.Queue, state.Selected) > 0;
 
     /// <summary>

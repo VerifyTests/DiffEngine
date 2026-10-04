@@ -38,10 +38,10 @@ record ViewerActions(
 
     public IReadOnlyList<InlineApplyResult> ApplyTogether(IReadOnlyList<InlinePatch> patches)
     {
-        if (ApplyInlineTogether is { } together &&
+        if (ApplyInlineTogether != null &&
             patches.Count > 1)
         {
-            return together(patches);
+            return ApplyInlineTogether(patches);
         }
 
         var results = new List<InlineApplyResult>(patches.Count);

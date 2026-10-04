@@ -277,7 +277,7 @@ sealed class ScreenPayload
         }
     }
 
-    (int Offset, int Length) Add(ReadOnlySpan<char> text)
+    (int Offset, int Length) Add(CharSpan text)
     {
         if (text.Length == 0)
         {

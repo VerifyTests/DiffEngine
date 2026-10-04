@@ -457,7 +457,7 @@ public class ImageCacheTests
         public async Task<Action> Take()
         {
             // Long, since all it bounds is a test that would otherwise never end
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+            using var timeout = new CancelSource(TimeSpan.FromMinutes(1));
             try
             {
                 return await posted.Reader.ReadAsync(timeout.Token);
