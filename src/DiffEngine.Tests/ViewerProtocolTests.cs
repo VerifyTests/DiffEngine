@@ -1357,12 +1357,12 @@ public class ViewerProtocolTests
         while (Volatile.Read(ref accepts) < 2 &&
                retried.Elapsed < TimeSpan.FromSeconds(30))
         {
-            await Task.Delay(10);
+            await Task.Delay(10, cancel.Token);
         }
 
         var before = Volatile.Read(ref accepts);
         var counted = Stopwatch.StartNew();
-        await Task.Delay(500);
+        await Task.Delay(500, cancel.Token);
         var during = Volatile.Read(ref accepts) - before;
         var waits = counted.Elapsed.TotalMilliseconds / ViewerServer.FailedAcceptWait.TotalMilliseconds;
         await cancel.CancelAsync();

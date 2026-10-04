@@ -848,7 +848,7 @@ public class DocumentWatchTests :
         var blocked = Block(documents, host.State.Current!.LeftDocument);
         using var cancel = new CancelSource();
         var watch = new DocumentWatch(host, documents.Plugin);
-        var loop = Task.Run(() => watch.Run(cancel.Token));
+        var loop = Task.Run(() => watch.Run(cancel.Token), cancel.Token);
         try
         {
             await Until(() => host.State.Message is not null);
