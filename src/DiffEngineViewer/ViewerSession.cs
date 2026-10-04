@@ -1860,6 +1860,14 @@ static class ViewerSession
     const string deleteHeld = "Held: a snapshot in this batch could not be written inline, and this file may be the only copy of it left. Accept it on its own to delete it anyway.";
 
     /// <summary>
+    /// Whether a status is one of the reasons a bulk accept of a queue this process owns leaves a
+    /// delete pending, rather than what a failed accept said. For the mark on its row
+    /// (<see cref="QueueEntry.Held"/>).
+    /// </summary>
+    public static bool IsHold(string status) =>
+        status is deleteHeld or WroteItsFile or AwaitsItsFile;
+
+    /// <summary>
     /// Why a bulk accept leaves a pending delete where it is, when it would: null when it would
     /// carry it out. The tray's <c>Tracker.HeldReason</c>, for a queue this process owns, and what
     /// a full listing of that queue says beside the delete.

@@ -138,7 +138,8 @@ public class MenuBuilderTest :
                     .OfType<System.Windows.Forms.ToolStripDropDownButton>()
                     .ToList();
                 var held = deletes.Single(_ => _.Text!.StartsWith("Sample.Test.verified.txt"));
-                await Assert.That(held.Text).IsEqualTo("Sample.Test.verified.txt !");
+                // Its own mark, and not the one a snapshot that failed to apply carries
+                await Assert.That(held.Text).IsEqualTo("Sample.Test.verified.txt ~");
                 await Assert.That(held.ToolTipText).IsEqualTo(Tracker.WroteItsFile);
                 var label = held.DropDownItems
                     .OfType<System.Windows.Forms.ToolStripMenuItem>()

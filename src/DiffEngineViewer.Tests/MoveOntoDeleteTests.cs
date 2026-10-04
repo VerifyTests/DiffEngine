@@ -86,6 +86,37 @@ public class MoveOntoDeleteTests
     }
 
     /// <summary>
+    /// A held delete's reason is its status, and every head draws a row with a status as an entry
+    /// that failed. Nothing failed, so the row leads with a mark of its own and carries no
+    /// status; why it is held stays in its tip. A delete that was tried and could not be deleted
+    /// is still the failure it was.
+    /// </summary>
+    [Test]
+    public async Task A_held_delete_is_marked_apart_from_a_failed_one()
+    {
+        var disk = new Disk();
+        var state = Queued(Fixtures.Move(), Delete());
+        state = ViewerSession.Apply(state, CommandKind.AcceptAll, disk.Actions);
+
+        var held = QueueProjection.Rows(state).Single();
+        await Assert.That(held.Label).IsEqualTo("~ sample.verified.txt");
+        await Assert.That(held.Status).IsNull();
+        await Assert.That(held.Tooltip!).Contains(ViewerSession.WroteItsFile);
+        // Leading, so it is there in a column too narrow for the name
+        await Assert.That(AsciiRenderer.Render(ScreenBuilder.Build(state))).Contains("| > ~ sample.verified");
+
+        var locked = disk.Actions with
+        {
+            DeleteFile = static _ => throw new("The file is locked.")
+        };
+        state = ViewerSession.Apply(state, CommandKind.Accept, locked);
+
+        var failed = QueueProjection.Rows(state).Single();
+        await Assert.That(failed.Label).IsEqualTo("sample.verified.txt");
+        await Assert.That(failed.Status).IsEqualTo("The file is locked.");
+    }
+
+    /// <summary>
     /// Accepted on its own it is carried out, held or not: that is the reviewer saying the file
     /// is redundant.
     /// </summary>

@@ -13,6 +13,7 @@ using ViewerSideWindowCommand = viewer::DiffEngine.WindowCommand;
 // The viewer's own half of the app.
 using CommandKind = viewer::CommandKind;
 using OwnerLink = viewer::OwnerLink;
+using QueueProjection = viewer::QueueProjection;
 using SessionHost = viewer::SessionHost;
 using SessionMessageHandler = viewer::MessageHandler;
 using SessionState = viewer::SessionState;
@@ -234,6 +235,13 @@ public class TrayViewerSyncTest
         var viewer = pair.Pump();
         await Assert.That(viewer.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {Tracker.DeletesKept([delete])}");
         await Assert.That(viewer.Queue.Single().Status).IsEqualTo(Tracker.WroteItsFile);
+        // Marked as held, where the tray's words for why were all the window had and drew the
+        // row as a failure. The tray's menu marks it with the same character (MenuBuilderTest)
+        var row = QueueProjection.Rows(viewer).Single();
+        await Assert.That(row.Label).StartsWith(QueueProjection.HeldMark);
+        await Assert.That(row.Status).IsNull();
+        await Assert.That(row.Tooltip!).Contains(Tracker.WroteItsFile);
+        await Assert.That(MenuBuilder.HeldMark.Trim()).IsEqualTo(QueueProjection.HeldMark.Trim());
 
         // Raised again over the file as the move left it, which a process that decided before
         // the move was accepted does too: still held
@@ -1222,6 +1230,10 @@ public class TrayViewerSyncTest
         await Assert.That(await File.ReadAllTextAsync(move.Target)).IsEqualTo("received");
         await Assert.That(response.Message).IsEqualTo($"Accepted 0, plus 1 files (1 kept). {ViewerSession.DeletesKept}");
         await Assert.That(pair.Send(new(ViewerVerb.ListFull)).Deletes.Single().Held).IsEqualTo(ViewerSession.WroteItsFile);
+        // And marks it in its own window as held, not as a failure
+        var row = QueueProjection.Rows(pair.Viewer).Single();
+        await Assert.That(row.Label).StartsWith(QueueProjection.HeldMark);
+        await Assert.That(row.Status).IsNull();
 
         // Raised again over the file as the move left it, which a process that decided before
         // the move was accepted does too: still held, as a tray holds it

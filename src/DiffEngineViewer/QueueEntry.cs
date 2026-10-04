@@ -190,6 +190,25 @@ record QueueEntry(
     public FileStamp? WrittenAs { get; init; }
 
     /// <summary>
+    /// On a pending delete of someone else's queue: <see cref="Status"/> is why its owner's
+    /// accept-all would leave it, which is all a delete's status ever is in a viewer that applies
+    /// nothing itself (<see cref="OwnerLink"/>). The owner's words are its own, so they cannot be
+    /// told from a failure by what they say.
+    /// </summary>
+    public bool StatusIsHold { get; init; }
+
+    /// <summary>
+    /// Whether this is a delete a bulk accept leaves pending and <see cref="Status"/> says why,
+    /// rather than an entry that was tried and failed. The two are marked apart in the queue
+    /// column (<see cref="QueueProjection"/>): one is waiting to be accepted on its own, and the
+    /// other has something wrong with it.
+    /// </summary>
+    public bool Held =>
+        Kind == QueueEntryKind.Delete &&
+        Status is not null &&
+        (StatusIsHold || ViewerSession.IsHold(Status));
+
+    /// <summary>
     /// Whether one side of an entry holds what a side that arrived, or was read again, holds.
     /// </summary>
     public static bool SameSide(
