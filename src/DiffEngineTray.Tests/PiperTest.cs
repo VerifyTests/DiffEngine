@@ -147,12 +147,12 @@ public class PiperTest :
     // MovePayload as every tray had it before a move could name a source
     class MoveBeforeSources
     {
-        public string Temp { get; set; } = null!;
-        public string Target { get; set; } = null!;
-        public string? Exe { get; set; } = null!;
-        public string? Arguments { get; set; } = null!;
-        public bool CanKill { get; set; }
-        public int? ProcessId { get; set; }
+        public required string Temp { get; init; }
+        public required string Target { get; init; }
+        public required string? Exe { get; init; }
+        public required string? Arguments { get; init; }
+        public required bool CanKill { get; init; }
+        public int? ProcessId { get; init; }
     }
 
     [Test]
