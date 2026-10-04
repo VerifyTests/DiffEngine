@@ -86,6 +86,72 @@ static class CellGrid
     }
 
     /// <summary>
+    /// <see cref="Segments(string)"/> for the start of a row: as far as its first
+    /// <paramref name="cells"/> cells, with <paramref name="end"/> where in
+    /// <paramref name="flattened"/> that is. The cut is <see cref="Index"/>'s, so these are the
+    /// segments of the row cut there, found in the one walk rather than by cutting the row and
+    /// walking what is left: a renderer that encodes every row on screen asks this of each, and a
+    /// row of two cell characters was walked once to find the cut and again to segment it.
+    /// </summary>
+    public static IReadOnlyList<Segment> Segments(string flattened, int cells, out int end)
+    {
+        end = 0;
+        if (flattened.Length == 0 ||
+            cells <= 0)
+        {
+            return [];
+        }
+
+        if (IsPlain(flattened))
+        {
+            end = Math.Min(cells, flattened.Length);
+            return [new(0, end, 0)];
+        }
+
+        end = flattened.Length;
+        var segments = new List<Segment>();
+        var column = 0;
+        var runStart = -1;
+        var runColumn = 0;
+        foreach (var cluster in Clusters(flattened))
+        {
+            if (column >= cells)
+            {
+                end = cluster.Start;
+                break;
+            }
+
+            if (cluster.Simple)
+            {
+                if (runStart < 0)
+                {
+                    runStart = cluster.Start;
+                    runColumn = column;
+                }
+            }
+            else
+            {
+                if (runStart >= 0)
+                {
+                    segments.Add(new(runStart, cluster.Start - runStart, runColumn));
+                    runStart = -1;
+                }
+
+                segments.Add(new(cluster.Start, cluster.Length, column));
+            }
+
+            column += cluster.Width;
+        }
+
+        if (runStart >= 0)
+        {
+            segments.Add(new(runStart, end - runStart, runColumn));
+        }
+
+        return segments;
+    }
+
+    /// <summary>
     /// How many cells <paramref name="flattened"/> takes.
     /// </summary>
     public static int Cells(string flattened)

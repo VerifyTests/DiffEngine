@@ -238,6 +238,207 @@ public class KeptConnectionTests
         await Assert.That(ViewerClient.Tell(settle, owner.Port)).IsTrue();
     }
 
+    static readonly ViewerMessage list = new(ViewerVerb.ListFull);
+
+    /// <summary>
+    /// A window showing an owner's queue lists five times a second, and each was a connection.
+    /// They share one as the settles do, and it is not the settles' one: four connections for
+    /// twenty of each, the first of each kind being the ordinary exchange whose reply says the
+    /// owner keeps one.
+    /// </summary>
+    [Test]
+    public async Task ListingsShareAConnectionOfTheirOwn()
+    {
+        using var owner = new Owner();
+
+        for (var index = 0; index < 20; index++)
+        {
+            await Assert.That(ViewerClient.TrySend(list, out _, owner.Port)).IsTrue();
+            await Assert.That(ViewerClient.Tell(settle, owner.Port)).IsTrue();
+        }
+
+        await Assert.That(owner.Heard.Count).IsEqualTo(40);
+        await Assert.That(owner.Accepted).IsEqualTo(4);
+    }
+
+    /// <summary>
+    /// What a listing carries is the whole queue, and it arrives down the kept connection as it
+    /// does down its own, whatever is in it.
+    /// </summary>
+    [Test]
+    public async Task AListingArrivesWhole()
+    {
+        var patch = "a patch\n\nwith an empty line";
+        using var owner = new Owner(_ => ViewerResponse.Listing(
+            [new("key\nwith a break", "name", "status", patch), new("second", "name", null, patch)]));
+
+        await Assert.That(ViewerClient.TrySend(list, out var first, owner.Port)).IsTrue();
+        await Assert.That(ViewerClient.TrySend(list, out _, owner.Port)).IsTrue();
+        await Assert.That(ViewerClient.TrySend(list, out var second, owner.Port)).IsTrue();
+
+        // The first on a connection of its own, and the one it opened for the two after it
+        await Assert.That(owner.Accepted).IsEqualTo(2);
+        await Assert.That(second!.Build()).IsEqualTo(first!.Build());
+        await Assert.That(second.Items.Count).IsEqualTo(2);
+        await Assert.That(second.Items[0].Key).IsEqualTo("key\nwith a break");
+        await Assert.That(second.Items[1].Patch).IsEqualTo(patch);
+    }
+
+    /// <summary>
+    /// An owner answers the requests of one connection in turn, so a listing it is slow over
+    /// must not be on the connection the settles use, and is not: a settle sent while a listing
+    /// is still waiting for its answer is answered. And a second listing sent then does not wait
+    /// for the first either. It goes on a connection of its own, as every listing used to.
+    /// <para>
+    /// Nothing is timed. The listing is held by the owner until the settle and the second
+    /// listing have both come back, so either of them waiting behind it would be this test
+    /// hanging until the listing's own wait ran out, and the listing then failing.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task ASlowListingHoldsUpNeitherASettleNorAnotherListing()
+    {
+        using var release = new ManualResetEventSlim();
+        using var arrived = new ManualResetEventSlim();
+        using var owner = new Owner(_ =>
+        {
+            if (_ is { Verb: ViewerVerb.List, Key: "slow" })
+            {
+                arrived.Set();
+                release.Wait(TimeSpan.FromMinutes(2));
+            }
+
+            return ViewerResponse.Success();
+        });
+        ViewerClient.Tell(settle, owner.Port);
+        ViewerClient.Tell(settle, owner.Port);
+        ViewerClient.TrySend(list, out _, owner.Port);
+        ViewerClient.TrySend(list, out _, owner.Port);
+        await Assert.That(owner.Accepted).IsEqualTo(4);
+
+        // A thread of its own: it blocks until the owner answers, and the owner answers from the
+        // pool, being in this process
+        var slow = Task.Factory.StartNew(
+            () => ViewerClient.TrySend(new(ViewerVerb.List, "slow"), out _, owner.Port, TimeSpan.FromMinutes(1)),
+            Cancel.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        try
+        {
+            await Assert.That(arrived.Wait(TimeSpan.FromMinutes(1))).IsTrue();
+            // Down the kept connection, or there would be a fifth
+            await Assert.That(owner.Accepted).IsEqualTo(4);
+
+            await Assert.That(ViewerClient.Tell(settle, owner.Port)).IsTrue();
+            await Assert.That(ViewerClient.TrySend(list, out _, owner.Port)).IsTrue();
+
+            await Assert.That(slow.IsCompleted).IsFalse();
+            await Assert.That(owner.Accepted).IsEqualTo(5);
+        }
+        finally
+        {
+            release.Set();
+        }
+
+        await Assert.That(await slow).IsTrue();
+    }
+
+    /// <summary>
+    /// Only the listings. An accept written to a kept connection whose owner had just gone
+    /// would have to be sent again without knowing whether the first was carried out, so
+    /// whatever changes the queue is still a connection each.
+    /// </summary>
+    [Test]
+    public async Task ACommandIsStillAConnectionEach()
+    {
+        using var owner = new Owner();
+        ViewerClient.TrySend(list, out _, owner.Port);
+        ViewerClient.TrySend(list, out _, owner.Port);
+
+        for (var index = 0; index < 3; index++)
+        {
+            await Assert.That(ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out _, owner.Port)).IsTrue();
+            await Assert.That(ViewerClient.TrySend(new(ViewerVerb.Discard, "key"), out _, owner.Port)).IsTrue();
+        }
+
+        await Assert.That(owner.Accepted).IsEqualTo(8);
+    }
+
+    /// <summary>
+    /// An owner from before any of this is listed a connection each, as it is told.
+    /// </summary>
+    [Test]
+    public async Task AnOwnerThatPredatesItIsListedAConnectionEach()
+    {
+        using var owner = new OlderOwner();
+
+        for (var index = 0; index < 5; index++)
+        {
+            await Assert.That(ViewerClient.TrySend(list, out _, owner.Port)).IsTrue();
+        }
+
+        var requests = owner.Requests;
+        await Assert.That(requests.Count).IsEqualTo(5);
+        foreach (var request in requests)
+        {
+            await Assert.That(request).IsEqualTo(list.Build());
+        }
+    }
+
+    /// <summary>
+    /// A listing is how a window learns its owner has gone, so one sent down a connection the
+    /// owner closed has to come back saying so, and the one after an owner has taken the port
+    /// again has to reach it.
+    /// </summary>
+    [Test]
+    public async Task AListingFindsItsOwnerGoneAndTheNextOne()
+    {
+        int port;
+        using (var owner = new Owner())
+        {
+            port = owner.Port;
+            ViewerClient.TrySend(list, out _, port);
+            await Assert.That(ViewerClient.TrySend(list, out _, port)).IsTrue();
+        }
+
+        await Assert.That(ViewerClient.TrySend(list, out _, port)).IsFalse();
+
+        using var next = new Owner(port: port);
+        await Assert.That(ViewerClient.TrySend(list, out _, port)).IsTrue();
+        await Assert.That(ViewerClient.TrySend(list, out _, port)).IsTrue();
+        await Assert.That(next.Heard.Count).IsEqualTo(2);
+    }
+
+    /// <summary>
+    /// The kept connection is this process's alone. On .NET Framework a socket is inheritable and
+    /// a process started without ShellExecute is handed every inheritable handle, so a child a
+    /// test started held the connection too, and the owner went on keeping it until that child
+    /// exited, long after the test host had.
+    /// <para>
+    /// What is asked is whether the handle is one a child would be given. What a child does with
+    /// it only shows once the host has gone without closing anything, which a test cannot do to
+    /// the process it runs in: closing the connection here shuts it down, and that reaches the
+    /// owner whoever else holds the handle.
+    /// </para>
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task TheKeptConnectionIsNotOneAChildProcessIsGiven()
+    {
+        using var owner = new Owner();
+        ViewerClient.Tell(settle, owner.Port);
+        await Assert.That(ViewerClient.Tell(settle, owner.Port)).IsTrue();
+
+        var handle = ViewerClient.KeptHandle;
+        await Assert.That(handle).IsNotNull();
+        await Assert.That(GetHandleInformation(handle!.Value, out var flags)).IsTrue();
+        // HANDLE_FLAG_INHERIT
+        await Assert.That(flags & 1).IsEqualTo(0);
+    }
+
+    [DllImport("kernel32.dll")]
+    static extern bool GetHandleInformation(IntPtr handle, out int flags);
+
     /// <summary>
     /// A queue owner on a port of the test's choosing, recording what it was sent.
     /// </summary>

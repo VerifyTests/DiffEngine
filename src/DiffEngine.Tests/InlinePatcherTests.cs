@@ -1075,6 +1075,90 @@ public class InlinePatcherTests
     }
 
     /// <summary>
+    /// A call verified through its settings has nothing chained onto it, and with the hint gone
+    /// stale it was the first call the walk met with no Snapshot call: the snapshot of the call
+    /// under it was appended to it. A name Snapshot is called on, passed to a call, says that
+    /// call has one.
+    /// </summary>
+    [Test]
+    [Arguments("settings")]
+    [Arguments("settings: settings")]
+    public async Task AppendWithAStaleHintPassesOverACallVerifiedThroughItsSettings(string argument)
+    {
+        var source = Method(
+            $"""
+                     var settings = new VerifySettings();
+                     settings.Snapshot("A");
+                     await Verify(a, {argument});
+                     await Verify(b);
+             """);
+
+        var status = TryApply(source, 14, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).IsEqualTo(
+            Method(
+                $"""
+                         var settings = new VerifySettings();
+                         settings.Snapshot("A");
+                         await Verify(a, {argument});
+                         await Verify(b)
+                             .Snapshot("B");
+                 """));
+    }
+
+    const string twoWithNoSnapshot =
+        """
+        class Tests
+        {
+            async Task Test()
+            {
+                await Verify(a).UseDirectory("files");
+                await Throws(() => Verify(b));
+            }
+        }
+
+        """;
+
+    /// <summary>
+    /// Two calls with no Snapshot call, one of them verified through files, and a hint that names
+    /// neither. An append has no anchor to tell them apart by, and the first was taken, which is
+    /// the wrong one whenever the file verified call comes first. Refused, for a re-run to say
+    /// where the call is. The verify call inside the Throws is part of that call, not a third.
+    /// </summary>
+    [Test]
+    public async Task AppendWithAStaleHintIsRefusedWhenTwoCallsCouldTakeIt()
+    {
+        var status = TryApply(Source(twoWithNoSnapshot), 12, InlinePatchMode.Append, null, "B", out _, out var reason, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.NotFound);
+        await Assert.That(reason).Contains("more than one verify entry point call in its test has no Snapshot call");
+    }
+
+    // The recorded line still names its call, whatever else is in the member
+    [Test]
+    public async Task AppendTakesTheCallOnTheRecordedLineAmongSeveral()
+    {
+        var status = TryApply(Source(twoWithNoSnapshot), 6, InlinePatchMode.Append, null, "B", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).Contains("await Verify(a).UseDirectory(\"files\");\n");
+        await Assert.That(newSource).Contains("await Throws(() => Verify(b))\n            .Snapshot(\"B\");");
+    }
+
+    // One call with none, and a call nested in its arguments, is still one call
+    [Test]
+    public async Task AppendWithAStaleHintTakesTheOnlyCallWithNoSnapshot()
+    {
+        var source = Method("        await Verify(a).Snapshot(\"A\");\n        await Throws(() => Verify(b));");
+
+        var status = TryApply(source, 12, InlinePatchMode.Append, null, "B", out var newSource, out var reason, memberName: "Test");
+
+        await Assert.That((status, reason)).IsEqualTo((PatchStatus.Applied, ""));
+        await Assert.That(newSource).Contains("await Throws(() => Verify(b))\n            .Snapshot(\"B\");");
+    }
+
+    /// <summary>
     /// The hint lands on the accepted call this time, which is what a second framework's patch for
     /// that same call site looks like once the first has been accepted. It names that call, so the
     /// call after it is not somewhere else to put the snapshot.
@@ -1580,6 +1664,62 @@ public class InlinePatcherTests
         var status = TryApply(removed, 6, InlinePatchMode.Remove, "\"old\"", "", out _, out _, memberName: "Test");
 
         await Assert.That(status).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// A statement taken whole brought the line under it up onto the line the patch names, as a
+    /// chained call taken with its line did, and where that line was a sibling's statement with
+    /// the same literal the second apply took the sibling. So the line stays here too, empty.
+    /// </summary>
+    [Test]
+    [Arguments("        other.Snapshot(\"dup\");")]
+    [Arguments("        await Verify(value, other).Snapshot(\"dup\");")]
+    public async Task RemoveOfAStatementAppliedTwiceLeavesTheSiblingUnderIt(string sibling)
+    {
+        var source = Method($"        settings.Snapshot(\"dup\");\n{sibling}\n        await Verify(value, settings);");
+        var removed = Method($"\n{sibling}\n        await Verify(value, settings);");
+
+        var first = TryApply(source, 5, InlinePatchMode.Remove, "\"dup\"", "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 5, InlinePatchMode.Remove, "\"dup\"", "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// One line is kept for a statement over several, written with the file's own line break, as
+    /// it is for a chained call: the first line is the one the patch names.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfAStatementOverSeveralLinesAppliedTwiceLeavesTheSiblingUnderIt()
+    {
+        var literal = "\"\"\"\n            dup\n            \"\"\"";
+        var source = Method($"        settings.Snapshot(\n            {literal}); // inline for now\n        other.Snapshot(\n            {literal});").Replace("\n", "\r\n");
+        var removed = Method($"\n        other.Snapshot(\n            {literal});").Replace("\n", "\r\n");
+        var anchor = literal.Replace("\n", "\r\n");
+
+        var first = TryApply(source, 5, InlinePatchMode.Remove, anchor, "", out var once, out _, memberName: "Test");
+        var second = TryApply(once, 5, InlinePatchMode.Remove, anchor, "", out _, out _, memberName: "Test");
+
+        await Assert.That(first).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(once).IsEqualTo(removed);
+        await Assert.That(second).IsEqualTo(PatchStatus.AlreadyApplied);
+    }
+
+    /// <summary>
+    /// The line is kept only for a Snapshot call that would come up onto it. Under anything else
+    /// the statement's lines go, as they always did.
+    /// </summary>
+    [Test]
+    public async Task RemoveOfAStatementWithNoSnapshotCallUnderItKeepsNoLine()
+    {
+        var source = Method("        settings.Snapshot(\"dup\");\n        var next = 1;\n        other.Snapshot(\"dup\");");
+
+        var status = TryApply(source, 5, InlinePatchMode.Remove, "\"dup\"", "", out var newSource, out _, memberName: "Test");
+
+        await Assert.That(status).IsEqualTo(PatchStatus.Applied);
+        await Assert.That(newSource).IsEqualTo(Method("        var next = 1;\n        other.Snapshot(\"dup\");"));
     }
 
     /// <summary>

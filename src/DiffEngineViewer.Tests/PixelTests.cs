@@ -432,13 +432,16 @@ public class PixelTests
     }
 
     /// <summary>
-    /// A picture longer on one side than a texture can be, beside one that is not. The rows say
-    /// what it is, as they do for a format the head has no decoder for, and nothing is drawn under
-    /// them: it was a black box the shape of the picture, which is what GL makes of a texture it
-    /// was handed and would not take.
+    /// A picture longer on one side than a texture can be, beside one that is not. It is brought
+    /// down to the largest size of its own shape that a texture takes as it is read, and drawn
+    /// from that, fitted as any other. It was first a black box the shape of the picture, which
+    /// is what GL makes of a texture it was handed and would not take, and then nothing at all
+    /// under rows that said what it was.
     /// <para>
-    /// Linux only, and only where the limit is what it is under Mesa's software rasteriser, which
-    /// is what these baselines are pinned to: 16384 pixels, one fewer than this picture is wide.
+    /// Linux only. It is past the limit where the limit is what it is under Mesa's software
+    /// rasteriser, which is what these baselines are pinned to: 16384 pixels, one fewer than this
+    /// picture is wide. Where a texture can be larger the picture is drawn as it is, and the
+    /// scene is of the same thing by the other way.
     /// </para>
     /// </summary>
     [Test]
@@ -549,6 +552,154 @@ public class PixelTests
 
         // Sixty frames at sixty a second. Unpaced, a bare loop ran at tens of thousands a second.
         await Assert.That(elapsed).IsGreaterThan(TimeSpan.FromMilliseconds(750));
+    }
+
+    /// <summary>
+    /// A window nothing is happening to is left alone: the Linux head builds no frame for it and
+    /// draws nothing into it, where it used to draw the frame already there sixty times a second,
+    /// which under a software rasteriser was more than half a core for a viewer left open. Nothing
+    /// a capture does can tell the two apart, so this is asked of the window itself, shown for
+    /// as long as the test takes: the same screen is presented a second at a time until a second
+    /// goes by in which nothing was drawn.
+    /// <para>
+    /// A second, and not the first one. The frame after a window is shown is drawn, and the head
+    /// goes on building frames for a second after anything changes before it leaves a window
+    /// alone, so the first second draws and a later one does not. Which later one is not asserted:
+    /// the window system may ask for the window again, and a runner may be slow. A head that has
+    /// gone back to drawing every frame never has such a second.
+    /// </para>
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 21)]
+    [SkipOnMac("A capture host never creates the macOS window, and the counts are asked of OpenGL, which that head does not draw with.")]
+    public async Task AWindowLeftAloneIsNotDrawn()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        var (first, rested) = await OnShimThread(
+            () =>
+            {
+                window!.SetHidden(false);
+                try
+                {
+                    var first = Drawn(60, screen);
+                    var watch = Stopwatch.StartNew();
+                    var rested = false;
+                    while (!rested &&
+                           watch.Elapsed < TimeSpan.FromSeconds(30))
+                    {
+                        rested = Drawn(60, screen) == 0;
+                    }
+
+                    return (first, rested);
+                }
+                finally
+                {
+                    window.SetHidden(true);
+                }
+            });
+
+        // Or the count is of nothing, and a second with none drawn says nothing either
+        await Assert.That(first).IsGreaterThan(0);
+        await Assert.That(rested).IsTrue();
+    }
+
+    /// <summary>
+    /// A hidden window is handed another screen by every arrival in its queue, and the Linux head
+    /// built and drew each of them into a window nobody could see. Hidden, it now draws none,
+    /// however the screen changes, and the first present after it is shown draws the screen it is
+    /// handed. That what it draws then is the right screen is not something a count can say: it
+    /// was photographed off the X server when this was changed.
+    /// </summary>
+    [Test]
+    [PixelTest]
+    [NotInParallel(nameof(PixelTests), Order = 22)]
+    [SkipOnMac("A capture host never creates the macOS window, and the counts are asked of OpenGL, which that head does not draw with.")]
+    public async Task AHiddenWindowIsNotDrawn()
+    {
+        var screen = ScreenBuilder.Build(ViewerSession.Resize(Fixtures.File(), columns, rows));
+        // The same frame twice, told apart by its status line, so that every present is of a
+        // screen that is not the one before it
+        Screen[] screens =
+        [
+            screen with {Status = "tick"},
+            screen with {Status = "tock"}
+        ];
+        var (hidden, shown) = await OnShimThread(
+            () =>
+            {
+                // A window's first frame is built wherever the window is, and this test may be
+                // the first to present anything
+                window!.Present(screen);
+                var hidden = Drawn(60, screens);
+                window.SetHidden(false);
+                try
+                {
+                    return (hidden, Drawn(1, screens[0]));
+                }
+                finally
+                {
+                    window.SetHidden(true);
+                }
+            });
+
+        await Assert.That(hidden).IsEqualTo(0);
+        await Assert.That(shown).IsEqualTo(1);
+    }
+
+    static uint drawnQuery;
+
+    /// <summary>
+    /// How many of so many presents, of the screens given in turn, put anything on the screen.
+    /// Asked of OpenGL, as <c>NativeHead</c> in the benchmarks asks it: the primitives generated
+    /// between the start of a present and its end are the triangles the shim submitted, whichever
+    /// rasteriser then filled them, and a present that generated none drew nothing. On the shim's
+    /// thread, which is the one the GL context belongs to.
+    /// </summary>
+    static int Drawn(int presents, params Screen[] screens)
+    {
+        if (drawnQuery == 0)
+        {
+            Gl.GenQueries(1, out drawnQuery);
+        }
+
+        var drawn = 0;
+        for (var present = 0; present < presents; present++)
+        {
+            Gl.BeginQuery(Gl.PrimitivesGenerated, drawnQuery);
+            window!.Present(screens[present % screens.Length]);
+            Gl.EndQuery(Gl.PrimitivesGenerated);
+            Gl.GetQueryObject(drawnQuery, Gl.QueryResult, out var primitives);
+            if (primitives > 0)
+            {
+                drawn++;
+            }
+        }
+
+        return drawn;
+    }
+
+    /// <summary>
+    /// The four OpenGL calls a query takes, from the library the shim's own context came from.
+    /// </summary>
+    static class Gl
+    {
+        const string library = "libGL.so.1";
+
+        public const uint PrimitivesGenerated = 0x8C87;
+        public const uint QueryResult = 0x8866;
+
+        [DllImport(library, EntryPoint = "glGenQueries")]
+        public static extern void GenQueries(int count, out uint id);
+
+        [DllImport(library, EntryPoint = "glBeginQuery")]
+        public static extern void BeginQuery(uint target, uint id);
+
+        [DllImport(library, EntryPoint = "glEndQuery")]
+        public static extern void EndQuery(uint target);
+
+        [DllImport(library, EntryPoint = "glGetQueryObjectuiv")]
+        public static extern void GetQueryObject(uint id, uint name, out uint value);
     }
 
     static async Task Capture(SessionState state, int gridRows = rows)

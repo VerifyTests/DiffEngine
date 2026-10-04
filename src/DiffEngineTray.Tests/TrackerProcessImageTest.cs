@@ -89,6 +89,161 @@ public class TrackerProcessImageTest :
         await Assert.That(stranger.WaitForExit(1000)).IsFalse();
     }
 
+    /// <summary>
+    /// The image says which program a process is, and not which window. A stale id that Windows
+    /// handed to another copy of the same tool - the one open on the next snapshot along, or one
+    /// started by hand for a merge - passed on the image alone, was tracked as this pair's, and
+    /// was ended when the pair was accepted. The tool for a pair was started with its received
+    /// file, and this one was not.
+    /// </summary>
+    [Test]
+    public async Task AnotherCopyOfTheToolIsNotTrackedAndNotEnded()
+    {
+        await using var tracker = new RecordingTracker();
+        var copy = StartAnotherCopy(shows: Path.Combine(directory, "received", "another.trackerprocessimage"));
+        try
+        {
+            var tracked = tracker.AddMove(temp, target, Image, "theArguments", true, copy.Id);
+
+            await Assert.That(tracked.Process).IsNull();
+            await Assert.That(tracked.IsOpen).IsFalse();
+
+            tracker.Accept(tracked);
+
+            await Assert.That(tracker.Moves).IsEmpty();
+            await Assert.That(copy.WaitForExit(1000)).IsFalse();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(copy);
+        }
+    }
+
+    /// <summary>
+    /// Open on a file whose path only starts as the received file's does.
+    /// </summary>
+    [Test]
+    public async Task ACopyOfTheToolShowingALongerPathIsNotTracked()
+    {
+        await using var tracker = new RecordingTracker();
+        var copy = StartAnotherCopy(shows: $"{temp}.bak");
+        try
+        {
+            var tracked = tracker.AddMove(temp, target, Image, "theArguments", true, copy.Id);
+
+            await Assert.That(tracked.Process).IsNull();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(copy);
+        }
+    }
+
+    [Test]
+    public async Task AReRunNamingAnotherCopyOfTheToolLeavesTheMoveWithNone()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddMove(temp, target, Image, "theArguments", true, stranger.Id);
+        var copy = StartAnotherCopy(shows: null);
+        try
+        {
+            var tracked = tracker.AddMove(temp, target, Image, "theArguments", true, copy.Id);
+
+            await Assert.That(tracked.Process).IsNull();
+            tracker.Accept(tracked);
+            await Assert.That(copy.WaitForExit(1000)).IsFalse();
+        }
+        finally
+        {
+            FileLockUtils.Cleanup(copy);
+        }
+    }
+
+    /// <summary>
+    /// What the comparison reads, asked of a process whose command line is known.
+    /// </summary>
+    [Test]
+    public async Task TheCommandLineOfAProcessIsRead()
+    {
+        var commandLine = ProcessEx.CommandLine(stranger);
+
+        await Assert.That(commandLine).IsNotNull();
+        await Assert.That(commandLine!).Contains("-NoProfile");
+        await Assert.That(commandLine).Contains(temp);
+        await Assert.That(ProcessEx.WasStartedFor(commandLine, temp)).IsTrue();
+    }
+
+    /// <summary>
+    /// A 32 bit process asked from a 64 bit one, which is most diff tools: they install under
+    /// Program Files (x86). The command line of one is in another place in its memory, which is
+    /// why it is asked for rather than read out of there.
+    /// </summary>
+    [Test]
+    public async Task TheCommandLineOfA32BitProcessIsRead()
+    {
+        var powershell = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.SystemX86),
+            @"WindowsPowerShell\v1.0\powershell.exe");
+        // Nothing to ask where there is no 32 bit side, or no 32 bit PowerShell on it
+        if (!Environment.Is64BitProcess ||
+            !File.Exists(powershell))
+        {
+            return;
+        }
+
+        using var process = new Process
+        {
+            StartInfo = new()
+            {
+                FileName = powershell,
+                Arguments = $"-NoProfile -Command \"[Console]::WriteLine('ready'); Start-Sleep -Seconds 60 # {temp}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            }
+        };
+        process.Start();
+        try
+        {
+            await process.StandardOutput.ReadLineAsync();
+
+            var commandLine = ProcessEx.CommandLine(process);
+
+            await Assert.That(ProcessEx.WasStartedFor(commandLine, temp)).IsTrue();
+        }
+        finally
+        {
+            process.Kill();
+            process.WaitForExit(5000);
+        }
+    }
+
+    [Test]
+    public async Task ACommandLineNamesAPathOnlyAsTheWholeOfAnArgument()
+    {
+        const string path = @"C:\temp\Sample.received.txt";
+
+        await Assert.That(ProcessEx.WasStartedFor($"\"tool.exe\" \"C:\\code\\Sample.verified.txt\" \"{path}\"", path)).IsTrue();
+        await Assert.That(ProcessEx.WasStartedFor($"\"tool.exe\" /left:\"{path}\" /right:\"C:\\code\\Sample.verified.txt\"", path)).IsTrue();
+        await Assert.That(ProcessEx.WasStartedFor($"tool.exe {path} other", path)).IsTrue();
+        await Assert.That(ProcessEx.WasStartedFor($"tool.exe {path.ToUpperInvariant()}", path)).IsTrue();
+        // Found first as the start of a longer path, and then as itself
+        await Assert.That(ProcessEx.WasStartedFor($"tool.exe \"{path}.bak\" \"{path}\"", path)).IsTrue();
+        await Assert.That(ProcessEx.WasStartedFor($"tool.exe \"{path}.bak\"", path)).IsFalse();
+        await Assert.That(ProcessEx.WasStartedFor("tool.exe \"C:\\temp\\Other.received.txt\"", path)).IsFalse();
+        await Assert.That(ProcessEx.WasStartedFor(null, path)).IsFalse();
+    }
+
+    /// <summary>
+    /// A second process running the image the first does, started with another file or with none.
+    /// </summary>
+    Process StartAnotherCopy(string? shows)
+    {
+        var locked = Path.Combine(directory, $"locked-{Guid.NewGuid():N}.txt");
+        File.WriteAllText(locked, "");
+        return FileLockUtils.StartFileLockProcess(locked, shows);
+    }
+
     [Test]
     public async Task AMoveNamingNoToolIsNotGivenAProcess()
     {
@@ -113,7 +268,8 @@ public class TrackerProcessImageTest :
         File.WriteAllText(target, "verified");
         var locked = Path.Combine(directory, "locked.txt");
         File.WriteAllText(locked, "");
-        stranger = FileLockUtils.StartFileLockProcess(locked);
+        // Started with the received file on its command line, as a diff tool showing the pair is
+        stranger = FileLockUtils.StartFileLockProcess(locked, shows: temp);
     }
 
     public void Dispose()

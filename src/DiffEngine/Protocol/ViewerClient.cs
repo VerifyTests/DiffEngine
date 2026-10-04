@@ -83,8 +83,9 @@ static class ViewerClient
     public static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
-    /// How long a port found with nothing listening stands as unowned, during which the sends
-    /// that only tell the owner something return without connecting.
+    /// How long a port a connect found nobody on stands as unowned, during which the sends that
+    /// only tell the owner something return without connecting. For a port the listener table
+    /// found empty it is <see cref="RecheckUnlistedAfter"/>.
     /// <para>
     /// A refused loopback connection is not free everywhere. Windows Firewall's stealth mode, on
     /// by default, drops the reset a closed port would answer with, so the connect sits through
@@ -94,27 +95,50 @@ static class ViewerClient
     /// connecting to nobody, and the same run took under a second with a tray answering.
     /// </para>
     /// <para>
-    /// Long, because a recheck buys almost nothing and is not free: those two seconds again where
-    /// it has to connect, and a read of the listener table where the operating system can be asked
-    /// instead (<see cref="NothingListening"/>). What the memory can delay is only a message the
-    /// owner did not have to receive: an entry to settle in a queue that did not exist when the
-    /// test failed, or a move to track in a tray that was not there to track it. Anything that has
-    /// to reach an owner - a patch, a delete, a pair - goes through the launch gate, whose
-    /// <see cref="IsOwned"/> probe always asks and corrects the memory with what it finds. Not the
-    /// life of the process only for a long lived consumer that is not a test host, launching diff
-    /// tools all day, where a tray started later would otherwise never see its moves until a
-    /// restart.
+    /// Long, because a recheck that has to connect buys almost nothing for those two seconds
+    /// again. What the memory can delay is only a message the owner did not have to receive: an
+    /// entry to settle in a queue that did not exist when the test failed, or a move to track in
+    /// a tray that was not there to track it. Anything that has to reach an owner - a patch, a
+    /// delete, a pair - goes through the launch gate, whose <see cref="IsOwned"/> probe always
+    /// asks and corrects the memory with what it finds. Not the life of the process only for a
+    /// long lived consumer that is not a test host, launching diff tools all day, where a tray
+    /// started later would otherwise never see its moves until a restart.
+    /// </para>
+    /// <para>
+    /// This is the wait wherever the connect is what answered: off Windows, on a Windows whose
+    /// listener table could not be read, and for a port held by something that is not a viewer.
     /// </para>
     /// </summary>
     internal static TimeSpan RecheckUnownedAfter { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// How long a port stands as unowned when it was the listener table that said nobody is
+    /// there (<see cref="NothingListening"/>), which is how Windows is asked wherever it can be.
+    /// <para>
+    /// A second, where the connect's answer stands for ten minutes, because asking again is a
+    /// read of the table, a tenth of a millisecond, rather than two seconds waiting to be
+    /// refused. So a tray or a viewer started after the test process is told of the settles and
+    /// moves that come a second after it is listening, where it was told of none for ten minutes.
+    /// </para>
+    /// <para>
+    /// Not nothing, because a green run settles once per verification, as fast as the tests
+    /// pass, and each would then read the table to learn what the one before it had: ten
+    /// thousand settles are over a second of that. At a second the reads are one a second however
+    /// many settles there are, a ten thousandth of the run. It is the same second an owner that
+    /// answered is trusted for (<see cref="TrustOwnerFor"/>), so what was found about a port is
+    /// believed for as long whichever way it went.
+    /// </para>
+    /// </summary>
+    internal static TimeSpan RecheckUnlistedAfter { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// How long a port that accepted a connection is connected to again without first asking the
     /// operating system whether anyone is there: see <see cref="NothingListening"/>.
     /// <para>
     /// For a run of settles to an owner that is there, which is a connection every third of a
-    /// millisecond. Each renews this, so none of them reads the listener table, which costs more
-    /// than the connect does. Short, because a send that comes a while after the last is the one
+    /// millisecond. Each renews this, so none of them reads the listener table, which costs as
+    /// much as the connect does, and several times that where the listeners cannot be asked for
+    /// alone. Short, because a send that comes a while after the last is the one
     /// most likely to find its owner gone, and asking is what spares that send its two seconds.
     /// </para>
     /// </summary>
@@ -124,13 +148,17 @@ static class ViewerClient
     /// What was last found on each port, and when, as a <see cref="Stopwatch"/> timestamp. Per
     /// port because tests talk to ephemeral ports of their own, in parallel, and what happened on
     /// those says nothing about the one live port on a developer machine.
+    /// <para>
+    /// And how it was found, for a port with nobody on it: by the listener table, which is cheap
+    /// to ask again, or by a connect, which is not.
+    /// </para>
     /// </summary>
-    static ConcurrentDictionary<int, (bool Owned, long At)> lastFound = new();
+    static ConcurrentDictionary<int, (bool Owned, long At, bool Unlisted)> lastFound = new();
 
     static bool RecentlyUnowned(int port) =>
         lastFound.TryGetValue(port, out var found) &&
         !found.Owned &&
-        Since(found.At) < RecheckUnownedAfter;
+        Since(found.At) < (found.Unlisted ? RecheckUnlistedAfter : RecheckUnownedAfter);
 
     static bool AnsweredLately(int port) =>
         lastFound.TryGetValue(port, out var found) &&
@@ -146,7 +174,14 @@ static class ViewerClient
     /// can talk to, and a port any of them found empty is what the memory is for.
     /// </summary>
     static void Found(int port, bool owned) =>
-        lastFound[port] = (owned, Stopwatch.GetTimestamp());
+        lastFound[port] = (owned, Stopwatch.GetTimestamp(), false);
+
+    /// <summary>
+    /// <see cref="Found"/> for a port the listener table has nobody on, which stands for less
+    /// long: see <see cref="RecheckUnlistedAfter"/>.
+    /// </summary>
+    static void FoundUnlisted(int port) =>
+        lastFound[port] = (false, Stopwatch.GetTimestamp(), true);
 
     /// <summary>
     /// Whether a connect to <paramref name="port"/> would only be a wait to be refused: the
@@ -167,7 +202,7 @@ static class ViewerClient
     /// Only on Windows, which is where the refusal is slow. Elsewhere it arrives at once, so the
     /// connect is the cheaper question as well as the one whose answer cannot be wrong. And not
     /// for a port that accepted a connection within <see cref="TrustOwnerFor"/>, where the table
-    /// would cost more than the connect it stands in front of.
+    /// would cost as much as the connect it stands in front of.
     /// </para>
     /// </summary>
     static bool NothingListening(int port) =>
@@ -191,9 +226,14 @@ static class ViewerClient
     {
         lastFound.Clear();
         reportedForeign.Clear();
-        lock (keptGate)
+        lock (telling.Gate)
         {
-            DropKept();
+            telling.Drop();
+        }
+
+        lock (listing.Gate)
+        {
+            listing.Drop();
         }
     }
 
@@ -260,7 +300,7 @@ static class ViewerClient
         var endpointPort = port ?? Port;
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return false;
         }
 
@@ -273,11 +313,36 @@ static class ViewerClient
         catch (Exception exception)
             when (Ignorable(exception))
         {
-            owned = false;
+            if (NobodyThere(exception))
+            {
+                Found(endpointPort, false);
+            }
+
+            return false;
         }
 
         Found(endpointPort, owned);
         return owned;
+    }
+
+    /// <summary>
+    /// Whether a connect that failed says nobody is on the port, which is the only failure the
+    /// memory of an unowned port is for: the port refused it, or never answered.
+    /// <para>
+    /// A connect also fails when the machine cannot make one at all - it has no ports left to
+    /// connect from, or no buffers - and that says nothing of who is listening. Taken for an
+    /// empty port, it had every settle and move after it skipped for ten minutes with the owner
+    /// still there, on exactly the machine a kept connection was meant to help. Which error a
+    /// machine gives when it runs out differs by platform and was never pinned down for Windows,
+    /// so this names the two that do mean nobody and takes everything else as not known.
+    /// </para>
+    /// </summary>
+    internal static bool NobodyThere(Exception exception)
+    {
+        var socket = exception as SocketException ??
+                     exception.InnerException as SocketException ??
+                     exception.InnerException?.InnerException as SocketException;
+        return socket?.SocketErrorCode is SocketError.ConnectionRefused or SocketError.TimedOut;
     }
 
     /// <summary>
@@ -303,22 +368,22 @@ static class ViewerClient
     /// </summary>
     internal static bool Tell(ViewerMessage message, int port)
     {
-        switch (SendKept(message, port, out var ok))
+        switch (SendKept(telling, message, port, timeout, out var response))
         {
             case KeptSend.Answered:
-                return ok;
+                return response!.Ok;
             case KeptSend.Unanswered:
                 return false;
         }
 
-        if (!Exchange(message, out var response, out var keeps, port, null, skipIfUnowned: true))
+        if (!Exchange(message, out response, out var keeps, port, null, skipIfUnowned: true))
         {
             return false;
         }
 
         if (keeps)
         {
-            KeepConnection(port);
+            KeepConnection(telling, port);
         }
 
         return response.Ok;
@@ -328,7 +393,8 @@ static class ViewerClient
     {
         /// <summary>
         /// No connection is kept to that port, or the one that was has gone, as it does when its
-        /// owner exits. The ordinary exchange is what finds out who is there now.
+        /// owner exits. The ordinary exchange is what finds out who is there now. Or the one
+        /// kept is in the middle of someone else's exchange and this send does not wait for it.
         /// </summary>
         NotKept,
 
@@ -345,27 +411,108 @@ static class ViewerClient
         IDisposable
     {
         public int Port { get; } = port;
+        public IntPtr Handle => client.Client.Handle;
         public NetworkStream Stream { get; } = client.GetStream();
         public StreamReader Reader { get; } = new(client.GetStream(), Encoding.UTF8);
+
+        /// <summary>
+        /// How long the next request waits to be written and answered, which is its caller's to
+        /// say: a tray's timer asks with half a second and a window's listing with fifteen.
+        /// </summary>
+        public void Allow(TimeSpan wait) =>
+            Configure(client, wait);
 
         public void Dispose() =>
             client.Close();
     }
 
     /// <summary>
-    /// Held for the whole of an exchange on the kept connection, which is one request and its
-    /// answer at a time. A parallel run's settles take turns at it, each for about as long as
-    /// the owner takes to answer.
+    /// A connection that is kept, and whose turn it is on it.
+    /// <para>
+    /// The gate is held for the whole of an exchange on the connection, which is one request and
+    /// its answer at a time. <see cref="Queues"/> is what a send does when it finds the gate held.
+    /// </para>
     /// </summary>
-    static readonly object keptGate = new();
-
-    static KeptConnection? kept;
-
-    static KeptSend SendKept(ViewerMessage message, int port, out bool ok)
+    sealed class KeptSlot(bool queues)
     {
-        ok = false;
-        lock (keptGate)
+        public readonly object Gate = new();
+
+        public KeptConnection? Connection;
+
+        /// <summary>
+        /// Whether a send waits its turn, or leaves the connection to whoever has it and makes
+        /// one of its own.
+        /// </summary>
+        public bool Queues { get; } = queues;
+
+        /// <summary>
+        /// Called with the gate held.
+        /// </summary>
+        public void Drop()
         {
+            Connection?.Dispose();
+            Connection = null;
+        }
+    }
+
+    /// <summary>
+    /// The connection the telling sends go down. A parallel run's settles take turns at it, each
+    /// for about as long as the owner takes to answer.
+    /// </summary>
+    static readonly KeptSlot telling = new(queues: true);
+
+    /// <summary>
+    /// The connection the listings go down: see <see cref="Lists"/>. One of its own, because the
+    /// owner answers a connection's requests in turn, and a listing an owner is slow to answer
+    /// would otherwise stand in front of every settle the process sent behind it. And not waited
+    /// for, because the callers are a timer and a window that each list on their own clock, with
+    /// waits of their own: a listing that finds another in flight is a connection each, as every
+    /// listing used to be.
+    /// </summary>
+    static readonly KeptSlot listing = new(queues: false);
+
+    /// <summary>
+    /// The socket of the kept telling connection, or null with none kept. For the test of whether
+    /// a child process would be handed it, which is a property of the handle and of nothing an
+    /// exchange shows.
+    /// </summary>
+    internal static IntPtr? KeptHandle
+    {
+        get
+        {
+            lock (telling.Gate)
+            {
+                return telling.Connection?.Handle;
+            }
+        }
+    }
+
+    static KeptSend SendKept(
+        KeptSlot slot,
+        ViewerMessage message,
+        int port,
+        TimeSpan wait,
+        out ViewerResponse? response)
+    {
+        response = null;
+        var entered = false;
+        try
+        {
+            if (slot.Queues)
+            {
+                Monitor.Enter(slot.Gate, ref entered);
+            }
+            else
+            {
+                Monitor.TryEnter(slot.Gate, ref entered);
+            }
+
+            if (!entered)
+            {
+                return KeptSend.NotKept;
+            }
+
+            var kept = slot.Connection;
             if (kept is null)
             {
                 return KeptSend.NotKept;
@@ -373,12 +520,13 @@ static class ViewerClient
 
             if (kept.Port != port)
             {
-                DropKept();
+                slot.Drop();
                 return KeptSend.NotKept;
             }
 
             try
             {
+                kept.Allow(wait);
                 var bytes = Encoding.UTF8.GetBytes($"{message.Build()}\n");
                 kept.Stream.Write(bytes, 0, bytes.Length);
                 kept.Stream.Flush();
@@ -391,23 +539,29 @@ static class ViewerClient
                 }
 
                 if (line is not null &&
-                    ViewerResponse.TryParse(reply.ToString(), out var response))
+                    ViewerResponse.TryParse(reply.ToString(), out response))
                 {
                     Found(port, true);
-                    ok = response.Ok;
                     return KeptSend.Answered;
                 }
 
                 // Closed by the owner, which is an owner that stopped or exited since the last
                 // send. Whoever holds the port now is for the ordinary exchange to find
-                DropKept();
+                slot.Drop();
                 return KeptSend.NotKept;
             }
             catch (Exception exception)
                 when (Ignorable(exception))
             {
-                DropKept();
+                slot.Drop();
                 return TimedOut(exception) ? KeptSend.Unanswered : KeptSend.NotKept;
+            }
+        }
+        finally
+        {
+            if (entered)
+            {
+                Monitor.Exit(slot.Gate);
             }
         }
     }
@@ -422,27 +576,46 @@ static class ViewerClient
         };
 
     /// <summary>
-    /// Opens the connection the telling sends after this one go down, to an owner whose reply
-    /// has just said it keeps one. Failing to is nothing: the next send is an ordinary exchange,
-    /// and tries again on the strength of its own reply.
+    /// Opens the connection the sends after this one go down, to an owner whose reply has just
+    /// said it keeps one. Failing to is nothing: the next send is an ordinary exchange, and
+    /// tries again on the strength of its own reply. So is finding the gate held, on a slot
+    /// nothing waits for: whoever holds it has the connection, or is opening it.
     /// </summary>
-    static void KeepConnection(int port)
+    static void KeepConnection(KeptSlot slot, int port)
     {
-        lock (keptGate)
+        var entered = false;
+        try
         {
-            if (kept is not null)
+            if (slot.Queues)
             {
-                if (kept.Port == port)
+                Monitor.Enter(slot.Gate, ref entered);
+            }
+            else
+            {
+                Monitor.TryEnter(slot.Gate, ref entered);
+            }
+
+            if (!entered)
+            {
+                return;
+            }
+
+            if (slot.Connection is not null)
+            {
+                if (slot.Connection.Port == port)
                 {
                     return;
                 }
 
-                DropKept();
+                slot.Drop();
             }
 
             var client = new TcpClient();
             try
             {
+#if NETFRAMEWORK
+                KeepFromChildren(client);
+#endif
                 if (!Connect(client, port, ShortTimeout))
                 {
                     client.Close();
@@ -457,7 +630,7 @@ static class ViewerClient
                 var bytes = Encoding.UTF8.GetBytes($"{ViewerServer.Keep}\n");
                 connection.Stream.Write(bytes, 0, bytes.Length);
                 connection.Stream.Flush();
-                kept = connection;
+                slot.Connection = connection;
             }
             catch (Exception exception)
                 when (Ignorable(exception))
@@ -465,13 +638,68 @@ static class ViewerClient
                 client.Close();
             }
         }
+        finally
+        {
+            if (entered)
+            {
+                Monitor.Exit(slot.Gate);
+            }
+        }
     }
 
-    static void DropKept()
+    /// <summary>
+    /// Whether a message only reads the queue, so that it can go down a kept connection as the
+    /// telling sends do.
+    /// <para>
+    /// The listings are the asking sends there are many of: a window showing an owner's queue
+    /// lists five times a second for as long as it is open, and a tray driving one lists on a
+    /// timer, each a connection whose port then waited out TIME_WAIT. And they are the ones that
+    /// can be asked again. A request written to a kept connection whose owner has just gone is
+    /// sent a second time as an ordinary exchange, since nothing says whether the first was
+    /// acted on, and for a listing that is harmless. An accept or a discard asked twice is not,
+    /// so everything that changes the queue, and the async send, is still a connection each.
+    /// </para>
+    /// </summary>
+    static bool Lists(ViewerMessage message) =>
+        message.Verb is ViewerVerb.List or ViewerVerb.ListFull;
+
+#if NETFRAMEWORK
+    /// <summary>
+    /// Marks the socket of a connection about to be kept as one a child process does not get.
+    /// <para>
+    /// .NET Framework makes its sockets inheritable, and a process started without ShellExecute
+    /// is given every inheritable handle its parent has. The kept connection is open for as long
+    /// as the test process is, so any child a test started that way - a server under test, a
+    /// tool - took a handle to it, and the connection then stayed open in the owner until that
+    /// child had exited too, however the test host ended. Run with a child that lived eight
+    /// seconds, the owner saw the connection close eight seconds after the host was gone, and at
+    /// once with the flag cleared. Later runtimes make their sockets uninheritable themselves.
+    /// </para>
+    /// <para>
+    /// Before the connect, on the socket the parameterless constructor has already made here, so
+    /// that the moment a child could still take it is the few instructions in between. Only the
+    /// kept connection: an exchange on a connection of its own ends by shutting down its sending
+    /// half, which reaches the owner whoever else holds the handle.
+    /// </para>
+    /// </summary>
+    static void KeepFromChildren(TcpClient client)
     {
-        kept?.Dispose();
-        kept = null;
+        try
+        {
+            SetHandleInformation(client.Client.Handle, handleFlagInherit, 0);
+        }
+        catch (Exception exception)
+            // .NET Framework's shape on another runtime, with no kernel32 to ask
+            when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+        }
     }
+
+    const int handleFlagInherit = 1;
+
+    [DllImport("kernel32.dll")]
+    static extern bool SetHandleInformation(IntPtr handle, int mask, int flags);
+#endif
 
     /// <summary>
     /// True when a reply arrived and parsed, whatever it says. Callers that need the body, such as
@@ -487,14 +715,44 @@ static class ViewerClient
     /// and a listing answered from what was found ten minutes ago is a listing that misses one.
     /// The library's own sends pass true.
     /// </para>
+    /// <para>
+    /// A listing goes down a connection that is kept, where the owner keeps one and no other
+    /// listing is using it: see <see cref="Lists"/>. Everything else is a connection of its own.
+    /// </para>
     /// </summary>
     public static bool TrySend(
         ViewerMessage message,
         [NotNullWhen(true)] out ViewerResponse? response,
         int? port = null,
         TimeSpan? wait = null,
-        bool skipIfUnowned = false) =>
-        Exchange(message, out response, out _, port, wait, skipIfUnowned);
+        bool skipIfUnowned = false)
+    {
+        if (!Lists(message))
+        {
+            return Exchange(message, out response, out _, port, wait, skipIfUnowned);
+        }
+
+        var endpointPort = port ?? Port;
+        switch (SendKept(listing, message, endpointPort, wait ?? timeout, out response))
+        {
+            case KeptSend.Answered:
+                return response is not null;
+            case KeptSend.Unanswered:
+                return false;
+        }
+
+        if (!Exchange(message, out response, out var keeps, port, wait, skipIfUnowned))
+        {
+            return false;
+        }
+
+        if (keeps)
+        {
+            KeepConnection(listing, endpointPort);
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// The ordinary exchange: a connection of its own, the request ended by closing the sending
@@ -521,7 +779,7 @@ static class ViewerClient
 
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return false;
         }
 
@@ -560,9 +818,11 @@ static class ViewerClient
         catch (Exception exception)
             when (Ignorable(exception))
         {
-            // Only a connect that failed says the port is unowned. A connection that was accepted
-            // and then torn down is an owner behaving badly, which is not what the memory records
-            if (!connected)
+            // Only a connect that was refused says the port is unowned. A connection that was
+            // accepted and then torn down is an owner behaving badly, and a connect the machine
+            // could not make is no answer about the port, neither of which the memory records
+            if (!connected &&
+                NobodyThere(exception))
             {
                 Found(endpointPort, false);
             }
@@ -621,7 +881,7 @@ static class ViewerClient
 
         if (NothingListening(endpointPort))
         {
-            Found(endpointPort, false);
+            FoundUnlisted(endpointPort);
             return SendOutcome.NoOwner;
         }
 
@@ -717,9 +977,11 @@ static class ViewerClient
         catch (Exception exception)
             when (exception is not OperationCanceledException && Ignorable(exception))
         {
-            // As on the synchronous overload: a connect that failed is an unowned port, and an
-            // accepted connection that fell over afterwards is not
-            if (!connected)
+            // As on the synchronous overload: a connect that was refused is an unowned port, and
+            // neither an accepted connection that fell over afterwards nor a connect the machine
+            // could not make is
+            if (!connected &&
+                NobodyThere(exception))
             {
                 Found(endpointPort, false);
             }

@@ -17,19 +17,32 @@ public class ViewerClientUnownedTests
     // static constructor that runs on first touching a static field, and TheMemoryExpires sets the
     // value before it touches one, so running first it captured Zero for every test after it.
     static TimeSpan recheckUnownedAfter;
+    static TimeSpan recheckUnlistedAfter;
 
     [Before(Class)]
-    public static void Remember() =>
+    public static void Remember()
+    {
         recheckUnownedAfter = ViewerClient.RecheckUnownedAfter;
+        recheckUnlistedAfter = ViewerClient.RecheckUnlistedAfter;
+    }
 
+    /// <summary>
+    /// What the listener table found stands for a second, which a loaded machine can spend
+    /// between two lines of a test. Most of these are about there being a memory at all, so for
+    /// them it stands as long as a connect's answer does, and the ones about how long say so.
+    /// </summary>
     [Before(Test)]
-    public void Forget() =>
+    public void Forget()
+    {
+        ViewerClient.RecheckUnlistedAfter = recheckUnownedAfter;
         ViewerClient.ForgetUnowned();
+    }
 
     [After(Test)]
     public void Restore()
     {
         ViewerClient.RecheckUnownedAfter = recheckUnownedAfter;
+        ViewerClient.RecheckUnlistedAfter = recheckUnlistedAfter;
         ViewerClient.ForgetUnowned();
     }
 
@@ -102,12 +115,69 @@ public class ViewerClientUnownedTests
     public async Task TheMemoryExpires()
     {
         ViewerClient.RecheckUnownedAfter = TimeSpan.Zero;
+        ViewerClient.RecheckUnlistedAfter = TimeSpan.Zero;
         var port = FreePort();
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
 
         using var owner = new Owner(port);
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsTrue();
         await Assert.That(owner.Heard.Count).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A tray started after the test process, with everything as shipped: the telling sends find
+    /// it within moments, with nothing asking on their behalf. Where the listener table is what
+    /// said the port was empty, asking it again costs a tenth of a millisecond, so there is no
+    /// reason to go ten minutes on the old answer - which is how long the tray used to hear
+    /// nothing of the run's settles and moves.
+    /// <para>
+    /// Waited for rather than timed. What is held to is that it happens while a test would still
+    /// be running, and the limit is far short of the ten minutes it replaces.
+    /// </para>
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AnOwnerStartedLaterIsFoundByTheTellingSends()
+    {
+        ViewerClient.RecheckUnlistedAfter = recheckUnlistedAfter;
+        var port = FreePort();
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+
+        using var owner = new Owner(port);
+        var elapsed = Stopwatch.StartNew();
+        var found = false;
+        while (!found &&
+               elapsed.Elapsed < TimeSpan.FromSeconds(60))
+        {
+            found = ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
+            if (!found)
+            {
+                await Task.Delay(50);
+            }
+        }
+
+        await Assert.That(found).IsTrue();
+    }
+
+    /// <summary>
+    /// The shorter wait is only for what the table said. A port a connect found nobody on - here
+    /// because the table could not be read - is one where asking again is the connect again, two
+    /// seconds of it on Windows, so that answer stands as it always did.
+    /// </summary>
+    [Test]
+    public async Task APortAConnectFoundEmptyIsNotAskedAboutAgainSoSoon()
+    {
+        ViewerClient.RecheckUnlistedAfter = TimeSpan.Zero;
+        var port = FreePort();
+        using var unreadable = new Lookup(port)
+        {
+            Unreadable = true
+        };
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+
+        using var owner = new Owner(port);
+        await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
+        await Assert.That(owner.Heard).IsEmpty();
     }
 
     /// <summary>
@@ -163,23 +233,30 @@ public class ViewerClientUnownedTests
     /// operating system knows nobody is listening without anything being connected, so where that
     /// refusal is slow it is asked first.
     /// <para>
-    /// A bound of half what the connect takes to be refused, around something that takes well
-    /// under a millisecond.
+    /// Shown by what the send does rather than by how long it takes, which on a loaded two core
+    /// machine is whatever the machine says. An owner is listening on the port and the table is
+    /// made to say nobody is: a send that connected would be answered, and heard, and one that
+    /// took the table's word is neither. That the real table says so of a port nobody listens on
+    /// is ListenerTableTests' half.
     /// </para>
     /// </summary>
     [Test]
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task APortNobodyHoldsIsNotWaitedOn()
     {
-        var port = FreePort();
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
 
-        var elapsed = Stopwatch.StartNew();
-        var sent = ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true);
-        elapsed.Stop();
+        var sent = ViewerClient.TrySend(settle, out _, owner.Port, skipIfUnowned: true);
 
         await Assert.That(sent).IsFalse();
-        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
-        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+        await Assert.That(unlisted.Asked).IsEqualTo(1);
+        await Assert.That(owner.Heard).IsEmpty();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
+        await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsTrue();
     }
 
     /// <inheritdoc cref="APortNobodyHoldsIsNotWaitedOn" />
@@ -187,15 +264,34 @@ public class ViewerClientUnownedTests
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task APortNobodyHoldsIsNotWaitedOnAsync()
     {
-        var port = FreePort();
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
 
-        var elapsed = Stopwatch.StartNew();
-        var outcome = await ViewerClient.SendAsync(settle, Cancel.None, port, skipIfUnowned: true);
-        elapsed.Stop();
+        var outcome = await ViewerClient.SendAsync(settle, Cancel.None, owner.Port, skipIfUnowned: true);
 
         await Assert.That(outcome).IsEqualTo(SendOutcome.NoOwner);
-        await Assert.That(elapsed.Elapsed).IsLessThan(TimeSpan.FromSeconds(1));
-        await Assert.That(ViewerClient.FoundUnowned(port)).IsTrue();
+        await Assert.That(unlisted.Asked).IsEqualTo(1);
+        await Assert.That(owner.Heard).IsEmpty();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
+        await Assert.That(ViewerClient.FoundUnowned(owner.Port)).IsTrue();
+    }
+
+    /// <inheritdoc cref="APortNobodyHoldsIsNotWaitedOn" />
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task APortNobodyHoldsIsNotProbed()
+    {
+        using var owner = new Owner();
+        using var unlisted = new Lookup(owner.Port)
+        {
+            Unlisted = true
+        };
+
+        await Assert.That(ViewerClient.IsOwned(owner.Port)).IsFalse();
+        await Assert.That(owner.Accepted).IsEqualTo(0);
     }
 
     /// <summary>
@@ -305,10 +401,63 @@ public class ViewerClientUnownedTests
     }
 
     /// <summary>
+    /// The memory is of ports nobody is on, and only two failures of a connect say that: it was
+    /// refused, or it was never answered. A machine with no ports left to connect from fails
+    /// every connect too, with an owner listening the whole time, and remembering that as an
+    /// empty port silenced every settle and move for ten minutes.
+    /// </summary>
+    [Test]
+    public async Task OnlyARefusalSaysNobodyIsThere()
+    {
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.ConnectionRefused))).IsTrue();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.TimedOut))).IsTrue();
+        // How the synchronous connect reports it, which waits on a task
+        await Assert.That(ViewerClient.NobodyThere(new AggregateException(Failed(SocketError.ConnectionRefused)))).IsTrue();
+
+        // What running out looks like: the first two on Windows, the third on Linux
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.NoBufferSpaceAvailable))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.AddressAlreadyInUse))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.AddressNotAvailable))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(Failed(SocketError.TooManyOpenSockets))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(new AggregateException(Failed(SocketError.NoBufferSpaceAvailable)))).IsFalse();
+        await Assert.That(ViewerClient.NobodyThere(new ObjectDisposedException("socket"))).IsFalse();
+
+        static SocketException Failed(SocketError error) =>
+            new((int) error);
+    }
+
+    /// <summary>
+    /// The same through a real connect that fails without being refused, which a machine out of
+    /// ports cannot be made to give without running the machine out. Port zero does: Windows
+    /// fails a connect to it at once, as an address that is not valid, and that is no more a
+    /// statement about who is listening than a full port table is. The table is made unreadable
+    /// so that the connect is reached at all.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AConnectThatCouldNotBeMadeSaysNothingAboutThePort()
+    {
+        using var unreadable = new Lookup(0)
+        {
+            Unreadable = true
+        };
+
+        await Assert.That(ViewerClient.TrySend(settle, out _, 0, skipIfUnowned: true)).IsFalse();
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+
+        await Assert.That(await ViewerClient.SendAsync(settle, Cancel.None, 0, skipIfUnowned: true))
+            .IsEqualTo(SendOutcome.NoOwner);
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+
+        await Assert.That(ViewerClient.IsOwned(0)).IsFalse();
+        await Assert.That(ViewerClient.FoundUnowned(0)).IsFalse();
+    }
+
+    /// <summary>
     /// Stands in front of the listener table for the ports a test names, counting how often each
-    /// was asked about and, when told to, failing the way a table that cannot be read does. Every
-    /// other port goes through untouched, since the tests beside this one are asking about theirs
-    /// at the same time.
+    /// was asked about and, when told to, failing the way a table that cannot be read does, or
+    /// saying nobody listens there whoever does. Every other port goes through untouched, since
+    /// the tests beside this one are asking about theirs at the same time.
     /// </summary>
     sealed class Lookup : IDisposable
     {
@@ -324,6 +473,8 @@ public class ViewerClientUnownedTests
 
         public bool Unreadable { get; init; }
 
+        public bool Unlisted { get; init; }
+
         public int Asked => Volatile.Read(ref asked);
 
         bool Answer(int port)
@@ -337,6 +488,11 @@ public class ViewerClientUnownedTests
             if (Unreadable)
             {
                 throw new System.Net.NetworkInformation.NetworkInformationException();
+            }
+
+            if (Unlisted)
+            {
+                return false;
             }
 
             return previous(port);
@@ -395,6 +551,11 @@ public class ViewerClientUnownedTests
         }
 
         public int Port => server.Port;
+
+        /// <summary>
+        /// How many connections were made, which a probe is and says nothing down.
+        /// </summary>
+        public int Accepted => server.Accepted;
 
         public IReadOnlyList<ViewerVerb> Heard
         {

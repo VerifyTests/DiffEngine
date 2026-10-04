@@ -78,6 +78,64 @@ public class SessionEndWindowTest
         }
     }
 
+    /// <summary>
+    /// The version marker says a tray is running, and a clean exit removes it. A logoff reached
+    /// none of that, so the marker outlived the tray: only an owning tray was listening for the
+    /// session ending at all, and what it did then was stage its queue and nothing else.
+    /// <para>
+    /// The removal is handed in, as Program hands in the real one, so nothing here touches the
+    /// marker of a tray running on this machine.
+    /// </para>
+    /// </summary>
+    [Test]
+    public async Task ATrayThatDoesNotOwnTheQueueRemovesItsMarkerAsTheSessionEnds()
+    {
+        var removed = 0;
+        using (var window = new SessionEndWindow(Program.SessionEnding(null, () => removed++)))
+        {
+            SendMessage(window.Handle, queryEndSession, IntPtr.Zero, logoff);
+            SendMessage(window.Handle, endSession, new(1), logoff);
+        }
+
+        await Assert.That(removed).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AnOwningTrayStagesItsQueueAndThenRemovesItsMarker()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"tray-session-end-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var host = OwnedInlineHost.TryOwn(_ => { }, new FakeLauncher(), 0) ??
+                   throw new("Could not bind an ephemeral port.");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "Sample.csproj"), "<Project />");
+            var source = Path.Combine(directory, "SampleTests.cs");
+            await File.WriteAllTextAsync(source, "// sample");
+            host.Start();
+            await Assert.That(Send(host, source).Ok).IsTrue();
+            var staging = Path.Combine(directory, "obj", InlineStaging.DirectoryName);
+            bool? stagedWhenRemoved = null;
+
+            using (var window = new SessionEndWindow(
+                       Program.SessionEnding(
+                           host,
+                           () => stagedWhenRemoved = Directory.Exists(staging) &&
+                                                     Directory.GetFiles(staging).Any(_ => _.EndsWith(".inlinepatch")))))
+            {
+                SendMessage(window.Handle, queryEndSession, IntPtr.Zero, logoff);
+                SendMessage(window.Handle, endSession, new(1), logoff);
+            }
+
+            await Assert.That(stagedWhenRemoved).IsTrue();
+        }
+        finally
+        {
+            await host.DisposeAsync();
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     static void EndSession(OwnedInlineHost host)
     {
         using var window = new SessionEndWindow(host.SessionEnding);

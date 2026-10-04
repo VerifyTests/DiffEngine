@@ -10,26 +10,17 @@ sealed class ViewerForm : Form
         Dock = DockStyle.Fill
     };
 
-    readonly FlowLayoutPanel buttonRow = new()
-    {
-        Dock = DockStyle.Left,
-        AutoSize = true,
-        WrapContents = false,
-        Margin = Padding.Empty
-    };
-
     readonly Label status = new()
     {
         Name = "status",
-        Dock = DockStyle.Fill,
         TextAlign = ContentAlignment.MiddleRight,
         ForeColor = Palette.Dim,
         AutoSize = false,
-        // A status too long for what the buttons leave wraps, and the label has the height for two
-        // lines. The rest was cut with nothing to say so, and the status line is where the model
-        // says what no picture can. With this the cut ends in an ellipsis, and the label shows the
-        // whole status as a tip when the pointer rests on it. It is cut from the end either way:
-        // the lines kept are the first two, so right aligned still keeps the start.
+        // The status line is where the model says what no picture can, and one that has not the
+        // room is given a line of its own, and more lines when one is not enough: see
+        // LayOutFooter. Past the most lines it is given, the cut ends in an ellipsis, and the
+        // label shows the whole status as a tip when the pointer rests on it. It is cut from the
+        // end: the lines kept are the first ones.
         AutoEllipsis = true,
         // The status line is built from paths, solution names and whatever the applier said, and a
         // Label reads an ampersand in any of those as a mnemonic: "R&D" drew as "R_D" with D live
@@ -64,10 +55,9 @@ sealed class ViewerForm : Form
     };
 
     /// <summary>
-    /// Height is set from the display, not here. Forty logical pixels is a hair over what a
-    /// button needs at 100%, and scaling that button without scaling the panel leaves an AutoSize
-    /// row docked inside something too short for it, which is a layout fight rather than a clipped
-    /// button.
+    /// Height is set from the display and from what is in it, not here: see
+    /// <see cref="LayOutFooter"/>. Its padding is where that puts things, since nothing in it is
+    /// docked.
     /// </summary>
     readonly Panel footer = new()
     {
@@ -165,7 +155,11 @@ sealed class ViewerForm : Form
         KeyPreview = true;
 
         footer.Controls.Add(status);
-        footer.Controls.Add(buttonRow);
+        // How many rows the buttons make is a matter of the window's width. Asked as the surface
+        // is about to dock what is in it, which is before the footer has its new width and in
+        // time for the height this comes to: set once the footer had been docked, it was the
+        // old height that the docking kept.
+        Surface.Layout += (_, _) => LayOutFooter();
 
         // Everything lives in one filling panel so a capture can take the client area alone. Going
         // through the form would include the title bar, which is themed by the OS and would make a
@@ -232,6 +226,19 @@ sealed class ViewerForm : Form
             }
         };
     }
+
+    /// <summary>
+    /// Shown without being made the window the keyboard goes to. For a form that is shown only
+    /// so that it will paint and take messages, somewhere nobody can see it: a capture, and the
+    /// tests that post input to one. Shown as a window ordinarily is, it took the keyboard from
+    /// whatever the person at the machine was typing into for as long as it was up, and what
+    /// they typed next was this window's commands.
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Parked { get; set; }
+
+    protected override bool ShowWithoutActivation =>
+        Parked;
 
     /// <summary>
     /// Once the handle exists, because DeviceDpi is only meaningful then, and again whenever the
@@ -503,9 +510,135 @@ sealed class ViewerForm : Form
 
     void ScaleChrome()
     {
-        footer.Height = LogicalToDeviceUnits(40);
+        LayOutFooter();
         scrollBar.Width = SystemInformation.GetVerticalScrollBarWidthForDpi(DeviceDpi);
     }
+
+    /// <summary>
+    /// What a footer of one row of buttons takes, in logical pixels. A hair over what a button
+    /// needs at 100%, and scaled with the display: scaling the button without scaling the footer
+    /// left a row inside something too short for it.
+    /// </summary>
+    const int footerRow = 40;
+
+    /// <summary>
+    /// The most lines a status is given. One that needs more is the applier's or a decoder's
+    /// message at length, in a window narrow enough that the footer would be most of it.
+    /// </summary>
+    const int statusLines = 3;
+
+    /// <summary>
+    /// Whether the status is on a line of its own, under the buttons.
+    /// </summary>
+    bool statusBelow;
+
+    bool layingOut;
+
+    /// <summary>
+    /// Where the buttons and the status go, and how tall that makes the footer. As the other two
+    /// heads lay theirs out: the buttons wrap onto another row where the window is too narrow for
+    /// one, and the status goes beside the last row of them when it fits there on one line, and
+    /// under them when it does not, on as many lines as it needs up to <see cref="statusLines"/>.
+    /// It was a label in whatever one row of buttons left, two lines high: buttons past the
+    /// window's edge could not be reached at all, and a status had the width of a few words to
+    /// say what it does in a sentence.
+    /// <para>
+    /// A taller footer hides nothing. It is docked under the canvas, which is that much shorter
+    /// and reports that many fewer rows, so the next screen is sliced for what is left.
+    /// </para>
+    /// <para>
+    /// The label is as tall as the lines it is given at the font the display scales it to, and
+    /// they start at its top. Two lines high whatever it held, and centred, a status of more
+    /// lines than that showed the middle of itself.
+    /// </para>
+    /// </summary>
+    void LayOutFooter()
+    {
+        // Setting the footer's height has the surface lay itself out, which is what asks for this
+        if (layingOut)
+        {
+            return;
+        }
+
+        layingOut = true;
+        footer.SuspendLayout();
+        try
+        {
+            var padding = footer.Padding;
+            // A row: a button and the space under it. One of them is the footer as it always was
+            var row = LogicalToDeviceUnits(footerRow) - padding.Vertical;
+            // The surface's width, which is what the footer is docked across
+            var inner = Math.Max(1, Surface.ClientSize.Width - padding.Horizontal);
+
+            // Where the row being filled starts, and how far along it the last button reaches,
+            // with the gap after it
+            var top = 0;
+            var reach = 0;
+            for (var index = 0; index < shownButtons; index++)
+            {
+                var button = pool[index];
+                // Sized to the label it has now, and no smaller than a button always was
+                var size = button.GetPreferredSize(Size.Empty);
+                if (index > 0 &&
+                    reach + size.Width > inner)
+                {
+                    top += row;
+                    reach = 0;
+                }
+
+                button.Bounds = new(padding.Left + reach, padding.Top + top, size.Width, size.Height);
+                reach += size.Width + buttonGap;
+            }
+
+            var room = inner - reach;
+            var line = status.GetPreferredSize(Size.Empty);
+            statusBelow = shownButtons > 0 &&
+                          status.Text.Length > 0 &&
+                          line.Width + Reluctance(line) > room;
+            if (!statusBelow)
+            {
+                status.TextAlign = ContentAlignment.MiddleRight;
+                status.Bounds = new(padding.Left + reach, padding.Top + top, Math.Max(0, room), row);
+                footer.Height = padding.Top + top + row + padding.Bottom;
+                return;
+            }
+
+            var wrapped = status.GetPreferredSize(new(inner, 0)).Height;
+            var height = Math.Min(Math.Max(wrapped, line.Height), line.Height * statusLines);
+            // One line ends where the buttons' row would have ended it. More than one is read
+            // from the left, as a paragraph is
+            status.TextAlign = height > line.Height ? ContentAlignment.TopLeft : ContentAlignment.TopRight;
+            status.Bounds = new(padding.Left, padding.Top + top + row, inner, height);
+            footer.Height = padding.Top + top + row + height + padding.Bottom;
+        }
+        finally
+        {
+            footer.ResumeLayout();
+            layingOut = false;
+        }
+    }
+
+    /// <summary>
+    /// How much more room than it needs a status under the buttons has to see beside them before
+    /// it goes back there. What a status says can turn on how many rows the body has, "lines 1-9
+    /// of 40" against "lines 1-10", and the body has a row more with the status beside the
+    /// buttons than under them: a status a digit either side of what fits would have changed
+    /// places on every frame. Not in a capture, which is one frame and has to come out the same
+    /// whatever the window drew before it.
+    /// </summary>
+    int Reluctance(Size line) =>
+        statusBelow && !Synchronous ? line.Height * 2 : 0;
+
+    /// <summary>
+    /// Between one button and the next, which is not scaled: it never was.
+    /// </summary>
+    const int buttonGap = 6;
+
+    /// <summary>
+    /// How many of <see cref="pool"/> the screen has a button for. The rest are hidden, and a
+    /// button's own Visible cannot be asked: it answers for its window as well.
+    /// </summary>
+    int shownButtons;
 
     /// <summary>
     /// Brings the window up, for a snapshot that has just arrived and wants reading.
@@ -553,6 +686,9 @@ sealed class ViewerForm : Form
         last = screen;
         status.Text = screen.Status;
         ApplyButtons(screen);
+        // Before the canvas is handed the screen: what the footer comes to is what is left of
+        // the window for it to draw in
+        LayOutFooter();
         canvas.Draw(screen);
         ApplyScroll(screen);
         ApplyMenu(screen);
@@ -645,17 +781,23 @@ sealed class ViewerForm : Form
                 // The size a button has by default, which GrowOnly never went under, so a short
                 // label does not make a button smaller than it always was
                 MinimumSize = LogicalToDeviceUnits(new Size(75, 23)),
-                Margin = new(0, 0, 6, 0),
                 // Standard rather than System: WinForms draws these itself, including in dark
                 // mode, so their pixels are pinned to the .NET version rather than to whatever
                 // the OS build's theme renderer does with a Win32 button.
-                FlatStyle = FlatStyle.Standard
+                FlatStyle = FlatStyle.Standard,
+                // A label is the model's words, and an ampersand in one is an ampersand. Read as
+                // a mnemonic it is not drawn, and the letter after it becomes an Alt chord that
+                // presses the button.
+                UseMnemonic = false
             };
             button.Click += (_, _) => discrete.Enqueue(new(Button: index));
             pool.Add(button);
-            buttonRow.Controls.Add(button);
+            // Straight into the footer, beside the status, with nothing around them: a panel of
+            // their own is as wide as the footer once they wrap, and lies over the status
+            footer.Controls.Add(button);
         }
 
+        shownButtons = screen.Buttons.Count;
         for (var index = 0; index < pool.Count; index++)
         {
             var button = pool[index];

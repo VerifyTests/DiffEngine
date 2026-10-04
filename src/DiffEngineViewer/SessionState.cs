@@ -182,6 +182,14 @@ record SessionState(
     public AcceptProgress? Progress =>
         Batch?.Progress ?? OwnerProgress;
 
+    /// <summary>
+    /// The progress an owner puts on its listings: its accept-all's. Not a bulk discard's, which
+    /// the wire has no words for: <see cref="AcceptProgress"/> is read by whoever displays the
+    /// queue as an accept under way, and says so on their status line.
+    /// </summary>
+    public AcceptProgress? ListedProgress =>
+        Batch is { Discarding: true } ? null : Progress;
+
     public QueueEntry? Current =>
         Selected >= 0 && Selected < Queue.Count ? Queue[Selected] : null;
 

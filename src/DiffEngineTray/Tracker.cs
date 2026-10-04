@@ -17,21 +17,16 @@ class Tracker :
     AsyncTimer timer;
     int lastScanCount;
 
-    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null)
+    public Tracker(Action active, Action inactive, LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null, Action<string>? scanFailing = null)
     {
         this.active = active;
         this.inactive = inactive;
         this.lockedFilesResolver = lockedFilesResolver;
         this.acceptFailed = acceptFailed;
         this.inlineFailed = inlineFailed;
+        this.scanFailing = scanFailing;
         this.inline = inline ?? new RemoteInlineHost();
-        timer = new(
-            ScanFiles,
-            TimeSpan.FromSeconds(2),
-            // Logged and no more. This is the timer's own thread, and the handler everything else
-            // uses follows the log with a modal box: no scan ran again until somebody answered it,
-            // and a scan is nothing anybody asked for, so the box arrived out of nowhere
-            exception => Log.Error(exception, "Failed to scan files"));
+        timer = new(Scan, TimeSpan.FromSeconds(2));
 
         // Seeded rather than left empty until the first scan two seconds later. The menu reads
         // this cache now, so without it a tray that has just started shows none of what a viewer
@@ -39,12 +34,75 @@ class Tracker :
         Refresh();
     }
 
-    Task ScanFiles(Cancel cancel)
+    /// <summary>
+    /// How many scans have to fail one after the other before anybody is told. One that fails
+    /// alone is a file that went between two lines of it, and is put right by the next.
+    /// </summary>
+    internal const int ScanFailuresBeforeTelling = 3;
+
+    Action<string>? scanFailing;
+    int failedScans;
+
+    /// <summary>
+    /// One scan, and what is made of it failing.
+    /// <para>
+    /// Logged, every time. This is the timer's own thread, and the handler everything else uses
+    /// follows the log with a modal box: no scan ran again until somebody answered it, and a scan
+    /// is nothing anybody asked for, so the box arrived out of nowhere.
+    /// </para>
+    /// <para>
+    /// The log alone left a tray whose every scan failed looking like one with nothing wrong: the
+    /// icon and the menu stopped following the files, and nothing said so. So a run of failures
+    /// is said once, in a balloon, when it has gone on long enough not to be a passing one. Once
+    /// for the run, rather than for each scan in it, which would be a balloon every two seconds
+    /// for as long as the cause stood. A scan that works ends the run, and the next run is told
+    /// afresh.
+    /// </para>
+    /// </summary>
+    internal async Task Scan(Cancel cancel)
+    {
+        try
+        {
+            await ScanFiles(cancel);
+            Interlocked.Exchange(ref failedScans, 0);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed to scan files");
+            // Counted across threads, since a test runs scans beside the timer's
+            if (Interlocked.Increment(ref failedScans) == ScanFailuresBeforeTelling)
+            {
+                scanFailing?.Invoke(ScanFailingMessage(exception));
+            }
+        }
+    }
+
+    internal static string ScanFailingMessage(Exception exception) =>
+        $"The pending files could not be checked, {ScanFailuresBeforeTelling} times running, so the menu and the icon may be behind what is on disk. {exception.Message} Every failure is in the log: 'Open logs' in the menu.";
+
+    internal Task ScanFiles(Cancel cancel)
     {
         foreach (var delete in deletes.ToList()
                      .Where(delete => !File.Exists(delete.Value.File)))
         {
             deletes.TryRemove(delete.Key, out _);
+        }
+
+        // What a pair was last found to be is worth keeping only while the pair is tracked. Here,
+        // once a scan, rather than wherever a move leaves: there are a score of such places, and
+        // a scan that is still comparing a move as it leaves writes its entry after any of them
+        // had run. Left alone, a tray that stays up for weeks kept an entry for every received
+        // file it had ever found different.
+        foreach (var temp in differing.Keys)
+        {
+            if (!moves.ContainsKey(temp))
+            {
+                differing.TryRemove(temp, out _);
+            }
         }
 
         // A passing re-run sends a settle message, and whoever owns the queue drops the entry
@@ -124,6 +182,11 @@ class Tracker :
 
     readonly ConcurrentDictionary<string, (long, DateTime, long, DateTime)> differing = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// How many pairs are remembered as found different, for the tests.
+    /// </summary>
+    internal int KnownDiffering => differing.Count;
+
     static (long, DateTime, long, DateTime)? Stamp(TrackedMove move)
     {
         try
@@ -196,7 +259,7 @@ class Tracker :
                 Process? process = null;
                 if (processId != null)
                 {
-                    ProcessEx.TryGetTool(processId.Value, exe, out process);
+                    ProcessEx.TryGetTool(processId.Value, exe, temp, out process);
                 }
 
                 var move = BuildTrackedMove(temp, exe, arguments, canKill, target, process);
@@ -227,7 +290,7 @@ class Tracker :
                     existing.Process = null;
                     // Against the tool the pair was tracked with when this move names none, as
                     // Retarget keeps that one
-                    ProcessEx.TryGetTool(processId.Value, exe ?? existing.Exe, out process);
+                    ProcessEx.TryGetTool(processId.Value, exe ?? existing.Exe, temp, out process);
                 }
 
                 var move = exe == null
@@ -469,7 +532,14 @@ class Tracker :
             {
                 if (!SweepSnapshots(out var failure))
                 {
-                    AcceptDeletes(pending, written);
+                    // Said, as the deletes held for a snapshot are below. Only the log knew, so
+                    // the menu went on listing a delete "Accept all" had just been pressed over
+                    // with nothing to say it had been left on purpose
+                    var kept = AcceptDeletes(pending, written);
+                    if (kept.Count > 0)
+                    {
+                        failure = failure is null ? DeletesKept(kept) : $"{failure} {DeletesKept(kept)}";
+                    }
                 }
                 else if (pending.Any(_ => deletes.ContainsKey(_.File)))
                 {
@@ -590,8 +660,62 @@ class Tracker :
             updateValueFactory: (_, existing) =>
             {
                 Log.Information("DeleteUpdated. File:{file}", file);
+                // Raised again, so by a run that looked at the file as it is now. Whatever a move
+                // wrote there since the delete was first raised, this is the later statement
+                existing.Written = false;
                 return existing;
             });
+
+    /// <summary>
+    /// Why an accept-all leaves a delete pending, where it would: null when it would carry it
+    /// out. For the menu and the debug view, which say it beside the delete, and for the sweeps,
+    /// which act on it.
+    /// </summary>
+    public string? HeldReason(TrackedDelete delete)
+    {
+        if (delete.Written)
+        {
+            return WroteItsFile;
+        }
+
+        if (moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase)))
+        {
+            return AwaitsItsFile;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A move was accepted onto the file while its delete was pending.
+    /// <para>
+    /// <see cref="AddMove"/> withdraws the delete a move finds waiting for its target, so the two
+    /// are only pending together when the delete arrived second, and which of them is the stale
+    /// one is then not knowable from here. The move is the snapshot arriving and the delete is the
+    /// last copy leaving, so the move goes ahead and the delete waits to be accepted on its own.
+    /// </para>
+    /// <para>
+    /// Remembered on the delete, rather than only for the sweep that wrote the file. The sweep
+    /// held the delete and forgot why as it ended, so the delete sat in the menu looking like any
+    /// other, and a second "Accept all" deleted the snapshot the first had just accepted. The same
+    /// went for a move accepted on its own and an accept-all after it.
+    /// </para>
+    /// </summary>
+    public const string WroteItsFile = "Kept by 'Accept all': a move was accepted onto this file after the delete was raised, so deleting it would remove what was just accepted. Accept the delete on its own to delete the file anyway, or run the tests again.";
+
+    /// <summary>
+    /// A move still pending is going to write the file. Not remembered: it is true for as long as
+    /// the move is there, and stops being true if the move is discarded.
+    /// </summary>
+    public const string AwaitsItsFile = "Kept by 'Accept all': a pending move is still to be accepted onto this file. Accept the delete on its own to delete the file anyway.";
+
+    void MarkWritten(string target)
+    {
+        if (deletes.TryGetValue(target, out var delete))
+        {
+            delete.Written = true;
+        }
+    }
 
     /// <summary>
     /// Through <see cref="AcceptTracked(TrackedDelete)"/>, which is what the wire path has always
@@ -687,7 +811,16 @@ class Tracker :
         {
             Release(removed);
         }
+
+        Interlocked.Increment(ref restores);
     }
+
+    /// <summary>
+    /// How many times something taken out to be accepted has been put back, which is the one
+    /// change to what is tracked that <see cref="ITrackedFiles.Version"/> cannot see by looking:
+    /// the same object in the same place as before it left.
+    /// </summary>
+    long restores;
 
     /// <summary>
     /// Lets go of the process a move was tracked with, without ending it, once the move has left
@@ -750,6 +883,7 @@ class Tracker :
             if (FileEx.SafeMove(move.Temp, move.Target))
             {
                 batch.Written.Add(move.Target);
+                MarkWritten(move.Target);
                 DeleteTempDirectory(move);
                 return true;
             }
@@ -938,20 +1072,22 @@ class Tracker :
     /// skipped came back on the next scan two seconds later.
     /// </para>
     /// <para>
-    /// The tracked files here, on the calling thread, and the snapshots on a worker, for the
-    /// reason <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a
-    /// socket, and one slow to answer held the thread drawing everything for as long as that
-    /// took. The menu and the hot key discard the task; tests await it.
+    /// All of it on a worker, as an accept-all's second half is. The snapshots for the reason
+    /// <see cref="Discard(PendingSnapshot)"/> gives: a queue a viewer owns is asked over a socket,
+    /// and one slow to answer held the thread drawing everything for as long as that took. The
+    /// tracked files because discarding a move ends its diff tool and waits up to half a second
+    /// for each to go, which for a screen full of them was seconds of a tray that drew nothing.
+    /// The files first, so a queue that is slow to answer holds up nothing but itself. The menu
+    /// and the hot key discard the task; tests await it.
     /// </para>
     /// </summary>
-    public Task Clear()
-    {
-        ((ITrackedFiles) this).DiscardAll();
-
-        return Task.Run(() =>
+    public Task Clear() =>
+        Task.Run(() =>
         {
             try
             {
+                DiscardFiles();
+
                 // Only forget the cached snapshots when the owner actually discarded them. It used
                 // to be cleared regardless, so a discard the owner never received still emptied the
                 // menu - and everything came back on the next scan two seconds later
@@ -961,7 +1097,11 @@ class Tracker :
                 }
                 else
                 {
-                    Log.Error("{Message}", message ?? "Could not discard the pending snapshots.");
+                    // Said, and not only logged: the snapshots are still in the menu, under the
+                    // button that was just pressed to be rid of them
+                    var failure = CouldNotDiscard(message);
+                    Log.Error("{Message}", failure);
+                    inlineFailed?.Invoke(failure);
                 }
 
                 // Nothing waits for the next scan to say so: the files went above, whatever the
@@ -970,9 +1110,48 @@ class Tracker :
             }
             catch (Exception exception)
             {
-                ExceptionHandler.Handle("Failed to discard the pending snapshots", exception);
+                ExceptionHandler.Handle("Failed to discard everything pending", exception);
             }
         });
+
+    /// <summary>
+    /// What a user is told when "Discard (n)" could not discard the snapshots, which stay pending.
+    /// </summary>
+    internal static string CouldNotDiscard(string? message)
+    {
+        if (message is { Length: > 0 })
+        {
+            return $"Could not discard the pending snapshots. {message}";
+        }
+
+        return "Could not discard the pending snapshots.";
+    }
+
+    /// <summary>
+    /// Every tracked move and delete discarded, for <see cref="Clear"/> and for the wire. Virtual
+    /// so a test can see which thread it was asked of.
+    /// </summary>
+    protected virtual int DiscardFiles()
+    {
+        var count = 0;
+        foreach (var delete in deletes.Values.ToList())
+        {
+            if (deletes.TryRemove(delete.File, out _))
+            {
+                count++;
+            }
+        }
+
+        foreach (var move in moves.Values.ToList())
+        {
+            if (moves.TryRemove(move.Temp, out var removed))
+            {
+                InnerDiscard(removed);
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -1013,8 +1192,12 @@ class Tracker :
         return AcceptSnapshotsThenDeletes(pending, written);
     }
 
-    void AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
+    /// <returns>
+    /// The deletes left pending because of a move onto their file, for the caller to say so.
+    /// </returns>
+    List<TrackedDelete> AcceptDeletes(List<TrackedDelete> pending, HashSet<string> written)
     {
+        var kept = new List<TrackedDelete>();
         // One at a time, and no Clear afterwards: a delete that fails re-tracks itself, and
         // clearing would throw that away. Unguarded, the first bad one also took the rest of the
         // sweep with it, so "Accept all" stopped at the first read-only file
@@ -1029,23 +1212,35 @@ class Tracker :
             if (WrittenOrAwaited(delete, written))
             {
                 Log.Information("Kept the pending delete of `{Name}`: a move wrote that file, or is still pending onto it", delete.Name);
+                kept.Add(delete);
                 continue;
             }
 
             Accept(delete);
         }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// What a user is told about deletes an accept-all kept because of a move onto their file.
+    /// The menu says the same beside each of them, for whoever missed the balloon.
+    /// </summary>
+    internal static string DeletesKept(IReadOnlyList<TrackedDelete> kept)
+    {
+        var which = kept.Count == 1
+            ? $"The pending delete of '{kept[0].Name}' was kept"
+            : $"{kept.Count} pending deletes were kept";
+        return $"{which}, since a move was accepted onto the same file, or is still to be, and deleting it would remove what the move put there. Accept a delete on its own to delete its file anyway.";
     }
 
     /// <summary>
     /// Whether a sweep must leave this delete pending, because the file it would remove is one a
     /// move in the same sweep has just written or one a move still pending is going to write.
     /// <para>
-    /// <see cref="AddMove"/> withdraws the delete a move finds waiting for its target, so the two
-    /// are only pending together when the delete arrived second, and which of them is the stale
-    /// one is then not knowable from here. The move is the snapshot arriving and the delete is the
-    /// last copy leaving, so the move goes ahead and the delete waits to be accepted on its own:
-    /// carried out, it removed the received file a moment after that file had been moved into
-    /// place, and neither was left.
+    /// Carried out, it removed the received file a moment after that file had been moved into
+    /// place, and neither was left: see <see cref="WroteItsFile"/>, which is also why a delete
+    /// whose file an earlier accept wrote is held by every sweep after it.
     /// </para>
     /// <para>
     /// By what was written rather than by what was swept. A move whose received file has gone is
@@ -1054,7 +1249,7 @@ class Tracker :
     /// </summary>
     bool WrittenOrAwaited(TrackedDelete delete, HashSet<string> written) =>
         written.Contains(delete.File) ||
-        moves.Values.Any(_ => string.Equals(_.Target, delete.File, StringComparison.OrdinalIgnoreCase));
+        HeldReason(delete) is not null;
 
     public ICollection<TrackedDelete> Deletes => deletes.Values;
 
@@ -1087,6 +1282,7 @@ class Tracker :
 
     readonly Lock versionGate = new();
     readonly List<object> versioned = [];
+    long versionedRestores;
     long version;
 
     /// <summary>
@@ -1103,16 +1299,29 @@ class Tracker :
     /// Rather than a count of changes, kept wherever the dictionaries are written: there are a
     /// score of such places, and one missed is a viewer that goes on showing a file that left.
     /// </para>
+    /// <para>
+    /// Except for the one change that leaves the same objects behind it. An accept takes its move
+    /// out for as long as the move takes, seconds when a file is locked, and puts the same object
+    /// back when it could not be carried out. The owner takes its tag and then builds its listing,
+    /// so a listing built in that gap goes out without the move, under a tag taken while it was
+    /// there, and once the move was back nothing here looked different from when the tag was
+    /// taken: the viewer was told "unchanged" about a listing missing a pending file. Those are
+    /// two places, <see cref="Restore"/> and the delete that could not be deleted, and they are
+    /// counted.
+    /// </para>
     /// </summary>
     long ITrackedFiles.Version()
     {
         lock (versionGate)
         {
-            if (Unchanged())
+            var restored = Interlocked.Read(ref restores);
+            if (restored == versionedRestores &&
+                Unchanged())
             {
                 return version;
             }
 
+            versionedRestores = restored;
             versioned.Clear();
             foreach (var move in moves)
             {
@@ -1299,28 +1508,8 @@ class Tracker :
         return (accepted, kept);
     }
 
-    int ITrackedFiles.DiscardAll()
-    {
-        var count = 0;
-        foreach (var delete in deletes.Values.ToList())
-        {
-            if (deletes.TryRemove(delete.File, out _))
-            {
-                count++;
-            }
-        }
-
-        foreach (var move in moves.Values.ToList())
-        {
-            if (moves.TryRemove(move.Temp, out var removed))
-            {
-                InnerDiscard(removed);
-                count++;
-            }
-        }
-
-        return count;
-    }
+    int ITrackedFiles.DiscardAll() =>
+        DiscardFiles();
 
     (bool ok, string? message) AcceptTracked(TrackedDelete delete)
     {
@@ -1337,6 +1526,7 @@ class Tracker :
         {
             // Re-tracked so it can be retried, and refused so the caller shows why.
             deletes.TryAdd(removed.File, removed);
+            Interlocked.Increment(ref restores);
             return (false, $"Could not delete {removed.Name}. {exception.Message}");
         }
 

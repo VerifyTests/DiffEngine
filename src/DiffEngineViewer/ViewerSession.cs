@@ -37,7 +37,8 @@ static class ViewerSession
 
         var key = InlineKey.For(patch.SourceFile, patch.LineHint);
         var current = state.Current;
-        var queue = Rebuild(state, Pending(state).Enqueue(patch));
+        var pending = Pending(state);
+        var queue = Rebuild(state, pending, pending.Enqueue(patch));
         // Grouping can reorder the list, so the selection follows its key rather than its index.
         var selected = current is null ? 0 : IndexOf(queue, current.Key);
         if (selected < 0)
@@ -134,7 +135,7 @@ static class ViewerSession
             return state;
         }
 
-        return Remove(state, Rebuild(state, settled), null);
+        return Remove(state, Rebuild(state, pending, settled), null);
     }
 
     /// <summary>
@@ -333,17 +334,20 @@ static class ViewerSession
         var went = new HashSet<QueueEntry>(gone, ReferenceEqualityComparer.Instance);
         var queue = new List<QueueEntry>(state.Queue.Count);
         var any = false;
+        var shownAnew = false;
         foreach (var entry in state.Queue)
         {
             if (went.Contains(entry))
             {
                 any = true;
+                shownAnew = true;
                 continue;
             }
 
             if (replacements.TryGetValue(entry, out var fresh))
             {
                 any = true;
+                shownAnew |= !IsRestamped(entry, fresh);
                 queue.Add(fresh);
                 continue;
             }
@@ -356,11 +360,34 @@ static class ViewerSession
             return state;
         }
 
+        // Files written again with what they held, and nothing else: a run that fails the same
+        // way does that every time. Every entry is where it was and shows what it showed, so the
+        // open menu's indexes still mean what they did and nothing on screen is another thing.
+        // The stamps have to be taken all the same, or every pass after reads the file again. As
+        // the same pair arriving again over the socket is taken (Restaged), and for its reason:
+        // going through Remove closed a menu the reader had open, once a run.
+        if (!shownAnew)
+        {
+            return Clamp(state with { Queue = queue });
+        }
+
         // The message is carried rather than cleared, unlike every other path through Remove: this
         // is not something the reader did, and "Accepted Foo" disappearing because an unrelated
         // file went away reads as the accept having been undone.
         return Remove(state, queue, state.Message);
     }
+
+    /// <summary>
+    /// Whether <paramref name="fresh"/> is <paramref name="seen"/> with its files' new stamps and
+    /// nothing else: the copy <see cref="TrackedEntry.MoveAgain"/> makes of an entry whose files
+    /// still hold what it shows. Told by its rows being the very rows, which a copy keeps and an
+    /// entry built from the files again does not.
+    /// </summary>
+    static bool IsRestamped(QueueEntry seen, QueueEntry fresh) =>
+        seen.Key == fresh.Key &&
+        seen.Status == fresh.Status &&
+        ReferenceEquals(seen.LeftRows, fresh.LeftRows) &&
+        ReferenceEquals(seen.RightRows, fresh.RightRows);
 
     /// <summary>
     /// The loop's decision to leave, taken under the host's lock so it cannot cross an arrival:
@@ -749,7 +776,7 @@ static class ViewerSession
             accepted = pending.Accept(current.Key, actions.ApplyInline, out message);
         }
 
-        var queue = Rebuild(state, accepted);
+        var queue = Rebuild(state, pending, accepted);
         if (accepted.Count < pending.Count)
         {
             return Remove(state, queue, message);
@@ -830,25 +857,139 @@ static class ViewerSession
                 .Select(_ => _.Key)
                 .ToList());
 
+    /// <summary>
+    /// A whole group discard in one call, for a caller that already holds the state: the steps
+    /// <see cref="AcceptAllRunner"/> takes a mutation at a time, taken back to back.
+    /// </summary>
     static SessionState DiscardGroup(SessionState state, MenuState menu, ViewerActions actions)
     {
-        var all = Members(state, menu);
-        var keys = all
-            .Where(_ => _.Kind == QueueEntryKind.Inline)
-            .Select(_ => _.Key)
-            .ToList();
-        var queue = Pending(state);
-        foreach (var key in keys)
+        // For the reason AcceptAllInline gives
+        if (state.Batch is not null)
         {
-            queue = queue.Discard(key, out _);
+            return state;
         }
 
-        return DiscardTrackedIn(
-            state,
-            Rebuild(state, queue),
-            $"Discarded {keys.Count}",
-            actions,
-            TrackedKeysOf(all));
+        return Carry(BeginDiscard(state, Members(state, menu)), actions);
+    }
+
+    /// <summary>
+    /// Starts a discard of every member of the group the open menu's header describes, without
+    /// throwing any file away yet: see <see cref="BeginDiscardAll"/>. The state as it is, less
+    /// the menu, when there is no group to discard.
+    /// </summary>
+    public static SessionState BeginDiscardGroup(SessionState state)
+    {
+        if (state.Menu is not { } menu)
+        {
+            return state;
+        }
+
+        state = state with { Menu = null };
+        if (state.Mode != ViewerMode.Inline)
+        {
+            return state;
+        }
+
+        return BeginDiscard(state, Members(state, menu));
+    }
+
+    /// <summary>
+    /// Starts a discard of everything in a queue this process owns. The snapshots are dropped and
+    /// the pending deletes untracked here and now, since neither touches a file. The moves are
+    /// left in the queue as a batch to carry out through <see cref="ClaimNext"/> and
+    /// <see cref="ApplyClaimed"/>, one received file thrown away per step and outside the lock:
+    /// see <see cref="AcceptBatch.Discarding"/>. With no move among them it is finished where it
+    /// started. A no-op while a batch is already running.
+    /// </summary>
+    public static SessionState BeginDiscardAll(SessionState state) =>
+        BeginDiscard(state, null);
+
+    /// <param name="state">The state to start it in.</param>
+    /// <param name="members">
+    /// The entries to discard, for a group header acting on its own members. Null discards
+    /// everything, which is what the unqualified discard-all means.
+    /// </param>
+    static SessionState BeginDiscard(SessionState state, IReadOnlyList<QueueEntry>? members)
+    {
+        if (state.Mode != ViewerMode.Inline ||
+            state.Batch is not null)
+        {
+            return state;
+        }
+
+        var pending = Pending(state);
+        InlineQueue discarded;
+        string said;
+        if (members is null)
+        {
+            discarded = pending.DiscardAll(out said);
+        }
+        else
+        {
+            var keys = members
+                .Where(_ => _.Kind == QueueEntryKind.Inline)
+                .Select(_ => _.Key)
+                .ToList();
+            discarded = pending;
+            foreach (var key in keys)
+            {
+                discarded = discarded.Discard(key, out _);
+            }
+
+            said = $"Discarded {keys.Count}";
+        }
+
+        var only = members is null ? null : TrackedKeysOf(members).ToHashSet();
+        var remaining = new List<QueueEntry>();
+        var moves = new List<string>();
+        var untracked = 0;
+        foreach (var entry in Rebuild(state, pending, discarded))
+        {
+            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
+                (only is not null && !only.Contains(entry.Key)))
+            {
+                remaining.Add(entry);
+                continue;
+            }
+
+            // Discarding a pending delete leaves the file alone and only untracks it
+            if (entry.Kind == QueueEntryKind.Delete)
+            {
+                untracked++;
+                continue;
+            }
+
+            moves.Add(entry.Key);
+            remaining.Add(entry);
+        }
+
+        var batch = new AcceptBatch(moves, moves.Count)
+        {
+            Discarding = true,
+            Said = said,
+            Swept = untracked
+        };
+        var begun = Remove(state, remaining, null);
+        // No received file to throw away, so nothing to report progress on
+        if (moves.Count == 0)
+        {
+            return Finish(begun, batch);
+        }
+
+        return begun with { Batch = batch };
+    }
+
+    /// <summary>
+    /// Whatever batch a state holds, carried out to its end in one call.
+    /// </summary>
+    static SessionState Carry(SessionState state, ViewerActions actions)
+    {
+        while ((state = ClaimNext(state)).Batch?.Current is not null)
+        {
+            state = ApplyClaimed(state, actions)(state);
+        }
+
+        return state;
     }
 
     static List<QueueEntry> Members(SessionState state, MenuState menu) =>
@@ -1187,7 +1328,7 @@ static class ViewerSession
 
         if (entry.Kind != QueueEntryKind.Inline)
         {
-            var failure = TryApplyTracked(entry, actions, discarding: false);
+            var failure = TryApplyTracked(entry, actions, batch.Discarding);
             return _ => RecordTracked(_, entry, failure);
         }
 
@@ -1232,7 +1373,7 @@ static class ViewerSession
     /// <para>
     /// The rules are still asked of an <see cref="InlineQueue"/>, but of one holding the entry
     /// alone, and what it says is done to the list as it stands: the entry taken out, or given the
-    /// status. Every other inline transition rebuilds the whole list from the whole queue, and a
+    /// status. Every inline transition used to rebuild the whole list from the whole queue, and a
     /// batch did that once an entry, so its own bookkeeping grew with the square of the queue:
     /// 2,000 snapshots were 3.7 seconds and 8.8 GB of garbage beside the applying. Taking an entry
     /// out of a list that is in order leaves it in order, and no other entry is touched, so there
@@ -1339,6 +1480,16 @@ static class ViewerSession
     /// </summary>
     static SessionState Finish(SessionState state, AcceptBatch batch)
     {
+        // A discard says what its beginning said of the snapshots, then the files: worded the way
+        // an owning tray words its own, with what stayed pending counted rather than hidden
+        if (batch.Discarding)
+        {
+            return Remove(
+                state with { Batch = null },
+                state.Queue,
+                WithFiles(batch.Said, batch.Swept, batch.Kept));
+        }
+
         var conflicted = 0;
         foreach (var entry in state.Queue)
         {
@@ -1374,60 +1525,19 @@ static class ViewerSession
     static List<QueueEntry> Without(IReadOnlyList<QueueEntry> queue, int index) =>
         [..queue.Take(index), ..queue.Skip(index + 1)];
 
+    /// <summary>
+    /// A whole discard-all in one call, for a caller that already holds the state: what
+    /// <see cref="AcceptAllInline"/> is to an accept-all, and the same batch underneath.
+    /// </summary>
     static SessionState DiscardAllInline(SessionState state, ViewerActions actions)
     {
-        var discarded = Pending(state).DiscardAll(out var message);
-        return DiscardTrackedIn(state, Rebuild(state, discarded), message, actions);
-    }
-
-    /// <summary>
-    /// The tracked half of a bulk discard, worded the way an owning tray words its own: the inline
-    /// summary, then ", plus n files" with what stayed pending counted rather than hidden. Both
-    /// say the same thing about the same files, whichever process is holding them.
-    /// <para>
-    /// Only discards go this way now. A bulk accept is an <see cref="AcceptBatch"/>, an entry at a
-    /// time and outside the lock, because accepting is where the time goes: a discard throws a
-    /// received file away or untracks a delete, and neither waits on anything.
-    /// </para>
-    /// </summary>
-    /// <param name="state">The state the discard was asked of.</param>
-    /// <param name="queue">Its queue, with the snapshots already discarded.</param>
-    /// <param name="message">What the snapshots' half of the discard said.</param>
-    /// <param name="actions">What throws a received file away.</param>
-    /// <param name="only">
-    /// The keys to discard, for a group header acting on its own members. Null discards every
-    /// tracked entry, which is what the unqualified discard-all means.
-    /// </param>
-    static SessionState DiscardTrackedIn(
-        SessionState state,
-        IReadOnlyList<QueueEntry> queue,
-        string message,
-        ViewerActions actions,
-        IReadOnlyCollection<string>? only = null)
-    {
-        var remaining = new List<QueueEntry>(queue.Count);
-        var swept = 0;
-        var kept = 0;
-        foreach (var entry in queue)
+        // For the reason AcceptAllInline gives
+        if (state.Batch is not null)
         {
-            if (entry.Kind is not (QueueEntryKind.Move or QueueEntryKind.Delete) ||
-                (only is not null && !only.Contains(entry.Key)))
-            {
-                remaining.Add(entry);
-                continue;
-            }
-
-            if (TryApplyTracked(entry, actions, discarding: true) is not { } failure)
-            {
-                swept++;
-                continue;
-            }
-
-            kept++;
-            remaining.Add(entry with { Status = failure });
+            return state;
         }
 
-        return Remove(state, remaining, WithFiles(message, swept, kept));
+        return Carry(BeginDiscardAll(state), actions);
     }
 
     /// <summary>
@@ -1527,8 +1637,9 @@ static class ViewerSession
             return state;
         }
 
-        var discarded = Pending(state).Discard(current.Key, out var message);
-        return Remove(state, Rebuild(state, discarded), message);
+        var pending = Pending(state);
+        var discarded = pending.Discard(current.Key, out var message);
+        return Remove(state, Rebuild(state, pending, discarded), message);
     }
 
     /// <summary>
@@ -1601,7 +1712,252 @@ static class ViewerSession
     /// </para>
     /// </summary>
     static IReadOnlyList<QueueEntry> Rebuild(SessionState state, InlineQueue queue) =>
+        Rebuild(state, null, queue);
+
+    /// <summary>
+    /// <see cref="RebuildWhole"/>, by the short way round where there is one.
+    /// </summary>
+    /// <param name="state">The state whose list is to be rebuilt.</param>
+    /// <param name="before">
+    /// The queue <paramref name="after"/> was made from, when that was <see cref="Pending"/> of
+    /// this state. What the change did is then read off the two (<see cref="TryRebuildChanged"/>).
+    /// </param>
+    /// <param name="after">The queue as the change left it.</param>
+    static IReadOnlyList<QueueEntry> Rebuild(SessionState state, InlineQueue? before, InlineQueue after)
+    {
+        if (before is not null &&
+            TryRebuildChanged(state.Queue, before, after) is { } changed)
+        {
+            return changed;
+        }
+
+        return RebuildWhole(state, after);
+    }
+
+    /// <summary>
+    /// The list rebuilt from the whole queue: every snapshot looked up among the entries there
+    /// are, and the lot put in order. What every inline transition did, and what the short way
+    /// has to come to.
+    /// </summary>
+    internal static IReadOnlyList<QueueEntry> RebuildWhole(SessionState state, InlineQueue queue) =>
         QueueProjection.Order([..Project(state, queue), ..Tracked(state)]);
+
+    /// <summary>
+    /// The list after a change to the queue that was about one entry or a few, made from the list
+    /// there is rather than from the queue: the entries the change left alone are the ones in the
+    /// list already, where they already are. Null when the change is not one this can do, and the
+    /// whole list is rebuilt instead.
+    /// <para>
+    /// An arrival, a settle, a discard and a single accept each change one entry of however many
+    /// there are, and each rebuilt the list from the whole queue: a dictionary of the entries, a
+    /// comparison of every entry's patches with the queue's, and an ordering of the result, under
+    /// the lock the render loop takes and on the thread a test process is waiting on. At 2,000
+    /// entries that was two milliseconds and nearly two megabytes a change.
+    /// </para>
+    /// <para>
+    /// What the change did is read off the two queues. <see cref="InlineQueue"/> hands back the
+    /// items it did not touch as the items it was given, so an item that is another one is the
+    /// change: replaced where it stands, taken out, or added at the end.
+    /// </para>
+    /// <para>
+    /// Only for a list in the order a rebuild leaves, which puts snapshots ahead of files
+    /// (<see cref="InRebuiltOrder"/>). A file that arrived since the last rebuild can stand ahead
+    /// of a snapshot, and the rebuild that follows moves it: that one is left to the long way.
+    /// </para>
+    /// </summary>
+    /// <param name="list">The display list <paramref name="before"/> was made from.</param>
+    /// <param name="before"><see cref="Pending"/> of the state the list is from.</param>
+    /// <param name="after">What the change made of <paramref name="before"/>.</param>
+    static IReadOnlyList<QueueEntry>? TryRebuildChanged(IReadOnlyList<QueueEntry> list, InlineQueue before, InlineQueue after)
+    {
+        var grew = after.Count - before.Count;
+        if (grew > 1 ||
+            !InRebuiltOrder(list))
+        {
+            return null;
+        }
+
+        var result = new List<QueueEntry>(list.Count + 1);
+        var item = 0;
+        var kept = 0;
+        var removed = false;
+        foreach (var entry in list)
+        {
+            if (entry.Kind != QueueEntryKind.Inline)
+            {
+                result.Add(entry);
+                continue;
+            }
+
+            var held = before.Items[item++];
+            if (kept < after.Count &&
+                ReferenceEquals(after.Items[kept], held))
+            {
+                kept++;
+                result.Add(entry);
+                continue;
+            }
+
+            // Another item where this one was, when the queue is no shorter: the same call site
+            // with something else to say. In a queue that is shorter, an item that is not next is
+            // one that went
+            if (grew < 0)
+            {
+                removed = true;
+                continue;
+            }
+
+            if (kept == after.Count)
+            {
+                return null;
+            }
+
+            var replacement = Projected(entry, after.Items[kept++]);
+            // Where an entry stands is decided by its solution and its test, so one that has
+            // neither changed stands where it stood
+            if (replacement.Solution != entry.Solution ||
+                replacement.TestGroup != entry.TestGroup)
+            {
+                return null;
+            }
+
+            result.Add(replacement);
+        }
+
+        if (grew == 1)
+        {
+            if (kept != before.Count ||
+                !TryInsert(result, QueueEntry.ForInline(after.Items[kept++])))
+            {
+                return null;
+            }
+        }
+
+        // Every item of the new queue accounted for, in the order it holds them
+        if (kept != after.Count)
+        {
+            return null;
+        }
+
+        // Taking the last snapshot out of a solution leaves its files with no snapshot ahead of
+        // them, and a rebuild puts such a solution after the ones that have
+        if (removed &&
+            !InRebuiltOrder(result))
+        {
+            return null;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The entry for a snapshot that is in the list already and has been replaced in the queue:
+    /// what <see cref="Project"/> makes of it, for the one entry.
+    /// </summary>
+    static QueueEntry Projected(QueueEntry entry, PendingInline pending)
+    {
+        // Under another key it is another line's entry now, and no entry is held for that line
+        if (entry.Key != pending.Key)
+        {
+            return QueueEntry.ForInline(pending);
+        }
+
+        if (VariantsMatch(entry.Variants, pending.Variants))
+        {
+            return entry.Status == pending.Status ? entry : entry with { Status = pending.Status };
+        }
+
+        return QueueEntry.ForInline(pending, SameVariant(entry, pending));
+    }
+
+    /// <summary>
+    /// Puts a snapshot that is new to the queue where ordering the whole list would: after the
+    /// last entry of its own test in its solution, or with no test of its own there, after the
+    /// last snapshot of its solution and ahead of that solution's files. False when its solution
+    /// has no snapshot yet, which is a solution taking a place among the others rather than an
+    /// entry taking one in it.
+    /// </summary>
+    static bool TryInsert(List<QueueEntry> list, QueueEntry entry)
+    {
+        var lastOfSolution = -1;
+        var lastOfTest = -1;
+        for (var index = 0; index < list.Count; index++)
+        {
+            var other = list[index];
+            if (other.Kind != QueueEntryKind.Inline ||
+                other.Solution != entry.Solution)
+            {
+                continue;
+            }
+
+            lastOfSolution = index;
+            if (entry.TestGroup is not null &&
+                other.TestGroup == entry.TestGroup)
+            {
+                lastOfTest = index;
+            }
+        }
+
+        if (lastOfSolution < 0)
+        {
+            return false;
+        }
+
+        list.Insert((lastOfTest < 0 ? lastOfSolution : lastOfTest) + 1, entry);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a list is in the order <see cref="RebuildWhole"/> leaves one in, beyond what
+    /// <see cref="QueueProjection.Order"/> leaves any list in: within a solution every snapshot
+    /// ahead of every file, and a solution with snapshots ahead of one with only files, the
+    /// entries of no solution last of all. A rebuild orders the snapshots and then the files, so a
+    /// list like this is one it would hand back as it is.
+    /// </summary>
+    static bool InRebuiltOrder(IReadOnlyList<QueueEntry> list)
+    {
+        var filesOnly = false;
+        var index = 0;
+        while (index < list.Count)
+        {
+            var solution = list[index].Solution;
+            var inline = list[index].Kind == QueueEntryKind.Inline;
+            // A solution with snapshots after one with none. The entries of no solution are last
+            // whatever they are, so they are held to nothing here
+            if (solution is not null)
+            {
+                if (inline &&
+                    filesOnly)
+                {
+                    return false;
+                }
+
+                filesOnly |= !inline;
+            }
+
+            var files = false;
+            for (; index < list.Count && list[index].Solution == solution; index++)
+            {
+                if (list[index].Kind != QueueEntryKind.Inline)
+                {
+                    files = true;
+                }
+                else if (files)
+                {
+                    return false;
+                }
+            }
+
+            // Anything after the entries of no solution is a list no ordering left
+            if (solution is null &&
+                index < list.Count)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     static IEnumerable<QueueEntry> Tracked(SessionState state) =>
         state.Queue.Where(_ => _.Kind is QueueEntryKind.Move or QueueEntryKind.Delete);

@@ -332,6 +332,52 @@ public class TrackedWatchTests :
     }
 
     /// <summary>
+    /// And nothing about the window is another thing for it. A run that fails the same way writes
+    /// its received file again every time, and the pass that took the new stamp used to close a
+    /// context menu the reader had open, as an entry that changed does. The menu, what it was
+    /// opened over and the status line are all what they were, whether the file written again is
+    /// the one on screen or another.
+    /// </summary>
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    public async Task AFileWrittenAgainWithWhatItHeldLeavesAnOpenMenuOpen(int written)
+    {
+        var host = OwnedAll(2);
+        host.Mutate(_ => ViewerSession.OpenMenu(_, 0) with { Message = "Accepted Sample9.Test" });
+        var menu = host.State.Menu;
+        await Assert.That(menu).IsNotNull();
+        var before = host.State.Queue[written];
+        File.SetLastWriteTimeUtc(before.LeftFile!, DateTime.UtcNow.AddMinutes(1));
+
+        new TrackedWatch(host).Pump();
+
+        var after = host.State.Queue[written];
+        await Assert.That(after.LeftStamp).IsNotEqualTo(before.LeftStamp);
+        await Assert.That(host.State.Menu).IsSameReferenceAs(menu);
+        await Assert.That(host.State.Selected).IsEqualTo(0);
+        await Assert.That(host.State.Message).IsEqualTo("Accepted Sample9.Test");
+    }
+
+    /// <summary>
+    /// A file written again with something else is an entry that changed, and that still closes
+    /// the menu: what it offered was offered of what the entry showed.
+    /// </summary>
+    [Test]
+    public async Task AFileWrittenAgainWithSomethingElseStillClosesAnOpenMenu()
+    {
+        var host = OwnedAll(2);
+        host.Mutate(_ => ViewerSession.OpenMenu(_, 0));
+        await Assert.That(host.State.Menu).IsNotNull();
+        await File.WriteAllTextAsync(host.State.Queue[1].LeftFile!, "what a later run received instead");
+
+        new TrackedWatch(host).Pump();
+
+        await Assert.That(host.State.Queue[1].LeftText).IsEqualTo("what a later run received instead");
+        await Assert.That(host.State.Menu).IsNull();
+    }
+
+    /// <summary>
     /// The same over the socket, which is how the run itself says the pair is pending again.
     /// </summary>
     [Test]

@@ -395,7 +395,25 @@ final class ViewerView: NSView, NSViewToolTipOwner {
             return
         }
 
+        // A key held past the repeat delay arrives again many times a second, and each one is
+        // queued. That is what a held Down is for. A held a accepted the entry on screen and then
+        // every one that took its place, into source, none of them read, and the ones queued
+        // while a frame was slow were still handed over after the key came up. So what changes
+        // the queue takes a press each, as it does in the WinForms head. Swallowed rather than
+        // passed on: it is still this key.
+        if event.isARepeat, ViewerView.changesQueue(key) {
+            return
+        }
+
         Runtime.shared.post(.key(key))
+    }
+
+    /// The keys that act on the queue rather than on the view: the ones of
+    /// `ViewerSession.ChangesQueue` that a key here can be.
+    private static func changesQueue(_ key: Int32) -> Bool {
+        key == DEVIEW_KEY_ACCEPT.value ||
+            key == DEVIEW_KEY_ACCEPT_ALL.value ||
+            key == DEVIEW_KEY_DISCARD.value
     }
 
     /// Matches ReadKey in deview.cpp and the WinForms head's Map, which is the keymap the docs
@@ -450,11 +468,19 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         // was. German, French, Nordic, Spanish and Italian layouts have them behind Option, and
         // with the modifiers left out the key is the digit or the letter printed on it, so those
         // readers could not turn a page from the keyboard.
+        //
+        // The zoom keys the same way, for a layout that has one of them behind Option. Shift is
+        // no part of this: it is kept by both readings, so equals unshifted and plus with shift
+        // held are each what was typed on a US keyboard, and each zooms in, as they did.
         switch event.characters {
         case "[":
             return DEVIEW_KEY_PREVIOUS_PAGE.value
         case "]":
             return DEVIEW_KEY_NEXT_PAGE.value
+        case "=", "+":
+            return DEVIEW_KEY_ZOOM_IN.value
+        case "-":
+            return DEVIEW_KEY_ZOOM_OUT.value
         default:
             break
         }

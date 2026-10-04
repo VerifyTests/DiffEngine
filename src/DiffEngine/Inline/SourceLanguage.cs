@@ -63,7 +63,19 @@ public abstract class SourceLanguage
     /// <summary>
     /// Lexes <paramref name="source"/> into the map every search then reads.
     /// </summary>
-    internal abstract SourceScan Scan(string source);
+    internal SourceScan Scan(string source)
+    {
+        var scan = new SourceScan(this, source);
+        Lex(scan, 0);
+        return scan;
+    }
+
+    /// <summary>
+    /// Fills a scan's map from <paramref name="from"/> on, which is the start of the source or a
+    /// line start it has as code, up to the end or to where the scan says the rest is known
+    /// (<see cref="SourceScan.TryRejoin"/>).
+    /// </summary>
+    internal abstract void Lex(SourceScan scan, int from);
 
     internal abstract bool IsIdentifierChar(char ch);
 

@@ -32,13 +32,14 @@ public static class InlineApplier
     /// at a time, the whole file is read, lexed and written again for every patch, and the write
     /// is where the time goes. A file that has just been written is scanned by whatever watches
     /// the drive before the next thing can open it, and for five hundred snapshots in one ten
-    /// thousand line file that came to half a minute. The lexing is still once per patch, since
-    /// each starts from different source.
+    /// thousand line file that came to half a minute. The lexing is once a file too, and around
+    /// each edit after that (<see cref="PatchInTurn"/>).
     /// </para>
     /// <para>
-    /// So a write that fails fails every patch it was carrying, and each says so. The patches
-    /// after the first of those say so too, whatever they were judged to be, because what they
-    /// were judged against was never written. The file is left as it was.
+    /// So a write that fails fails every patch it was carrying, and each says so. A patch after
+    /// the first of those that made no edit was judged against source that was never written, so
+    /// it is asked again of the file as it was read, and says the write failed only where it would
+    /// have had to edit that. The file is left as it was.
     /// </para>
     /// </summary>
     public static IReadOnlyList<InlineApplyResult> ApplyAll(IReadOnlyList<InlinePatch> patches) =>
@@ -176,6 +177,14 @@ public static class InlineApplier
     static InlineApplyResult[] Run(string fullPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
     {
         var normalizedPath = fullPath.ToLowerInvariant();
+        // A dry run of a file an earlier one read, and nothing has written since, is answered
+        // from what was read then, with no lock: there is nothing here for one to protect
+        if (!write &&
+            Probed.Find(normalizedPath, fullPath) is { } lexed)
+        {
+            return Judge(lexed, patches, anchorOnly, fullPath);
+        }
+
         lock (gates.GetOrAdd(normalizedPath, static _ => new()))
         {
             // Answered rather than thrown, as everything else here is. A mutex this process may
@@ -210,7 +219,7 @@ public static class InlineApplier
                     return All(patches, InlineApplyResult.Failed($"Timed out waiting for the inline patch mutex for: {fullPath}"));
                 }
 
-                return LockedApply(fullPath, patches, write, anchorOnly, replace);
+                return LockedApply(fullPath, normalizedPath, patches, write, anchorOnly, replace);
             }
             finally
             {
@@ -233,7 +242,7 @@ public static class InlineApplier
         return results;
     }
 
-    static InlineApplyResult[] LockedApply(string fullPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
+    static InlineApplyResult[] LockedApply(string fullPath, string normalizedPath, IReadOnlyList<InlinePatch> patches, bool write, bool anchorOnly, Action<string, string> replace)
     {
         // Asked here rather than before the lock, because the swap at the end of this method takes
         // the path away for the instant it takes to rename over it. Asked outside, an applier
@@ -244,6 +253,8 @@ public static class InlineApplier
             return All(patches, InlineApplyResult.Failed($"Source file does not exist: {fullPath}"));
         }
 
+        // What the file looked like before it was read, for a dry run to be kept under
+        var stamp = write ? null : Probed.Stamp(fullPath);
         byte[] bytes;
         try
         {
@@ -274,67 +285,31 @@ public static class InlineApplier
         }
 
         var language = SourceLanguage.ForFile(fullPath);
-        var results = new InlineApplyResult[patches.Count];
-        // The first patch whose edit the write below has to carry, or -1 while there is none
-        var firstToWrite = -1;
-        for (var index = 0; index < results.Length; index++)
+        if (!write)
         {
-            var patch = patches[index];
-            PatchStatus status;
-            string newSource;
-            string failReason;
+            SourceScan lexed;
             try
             {
-                status = InlinePatcher.TryApply(
-                    language,
-                    source,
-                    patch.LineHint,
-                    patch.Mode,
-                    patch.OriginalExpression,
-                    patch.OriginalValue,
-                    patch.MemberName,
-                    patch.EntryPoints,
-                    anchorOnly,
-                    SourceLanguage.NormalizeNewlines(patch.NewContent),
-                    out newSource,
-                    out failReason);
+                lexed = language.Scan(source);
             }
             catch (Exception exception)
             {
-                // A patcher defect on some shape of source, reported against the file it met it in
-                // rather than thrown at whichever surface was accepting
-                results[index] = InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
-                continue;
+                return All(patches, InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception));
             }
 
-            switch (status)
+            var judged = Judge(lexed, patches, anchorOnly, fullPath);
+            if (stamp is null ||
+                !Probed.Keep(normalizedPath, fullPath, stamp.Value, lexed))
             {
-                case PatchStatus.AlreadyApplied:
-                    results[index] = InlineApplyResult.AlreadyApplied;
-                    continue;
-                case PatchStatus.NotFound:
-                    results[index] = InlineApplyResult.NotFound(failReason);
-                    continue;
+                lexed.Dispose();
             }
 
-            // Every reason a patch can be refused for has been asked by this point and none of
-            // them held. All that remains is the write, which is the one step a dry run may not
-            // take
-            results[index] = InlineApplyResult.Applied;
-            if (!write)
-            {
-                continue;
-            }
-
-            // The next patch is applied to this one's result, as it would have been to the file
-            // this one had written
-            source = newSource;
-            if (firstToWrite < 0)
-            {
-                firstToWrite = index;
-            }
+            return judged;
         }
 
+        var results = new InlineApplyResult[patches.Count];
+        var read = source;
+        var firstToWrite = PatchInTurn(language, ref source, patches, fullPath, results);
         if (firstToWrite < 0)
         {
             return results;
@@ -360,19 +335,348 @@ public static class InlineApplier
         }
         catch (Exception exception)
         {
-            // Nothing from the first edit on reached the file, and every answer after it was about
-            // source that held that edit: one already applied only because an earlier patch here
-            // had written the same literal, one not found only because an earlier patch had taken
-            // its anchor. So they all report the write, and an entry that reports a failure is
-            // kept for another try
-            var failed = InlineApplyResult.Failed($"Failed to write: {fullPath}", exception);
+            AfterAFailedWrite(
+                language,
+                read,
+                patches,
+                fullPath,
+                results,
+                firstToWrite,
+                InlineApplyResult.Failed($"Failed to write: {fullPath}", exception));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// What each patch from the first edit on is told when the one write failed.
+    /// <para>
+    /// Nothing from that edit on reached the file, and every answer after it was about source
+    /// that held it: one already applied only because an earlier patch here had written the same
+    /// literal, one not found only because an earlier patch had taken its anchor. So a patch that
+    /// edited reports the write, and an entry that reports a failure is kept for another try.
+    /// </para>
+    /// <para>
+    /// One that made no edit is asked again, of the file as it was read, which is the file as it
+    /// still is. Already applied there, or not found there, is true whatever became of the write
+    /// and is what it is told: they all used to report the write, so a snapshot that was in the
+    /// source all along stayed queued as a failure, and one whose call site had gone was not
+    /// told to re-run. Where it would have had to edit that file, it needed the write as much as
+    /// the others, and reports it.
+    /// </para>
+    /// </summary>
+    static void AfterAFailedWrite(
+        SourceLanguage language,
+        string read,
+        IReadOnlyList<InlinePatch> patches,
+        string fullPath,
+        InlineApplyResult[] results,
+        int firstToWrite,
+        InlineApplyResult failed)
+    {
+        SourceScan? scan = null;
+        try
+        {
+            for (var index = firstToWrite; index < results.Length; index++)
+            {
+                if (results[index].Status == InlineApplyStatus.Applied)
+                {
+                    results[index] = failed;
+                    continue;
+                }
+
+                scan ??= language.Scan(read);
+                var asRead = Judge(scan, patches[index], false, fullPath, out _);
+                results[index] = asRead.Status == InlineApplyStatus.Applied ? failed : asRead;
+            }
+        }
+        catch (Exception)
+        {
+            // The source could not be lexed again, which leaves the write as all there is to say
             for (var index = firstToWrite; index < results.Length; index++)
             {
                 results[index] = failed;
             }
         }
+        finally
+        {
+            scan?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Applies the patches of one file to its source in memory, each to what the one before it
+    /// left, and says what became of each. Returns the first patch whose edit a write has to
+    /// carry, or -1 when none made one.
+    /// <para>
+    /// The source is lexed once, for the first patch, and the scan is carried from each patch
+    /// that edits to the next (<see cref="SourceScan.Edited"/>), which lexes only around the
+    /// edit. Lexed whole for every patch, five hundred snapshots in a 600 KB file were most of a
+    /// second of patching around their one write. What each patch is told is what it would have
+    /// been told over a scan of the whole text, since the scan it is given is that scan.
+    /// </para>
+    /// </summary>
+    /// <param name="language">The language the source is in.</param>
+    /// <param name="source">The source, replaced by each patch that edits.</param>
+    /// <param name="patches">The patches, in the order they are to be applied.</param>
+    /// <param name="fullPath">The file, for a failure to name.</param>
+    /// <param name="results">Filled with an outcome for each patch.</param>
+    internal static int PatchInTurn(
+        SourceLanguage language,
+        ref string source,
+        IReadOnlyList<InlinePatch> patches,
+        string fullPath,
+        InlineApplyResult[] results)
+    {
+        // The first patch whose edit the write has to carry, or -1 while there is none
+        var firstToWrite = -1;
+        SourceScan? scan = null;
+        try
+        {
+            for (var index = 0; index < results.Length; index++)
+            {
+                try
+                {
+                    scan ??= language.Scan(source);
+                }
+                catch (Exception exception)
+                {
+                    results[index] = InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
+                    continue;
+                }
+
+                results[index] = Judge(scan, patches[index], false, fullPath, out var newSource);
+                if (results[index].Status != InlineApplyStatus.Applied)
+                {
+                    continue;
+                }
+
+                // The next patch is applied to this one's result, as it would have been to the
+                // file this one had written
+                source = newSource;
+                if (firstToWrite < 0)
+                {
+                    firstToWrite = index;
+                }
+
+                var previous = scan;
+                scan = null;
+                try
+                {
+                    if (index + 1 < results.Length)
+                    {
+                        scan = previous.Edited(newSource);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Left for the next patch to lex whole, which is what it used to do. A scan
+                    // that could not be carried is no reason to fail a patch that has applied
+                }
+                finally
+                {
+                    previous.Dispose();
+                }
+            }
+        }
+        finally
+        {
+            scan?.Dispose();
+        }
+
+        return firstToWrite;
+    }
+
+    /// <summary>
+    /// What the patcher makes of one patch, over source that has been lexed, as the outcome a
+    /// caller is given. <paramref name="newSource"/> is the edited source where the outcome is
+    /// Applied, which is all a dry run wanted to know and what a write has still to carry out.
+    /// </summary>
+    static InlineApplyResult Judge(SourceScan scan, InlinePatch patch, bool anchorOnly, string fullPath, out string newSource)
+    {
+        PatchStatus status;
+        string failReason;
+        try
+        {
+            status = InlinePatcher.TryApply(
+                scan,
+                patch.LineHint,
+                patch.Mode,
+                patch.OriginalExpression,
+                patch.OriginalValue,
+                patch.MemberName,
+                patch.EntryPoints,
+                anchorOnly,
+                SourceLanguage.NormalizeNewlines(patch.NewContent),
+                out newSource,
+                out failReason);
+        }
+        catch (Exception exception)
+        {
+            // A patcher defect on some shape of source, reported against the file it met it in
+            // rather than thrown at whichever surface was accepting
+            newSource = "";
+            return InlineApplyResult.Failed($"Failed to patch: {fullPath}", exception);
+        }
+
+        // Every reason a patch can be refused for has been asked by this point. For one that
+        // none of them held for, all that remains is the write, which is the one step a dry run
+        // may not take
+        return status switch
+        {
+            PatchStatus.AlreadyApplied => InlineApplyResult.AlreadyApplied,
+            PatchStatus.NotFound => InlineApplyResult.NotFound(failReason),
+            _ => InlineApplyResult.Applied
+        };
+    }
+
+    /// <summary>
+    /// A dry run: every patch asked of the same source, which none of them changes.
+    /// </summary>
+    static InlineApplyResult[] Judge(SourceScan scan, IReadOnlyList<InlinePatch> patches, bool anchorOnly, string fullPath)
+    {
+        var results = new InlineApplyResult[patches.Count];
+        for (var index = 0; index < results.Length; index++)
+        {
+            results[index] = Judge(scan, patches[index], anchorOnly, fullPath, out _);
+        }
 
         return results;
+    }
+
+    /// <summary>
+    /// The source files a dry run has read, lexed, for the next dry run of the same file.
+    /// <para>
+    /// A test run asks <see cref="CanAnchor"/> once for each call site it has not seen before,
+    /// and each asking read, decoded and lexed the whole file: 0.7 s for the five hundred call
+    /// sites of a 600 KB file, to be told five hundred things about the same text. Nothing is
+    /// written by a dry run, so what one read stands for as long as the file does, and the file's
+    /// length and write time say whether it has.
+    /// </para>
+    /// <para>
+    /// A write time says nothing about a second write inside the same tick of the file system's
+    /// clock, which is two seconds on some. So only a file that had been left alone for longer
+    /// than that when it was read is kept: any write after the read then has a later time. A
+    /// file being edited is read each time, as it was.
+    /// </para>
+    /// <para>
+    /// A few files, since a run goes through its source files a class at a time and tests run
+    /// side by side. A scan that is dropped is left to the collector and not disposed, because
+    /// another thread may be part way through asking it something.
+    /// </para>
+    /// </summary>
+    static class Probed
+    {
+        const int capacity = 4;
+
+        static readonly TimeSpan settled = TimeSpan.FromSeconds(3);
+
+        static readonly List<Entry> entries = [];
+
+        static long uses;
+
+        sealed class Entry(string path, (long Length, DateTime Written) stamp, SourceScan scan)
+        {
+            public string Path => path;
+            public (long Length, DateTime Written) Stamp => stamp;
+            public SourceScan Scan => scan;
+            public long Used;
+        }
+
+        /// <summary>
+        /// What tells one state of a file from the next, or null for a file that cannot be asked.
+        /// </summary>
+        public static (long Length, DateTime Written)? Stamp(string fullPath)
+        {
+            try
+            {
+                var info = new FileInfo(fullPath);
+                if (!info.Exists)
+                {
+                    return null;
+                }
+
+                return (info.Length, info.LastWriteTimeUtc);
+            }
+            catch (Exception exception)
+                when (exception is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The scan kept for a file, where the file is still as it was when that was read.
+        /// </summary>
+        public static SourceScan? Find(string normalizedPath, string fullPath)
+        {
+            Entry? entry;
+            lock (entries)
+            {
+                entry = entries.Find(_ => _.Path == normalizedPath);
+            }
+
+            if (entry is null)
+            {
+                return null;
+            }
+
+            // Asked outside the lock, since it is the file system that answers
+            var stamp = Stamp(fullPath);
+            lock (entries)
+            {
+                if (stamp is null ||
+                    stamp.Value != entry.Stamp)
+                {
+                    entries.Remove(entry);
+                    return null;
+                }
+
+                entry.Used = ++uses;
+                return entry.Scan;
+            }
+        }
+
+        /// <summary>
+        /// Keeps a scan of a file that was read while it looked like <paramref name="stamp"/>.
+        /// False when it is not kept, and is still the caller's to dispose.
+        /// </summary>
+        public static bool Keep(string normalizedPath, string fullPath, (long Length, DateTime Written) stamp, SourceScan scan)
+        {
+            // Written too recently to tell a later write by its time, written since it was read,
+            // or dated in the future, which the same test refuses
+            if (DateTime.UtcNow - stamp.Written < settled ||
+                Stamp(fullPath) is not { } after ||
+                after != stamp)
+            {
+                return false;
+            }
+
+            // Asked for here, so nothing about the scan changes once other threads can see it
+            _ = scan.Eol;
+            _ = scan.IndentUnit;
+            lock (entries)
+            {
+                entries.RemoveAll(_ => _.Path == normalizedPath);
+                if (entries.Count >= capacity)
+                {
+                    var oldest = 0;
+                    for (var index = 1; index < entries.Count; index++)
+                    {
+                        if (entries[index].Used < entries[oldest].Used)
+                        {
+                            oldest = index;
+                        }
+                    }
+
+                    entries.RemoveAt(oldest);
+                }
+
+                entries.Add(new(normalizedPath, stamp, scan) { Used = ++uses });
+            }
+
+            return true;
+        }
     }
 
     /// <summary>

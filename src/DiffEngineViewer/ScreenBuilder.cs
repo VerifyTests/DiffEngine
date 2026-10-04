@@ -519,6 +519,11 @@ static class ScreenBuilder
     {
         // Over whatever the last command said, which while a batch runs is at best "Waiting for
         // the queue owner." - and saying that over a list that is visibly shrinking is not news
+        if (state.Batch is { } batch)
+        {
+            return batch.Describe();
+        }
+
         if (state.Progress is { } progress)
         {
             return progress.Describe();

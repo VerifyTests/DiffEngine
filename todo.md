@@ -1,186 +1,120 @@
-# Review todo
+# Todo
 
-Findings from a review of `main` at 991bc480 (2026-10-03). The list from the review at 4244ebe6 is closed, so this one weights what has landed since: documents and maps, the text diff, zoom and pan, the remembered window and views, and pictures decoded off the UI thread.
+What is open after the review of `main` at 991bc480 and the rounds of fixes that followed it. Everything those rounds fixed is gone from here. What is left is what the fixes did not reach, by area, and a few items that were looked at and left for a reason the item gives.
 
-Most of it came from six reviews run alongside, one per area: the library, the inline patcher, the tray, and the Windows, Linux and macOS heads. Every bug found is fixed and gone from this list: the five in the viewer's model, and the twenty seven the six reviews found. So is every performance item, all fourteen, and every smaller item but one. What is left is what those fixes did not reach.
-
-File and line references are as of a01dfc1d, before the second round of fixes and before the performance ones. The code they point at is unchanged, but lines below an edit have moved, so go by the names.
-
-- **reproduced**: run and seen by me. Either the API involved, or the repo's own sources compiled into a scratch console project outside the repo. No test in the repo yet.
-- **measured**: timed by me in that same project. Release, net10.0, this machine.
-- **read**: confirmed by me reading the code path, not run.
-- **reported**: found by one of the six reviews and not rerun by me. What follows the word is the reviewer's own evidence: *ran* is a probe of theirs outside the repo, *measured* a timing of theirs, *read* a trace through the code, and *plausible* a reading that rests on something they could not run, with what would settle it. For each of these I checked that the code it quotes is in the tree as quoted, and nothing more.
-- **left by the fix**: said by whoever fixed the bug it sits under, about the part the fix did not reach.
-- Nothing under a macOS heading has been run by a person: the Swift cannot be built from Windows. CI's `macos-14` job compiles it and runs the suite and the pixel snapshots, and it passes there. The Linux fixes were built and run in an `ubuntu:24.04` container, and pass on CI's Linux job too. The two macOS performance changes are in the same position as the fixes, and have not been measured either.
+An item with no tag was said by whoever made the fix it follows from. A tag says how else it is known. Nothing under the macOS head has been run by a person: the Swift cannot be built from Windows, and CI's `macos-14` job compiles it and runs the suite and the pixel captures, which open no window. The Linux head was built and run in an `ubuntu:24.04` container, under Xvfb with Mesa's software rasteriser.
 
 
-## Bugs
+## Library
 
-Nothing that was found as a bug is open. What follows is what the fixes left.
+- [ ] A viewer that is alive and never binds the port is still reported as launched after `BindWait`, and its payload file stays. That is the apphost's "install .NET" dialog, which does not exit. At the gate it cannot be told from a viewer that is only slow.
+- [ ] A viewer that exits 1 or 4 has tried to stage the patch itself, and the caller, told the launch failed, stages it too: two trios in different `VerifyInline` folders until a passing run clears both. The gate cannot tell staged from tried, because the viewer discards `InlineStaging.Persist`'s count: it needs an exit code of its own for "staged", from `ViewerProgram`.
+- [ ] On macOS and Linux a tool started without ShellExecute still inherits the test host's streams. Nothing in the definitions tells a terminal tool, which needs them, from a windowed one: Neovim is declared `UseShellExecute: true` like the rest.
+- [ ] `DiffRunner.LaunchProcess` still starts a third party tool in the test host's working directory, which then cannot be deleted while the tool is open. Left alone because a tool resolves relative arguments against it and `ProcessCleanup` matches on those same strings.
+- [ ] None of the four tools started through `WindowsProcess.StartInheritingNothing` (Word and Excel comparers, Cursor, VS Code) was itself run. A console exe, a windowed exe and a `.cmd` stood in for them.
+- [ ] The table of Windows' listeners still grows a little with the machine's connections, 0.13 ms to 0.32 ms across 3,000 rows, and `PiperClient.PortIsHeld` reads it on every send. `GetExtendedTcpTable` was run on Windows 11 x64 only: not 32-bit, not ARM64, not with IPv6 disabled.
+- [ ] A port the table found empty stands as unowned for a second; one a connect found empty still stands for ten minutes, which is every platform but Windows. Whether the table reads as empty under WSL1 was not checked.
+- [ ] Only a refusal or an unanswered connect is remembered as nobody being there. A platform that reports "nothing listening" some other way would pay the connect on every telling send. Which `SocketError` Windows gives when it is out of ports was not established, and no longer matters to the memory.
+- [ ] The two kept connections, for telling sends and for listings, were not run on macOS, and were tested against a stand-in for an older owner, not a released tray or viewer. A listing that times out drops its kept connection and the next opens it again: the tray's and the attached viewer's callers were not read for what they assume about that.
+- [ ] A client talking to an owner from before `keeps` still makes a connection per settle, so the port exhaustion stands against an older tray.
+- [ ] Sends that change the queue (`Accept`, `Discard`, `AcceptAll`, `Inline`, `Diff`, `Focus`) and the async send are still a connection each. One written to a kept connection whose owner has just gone would be sent again, with nothing to say whether it was acted on.
+- [ ] Parallel settles take turns at the one connection under a lock, so a slow owner holds them in a line, where each used to wait on a connection of its own.
+- [ ] On .NET Framework only the kept connections are kept from child processes. A child started in the moment a one-off exchange is open still inherits that socket. (not run)
+- [ ] The accept wait is a fixed 100 ms from the second failure in a row. The case where a failure persists was run on Linux only, by using up the descriptors.
+- [ ] Apple's `ps` was not run with `-ww`; its manual says a second `-w` uses as many columns as it needs.
 
-### Library
 
-- [ ] A viewer that is alive and never binds the port is still reported as launched after `BindWait`, and its payload file stays. That is the apphost's "install .NET" dialog, which does not exit. At the gate it cannot be told from a viewer that is only slow. (left by the fix)
-- [ ] A viewer that exits 1 or 4 has staged the patch itself, and the caller, told the launch failed, now stages it too: two trios in different `VerifyInline` folders until a passing run clears both. (left by the fix)
-- [ ] A failed launch still spends a `MaxInstance` slot, so after five in one process the cap answers instead. (left by the fix)
-- [ ] On macOS and Linux a tool started without ShellExecute still inherits the test host's streams. Nothing in the definitions tells a terminal tool, which needs them, from a windowed one: Neovim is declared `UseShellExecute: true` like the rest. (left by the fix)
-- [ ] `DiffRunner.LaunchProcess` still starts a third party tool in the test host's working directory, which then cannot be deleted while the tool is open. Left alone because a tool resolves relative arguments against it and `ProcessCleanup` matches on those same strings. (left by the fix)
-- [ ] None of the four tools now started through `WindowsProcess.StartInheritingNothing` (Word and Excel comparers, Cursor, VS Code) was itself run. A console exe, a windowed exe and a `.cmd` stood in for them. (left by the fix)
+## Inline snapshots
 
-### Inline snapshots
+- [ ] Verify has to change for the staged trios of a multi-targeted project to be cleared per framework: in `InlineEngine.Settle()`, call `InlineStaging.Settle(MappedSourceFile, inline.Line, inline.MemberName, VerifierSettings.IntermediateDir, SnapshotInSource)` in place of `ClearStaged(...)`. DiffEngine's half is in: the trios are labelled, and `Settle` clears only the running framework's.
+- [ ] A `Remove` with a stale hint can answer AlreadyApplied while its anchored call is still there. The source cannot tell that from the same Remove applied twice over a sibling with the same literal, so it needs Verify's half, skipping the Remove when the source file is newer than the test assembly, or a Remove that never changes line numbers. An empty line over a Snapshot call is read as removed, which is one more shape of it. (reproduced)
+- [ ] A queued entry is still found by its line, with the member asked second. Three cases remain: a test that carries on past a failed verification and has two call sites only the line tells apart folds them into one; an entry the reporting framework has no content in is not moved, so a multi-target run can keep a stale duplicate; and a settle from the same member is believed on a key hit. Rebasing the hints of a file's remaining entries when one is accepted would close all three. It needs the applier to report where each edit began and how many lines it added, `InlineQueue.Accept` and `AcceptInBatch` to move the file's remaining entries, the viewer's batch and the tray's `AcceptEvery` to find a claimed entry by something that survives a move rather than by its `Variants` reference, and an attached viewer and `RemoteInlineHost` to cope with a key changing under a selection.
+- [ ] An `Append` with a stale hint and more than one call in its member with no Snapshot call is refused and has to be run again. A file with several such members takes a run each under accept-all, because each accept above makes the next hint stale. Rebasing hints would end it.
+- [ ] A `Remove` of a statement whose receiver is on a line above the call still brings the lines under it up.
+- [ ] A batch still copies the whole source for each patch that edits: 1.2 MB a patch in a 600 KB file, 0.29 s for 500.
+- [ ] A dry run is answered from a kept scan while the file's length and write time stand. A rewrite of the same length that puts the old write time back is not seen, and up to four files' source and maps are held for the life of the process. `ASecondProbeOfAFileDoesNotReadItAgain` relies on a second open being refused, which was not run off Windows.
+- [ ] The scan carried from one edit to the next restarts at the edit's line, never at a line that follows a backslash. A lexer change that looks across a line break some other way has to extend `SourceScan.RestartFor`.
+- [ ] A `VerifyInline` directory another process creates can be found up to a second late by `InlineStaging.Clear`.
 
-- [ ] Verify has to change for the staged trios of a multi-targeted project to be cleared per framework: in `InlineEngine.Settle()`, call `InlineStaging.Settle(MappedSourceFile, inline.Line, inline.MemberName, VerifierSettings.IntermediateDir, SnapshotInSource)` in place of `ClearStaged(...)`. DiffEngine's half is done: the trios are labelled, and `Settle` clears only the running framework's. (left by the fix)
-- [ ] A queued entry is still found by its line, with the member asked second. Three cases remain: a test that carries on past a failed verification and has two call sites only the line tells apart folds them into one; an entry the reporting framework has no content in is not moved, so a multi-target run can keep a stale duplicate; and a settle from the same member is believed on a key hit. Rebasing the hints of a file's remaining entries when one is accepted would close all three, and was not done because a batch accept finds entries by their `Variants` reference. (left by the fix)
-- [ ] An `Append` with a stale hint takes the first call in the member that has no `Snapshot` call. Where an earlier call there is verified through files, or through `settings.Snapshot`, that is the wrong call, as it already was whenever such a call came first. (left by the fix)
-- [ ] A `Remove` with a stale hint can answer AlreadyApplied while its anchored call is still there, because `RemovedAtHint` is asked first. (left by the fix: seen in its fuzzing, and present before it)
 
-### Tray
+## Tray
 
-- [ ] "Accept all in" a group from an attached viewer sends one `Accept` per key (`OwnerLink.AcceptGroup`), so the guard that leaves a delete whose file a move in the same sweep wrote does not apply there. (left by the fix)
-- [ ] A delete held back that way stays in the menu with only a log line to say why, and a second "Accept all" carries it out. (left by the fix)
-- [ ] An owning viewer's own batch looks to have the shape the tray's had: `ViewerSession.EnqueueTracked` replaces by key only, and `BeginAcceptAll` takes moves and deletes in queue order, so a delete can follow the move that wrote its file. (left by the fix: read, not run)
-- [ ] A batch that begins between Verify raising a delete and queueing its patch can still carry out the delete without the patch. Closing that needs the two tied together on the wire. (left by the fix)
-- [ ] A logoff also skips `TrayVersionFile.Delete()`, for the reason it skipped the staging. (left by the fix)
-- [ ] The session ending was confirmed by sending the tray-shaped process `WM_QUERYENDSESSION` and `WM_ENDSESSION`, not by logging off. (left by the fix)
+- [ ] "Accept all in" a group from an attached viewer sends one `Accept` per key (`OwnerLink.AcceptGroup`), which carries out a held delete, as accepting it on its own does.
+- [ ] A delete held because a move wrote its file is marked in the tray's menu and debug view only. A viewer showing the tray's queue shows it like any other, and the wire's accept-all counts it as kept without saying why: `ViewerResponseDelete` has no field for it. The hold is let go when the delete is raised again, which another framework's process of the same run, having decided before the move was accepted, can do.
+- [ ] An owning viewer's own batch looks to have the shape the tray's had: `ViewerSession.EnqueueTracked` replaces by key only, and `BeginAcceptAll` takes moves and deletes in queue order, so a delete can follow the move that wrote its file. (read, not run)
+- [ ] A batch that begins between Verify raising a delete and queueing its patch can still carry out the delete without the patch. Closing that needs the two tied together on the wire.
+- [ ] The session ending, which stages the queue and removes the version marker, was exercised by sending `WM_QUERYENDSESSION` and `WM_ENDSESSION` to the window, not by logging off, and its wiring in `Program.Inner` is read, not run.
+- [ ] A process is believed to be a move's tool only when its command line names the received file. A custom tool that rewrites the path it is given is not tracked as a process: not closed on accept, not counted as open. The command line is read by a call Windows has from 8.1, and was read from PowerShell children only, not a real diff tool.
+- [ ] A tool started through a script is never tracked as a process: VS Code always (`code.cmd`), and Rider when it is found on the PATH as `rider.cmd`. Nor is one whose launcher hands over and exits: Araxis, Sublime Merge, Cursor, Meld and an already running Rider, from knowledge of the tools and not from running them. None can be tracked safely from the tray, since the window lives in a process whose command line does not name the pair.
+- [ ] "Discard" on a single move still ends its tool on the UI thread, up to 500 ms. A move whose received file could not be deleted in a bulk discard is untracked with only a log line.
+- [ ] A scan that keeps failing still writes a log line every two seconds.
+- [ ] `OptionsFormLauncherTests` registers real global hot keys, Ctrl+Alt+Shift+F13 to F17, and fails where something else holds one. `KeyRegister`'s internal constructor is there to give it a stand-in.
+- [ ] `TrayVersionFileTest` writes and deletes the real `%TEMP%\DiffEngineTray\version.txt`, so running the suite removes the marker of a tray running on the machine.
+- [ ] The `MenuBuilderTest` tests that call `menu.Show(0, 0)` briefly put a context menu at the top left of the desktop.
 
-### Viewer, Linux head
 
-- [ ] The body is not told about a taller footer. The model's eight chrome lines leave room for two rows of buttons and a status line; a paged document in a window under about 450 px wide needs four, and the last body rows are then hidden. Fixing it means the shim reporting fewer `rows`, which changes what `deview.h` says that field is. (left by the fix)
-- [ ] The machine's fonts are drawn, not shaped: Arabic is unjoined and right to left text is in stored order. Colour emoji fonts and CFF2 variable fonts cannot be read by stb_truetype and are passed over, so a machine whose only CJK font is the variable Noto still shows replacement glyphs. At most fifteen fonts are merged. (left by the fix)
-- [ ] Accept-all reads the Shift key's physical state, since raylib gives no modifiers with a character, so a latched Shift (sticky keys) is a plain accept. (left by the fix)
+## Viewer model
 
-### Viewer, macOS head
+- [ ] A pair is still read and diffed before the viewer answers the test process that sent it (`MessageHandler.TrackMove`). The diff is bounded, so what is left is two reads: a million lines a side, shuffled, is about two of the sender's three seconds. Answering first and filling the entry in afterwards was looked at and left: `Refresh` does not open an entry at its first change, a second arrival of the pair while unread would be compared against a placeholder, the watch that would fill it has a budget and a hidden cadence, and every small pair would flash an empty pane.
+- [ ] A queue of more than a hundred pending files is looked at a hundred a pass, so a row that is not on screen follows its file within `count / 100` passes. Looking every pass at the rows the queue column shows would be better, and was judged not worth the watch knowing the body's height and what is folded.
+- [ ] A snapshot discarded, or settled by a test that started passing, while its own source file is being written by a bulk accept is written with the rest of the file. It is not counted. Closing it takes `InlineApplier.ApplyAll` asking, for each patch after the file is patched in memory and before its one write, whether it is still wanted, with the core answering from whether the claimed entry is still queued.
+- [ ] A change to one entry still costs by the queue's length, a tenth of what it did: 0.1 to 0.24 ms at 2,000 entries, in asking `InlineQueue`, which copies its list and builds a key an item. The first snapshot of a solution, and a removal that leaves a solution with only files, still rebuild the whole list, and an attached viewer's `Sync` still projects the whole queue for each listing that changed.
+- [ ] Queue labels are kept against the queue's list, so a list changed after it is put in a state would show stale labels. Nothing in the core does that.
+- [ ] `ScreenPayload` cuts a row at half the window and a cell, on both native heads splitting the panes equally, which was read and not run. A head that stops doing that has to change `Screen.PaneCells`. A changed frame of CJK rows is still 1.7 ms at 4K, in classifying each cluster.
+- [ ] Past its budget a diff goes by the lines that occur once on each side. Texts made mostly of repeated lines have few, and are still split wherever the search stopped.
+- [ ] A bulk discard under way in an owning viewer is not on its listings, so an attached window or the tray sees the queue shrink with no progress and refuses nothing meanwhile. A discard-all from the tray during an accept-all now waits for it to end.
+- [ ] `ScreenBuilder.Build` for an entry of 100,000 lines is 1.5 to 2.5 ms a screen. (noticed, cause not found)
+- [ ] Both sides of a document are drawn at once, and four things about that could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`.
+- [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back.
 
-- [ ] The four macOS fixes compile and the suite passes on CI, but none has been run by a person, and two are event handling that no capture exercises. What would confirm each on a Mac:
+
+## Viewer, Windows head
+
+- [ ] A status loses what is past three lines under the buttons, behind an ellipsis and a tooltip. The footer was not looked at on a scaled display; its tests enlarge the font instead.
+- [ ] In a capture a footer taller than one row cuts the last rows of a screen built for the whole window, since a capture's screen is built before the footer is laid out. The window is not affected.
+- [ ] Between half its own size and its own size an enlarged picture is still scaled on every paint: 9 ms for a 4000 by 3000 pair at 400%. A copy there would cost up to the decoded picture again, 96 MB for that pair.
+- [ ] The picture baselines were not taken again for the premultiplied decode, apart from the two the footer moved. They differ from what is drawn by one level in translucent pixels and pass at the suite's 0.9999.
+- [ ] `WindowPlacementTests`, `ViewerFormRaiseTests` and `FrameWaitTests` still show a `ViewerForm` the ordinary way, so it is the foreground window while they run and takes the keyboard of whoever is at the machine. Only the hosts that post input, and captures, are parked. (noticed, not looked into)
+- [ ] In a window about 560 wide the left pane's header runs into the right pane's with no gap. It shows in `FooterThatWraps`. (noticed, not looked into)
+- [ ] The test that an exception comes out of a message pump has only been seen to pass, since failing it is what shows the dialog.
+- [ ] `RowText.Shown`'s tests are in `DiffEngineViewer.Windows.Tests`, though it is the core's. They belong beside `CellGridTests`.
+- [ ] A minimised window slows only its own frame wait. `OwnerLink`, `TrackedWatch` and the document reader go by `Hidden`, which only a Hide command sets. The head would have to tell the loop.
+
+
+## Viewer, Linux head
+
+- [ ] The body is not told about a taller footer: a paged document in a window under about 450 px wide needs four footer rows, and the last body rows are then hidden. `rows` in `deview.h` would become the rows the body has room for and the model's eight chrome lines, with `MeasureGrid` here and `Renderer.grid(for:)` on macOS taking off what the footer exceeds its allowance by. No managed change, a `DEVIEW_VERSION` bump, and both binaries built together.
+- [ ] The machine's fonts are drawn, not shaped: Arabic is unjoined and right to left text is in stored order. Colour emoji fonts and CFF2 variable fonts cannot be read by stb_truetype and are passed over, so a machine whose only CJK font is the variable Noto still shows replacement glyphs. At most fifteen fonts are merged.
+- [ ] A minimised window is still built and drawn when its screen changes; only a hidden one is left alone.
+- [ ] An idle window still turns sixty times a second: 3 to 9 ms of processor a second. Waiting on the window system instead would take the managed loop being told when to wake.
+- [ ] Leaving a window alone was run only under Xvfb with Mesa's software rasteriser, with no window manager and under openbox. Not on a GPU, under a compositor, on Wayland or over forwarded X.
+- [ ] Control held for the wheel to zoom is read from the key's physical state, so a latched Control (sticky keys) scrolls instead. GLFW's scroll callback carries no modifiers. (plausible)
+- [ ] A picture brought down to the largest texture is drawn as that copy's pixels when enlarged past it, not its own, and nothing on screen says so. Bringing down a picture of 20,000 pixels square holds about 2 GB for a moment.
+- [ ] A picture between half and three quarters of its size is drawn from its half size copy under about seven tenths: even, but soft. In a window made narrower, a picture is drawn smoothed for the frames until its reduced copies land, then changes once.
+- [ ] Display scale is read once, as the window is made. A change of `Xft.dpi` while running, and a scale per monitor under Wayland or XWayland, are not followed, and a placement remembered at one scale is used in pixels at another. Checked only under Xvfb with an X resource at 144 and 192, never on a HiDPI desktop.
+- [ ] `PixelTests.AWindowLeftAloneIsNotDrawn` and `AHiddenWindowIsNotDrawn` show a real window for a few seconds, which someone who turns the pixel tests on at a desktop will see, and the second asserts exactly one draw on the first present after showing.
+- [ ] A press in a window that does not have input focus, with its release never arriving, was not tried. Hidden, unmapped, minimised and unfocused during a press, the drag stopped within a turn. A two finger tap on a real touchpad is unconfirmed.
+
+
+## Viewer, macOS head
+
+- [ ] `Runtime.open` cannot fail (it always returns true), so with no console session, as over SSH, AppKit aborts the process after the port was bound and the patch is lost. `CGSessionCopyCurrentDictionary()` may also answer "no session" over SSH while the same user is logged in at the console, where the viewer opens today. `SCDynamicStoreCopyConsoleUser` beside it would tell those apart except under fast user switching, which was not tried. What would settle it: print both from an SSH shell with and without a console login, and run the viewer in each. (reported: plausible)
+- [ ] To confirm on a Mac, from the bug fixes. Two are event handling that no capture exercises:
   - Keys and clicks queued: with three entries queued, `pkill -STOP -x DiffEngineViewer`, press Down twice, `pkill -CONT`: the panes scroll two rows. Stopped, Tab then `a`: the second entry is the one accepted.
   - The scroller's knob: dragging it scrolls the panes while the button is down, and the scroller stays on the right edge through a resize.
   - The footer: `DiffEngineViewer --diff a.png b.png` at the default size has "images differ" on a line of its own with nothing over "Zoom in"; a PDF pair has two rows of buttons, all of which click.
   - Ligatures: `!= <= => -> == ...` in a text file are each drawn as separate characters.
-- [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. That half of the tracking loop bug needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too. (left by the fix)
-- [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. (left by the fix)
-- [ ] Every auto-repeat of a held `a` or `d` is now handed over, including ones queued during a stall. `event.isARepeat` would drop them. The Windows head now drops them for the commands that change the queue. (left by the fix)
-- [ ] The title row has the footer's old shape: the subtitle is drawn over a long title. (left by the fix)
-
-
-## Performance
-
-Nothing that was found as a performance item is open. Each was measured before and after by a benchmark that is now in the repository, in `src/DiffEngine.Benchmarks`, `src/DiffEngineViewer.Benchmarks` and `src/DiffEngineViewer.Windows.Benchmarks`, and the numbers are in the commits that made the changes. The two Linux items were measured in the `ubuntu:24.04` container, by `NativeFrameBenchmarks` and `NativeIdleBenchmarks`, which are left out of a run anywhere else. Two were not measured, because nothing here can run them: both macOS items. What follows is what the fixes left.
-
-### Viewer model
-
-- [ ] Past its budget a diff is correct and may not be the smallest: two texts of more than 10,000 lines between them with 8,000 or more of the lines they share out of place. A block moved whole is found whatever its size. The same lines shuffled come out as nearly everything changed, where the longest run still in order could be kept: anchoring on the lines that occur once on each side, by the longest increasing run of them, would find it in the time of a sort. (left by the fix)
-- [ ] A pair is still read and diffed before the viewer answers the test process that sent it (`MessageHandler.TrackMove`). The diff is bounded now, so what is left is two reads: a million lines a side, shuffled, is about two of the sender's three seconds. Answering first and filling the entry in afterwards, as a document arrives `Reading`, was not done. (left by the fix)
-- [ ] A screen is built when the state changes, which a scroll or a drag does every frame, and `QueueProjection.Rows` describes every row of the queue to draw the forty that fit: 0.55 ms and 1.1 MB at 2,000 entries, for each such frame. Slicing before describing would make it the visible rows'. (left by the fix)
-- [ ] `ScreenPayload` clips a row to the window's width in cells rather than the pane's, so about twice what a pane can show is encoded for the macOS and Linux heads: 3.6 ms a changed frame for a 4K window of 300 character CJK lines. `RowText.Shown`, which the WinForms head now cuts with, would serve, once the model knows how many cells a pane has. (left by the fix)
-- [ ] A queue of more than a hundred pending files is looked at a hundred a pass, so a row that is not on screen follows its file within `count / 100` passes: two seconds for a thousand, and five times that while the window is hidden. The entry on screen is still looked at every pass. (left by the fix)
-- [ ] Only a batch's record step stopped rebuilding the whole list from the whole queue. Every arrival (`EnqueueInline`), settle and single accept still does, under the lock: a dictionary of the queue, two orderings and a key an entry. The order is now worked out once a change rather than twice, and a key once an entry. (left by the fix)
-- [ ] The bulk discards are still one transition on the render thread: `DiscardGroup` and `DiscardAll` delete each received file under the lock. A discard waits on nothing, so they were left. (left by the fix)
-- [ ] A snapshot discarded, or settled by a test that started passing, while its own source file is being written by a bulk accept was handed over with the rest of the file and is written with them. It is not counted, and a discard still takes it out of the queue. Before, that moment was the snapshot's own apply rather than its file's. Closing it would take the applier asking, before its one write, which of the patches are still wanted. (left by the fix)
-- [ ] Both sides of a document are drawn at once, and four things about that are as they are for a reason and could be better: a drawing is not stopped when the reader leaves its entry, though between two pages of a PDF it now could be; the pages of a PDF that is put back because the other side stopped inside PDFium are dropped, and drawn again once PDFium is free; a PDF pair's right side waits for the left's first page, which is what lets the two be told apart when both stop; and `Withdrawn`, which takes a rendering back out of the state, lives in `DocumentWatch` where it belongs beside `ViewerSession.Rendered`. (left by the fix)
-- [ ] Which of two PDFs stopped inside PDFium is inferred from whose pages stopped first, not known. A thread descheduled between landing a page and asking for the lock, at the moment the other side hangs, would have the innocent side given up on and the culprit put back. (left by the fix)
-
-### Library
-
-- [ ] The listener table is every connection the machine has, filtered, so reading it grows with them: 0.45 ms at 86 connections and 7.9 ms at 3,102. `ViewerClient` skips it for a port that answered in the last second; `PiperClient.PortIsHeld` reads it on every send, as it did before. A listener-only table by P/Invoke would not grow. (left by the fix)
-- [ ] `RecheckUnownedAfter` is still ten minutes, though a recheck on Windows is now a read of the table rather than two seconds, and could come down. (left by the fix)
-- [ ] Off Windows the connect is still the only question asked, since a refusal there is immediate. Whether the table reads as empty under WSL1 was not checked. (left by the fix)
-- [ ] `PiperClient.PortIsHeld` now takes any exception from the table as "may be held", where it took two kinds. (left by the fix)
-
-### Inline snapshots
-
-- [ ] Lexing is still once a patch, in a batch as well: each patch is applied to what the one before it left, and one scan for all of them would not give the outcomes of applying in turn. 500 patches to a 600 KB file are 0.8 s of patching around one write. (left by the fix)
-- [ ] `CanAnchor` still reads and lexes the whole file for each call site a run has not seen before: 0.7 s for 500 call sites in the 600 KB file. (left by the fix)
-- [ ] A batch's one write that fails fails every patch from the first edit on, including one judged already applied or not found after it, and the file's mutex is held from the read to the write. (left by the fix)
-- [ ] A `VerifyInline` directory another process creates can be found up to a second late by `InlineStaging.Clear`. (left by the fix)
-- [ ] Two Windows-only tests assert that a send to a free port returns in under a second, where the refusal it avoids takes two. (left by the fix)
-
-### Viewer, Windows head
-
-- [ ] Between half its own size and its own size an enlarged picture is still scaled on every paint: 15 ms for a 4000 by 3000 pair at 400%. A copy there would cost up to the decoded picture again, 96 MB for that pair. Decoding premultiplied (`Format32bppPArgb` in `ImageCache.Load`) measured 9 ms, and was left out because it moves translucent pixels by one level in five pixel scenes. (left by the fix)
-- [ ] A picture drawn from its scaled copy sits on whole pixels, up to half a pixel from its exact placement, so two pictures of different sizes can be a pixel apart relative to each other while zoomed below half size. (left by the fix)
-- [ ] `Uncomposable` is a picture's rather than a size's, so a scale that failed also stops the fitted copy being made again at a new size. (left by the fix)
-- [ ] `RowText.Shown`'s tests are in `DiffEngineViewer.Windows.Tests`, beside its one caller. They belong beside `CellGridTests`. (left by the fix)
-- [ ] One of the fixes changes what is drawn. A character of two UTF-16 units whose first column of pixels is its pane's last, an emoji at the very edge, used to be cut to nothing and is now drawn. (left by the fix)
-
-### Viewer, Linux head
-
-- [ ] An idle window still turns sixty times a second. Each turn compares the screen's bytes with the last one's, asks after the files behind the pictures on it and waits out its sixtieth: 3 to 9 ms of processor a second, where it was half a second to ten. Waiting on the window system instead would take the managed loop, which also asks after its owner and its files each turn, being told when to wake. (left by the fix)
-- [ ] What is not built rests on the list of what a frame is built from being whole: the screen, the pointer, the keys, the window, the decoder, the font finder, a tooltip's delay and the files behind the pictures. Anything `BuildFrame` comes to read that is none of those has to be asked in `deview_present` before a window is left alone, or the window shows the frame before until something else arrives. A frame that is built and comes out the same is not drawn whatever it read, so that half needs no such care. (left by the fix)
-- [ ] Nothing in `DiffEngineViewer.Tests` fails if the window goes back to drawing every frame. `NativeIdleBenchmarks` shows it, in its Drawn column, and is run by hand in the container. (left by the fix)
-- [ ] A hidden window is still built and drawn when its screen changes, which an arrival in the queue does. (left by the fix)
-- [ ] Run only under Xvfb with Mesa's software rasteriser, with no window manager and under openbox. Not on a GPU, under a compositor, on Wayland or over forwarded X, where what the window system keeps of a window that is not being drawn may differ, and where leaving one alone matters most. (left by the fix)
-- [ ] `deview_capture` makes its ImGui context without `ImGuiBackendFlags_RendererHasVtxOffset`, which the window's declares, so a capture whose draw list passes 65,535 vertices comes out scrambled. The old checkerboard took a 4K capture of two large pictures past it, which is how it was found. Nothing captures at that size, and the checkerboard no longer takes a capture there, but dense text could. (left by the fix: ran, with the flag added to the shim from before the fix)
-
-### Viewer, macOS head
-
-- [ ] Neither macOS change has been compiled by a person or run at all. CI's `macos-14` job compiles them, and its captures draw text from the kept lines. Nothing there runs the clip test or the scaled copy. What would confirm each on a Mac:
+- [ ] To confirm on a Mac, from the performance changes. Nothing on CI runs the clip test or the scaled copy:
   - The premise: break in `Renderer.draw` while a spinner turns and print `context.boundingBoxOfClipPath`. The spinner's 44 pt square, or the whole view.
-  - A turn: Time Profiler on a pair with a long PDF. `CTLineCreateWithAttributedString` under `Renderer.draw` for each turn: about 150 before, none after, whichever clip AppKit hands over.
-  - Text outside Latin: `--diff` two files of Chinese and hold Down. The same symbol for each frame: every character before, the new row alone after.
-  - An enlarged picture: `--diff` two 2880 by 1800 screenshots, `+` once, and drag. Time under `Renderer.enlarged` for each frame: a `.high` resample of both panes before, a blit after, and one 1560 by 975 bitmap a pane about a tenth of a second after the step.
-- [ ] Since macOS 11 a view with an automatic backing store is handed its whole bounds whatever was invalidated, clip included, so the clip test is safe and probably leaves nothing out on any supported macOS. What makes a spinner's turn cheap there is the kept lines. Two routes would make the clip test pay: `layer.contentsFormat = .RGBA8Uint` in `viewWillDraw`, which changes how the whole window is stored, or a view of the spinner's own. (left by the fix: read, in Apple's developer forums)
-- [ ] A byte-equal pair of documents names one page's png in both panes. With one scaled copy a picture and panes a point apart in width, `fitted` looks to make the copy again for each pane in turn without end. The enlarged path stays out of it by drawing such a pair from the picture. (left by the fix: read, not run)
-
-
-## Smaller
-
-One of the smaller items is open: the macOS viewer opened with no console session. The rest are fixed and gone from this list. What follows is that item and what the fixes left.
-
-### Viewer model
-
-- [ ] The two tests that show a pair is not diffed again, and the one that bounds what reading a file allocates, were not run against the code from before the fix. (left by the fix)
-- [ ] `TrackedWatch` still closes an open context menu when a file is written again with what it held, since the entry is replaced by its restamped copy through `ViewerSession.Refresh`. The reader is not moved. (left by the fix)
-
-### Library
-
-- [ ] Kept connections were not run on macOS: neither the rebind of a port whose last owner left a client holding a connection, nor the receive timeout surfacing as `SocketError.TimedOut`. And they were tested against a stand-in for an older owner, not a released tray or viewer. (left by the fix)
-- [ ] A client talking to an owner from before `keeps` still makes a connection per settle, so the port exhaustion stands against an older tray. (left by the fix)
-- [ ] The async inline send and every asking send (`TrySend` with a response, `InlineQueueClient`, `OwnerLink`'s five a second listing) are still a connection each. (left by the fix)
-- [ ] A connect that fails because the machine has no ports left is still recorded as an unowned port. Which `SocketError` Windows gives there was not established. (left by the fix)
-- [ ] Parallel settles take turns at the one connection under a lock, so a slow owner now holds them in a line, where each used to wait on a connection of its own. (left by the fix)
-- [ ] A test process holds a socket to the queue's owner for its whole life. On .NET Framework sockets are inheritable, so a child a test starts without ShellExecute can hold that connection open after the test host exits. Not run. (left by the fix)
-- [ ] The accept wait is a fixed 100 ms from the second failure in a row. The case where a failure persists was run on Linux only, by using up the descriptors. (left by the fix)
-- [ ] Apple's `ps` was not run with `-ww`; its manual says a second `-w` uses as many columns as it needs. (left by the fix)
-
-### Inline snapshots
-
-- [ ] Verify's half of the Remove applied twice is not done: skipping the Remove when the source file is newer than the test assembly. DiffEngine's half keeps the removed call's line, empty, when a Snapshot call is under it, which is a rule about the next line and not a guarantee about line numbers. (left by the fix)
-- [ ] A `Remove` that takes a whole statement line (`settings.Snapshot("dup");`) still brings the next line up, so applied twice over a sibling `other.Snapshot("dup");` the second apply takes the sibling's statement. `RemovedAtHint` only recognises a removal under a verify call. (left by the fix: read, not run)
-- [ ] An empty `TestName` or `MemberName` still reads back as null from `InlinePatchFile`; only `OriginalValue` gained a line saying it is present and empty. (left by the fix)
-- [ ] The F# scanner outside a comment still takes a tick after an identifier character as part of the name, and still reads the holes of `$"..."` its own way. Only comments and backticked names were held to `dotnet fsi`. (left by the fix)
-
-### Tray
-
-- [ ] A process id is matched to the payload's `Exe` by file name only, so a reused id now held by another copy of the same tool is still tracked, and killed on accept if the move can be killed. (left by the fix)
-- [ ] A tool started through a `.cmd` (VS Code, Rider) is never tracked as a process, so it never counts for "Accept all open" and is never closed by the tray. Before, the id held for it was the command interpreter's. Nor is a tool whose launcher hands over to an executable of another name and exits. The tool definitions were not surveyed for either. (left by the fix)
-- [ ] "Discard (n)" still discards tracked moves on the UI thread, with up to 500 ms per killable tool waiting for it to exit. Only the queue's half moved to a worker, and a bulk discard that fails is only logged. (left by the fix)
-- [ ] A scan that keeps failing is now only in the log. Nothing tells the user. (left by the fix)
-- [ ] `ListingTag` can answer "unchanged" for a listing built while a move was briefly out of the dictionary during an accept and then restored. The fingerprint it replaced had the same gap. (left by the fix)
-- [ ] `Tracker.differing` is never pruned when a move leaves. (left by the fix: noticed, not touched)
-- [ ] `KeyRegisterTests` registers a real global hot key, Ctrl+Alt+Shift+F24, for the length of each test, and fails where something else holds it. (left by the fix)
-
-### Viewer, Windows head
-
-- [ ] A minimised window slows only its own frame wait. `OwnerLink`, `TrackedWatch` and the document reader go by `Hidden`, which only a Hide command sets, so they keep their on screen cadence while minimised. The head would have to tell the loop. (left by the fix)
-- [ ] A status that does not fit still loses what is past two lines; it now ends in an ellipsis and shows whole in a tooltip. The footer does not wrap its buttons or give the status a line of its own as the other two heads do. Whether a scaled display shows the middle of a wrapped status, which the item claimed and unscaled captures did not show, is unchecked. (left by the fix)
-- [ ] Nothing proves by throwing that an exception comes out of a message pump in the test hosts rather than WinForms' dialog. The test reads the mode back instead, through an internal of WinForms, because the throwing one is what put the dialog on screen. (left by the fix)
-- [ ] `TwoKeysInOnePumpAreTwoCommands`, `ATextEntryHasNoPictureForTheWheelToFind` and `TheWheelOverAPictureZoomsAndOverTheRowsScrolls` failed once in a run of the whole solution and passed in the next and twice alone. They post keys and wheel turns to a form, and someone was using the machine. (seen once)
-- [ ] Footer buttons leave `UseMnemonic` on, so an ampersand in a label would become an Alt access key. (left by the fix: noticed, not looked into)
-
-### Viewer, Linux head
-
-- [ ] A picture larger than `GL_MAX_TEXTURE_SIZE` now draws as nothing. It could be reduced on the decoder thread to fit a texture. `PixelTests.ImageTooLargeForATexture` holds only under llvmpipe, whose limit is 16384. (left by the fix)
-- [ ] A held letter repeats its command at the keyboard's repeat rate, so holding `a` accepts repeatedly. Only navigation should repeat. The Windows head now drops those repeats. (left by the fix)
-- [ ] Display scale is read once, as the window is made. A change of `Xft.dpi` while running, and a scale per monitor under Wayland or XWayland, are not followed, and a placement remembered at one scale is used in pixels at another. Checked only under Xvfb with an X resource at 144 and 192, never on a HiDPI desktop. (left by the fix)
-- [ ] A frame of two pictures costs about a tenth more under llvmpipe (opaque at 4K, 27.0 ms to 30.1), probably the trilinear sampling of a picture drawn under half size. Mipmaps also add about a third to a picture's memory, drawn small or not. (left by the fix: measured, cause unconfirmed)
-- [ ] `[`, `]`, `0`, `-` and `=` have no fallback by position on a layout that is not Latin; only the letters do. (left by the fix)
-- [ ] All input now comes through GLFW's callbacks. A release that never arrives would leave a button held: GLFW's own release on losing focus is relied on, and hiding the window during a press was not tried. A two finger tap on a real touchpad is still unconfirmed; a press and release sent together now works. (left by the fix)
-
-### Viewer, macOS head
-
-- [ ] `Runtime.open` cannot fail (it always returns true), so with no console session, as over SSH, AppKit aborts the process after the port was bound and the patch is lost. `CGSessionCopyCurrentDictionary()` is the documented question to ask, and was not used because it may also answer "no session" over SSH while the same user is logged in at the console, where the viewer opens today. What would settle it: print that call from an SSH shell with and without a console login, and run the viewer in each. (reported: plausible)
-- [ ] None of the six macOS fixes in this round has been compiled or run by a person, and five are event handling or window state that no capture exercises. The check to make on a Mac is in each commit's message. (left by the fix)
-- [ ] A drag still pulls the other pane's centre into the dragged pane's range on an axis both can move on, when the two pictures differ in shape. Only the axis the dragged pane cannot move on is left alone. The Linux head has the same rule. (left by the fix)
-- [ ] A hidden, miniaturised or covered window comes forward up to a tenth of a second late for a patch arriving over the socket, since the managed side cannot interrupt the pump, and `OwnerLink` and `TrackedWatch` do not slow for a window that is only covered or miniaturised. Both need the ABI to carry it. During a scroll or a drag the loop now turns at the rate events arrive, which a 120 Hz device makes faster than sixty. (left by the fix)
-- [ ] `+`, `-` and `=` are still matched on `charactersIgnoringModifiers`; only the brackets moved to `characters`. (left by the fix)
-- [ ] A control-click over a footer button now does nothing, as a right click does, where it used to click the button. (left by the fix)
+  - A turn: Time Profiler on a pair with a long PDF. No `CTLineCreateWithAttributedString` under `Renderer.draw` for a turn, whichever clip AppKit hands over.
+  - Text outside Latin: `--diff` two files of Chinese and hold Down. The same symbol for each frame: the new row alone.
+  - An enlarged picture: `--diff` two 2880 by 1800 screenshots, `+` once, and drag. Time under `Renderer.enlarged` for each frame: a blit, and one 1560 by 975 bitmap a pane about a tenth of a second after the step.
+- [ ] To confirm on a Mac, from the two rounds of smaller fixes: ten changes, eight of them event handling or window state that no capture exercises. The check for each is in its commit's message.
+- [ ] A live resize still draws the rows sliced for the old size until the mouse comes up. It needs a frame callback in the C ABI. A press in the scroller's slot followed by a drag is still AppKit's loop too.
+- [ ] The managed side still slices the body for a footer of one row. This head has 64 pt to spare, which is three rows of buttons or two and a status line; past that the last one or two body rows are not drawn. The Linux head's item on `rows` is the fix for both.
+- [ ] A title's width is counted in cells, so a title of characters a fallback font draws wider than a cell can still reach the subtitle. One that fits exactly touches the subtitle with no gap, where Linux keeps a character.
+- [ ] The zoom keys behind Option were not tried on any layout, and zoom reset (`0`) is matched on `charactersIgnoringModifiers` only.
+- [ ] An enlarged pair that is the same picture in both panes is still drawn from the picture rather than from a copy, though with a copy kept for each pane it no longer has to be.
+- [ ] Since macOS 11 a view with an automatic backing store is handed its whole bounds whatever was invalidated, clip included, so the clip test probably leaves nothing out on any supported macOS. A view of the spinner's own would make it pay only if AppKit gives that view a layer of its own, which cannot be checked from here. (read, in Apple's developer forums)
+- [ ] A drag still pulls the other pane's centre into the dragged pane's range on an axis both can move on, when the two pictures differ in shape. Fixing it means moving the centre the frame asked for and clamping to the wider of the two panes' ranges, in both native heads together.
+- [ ] A hidden, miniaturised or covered window comes forward up to a tenth of a second late for a patch arriving over the socket, since the managed side cannot interrupt the pump, and `OwnerLink` and `TrackedWatch` do not slow for a window that is only covered or miniaturised. Both need the ABI to carry it.

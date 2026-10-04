@@ -31,7 +31,7 @@ public class ScreenPayloadTests
         var checkedSegments = 0;
         for (var index = 0; index < screen.Left.Rows.Count; index++)
         {
-            var text = RowText.Clip(RowText.Flatten(screen.Left.Rows[index].Text), screen.Columns);
+            var text = RowText.Shown(screen.Left.Rows[index].Text, screen.PaneCells);
             var row = payload.Rows[index];
             var segments = CellGrid.Segments(text);
             await Assert.That(row.SegmentCount).IsEqualTo(segments.Count);
@@ -54,6 +54,35 @@ public class ScreenPayloadTests
         // have checked nothing.
         await Assert.That(checkedSegments).IsGreaterThan(15);
     }
+
+    /// <summary>
+    /// A row is encoded as far as a pane can show it and no further. Neither pane is wider than
+    /// half the window, and a row of two cell characters cut at the window's width in characters
+    /// was encoded four times that far, a segment a character.
+    /// </summary>
+    [Test]
+    public async Task ARowIsEncodedAsFarAsAPaneCanShowIt()
+    {
+        var wide = new string('漢', 300);
+        var narrow = new string('a', 300);
+        var state = ViewerSession.Resize(Fixtures.File($"{wide}\n{narrow}\n\t{narrow}\nshort", "other"), 200, 30);
+        var screen = ScreenBuilder.Build(state);
+        var payload = new ScreenPayload();
+
+        payload.Build(screen);
+
+        await Assert.That(screen.PaneCells).IsEqualTo(101);
+        // Fifty one characters are the first to reach a hundred and one cells, at two cells each
+        await Assert.That(Text(payload, 0)).IsEqualTo(new string('漢', 51));
+        await Assert.That(payload.Rows[0].SegmentCount).IsEqualTo(51);
+        await Assert.That(Text(payload, 1)).IsEqualTo(new string('a', 101));
+        // A tab is the four cells it is drawn as
+        await Assert.That(Text(payload, 2)).IsEqualTo("    " + new string('a', 97));
+        await Assert.That(Text(payload, 3)).IsEqualTo("short");
+    }
+
+    static string Text(ScreenPayload payload, int row) =>
+        Encoding.UTF8.GetString(payload.Strings.Slice(payload.Rows[row].TextOffset, payload.Rows[row].TextLength));
 
     /// <summary>
     /// The loop hands over the screen it handed over last frame for as long as nothing happens,

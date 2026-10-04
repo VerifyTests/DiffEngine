@@ -70,10 +70,16 @@ final class Renderer {
     private var dirty: CGRect?
 
     /// Both panes name the one picture in the draw in progress, as a byte equal pair of documents
-    /// does: their pages are kept under the hash of the document. There is one scaled copy a
-    /// picture and the two panes can be a point apart in width, so each would have the copy made
-    /// for its own size in turn, without end. An enlarged pair is not given the chance: it is
-    /// drawn from the picture, as every enlarged picture was before it had a copy.
+    /// does: their pages are kept under the hash of the document. The two panes can be a point
+    /// apart in width, and so can ask for copies of different sizes. With one copy a picture each
+    /// had it made for its own size in turn, without end: every one that landed was a redraw, in
+    /// which the other pane found the copy was not its own and asked again. So a picture both
+    /// panes name keeps the last two copies made, which is one for each: see `Picture.spare`.
+    /// An enlarged pair makes none: it is drawn from the picture, as every enlarged picture was
+    /// before it had a copy.
+    ///
+    /// As the last draw to begin left it. `settle` reads it for a copy that has landed, which
+    /// was asked for by that draw or by one before it.
     private var shared = false
 
     /// Decoded pictures, keyed by the path the screen model handed over and invalidated by the
@@ -104,6 +110,10 @@ final class Renderer {
         /// picture or shorter, so at its largest it is about the size the picture is itself. It
         /// goes when a copy for another size lands, and with the picture.
         var scaled: CGImage?
+
+        /// The copy `scaled` took the place of, kept only while both panes name this picture: see
+        /// `shared`. Each pane then has the copy made for its own size, one here and one there.
+        var spare: CGImage?
 
         /// Being decoded on `work`. The pane shows a spinner until it lands.
         var decoding = false
@@ -407,10 +417,18 @@ final class Renderer {
         let panesWidth = max(cell.width * 2, content - Renderer.padding - panesLeft)
         let half = (panesWidth / 2).rounded(.down)
 
-        text(frame.title, in: rect(top: Renderer.padding, left: Renderer.padding, width: size.width - Renderer.padding * 2, height: line, size), Palette.text, context)
+        // A title that would run on under the subtitle stops a character short of it, where the
+        // subtitle used to be drawn over whatever of the title had got that far. It is the title
+        // that gives way, as in the Linux head: what it says is also in the pane headers and the
+        // queue, and which entry of the queue this is is said only by the subtitle. One that fits
+        // has the whole row, as it always had, so it is drawn exactly as it was.
+        let titleWidth = size.width - Renderer.padding * 2
+        let subtitleWidth = CGFloat(frame.subtitle.count) * cell.width
+        let runsUnder = !frame.subtitle.isEmpty && CGFloat(frame.title.count) * cell.width > titleWidth - subtitleWidth
+        let titleRoom = runsUnder ? titleWidth - subtitleWidth - cell.width : titleWidth
+        text(frame.title, in: rect(top: Renderer.padding, left: Renderer.padding, width: titleRoom, height: line, size), Palette.text, context)
         if !frame.subtitle.isEmpty {
-            let width = CGFloat(frame.subtitle.count) * cell.width
-            text(frame.subtitle, in: rect(top: Renderer.padding, left: size.width - Renderer.padding - width, width: width, height: line, size), Palette.dim, context)
+            text(frame.subtitle, in: rect(top: Renderer.padding, left: size.width - Renderer.padding - subtitleWidth, width: subtitleWidth, height: line, size), Palette.dim, context)
         }
 
         let firstRule = Renderer.padding + line + Renderer.gap
@@ -1049,6 +1067,14 @@ final class Renderer {
             return scaled
         }
 
+        // The other of the two copies a picture in both panes keeps, which is this pane's when
+        // the last one to land was made for the other
+        if let spare = entry.spare,
+           spare.width == width,
+           spare.height == height {
+            return spare
+        }
+
         let size = Pixels(width: width, height: height)
         if capturing {
             guard let scaled = Renderer.scale(picture, to: size) else {
@@ -1145,6 +1171,10 @@ final class Renderer {
 
                 entry.scaling = nil
                 if let image {
+                    // The copy this one takes the place of is the other pane's, when both panes
+                    // name the picture, and is kept for it. Otherwise it was made for a size
+                    // the pane no longer has, and goes.
+                    entry.spare = shared ? entry.scaled : nil
                     entry.scaled = image
                 } else {
                     entry.unscalable = true

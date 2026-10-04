@@ -127,9 +127,10 @@ public static partial class DiffRunner
     /// Drops a pending inline snapshot from the viewer's queue, for when a previously failing test
     /// starts passing. Does nothing when no viewer is running - and cheaply, since this is called
     /// once per passing inline verification: a port found with nothing listening is taken as
-    /// still unowned for ten minutes rather than connected to again, because on Windows a refused
+    /// still unowned for a while rather than connected to again, because on Windows a refused
     /// loopback connection takes two seconds rather than none, and a green run of a few hundred
-    /// inline tests was spending minutes on refusals.
+    /// inline tests was spending minutes on refusals. A second where the operating system's table
+    /// of listeners is what said so, and ten minutes where it took a connect to find out.
     /// <para>
     /// Carries this process's framework so a multi-targeted run only settles its own variant of a
     /// conflicted entry; the other framework's differing content stays pending.

@@ -63,6 +63,41 @@ record AcceptBatch(IReadOnlyList<string> Remaining, int Total)
     /// </summary>
     public IReadOnlyList<QueueEntry> Together { get; init; } = [];
 
+    /// <summary>
+    /// Whether this is a bulk discard rather than an accept: the same steps, over the moves a
+    /// discard-all or a header's discard covers, each step throwing a received file away.
+    /// <para>
+    /// A discard waits on nothing, which is why it was left one transition when accept-all
+    /// stopped being one. But it deletes a file an entry, under the lock every arrival waits on
+    /// and on the thread that draws, and a thousand pending pairs are a thousand deletes on a
+    /// drive something is watching. The snapshots and the pending deletes of a discard touch no
+    /// file, so they go in the transition that begins it, and only the moves are left to claim.
+    /// </para>
+    /// </summary>
+    public bool Discarding { get; init; }
+
+    /// <summary>
+    /// For a discard, what its beginning said of the snapshots: the first half of what the batch
+    /// says when it is done, as <see cref="Tally"/> is for an accept.
+    /// </summary>
+    public string Said { get; init; } = "";
+
     public AcceptProgress Progress =>
         new(Total - Remaining.Count - (Current is null ? 0 : 1 + Together.Count), Total);
+
+    /// <summary>
+    /// What the status line says while the batch runs. An accept's is
+    /// <see cref="AcceptProgress.Describe"/>, the words a window displaying someone else's batch
+    /// uses too; a discard's is this process's alone, since it is not put on a listing.
+    /// </summary>
+    public string Describe()
+    {
+        var progress = Progress;
+        if (Discarding)
+        {
+            return $"Discarding {Math.Min(progress.Done + 1, progress.Total)} of {progress.Total}";
+        }
+
+        return progress.Describe();
+    }
 }

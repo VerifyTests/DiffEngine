@@ -64,7 +64,7 @@ enum ViewerLaunchOutcome
 /// already up is not a new instance and spends nothing, which is why the caller cannot ask: it
 /// would charge all twenty of the callers above for the one window between them. Asked after the
 /// ownership probe, so the nineteen that find an owner still forward their work when the cap is
-/// long since reached.
+/// long since reached. And given back when the launch fails, since no window came of it.
 /// </para>
 /// </summary>
 static class ViewerLaunchGate
@@ -100,13 +100,23 @@ static class ViewerLaunchGate
     /// Supplied by the tests that are about the gate rather than about the cap, since the count it
     /// reads is shared with every other launch the process has made.
     /// </param>
+    /// <param name="giveBack">
+    /// Returns the slot <paramref name="canLaunch" /> spent, for a launch that then failed: the
+    /// cap is on windows, and that one opened none. Kept, five viewers that could not be run - a
+    /// copy too old for its arguments, one with no runtime - used up the cap, and every pair
+    /// after them was told too many diff tools were running when none was. Defaults to
+    /// <see cref="MaxInstance" /> where the slot was asked of it, and to nothing where a test
+    /// supplied the asking.
+    /// </param>
     public static ViewerLaunchOutcome Launch(
         Func<bool> retry,
         Func<Process?> launch,
         Func<bool>? isOwned = null,
-        Func<bool>? canLaunch = null)
+        Func<bool>? canLaunch = null,
+        Action? giveBack = null)
     {
         isOwned ??= () => ViewerClient.IsOwned();
+        giveBack ??= canLaunch is null ? MaxInstance.GiveBack : () => { };
         canLaunch ??= () => !MaxInstance.Reached();
         bool owned;
         gate.Wait();
@@ -126,6 +136,7 @@ static class ViewerLaunchGate
                 if (viewer is null ||
                     !WaitForBind(viewer, isOwned))
                 {
+                    giveBack();
                     return ViewerLaunchOutcome.Failed;
                 }
             }
@@ -159,9 +170,11 @@ static class ViewerLaunchGate
         Func<Task<Process?>> launch,
         Cancel cancel,
         Func<bool>? isOwned = null,
-        Func<bool>? canLaunch = null)
+        Func<bool>? canLaunch = null,
+        Action? giveBack = null)
     {
         isOwned ??= () => ViewerClient.IsOwned();
+        giveBack ??= canLaunch is null ? MaxInstance.GiveBack : () => { };
         canLaunch ??= () => !MaxInstance.Reached();
         bool owned;
         await gate.WaitAsync(cancel).ConfigureAwait(false);
@@ -179,6 +192,7 @@ static class ViewerLaunchGate
                 if (viewer is null ||
                     !await WaitForBindAsync(viewer, isOwned, cancel).ConfigureAwait(false))
                 {
+                    giveBack();
                     return ViewerLaunchOutcome.Failed;
                 }
             }

@@ -39,6 +39,9 @@ public class InlineAcceptBenchmarks
         source = text;
         pristine = new UTF8Encoding(false).GetBytes(text);
         File.WriteAllBytes(path, pristine);
+        // As a source file is when a test run asks about it: written at the last save, and not
+        // in the last few seconds, which is the file a probe keeps what it read of
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
         patches = new InlinePatch[CallSites];
         appends = new InlinePatch[CallSites];
         for (var index = 0; index < CallSites; index++)
@@ -113,36 +116,15 @@ public class InlineAcceptBenchmarks
         return Every(anchored);
     }
 
-    // The patcher alone over the same patches, each applied to what the last one left: what the
-    // accepts above cost with the file system, the encoding and the locks taken out
+    // The patcher alone over the same patches, each applied to what the last one left: what
+    // AcceptTogether costs with the file system, the encoding and the locks taken out
     [Benchmark]
     public int PatchInMemory()
     {
         var current = source;
-        var applied = 0;
-        foreach (var patch in patches)
-        {
-            var status = InlinePatcher.TryApply(
-                SourceLanguage.CSharp,
-                current,
-                patch.LineHint,
-                patch.Mode,
-                patch.OriginalExpression,
-                patch.OriginalValue,
-                patch.MemberName,
-                patch.EntryPoints,
-                false,
-                patch.NewContent,
-                out var patched,
-                out _);
-            if (status == PatchStatus.Applied)
-            {
-                current = patched;
-                applied++;
-            }
-        }
-
-        return Every(applied);
+        var results = new InlineApplyResult[patches.Length];
+        InlineApplier.PatchInTurn(SourceLanguage.CSharp, ref current, patches, path, results);
+        return Every(results.Count(_ => _.Status == InlineApplyStatus.Applied));
     }
 
     // The lexing every one of those starts with

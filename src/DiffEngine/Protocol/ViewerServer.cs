@@ -190,7 +190,8 @@ sealed class ViewerServer : IDisposable
     /// 16,000 ports to give out and keeps each for two minutes, a passing inline verification
     /// settles once, and so a large enough green run with a tray answering used up the machine's
     /// ports on telling the tray nothing. A client that has many of them to send keeps one
-    /// connection instead: see <see cref="ViewerClient.TrySend(ViewerMessage)"/>.
+    /// connection instead: see <see cref="ViewerClient.TrySend(ViewerMessage)"/>. And a second
+    /// for its listings, which a window showing this owner's queue sends five times a second.
     /// </para>
     /// <para>
     /// No request starts with this line, since every one starts with its version, so an owner

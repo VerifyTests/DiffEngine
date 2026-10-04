@@ -92,11 +92,23 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         public Size? Composing { get; set; }
 
         /// <summary>
-        /// A compose on the pool failed, so none is started again: the pane would ask on every
-        /// step of its spinner, which would turn for good. Drawn as nothing, as a picture that
-        /// cannot be decoded is.
+        /// The composes on the pool that failed, each a size and a way of building it, so the
+        /// same one is not started again: the pane would ask on every step of its spinner, which
+        /// would turn for good. Drawn as nothing, as a picture that cannot be decoded is.
+        /// <para>
+        /// A size's rather than the picture's. What fails is nearly always the memory for one
+        /// size, the whole of a large picture at half its own, and held against the picture that
+        /// also stopped the fitted copy being made again when the window was next resized, so
+        /// the one from before the resize was stretched into place for good.
+        /// </para>
         /// </summary>
-        public bool Uncomposable { get; set; }
+        readonly HashSet<(Size Size, Func<Image, Size, Bitmap> Build)> uncomposable = [];
+
+        public bool Uncomposable(Size size, Func<Image, Size, Bitmap> build) =>
+            uncomposable.Contains((size, build));
+
+        public void Failed(Size size, Func<Image, Size, Bitmap> build) =>
+            uncomposable.Add((size, build));
 
         /// <summary>
         /// Composes reading <see cref="Image"/> on the pool, and whether the cache has let go of
@@ -343,7 +355,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
         }
 
         if (entry.Composing is null &&
-            !entry.Uncomposable &&
+            !entry.Uncomposable(size, build) &&
             entry.TryRead())
         {
             entry.Composing = size;
@@ -360,13 +372,13 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
                         entry.EndRead();
                     }
                 },
-                built => Landed(path, entry, built, build, loaded));
+                built => Landed(path, entry, size, built, build, loaded));
         }
 
         return entry.Composite;
     }
 
-    void Landed(string path, Entry entry, Bitmap? built, Func<Image, Size, Bitmap> build, Action loaded)
+    void Landed(string path, Entry entry, Size size, Bitmap? built, Func<Image, Size, Bitmap> build, Action loaded)
     {
         entry.Composing = null;
         // Only into the entry it was made from. One the cache has since let go of, for a picture
@@ -381,7 +393,7 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
 
         if (built is null)
         {
-            entry.Uncomposable = true;
+            entry.Failed(size, build);
             // Repainted, so the spinner it was showing goes
             loaded();
             return;
@@ -484,11 +496,41 @@ sealed class ImageCache(Action<Action>? post = null) : IDisposable
             // received file is one that blocks the accept it exists to perform.
             using var stream = new MemoryStream(FileSide.ReadBytes(path));
             using var decoded = new Bitmap(stream);
-            return new Bitmap(decoded);
+            return Premultiplied(decoded);
         }
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// A copy of <paramref name="decoded"/> with its colours already multiplied by their alpha,
+    /// which is what the double buffer a paint draws into holds. Kept the way a decoder hands it
+    /// over, GDI+ multiplied every pixel it read on every paint that drew from it. For a picture
+    /// enlarged to between half its size and its own, which is scaled on every paint, that was
+    /// 15 ms a paint for a pair of 4000 by 3000 pictures and is 9.
+    /// <para>
+    /// Not the same bytes on screen: a translucent pixel is rounded when it is multiplied rather
+    /// than after it is filtered, which moves it by one level in 255 at most and an opaque one
+    /// not at all.
+    /// </para>
+    /// </summary>
+    static Bitmap Premultiplied(Bitmap decoded)
+    {
+        var copy = new Bitmap(decoded.Width, decoded.Height, PixelFormat.Format32bppPArgb);
+        try
+        {
+            using var graphics = Graphics.FromImage(copy);
+            // Its pixels and nothing under them, so nothing to blend with
+            graphics.CompositingMode = CompositingMode.SourceCopy;
+            graphics.DrawImage(decoded, new Rectangle(0, 0, decoded.Width, decoded.Height));
+            return copy;
+        }
+        catch
+        {
+            copy.Dispose();
+            throw;
         }
     }
 

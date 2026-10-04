@@ -122,13 +122,36 @@ static class InlinePatcher
         out string newSource,
         out string failReason)
     {
-        newSource = "";
-        failReason = "";
-        var eol = DetectEol(source);
-        var lineStarts = BuildLineStarts(source);
         // Everything that reads the scan does so before this returns, the searches that are
         // enumerated lazily included, so its map goes back to the pool on the way out
         using var scan = language.Scan(source);
+        return TryApply(scan, lineHint, mode, originalExpression, originalValue, memberName, entryPoints, anchorOnly, newContent, out newSource, out failReason);
+    }
+
+    /// <summary>
+    /// The same, over source that has been lexed already. For a caller with more than one thing
+    /// to ask of the same text: a probe of each call site in a file, or a batch, which carries
+    /// the scan from each patch to the next (<see cref="SourceScan.Edited"/>).
+    /// </summary>
+    public static PatchStatus TryApply(
+        SourceScan scan,
+        int lineHint,
+        InlinePatchMode mode,
+        string? originalExpression,
+        string? originalValue,
+        string? memberName,
+        string[]? entryPoints,
+        bool anchorOnly,
+        string newContent,
+        out string newSource,
+        out string failReason)
+    {
+        newSource = "";
+        failReason = "";
+        var language = scan.Language;
+        var source = scan.Source;
+        var eol = scan.Eol;
+        var lineStarts = scan.LineStarts;
         var memberLine = MemberLine(source, scan, lineStarts, lineHint, memberName);
 
         if (mode == InlinePatchMode.Remove)
@@ -136,12 +159,14 @@ static class InlinePatcher
             return TryRemove(language, source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), originalExpression, originalValue, eol, ref newSource, ref failReason);
         }
 
-        var fileUnit = DetectIndentUnit(source, scan, lineStarts);
-
         if (mode == InlinePatchMode.Append)
         {
-            return TryAppend(source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), anchorOnly, newContent, eol, fileUnit, ref newSource, ref failReason);
+            // Not asked for a probe, which writes nothing
+            var appendUnit = anchorOnly ? "" : scan.IndentUnit;
+            return TryAppend(source, scan, lineStarts, lineHint, memberLine, EntryPoints(entryPoints), anchorOnly, newContent, eol, appendUnit, ref newSource, ref failReason);
         }
+
+        var fileUnit = scan.IndentUnit;
 
         if (!string.IsNullOrEmpty(originalExpression))
         {
@@ -448,6 +473,14 @@ static class InlinePatcher
     /// accepted already. Stopping there answered "already has a Snapshot call" for a patch whose
     /// own call sat two lines further down, and a single accept dropped the entry.
     /// </para>
+    /// <para>
+    /// And it has to be the only one, where the recorded line names no call. An append carries no
+    /// anchor, so among several calls with no Snapshot call nothing says which it was for, and the
+    /// first was taken: a call verified through files that came earlier in the test was given the
+    /// snapshot of the one after it. That is refused now, and a re-run brings the line the call
+    /// is on. A call passed a name Snapshot is called on (<see cref="TakesASnapshotReceiver"/>)
+    /// has its snapshot and is not one of them.
+    /// </para>
     /// </summary>
     static PatchStatus TryAppend(
         string source,
@@ -467,6 +500,10 @@ static class InlinePatcher
         // Whether a call passed over for having a Snapshot call was holding this very content
         var held = false;
         List<(int Open, int Close)>? passedOver = null;
+        // The call to append to, once the recorded line has turned out not to name one, and the
+        // names Snapshot is called on in the member, read when the first such call is met
+        (int NameStart, int InsertAt)? taken = null;
+        HashSet<string>? snapshotReceivers = null;
         foreach (var (nameStart, openParen) in FindCalls(source, scan, lineStarts, lineHint, memberLine, entryPoints, true))
         {
             // An entry point in the argument list of a call that was passed over is part of that
@@ -479,8 +516,14 @@ static class InlinePatcher
             }
 
             found = true;
-            if (!TryScanArguments(source, scan, openParen, out var closeParen, out _))
+            if (!TryScanArguments(source, scan, openParen, out var closeParen, out var commas))
             {
+                // One past the call that was taken is not this patch's to report
+                if (taken is not null)
+                {
+                    break;
+                }
+
                 failReason = $"Could not parse the argument list of the {entryPointDescription} call near line {lineHint}.";
                 return PatchStatus.NotFound;
             }
@@ -495,8 +538,39 @@ static class InlinePatcher
             var insertAt = WalkChain(source, scan, closeParen + 1, methodName, out var chained);
             if (chained < 0)
             {
-                newSource = AppendCall(source, scan, lineStarts, nameStart, insertAt, newContent, eol, fileUnit);
-                return PatchStatus.Applied;
+                // The recorded line names its call, and with no member there is nothing to say
+                // how far the walk may go for another
+                if (memberLine is null ||
+                    IsOnHint(lineStarts, nameStart, lineHint))
+                {
+                    newSource = AppendCall(source, scan, lineStarts, nameStart, insertAt, newContent, eol, fileUnit);
+                    return PatchStatus.Applied;
+                }
+
+                passedOver ??= [];
+                passedOver.Add((openParen, closeParen));
+                snapshotReceivers ??= SnapshotReceivers(source, scan, lineStarts, memberLine.Value);
+                if (TakesASnapshotReceiver(source, scan, openParen, closeParen, commas, snapshotReceivers))
+                {
+                    continue;
+                }
+
+                if (taken is not null)
+                {
+                    failReason = $"The call has moved from line {lineHint}, and more than one {entryPointDescription} call in its test has no {methodName} call. Re-run the test.";
+                    return PatchStatus.NotFound;
+                }
+
+                taken = (nameStart, insertAt);
+                continue;
+            }
+
+            // Past the call that was taken, the walk is only looking for a second one like it
+            if (taken is not null)
+            {
+                passedOver ??= [];
+                passedOver.Add((openParen, closeParen));
+                continue;
             }
 
             held |= HoldsContent(source, scan, chained, newContent);
@@ -514,6 +588,12 @@ static class InlinePatcher
 
             passedOver ??= [];
             passedOver.Add((openParen, closeParen));
+        }
+
+        if (taken is { } call)
+        {
+            newSource = AppendCall(source, scan, lineStarts, call.NameStart, call.InsertAt, newContent, eol, fileUnit);
+            return PatchStatus.Applied;
         }
 
         if (!found)
@@ -541,6 +621,92 @@ static class InlinePatcher
 
         failReason = $"The call near line {lineHint} already has a {methodName} call. Re-run the test.";
         return PatchStatus.NotFound;
+    }
+
+    /// <summary>
+    /// The names a Snapshot call is made on in the member declared at
+    /// <paramref name="memberLine"/>: <c>settings</c> for <c>settings.Snapshot("old");</c>. Plain
+    /// names only, since that is all <see cref="TakesASnapshotReceiver"/> can match an argument to.
+    /// </summary>
+    static HashSet<string> SnapshotReceivers(string source, SourceScan scan, List<int> lineStarts, int memberLine)
+    {
+        var receivers = new HashSet<string>(StringComparer.Ordinal);
+        var lineCount = lineStarts.Count;
+        var floor = Clamp(memberLine, lineCount);
+        var ceiling = Math.Min(NextMemberLine(source, scan, lineStarts, floor), lineCount + 1);
+        for (var line = floor; line < ceiling; line++)
+        {
+            foreach (var (nameStart, _) in CallsOnLine(source, scan, lineStarts, line, snapshotName, false))
+            {
+                var dot = PreviousToken(source, scan, nameStart);
+                if (dot < 0 ||
+                    source[dot] != '.')
+                {
+                    continue;
+                }
+
+                var end = PreviousToken(source, scan, dot);
+                if (end < 0 ||
+                    !scan.IsCode(end) ||
+                    !scan.IsIdentifierChar(source[end]))
+                {
+                    continue;
+                }
+
+                var start = scan.WordStart(end);
+                var before = PreviousToken(source, scan, start);
+                if (before >= 0 &&
+                    source[before] == '.')
+                {
+                    continue;
+                }
+
+                receivers.Add(source.Substring(start, end + 1 - start));
+            }
+        }
+
+        return receivers;
+    }
+
+    /// <summary>
+    /// Whether a call is passed something a Snapshot call is made on in the same member, which is
+    /// a verification that has its snapshot already: <c>settings.Snapshot("old");</c> and then
+    /// <c>Verify(value, settings)</c>.
+    /// <para>
+    /// Asked of a call the recorded line did not name. A patch that appends is for a call with no
+    /// snapshot anywhere, so this one is not it, and with nothing chained onto it, it read as the
+    /// first call still wanting one.
+    /// </para>
+    /// </summary>
+    static bool TakesASnapshotReceiver(string source, SourceScan scan, int openParen, int closeParen, List<int> commas, HashSet<string> receivers)
+    {
+        if (receivers.Count == 0)
+        {
+            return false;
+        }
+
+        var start = openParen + 1;
+        for (var index = 0; index <= commas.Count; index++)
+        {
+            var end = index < commas.Count ? commas[index] : closeParen;
+            var argumentStart = start;
+            var argumentEnd = end;
+            start = end + 1;
+            TrimSpan(source, scan, ref argumentStart, ref argumentEnd);
+            if (argumentStart < argumentEnd)
+            {
+                scan.Language.TryStripArgumentName(source, ref argumentStart, out _);
+            }
+
+            if (argumentStart < argumentEnd &&
+                scan.IsCode(argumentStart) &&
+                receivers.Contains(source.Substring(argumentStart, argumentEnd - argumentStart)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -678,7 +844,7 @@ static class InlinePatcher
                 return PatchStatus.NotFound;
             }
 
-            newSource = Splice(source, from, to, "");
+            newSource = Splice(source, from, to, KeptStatementLine(source, scan, lineStarts, nameStart, from, to));
             return PatchStatus.Applied;
         }
 
@@ -780,6 +946,41 @@ static class InlinePatcher
         builder.Append(source, lineBreak, lineBreakEnd + 1 - lineBreak);
         builder.Append(source, restEnd, source.Length - restEnd);
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// What a statement taken whole leaves where it was: nothing, or one empty line when the line
+    /// under it holds a Snapshot call.
+    /// <para>
+    /// <see cref="KeepingItsLine"/> for a statement, and for its reason.
+    /// <c>settings.Snapshot("dup");</c> over <c>other.Snapshot("dup");</c> brought the second up
+    /// onto the line the patch names, and the next apply of the same Remove had the same line and
+    /// the same anchor to go by and took the sibling's statement.
+    /// </para>
+    /// <para>
+    /// Only where the Snapshot call is on the statement's first line, which is the line the patch
+    /// names and so the one the empty line has to be on. With what it is called on a line above
+    /// it, the line that comes up onto the call's is further down than the one under the
+    /// statement, and one kept line puts neither right.
+    /// </para>
+    /// </summary>
+    /// <param name="source">The source the statement is in.</param>
+    /// <param name="scan">The map of that source.</param>
+    /// <param name="lineStarts">Where each line of the source starts.</param>
+    /// <param name="nameStart">The Snapshot call's name.</param>
+    /// <param name="from">The start of the statement's first line.</param>
+    /// <param name="to">The start of the line after its last.</param>
+    static string KeptStatementLine(string source, SourceScan scan, List<int> lineStarts, int nameStart, int from, int to)
+    {
+        if (to >= source.Length ||
+            LineOf(lineStarts, nameStart) != LineOf(lineStarts, from) ||
+            !CallsOnLine(source, scan, lineStarts, LineOf(lineStarts, to), snapshotName, false).Any())
+        {
+            return "";
+        }
+
+        // The break the statement's last line ended in, which is the file's own
+        return to >= 2 && source[to - 2] == '\r' ? "\r\n" : "\n";
     }
 
     /// <summary>
@@ -958,6 +1159,11 @@ static class InlinePatcher
     /// pulls the rest of its statement up onto the line above, so the recorded line then holds
     /// whatever followed, and the statement it named ends just before it.
     /// </para>
+    /// <para>
+    /// A call on a variable has no verify statement to be read off, and its whole statement goes.
+    /// So an empty line over a line holding a Snapshot call is read as removed too, which is what
+    /// <see cref="KeptStatementLine"/> leaves, and <see cref="KeepingItsLine"/>.
+    /// </para>
     /// </summary>
     static bool RemovedAtHint(string source, SourceScan scan, List<int> lineStarts, int lineHint, int? memberLine, string[] entryPoints)
     {
@@ -983,6 +1189,15 @@ static class InlinePatcher
             return false;
         }
 
+        // An empty line over a Snapshot call is the line a Remove kept, and the only sign there is
+        // of a statement taken whole: nothing above it need be a verify call
+        if (lineHint < lineCount &&
+            IsEmptyLine(source, scan, lineStarts, lineHint) &&
+            CallsOnLine(source, scan, lineStarts, lineHint + 1, snapshotName, false).Any())
+        {
+            return true;
+        }
+
         for (var line = lineHint; line >= floor; line--)
         {
             var calls = CallsOnLine(source, scan, lineStarts, line, entryPoints, true).ToList();
@@ -1004,6 +1219,25 @@ static class InlinePatcher
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether a line holds nothing but whitespace, and is a line of code: an empty line of a
+    /// literal's content is not one anything was taken from.
+    /// </summary>
+    static bool IsEmptyLine(string source, SourceScan scan, List<int> lineStarts, int line)
+    {
+        var start = lineStarts[line - 1];
+        var end = line < lineStarts.Count ? lineStarts[line] : source.Length;
+        for (var index = start; index < end; index++)
+        {
+            if (!char.IsWhiteSpace(source[index]))
+            {
+                return false;
+            }
+        }
+
+        return scan.IsCode(start);
     }
 
     /// <summary>
@@ -2003,123 +2237,9 @@ static class InlinePatcher
             .ToString();
 #endif
 
-    static string DetectEol(string source)
-    {
-        var crlf = 0;
-        var lf = 0;
-        for (var index = 0; index < source.Length; index++)
-        {
-            if (source[index] != '\n')
-            {
-                continue;
-            }
-
-            if (index > 0 && source[index - 1] == '\r')
-            {
-                crlf++;
-            }
-            else
-            {
-                lf++;
-            }
-        }
-
-        if (crlf >= lf && crlf > 0)
-        {
-            return "\r\n";
-        }
-
-        if (lf > 0)
-        {
-            return "\n";
-        }
-
-        return Environment.NewLine;
-    }
-
     /// <summary>
-    /// What one level of indentation is made of in this file: the most common run of whitespace a
-    /// line adds to the one above it.
-    /// <para>
-    /// Read off the source rather than taken from a convention, because a splice has to match the
-    /// code it lands in, and files disagree with their repo's settings often enough - vendored,
-    /// generated, or last edited by someone configured differently - that following the convention
-    /// would make the patch look more out of place, not less. It answers the one question a single
-    /// call site cannot: a line shows which characters it is indented with, but not how wide a
-    /// level is, and hard coding four spaces is wrong in every two space repo.
-    /// </para>
-    /// Returns "" when the file is too small to show a step, which leaves the choice to
-    /// <see cref="UnitFor"/>.
-    /// </summary>
-    static string DetectIndentUnit(string source, SourceScan scan, List<int> lineStarts)
-    {
-        Dictionary<string, int> counts = new(StringComparer.Ordinal);
-        var previous = "";
-        foreach (var lineStart in lineStarts)
-        {
-            // Inside a comment or a literal the leading whitespace is content, not indentation.
-            // A snapshot literal in particular is arbitrary text, and counting its lines would
-            // measure the snapshot rather than the file
-            if (!scan.IsCode(lineStart))
-            {
-                continue;
-            }
-
-            var index = lineStart;
-            while (index < source.Length &&
-                   (source[index] == ' ' || source[index] == '\t'))
-            {
-                index++;
-            }
-
-            // A blank line has no indentation of its own, and must not break the run either
-            if (index >= source.Length ||
-                source[index] == '\r' ||
-                source[index] == '\n')
-            {
-                continue;
-            }
-
-            var lead = source.Substring(lineStart, index - lineStart);
-            // Only a line that indents further than the one above, by adding to what it already
-            // had. Anything else is a dedent, or whitespace of a different kind, and neither
-            // measures a step
-            if (lead.Length > previous.Length &&
-                lead.StartsWith(previous, StringComparison.Ordinal))
-            {
-                var step = lead.Substring(previous.Length);
-                counts.TryGetValue(step, out var count);
-                counts[step] = count + 1;
-            }
-
-            previous = lead;
-        }
-
-        var best = "";
-        var bestCount = 0;
-        foreach (var pair in counts)
-        {
-            if (bestCount == 0 ||
-                pair.Value > bestCount ||
-                pair.Value == bestCount && Closer(pair.Key, best))
-            {
-                best = pair.Key;
-                bestCount = pair.Value;
-            }
-        }
-
-        return best;
-
-        // A tie goes to the shorter step, since a longer one is two levels taken at once, and
-        // then to ordinal order so the answer cannot depend on enumeration order
-        static bool Closer(string candidate, string current) =>
-            candidate.Length == current.Length
-                ? string.CompareOrdinal(candidate, current) < 0
-                : candidate.Length < current.Length;
-    }
-
-    /// <summary>
-    /// One level of indentation for a splice at a site indented with <paramref name="lead"/>.
+    /// One level of indentation for a splice at a site indented with <paramref name="lead"/>,
+    /// given the file's own (<see cref="SourceScan.IndentUnit"/>).
     /// <para>
     /// The character comes from the site and the width from the file, so a file that indents
     /// inconsistently still gets a splice consistent with its own surroundings, while a file that
@@ -2155,20 +2275,6 @@ static class InlinePatcher
             .Replace("\r\n", "\n")
             .Replace('\r', '\n')
             .Replace("\n", eol);
-
-    static List<int> BuildLineStarts(string source)
-    {
-        List<int> starts = [0];
-        for (var index = 0; index < source.Length; index++)
-        {
-            if (source[index] == '\n' && index + 1 < source.Length)
-            {
-                starts.Add(index + 1);
-            }
-        }
-
-        return starts;
-    }
 
     static int LineOf(List<int> lineStarts, int offset)
     {

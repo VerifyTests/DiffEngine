@@ -1,4 +1,4 @@
-class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null) :
+class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<TrackedMove>? acceptFailed = null, Action<string>? inlineFailed = null, IInlineHost? inline = null, Action<string>? scanFailing = null) :
     Tracker(
         () =>
         {
@@ -9,7 +9,8 @@ class RecordingTracker(LockedFilesResolver? lockedFilesResolver = null, Action<T
         lockedFilesResolver,
         acceptFailed,
         inlineFailed,
-        inline)
+        inline,
+        scanFailing)
 {
     public async Task AssertEmpty()
     {
