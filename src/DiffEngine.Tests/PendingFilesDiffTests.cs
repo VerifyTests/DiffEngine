@@ -436,6 +436,108 @@ public class PendingFilesDiffTests
         await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{stale}:"]);
     }
 
+    /// <summary>
+    /// The four entry points a snapshot library calls for a file derived from another. They are
+    /// what name the source, and nothing above reaches them: those tests go in beneath, handing
+    /// over the tool the source resolved to. Launching is off here, so no tool is resolved or
+    /// opened, and what is left is what each of them says to whoever tracks the pair.
+    /// </summary>
+    [Test]
+    [Arguments(nameof(DiffRunner.LaunchDerived))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedAsync))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForText))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForTextAsync))]
+    public async Task EachEntryPointForADerivedFileSaysItsSource(string entryPoint)
+    {
+        using var owner = new Recording();
+        using var disabled = new Disabled();
+        using var received = new OnDisk("Sample.Test#page_0001.received.png");
+
+        var result = await LaunchDerived(entryPoint, received.Path, pageTarget, document);
+
+        await Assert.That(result).IsEqualTo(LaunchResult.Disabled);
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{received.Path}:{pageTarget} from {document}"]);
+    }
+
+    /// <summary>
+    /// A file is not derived from itself, on a launch as on a delete: each entry point says so
+    /// rather than leaving it to whoever tracks the pair.
+    /// </summary>
+    [Test]
+    [Arguments(nameof(DiffRunner.LaunchDerived))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedAsync))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForText))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForTextAsync))]
+    public async Task AnEntryPointGivenAFileAsItsOwnSourceSaysNone(string entryPoint)
+    {
+        using var owner = new Recording();
+        using var disabled = new Disabled();
+        using var received = new OnDisk("Sample.Test#page_0001.received.png");
+
+        await LaunchDerived(entryPoint, received.Path, pageTarget, received.Path);
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Move}:{received.Path}:{pageTarget}"]);
+    }
+
+    /// <summary>
+    /// The source is what the entry point is for. One with none to give is a caller that wanted
+    /// the ordinary launch, and is told so rather than tracked with half of what it meant.
+    /// </summary>
+    [Test]
+    [Arguments(nameof(DiffRunner.LaunchDerived))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedAsync))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForText))]
+    [Arguments(nameof(DiffRunner.LaunchDerivedForTextAsync))]
+    public async Task AnEntryPointRefusesAnEmptySource(string entryPoint)
+    {
+        using var owner = new Recording();
+        using var disabled = new Disabled();
+        using var received = new OnDisk("Sample.Test#page_0001.received.png");
+
+        await Assert.That(() => LaunchDerived(entryPoint, received.Path, pageTarget, ""))
+            .Throws<ArgumentNullException>();
+        await Assert.That(owner.Heard).IsEmpty();
+    }
+
+    static Task<LaunchResult> LaunchDerived(string entryPoint, string received, string verified, string source) =>
+        entryPoint switch
+        {
+            nameof(DiffRunner.LaunchDerived) => Task.FromResult(DiffRunner.LaunchDerived(received, verified, source, null)),
+            nameof(DiffRunner.LaunchDerivedAsync) => DiffRunner.LaunchDerivedAsync(received, verified, source, null),
+            nameof(DiffRunner.LaunchDerivedForText) => Task.FromResult(DiffRunner.LaunchDerivedForText(received, verified, source, null)),
+            nameof(DiffRunner.LaunchDerivedForTextAsync) => DiffRunner.LaunchDerivedForTextAsync(received, verified, source, null),
+            _ => throw new($"Not an entry point for a derived file: {entryPoint}")
+        };
+
+    [Test]
+    public async Task ASyncDerivedDeleteReachesTheOwnerWithItsSource()
+    {
+        using var owner = new Recording();
+        using var enabled = new Enabled();
+
+        // ReSharper disable once MethodHasAsyncOverload
+        DiffRunner.AddDerivedDelete(stale, document);
+
+        await Assert.That(owner.Heard).IsEquivalentTo([$"{ViewerVerb.Delete}:{stale}: from {document}"]);
+    }
+
+    /// <summary>
+    /// Launching turned off raises no delete, derived or not: unlike a move, a delete with nobody
+    /// holding it starts a viewer to hold it, which is a launch.
+    /// </summary>
+    [Test]
+    public async Task WhileDisabledADerivedDeleteIsNotRaised()
+    {
+        using var owner = new Recording();
+        using var disabled = new Disabled();
+
+        // ReSharper disable once MethodHasAsyncOverload
+        DiffRunner.AddDerivedDelete(stale, document);
+        await DiffRunner.AddDerivedDeleteAsync(stale, document);
+
+        await Assert.That(owner.Heard).IsEmpty();
+    }
+
     const string document = @"c:\temp\Sample.Test.received.pdf";
     const string page = @"c:\temp\Sample.Test#page_0001.received.png";
     const string pageTarget = @"c:\code\Sample.Test#page_0001.verified.png";
@@ -470,6 +572,42 @@ public class PendingFilesDiffTests
 
         public void Dispose() =>
             DiffRunner.Disabled = previous;
+    }
+
+    /// <summary>
+    /// Launching switched off for a test, whatever the machine running it has it as.
+    /// </summary>
+    sealed class Disabled :
+        IDisposable
+    {
+        readonly bool previous = DiffRunner.Disabled;
+
+        public Disabled() =>
+            DiffRunner.Disabled = true;
+
+        public void Dispose() =>
+            DiffRunner.Disabled = previous;
+    }
+
+    /// <summary>
+    /// A received file that is there, which the public entry points check before anything else.
+    /// </summary>
+    sealed class OnDisk :
+        IDisposable
+    {
+        readonly string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"diffengine-derived-{Guid.NewGuid():N}");
+
+        public string Path { get; }
+
+        public OnDisk(string name)
+        {
+            Directory.CreateDirectory(directory);
+            Path = System.IO.Path.Combine(directory, name);
+            File.WriteAllText(Path, "received");
+        }
+
+        public void Dispose() =>
+            Directory.Delete(directory, true);
     }
 
     static ResolvedTool Other(bool isMdi) =>
