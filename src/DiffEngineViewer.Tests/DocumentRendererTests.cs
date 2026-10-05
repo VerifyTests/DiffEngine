@@ -260,8 +260,8 @@ public class DocumentRendererTests :
         var bytes = extension switch
         {
             ".pdf" => SamplePdf.Build("alpha", "bravo", "charlie"),
-            ".svg" => Encoding.UTF8.GetBytes(FileTypeLaunchTests.SvgOf("red")),
-            ".geojson" or ".fgb" => FileTypeLaunchTests.MapOf(extension, moved: false),
+            ".svg" => Encoding.UTF8.GetBytes(ViewerLauncherTests.SvgOf("red")),
+            ".geojson" or ".fgb" => ViewerLauncherTests.MapOf(extension, moved: false),
             _ => await File.ReadAllBytesAsync(Sample($"sample{extension}"))
         };
 

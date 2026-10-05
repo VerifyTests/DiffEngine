@@ -222,8 +222,8 @@ public class CorruptDocumentTests :
         {
             ".pdf" => SamplePdf.Build("alpha", "bravo", "charlie"),
             ".docx" or ".xlsx" or ".pptx" => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "DocumentSamples", $"sample{extension}")),
-            ".svg" => Encoding.UTF8.GetBytes(FileTypeLaunchTests.SvgOf("red")),
-            _ => FileTypeLaunchTests.MapOf(extension, moved: false)
+            ".svg" => Encoding.UTF8.GetBytes(ViewerLauncherTests.SvgOf("red")),
+            _ => ViewerLauncherTests.MapOf(extension, moved: false)
         };
 
     /// <summary>

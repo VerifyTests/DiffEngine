@@ -526,6 +526,118 @@ public class DerivedFilesTests
         }
     }
 
+    /// <summary>
+    /// Two documents pending at once, as two attachments of a mail are. Each has what was derived
+    /// from it beneath it and nothing of the other's, whatever order the files arrived in, and
+    /// each accept counts its own.
+    /// </summary>
+    [Test]
+    public async Task EachDocumentHasOnlyItsOwnFilesBeneathIt()
+    {
+        var pdf = Document("Mail#Attachment1", "pdf", DocumentFormat.Pdf);
+        var docx = Document("Mail#Attachment2", "docx", DocumentFormat.Word);
+
+        var state = Queue(
+            pdf,
+            docx,
+            DerivedOf(docx, "Mail#Attachment2.page_0001", "png"),
+            DerivedOf(pdf, "Mail#Attachment1.page_0002", "png"),
+            DerivedOf(pdf, "Mail#Attachment1.page_0002", "txt"));
+
+        await Assert.That(Labels(state)).IsEquivalentTo(
+            [
+                "+ Mail#Attachment1 (pdf) (2)",
+                "+ Mail#Attachment2 (docx) (1)"
+            ],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ScreenBuilder.Build(ViewerSession.SelectKey(state, pdf.Key)).Buttons[0].Label).IsEqualTo("Accept move +2");
+        await Assert.That(ScreenBuilder.Build(ViewerSession.SelectKey(state, docx.Key)).Buttons[0].Label).IsEqualTo("Accept move +1");
+    }
+
+    /// <summary>
+    /// A file whose name carries on from its document's with a dot rather than a hash, as the page
+    /// of an attachment does, says what it adds to that name the same way.
+    /// </summary>
+    [Test]
+    public async Task ANameThatCarriesOnWithADotSaysWhatItAddsToo()
+    {
+        var pdf = Document("Mail#Attachment1", "pdf", DocumentFormat.Pdf);
+        var state = Queue(
+            pdf,
+            DerivedOf(pdf, "Mail#Attachment1.page_0002", "png"),
+            DerivedOf(pdf, "Mail#Attachment1.page_0002", "txt"));
+
+        var unfolded = ViewerSession.Apply(state, CommandKind.ToggleDerived);
+
+        await Assert.That(Labels(unfolded)).IsEquivalentTo(
+            [
+                "- Mail#Attachment1 (pdf) (2)",
+                "  .page_0002 (png)",
+                "  .page_0002 (txt)"
+            ],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    /// <summary>
+    /// A document rendered to another: a Word file saved as a PDF, both pending, with the PDF and
+    /// its page naming the Word file. The PDF is beneath it as the page is, and is still a
+    /// document when it is the one being read, with nothing beneath it of its own.
+    /// </summary>
+    [Test]
+    public async Task ADocumentBeneathAnotherIsStillReadAsOne()
+    {
+        var docx = Document("Letter", "docx", DocumentFormat.Word);
+        var pdf = Document("Letter", "pdf", DocumentFormat.Pdf, docx.Key);
+
+        var state = Queue(docx, DerivedOf(docx, "Letter#page_0001", "png"), pdf);
+
+        await Assert.That(Labels(state)).IsEquivalentTo(["+ Letter (docx) (2)"]);
+
+        var reading = ViewerSession.SelectKey(state, pdf.Key);
+
+        await Assert.That(Labels(reading)).IsEquivalentTo(
+            [
+                "- Letter (docx) (2)",
+                "  (pdf)",
+                "  #page_0001 (png)"
+            ],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(reading.Current!.Key).IsEqualTo(pdf.Key);
+        var buttons = ScreenBuilder.Build(reading).Buttons;
+        await Assert.That(buttons[0].Label).IsEqualTo("Accept move");
+        await Assert.That(buttons.Select(_ => _.Label)).Contains("Next page");
+    }
+
+    /// <summary>
+    /// A document under a name of its own, for a queue that holds more than the one
+    /// <see cref="Fixtures.DocumentMove"/> builds.
+    /// </summary>
+    static QueueEntry Document(string name, string extension, DocumentFormat format, string? sourceKey = null)
+    {
+        var temp = $"temp/{name}.received.{extension}";
+        var target = $"code/{name}.verified.{extension}";
+        return QueueEntry.ForMove(
+            $"move:{temp}",
+            $"{name} ({extension})",
+            null,
+            sourceKey,
+            temp,
+            target,
+            new(Fixtures.Long(false), null, null, null, new DocumentFile(temp, 1_234, format, $"{name}.{extension}.received")),
+            new(Fixtures.Long(true), null, null, null, new DocumentFile(target, 1_240, format, $"{name}.{extension}.verified")));
+    }
+
+    static QueueEntry DerivedOf(QueueEntry source, string name, string extension) =>
+        QueueEntry.ForMove(
+            $"move:temp/{name}.received.{extension}",
+            $"{name} ({extension})",
+            null,
+            source.Key,
+            $"temp/{name}.received.{extension}",
+            $"code/{name}.verified.{extension}",
+            FileSide.OfText(Fixtures.Received),
+            FileSide.OfText(Fixtures.Expected));
+
     static SessionState Queue(params QueueEntry[] entries)
     {
         var state = SessionState.Start(ViewerMode.Inline, Fixtures.Columns, Fixtures.Rows);

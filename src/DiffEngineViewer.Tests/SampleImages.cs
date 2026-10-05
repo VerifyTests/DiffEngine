@@ -1,7 +1,7 @@
 using SkiaSharp;
 
 /// <summary>
-/// A solid colour in every image format the viewer compares, for <see cref="FileTypeLaunchTests"/>
+/// A solid colour in every image format the viewer compares, for <see cref="ViewerLauncherTests"/>
 /// to put in front of a person: whether each head draws a format is exactly what it is there to
 /// show.
 /// <para>

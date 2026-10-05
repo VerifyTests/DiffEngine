@@ -98,13 +98,6 @@ static class ManualViewer
         return Path.Combine(source.FullName, head, "bin", configuration, tfm, name);
     }
 
-    public static DirectoryInfo TempDirectory()
-    {
-        var directory = Directory.CreateDirectory(
-            Path.Combine(Path.GetTempPath(), $"deview-manual-{Guid.NewGuid():N}"));
-        Console.WriteLine($"Working in {directory.FullName}");
-        return directory;
-    }
 
     public static void Expect(string scenario, params string[] checks)
     {

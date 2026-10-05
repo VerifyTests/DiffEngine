@@ -1,12 +1,3 @@
-using System.IO.Compression;
-using GeoConvert;
-using Morph;
-using Morph.PDFium;
-using SkiaSharp;
-using Svg;
-using Svg.Model;
-using Svg.Skia;
-
 namespace DiffEngineViewer.Documents;
 
 /// <summary>

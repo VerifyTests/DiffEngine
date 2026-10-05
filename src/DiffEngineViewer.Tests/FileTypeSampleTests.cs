@@ -1,5 +1,5 @@
 /// <summary>
-/// The pairs <see cref="FileTypeLaunchTests"/> puts in front of a person, checked on every run:
+/// The pairs <see cref="ViewerLauncherTests"/> puts in front of a person, checked on every run:
 /// those tests are explicit, so a sample that stopped being what its extension says would otherwise
 /// only be found by someone looking at a window that shows nothing.
 /// </summary>
@@ -28,7 +28,7 @@ public class FileTypeSampleTests :
     [Arguments(".pptx", "Hello, PowerPoint!")]
     public async Task AnOfficeSampleReadsWithItsChange(string extension, string text)
     {
-        var path = Write($"edited{extension}", FileTypeLaunchTests.Edited(extension, text, $"{text} CHANGED"));
+        var path = Write($"edited{extension}", ViewerLauncherTests.Edited(extension, text, $"{text} CHANGED"));
         await Assert.That(Plugin.Text(path)).Contains($"{text} CHANGED");
     }
 
@@ -44,23 +44,23 @@ public class FileTypeSampleTests :
     [Arguments(".geoparquet")]
     public async Task AMapDrawsDifferentlyOnceMoved(string extension)
     {
-        var moved = Render(Write($"moved{extension}", FileTypeLaunchTests.MapOf(extension, moved: true)));
-        var still = Render(Write($"still{extension}", FileTypeLaunchTests.MapOf(extension, moved: false)));
+        var moved = Render(Write($"moved{extension}", ViewerLauncherTests.MapOf(extension, moved: true)));
+        var still = Render(Write($"still{extension}", ViewerLauncherTests.MapOf(extension, moved: false)));
         await Assert.That(moved).IsNotEquivalentTo(still);
     }
 
     /// <summary>
-    /// The heavy ones <see cref="FileTypeLaunchTests.ManyDocuments"/> queues, read as text only:
+    /// The heavy ones <see cref="ViewerLauncherTests.ManyDocuments"/> queues, read as text only:
     /// drawing them is what takes the time they are there to take.
     /// </summary>
     [Test]
     public async Task TheManyDocumentsAreWhatTheySay()
     {
-        var report = Plugin.Text(Write("report.pdf", FileTypeLaunchTests.LongPdf(1, changed: true)));
+        var report = Plugin.Text(Write("report.pdf", ViewerLauncherTests.LongPdf(1, changed: true)));
         await Assert.That(report).Contains("--- page 120 ---");
         await Assert.That(report).Contains("Report 1, page 30, changed");
 
-        var survey = Plugin.Text(Write("survey.fgb", FileTypeLaunchTests.BusyMap(1, moved: true)));
+        var survey = Plugin.Text(Write("survey.fgb", ViewerLauncherTests.BusyMap(1, moved: true)));
         await Assert.That(survey).Contains("\"index\": 399");
 
         await Assert.That(ImageHeader.TryRead(SampleImages.Photo(220, 120, 60), out var header)).IsTrue();
