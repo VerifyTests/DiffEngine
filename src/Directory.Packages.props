@@ -4,9 +4,9 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Argon" Version="0.38.0" />
+    <PackageVersion Include="Argon" Version="0.38.1" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageVersion Include="EmptyFiles" Version="8.20.0" />
+    <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.5.0" />
     <PackageVersion Include="Morph" Version="1.21.0" />
@@ -27,7 +27,7 @@
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
     <PackageVersion Include="Verify.TUnit" Version="33.3.2-beta.1" />
-    <PackageVersion Include="SimpleInfoName" Version="3.2.0" />
+    <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
     <PackageVersion Include="Verify" Version="33.3.2-beta.1" />
     <PackageVersion Include="TUnit" Version="1.72.16" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
