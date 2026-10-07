@@ -4,6 +4,8 @@
     <!-- The .NET Framework legs, which only Windows can build -->
     <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;$(TargetFrameworks)</TargetFrameworks>
     <AllowUnsafeBlocks Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</AllowUnsafeBlocks>
+    <!-- DiffEngineTray, the benchmarks and the tests use internals through InternalsVisibleTo -->
+    <SquashInternalsVisibleTo>Honor</SquashInternalsVisibleTo>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
@@ -21,6 +23,7 @@
     <PackageReference Include="EmptyFiles" PrivateAssets="None" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="Squash" PrivateAssets="all" />
     <None Include="buildTransitive\DiffEngine.targets" Pack="true" PackagePath="buildTransitive\" />
   </ItemGroup>
 

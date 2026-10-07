@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <Version>20.7.0</Version>
+    <Version>20.7.1</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackageTags>Testing, Snapshot, Diff, Compare</PackageTags>
     <Description>Launches diff tools based on file extensions. Designed to be consumed by snapshot testing libraries.</Description>
@@ -17,8 +17,11 @@
     One NoWarn, because a second property of the same name replaces the first rather than adding to
     it. There were two, so CS0649, NU1608 and NU1109 were not suppressed at all - and with
     TreatWarningsAsErrors below they would have failed a build rather than warned in one.
+
+    IL2070 is a linker warning from Squash, for reflection inside Polyfill that is kept on .NET
+    Framework because DiffEngine honors InternalsVisibleTo.
     -->
-    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416</NoWarn>
+    <NoWarn>CS1591;CS0649;NU1608;NU1109;CA1416;IL2070</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
