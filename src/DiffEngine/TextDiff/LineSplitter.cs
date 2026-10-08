@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// Splits text into lines on <c>\r\n</c>, <c>\r</c> or <c>\n</c>, as ranges of the original string,
 /// so that no line is copied until something asks for it as a string.

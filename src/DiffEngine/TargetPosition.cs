@@ -1,4 +1,6 @@
-﻿static class TargetPosition
+﻿namespace DiffEngine;
+
+static class TargetPosition
 {
     public static bool TargetOnLeft { get; private set; }
 

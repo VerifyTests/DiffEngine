@@ -1,4 +1,6 @@
-﻿static class TrayDetector
+﻿namespace DiffEngine;
+
+static class TrayDetector
 {
     // Checked live (not cached) so a tray started after the test process still counts
     public static bool IsRunning()

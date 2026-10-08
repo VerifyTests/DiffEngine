@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 static class MaxInstance
 {
     public static int MaxInstancesToLaunch => capturedMaxInstancesToLaunch ??= GetMaxInstances();

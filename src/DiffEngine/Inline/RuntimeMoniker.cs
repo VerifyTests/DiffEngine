@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// The short target-framework moniker of the running process ("net9.0", "net48"), used to label
 /// the origin of an inline patch so a multi-targeted test run can be told apart from a re-run.

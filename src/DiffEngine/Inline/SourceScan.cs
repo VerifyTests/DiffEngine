@@ -1,5 +1,7 @@
 using System.Buffers;
 
+namespace DiffEngine;
+
 /// <summary>
 /// A one pass lexical map of a source file: where the comments, strings and char literals are, and
 /// therefore which offsets are code.

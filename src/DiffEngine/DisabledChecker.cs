@@ -1,4 +1,6 @@
-﻿static class DisabledChecker
+﻿namespace DiffEngine;
+
+static class DisabledChecker
 {
     public static bool IsDisable()
     {

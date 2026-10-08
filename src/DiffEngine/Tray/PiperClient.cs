@@ -1,4 +1,6 @@
-﻿static class PiperClient
+﻿namespace DiffEngine;
+
+static class PiperClient
 {
     public static int Port = 3492;
 

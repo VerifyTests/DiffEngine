@@ -1,5 +1,7 @@
 using System.Buffers;
 
+namespace DiffEngine;
+
 /// <summary>
 /// Gives equal lines equal ids, across both texts, so the diff compares ints rather than strings.
 /// <para>

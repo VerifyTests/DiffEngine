@@ -1,4 +1,6 @@
-﻿static class WildcardFileFinder
+﻿namespace DiffEngine;
+
+static class WildcardFileFinder
 {
     static char[] separators =
     [

@@ -1,5 +1,7 @@
 using System.Buffers;
 
+namespace DiffEngine;
+
 /// <summary>
 /// Myers' O((N+M)D) difference algorithm, in its linear space form: find the middle snake of an
 /// optimal edit path by searching from both ends at once, then solve the halves either side of it.

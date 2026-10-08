@@ -1,4 +1,6 @@
-﻿static class OrderReader
+﻿namespace DiffEngine;
+
+static class OrderReader
 {
     public record Result(bool UsedToolOrderEnvVar, IEnumerable<DiffTool> Order);
 

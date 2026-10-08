@@ -4,8 +4,10 @@
     <!-- The .NET Framework legs, which only Windows can build -->
     <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;$(TargetFrameworks)</TargetFrameworks>
     <AllowUnsafeBlocks Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</AllowUnsafeBlocks>
-    <!-- DiffEngineTray, the benchmarks and the tests use internals through InternalsVisibleTo -->
-    <SquashInternalsVisibleTo>Honor</SquashInternalsVisibleTo>
+    <!-- DiffEngineTray, the benchmarks and the tests use internals through InternalsVisibleTo.
+         DiffEngine's own are all in this namespace and are kept whole. What Polyfill adds is hidden
+         from them (PolyUseEmbeddedAttribute), so it is trimmed where nothing here uses it. -->
+    <Squash_InternalNamespacesToKeep>DiffEngine</Squash_InternalNamespacesToKeep>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>

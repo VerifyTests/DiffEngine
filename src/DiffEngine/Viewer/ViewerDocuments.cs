@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// Whether a resolved DiffEngineViewer carries its documents folder, which is what lets it read
 /// PDFs and Office files. The dotnet tool and the copy inside DiffEngineTray do; the copy bundled

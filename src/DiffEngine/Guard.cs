@@ -1,4 +1,6 @@
-﻿static class Guard
+﻿namespace DiffEngine;
+
+static class Guard
 {
     public static void AgainstNegative(int value, string argumentName)
     {

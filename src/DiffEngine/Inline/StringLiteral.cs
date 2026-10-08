@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// The parts of writing and reading a string literal that C# and F# now share.
 /// <para>

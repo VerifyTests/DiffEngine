@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 // ReSharper disable PartialTypeWithSinglePart
 static partial class WindowsProcess
 {

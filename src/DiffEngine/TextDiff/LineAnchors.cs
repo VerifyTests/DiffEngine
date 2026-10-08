@@ -1,5 +1,7 @@
 using System.Buffers;
 
+namespace DiffEngine;
+
 /// <summary>
 /// The elements two sequences can be lined up by when searching for a diff has cost too much:
 /// those that occur once in each, and of those the longest run that is in the same order in both.

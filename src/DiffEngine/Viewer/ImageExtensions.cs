@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// The image extensions DiffEngineViewer renders as pictures, and therefore the ones DiffEngine
 /// offers it as a binary diff tool for.
