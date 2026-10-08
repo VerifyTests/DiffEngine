@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 static class JsonEscaping
 {
     static bool NeedEscape(string src, int i)

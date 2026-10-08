@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// The extensions DiffEngineViewer reads as documents when it has its documents folder, which the
 /// dotnet tool and the copy inside DiffEngineTray do and the copy bundled in DiffEngine does not.

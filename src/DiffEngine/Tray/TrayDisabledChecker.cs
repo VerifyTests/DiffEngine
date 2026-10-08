@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 static class TrayDisabledChecker
 {
     public static bool IsDisabled()

@@ -1,5 +1,7 @@
 using System.Globalization;
 
+namespace DiffEngine;
+
 /// <summary>
 /// Renders a <see cref="LineDiff"/> in the three shapes Verify.DiffPlex offered, so a failure
 /// message reads the same after moving off it. Each line's span is appended as is, so formatting

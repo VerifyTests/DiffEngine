@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 enum PatchStatus
 {
     Applied,

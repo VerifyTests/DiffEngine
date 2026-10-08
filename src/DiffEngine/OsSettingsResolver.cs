@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 static class OsSettingsResolver
 {
     static string[] envPaths;

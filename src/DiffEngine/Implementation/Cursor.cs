@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 static partial class Implementation
 {
     public static Definition Cursor()

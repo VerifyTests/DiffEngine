@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// One line of a <see cref="LineDiff"/>, as indexes into the line ranges of each side. An index is
 /// -1 on the side the line is not on.

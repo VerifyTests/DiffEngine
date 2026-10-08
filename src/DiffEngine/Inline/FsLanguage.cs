@@ -1,3 +1,5 @@
+namespace DiffEngine;
+
 /// <summary>
 /// F#: the lexing that fills a <see cref="SourceScan"/>, and the syntax the patcher has to write.
 /// <para>

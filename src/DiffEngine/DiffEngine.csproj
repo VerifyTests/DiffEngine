@@ -5,7 +5,7 @@
     <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">net462;net472;net48;$(TargetFrameworks)</TargetFrameworks>
     <AllowUnsafeBlocks Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</AllowUnsafeBlocks>
     <!-- DiffEngineTray, the benchmarks and the tests use internals through InternalsVisibleTo -->
-    <SquashInternalsVisibleTo>Honor</SquashInternalsVisibleTo>
+    <Squash_InternalsVisibleTo>Honor</Squash_InternalsVisibleTo>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>

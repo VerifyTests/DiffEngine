@@ -1,5 +1,7 @@
 using System.Buffers;
 
+namespace DiffEngine;
+
 /// <summary>
 /// The diff of two texts as line ranges of the originals, in inline order: unchanged lines, and
 /// each changed block as its removed lines followed by its added lines.

@@ -1,4 +1,6 @@
-﻿static class EnvironmentHelper
+﻿namespace DiffEngine;
+
+static class EnvironmentHelper
 {
     /// <summary>
     /// Both scopes, so a setting chosen in the tray outlives the process that chose it.

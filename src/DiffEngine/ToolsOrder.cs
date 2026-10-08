@@ -1,4 +1,6 @@
-﻿static class ToolsOrder
+﻿namespace DiffEngine;
+
+static class ToolsOrder
 {
     /// <summary>
     /// The requested tools first, in the order asked for, then everything else. Each is flagged

@@ -1,4 +1,6 @@
-﻿/// <summary>
+﻿namespace DiffEngine;
+
+/// <summary>
 /// A marker file written by DiffEngineTray on startup so client libraries can
 /// detect the running tray's version. Old trays (pre 20.0.0) never write it.
 /// </summary>
