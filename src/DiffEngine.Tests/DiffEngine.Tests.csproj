@@ -12,6 +12,7 @@
     <PackageReference Include="MarkdownSnippets.MsBuild" PrivateAssets="all" />
     <PackageReference Include="Argon" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!-- The stamp consumers get from buildTransitive/DiffEngine.targets, so the suite runs the
          configured RuntimeMoniker path rather than only its fallback. -->
