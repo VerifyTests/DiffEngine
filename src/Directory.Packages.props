@@ -4,7 +4,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Argon" Version="0.38.1" />
+    <PackageVersion Include="Argon" Version="0.38.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
