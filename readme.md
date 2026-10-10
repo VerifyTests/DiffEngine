@@ -44,6 +44,7 @@ DiffEngine manages launching and cleanup of diff tools. It is designed to be use
   * [Closing a tool](#closing-a-tool)
   * [File type detection](#file-type-detection)
   * [BuildServerDetector](#buildserverdetector)
+    * [WSL](#wsl)
     * [Override in tests](#override-in-tests)
   * [Automatic AI detection](#automatic-ai-detection)
     * [Programmatic usage](#programmatic-usage)
@@ -191,6 +192,33 @@ var isBitbucketPipelines = BuildServerDetector.IsBitbucketPipelines;
 ```
 <sup><a href='/src/DiffEngine.Tests/BuildServerDetectorTest.cs#L8-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-BuildServerDetectorProps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+
+### WSL
+
+Running under [WSL](https://learn.microsoft.com/en-us/windows/wsl/about) is not treated as a build server, since a WSL session is usually a developer machine. `BuildServerDetector.IsWsl` reports it, and `BuildServerDetector.Detected` ignores it.
+
+A build that runs its tests inside WSL from a Windows build agent is the case to watch. The variables the build server sets exist on the Windows side, and WSL only passes across the ones named in [WSLENV](https://learn.microsoft.com/en-us/windows/wsl/filesystems#share-environment-variables-between-windows-and-wsl-with-wslenv). So inside WSL nothing is detected, and diff tools are launched on the build agent.
+
+To have such a build detected, either name the build server's variable in `WSLENV` on the Windows side, for example on Azure DevOps:
+
+```
+set WSLENV=TF_BUILD:%WSLENV%
+```
+
+or set one of the detected variables on the command that starts the tests:
+
+```
+wsl -- env TF_BUILD=True dotnet test
+```
+
+To treat every WSL run as a build server, in a test:
+
+```cs
+BuildServerDetector.Detected = BuildServerDetector.Detected || BuildServerDetector.IsWsl;
+```
+
+That value is scoped to the current async context, as described below.
 
 
 ### Override in tests

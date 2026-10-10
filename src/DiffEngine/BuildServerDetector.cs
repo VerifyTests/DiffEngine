@@ -65,7 +65,6 @@ public static class BuildServerDetector
                    IsMyGet ||
                    IsGoDc ||
                    IsDocker ||
-                   IsWsl ||
                    IsAppVeyor ||
                    IsBitbucketPipelines;
     }
