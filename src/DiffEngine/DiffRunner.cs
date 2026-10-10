@@ -419,7 +419,7 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            replacing = KillIfNotMdi(tool, command);
+            replacing = KillIfNotMdi(tool, command, tempFile, targetFile);
         }
 
         // A replacement does not raise the number of open tools, so it does not spend a slot. The
@@ -481,7 +481,7 @@ public static partial class DiffRunner
                 return LaunchResult.AlreadyRunningAndSupportsRefresh;
             }
 
-            replacing = KillIfNotMdi(tool, command);
+            replacing = KillIfNotMdi(tool, command, tempFile, targetFile);
         }
 
         // As above: a replacement is not a new instance
@@ -637,14 +637,19 @@ public static partial class DiffRunner
     /// <summary>
     /// Closes the tool already showing this pair, and reports whether it did. An MDI tool hosts
     /// every diff in one window, so there is nothing to close and nothing being replaced. A
-    /// Windows tool started from WSL cannot be closed from here, so its window is left and the
-    /// pair gets another beside it.
+    /// Windows tool started from WSL is closed on the host, and where that could not be done
+    /// its window is left and the pair gets another beside it.
     /// </summary>
-    static bool KillIfNotMdi(ResolvedTool tool, string command)
+    static bool KillIfNotMdi(ResolvedTool tool, string command, string tempFile, string targetFile)
     {
-        if (!tool.CanKill)
+        if (tool.IsMdi)
         {
             return false;
+        }
+
+        if (tool.IsWindowsProgramInWsl)
+        {
+            return WslInterop.Kill(tool, tempFile, targetFile);
         }
 
         ProcessCleanup.Kill(command);

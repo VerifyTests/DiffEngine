@@ -60,12 +60,7 @@ class WslHost
     Dictionary<string, string> ListPrograms(IReadOnlyList<string> directories)
     {
         var programs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        string? systemRoot = null;
-        if (variables.TryGetValue("SystemRoot", out var windowsDirectory))
-        {
-            Paths.TryToLinux(windowsDirectory, out systemRoot);
-        }
-
+        var systemRoot = SystemRoot();
         foreach (var directory in directories)
         {
             if (!Paths.IsOnHost(directory) ||
@@ -98,6 +93,40 @@ class WslHost
         }
 
         return programs;
+    }
+
+    /// <summary>
+    /// The host's Windows directory as this process sees it, or null when the host did not say
+    /// where it is or its drive is not mounted.
+    /// </summary>
+    string? SystemRoot()
+    {
+        if (variables.TryGetValue("SystemRoot", out var windowsDirectory) &&
+            Paths.TryToLinux(windowsDirectory, out var systemRoot))
+        {
+            return systemRoot;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Windows PowerShell, which every Windows this can run on has, and which is the one way to
+    /// ask the host about its own processes from here. Looked for where Windows keeps it before
+    /// the PATH, since that is one question rather than one for each directory on it.
+    /// </summary>
+    public bool TryFindPowerShell([NotNullWhen(true)] out string? path)
+    {
+        if (SystemRoot() is { } systemRoot)
+        {
+            path = $"{systemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe";
+            if (File.Exists(path))
+            {
+                return true;
+            }
+        }
+
+        return OsSettingsResolver.TryFindInEnvPath("powershell.exe", out path);
     }
 
     static bool IsWithin(string directory, string? parent)
@@ -325,7 +354,7 @@ class WslHost
     /// <summary>
     /// What a program printed, or null when it did not start, failed, or did not finish in time.
     /// </summary>
-    static string? Run(string file, string arguments, string directory, Encoding encoding)
+    internal static string? Run(string file, string arguments, string directory, Encoding encoding)
     {
         using var process = new Process
         {

@@ -39,11 +39,11 @@ public static partial class DiffRunner
         }
 
         // What could be ended here is WSL's stand-in for the tool, and a windowed tool outlives
-        // that. Ending it would only lose track of a window that is still open, and the next
-        // failing run for this pair would then open a second
+        // that. Ending it would only lose track of a window that is still open, so the tool is
+        // ended where it runs instead
         if (diffTool.IsWindowsProgramInWsl)
         {
-            Logging.Write($"DiffTool is a Windows program run from WSL so not killing. diffTool: {diffTool.ExePath}");
+            WslInterop.Kill(diffTool, tempFile, targetFile);
             return;
         }
 

@@ -38,6 +38,21 @@ public class WslInteropTests
         await Assert.That(WslInterop.StripProxy(listed)).IsEqualTo(listed);
 
     /// <summary>
+    /// A value is never text in the script that ends a tool on the host, so a quote in a path
+    /// cannot end a string early. It is not only the straight quote that PowerShell takes for
+    /// one. <see cref="WslKillScriptTests" /> runs the script.
+    /// </summary>
+    [Test]
+    public async Task NoValueIsWrittenIntoTheKillScriptAsText()
+    {
+        var script = WslInterop.KillScript("to'ol.exe", @"C:\it's\a’b.received.txt", @"C:\it's\a’b.verified.txt");
+
+        await Assert.That(script).DoesNotContain("to'ol");
+        await Assert.That(script).DoesNotContain("it's");
+        await Assert.That(script).DoesNotContain("’");
+    }
+
+    /// <summary>
     /// The viewer is spoken to over a loopback port the host does not share with a
     /// distribution, and the two editors run in a terminal a test process does not have. Every
     /// other tool is offered, and so is one of the caller's own, which has no

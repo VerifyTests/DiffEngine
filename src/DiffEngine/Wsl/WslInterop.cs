@@ -14,9 +14,9 @@ namespace DiffEngine;
 /// that stands in for it, and three things follow. It is listed by <c>ps</c> with WSL's own
 /// program in front of the tool's command line, which <see cref="StripProxy" /> takes off so a
 /// running tool is still found by the command it was started with. Ending it does not close a
-/// windowed tool, so such a tool is never killed from here: it is not closed when its test
-/// passes, and one that does not refresh gets a second window rather than a replacement. And it
-/// ends with the terminal session that started it, while the window stays.
+/// windowed tool, so the tool itself is ended instead, on the host (<see cref="Kill" />). And it
+/// ends with the terminal session that started it, while the window stays: a tool left open
+/// across sessions is no longer found, and so neither refreshed nor closed.
 /// </para>
 /// </summary>
 static class WslInterop
@@ -116,6 +116,78 @@ static class WslInterop
         process.StandardError.Close();
         return process.Id;
     }
+
+    /// <summary>
+    /// Closes the Windows tool showing a pair, and reports whether one was closed.
+    /// <para>
+    /// The process this side could signal is WSL's stand-in, and a windowed tool outlives that.
+    /// So the tool is found where it runs, by Windows PowerShell on the host: the processes of
+    /// the tool's image whose command line names both files, by the paths the tool was handed.
+    /// By both, because a tool can be showing the same received file against another target,
+    /// and by image, so nothing else that happens to mention them is ended.
+    /// </para>
+    /// <para>
+    /// That is a process started and a question put to Windows, a third of a second, where
+    /// ending a process here is nothing. So it is only asked once the stand-in has been found
+    /// by its command, which is what says a window was opened for this pair and is still there:
+    /// a passing verification with no window pays for a look through a list, as it does for
+    /// any other tool.
+    /// </para>
+    /// </summary>
+    public static bool Kill(ResolvedTool tool, string tempFile, string targetFile)
+    {
+        var command = tool.BuildCommand(tempFile, targetFile);
+        if (!ProcessCleanup.IsRunning(command))
+        {
+            return false;
+        }
+
+        if (!Host!.TryFindPowerShell(out var powerShell))
+        {
+            Logging.Write($"Windows PowerShell was not found, so the tool was left open. Command: {command}");
+            return false;
+        }
+
+        var script = KillScript(Path.GetFileName(tool.ExePath), ToWindows(tempFile), ToWindows(targetFile));
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        var output = WslHost.Run(
+            powerShell,
+            $"-NoProfile -NonInteractive -EncodedCommand {encoded}",
+            Path.GetDirectoryName(powerShell)!,
+            Encoding.UTF8);
+        var closed = int.TryParse(output?.Trim(), out var count) && count > 0;
+        Logging.Write($"Kill on the Windows host: {command}. Closed: {closed}");
+        return closed;
+    }
+
+    /// <summary>
+    /// What PowerShell is asked to run: end every process of this image whose command line
+    /// names both paths, and say how many there were.
+    /// <para>
+    /// The script is handed over encoded rather than as text, so nothing has to survive two
+    /// command lines, and each value is encoded again inside it: a path can hold a quote, and
+    /// PowerShell takes four other characters for one. The comparison ignores case, as the file
+    /// system the paths are on does.
+    /// </para>
+    /// </summary>
+    internal static string KillScript(string image, string tempFile, string targetFile) =>
+        $$"""
+          function Decode($value) { [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($value)) }
+          $image = Decode '{{Encode(image)}}'
+          $temp = Decode '{{Encode(tempFile)}}'
+          $target = Decode '{{Encode(targetFile)}}'
+          $found = @(Get-CimInstance Win32_Process | Where-Object {
+              $_.Name -eq $image -and
+              $_.CommandLine -and
+              $_.CommandLine.IndexOf($temp, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+              $_.CommandLine.IndexOf($target, [StringComparison]::OrdinalIgnoreCase) -ge 0
+          })
+          $found | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+          $found.Count
+          """;
+
+    static string Encode(string value) =>
+        Convert.ToBase64String(Encoding.Unicode.GetBytes(value));
 
     /// <summary>
     /// The command line a Windows tool was started with, from the one <c>ps</c> lists for it.
