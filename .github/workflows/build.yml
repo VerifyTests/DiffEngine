@@ -205,6 +205,71 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # A test process inside a WSL distribution can start a diff tool installed on Windows. Every
+  # part of that which can be tested without a distribution is, in the jobs above. This job is for
+  # the rest: what a distribution's mount table and ps really say, and whether a program on the
+  # host can be started from inside one, handed a file by its translated path, found again and
+  # ended. Under WSL 1 as well as 2, since the two mount drives and reach the host differently.
+  #
+  # The tests are built on the runner and run inside the distribution from where they were built,
+  # which is a Windows drive mounted into it. That is one build rather than two, and needs only
+  # the .NET runtime inside, not the SDK. It also means WslLiveTests is the only class that can be
+  # run this way: tests that find their fixtures by the path they were compiled at get a Windows
+  # path there.
+  #
+  # Not among the jobs a release waits for. It is new, and a runner image that stops offering WSL
+  # should not be what holds a package back.
+  wsl:
+    name: wsl ${{ matrix.version }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Debug and one framework: Release also packs, and publishes every viewer head to do it.
+      - name: Build
+        run: dotnet build src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Debug --framework net10.0
+
+      # procps for ps, which is how a running tool is found, and curl for the runtime's installer.
+      - name: Install a distribution
+        uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: ${{ matrix.version }}
+          additional-packages: curl ca-certificates procps
+
+      # Build server variables stay on the Windows side, as they do for anyone's build that runs
+      # its tests in WSL, so in here this is a developer machine. That is what is being tested.
+      #
+      # Without ICU, which the distribution does not have and these tests do not need.
+      - name: Test
+        shell: wsl-bash {0}
+        run: |
+          if [ -z "${WSL_DISTRO_NAME:-}" ]; then
+            echo "::error::WSL_DISTRO_NAME is not set, so every test would be skipped"
+            exit 1
+          fi
+          echo "WSL $(wslinfo --wsl-version 2>/dev/null || echo unknown), kernel $(uname -r)"
+          grep -E 'drvfs' /proc/mounts || true
+
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 10.0 --runtime dotnet --install-dir "$HOME/.dotnet"
+          export DOTNET_ROOT="$HOME/.dotnet"
+          export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+          cd "$(wslpath -u '${{ github.workspace }}')/src/DiffEngine.Tests/bin/Debug/net10.0"
+          "$DOTNET_ROOT/dotnet" DiffEngine.Tests.dll --treenode-filter "/*/*/WslLiveTests/*"
+
   # Neither job above loads a committed binary any more: both build the shim from source so their
   # pixel baselines track it. That leaves nothing testing what actually ships, which is this job.
   # It loads the committed binaries as they are, which is what catches a wrong architecture, a file
