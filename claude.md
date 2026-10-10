@@ -622,6 +622,13 @@ the comment there about not caching "nothing staged" asks for.
 - Built binaries are **committed** to `src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native/`, so a plain
   `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
   with the `build-native` GitHub workflow, which opens a PR.
+- The Linux library is linked with `--as-needed`, and `build-native` fails a build whose `NEEDED`
+  entries are outside a short list. A library recorded there has to be installed for the viewer
+  to load at all, and the manylinux container's linker records every one it is handed: raylib
+  passes on all of FindX11's, so the binaries built there needed `libSM` and `libICE`, which a
+  stock Ubuntu lacks, where the ones built on the Ubuntu runner (whose compiler passes the flag
+  itself) had not. GLFW opens the X11 extension libraries and `libGL` itself at run time, so only
+  `libX11` is left of them.
 
 **DiffEngineTray (`src/DiffEngineTray/`):**
 - Windows Forms tray application that handles pending file diffs
