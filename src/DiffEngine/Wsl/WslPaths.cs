@@ -11,10 +11,10 @@ namespace DiffEngine;
 /// </para>
 /// <para>
 /// Worked out here rather than by running <c>wslpath</c> per path. A command line is built for
-/// every failing pair, whether or not a window ends up being opened for it, so a process a
-/// path would be a thousand of them for a run with five hundred failures. What is needed is
-/// read once instead: the drive mounts from <c>/proc/mounts</c>, and what the host calls the
-/// distribution's root.
+/// every pair, to open a window for one that fails and to find a window to close for one that
+/// passes, so a process a path would be two for every verification in a run. What is needed
+/// is read once instead: the drive mounts from <c>/proc/mounts</c>, and what the host calls
+/// the distribution's root.
 /// </para>
 /// </summary>
 class WslPaths

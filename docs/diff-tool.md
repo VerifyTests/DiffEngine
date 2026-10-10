@@ -152,7 +152,7 @@ The [tool order](/docs/diff-tool.order.md) applies as it does anywhere else, so 
 
 What differs from a test run on Windows:
 
- * A Windows tool is not closed when its test passes. WSL runs a Windows program through a process of its own, and ending that process does not close the program's window. For the same reason a tool that does not auto refresh is given a second window when the same comparison fails again, where on Windows its window is replaced.
+ * A Windows tool is only found again while the terminal session that started it is open. WSL runs a Windows program through a process of its own, which is how the tool is recognized, and that process ends with the session while the tool's window stays. A tool left open past its session is not closed when its test passes, and gets a second window when the same comparison fails again.
  * Visual Studio Code is started by its `code` launcher, which WSL places on the `PATH`, and opens both files through its WSL extension. A tool that is a script on Windows (`.cmd`) cannot be started from a distribution.
  * Vim and Neovim are only used from the distribution, since they run in the terminal they are started from.
  * [DiffEngineTray](/docs/tray.md) is not supported from inside a distribution.

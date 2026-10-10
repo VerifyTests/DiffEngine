@@ -20,9 +20,11 @@ public record ResolvedTool
         WslInterop.IsWindowsProgram(ExePath);
 
     /// <summary>
-    /// Whether the window opened for a pair can be closed by ending the process started for it.
-    /// Not for an MDI tool, whose one window holds every pair, and not for a Windows tool started
-    /// from WSL, where that process is not the tool.
+    /// Whether the window opened for a pair can be closed by ending the process started for it,
+    /// which is what whoever a pending move is handed to is told. Not for an MDI tool, whose one
+    /// window holds every pair, and not for a Windows tool started from WSL, where that process
+    /// is not the tool: this library closes such a tool itself, on the host
+    /// (<see cref="WslInterop.Kill" />), and nobody it hands the process id to can.
     /// </summary>
     internal bool CanKill =>
         !IsMdi &&
