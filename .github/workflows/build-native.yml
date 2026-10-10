@@ -75,6 +75,32 @@ jobs:
             exit 1
           fi
 
+      # Everything recorded as needed has to be on a machine for the library to load at all, so
+      # the list is held to what any machine that runs .NET and has a display already has. It grew
+      # once without anybody choosing it: the container's linker records every library it is
+      # handed, used or not, and raylib hands on libSM and libICE, which a stock Ubuntu lacks.
+      # The viewer could not start there, and nothing noticed until somebody ran it on one.
+      - name: Check needed libraries
+        if: runner.os == 'Linux'
+        env:
+          ALLOWED: >-
+            libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 libstdc++.so.6 libgcc_s.so.1
+            libX11.so.6 libGL.so.1 ld-linux-x86-64.so.2 ld-linux-aarch64.so.1
+        run: |
+          needed=$(objdump -p build/libdiffengine_viewer.so | awk '$1 == "NEEDED" { print $2 }')
+          echo "Needed:" $needed
+          failed=0
+          for library in $needed; do
+            case " $ALLOWED " in
+              *" $library "*) ;;
+              *)
+                echo "::error::libdiffengine_viewer.so needs $library, which is not in the list of libraries it may need"
+                failed=1
+                ;;
+            esac
+          done
+          exit $failed
+
       # macOS draws with AppKit and Core Text rather than raylib and ImGui, so it is a Swift
       # package rather than a CMake project. Both --arch flags in one invocation produce a
       # universal binary, so there is no separate lipo step.

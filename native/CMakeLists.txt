@@ -109,6 +109,17 @@ target_compile_definitions(diffengine_viewer PRIVATE IMGUI_USE_WCHAR32)
 find_package(Threads REQUIRED)
 target_link_libraries(diffengine_viewer PRIVATE raylib Threads::Threads ${CMAKE_DL_LIBS})
 
+# Only the libraries something is actually called in are recorded as needed. raylib hands on
+# everything CMake's FindX11 found, which includes libSM and libICE wherever their headers are
+# installed, and nothing here or in raylib calls either. A library recorded as needed has to be
+# on the machine for this one to load at all, and a stock Ubuntu has neither of those two: the
+# viewer could not start, and every inline snapshot sent to it was staged instead of shown.
+# Ubuntu's own compiler passes this by default, which is why the binaries built on the runner
+# never had the problem and the ones built in the manylinux container did.
+if(UNIX AND NOT APPLE)
+  target_link_options(diffengine_viewer PRIVATE LINKER:--as-needed)
+endif()
+
 # The managed side probes for a bare name; keep it identical on every platform apart from the
 # platform's own prefix and extension.
 set_target_properties(diffengine_viewer PROPERTIES
