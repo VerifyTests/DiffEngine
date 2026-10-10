@@ -4,6 +4,11 @@ static class OsSettingsResolver
 {
     static string[] envPaths;
 
+    /// <summary>
+    /// The directories of PATH, in its order.
+    /// </summary>
+    internal static IReadOnlyList<string> EnvPaths => envPaths;
+
     static OsSettingsResolver()
     {
         // An unset PATH is a NullReferenceException in a static constructor, and so permanent
@@ -60,14 +65,33 @@ static class OsSettingsResolver
     /// first copy of all when it accepts none - so it reorders what is found and never empties it.
     /// Not asked about a copy an environment variable names, which is somebody's explicit choice.
     /// </para>
+    /// <para>
+    /// Inside WSL the Windows definition is searched too, on the host's drives, after the Linux
+    /// one: a copy the distribution has needs no path translated and no process standing in for
+    /// it. <c>windowsThroughWsl</c> is false for a tool that cannot be run that way: see
+    /// <see cref="WslInterop.Offers" />.
+    /// </para>
     /// </summary>
     public static bool Resolve(
         string tool,
         OsSupport osSupport,
         [NotNullWhen(true)] out string? path,
         [NotNullWhen(true)] out LaunchArguments? launchArguments,
-        Func<string, bool>? preferred = null)
+        Func<string, bool>? preferred = null,
+        bool windowsThroughWsl = true)
     {
+        var host = windowsThroughWsl ? WslInterop.Host : null;
+
+        // Ahead of the Linux definition, which throws for a variable naming a directory that
+        // does not hold its own executable
+        if (host != null &&
+            osSupport.Windows is { } named &&
+            TryFindOnHostForEnvironmentVariable(host, tool, named.ExeName, osSupport.Linux == null, out path))
+        {
+            launchArguments = named.LaunchArguments;
+            return true;
+        }
+
         if (TryResolveForOs(tool, osSupport.Windows, out path, "WINDOWS", preferred))
         {
             launchArguments = osSupport.Windows.LaunchArguments;
@@ -86,10 +110,112 @@ static class OsSettingsResolver
             return true;
         }
 
+        if (host != null &&
+            osSupport.Windows is { } windows &&
+            TryFindOnHost(host, windows, out path))
+        {
+            launchArguments = windows.LaunchArguments;
+            return true;
+        }
+
         path = null;
         launchArguments = null;
         return false;
     }
+
+    /// <summary>
+    /// A Windows definition's executable, looked for from inside WSL: in its search directories
+    /// as the distribution sees them, then on the PATH, to which WSL appends the host's
+    /// (<see cref="WslHost.TryFindOnPath" />).
+    /// <para>
+    /// Only an <c>.exe</c>. A <c>.cmd</c> is a script for <c>cmd.exe</c>, which the kernel has
+    /// nothing to start with. The two tools declared that way are reached otherwise: VS Code by
+    /// the launcher its Linux definition finds on that same PATH, and Rider by its
+    /// <c>rider64.exe</c>.
+    /// </para>
+    /// </summary>
+    internal static bool TryFindOnHost(WslHost host, OsSettings windows, [NotNullWhen(true)] out string? path)
+    {
+        path = null;
+        if (!IsExe(windows.ExeName))
+        {
+            return false;
+        }
+
+        var directories = host.SearchDirectories(ExpandProgramFiles(windows.SearchDirectories));
+        path = Installed(windows.ExeName, null, directories).FirstOrDefault();
+        if (path != null)
+        {
+            return true;
+        }
+
+        return IsExe(windows.PathCommandName) &&
+               host.TryFindOnPath(windows.PathCommandName, out path);
+    }
+
+    /// <summary>
+    /// <see cref="TryFindForEnvironmentVariable" /> for a Windows copy named from inside WSL. The
+    /// variable may give the directory either way round: as the distribution sees it, or as the
+    /// host does.
+    /// <para>
+    /// A variable that names nothing is only an error here when <paramref name="orThrow" /> says
+    /// no other definition will be asked. Where there is a Linux one, the variable may be naming
+    /// that copy, and the Linux lookup is the one to say it is not there.
+    /// </para>
+    /// </summary>
+    internal static bool TryFindOnHostForEnvironmentVariable(WslHost host, string tool, string exeName, bool orThrow, [NotNullWhen(true)] out string? path)
+    {
+        path = null;
+        var environmentVariable = $"DiffEngine_{tool}";
+        var value = Environment.GetEnvironmentVariable(environmentVariable);
+        if (value is null ||
+            !IsExe(exeName))
+        {
+            return false;
+        }
+
+        if (TryFindAt(value, exeName, out path) ||
+            (host.Paths.TryToLinux(value, out var linux) && TryFindAt(linux, exeName, out path)))
+        {
+            return true;
+        }
+
+        if (orThrow)
+        {
+            throw new($"Could not find exe defined by {environmentVariable}. Path: {value}");
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The executable a variable's value names: the file itself, or the directory it is in.
+    /// </summary>
+    static bool TryFindAt(string basePath, string exeName, [NotNullWhen(true)] out string? path)
+    {
+        if (basePath.EndsWith(exeName, StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(basePath))
+        {
+            path = basePath;
+            return true;
+        }
+
+        if (Directory.Exists(basePath))
+        {
+            var candidate = Path.Combine(basePath, exeName);
+            if (File.Exists(candidate))
+            {
+                path = candidate;
+                return true;
+            }
+        }
+
+        path = null;
+        return false;
+    }
+
+    static bool IsExe(string name) =>
+        name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
 
     static bool TryResolveForOs(
         string tool,
@@ -191,9 +317,9 @@ static class OsSettingsResolver
 
     /// <summary>
     /// Every installed copy, in the order they are looked for: the search directories as written,
-    /// then PATH.
+    /// then PATH, unless there is no name to look for there.
     /// </summary>
-    static IEnumerable<string> Installed(string exeName, string pathCommandName, IEnumerable<string> searchDirectories)
+    static IEnumerable<string> Installed(string exeName, string? pathCommandName, IEnumerable<string> searchDirectories)
     {
         foreach (var directory in searchDirectories.Distinct())
         {
@@ -209,6 +335,11 @@ static class OsSettingsResolver
             {
                 Logging.Write($"Could not find file: {exeSearchPath}");
             }
+        }
+
+        if (pathCommandName is null)
+        {
+            yield break;
         }
 
         foreach (var commandPath in InEnvPath(pathCommandName))

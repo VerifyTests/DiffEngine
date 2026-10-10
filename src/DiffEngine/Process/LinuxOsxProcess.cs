@@ -37,6 +37,9 @@ static class LinuxOsxProcess
             return [];
         }
 
+        // Inside WSL a Windows tool is listed behind the program WSL runs it with. A tool is
+        // looked for by the command it was started with, which has nothing in front of it
+        var throughWsl = WslInterop.Host != null;
         var commands = new List<ProcessCommand>();
         using var reader = new StringReader(processList);
         reader.ReadLine();
@@ -47,7 +50,13 @@ static class LinuxOsxProcess
                 continue;
             }
 
-            commands.Add(processCommand!.Value);
+            var parsed = processCommand!.Value;
+            if (throughWsl)
+            {
+                parsed = new(WslInterop.StripProxy(parsed.Command), parsed.Process);
+            }
+
+            commands.Add(parsed);
         }
 
         return commands;

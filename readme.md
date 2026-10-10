@@ -196,7 +196,7 @@ var isBitbucketPipelines = BuildServerDetector.IsBitbucketPipelines;
 
 ### WSL
 
-Running under [WSL](https://learn.microsoft.com/en-us/windows/wsl/about) is not treated as a build server, since a WSL session is usually a developer machine. `BuildServerDetector.IsWsl` reports it, and `BuildServerDetector.Detected` ignores it.
+Running under [WSL](https://learn.microsoft.com/en-us/windows/wsl/about) is not treated as a build server, since a WSL session is usually a developer machine. `BuildServerDetector.IsWsl` reports it, and `BuildServerDetector.Detected` ignores it. Diff tools are launched there, the ones installed on Windows included: see [Windows Subsystem for Linux](/docs/diff-tool.md#windows-subsystem-for-linux).
 
 A build that runs its tests inside WSL from a Windows build agent is the case to watch. The variables the build server sets exist on the Windows side, and WSL only passes across the ones named in [WSLENV](https://learn.microsoft.com/en-us/windows/wsl/filesystems#share-environment-variables-between-windows-and-wsl-with-wslenv). So inside WSL nothing is detected, and diff tools are launched on the build agent.
 

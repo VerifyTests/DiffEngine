@@ -46,7 +46,7 @@ public static partial class DiffTools
 
     static ResolvedTool? AddTool(string name, DiffTool? diffTool, bool autoRefresh, bool isMdi, bool supportsText, bool requiresTarget, IEnumerable<string> binaryExtensions, OsSupport osSupport, bool useShellExecute, bool createNoWindow, bool killLockingProcess = false)
     {
-        if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments, PreferredCopy(diffTool)))
+        if (!OsSettingsResolver.Resolve(name, osSupport, out var exePath, out var launchArguments, PreferredCopy(diffTool), WslInterop.Offers(diffTool)))
         {
             return null;
         }

@@ -137,6 +137,31 @@ File | Settings | Manage Layers | This computer | Edit Layer | Build, Execution,
 <img src="rider-ignore-spawned.png" alt="Disable R# orphaned processes detection" width="500">
 
 
+## Windows Subsystem for Linux
+
+A test run inside a [WSL](https://learn.microsoft.com/en-us/windows/wsl/about) distribution can use a diff tool installed on Windows, as well as one installed in the distribution.
+
+For each tool the distribution is searched first. A tool not found there is looked for on Windows: in the directories listed for it under [Supported Tools](#supported-tools), then on the `PATH`, which WSL extends with the Windows one. It is started through WSL's [interoperability with Windows](https://learn.microsoft.com/en-us/windows/wsl/filesystems#run-windows-tools-from-linux), and handed both files as Windows paths:
+
+ * A file on a mounted drive by its drive letter: `/mnt/c/code/Tests.Method.received.txt` as `C:\code\Tests.Method.received.txt`.
+ * A file inside the distribution as a share: `/home/user/code/Tests.Method.received.txt` as `\\wsl.localhost\Ubuntu\home\user\code\Tests.Method.received.txt`.
+
+The [tool order](/docs/diff-tool.order.md) applies as it does anywhere else, so a Windows tool earlier in the order is used ahead of a tool in the distribution that is later in it.
+
+`DiffEngine_{ToolName}` can point at the Windows copy of a tool, written either as the distribution sees the directory (`/mnt/c/Program Files/WinMerge`) or as Windows does (`C:\Program Files\WinMerge`).
+
+What differs from a test run on Windows:
+
+ * A Windows tool is not closed when its test passes. WSL runs a Windows program through a process of its own, and ending that process does not close the program's window. For the same reason a tool that does not auto refresh is given a second window when the same comparison fails again, where on Windows its window is replaced.
+ * Visual Studio Code is started by its `code` launcher, which WSL places on the `PATH`, and opens both files through its WSL extension. A tool that is a script on Windows (`.cmd`) cannot be started from a distribution.
+ * Vim and Neovim are only used from the distribution, since they run in the terminal they are started from.
+ * [DiffEngineTray](/docs/tray.md) is not supported from inside a distribution.
+
+To use only the tools in the distribution, set an environment variable `DiffEngine_WslWindowsTools` with the value `false`.
+
+A distribution is treated as a developer machine and not as a build server: see [BuildServerDetector](/readme.md#wsl).
+
+
 ## Supported Tools:
 
 Tools location is automatically detected. If a tool installed in a custom location, it can be manually configured using an environment variable, that points to the executable. The environment variable format is `DiffEngine_{ToolName}`.
