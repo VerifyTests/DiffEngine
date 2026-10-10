@@ -13,8 +13,9 @@ namespace DiffEngine;
 /// </summary>
 class WslHost
 {
-    // Each program is run once a process. Long enough for a machine under load, and short enough
-    // that one which never answers does not hold up the first verification for good
+    // For the two programs asked what the host looks like, each run once a process. Long enough
+    // for a machine under load, and short enough that one which never answers does not hold up
+    // the first verification for good
     const int timeout = 5000;
 
     readonly IReadOnlyDictionary<string, string> variables;
@@ -354,7 +355,7 @@ class WslHost
     /// <summary>
     /// What a program printed, or null when it did not start, failed, or did not finish in time.
     /// </summary>
-    internal static string? Run(string file, string arguments, string directory, Encoding encoding)
+    internal static string? Run(string file, string arguments, string directory, Encoding encoding, int wait = timeout)
     {
         using var process = new Process
         {
@@ -383,7 +384,7 @@ class WslHost
         var output = process.StandardOutput.ReadToEndAsync();
         // Read so that a program with a lot to say there is not left waiting on a full pipe
         var error = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(timeout))
+        if (!process.WaitForExit(wait))
         {
             try
             {
@@ -399,7 +400,7 @@ class WslHost
         }
 
         if (process.ExitCode != 0 ||
-            !Task.WaitAll([output, error], timeout))
+            !Task.WaitAll([output, error], wait))
         {
             return null;
         }
