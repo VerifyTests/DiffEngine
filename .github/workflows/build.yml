@@ -63,6 +63,18 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      # The log names a failing test and how long it took, and nothing about what ran beside it.
+      # A test that fails on time alone, because the process was stalled for a quarter of a
+      # minute, cannot be explained from that. The report has when every test started and ended.
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-windows
+          path: '**/TestResults/*-report.html'
+          if-no-files-found: ignore
+          retention-days: 14
+
       # DE0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
       # platform it claims to support is worse than failing the release.
       - name: Verify every RID has a native renderer

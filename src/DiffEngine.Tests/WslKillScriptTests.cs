@@ -18,10 +18,10 @@ public class WslKillScriptTests
         using var tool = StandIn(temp, target);
         try
         {
-            var ended = Run(WslInterop.KillScript("cmd.exe", temp, target));
+            var ended = await Run(WslInterop.KillScript("cmd.exe", temp, target));
 
             await Assert.That(ended).IsEqualTo(1);
-            await Assert.That(tool.WaitForExit(5000)).IsTrue();
+            await Assert.That(await Exited(tool)).IsTrue();
         }
         finally
         {
@@ -39,10 +39,10 @@ public class WslKillScriptTests
         using var tool = StandIn(temp, target);
         try
         {
-            var ended = Run(WslInterop.KillScript("CMD.EXE", temp.ToUpperInvariant(), target.ToUpperInvariant()));
+            var ended = await Run(WslInterop.KillScript("CMD.EXE", temp.ToUpperInvariant(), target.ToUpperInvariant()));
 
             await Assert.That(ended).IsEqualTo(1);
-            await Assert.That(tool.WaitForExit(5000)).IsTrue();
+            await Assert.That(await Exited(tool)).IsTrue();
         }
         finally
         {
@@ -62,8 +62,8 @@ public class WslKillScriptTests
         using var tool = StandIn(temp, otherTarget);
         try
         {
-            await Assert.That(Run(WslInterop.KillScript("cmd.exe", temp, target))).IsEqualTo(0);
-            await Assert.That(Run(WslInterop.KillScript("notepad.exe", temp, otherTarget))).IsEqualTo(0);
+            await Assert.That(await Run(WslInterop.KillScript("cmd.exe", temp, target))).IsEqualTo(0);
+            await Assert.That(await Run(WslInterop.KillScript("notepad.exe", temp, otherTarget))).IsEqualTo(0);
             await Assert.That(tool.HasExited).IsFalse();
         }
         finally
@@ -101,7 +101,16 @@ public class WslKillScriptTests
         }
     }
 
-    static int Run(string script)
+    /// <summary>
+    /// How many processes the script said it ended.
+    /// <para>
+    /// Both streams are read to their ends and nothing is waited on, so no thread is held while
+    /// PowerShell runs. That is seconds the first time on a build agent, and a thread held for
+    /// them is one the tests beside this one do not have. The error stream is taken as well
+    /// because that first run reports its progress there, which went into the test log.
+    /// </para>
+    /// </summary>
+    static async Task<int> Run(string script)
     {
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         using var process = Process.Start(
@@ -109,10 +118,30 @@ public class WslKillScriptTests
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
             })!;
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
-        return int.Parse(output.Trim());
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        await Task.WhenAll(output, error);
+        return int.Parse((await output).Trim());
+    }
+
+    /// <summary>
+    /// Whether the stand-in has gone, looked at rather than waited on for the same reason.
+    /// </summary>
+    static async Task<bool> Exited(Process tool)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            if (tool.HasExited)
+            {
+                return true;
+            }
+
+            await Task.Delay(100);
+        }
+
+        return false;
     }
 }

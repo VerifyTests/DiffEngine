@@ -26,6 +26,9 @@ static class WslInterop
     /// </summary>
     internal const string Variable = "DiffEngine_WslWindowsTools";
 
+    // See Kill
+    const int killTimeout = 30000;
+
     static readonly Lazy<WslHost?> host = new(WslHost.Detect);
     static readonly ConcurrentDictionary<string, bool> programs = new(StringComparer.Ordinal);
 
@@ -133,6 +136,13 @@ static class WslInterop
     /// a passing verification with no window pays for a look through a list, as it does for
     /// any other tool.
     /// </para>
+    /// <para>
+    /// A third of a second is a machine that has run PowerShell lately. One that has not takes
+    /// several to load what the question needs, and a build agent under WSL 1 took more than
+    /// five: the wait given to the programs that describe the host. Giving up there left the
+    /// tool open and said nothing was closed, so this has a wait of its own, long enough for
+    /// that first run. It is spent only where there is a window to close.
+    /// </para>
     /// </summary>
     public static bool Kill(ResolvedTool tool, string tempFile, string targetFile)
     {
@@ -154,7 +164,8 @@ static class WslInterop
             powerShell,
             $"-NoProfile -NonInteractive -EncodedCommand {encoded}",
             Path.GetDirectoryName(powerShell)!,
-            Encoding.UTF8);
+            Encoding.UTF8,
+            killTimeout);
         var closed = int.TryParse(output?.Trim(), out var count) && count > 0;
         Logging.Write($"Kill on the Windows host: {command}. Closed: {closed}");
         return closed;
@@ -171,13 +182,16 @@ static class WslInterop
     /// </para>
     /// </summary>
     internal static string KillScript(string image, string tempFile, string targetFile) =>
+        // The image is asked for in the query, so Windows hands back the tool's processes and
+        // not every process on the machine with its command line. In a query a backslash and a
+        // quote are each written behind a backslash
         $$"""
           function Decode($value) { [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($value)) }
           $image = Decode '{{Encode(image)}}'
           $temp = Decode '{{Encode(tempFile)}}'
           $target = Decode '{{Encode(targetFile)}}'
-          $found = @(Get-CimInstance Win32_Process | Where-Object {
-              $_.Name -eq $image -and
+          $name = $image.Replace('\', '\\').Replace("'", "\'")
+          $found = @(Get-CimInstance Win32_Process -Filter "Name = '$name'" | Where-Object {
               $_.CommandLine -and
               $_.CommandLine.IndexOf($temp, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
               $_.CommandLine.IndexOf($target, [StringComparison]::OrdinalIgnoreCase) -ge 0
