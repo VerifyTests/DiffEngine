@@ -394,7 +394,7 @@ static class PendingFiles
             return (ViewerLauncher.DiffArguments(temp, target), false);
         }
 
-        return (tool.GetArguments(temp, target), !tool.IsMdi);
+        return (tool.GetArguments(temp, target), tool.CanKill);
     }
 
     /// <summary>

@@ -13,8 +13,30 @@ public record ResolvedTool
     public string BuildCommand(string tempFile, string targetFile) =>
         $"\"{ExePath}\" {GetArguments(tempFile, targetFile)}";
 
+    /// <summary>
+    /// Whether this is a Windows program being run from inside WSL: see <see cref="WslInterop" />.
+    /// </summary>
+    internal bool IsWindowsProgramInWsl =>
+        WslInterop.IsWindowsProgram(ExePath);
+
+    /// <summary>
+    /// Whether the window opened for a pair can be closed by ending the process started for it.
+    /// Not for an MDI tool, whose one window holds every pair, and not for a Windows tool started
+    /// from WSL, where that process is not the tool.
+    /// </summary>
+    internal bool CanKill =>
+        !IsMdi &&
+        !IsWindowsProgramInWsl;
+
     public string GetArguments(string tempFile, string targetFile)
     {
+        // A program on the host is handed both files by the paths the host knows them by
+        if (IsWindowsProgramInWsl)
+        {
+            tempFile = WslInterop.ToWindows(tempFile);
+            targetFile = WslInterop.ToWindows(targetFile);
+        }
+
         if (TargetPosition.TargetOnLeft)
         {
             return LaunchArguments.Left(tempFile, targetFile);

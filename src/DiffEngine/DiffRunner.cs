@@ -409,7 +409,7 @@ public static partial class DiffRunner
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
-        var canKill = !tool.IsMdi;
+        var canKill = tool.CanKill;
         var replacing = false;
         if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
         {
@@ -471,7 +471,7 @@ public static partial class DiffRunner
 
         tool.CommandAndArguments(tempFile, targetFile, out var arguments, out var command);
 
-        var canKill = !tool.IsMdi;
+        var canKill = tool.CanKill;
         var replacing = false;
         if (ProcessCleanup.TryGetProcessInfo(command, out var processCommand))
         {
@@ -596,6 +596,13 @@ public static partial class DiffRunner
                 return WindowsProcess.StartInheritingNothing(tool.ExePath, arguments);
             }
 
+            // A Windows tool from inside WSL, which is started so that it holds nothing of the
+            // host's either: its window outlives the run by as long as it is left open
+            if (tool.IsWindowsProgramInWsl)
+            {
+                return WslInterop.Start(tool.ExePath, arguments);
+            }
+
             var startInfo = new ProcessStartInfo(tool.ExePath, arguments)
             {
                 // Given the full exe path is known we dont need UseShellExecute https://stackoverflow.com/a/5255335
@@ -629,11 +636,13 @@ public static partial class DiffRunner
 
     /// <summary>
     /// Closes the tool already showing this pair, and reports whether it did. An MDI tool hosts
-    /// every diff in one window, so there is nothing to close and nothing being replaced.
+    /// every diff in one window, so there is nothing to close and nothing being replaced. A
+    /// Windows tool started from WSL cannot be closed from here, so its window is left and the
+    /// pair gets another beside it.
     /// </summary>
     static bool KillIfNotMdi(ResolvedTool tool, string command)
     {
-        if (tool.IsMdi)
+        if (!tool.CanKill)
         {
             return false;
         }
