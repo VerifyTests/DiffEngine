@@ -75,7 +75,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # DE0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
+      # PH0001 warns when a RID has no native renderer. Shipping a package that cannot run on a
       # platform it claims to support is worse than failing the release.
       - name: Verify every RID has a native renderer
         if: startsWith(github.ref, 'refs/tags/')
