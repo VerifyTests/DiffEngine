@@ -603,8 +603,23 @@ the comment there about not caching "nothing staged" asks for.
   gate's continuations would need.
 
 **Native shim (`native/`), used by the Mac and Linux heads only:**
-- `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in
-  `native/CMakeLists.txt`. Deliberately not submodules: nothing in a normal `dotnet build` touches
+- The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
+  github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
+  copied there, and fixes made here did not reach the copy. Three pins name one tag of it and move
+  together: the `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
+  `native/CMakeLists.txt`, and `PlatformHeads` in `Directory.Packages.props`. The workflow is its
+  reusable `build-native`. Its CMake module pins raylib and Dear ImGui, carries the raylib 6.0
+  option workarounds and links the library, and `native/CMakeLists.txt` names only the picture
+  formats, the source file and the two libraries the viewer links beyond raylib. Its package's
+  targets publish and bundle the `PlatformHead` items of `DiffEngine.csproj` (`PH0001` for a
+  native head with no library, `PH0002` for an apphost that was not staged), staged in
+  `obj\viewer`, where `DiffEngineTray.csproj` takes the two Windows heads from by calling
+  `PlatformHeadsPublish`. A fix to any of that goes there, not here. To build the Linux library by
+  hand, from the repository root: `docker run --rm -v "$PWD:/src" -v
+  "D:/Code/PlatformHeads/native:/ph:ro" -w /src -e LIBRARY=diffengine_viewer
+  "quay.io/pypa/manylinux_2_28_$(uname -m)" bash /ph/build-linux.sh`.
+- `raylib` and `imgui` are fetched by CMake (`FetchContent`), pinned by tag in PlatformHeads'
+  module. Deliberately not submodules: nothing in a normal `dotnet build` touches
   this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
 - Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
   any of that, because the binaries are committed.

@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <!--
-  Ordering only. PublishViewerHeads shells out to dotnet publish for the viewer, so without this
+  Ordering only. PlatformHeadsPublish shells out to dotnet publish for the viewer, so without this
   a solution build can have two processes building that project at once.
 
   Every piece of metadata here is load bearing: the viewer is an Exe whose output carries six
@@ -56,92 +56,43 @@
   </ItemGroup>
 
   <!--
-  Bundles DiffEngineViewer so inline snapshots work out of the box, with no second install.
+  Bundles DiffEngineViewer so inline snapshots work out of the box, with no second install, by
+  PlatformHeads' targets: one framework dependent publish per RID, which gives a real apphost
+  per platform and avoids having to resolve the dotnet host at launch, staged and then packed.
+  The managed payload is a few hundred KB, so repeating it six times costs almost nothing next
+  to the natives that dominate either way. They were this project's own targets, and
+  BuildMonitor's own beside them, each a copy of the other.
 
-  One framework dependent publish per RID, which gives a real apphost per platform and avoids
-  having to resolve the dotnet host at launch. The managed payload is a few hundred KB, so
-  repeating it six times costs almost nothing next to the natives that dominate either way.
+  Whenever the project is packed, with no property to turn it off. This used to hang off
+  GeneratePackageOnBuild, so any pack path that did not have it set produced a package with no
+  viewer in it and reported nothing wrong. 20.0.0-beta.37 shipped that way, at a third of the
+  size, and every consumer of it without a globally installed tool got "`DiffEngine_ToolOrder`
+  is configured to use 'DiffEngineViewer' but it is not installed" rather than a viewer.
   -->
   <PropertyGroup>
-    <!-- Absolute: PublishDir is handed to the viewer project, where a relative path would
-         resolve against its own directory rather than this one. -->
-    <ViewerStageDir>$(MSBuildProjectDirectory)\obj\viewer\</ViewerStageDir>
     <!--
-    Unconditional, and with no property to turn it off. This used to hang off
-    GeneratePackageOnBuild, so any pack path that did not have it set produced a package with no
-    viewer in it and reported nothing wrong. 20.0.0-beta.37 shipped that way, at a third of the
-    size, and every consumer of it without a globally installed tool got "`DiffEngine_ToolOrder`
-    is configured to use 'DiffEngineViewer' but it is not installed" rather than a viewer.
+    Where the heads are staged. Named here and not left to PlatformHeads' own choice, because
+    DiffEngineTray takes the two Windows heads from it for its own package.
     -->
-    <GenerateNuspecDependsOn>AddViewerToPackage;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
+    <PlatformHeadsStageDir>$(MSBuildProjectDirectory)\obj\viewer\</PlatformHeadsStageDir>
+    <PlatformHeadsPackagePath>tools\viewer</PlatformHeadsPackagePath>
   </PropertyGroup>
 
   <!--
   Each RID names the head that renders on it. Every head produces a DiffEngineViewer apphost, so
   tools/viewer keeps one shape and BundledViewerDirectory does not know any of this happened.
 
-  Native is false for Windows because WinForms is the renderer there, which is the whole reason
-  that head exists.
+  Native says a head's renderer is a library committed under its runtimes folder, and one that
+  is missing for a RID is warned of as PH0001. It is not set for Windows, because WinForms is the
+  renderer there, which is the whole reason that head exists.
   -->
   <ItemGroup>
-    <ViewerRid Include="win-x64" Head="DiffEngineViewer.Windows" Native="false" Apphost="DiffEngineViewer.exe" />
-    <ViewerRid Include="win-arm64" Head="DiffEngineViewer.Windows" Native="false" Apphost="DiffEngineViewer.exe" />
-    <ViewerRid Include="linux-x64" Head="DiffEngineViewer.Linux" Native="true" Apphost="DiffEngineViewer" />
-    <ViewerRid Include="linux-arm64" Head="DiffEngineViewer.Linux" Native="true" Apphost="DiffEngineViewer" />
-    <ViewerRid Include="osx-x64" Head="DiffEngineViewer.Mac" Native="true" Apphost="DiffEngineViewer" />
-    <ViewerRid Include="osx-arm64" Head="DiffEngineViewer.Mac" Native="true" Apphost="DiffEngineViewer" />
+    <PackageReference Include="PlatformHeads" PrivateAssets="all" />
+    <PlatformHead Include="win-x64" Project="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj" Apphost="DiffEngineViewer.exe" />
+    <PlatformHead Include="win-arm64" Project="..\DiffEngineViewer.Windows\DiffEngineViewer.Windows.csproj" Apphost="DiffEngineViewer.exe" />
+    <PlatformHead Include="linux-x64" Project="..\DiffEngineViewer.Linux\DiffEngineViewer.Linux.csproj" Apphost="DiffEngineViewer" Native="true" />
+    <PlatformHead Include="linux-arm64" Project="..\DiffEngineViewer.Linux\DiffEngineViewer.Linux.csproj" Apphost="DiffEngineViewer" Native="true" />
+    <PlatformHead Include="osx-x64" Project="..\DiffEngineViewer.Mac\DiffEngineViewer.Mac.csproj" Apphost="DiffEngineViewer" Native="true" />
+    <PlatformHead Include="osx-arm64" Project="..\DiffEngineViewer.Mac\DiffEngineViewer.Mac.csproj" Apphost="DiffEngineViewer" Native="true" />
   </ItemGroup>
-
-  <Target Name="PublishViewerHeads">
-    <RemoveDir Directories="$(ViewerStageDir)" />
-    <Warning Condition="'%(ViewerRid.Native)' == 'true' And !Exists('$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\runtimes\%(ViewerRid.Identity)\native')"
-             Code="DE0001"
-             Text="No native renderer for %(ViewerRid.Identity). The package will not work on that platform. Run the build-native workflow." />
-    <!--
-    A separate process per RID rather than the MSBuild task. Each publish needs its own restore,
-    and Restore plus Publish in one MSBuild task invocation do not see each other's results
-    because the evaluated project is cached. Declaring RuntimeIdentifiers on a head instead
-    would avoid the restores, but combined with PackAsTool it empties the tools/net10.0/any
-    payload of that head's own standalone package.
-
-    GeneratePackageOnBuild is switched off for these. ProjectDefaults turns it on for every Release
-    project, so otherwise each per-RID publish would also pack its head and the last one would
-    leave behind a RID-specific tool package.
-    -->
-    <Exec Command="dotnet publish &quot;$(MSBuildThisFileDirectory)..\%(ViewerRid.Head)\%(ViewerRid.Head).csproj&quot; --configuration $(Configuration) --runtime %(ViewerRid.Identity) --self-contained false --output &quot;$(ViewerStageDir)%(ViewerRid.Identity)&quot; -p:GeneratePackageOnBuild=false"
-          StandardOutputImportance="low" />
-
-    <!--
-    A publish that produced nothing is caught here rather than by whoever installs the package.
-    Per RID, and by the apphost rather than by a file count, because five RIDs out of six is the
-    same silent hole as none: the platform that missed out resolves no bundled viewer and falls
-    back to a dotnet tool that is probably not installed.
-    -->
-    <ItemGroup>
-      <_RidWithoutApphost Include="@(ViewerRid)"
-                          Condition="!Exists('$(ViewerStageDir)%(ViewerRid.Identity)\%(ViewerRid.Apphost)')" />
-    </ItemGroup>
-    <Error Condition="'@(_RidWithoutApphost)' != ''"
-           Code="DE0002"
-           Text="No DiffEngineViewer apphost was staged for: @(_RidWithoutApphost, ', '). Packing now would ship a DiffEngine with no bundled viewer." />
-  </Target>
-
-  <Target Name="AddViewerToPackage"
-          DependsOnTargets="PublishViewerHeads">
-    <ItemGroup>
-      <_ViewerFile Include="$(ViewerStageDir)**\*" />
-      <!--
-      TFM agnostic package files rather than TargetsForTfmSpecificContentInPackage: DiffEngine
-      multi-targets eight frameworks, and the per-TFM hook would add this payload eight times.
-      -->
-      <!--
-      Just the root. NuGet appends each file's path relative to the wildcard, so repeating
-      RecursiveDir here doubles it, and naming the file explicitly breaks the extensionless Linux
-      and macOS apphosts, which NuGet then reads as a folder.
-      -->
-      <_PackageFiles Include="@(_ViewerFile)"
-                     BuildAction="None"
-                     PackagePath="tools\viewer" />
-    </ItemGroup>
-  </Target>
 </Project>
