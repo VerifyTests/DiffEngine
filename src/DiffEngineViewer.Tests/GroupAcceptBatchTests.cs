@@ -186,9 +186,8 @@ public class GroupAcceptBatchTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;

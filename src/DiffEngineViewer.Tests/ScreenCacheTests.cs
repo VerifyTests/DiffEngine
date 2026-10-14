@@ -7,23 +7,23 @@ public class ScreenCacheTests
     [Test]
     public async Task The_same_state_is_the_same_screen()
     {
-        var cache = new ScreenCache();
+        var cache = new ScreenCache(ScreenBuilder.Build);
         var state = Scrollable();
 
-        var first = cache.For(state);
+        var first = cache.Get(state);
 
-        await Assert.That(ReferenceEquals(cache.For(state), first)).IsTrue();
-        await Assert.That(ReferenceEquals(cache.For(state), first)).IsTrue();
+        await Assert.That(ReferenceEquals(cache.Get(state), first)).IsTrue();
+        await Assert.That(ReferenceEquals(cache.Get(state), first)).IsTrue();
     }
 
     [Test]
     public async Task Another_state_is_another_screen()
     {
-        var cache = new ScreenCache();
+        var cache = new ScreenCache(ScreenBuilder.Build);
         var state = Scrollable();
-        var first = cache.For(state);
+        var first = cache.Get(state);
 
-        var scrolled = cache.For(ViewerSession.Apply(state, CommandKind.ScrollDown));
+        var scrolled = cache.Get(ViewerSession.Apply(state, CommandKind.ScrollDown));
 
         await Assert.That(ReferenceEquals(scrolled, first)).IsFalse();
         await Assert.That(scrolled.Left.ScrollTop).IsEqualTo(first.Left.ScrollTop + 1);
@@ -36,12 +36,12 @@ public class ScreenCacheTests
     [Test]
     public async Task A_state_come_back_to_is_built_again_and_says_the_same()
     {
-        var cache = new ScreenCache();
+        var cache = new ScreenCache(ScreenBuilder.Build);
         var state = Scrollable();
-        var first = cache.For(state);
-        cache.For(ViewerSession.Apply(state, CommandKind.ScrollDown));
+        var first = cache.Get(state);
+        cache.Get(ViewerSession.Apply(state, CommandKind.ScrollDown));
 
-        var again = cache.For(state);
+        var again = cache.Get(state);
 
         await Assert.That(AsciiRenderer.Render(again)).IsEqualTo(AsciiRenderer.Render(first));
     }
@@ -120,9 +120,8 @@ public class ScreenCacheTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;

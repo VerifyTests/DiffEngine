@@ -20,7 +20,7 @@ public class NativeTests
     public async Task LoadsAndReportsItsAbiVersion()
     {
         if (!HasNativeRenderer ||
-            !NativeResolver.TryFind(out var path))
+            !NativeResolver.TryFind(Deview.Library, out var path))
         {
             // No binary is shipped for this RID, for example linux-musl. Resolution falls through
             // to a globally installed tool, so there is nothing to check here.
@@ -42,7 +42,7 @@ public class NativeTests
             return;
         }
 
-        await Assert.That(NativeResolver.TryFind(out _)).IsTrue();
+        await Assert.That(NativeResolver.TryFind(Deview.Library, out _)).IsTrue();
     }
 
     /// <summary>

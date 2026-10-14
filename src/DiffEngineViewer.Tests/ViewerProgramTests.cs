@@ -192,7 +192,7 @@ public class ViewerProgramTests
             [true, true, false],
             () => slowed.Add($"{link.Hidden} {watch.Hidden} {reader.Hidden}"));
 
-        ViewerProgram.Loop(host, window, link, reader, watch, new(), null, new(), new());
+        ViewerProgram.Loop(host, window, link, reader, watch, new(), null, new(), new(ScreenBuilder.Build));
 
         // As each frame was presented: before anything was said, after each of the two polls
         // that said nobody could see the window, and after the one that said somebody could
@@ -214,7 +214,7 @@ public class ViewerProgramTests
         ConcurrentQueue<WindowCommand> commands = new();
         commands.Enqueue(WindowCommand.Hide);
 
-        ViewerProgram.Loop(host, window, null, null, watch, commands, null, new(), new());
+        ViewerProgram.Loop(host, window, null, null, watch, commands, null, new(), new(ScreenBuilder.Build));
 
         await Assert.That(string.Join(", ", slowed)).IsEqualTo("True, True, True");
     }
@@ -245,9 +245,8 @@ public class ViewerProgramTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;
@@ -279,9 +278,8 @@ public class ViewerProgramTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;
@@ -319,9 +317,8 @@ public class ViewerProgramTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;

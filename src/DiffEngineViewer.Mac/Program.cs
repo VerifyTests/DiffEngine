@@ -4,7 +4,7 @@ static class Program
     {
         // Registered before anything can trigger a load. Only the heads that P/Invoke need this,
         // so it lives with the renderer choice rather than in ViewerProgram.
-        NativeResolver.Register();
+        Deview.Resolve();
         return ViewerProgram.Run(args, NativeViewerWindow.Open);
     }
 }

@@ -39,4 +39,18 @@
     <Using Include="System.Diagnostics" />
     <Using Include="System.Reflection" />
   </ItemGroup>
+  <!--
+  The kernel PlatformHeads.Core shares with BuildMonitor, for the viewer and every project that
+  sees its core. Its types are generic over a state and a screen, and these name them for the
+  viewer's. The tray's tests see the core too, under an alias, so they take the namespace alone.
+  -->
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('DiffEngineViewer')) and '$(MSBuildProjectName)' != 'DiffEngineViewer.Documents'">
+    <Using Include="PlatformHeads" />
+    <Using Include="PlatformHeads.SessionHost&lt;SessionState&gt;" Alias="SessionHost" />
+    <Using Include="PlatformHeads.ScreenCache&lt;SessionState, Screen&gt;" Alias="ScreenCache" />
+    <Using Include="PlatformHeads.OpenWindow&lt;IViewerWindow&gt;" Alias="OpenWindow" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DiffEngineTray.Tests'">
+    <Using Include="PlatformHeads" />
+  </ItemGroup>
 </Project>

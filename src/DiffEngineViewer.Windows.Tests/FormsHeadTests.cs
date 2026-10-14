@@ -1665,9 +1665,8 @@ public class FormsHeadTests
         {
         }
 
-        public void SetClipboard(string text)
-        {
-        }
+        public bool SetClipboard(string text) =>
+            true;
 
         public void Focus()
         {

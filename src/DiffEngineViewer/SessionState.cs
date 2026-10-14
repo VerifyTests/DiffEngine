@@ -73,6 +73,14 @@ record SessionState(
     public TextSelection? Selection { get; init; }
 
     /// <summary>
+    /// Text copied and not yet taken by the clipboard, which the loop offers the window a frame at
+    /// a time through <see cref="ClipboardCopy"/>. Here rather than handed to the window as the
+    /// copy is made, because on Windows a clipboard another process holds refuses a set outright,
+    /// and the copy was then lost while the status line said it had been made.
+    /// </summary>
+    public PendingCopy? Clipboard { get; init; }
+
+    /// <summary>
     /// Whether the panes show only the changes, each with <see cref="DiffView.Context"/> lines
     /// either side, rather than every line. A view setting like <see cref="Collapsed"/>: it holds
     /// across entries rather than belonging to one, and it is this window's to set even when the

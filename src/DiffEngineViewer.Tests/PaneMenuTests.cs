@@ -50,7 +50,7 @@ public class PaneMenuTests
 
         state = Click(state, "Copy selection", window);
 
-        await Assert.That(window.Copied).IsEqualTo("brown dog");
+        await Assert.That(state.Clipboard?.Text).IsEqualTo("brown dog");
         await Assert.That(state.Menu).IsNull();
     }
 
@@ -66,7 +66,7 @@ public class PaneMenuTests
 
         state = Click(state, "Copy all", window);
 
-        await Assert.That(window.Copied).IsEqualTo("right one\nright two");
+        await Assert.That(state.Clipboard?.Text).IsEqualTo("right one\nright two");
         await Assert.That(state.Menu).IsNull();
     }
 
@@ -189,8 +189,6 @@ public class PaneMenuTests
 
     sealed class Recorder : IViewerWindow
     {
-        public string? Copied { get; private set; }
-
         public bool Present(Screen screen) =>
             true;
 
@@ -205,8 +203,8 @@ public class PaneMenuTests
         {
         }
 
-        public void SetClipboard(string text) =>
-            Copied = text;
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;

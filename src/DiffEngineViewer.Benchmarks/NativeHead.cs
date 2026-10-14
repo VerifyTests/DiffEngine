@@ -185,7 +185,7 @@ sealed unsafe class NativeHead : IDisposable
             return true;
         }
 
-        if (NativeResolver.TryFind(out path))
+        if (NativeResolver.TryFind(Deview.Library, out path))
         {
             shimPath = path;
             return true;

@@ -152,18 +152,21 @@ sealed class FormsViewerWindow :
         form.Placement;
 
     /// <summary>
-    /// Best effort, the way revealing a file is. Another process can hold the clipboard open, and
-    /// failing to copy is not worth taking the reviewer's window down over.
+    /// False when another process holds the clipboard open, which WinForms has already retried
+    /// for about a second. Answered rather than thrown, and not retried here: the loop's
+    /// <see cref="ClipboardPump"/> offers it again on the next frames, and says so if it never goes.
     /// </summary>
-    public void SetClipboard(string text)
+    public bool SetClipboard(string text)
     {
         try
         {
             Clipboard.SetText(text);
+            return true;
         }
         catch (ExternalException exception)
         {
             Console.Error.WriteLine($"Could not write to the clipboard: {exception.Message}");
+            return false;
         }
     }
 

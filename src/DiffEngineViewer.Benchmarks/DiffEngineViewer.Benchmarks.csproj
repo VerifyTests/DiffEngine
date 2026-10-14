@@ -24,6 +24,13 @@
     them ambiguous.
     -->
     <Using Include="DiffEngine" />
+    <!-- The kernel's types for the viewer's state and screen, as ../Directory.Build.props names
+         them for every other viewer project. That file is not imported here: see the one beside
+         this. -->
+    <Using Include="PlatformHeads" />
+    <Using Include="PlatformHeads.SessionHost&lt;SessionState&gt;" Alias="SessionHost" />
+    <Using Include="PlatformHeads.ScreenCache&lt;SessionState, Screen&gt;" Alias="ScreenCache" />
+    <Using Include="PlatformHeads.OpenWindow&lt;IViewerWindow&gt;" Alias="OpenWindow" />
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
   </ItemGroup>

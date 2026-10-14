@@ -13,7 +13,7 @@ public static class ModuleInitializer
         // Program.Main does this for the app. A test host never runs Main, so without it the
         // default probing rules would have to find the native under runtimes/{rid}/native, which
         // they only do for natives that arrived through a NuGet package.
-        NativeResolver.Register();
+        Deview.Resolve();
         // Before anything can touch DiffTools, which resolves and caches on first use. Only points
         // the resolver at the local build; nothing here launches anything.
         ManualViewer.Register();

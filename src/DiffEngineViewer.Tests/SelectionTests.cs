@@ -168,7 +168,7 @@ public class SelectionTests
 
         var copied = ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
 
-        await Assert.That(window.Copied).IsEqualTo("dog\njumps over\nthe ");
+        await Assert.That(copied.Clipboard?.Text).IsEqualTo("dog\njumps over\nthe ");
         await Assert.That(copied.Message).IsEqualTo("Copied 3 lines from the selection.");
     }
 
@@ -183,10 +183,10 @@ public class SelectionTests
         // 中 is cells 0 and 1, 文 cells 2 and 3, a cell 4. From inside 中 to inside 文
         var state = Drag(Fixtures.File("中文a", "中文a"), PaneSide.Left, 0, 1, 0, 3);
 
-        ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
+        var copied = ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
         var highlighted = ScreenBuilder.Build(state).Left.Rows[0].Selection;
 
-        await Assert.That(window.Copied).IsEqualTo("文");
+        await Assert.That(copied.Clipboard?.Text).IsEqualTo("文");
         await Assert.That((highlighted.Start, highlighted.Length)).IsEqualTo((2, 2));
     }
 
@@ -209,7 +209,7 @@ public class SelectionTests
 
         var copied = ViewerProgram.Apply(Files(), Input(CommandKind.Copy), link: null, window);
 
-        await Assert.That(window.Copied).IsNull();
+        await Assert.That(copied.Clipboard).IsNull();
         await Assert.That(copied.Message)
             .IsEqualTo("Nothing is selected. Drag across a pane, or press ctrl+a.");
     }
@@ -222,7 +222,7 @@ public class SelectionTests
 
         var copied = ViewerProgram.Apply(state, Input(CommandKind.CopyRight), link: null, window);
 
-        await Assert.That(window.Copied).IsEqualTo("one\nfour");
+        await Assert.That(copied.Clipboard?.Text).IsEqualTo("one\nfour");
         await Assert.That(copied.Message).IsEqualTo("Copied 2 lines from Sample.verified.txt.");
     }
 
@@ -245,7 +245,7 @@ public class SelectionTests
 
         var copied = ViewerProgram.Apply(state, Input(CommandKind.Copy), link, window);
 
-        await Assert.That(window.Copied).IsEqualTo("the");
+        await Assert.That(copied.Clipboard?.Text).IsEqualTo("the");
         await Assert.That(copied.Message).IsEqualTo("Copied 1 line from the selection.");
     }
 
@@ -259,9 +259,9 @@ public class SelectionTests
         var window = new Recorder();
         var all = Key(Files(), CommandKind.SelectAll);
 
-        ViewerProgram.Apply(all, Input(CommandKind.Copy), link: null, window);
+        var copied = ViewerProgram.Apply(all, Input(CommandKind.Copy), link: null, window);
 
-        await Assert.That(window.Copied).IsEqualTo(Fixtures.Received);
+        await Assert.That(copied.Clipboard?.Text).IsEqualTo(Fixtures.Received);
     }
 
     static SessionState Files(string left = Fixtures.Received, string right = Fixtures.Expected) =>
@@ -343,13 +343,11 @@ public class SelectionTests
     }
 
     /// <summary>
-    /// A window that draws nothing and remembers what was copied, which is the only thing about a
-    /// head this needs.
+    /// A window that draws nothing. A copy waits in the state for the loop to offer it, so what was
+    /// copied is read from there.
     /// </summary>
     sealed class Recorder : IViewerWindow
     {
-        public string? Copied { get; private set; }
-
         public bool Present(Screen screen) =>
             true;
 
@@ -364,8 +362,8 @@ public class SelectionTests
         {
         }
 
-        public void SetClipboard(string text) =>
-            Copied = text;
+        public bool SetClipboard(string text) =>
+            true;
 
         public bool Capture(Screen screen, int width, int height, string pngPath) =>
             false;
@@ -538,8 +536,7 @@ public class SelectionTests
     /// </summary>
     static string? Copy(SessionState state)
     {
-        var window = new Recorder();
-        ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, window);
-        return window.Copied;
+        var copied = ViewerProgram.Apply(state, Input(CommandKind.Copy), link: null, new Recorder());
+        return copied.Clipboard?.Text;
     }
 }
