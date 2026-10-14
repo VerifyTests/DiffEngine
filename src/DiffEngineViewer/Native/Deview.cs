@@ -5,7 +5,14 @@
 /// </summary>
 static unsafe partial class Deview
 {
-    const string library = "diffengine_viewer";
+    public const string Library = "diffengine_viewer";
+
+    /// <summary>
+    /// Has the kernel's resolver find <see cref="Library"/> under runtimes/{rid}/native for these
+    /// imports. Once a process, however many threads ask.
+    /// </summary>
+    public static void Resolve() =>
+        NativeResolver.Register(typeof(Deview).Assembly, Library);
 
     /// <summary>
     /// Must match DEVIEW_VERSION in native/include/deview.h. Bumped whenever the structs change,
@@ -13,10 +20,10 @@ static unsafe partial class Deview
     /// </summary>
     public const int ExpectedVersion = 12;
 
-    [LibraryImport(library, EntryPoint = "deview_version")]
+    [LibraryImport(Library, EntryPoint = "deview_version")]
     public static partial int Version();
 
-    [LibraryImport(library, EntryPoint = "deview_init", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport(Library, EntryPoint = "deview_init", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int Init(
         int width,
         int height,
@@ -26,30 +33,30 @@ static unsafe partial class Deview
         float fontSize,
         int hidden);
 
-    [LibraryImport(library, EntryPoint = "deview_present")]
+    [LibraryImport(Library, EntryPoint = "deview_present")]
     public static partial int Present(DeviewScreen* screen);
 
-    [LibraryImport(library, EntryPoint = "deview_poll_input")]
+    [LibraryImport(Library, EntryPoint = "deview_poll_input")]
     public static partial void PollInput(DeviewInput* input);
 
-    [LibraryImport(library, EntryPoint = "deview_capture", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport(Library, EntryPoint = "deview_capture", StringMarshalling = StringMarshalling.Utf8)]
     public static partial int Capture(DeviewScreen* screen, int width, int height, string pngPath);
 
-    [LibraryImport(library, EntryPoint = "deview_set_hidden")]
+    [LibraryImport(Library, EntryPoint = "deview_set_hidden")]
     public static partial void SetHidden(int hidden);
 
-    [LibraryImport(library, EntryPoint = "deview_set_clipboard", StringMarshalling = StringMarshalling.Utf8)]
+    [LibraryImport(Library, EntryPoint = "deview_set_clipboard", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void SetClipboard(string text);
 
-    [LibraryImport(library, EntryPoint = "deview_focus")]
+    [LibraryImport(Library, EntryPoint = "deview_focus")]
     public static partial void Focus();
 
-    [LibraryImport(library, EntryPoint = "deview_set_placement")]
+    [LibraryImport(Library, EntryPoint = "deview_set_placement")]
     public static partial void SetPlacement(DeviewPlacement* placement);
 
-    [LibraryImport(library, EntryPoint = "deview_get_placement")]
+    [LibraryImport(Library, EntryPoint = "deview_get_placement")]
     public static partial int GetPlacement(DeviewPlacement* placement);
 
-    [LibraryImport(library, EntryPoint = "deview_shutdown")]
+    [LibraryImport(Library, EntryPoint = "deview_shutdown")]
     public static partial void Shutdown();
 }

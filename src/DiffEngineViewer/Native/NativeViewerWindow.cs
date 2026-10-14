@@ -147,8 +147,15 @@ sealed class NativeViewerWindow : IViewerWindow
     public void SetHidden(bool hidden) =>
         Deview.SetHidden(hidden ? 1 : 0);
 
-    public void SetClipboard(string text) =>
+    /// <summary>
+    /// True, since the shim takes the text and says nothing of how it went: GLFW and AppKit both
+    /// own the clipboard in this process, and neither is refused it the way Windows can be.
+    /// </summary>
+    public bool SetClipboard(string text)
+    {
         Deview.SetClipboard(text);
+        return true;
+    }
 
     public void Focus() =>
         Deview.Focus();

@@ -34,7 +34,7 @@ public class FrameBenchmarks
         state = built;
     }
 
-    readonly ScreenCache screens = new();
+    readonly ScreenCache screens = new(ScreenBuilder.Build);
 
     // One screen from one state: what every frame paid, and what a change to the state that leaves
     // the queue the list it was still does. A scroll and a drag are that, every frame they last.
@@ -52,5 +52,5 @@ public class FrameBenchmarks
     // whenever the state is the one the last frame had.
     [Benchmark]
     public object FrameWithNothingChanged() =>
-        screens.For(state);
+        screens.Get(state);
 }

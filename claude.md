@@ -217,6 +217,13 @@ the comment there about not caching "nothing staged" asks for.
   structure, which is what makes the text snapshots meaningful and keeps three renderers honest.
 - `ViewerProgram.Run(args, OpenWindow)` owns the loop for all heads. A head is a `Main` that
   chooses a renderer; nothing else about the app is per platform.
+- `SessionHost`, `ScreenCache`, `IViewerWindow`'s base `IHeadWindow`, `OpenWindow`,
+  `ClipboardPump` (driven by `ClipboardCopy`), `WindowPlacement` and `NativeResolver` are
+  PlatformHeads.Core's, the kernel BuildMonitor shares, in the `PlatformHeads` namespace;
+  `Directory.Build.props` names the generic ones for the viewer's state and screen, and
+  `DiffEngineViewer.Benchmarks.csproj` again, since it imports nothing above it. A fix to any of
+  them goes there. `SessionHost.Mutate` throws when a mutation mutates again, which silently undid
+  the outer one.
 - The loop presents sixty times a second and builds a screen only when the state is another one.
   `ScreenCache` keeps the last `SessionState` and its `Screen`: a state is immutable and only ever
   replaced, so the same reference is the same screen, and building one a frame was the whole
@@ -502,7 +509,10 @@ the comment there about not caching "nothing staged" asks for.
   which the three pixel heads draw and `AsciiRenderer` cannot - a character grid has no way to
   invert part of a line without changing its width - so what the model universally states about a
   selection goes in the **status line**, where every renderer draws it, and the highlight is the
-  enrichment on top. Copying is `IViewerWindow.SetClipboard` rather than a `ViewerActions` member,
+  enrichment on top. A copy waits in `SessionState.Clipboard` and the loop offers it to the
+  window through `ClipboardPump` for a few frames, since a Windows clipboard another process holds
+  refuses a set outright, and handed over once from inside the mutation it was lost while the
+  status said it had been copied. Copying is `IViewerWindow.SetClipboard` rather than a `ViewerActions` member,
   because a clipboard belongs to a toolkit the way a window does, and it is answered before the
   owner link: the text is already in this process.
 - Columns are cells of `CellGrid`, decided in the model rather than by any head's fonts: a wide
@@ -605,9 +615,10 @@ the comment there about not caching "nothing staged" asks for.
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
   github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
-  copied there, and fixes made here did not reach the copy. Three pins name one tag of it and move
+  copied there, and fixes made here did not reach the copy. Four pins name one tag of it and move
   together: the `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
-  `native/CMakeLists.txt`, and `PlatformHeads` in `Directory.Packages.props`. The workflow is its
+  `native/CMakeLists.txt`, and `PlatformHeads` and `PlatformHeads.Core` in
+  `Directory.Packages.props`. The workflow is its
   reusable `build-native`. Its CMake module pins raylib and Dear ImGui, carries the raylib 6.0
   option workarounds and links the library, and `native/CMakeLists.txt` names only the picture
   formats, the source file and the two libraries the viewer links beyond raylib. Its package's

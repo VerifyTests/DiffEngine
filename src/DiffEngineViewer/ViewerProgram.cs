@@ -307,7 +307,7 @@ static class ViewerProgram
         }
 
         // One for the loop and for a head's modal loop, which draw the same window on one thread.
-        var screens = new ScreenCache();
+        var screens = new ScreenCache(ScreenBuilder.Build);
         if (window is ILoopHooks hooks)
         {
             hooks.Frame = () => ModalFrame(host, window, link, preferences, screens);
@@ -401,7 +401,7 @@ static class ViewerProgram
             preferences.Remember(state);
         }
 
-        return screens.For(state);
+        return screens.Get(state);
     }
 
     /// <summary>
@@ -475,6 +475,7 @@ static class ViewerProgram
         // screen, since only hiding it was known here.
         var hidden = false;
         var unseen = false;
+        var clipboard = new ClipboardPump();
 
         void Slow()
         {
@@ -526,8 +527,13 @@ static class ViewerProgram
 
             // The screen of the state last presented, for as long as that is still the state: see
             // ScreenCache. A frame in which nothing happened builds nothing.
+            if (host.State.Clipboard is { } copy)
+            {
+                ClipboardCopy.Offer(clipboard, host, window, copy);
+            }
+
             var state = host.State;
-            if (!window.Present(screens.For(state)))
+            if (!window.Present(screens.Get(state)))
             {
                 return;
             }
@@ -776,7 +782,7 @@ static class ViewerProgram
         // owner's answer would be the text this process already has.
         if (command.Kind is CommandKind.Copy or CommandKind.CopyLeft or CommandKind.CopyRight)
         {
-            return Copy(state, command.Kind, window);
+            return Copy(state, command.Kind);
         }
 
         // Nothing that changes the queue while an accept-all is working through it, whichever
@@ -886,7 +892,7 @@ static class ViewerProgram
     /// selection says so rather than silently putting nothing on the clipboard, since the two are
     /// indistinguishable afterwards.
     /// </summary>
-    static SessionState Copy(SessionState state, CommandKind kind, IViewerWindow window)
+    static SessionState Copy(SessionState state, CommandKind kind)
     {
         if (state.Current is not { } current)
         {
@@ -925,10 +931,12 @@ static class ViewerProgram
             };
         }
 
-        window.SetClipboard(text);
+        // Offered to the window by the loop rather than here, inside the mutation: see
+        // SessionState.Clipboard.
         var lines = text.Count(_ => _ == '\n') + 1;
         return state with
         {
+            Clipboard = new(text, what),
             Message = $"Copied {lines} line{(lines == 1 ? "" : "s")} from {what}.",
             Menu = null
         };

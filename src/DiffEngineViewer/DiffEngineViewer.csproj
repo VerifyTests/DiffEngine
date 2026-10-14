@@ -36,6 +36,7 @@
     <Using Include="System.Net.Sockets" />
     <!-- What the linked TextDiff files expect. -->
     <Using Include="System.ReadOnlySpan&lt;System.Char&gt;" Alias="CharSpan" />
+    <PackageReference Include="PlatformHeads.Core" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <EmbeddedResource Include="Assets\JetBrainsMono-Regular.ttf" LogicalName="DiffEngineViewer.JetBrainsMono-Regular.ttf" />
