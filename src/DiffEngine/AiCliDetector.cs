@@ -8,7 +8,11 @@ public static class AiCliDetector
 
         // GitHub Copilot
         // https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line
-        IsCopilot = variables.Contains("GITHUB_COPILOT_RUNTIME");
+        // Copilot CLI sets AI_AGENT=github-copilot / github-copilot-cli, VS Code agent mode sets github_copilot_vscode_agent
+        var aiAgent = Environment.GetEnvironmentVariable("AI_AGENT");
+        IsCopilot = variables.Contains("GITHUB_COPILOT_RUNTIME") ||
+                    variables.Contains("COPILOT_AGENT_SESSION_ID") ||
+                    (aiAgent != null && aiAgent.StartsWith("github", StringComparison.OrdinalIgnoreCase));
 
         // Aider
         // https://aider.chat/docs/config/dotenv.html
