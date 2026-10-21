@@ -253,7 +253,7 @@ the comment there about not caching "nothing staged" asks for.
   own loop for every part of the scroll bar, not the thumb alone, and `Present` stops that timer.
   An Alt chord is no command. A held key gives one accept or discard (the repeat flag, read in
   `ProcessCmdKey`, for what `ViewerSession.ChangesQueue` names), while navigation keeps its
-  repeats. A minimised window waits between frames as a hidden one does. The footer wraps its buttons, and
+  repeats. The form is a `HeadForm` from PlatformHeads.WindowsForms, which opens it where it was left, turns a close into a request, brings a maximised window back maximised, keeps frames coming inside user32's own loops (`ViewerForm.Frame` hands it `ModalFrame`), and idles in `WaitForFrame`: the loop waits there on the message queue and its `LoopWake` together, until input, a change of state or a window command, which `MessageHandler` and `OwnerLink.Commanded` set it for, and no longer than a frame while a spinner is up. It woke sixty times a second with nothing to do. A fix to any of that goes to PlatformHeads. The footer wraps its buttons, and
   gives a status with no room beside them lines of its own under them (`LayOutFooter`), as the
   other two heads do; the buttons are the footer's own children, and a taller footer comes off the
   canvas, which reports the rows it has left. A decoded picture is kept premultiplied, as the
@@ -615,10 +615,10 @@ the comment there about not caching "nothing staged" asks for.
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
   github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
-  copied there, and fixes made here did not reach the copy. Four pins name one tag of it and move
+  copied there, and fixes made here did not reach the copy. Five pins name one tag of it and move
   together: the `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
-  `native/CMakeLists.txt`, and `PlatformHeads` and `PlatformHeads.Core` in
-  `Directory.Packages.props`. The workflow is its
+  `native/CMakeLists.txt`, and `PlatformHeads`, `PlatformHeads.Core` and
+  `PlatformHeads.WindowsForms` in `Directory.Packages.props`. The workflow is its
   reusable `build-native`. Its CMake module pins raylib and Dear ImGui, carries the raylib 6.0
   option workarounds and links the library, and `native/CMakeLists.txt` names only the picture
   formats, the source file and the two libraries the viewer links beyond raylib. Its package's

@@ -3,7 +3,7 @@
 /// which keeps the loop in ViewerProgram identical to the one the native heads run.
 /// </summary>
 [DesignerCategory("")]
-sealed class ViewerForm : Form
+sealed class ViewerForm : HeadForm
 {
     readonly ViewerCanvas canvas = new()
     {
@@ -115,17 +115,15 @@ sealed class ViewerForm : Form
     /// Whether input is waiting for a frame, so the loop takes the next frame now rather than
     /// sleeping until one is due.
     /// </summary>
-    public bool Pending => discrete.Count > 0;
+    public override bool Pending => discrete.Count > 0;
 
     int scrollTo = -1;
     int scrollDelta;
     int zoomDelta;
-    bool closeRequested;
-    bool closingForReal;
 
-    public ViewerForm(string title, int width, int height, WindowPlacement? placement = null)
+    public ViewerForm(string title, int width, int height, WindowPlacement? placement = null) :
+        base(title, new(width, height), placement)
     {
-        Text = title;
         if (icon is not null)
         {
             Icon = icon;
@@ -133,24 +131,6 @@ sealed class ViewerForm : Form
 
         BackColor = Palette.Background;
         ForeColor = Palette.Text;
-        ClientSize = new(width, height);
-        StartPosition = FormStartPosition.CenterScreen;
-        if (placement is { } saved &&
-            Restorable(saved, WorkingAreas()) is { } bounds)
-        {
-            // Already in device pixels, on the display they were measured on, so not scaled again
-            sized = true;
-            restored = bounds;
-            StartPosition = FormStartPosition.Manual;
-            Bounds = bounds;
-            // Before the window is shown, so it comes up maximised rather than growing into it,
-            // on the display its bounds are on. Those stay what it restores to.
-            if (saved.Maximized)
-            {
-                maximized = true;
-                WindowState = FormWindowState.Maximized;
-            }
-        }
 
         KeyPreview = true;
 
@@ -189,14 +169,6 @@ sealed class ViewerForm : Form
 
             EnterModal();
         };
-        modalFrames.Tick += (_, _) =>
-        {
-            if (Frame is { } frame)
-            {
-                Apply(frame());
-                Animate();
-            }
-        };
 
         canvas.QueueItemClicked += _ => discrete.Enqueue(new(QueueItem: _));
         canvas.QueueItemRightClicked += (row, point) =>
@@ -228,203 +200,15 @@ sealed class ViewerForm : Form
     }
 
     /// <summary>
-    /// Shown without being made the window the keyboard goes to. For a form that is shown only
-    /// so that it will paint and take messages, somewhere nobody can see it: a capture, and the
-    /// tests that post input to one. Shown as a window ordinarily is, it took the keyboard from
-    /// whatever the person at the machine was typing into for as long as it was up, and what
-    /// they typed next was this window's commands.
-    /// </summary>
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool Parked { get; set; }
-
-    protected override bool ShowWithoutActivation =>
-        Parked;
-
-    /// <summary>
     /// Once the handle exists, because DeviceDpi is only meaningful then, and again whenever the
-    /// window moves to a display with different scaling.
+    /// window moves to a display with different scaling. The first size and the placement are
+    /// <see cref="HeadForm"/>'s, which has them by the time this runs.
     /// </summary>
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        if (!sized)
-        {
-            sized = true;
-            var area = System.Windows.Forms.Screen.FromControl(this).WorkingArea;
-            ClientSize = InitialClientSize(ClientSize, DeviceDpi, area.Size);
-
-            // Centred again, for the size it has now. WinForms centres a window as it creates it,
-            // which is before this, so it was centred for the size asked for in logical pixels and
-            // then grew down and to the right from there: at 150% on a 1080p display the footer
-            // was under the taskbar, and that was the placement remembered for every run after.
-            if (StartPosition == FormStartPosition.CenterScreen &&
-                WindowState == FormWindowState.Normal)
-            {
-                Location = Centred(area, Size);
-            }
-        }
-        else if (restored is { } bounds &&
-                 WindowState == FormWindowState.Normal &&
-                 Bounds != bounds)
-        {
-            // Asked for before there was a handle, on a display whose scaling the form had not
-            // met yet. Whatever creating it there did to the size, this is the size it had.
-            Bounds = bounds;
-        }
-
-        restored = null;
         ScaleChrome();
     }
-
-    bool sized;
-
-    /// <summary>
-    /// The bounds a remembered placement asked for, until the handle exists and has them.
-    /// </summary>
-    Rectangle? restored;
-
-    /// <summary>
-    /// Whether the window is maximised, or was when it was minimised: a minimised window's own
-    /// state says only that it is minimised, and it comes back as whichever it was.
-    /// </summary>
-    bool maximized;
-
-    /// <summary>
-    /// See <see cref="IViewerWindow.Placement"/>. Read from the window while there is one, and
-    /// what that last came to once there is not.
-    /// </summary>
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public WindowPlacement? Placement
-    {
-        get
-        {
-            if (IsHandleCreated &&
-                !IsDisposed)
-            {
-                // Maximised or minimised, the bounds are of neither: RestoreBounds is where the
-                // window goes back to, which is the only size worth opening the next one at.
-                var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
-                if (bounds is {Width: > 0, Height: > 0})
-                {
-                    field = new(bounds.X, bounds.Y, bounds.Width, bounds.Height, maximized);
-                }
-            }
-
-            return field;
-        }
-    }
-
-    protected override void OnResize(EventArgs e)
-    {
-        base.OnResize(e);
-        if (WindowState != FormWindowState.Minimized)
-        {
-            maximized = WindowState == FormWindowState.Maximized;
-        }
-    }
-
-    static List<Rectangle> WorkingAreas() =>
-        System.Windows.Forms.Screen.AllScreens
-            .Select(_ => _.WorkingArea)
-            .ToList();
-
-    /// <summary>
-    /// Where a remembered window may open, or null when it should open as a new one does.
-    /// <para>
-    /// The displays are not the ones it was remembered on often enough to matter: a laptop taken
-    /// off its dock remembers a window on a monitor that is no longer there, and opening it there
-    /// is a viewer that looks as if it did not start. So it opens where it was only when most of
-    /// it, and its title bar, are on a display there is now; otherwise it is moved onto the one
-    /// it overlaps most, and with none it is not used at all.
-    /// </para>
-    /// <para>
-    /// Left exactly where it was whenever it can be, rather than tidied into the working area. A
-    /// window snapped to an edge sits a few pixels past it, the width of a resize border nobody
-    /// can see, and moving that inside would walk it across the screen a border at a time.
-    /// </para>
-    /// </summary>
-    internal static Rectangle? Restorable(WindowPlacement saved, IReadOnlyList<Rectangle> workingAreas)
-    {
-        var bounds = new Rectangle(saved.X, saved.Y, saved.Width, saved.Height);
-        // Smaller than anything a person could have left it, so not something a window reported
-        if (bounds.Width < minimumRestored.Width ||
-            bounds.Height < minimumRestored.Height)
-        {
-            return null;
-        }
-
-        Rectangle? best = null;
-        long overlap = 0;
-        foreach (var area in workingAreas)
-        {
-            var shared = Rectangle.Intersect(area, bounds);
-            var size = (long) shared.Width * shared.Height;
-            if (size > overlap)
-            {
-                overlap = size;
-                best = area;
-            }
-        }
-
-        if (best is not { } screen)
-        {
-            return null;
-        }
-
-        if (overlap * 2 >= (long) bounds.Width * bounds.Height &&
-            bounds.Top >= screen.Top - edgeSlack &&
-            bounds.Top < screen.Bottom - edgeSlack)
-        {
-            return bounds;
-        }
-
-        var width = Math.Min(bounds.Width, screen.Width);
-        var height = Math.Min(bounds.Height, screen.Height);
-        return new(
-            Math.Clamp(bounds.X, screen.Left, screen.Right - width),
-            Math.Clamp(bounds.Y, screen.Top, screen.Bottom - height),
-            width,
-            height);
-    }
-
-    static readonly Size minimumRestored = new(200, 150);
-
-    /// <summary>
-    /// How far past the top of a display a title bar may be and still be reachable: more than the
-    /// invisible border a snapped window hangs over by, less than the bar itself.
-    /// </summary>
-    const int edgeSlack = 16;
-
-    /// <summary>
-    /// The size asked for is in logical pixels, and the window is per monitor aware, so it is
-    /// scaled to the display it opens on - once, before it is shown, and centred again for the
-    /// size that comes to, since WinForms had already centred it for the other. Unscaled, it was
-    /// 1100 by 700 device pixels while the text grew with the display: at 200% each pane had room
-    /// for four characters. Moving to another display afterwards is Windows' to scale.
-    /// <para>
-    /// Kept inside the working area, which a scaled window can outgrow: 1100 by 700 at 150% is too
-    /// tall for a 1080p screen once the taskbar is taken off.
-    /// </para>
-    /// </summary>
-    internal static Size InitialClientSize(Size logical, int dpi, Size workingArea)
-    {
-        var width = logical.Width * dpi / 96;
-        var height = logical.Height * dpi / 96;
-        // Room for the frame and title bar, which are outside the client area
-        var maxWidth = workingArea.Width * 9 / 10;
-        var maxHeight = workingArea.Height * 9 / 10;
-        return new(Math.Min(width, maxWidth), Math.Min(height, maxHeight));
-    }
-
-    /// <summary>
-    /// Where a window of <paramref name="size"/> sits to be in the middle of
-    /// <paramref name="area"/>. One too large for it starts at the area's top left, so its title
-    /// bar is still in reach.
-    /// </summary>
-    internal static Point Centred(Rectangle area, Size size) =>
-        new(
-            Math.Max(area.X, area.X + (area.Width - size.Width) / 2),
-            Math.Max(area.Y, area.Y + (area.Height - size.Height) / 2));
 
     protected override void OnDpiChanged(DpiChangedEventArgs e)
     {
@@ -433,80 +217,34 @@ sealed class ViewerForm : Form
     }
 
     /// <summary>
-    /// One frame of the loop, run on <see cref="modalFrames"/> while user32 holds the thread in a
-    /// modal loop of its own. See <see cref="ILoopHooks.Frame"/>.
+    /// One frame of the loop, for <see cref="HeadForm.ModalFrame"/> to run while user32 holds the
+    /// thread in a modal loop of its own. See <see cref="ILoopHooks.Frame"/>.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Func<Screen>? Frame { get; set; }
-
-    /// <summary>
-    /// See <see cref="ILoopHooks.SessionEnding"/>.
-    /// </summary>
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Action? SessionEnding { get; set; }
-
-    /// <summary>
-    /// A WinForms timer because its ticks are window messages, and a modal loop - the scroll bar's
-    /// while the thumb is dragged, the frame's while the window is moved or sized - still
-    /// dispatches those, where it never returns to the loop that called DoEvents.
-    /// </summary>
-    readonly System.Windows.Forms.Timer modalFrames = new()
+    public Func<Screen>? Frame
     {
-        Interval = 16
-    };
-
-    void EnterModal()
-    {
-        if (Frame is not null &&
-            !modalFrames.Enabled)
+        get;
+        set
         {
-            modalFrames.Start();
+            field = value;
+            ModalFrame = value is null ? null : ModalStep;
         }
     }
 
-    void ExitModal() =>
-        modalFrames.Stop();
-
-    /// <summary>
-    /// The loop is presenting a frame of its own, so nothing is holding the thread: whatever modal
-    /// loop was entered has returned. Its exit is normally what says so. A scroll sent to the bar
-    /// by something other than a press - an accessibility tool, say - need not be followed by an
-    /// EndScroll, and frames would then come from the timer as well as the loop from there on.
-    /// </summary>
-    public void LoopReturned() =>
-        ExitModal();
-
-    const int enterSizeMove = 0x0231;
-    const int exitSizeMove = 0x0232;
-
-    protected override void WndProc(ref Message message)
+    void ModalStep()
     {
-        if (message.Msg == enterSizeMove)
+        if (Frame is { } frame)
         {
-            EnterModal();
+            Apply(frame());
+            Animate();
         }
-        else if (message.Msg == exitSizeMove)
-        {
-            ExitModal();
-        }
-
-        base.WndProc(ref message);
     }
 
     /// <summary>
-    /// Persisted here, synchronously, when the session is ending. WinForms closes the form inside
-    /// WM_ENDSESSION, and Windows may end the process as soon as that returns - before the loop has
-    /// even noticed the form is gone, let alone got through its own shutdown to the staging.
+    /// A spinner turns only as the canvas repaints, so while one is up the loop idles no longer
+    /// than a frame.
     /// </summary>
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        if (EndsTheSession(e.CloseReason))
-        {
-            SessionEnding?.Invoke();
-        }
-
-        base.OnFormClosed(e);
-    }
+    protected override bool Animating => canvas.Spinners.Count > 0;
 
     void ScaleChrome()
     {
@@ -639,30 +377,6 @@ sealed class ViewerForm : Form
     /// button's own Visible cannot be asked: it answers for its window as well.
     /// </summary>
     int shownButtons;
-
-    /// <summary>
-    /// Brings the window up, for a snapshot that has just arrived and wants reading.
-    /// <para>
-    /// The restore is the part that was missing. BringToFront and Activate leave a minimised
-    /// window minimised - the taskbar button flashes and nothing else happens - so a viewer that
-    /// had been minimised never showed the snapshot it was being asked to show, and the queue
-    /// filled up out of sight.
-    /// </para>
-    /// </summary>
-    public void Raise()
-    {
-        Visible = true;
-        if (WindowState == FormWindowState.Minimized)
-        {
-            // Back to what it was minimised from, as the taskbar would put it. Always to normal,
-            // a window the reader had maximised came back at its restored size, and was then
-            // remembered as one they had not maximised.
-            WindowState = maximized ? FormWindowState.Maximized : FormWindowState.Normal;
-        }
-
-        BringToFront();
-        Activate();
-    }
 
     public void Apply(Screen screen)
     {
@@ -838,7 +552,7 @@ sealed class ViewerForm : Form
             ClickedButton: next.Button,
             ClickedQueueItem: next.QueueItem,
             ScrollDelta: scrollDelta,
-            CloseRequested: closeRequested,
+            CloseRequested: TakeCloseRequest(),
             Columns: Grid.Columns,
             Rows: Grid.Rows,
             RightClickedQueueItem: next.RightClickedQueueItem,
@@ -861,42 +575,8 @@ sealed class ViewerForm : Form
         scrollTo = -1;
         scrollDelta = 0;
         zoomDelta = 0;
-        closeRequested = false;
         return input;
     }
-
-    public void CloseForReal()
-    {
-        closingForReal = true;
-        Close();
-    }
-
-    protected override void OnFormClosing(FormClosingEventArgs e)
-    {
-        // Cancelled for a close the user asked for, because whether that means hide or exit is
-        // ViewerProgram's rule and it needs a tray check to decide. CloseForReal is how the answer
-        // comes back.
-        //
-        // Never for a close the session is ending: WinForms answers WM_QUERYENDSESSION with
-        // !e.Cancel, so refusing made Windows report the viewer as preventing shutdown, and with a
-        // tray running the loop only hid the window - leaving the process blocking until the user
-        // chose "Shut down anyway". Letting it through is safe because the loop watches for a
-        // disposed form and returns, which runs the same shutdown it would have run anyway.
-        if (!closingForReal && !EndsTheSession(e.CloseReason))
-        {
-            closeRequested = true;
-            e.Cancel = true;
-        }
-
-        base.OnFormClosing(e);
-    }
-
-    /// <summary>
-    /// The process is going away whatever this form says. Task Manager's End Task is here with
-    /// shutdown because refusing it buys the same nothing: the user has already decided.
-    /// </summary>
-    internal static bool EndsTheSession(CloseReason reason) =>
-        reason is CloseReason.WindowsShutDown or CloseReason.TaskManagerClosing;
 
     /// <summary>
     /// ProcessCmdKey rather than OnKeyDown, because Tab and Escape are consumed by focus
@@ -1036,7 +716,6 @@ sealed class ViewerForm : Form
         if (disposing)
         {
             contextMenu.Dispose();
-            modalFrames.Dispose();
         }
 
         base.Dispose(disposing);

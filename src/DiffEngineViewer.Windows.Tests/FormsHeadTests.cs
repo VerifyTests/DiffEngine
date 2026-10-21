@@ -715,10 +715,10 @@ public class FormsHeadTests
     [Test]
     public async Task TheFirstWindowIsSizedForTheDisplay()
     {
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 96, new(1920, 1040))).IsEqualTo(new(1100, 700));
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 192, new(3840, 2100))).IsEqualTo(new(2200, 1400));
+        await Assert.That(WindowFit.InitialClientSize(new(1100, 700), 96, new(1920, 1040))).IsEqualTo(new(1100, 700));
+        await Assert.That(WindowFit.InitialClientSize(new(1100, 700), 192, new(3840, 2100))).IsEqualTo(new(2200, 1400));
         // 1050 tall at 150% does not fit a 1080p working area, and is kept inside it
-        await Assert.That(ViewerForm.InitialClientSize(new(1100, 700), 144, new(1920, 1040))).IsEqualTo(new(1650, 936));
+        await Assert.That(WindowFit.InitialClientSize(new(1100, 700), 144, new(1920, 1040))).IsEqualTo(new(1650, 936));
     }
 
     /// <summary>
@@ -743,7 +743,7 @@ public class FormsHeadTests
             // Straight from user32: SystemInformation answers 17 at every DPI in an unaware host.
             var bar = GetSystemMetricsForDpi(verticalScrollBarWidth, (uint) dpi);
             var footer = 40 * dpi / 96;
-            var window = ViewerForm.InitialClientSize(new(1100, 700), dpi, new(3840, 2100));
+            var window = WindowFit.InitialClientSize(new(1100, 700), dpi, new(3840, 2100));
             host.Resize(window.Width - bar, window.Height - footer);
             typeof(ViewerCanvas).GetField("cell", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(host.Canvas, cell);
             host.Canvas.Draw(screen);
@@ -1279,8 +1279,22 @@ public class FormsHeadTests
         return builder.ToString();
     }
 
-    static T Field<T>(object target, string name) =>
-        (T) target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
+    /// <summary>
+    /// A private field of <paramref name="target"/> or of a class it derives from: the modal frame
+    /// timer is HeadForm's, and reflection does not look in a base class for a private field.
+    /// </summary>
+    static T Field<T>(object target, string name)
+    {
+        for (var type = target.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly) is { } field)
+            {
+                return (T) field.GetValue(target)!;
+            }
+        }
+
+        throw new MissingFieldException(target.GetType().Name, name);
+    }
 
     static (int Cell, float Advance) Measure(Font font, int dpi)
     {

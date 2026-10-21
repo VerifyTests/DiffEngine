@@ -13,7 +13,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnADisplayOpensWhereItWas()
     {
-        var restored = ViewerForm.Restorable(new(300, 200, 1100, 700, false), [display]);
+        var restored = WindowFit.Restorable(new(300, 200, 1100, 700, false), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(300, 200, 1100, 700));
     }
@@ -25,7 +25,7 @@ public class WindowPlacementTests
     [Test]
     public async Task ASnappedWindowIsLeftExactlyWhereItWas()
     {
-        var restored = ViewerForm.Restorable(new(-7, 0, 974, 1047, false), [display]);
+        var restored = WindowFit.Restorable(new(-7, 0, 974, 1047, false), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(-7, 0, 974, 1047));
     }
@@ -33,7 +33,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnTheSecondDisplayOpensThere()
     {
-        var restored = ViewerForm.Restorable(new(2200, 100, 1500, 900, false), [display, second]);
+        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900, false), [display, second]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(2200, 100, 1500, 900));
     }
@@ -45,7 +45,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnADisplayThatHasGoneIsNotUsed()
     {
-        var restored = ViewerForm.Restorable(new(2200, 100, 1500, 900, false), [display]);
+        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900, false), [display]);
 
         await Assert.That(restored).IsNull();
     }
@@ -53,7 +53,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowMostlyOffADisplayIsMovedOntoIt()
     {
-        var restored = ViewerForm.Restorable(new(1700, 800, 1100, 700, false), [display]);
+        var restored = WindowFit.Restorable(new(1700, 800, 1100, 700, false), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(820, 340, 1100, 700));
     }
@@ -65,7 +65,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowWithItsTitleBarOffTheTopIsMovedDown()
     {
-        var restored = ViewerForm.Restorable(new(300, -200, 1100, 900, false), [display]);
+        var restored = WindowFit.Restorable(new(300, -200, 1100, 900, false), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(300, 0, 1100, 900));
     }
@@ -76,7 +76,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowLargerThanTheDisplayIsCutToIt()
     {
-        var restored = ViewerForm.Restorable(new(100, 100, 3000, 2000, false), [display]);
+        var restored = WindowFit.Restorable(new(100, 100, 3000, 2000, false), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(0, 0, 1920, 1040));
     }
@@ -84,7 +84,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowTooSmallToHaveBeenLeftIsNotUsed()
     {
-        var restored = ViewerForm.Restorable(new(300, 200, 40, 20, false), [display]);
+        var restored = WindowFit.Restorable(new(300, 200, 40, 20, false), [display]);
 
         await Assert.That(restored).IsNull();
     }
@@ -106,15 +106,15 @@ public class WindowPlacementTests
 
         var area = System.Windows.Forms.Screen.FromControl(form).WorkingArea;
         await Assert.That(form.Width).IsLessThan(area.Width);
-        await Assert.That(form.Location).IsEqualTo(ViewerForm.Centred(area, form.Size));
+        await Assert.That(form.Location).IsEqualTo(WindowFit.Centred(area, form.Size));
         await Assert.That(form.Left).IsGreaterThan(area.Left);
     }
 
     [Test]
     public async Task CentredIsTheMiddleOfTheDisplayItIsOn()
     {
-        await Assert.That(ViewerForm.Centred(display, new(1100, 700))).IsEqualTo(new(410, 170));
-        await Assert.That(ViewerForm.Centred(second, new(1500, 900))).IsEqualTo(new(2450, 250));
+        await Assert.That(WindowFit.Centred(display, new(1100, 700))).IsEqualTo(new(410, 170));
+        await Assert.That(WindowFit.Centred(second, new(1500, 900))).IsEqualTo(new(2450, 250));
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public class WindowPlacementTests
     /// </summary>
     [Test]
     public async Task AWindowLargerThanTheDisplayIsCentredFromItsTopLeft() =>
-        await Assert.That(ViewerForm.Centred(second, new(3000, 1600))).IsEqualTo(new(1920, 0));
+        await Assert.That(WindowFit.Centred(second, new(3000, 1600))).IsEqualTo(new(1920, 0));
 
     [Test]
     public async Task AFormOpensAtTheBoundsItIsGiven()

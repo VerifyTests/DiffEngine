@@ -11,6 +11,7 @@ tools/net10.0/any/DiffEngineViewer.dll
 tools/net10.0/any/DiffEngineViewer.runtimeconfig.json
 tools/net10.0/any/DotnetToolSettings.xml
 tools/net10.0/any/PlatformHeads.Core.dll
+tools/net10.0/any/PlatformHeads.WindowsForms.dll
 tools/net10.0/any/documents/AngleSharp.dll
 tools/net10.0/any/documents/DiffEngineViewer.Documents.deps.json
 tools/net10.0/any/documents/DiffEngineViewer.Documents.dll

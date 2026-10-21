@@ -46,9 +46,11 @@ tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.dll
 tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.exe
 tools/net10.0/any/viewer/win-arm64/DiffEngineViewer.runtimeconfig.json
 tools/net10.0/any/viewer/win-arm64/PlatformHeads.Core.dll
+tools/net10.0/any/viewer/win-arm64/PlatformHeads.WindowsForms.dll
 tools/net10.0/any/viewer/win-x64/DiffEngineViewer.Core.dll
 tools/net10.0/any/viewer/win-x64/DiffEngineViewer.deps.json
 tools/net10.0/any/viewer/win-x64/DiffEngineViewer.dll
 tools/net10.0/any/viewer/win-x64/DiffEngineViewer.exe
 tools/net10.0/any/viewer/win-x64/DiffEngineViewer.runtimeconfig.json
 tools/net10.0/any/viewer/win-x64/PlatformHeads.Core.dll
+tools/net10.0/any/viewer/win-x64/PlatformHeads.WindowsForms.dll
