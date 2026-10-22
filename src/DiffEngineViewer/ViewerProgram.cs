@@ -321,12 +321,26 @@ static class ViewerProgram
 
         // Whichever of the two produces them; a process either owns the queue or displays one.
         var windowCommands = link?.Windows ?? new();
+        // What an idle loop waits on: set by every change of state, and by every window command,
+        // which changes none. Set off the loop's thread, so an arrival or a focus from the tray is
+        // drawn at once rather than at the end of the idle.
+        using var wake = new LoopWake<SessionState>(host);
+        link?.Commanded = wake.Set;
         using var cancel = new CancelSource();
         // Only for a queue this process owns. A displayed one's accept-all runs in its owner, and
         // file mode's is the one comparison it shows.
         var runner = server is null ? null : new AcceptAllRunner(host, ViewerActions.Real);
         var listening = server?.Listen(
-            new MessageHandler(host, ViewerActions.Real, windowCommands.Enqueue, runner, documents).Handle,
+            new MessageHandler(
+                host,
+                ViewerActions.Real,
+                _ =>
+                {
+                    windowCommands.Enqueue(_);
+                    wake.Set();
+                },
+                runner,
+                documents).Handle,
             cancel.Token);
         var polling = link is null
             ? null
@@ -350,7 +364,7 @@ static class ViewerProgram
         {
             using (window)
             {
-                Loop(host, window, link, reader, watch, windowCommands, runner, preferences, screens);
+                Loop(host, window, link, reader, watch, windowCommands, runner, preferences, screens, wake.Handle);
                 // While there is still a window to ask. Not from the finally: a loop that threw
                 // has a window in no state worth opening the next one from.
                 Remember(window, preferences);
@@ -466,8 +480,13 @@ static class ViewerProgram
         ConcurrentQueue<WindowCommand> windowCommands,
         AcceptAllRunner? runner,
         ViewerPreferences preferences,
-        ScreenCache screens)
+        ScreenCache screens,
+        WaitHandle? wake = null)
     {
+        // A loop handed no wake, as a test's, wakes on the state alone.
+        using var ownWake = wake is null ? new LoopWake<SessionState>(host) : null;
+        var waking = wake ?? ownWake!.Handle;
+
         // Two reasons nobody is looking at the window, which come and go apart: it was hidden
         // from here, by a command or by closing it beside a tray, or its head says nothing of it
         // is on screen - minimised, or covered where a head can tell. Either slows what is kept
@@ -525,18 +544,24 @@ static class ViewerProgram
                 return;
             }
 
-            // The screen of the state last presented, for as long as that is still the state: see
-            // ScreenCache. A frame in which nothing happened builds nothing.
             if (host.State.Clipboard is { } copy)
             {
                 ClipboardCopy.Offer(clipboard, host, window, copy);
             }
 
+            // The screen of the state last presented, for as long as that is still the state: see
+            // ScreenCache. A frame in which nothing happened builds nothing.
             var state = host.State;
             if (!window.Present(screens.Get(state)))
             {
                 return;
             }
+
+            // Idles until something happens: input, a change of state, a window command, or a copy
+            // to offer the clipboard again on the next frame, which changes no state. The WinForms
+            // head woke sixty times a second with nothing to do. A native head waits a frame inside
+            // its present and answers at once, so it paces itself as it did.
+            window.Wait(Pacing.Idle(null, retrying: host.State.Clipboard is not null), waking);
 
             var input = window.Poll();
             // Said by every poll, and acted on when it changes. Apart from the state, which it is

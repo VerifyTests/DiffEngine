@@ -72,6 +72,7 @@
     <!-- And an ImageFormat, so the GDI+ one needs a name for the same reason. -->
     <Using Include="System.Drawing.Imaging.ImageFormat" Alias="DrawingImageFormat" />
     <ProjectReference Include="..\DiffEngineViewer\DiffEngineViewer.csproj" />
+    <PackageReference Include="PlatformHeads.WindowsForms" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <None Include="..\DiffEngineViewer\Assets\JetBrainsMono-OFL.txt" Pack="true" PackagePath="\" />
     <None Remove="viewer.ico" />

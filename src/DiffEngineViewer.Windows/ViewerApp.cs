@@ -1,5 +1,5 @@
 /// <summary>
-/// The process wide WinForms setup.
+/// The process wide WinForms setup, through the shell's <see cref="FormsApp"/>.
 /// <para>
 /// Here rather than in <c>Program.Main</c> because two entry points need it: the app, and the test
 /// host, which never runs Main and yet renders the same controls into the same committed
@@ -9,10 +9,10 @@
 /// </summary>
 static class ViewerApp
 {
-    static bool configured;
-
     /// <summary>
-    /// The app: DPI aware, so the window follows whichever display it is on.
+    /// The app: DPI aware, so the window follows whichever display it is on. That is the reason
+    /// this head exists rather than a sixth copy of the shim: the native renderer has no DPI
+    /// handling at all and converts pixels to cells by dividing by a constant.
     /// </summary>
     public static void Configure() =>
         Configure(HighDpiMode.PerMonitorV2);
@@ -26,27 +26,9 @@ static class ViewerApp
     public static void ConfigureUnscaled() =>
         Configure(HighDpiMode.DpiUnaware);
 
-    static void Configure(HighDpiMode dpi)
-    {
-        // SetCompatibleTextRenderingDefault throws once a window exists, and there are two callers
-        // that could both run.
-        if (configured)
-        {
-            return;
-        }
-
-        configured = true;
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        // The reason this head exists rather than a sixth copy of the shim: the native renderer
-        // has no DPI handling at all and converts pixels to cells by dividing by a constant.
-        Application.SetHighDpiMode(dpi);
-        // Last, and before any handle exists, because the mode is read as each control is created.
-        // Without it the footer's real controls stay light against a dark canvas. The identifier is
-        // not a diagnostic on the SDK this builds against; the suppression is insurance for a
-        // machine whose reference pack still marks these APIs experimental.
-#pragma warning disable WFO5001
-        Application.SetColorMode(SystemColorMode.Dark);
-#pragma warning restore WFO5001
-    }
+    /// <summary>
+    /// Dark always, or the footer's real controls stay light against a dark canvas.
+    /// </summary>
+    static void Configure(HighDpiMode dpi) =>
+        FormsApp.Configure(dpi, SystemColorMode.Dark);
 }

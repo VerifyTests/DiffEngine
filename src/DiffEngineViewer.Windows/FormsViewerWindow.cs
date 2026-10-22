@@ -15,12 +15,6 @@ sealed class FormsViewerWindow :
     IViewerWindow,
     ILoopHooks
 {
-    /// <summary>
-    /// Roughly sixty frames a second, which is what the shim's SetTargetFPS gives the other heads.
-    /// Without it this loop would spin a core, since DoEvents returns immediately when idle.
-    /// </summary>
-    const int frameMilliseconds = 16;
-
     readonly ViewerForm form;
     bool disposed;
 
@@ -70,47 +64,24 @@ sealed class FormsViewerWindow :
             return false;
         }
 
-        Wait();
         return true;
     }
 
     /// <summary>
-    /// Until the next frame is due or input arrives, whichever is first. Thread.Sleep(16) woke on
-    /// the default 15.6ms timer tick after the one it asked for, so about 31ms: half the frame
-    /// rate, with every key and click waiting out the rest of it. 15 lands on the next tick, and
-    /// input ends the wait at once. Hidden, which a tray keeps it for days, there is nothing to
-    /// draw, so it wakes a few times a second rather than sixty.
+    /// HeadForm's: idles on the message queue and the loop's wake together, a frame at most while
+    /// a spinner is up, and not at all while input is already waiting. It woke sixty times a
+    /// second with the window open and nothing happening, and ten hidden or minimised.
     /// </summary>
-    void Wait()
+    public bool Wait(TimeSpan timeout, WaitHandle wake)
     {
-        // Input already waiting is the next frame's, now: a key and a click that land together are
-        // two frames, and sleeping between them would put the second a frame behind for nothing.
-        if (form.Pending)
+        if (disposed || form.IsDisposed)
         {
-            return;
+            return false;
         }
 
-        var timeout = FrameWait(form.Visible, form.WindowState);
-        MsgWaitForMultipleObjectsEx(0, IntPtr.Zero, (uint) timeout, allInput, inputAvailable);
+        form.WaitForFrame(timeout, wake);
+        return true;
     }
-
-    /// <summary>
-    /// How long to wait for the next frame. A minimised window waits as a hidden one does: it is
-    /// still Visible to WinForms, so it went on at sixty frames a second with nothing of it on
-    /// screen, for as long as it sat in the taskbar. Not a third state, because what a hidden
-    /// window has to hear is what a minimised one has to: the wait ends on any message, which is
-    /// the click that restores it, and the loop reads what the listener queued each time it wakes,
-    /// so a snapshot that arrives raises the window within a tenth of a second either way.
-    /// </summary>
-    internal static int FrameWait(bool visible, FormWindowState state) =>
-        visible && state != FormWindowState.Minimized ? frameMilliseconds - 1 : hiddenMilliseconds;
-
-    const int hiddenMilliseconds = 100;
-    const uint allInput = 0x04FF;
-    const uint inputAvailable = 0x0004;
-
-    [DllImport("user32.dll")]
-    static extern uint MsgWaitForMultipleObjectsEx(uint count, IntPtr handles, uint milliseconds, uint wakeMask, uint flags);
 
     public ViewerInput Poll() =>
         form.IsDisposed ? default : form.Drain();
@@ -158,16 +129,13 @@ sealed class FormsViewerWindow :
     /// </summary>
     public bool SetClipboard(string text)
     {
-        try
+        if (FormsClipboard.Set(text, out var failure))
         {
-            Clipboard.SetText(text);
             return true;
         }
-        catch (ExternalException exception)
-        {
-            Console.Error.WriteLine($"Could not write to the clipboard: {exception.Message}");
-            return false;
-        }
+
+        Console.Error.WriteLine($"Could not write to the clipboard: {failure?.Message}");
+        return false;
     }
 
     public bool Capture(Screen screen, int width, int height, string pngPath)

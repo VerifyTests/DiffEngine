@@ -22,6 +22,12 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
     public ConcurrentQueue<WindowCommand> Windows { get; } = new();
 
     /// <summary>
+    /// Told when a command is queued, so a loop idling on its wake draws it at once: a command
+    /// changes no state, so nothing else would end the idle before it ran out.
+    /// </summary>
+    public Action? Commanded { get; set; }
+
+    /// <summary>
     /// Fast enough that someone accepting from the tray sees the window follow, slow enough that
     /// an idle pair is not a busy loop over loopback.
     /// </summary>
@@ -268,6 +274,7 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
             }
 
             Windows.Enqueue(response.Window.Value);
+            Commanded?.Invoke();
         }
 
         return true;
