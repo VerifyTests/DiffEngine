@@ -1,8 +1,7 @@
 import AppKit
 import CDeview
-import CoreGraphics
 import Foundation
-import ImageIO
+import PlatformHeadsMac
 
 /// The eleven entry points of native/include/deview.h, implemented over AppKit and Core Text.
 ///
@@ -105,12 +104,8 @@ public func deviewSetClipboard(_ text: UnsafePointer<CChar>?) {
         return
     }
 
-    // Cleared first: NSPasteboard keeps whatever types were declared before, so writing a string
-    // over an image would otherwise leave both on the board and paste the wrong one.
     autoreleasepool {
-        let board = NSPasteboard.general
-        board.clearContents()
-        board.setString(String(cString: text), forType: .string)
+        Clipboard.set(String(cString: text))
     }
 }
 
@@ -153,13 +148,8 @@ public func deviewShutdown() {
     }
 }
 
-/// Renders into a bitmap of this side's own making rather than asking the view for one.
-///
-/// `bitmapImageRepForCachingDisplay` would inherit the window's backing scale, which is 2 on a
-/// Retina machine and 1 elsewhere, so a committed baseline would only ever match on the kind of
-/// display that produced it. Everything that varies is pinned here instead: scale, colour space,
-/// and the six font smoothing and subpixel switches. No window is needed, which also means the
-/// snapshot tests do not need a window server.
+/// Renders into a bitmap of this side's own making rather than asking the view for one, with
+/// everything that varies pinned, so a committed baseline matches on any display: see `Capture`.
 @_cdecl("deview_capture")
 public func deviewCapture(
     _ screen: UnsafePointer<DeviewScreen>?,
@@ -176,44 +166,18 @@ private func capture(
     _ width: Int32,
     _ height: Int32,
     _ pngPath: UnsafePointer<CChar>?) -> Int32 {
-    guard let screen,
-          let pngPath,
-          let renderer = Runtime.shared.renderer,
-          let space = CGColorSpace(name: CGColorSpace.sRGB),
-          let context = CGContext(
-              data: nil,
-              width: Int(width),
-              height: Int(height),
-              bitsPerComponent: 8,
-              bytesPerRow: 0,
-              space: space,
-              bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
-    else {
+    guard let screen, let pngPath, let renderer = Runtime.shared.renderer else {
         return 0
     }
 
-    context.setAllowsFontSmoothing(false)
-    context.setShouldSmoothFonts(false)
-    context.setAllowsFontSubpixelPositioning(false)
-    context.setShouldSubpixelPositionFonts(false)
-    context.setAllowsFontSubpixelQuantization(false)
-    context.setShouldSubpixelQuantizeFonts(false)
-
-    renderer.draw(
-        Frame.decode(screen),
-        in: context,
-        size: CGSize(width: CGFloat(width), height: CGFloat(height)),
-        capturing: true)
-
-    guard let image = context.makeImage() else {
-        return 0
+    let frame = Frame.decode(screen)
+    let written = Capture.png(width: width, height: height, path: String(cString: pngPath)) { context in
+        _ = renderer.draw(
+            frame,
+            in: context,
+            size: CGSize(width: CGFloat(width), height: CGFloat(height)),
+            capturing: true)
     }
 
-    let url = URL(fileURLWithPath: String(cString: pngPath)) as CFURL
-    guard let destination = CGImageDestinationCreateWithURL(url, "public.png" as CFString, 1, nil) else {
-        return 0
-    }
-
-    CGImageDestinationAddImage(destination, image, nil)
-    return CGImageDestinationFinalize(destination) ? 1 : 0
+    return written ? 1 : 0
 }

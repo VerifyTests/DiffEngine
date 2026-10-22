@@ -7,6 +7,7 @@
  * honour texture requests, feed mouse input, and turn ImDrawData into rlgl calls.
  */
 #include "deview.h"
+#include "platformheads/runtime.h"
 
 #include "imgui.h"
 /* For ScrollbarEx and ImRect. Internal, but it is the only way to put ImGui's own scrollbar
@@ -44,58 +45,6 @@
 #endif
 
 /*
- * raylib latches GLFW's close flag and exposes no way to clear it, but the window has to survive a
- * close when a tray is running, otherwise every later frame would report closing again. raylib
- * statically links GLFW into this library so the symbols resolve, and glfwGetCurrentContext
- * returns raylib's own window without needing the GLFW headers.
- */
-extern "C" void* glfwGetCurrentContext(void);
-extern "C" void glfwSetWindowShouldClose(void* window, int value);
-
-/*
- * And GLFW's callback for the window system wanting a window's content drawn again, because part
- * of it has been uncovered or it has been put back on the screen. raylib asks to be told when a
- * window is resized, moved, minimised or focused and not this, since it draws every frame whatever
- * happens. A window that has stopped drawing frames nobody needs has to hear it: see State::stale.
- * Setting it here takes nothing from raylib, which sets none.
- */
-extern "C"
-{
-typedef void (*DeviewRefresh)(void* window);
-DeviewRefresh glfwSetWindowRefreshCallback(void* window, DeviewRefresh callback);
-}
-
-/*
- * And its callbacks for a mouse button, the wheel, a key and a character. raylib sets all four, and
- * keeps from them what was so when it last read the window system's events: whether a button is
- * down, the last wheel message, which keys are down. That is a state, read once a frame, and a
- * press and a release that arrive between two reads leave it as it was. So these are set over
- * raylib's, which are kept and still called, and what they are told is kept as what happened: see
- * State::presses.
- *
- * And the one for the pointer crossing the window's edge, which raylib also keeps and nothing
- * else here could be told by: where the pointer is stays where it last was in the window, for as
- * long as it is anywhere else. See State::pointerInside.
- */
-extern "C"
-{
-typedef void (*DeviewButtonEvent)(void* window, int button, int action, int mods);
-typedef void (*DeviewScrollEvent)(void* window, double across, double down);
-typedef void (*DeviewKeyEvent)(void* window, int key, int scancode, int action, int mods);
-typedef void (*DeviewCharacterEvent)(void* window, unsigned int codepoint);
-typedef void (*DeviewCrossingEvent)(void* window, int entered);
-DeviewCrossingEvent glfwSetCursorEnterCallback(void* window, DeviewCrossingEvent callback);
-DeviewButtonEvent glfwSetMouseButtonCallback(void* window, DeviewButtonEvent callback);
-DeviewScrollEvent glfwSetScrollCallback(void* window, DeviewScrollEvent callback);
-DeviewKeyEvent glfwSetKeyCallback(void* window, DeviewKeyEvent callback);
-DeviewCharacterEvent glfwSetCharCallback(void* window, DeviewCharacterEvent callback);
-
-/* What a key types on the layout in use, unshifted, or null for a key that types nothing. The
- * key is one of GLFW's numbers, or -1 for the key with that scancode. */
-const char* glfwGetKeyName(int key, int scancode);
-}
-
-/*
  * And GLFW's way to an entry point of the GL the window was made with, for the one thing asked of
  * GL that rlgl has no call for: how large a texture it will take. See TextureLimit.
  */
@@ -105,30 +54,8 @@ typedef void (*DeviewGlEntry)(void);
 DeviewGlEntry glfwGetProcAddress(const char* name);
 }
 
-/*
- * And how much larger than a pixel the desktop wants everything drawn, which under X11 is the
- * Xft.dpi resource over 96. raylib asks GLFW this only for a window it was told to scale itself,
- * which this one is not: see State::scale.
- */
-extern "C" void glfwGetWindowContentScale(void* window, float* across, float* down);
-
-/* GLFW's own numbers, which its headers would have named. */
-constexpr int glfwRelease = 0;
-constexpr int glfwShift = 0x0001;
-constexpr int glfwControl = 0x0002;
-constexpr int glfwSuper = 0x0008;
-
 namespace
 {
-void ClearCloseFlag()
-{
-    void* handle = glfwGetCurrentContext();
-    if (handle != nullptr)
-    {
-        glfwSetWindowShouldClose(handle, 0);
-    }
-}
-
 /*
  * Queue column widths, counted in character cells rather than pixels so a scaled display gets a
  * column that holds the same number of characters rather than a narrower one.
@@ -174,25 +101,6 @@ constexpr float emScale = 1.32f;
  * rather than as whatever colour the pane happens to be. Matches the WinForms head.
  */
 constexpr float checkerSize = 8.0f;
-
-/*
- * How long a frame lasts, which is what holds the managed loop to sixty turns a second: it calls
- * deview_present as fast as that returns. raylib used to do the waiting, inside EndDrawing. It is
- * done here now, because a frame that is not drawn has to be waited out as well: see Rest.
- */
-constexpr double frameSeconds = 1.0 / 60.0;
-
-/*
- * How many frames in a row have to be built with nothing arriving, and come out as the frame on
- * the screen, before frames stop being built: a second of them, since each is waited out.
- *
- * ImGui does things over several frames and counts some of them in the time it is told has passed.
- * A layout can take a second frame to settle, input given in one frame may be acted on over the
- * next few, and for a quarter of a second after the pointer leaves a row with a tooltip the next
- * row's comes up without its delay. A second is longer than any of them, and costs little: these
- * are frames that are built and compared, not drawn.
- */
-constexpr int settledFrames = 60;
 
 /*
  * One decoded picture, kept because BuildFrame runs sixty times a second and decoding an image per
@@ -275,86 +183,12 @@ struct Decoder
     int textureLimit = 0;
 };
 
-/*
- * One of the machine's fonts, read whole, for the characters the embedded one does not have:
- * its bytes, which of the faces in them, and the scale that makes deview_init's size an em for
- * that face, as emScale does for the embedded font.
- */
-struct FoundFont
-{
-    std::vector<unsigned char> data;
-    int face = 0;
-    float scale = 1.0f;
-};
-
-/*
- * Those fonts are looked for and read on a thread of their own, for the reason pictures are
- * decoded on one: fontconfig reading its caches and a CJK collection coming off the disk are tens
- * of milliseconds each, and the first is seconds on a machine whose caches are stale. Shared and
- * detached as the decoder is, and for its reason.
- */
-struct FontFinder
-{
-    std::mutex mutex;
-    std::condition_variable wake;
-
-    /* Characters the window's font cannot draw, each asked about once. */
-    std::vector<uint32_t> wanted;
-    std::vector<FoundFont> found;
-    bool stopping = false;
-};
-
 struct State
 {
     bool initialised = false;
     bool windowOpen = false;
     ImGuiContext* context = nullptr;
     DeviewInput input{};
-
-    /*
-     * The font the window draws with: the embedded font, and merged into it whichever of the
-     * machine's fonts a character on screen has needed.
-     *
-     * Not the font a capture draws with. That is the embedded font alone, which the atlas holds
-     * a second time and ahead of this one, so that a capture is the same picture on a machine
-     * with every font installed and on one with none: a character the embedded font lacks is the
-     * replacement glyph there, as it was everywhere before this. What the two draw from the
-     * embedded font is the same glyphs, so the captures still describe the window.
-     */
-    ImFont* font = nullptr;
-
-    /* Started with the first character the font cannot draw, so a window that never shows one
-     * never has it, nor fontconfig. */
-    std::shared_ptr<FontFinder> finder;
-
-    /* One bit a code point, set once it has been looked at, so it is asked about once and a
-     * frame of text already seen costs a pass over its bytes. Empty until something past ASCII
-     * turns up. */
-    std::vector<bool> asked;
-
-    /* The bytes of each font merged in. ImGui rasterises a glyph out of them when a character is
-     * first drawn, so they are kept for as long as the atlas is. */
-    std::deque<std::vector<unsigned char>> fontData;
-
-    /*
-     * How much larger than a pixel the desktop wants things drawn: 1 on an ordinary display, 2 on
-     * one whose desktop is set to twice the size, and anything between.
-     *
-     * Nothing here asked. Under X11 a pixel is a pixel whatever the display, so the window was
-     * 1100 by 700 of them and its text 15 to the em on a display with twice as many to the inch,
-     * where everything else on the desktop is twice that: the viewer at half size.
-     *
-     * The window is drawn larger rather than handed to raylib to scale, which it would do by
-     * drawing the same frame through a transform: the text here is rasterised at the size it is
-     * shown, and everything stays in the pixels the pointer is reported in, so nothing that is
-     * hit tested has two sets of coordinates to keep apart. What is scaled is the font, ImGui's
-     * paddings and spacings, the few lengths this file gives in pixels, and the size a window
-     * opens at when there is none remembered. A remembered one is in pixels already.
-     *
-     * Read once, as the window is made: GLFW works it out as it starts and keeps it. Never applied
-     * to a capture, which draws at the size it is told at a scale of 1, on any display.
-     */
-    float scale = 1.0f;
 
     /* A character cell's width and a row's height in the last frame built for the window, which
      * is what the grid reported to the managed side is counted in: see MeasureGrid. */
@@ -369,92 +203,6 @@ struct State
      * outside it a dismissal rather than what they would otherwise mean. */
     bool menuOpen = false;
 
-    /* What a wheel message left over. A notch is 1.0, and a touchpad sends fractions of one:
-     * truncating each frame's value on its own threw all of them away, so a touchpad scrolled
-     * nothing at all. */
-    float scrollRemainder = 0.0f;
-
-    /*
-     * What the pointer's buttons, the wheel and the keys have done since each was last taken, as
-     * GLFW reported it: every press and release in the order they came, every wheel message added
-     * up, every key pressed with the character it typed.
-     *
-     * Read as a state once a frame, which is how raylib offers them, a press and a release that
-     * arrived together had never happened, and of several wheel messages only the last had. A tap
-     * on a touchpad is such a press, and so is every click xdotool sends: under Xvfb none of ten
-     * clicks was seen, and three of ten presses of Page Down.
-     *
-     * The presses are ImGui's, handed over at the top of the next frame built. It takes a press and
-     * a release handed over together a frame apart, so what is drawn is clicked as it would be by a
-     * button that was held. Nothing else here asks raylib about a button, so there is no second
-     * account of one to disagree with ImGui's.
-     */
-    struct Press
-    {
-        int button;
-        bool down;
-    };
-
-    std::vector<Press> presses;
-    bool held[3] = {};
-
-    /* The wheel twice over, because it is taken twice: by ImGui with the presses, and by
-     * deview_poll_input for the managed side, which is not at the same moment. */
-    float wheelAcross = 0.0f;
-    float wheelDown = 0.0f;
-    float wheelNotches = 0.0f;
-
-    /*
-     * A key pressed, or repeating while it is held, with the character it typed if it typed one.
-     * Handed to the managed side one a poll, as the other two heads hand theirs, so two keys
-     * between two polls are both acted on and in their order.
-     */
-    struct KeyPress
-    {
-        /* GLFW's number for the key, which is where it is on a US keyboard, or -1 for a key it
-         * has no number for, and the window system's own number for it. */
-        int key;
-        int scancode;
-        int mods;
-        bool repeated;
-        unsigned int character;
-    };
-
-    std::deque<KeyPress> keys;
-
-    /* Whether the next character GLFW reports was typed by the key press at the back of the queue,
-     * which is so only straight after that press: GLFW reports the two together. */
-    bool characterFollows = false;
-
-    /* A key has been pressed since Arrived last asked. */
-    bool keyed = false;
-
-    /*
-     * Whether the pointer is over the window, by the last crossing GLFW reported, and whether the
-     * last frame was built with it gone.
-     *
-     * ImGui was told where the pointer is on every frame, and raylib goes on answering with the
-     * last place it was in the window. So a pointer that left over a queue row was still on that
-     * row: it stayed lit, and its tooltip came up with the pointer on another window. A pointer
-     * that has left is now reported to ImGui as nowhere, which is what it has for that.
-     *
-     * Not while a button is held. The window system goes on reporting a pointer that was pressed
-     * in the window wherever it is taken, and a selection dragged past the window's edge has to
-     * go on being one.
-     *
-     * Taken to be inside until a crossing says otherwise, so a window that opens under the pointer
-     * and is told of no crossing is no worse off than it was.
-     */
-    bool pointerInside = true;
-    bool pointerGone = false;
-
-    /* raylib's callbacks, which go on being called. */
-    DeviewCrossingEvent raylibCrossing = nullptr;
-    DeviewButtonEvent raylibButton = nullptr;
-    DeviewScrollEvent raylibScroll = nullptr;
-    DeviewKeyEvent raylibKey = nullptr;
-    DeviewCharacterEvent raylibCharacter = nullptr;
-
     /*
      * The queue column, owned here rather than by the table.
      *
@@ -467,9 +215,6 @@ struct State
      * capture before it.
      */
     float queueWidth = 0.0f;
-
-    /* What was last handed to raylib, so an idle frame is not a window system call. */
-    int cursor = MOUSE_CURSOR_DEFAULT;
 
     /* Keyed by the path the screen model handed over. std::map rather than unordered, because the
      * entries are handed out as pointers and this one does not move them. */
@@ -567,14 +312,6 @@ struct State
     DeviewPlacement placement{};
 
     /*
-     * The window's bounds as they were when it was last neither maximised nor minimised, and
-     * whether it is maximised now. GLFW says where a maximised window is and nothing about where
-     * it will go back to, so that has to have been noted while it was still there.
-     */
-    bool tracked = false;
-    DeviewPlacement normal{};
-
-    /*
      * What decides whether a frame is put on the screen, and whether one is built at all: see
      * deview_present. First the screen as it was last handed over, every byte of it, and the one
      * being held against it.
@@ -582,35 +319,9 @@ struct State
     std::vector<unsigned char> presented;
     std::vector<unsigned char> arriving;
 
-    /* What was drawn to make the frame on the screen, reduced to a number: see Fingerprint. */
-    uint64_t shown = 0;
-
-    /*
-     * The window cannot be taken to be showing the frame last drawn into it: nothing has been
-     * drawn yet, the window system has asked for its content again, it has changed size or come
-     * back from being hidden, or a texture has been put behind a name that frame may have used.
-     * The next frame is drawn, whatever it comes out as.
-     */
-    bool stale = true;
-
-    /* Frames in a row that had nothing arrive and came out as the one on the screen. */
-    int settled = 0;
-
     /* A queue row's tooltip is waiting out its delay, which ImGui counts in the frames it is
      * given: see BuildFrame. */
     bool tooltipDue = false;
-
-    /* When the last present began, and when the last frame's wait ended, by GetTime. */
-    double began = 0.0;
-    double ended = 0.0;
-
-    /* The pointer and the window as the last present found them. */
-    Vector2 pointer{};
-    int width = 0;
-    int height = 0;
-    bool hidden = false;
-    bool minimised = false;
-    bool focused = false;
 
     /*
      * The file behind each picture the last frame built for the window asked for, as that frame
@@ -630,164 +341,21 @@ struct State
 State state;
 
 /* The scale the frame being built is drawn at: the display's for the window's, and 1 for a
- * capture's. See State::scale. */
+ * capture's. See ph::WindowScale. */
 float Scale()
 {
-    return state.capturing ? 1.0f : state.scale;
+    return state.capturing ? 1.0f : ph::WindowScale();
 }
 
-/* GLFW's refresh callback, called from inside PollInputEvents: the window system has uncovered
- * some of the window, or shown it, and what was there is gone. */
-extern "C" void WindowRefreshed(void* window)
-{
-    state.stale = true;
-}
-
-/* The five below are called from inside PollInputEvents too, each after raylib's own. */
-extern "C" void PointerCrossed(void* window, int entered)
-{
-    if (state.raylibCrossing != nullptr)
-    {
-        state.raylibCrossing(window, entered);
-    }
-
-    state.pointerInside = entered != 0;
-}
-
-extern "C" void ButtonChanged(void* window, int button, int action, int mods)
-{
-    if (state.raylibButton != nullptr)
-    {
-        state.raylibButton(window, button, action, mods);
-    }
-
-    /* Left, right and middle, which GLFW and ImGui number alike. */
-    if (button >= 0 &&
-        button < 3)
-    {
-        state.presses.push_back({button, action != glfwRelease});
-        state.held[button] = action != glfwRelease;
-    }
-}
-
-extern "C" void WheelTurned(void* window, double across, double down)
-{
-    if (state.raylibScroll != nullptr)
-    {
-        state.raylibScroll(window, across, down);
-    }
-
-    state.wheelAcross += static_cast<float>(across);
-    state.wheelDown += static_cast<float>(down);
-    state.wheelNotches += static_cast<float>(down);
-}
-
-extern "C" void KeyChanged(void* window, int key, int scancode, int action, int mods)
-{
-    if (state.raylibKey != nullptr)
-    {
-        state.raylibKey(window, key, scancode, action, mods);
-    }
-
-    state.characterFollows = false;
-    if (action == glfwRelease)
-    {
-        return;
-    }
-
-    state.keyed = true;
-
-    /* One repeat of a key waiting at a time. A loop that was held up for seconds is handed every
-     * repeat the window system kept for it at once, and would go on scrolling for as long again
-     * after the key was let go. */
-    const bool repeated = action != 1;
-    if (repeated)
-    {
-        for (const State::KeyPress& waiting : state.keys)
-        {
-            if (waiting.repeated &&
-                waiting.key == key &&
-                waiting.scancode == scancode)
-            {
-                return;
-            }
-        }
-    }
-
-    state.keys.push_back({key, scancode, mods, repeated, 0});
-    state.characterFollows = true;
-}
-
-extern "C" void CharacterTyped(void* window, unsigned int codepoint)
-{
-    if (state.raylibCharacter != nullptr)
-    {
-        state.raylibCharacter(window, codepoint);
-    }
-
-    /* Typed by the press just queued: GLFW reports a key and then its character. One that follows
-     * a repeat that was not queued goes with it, and one that comes by itself is what an input
-     * method composed, which is none of the keys read here. */
-    if (state.characterFollows &&
-        !state.keys.empty())
-    {
-        state.keys.back().character = codepoint;
-    }
-
-    state.characterFollows = false;
-}
-
-/*
- * Whether a remembered window would open somewhere it can be reached: its top edge on a monitor,
- * with enough of its width there to take hold of. Monitors come and go between runs, and a window
- * opened where one used to be is a viewer that looks as if it did not start.
- */
-bool OnAMonitor(const DeviewPlacement& placement)
-{
-    constexpr int reach = 100;
-    const int count = GetMonitorCount();
-    for (int index = 0; index < count; index++)
-    {
-        const Vector2 origin = GetMonitorPosition(index);
-        const int left = static_cast<int>(origin.x);
-        const int top = static_cast<int>(origin.y);
-        const int right = left + GetMonitorWidth(index);
-        const int bottom = top + GetMonitorHeight(index);
-        const int overlap = std::min(placement.x + placement.width, right) - std::max(placement.x, left);
-        if (overlap >= reach &&
-            placement.y >= top &&
-            placement.y < bottom - reach)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/* Noted every frame the window is neither maximised, minimised nor hidden. See State::normal. */
-void TrackPlacement()
-{
-    if (IsWindowState(FLAG_WINDOW_HIDDEN) ||
-        IsWindowMinimized())
-    {
-        return;
-    }
-
-    state.normal.maximized = IsWindowMaximized() ? 1 : 0;
-    if (state.normal.maximized != 0 &&
-        state.tracked)
-    {
-        return;
-    }
-
-    const Vector2 position = GetWindowPosition();
-    state.normal.x = static_cast<int32_t>(position.x);
-    state.normal.y = static_cast<int32_t>(position.y);
-    state.normal.width = GetScreenWidth();
-    state.normal.height = GetScreenHeight();
-    state.tracked = true;
-}
+/* What the runtime does for every head, under the names this file has always called them by. */
+using ph::ButtonLabel;
+using ph::HeadersRow;
+using ph::LabelWidth;
+using ph::LetterOf;
+using ph::Marked;
+using ph::RenderDrawData;
+using ph::SelectableLabel;
+using ph::TextWithin;
 
 float ClampQueueWidth(float value, float available, float cell)
 {
@@ -825,22 +393,10 @@ void ResetInput()
     state.input.rightClickedPane = -1;
 }
 
-/* Every string is an offset into one UTF-8 blob. Bad offsets are a crash, not a glitch, so the
- * whole boundary is bounds checked rather than trusted. */
+/* Every string is an offset into one UTF-8 blob, read by the runtime: see ph::Slice. */
 bool Slice(const DeviewScreen* screen, int offset, int length, const char** begin, const char** end)
 {
-    if (screen->strings == nullptr ||
-        offset < 0 ||
-        length < 0 ||
-        offset > screen->stringsLength ||
-        offset + length > screen->stringsLength)
-    {
-        return false;
-    }
-
-    *begin = reinterpret_cast<const char*>(screen->strings) + offset;
-    *end = *begin + length;
-    return true;
+    return ph::Slice(screen->strings, screen->stringsLength, offset, length, begin, end);
 }
 
 void Text(const DeviewScreen* screen, int offset, int length)
@@ -859,14 +415,19 @@ void Text(const DeviewScreen* screen, int offset, int length)
 
 std::string Copy(const DeviewScreen* screen, int offset, int length)
 {
-    const char* begin;
-    const char* end;
-    if (!Slice(screen, offset, length, &begin, &end))
-    {
-        return {};
-    }
+    return ph::Copy(screen->strings, screen->stringsLength, offset, length);
+}
 
-    return {begin, static_cast<size_t>(end - begin)};
+/* Asks for a font for every character of a screen the window's font cannot draw. Every string
+ * of the frame is in the one blob, so one pass over it covers the title, the queue and the
+ * tooltips with the rows. */
+void FindFontsFor(const DeviewScreen* screen)
+{
+    if (screen->strings != nullptr &&
+        screen->stringsLength > 0)
+    {
+        ph::FindFontsFor(reinterpret_cast<const char*>(screen->strings), static_cast<size_t>(screen->stringsLength));
+    }
 }
 
 ImU32 RowColour(int kind)
@@ -1212,7 +773,7 @@ bool ReplaceTexture(const Image& image, bool translucent, CachedTexture& entry)
     entry.sampling = made.sampling;
 
     /* Another texture behind the picture, which may have been given the name of the last. */
-    state.stale = true;
+    ph::MarkStale();
     return true;
 }
 
@@ -1349,7 +910,7 @@ bool TakeDecoded()
                 /* GL hands out the name of a texture that has been unloaded again, so a frame
                  * drawn with this one can be, number for number, a frame drawn with the one
                  * that had the name before it. */
-                state.stale = true;
+                ph::MarkStale();
             }
         }
         else if (found != state.pictures.end() &&
@@ -1637,830 +1198,7 @@ void UnloadPictures()
 
 /* ---- fonts ---- */
 
-/*
- * The machine's own fonts, for the characters the embedded one does not have.
- *
- * JetBrains Mono has Latin, Greek, Cyrillic and the symbols code is written in, and it was the
- * only font here: Chinese, Japanese, Korean, Arabic, Hebrew, Thai and emoji all drew as the
- * replacement glyph, so a snapshot holding any of them could not be reviewed in this head. A line
- * with one such character changed was marked as changed and looked the same on both sides. The
- * other two heads have their toolkits' font fallback. ImGui has none of its own, but it does draw
- * a character from the first of a font's sources to have it, so the machine's fonts are merged
- * into the window's font as further sources.
- *
- * Drawn, and not shaped: each character is the glyph its font has for it, where the grid put it.
- * Arabic is its letters unjoined and in the order they are stored, and an emoji made of several
- * is as many of them as its cells hold. That is enough to see which characters a snapshot holds,
- * which is what this is for.
- *
- * Only the fonts a character on screen has needed, and only once one has. Every font fontconfig
- * knows of can be hundreds of megabytes of files, and a screen of ASCII, which is nearly every
- * screen, costs a pass over its bytes and nothing else. Until a font lands its characters are the
- * replacement glyph they always were.
- *
- * Never for a capture: see State::font.
- */
-
-/* As many of the machine's fonts as are ever merged in. ImGui numbers a font's sources in four
- * bits, and the embedded font is the first of them. */
-constexpr size_t fontLimit = 15;
-
-/*
- * fontconfig's FcFontSet, whose layout is part of its ABI, and the entry points this uses.
- *
- * Found in the library when a character first needs them rather than linked. Linked, a machine
- * without fontconfig could not load this library at all, and building it would need fontconfig's
- * headers. Found at run time, such a machine has no fonts to offer, which is what every machine
- * had before.
- */
-struct FontSet
-{
-    int count;
-    int capacity;
-    void** fonts;
-};
-
-struct Fontconfig
-{
-    void* (*initLoadConfigAndFonts)() = nullptr;
-    void* (*nameParse)(const unsigned char* name) = nullptr;
-    int (*configSubstitute)(void* config, void* pattern, int kind) = nullptr;
-    void (*defaultSubstitute)(void* pattern) = nullptr;
-    FontSet* (*fontSort)(void* config, void* pattern, int trim, void** charset, int* result) = nullptr;
-    int (*patternGetString)(const void* pattern, const char* object, int index, unsigned char** value) = nullptr;
-    int (*patternGetInteger)(const void* pattern, const char* object, int index, int* value) = nullptr;
-    int (*patternGetBool)(const void* pattern, const char* object, int index, int* value) = nullptr;
-    int (*patternGetCharSet)(const void* pattern, const char* object, int index, void** value) = nullptr;
-    int (*charSetHasChar)(const void* charset, unsigned int codepoint) = nullptr;
-};
-
-/*
- * Every font on the machine that says which characters it has, in the order fontconfig falls
- * back through them from a monospace font for this user's language. That is the answer every
- * other program here is given, and it is what puts the Japanese forms of the Han characters
- * ahead of the Chinese ones for a Japanese reader.
- */
-struct SystemFonts
-{
-    bool opened = false;
-    Fontconfig fontconfig;
-
-    struct Candidate
-    {
-        const void* pattern;
-        const void* charset;
-    };
-
-    std::vector<Candidate> candidates;
-
-    /* Handed over already, and found to be something stb_truetype cannot draw from. By file and
-     * face rather than by candidate, because one face can be listed more than once. */
-    std::set<std::pair<std::string, int>> taken;
-    std::set<std::pair<std::string, int>> unusable;
-};
-
-#if !defined(_WIN32)
-template <typename Entry>
-bool Resolve(void* library, const char* name, Entry& entry)
-{
-    entry = reinterpret_cast<Entry>(dlsym(library, name));
-    return entry != nullptr;
-}
-#endif
-
-/* On the finder's thread, the first time a character is asked about. What fontconfig hands back
- * is not given back: the candidates point into it for as long as the thread runs, which is as
- * long as the window does, and a process has the one window. */
-void OpenSystemFonts(SystemFonts& fonts)
-{
-    fonts.opened = true;
-#if !defined(_WIN32)
-    void* library = dlopen("libfontconfig.so.1", RTLD_NOW | RTLD_LOCAL);
-    if (library == nullptr)
-    {
-        return;
-    }
-
-    Fontconfig& fontconfig = fonts.fontconfig;
-    if (!Resolve(library, "FcInitLoadConfigAndFonts", fontconfig.initLoadConfigAndFonts) ||
-        !Resolve(library, "FcNameParse", fontconfig.nameParse) ||
-        !Resolve(library, "FcConfigSubstitute", fontconfig.configSubstitute) ||
-        !Resolve(library, "FcDefaultSubstitute", fontconfig.defaultSubstitute) ||
-        !Resolve(library, "FcFontSort", fontconfig.fontSort) ||
-        !Resolve(library, "FcPatternGetString", fontconfig.patternGetString) ||
-        !Resolve(library, "FcPatternGetInteger", fontconfig.patternGetInteger) ||
-        !Resolve(library, "FcPatternGetBool", fontconfig.patternGetBool) ||
-        !Resolve(library, "FcPatternGetCharSet", fontconfig.patternGetCharSet) ||
-        !Resolve(library, "FcCharSetHasChar", fontconfig.charSetHasChar))
-    {
-        return;
-    }
-
-    void* config = fontconfig.initLoadConfigAndFonts();
-    void* pattern = fontconfig.nameParse(reinterpret_cast<const unsigned char*>("monospace"));
-    if (config == nullptr ||
-        pattern == nullptr)
-    {
-        return;
-    }
-
-    /* The two steps every match is prepared with: the configuration's rules, which is where
-     * "monospace" becomes the fonts the machine means by it, and the defaults, which is where
-     * the user's language comes from. */
-    fontconfig.configSubstitute(config, pattern, 0);
-    fontconfig.defaultSubstitute(pattern);
-
-    /* Untrimmed. Trimming leaves out a font with no character the ones ahead of it lack, which
-     * it works out by uniting every character set in turn, and each character is asked of them
-     * here anyway. */
-    int result = 0;
-    const FontSet* sorted = fontconfig.fontSort(config, pattern, 0, nullptr, &result);
-    if (sorted == nullptr)
-    {
-        return;
-    }
-
-    for (int index = 0; index < sorted->count; index++)
-    {
-        void* charset = nullptr;
-        if (fontconfig.patternGetCharSet(sorted->fonts[index], "charset", 0, &charset) == 0 &&
-            charset != nullptr)
-        {
-            fonts.candidates.push_back({sorted->fonts[index], charset});
-        }
-    }
-#endif
-}
-
-constexpr uint32_t Tag(char first, char second, char third, char fourth)
-{
-    return static_cast<uint32_t>(static_cast<unsigned char>(first)) << 24 |
-           static_cast<uint32_t>(static_cast<unsigned char>(second)) << 16 |
-           static_cast<uint32_t>(static_cast<unsigned char>(third)) << 8 |
-           static_cast<uint32_t>(static_cast<unsigned char>(fourth));
-}
-
-/*
- * The scale that makes deview_init's size an em for a face: its ascent plus its descent over its
- * em, which is what emScale is for the embedded font. Merged at ImGui's own scale it is each
- * font's height that is matched, so one with tall lines comes out small and one with short lines
- * large. An em is what the other two heads fall back at, and what leaves a CJK character, an em
- * wide, inside the two cells the grid gives it.
- *
- * False for a face stb_truetype, which is what rasterises here, cannot draw from. Those are its
- * own conditions, asked first. It wants outlines, as TrueType's or in a CFF table, and a variable
- * font of the CFF2 kind has neither, which is one of the forms Noto CJK comes in. Asked here, on
- * the finder's thread, the next font with the character is tried instead; left to ImGui, the
- * refusal comes on the render thread as an error, and nothing else is tried.
- */
-bool EmScaleOf(const std::vector<unsigned char>& data, int face, float& scale)
-{
-    const size_t size = data.size();
-    const auto u16 = [&data, size](size_t at) -> uint32_t
-    {
-        return at + 2 <= size
-            ? static_cast<uint32_t>(data[at]) << 8 | static_cast<uint32_t>(data[at + 1])
-            : 0;
-    };
-    const auto u32 = [&u16](size_t at) -> uint32_t { return u16(at) << 16 | u16(at + 2); };
-
-    /* A collection starts with where each of its faces does. */
-    size_t start = 0;
-    if (u32(0) == Tag('t', 't', 'c', 'f'))
-    {
-        if (static_cast<uint32_t>(face) >= u32(8))
-        {
-            return false;
-        }
-
-        start = u32(12 + static_cast<size_t>(face) * 4);
-    }
-    else if (face != 0)
-    {
-        return false;
-    }
-
-    size_t head = 0;
-    size_t hhea = 0;
-    bool cmap = false;
-    bool hmtx = false;
-    bool glyf = false;
-    bool loca = false;
-    bool cff = false;
-    const uint32_t tables = u16(start + 4);
-    for (uint32_t table = 0; table < tables; table++)
-    {
-        const size_t record = start + 12 + static_cast<size_t>(table) * 16;
-        switch (u32(record))
-        {
-            case Tag('h', 'e', 'a', 'd'): head = u32(record + 8); break;
-            case Tag('h', 'h', 'e', 'a'): hhea = u32(record + 8); break;
-            case Tag('c', 'm', 'a', 'p'): cmap = true; break;
-            case Tag('h', 'm', 't', 'x'): hmtx = true; break;
-            case Tag('g', 'l', 'y', 'f'): glyf = true; break;
-            case Tag('l', 'o', 'c', 'a'): loca = true; break;
-            case Tag('C', 'F', 'F', ' '): cff = true; break;
-            default: break;
-        }
-    }
-
-    const int unitsPerEm = static_cast<int>(u16(head + 18));
-    const int ascent = static_cast<int16_t>(u16(hhea + 4));
-    const int descent = static_cast<int16_t>(u16(hhea + 6));
-    if (head == 0 ||
-        hhea == 0 ||
-        !cmap ||
-        !hmtx ||
-        !(cff || (glyf && loca)) ||
-        unitsPerEm == 0 ||
-        ascent <= descent)
-    {
-        return false;
-    }
-
-    scale = static_cast<float>(ascent - descent) / static_cast<float>(unitsPerEm);
-    return true;
-}
-
-bool ReadFont(const Fontconfig& fontconfig, const void* pattern, const std::pair<std::string, int>& face, FoundFont& found)
-{
-    /* Outlines, and nothing else. A bitmap font has none to scale, and a colour font - which is
-     * what the emoji font usually is - keeps its pictures in tables stb_truetype does not read.
-     * Merged, it would draw every emoji as nothing, ahead of a font with plain ones. */
-    int flag = 0;
-    if ((fontconfig.patternGetBool(pattern, "outline", 0, &flag) == 0 && flag == 0) ||
-        (fontconfig.patternGetBool(pattern, "color", 0, &flag) == 0 && flag != 0))
-    {
-        return false;
-    }
-
-    std::ifstream file(face.first, std::ios::binary | std::ios::ate);
-    const std::streamoff length = file.tellg();
-    /* ImGui takes a length as an int. */
-    if (!file ||
-        length <= 0 ||
-        length > INT_MAX)
-    {
-        return false;
-    }
-
-    std::vector<unsigned char> data(static_cast<size_t>(length));
-    file.seekg(0);
-    if (!file.read(reinterpret_cast<char*>(data.data()), length) ||
-        !EmScaleOf(data, face.second, found.scale))
-    {
-        return false;
-    }
-
-    found.data = std::move(data);
-    found.face = face.second;
-    return true;
-}
-
-/*
- * The first font in fontconfig's order to have a character and be one that can be drawn from,
- * read whole. False when there is none, and when that font has been handed over already, since
- * the character is then on its way with it.
- */
-bool FindFont(SystemFonts& fonts, uint32_t codepoint, FoundFont& found)
-{
-    if (!fonts.opened)
-    {
-        OpenSystemFonts(fonts);
-    }
-
-    const Fontconfig& fontconfig = fonts.fontconfig;
-    for (const SystemFonts::Candidate& candidate : fonts.candidates)
-    {
-        if (fontconfig.charSetHasChar(candidate.charset, codepoint) == 0)
-        {
-            continue;
-        }
-
-        unsigned char* file = nullptr;
-        if (fontconfig.patternGetString(candidate.pattern, "file", 0, &file) != 0 ||
-            file == nullptr)
-        {
-            continue;
-        }
-
-        /* The face of a collection is the low half of the index. The high half names an instance
-         * of a variable font, which stb_truetype draws as its default whichever is asked for. */
-        int index = 0;
-        fontconfig.patternGetInteger(candidate.pattern, "index", 0, &index);
-        const std::pair<std::string, int> face(reinterpret_cast<const char*>(file), index & 0xFFFF);
-        if (fonts.taken.count(face) != 0)
-        {
-            return false;
-        }
-
-        if (fonts.unusable.count(face) != 0)
-        {
-            continue;
-        }
-
-        if (ReadFont(fontconfig, candidate.pattern, face, found))
-        {
-            fonts.taken.insert(face);
-            return true;
-        }
-
-        fonts.unusable.insert(face);
-    }
-
-    return false;
-}
-
-void FindFonts(std::shared_ptr<FontFinder> finder)
-{
-    SystemFonts fonts;
-    std::unique_lock<std::mutex> lock(finder->mutex);
-    while (true)
-    {
-        finder->wake.wait(lock, [&finder] { return finder->stopping || !finder->wanted.empty(); });
-        if (finder->stopping)
-        {
-            return;
-        }
-
-        std::vector<uint32_t> wanted;
-        wanted.swap(finder->wanted);
-        lock.unlock();
-
-        /* fontconfig and the disk, and nothing of ImGui's, which belongs to the other thread. */
-        std::vector<FoundFont> found;
-        for (const uint32_t codepoint : wanted)
-        {
-            FoundFont font;
-            if (FindFont(fonts, codepoint, font))
-            {
-                found.push_back(std::move(font));
-            }
-        }
-
-        lock.lock();
-        for (FoundFont& font : found)
-        {
-            finder->found.push_back(std::move(font));
-        }
-    }
-}
-
-void StopFontFinder()
-{
-    if (!state.finder)
-    {
-        return;
-    }
-
-    {
-        const std::lock_guard<std::mutex> lock(state.finder->mutex);
-        state.finder->stopping = true;
-        state.finder->wanted.clear();
-        state.finder->found.clear();
-    }
-
-    state.finder->wake.notify_one();
-    state.finder.reset();
-}
-
-/*
- * Asks for a font for every character of a screen that the window's font cannot draw. Every
- * string of the frame is in the one blob, so one pass over it covers the title, the queue and
- * the tooltips with the rows.
- */
-void FindFontsFor(const DeviewScreen* screen)
-{
-    if (state.font == nullptr ||
-        screen->strings == nullptr ||
-        state.fontData.size() >= fontLimit)
-    {
-        return;
-    }
-
-    const char* text = reinterpret_cast<const char*>(screen->strings);
-    const char* const end = text + screen->stringsLength;
-    std::vector<uint32_t> wanted;
-    while (text < end)
-    {
-        /* ASCII, all of which the embedded font has, and which is nearly every byte of nearly
-         * every screen. */
-        if (static_cast<unsigned char>(*text) < 0x80)
-        {
-            text++;
-            continue;
-        }
-
-        unsigned int codepoint = 0;
-        text += std::max(1, ImTextCharFromUtf8(&codepoint, text, end));
-        if (codepoint > IM_UNICODE_CODEPOINT_MAX)
-        {
-            continue;
-        }
-
-        if (state.asked.empty())
-        {
-            state.asked.resize(static_cast<size_t>(IM_UNICODE_CODEPOINT_MAX) + 1);
-        }
-
-        if (state.asked[codepoint])
-        {
-            continue;
-        }
-
-        state.asked[codepoint] = true;
-        if (!state.font->IsGlyphInFont(static_cast<ImWchar>(codepoint)))
-        {
-            wanted.push_back(codepoint);
-        }
-    }
-
-    if (wanted.empty())
-    {
-        return;
-    }
-
-    if (!state.finder)
-    {
-        state.finder = std::make_shared<FontFinder>();
-        std::thread(FindFonts, state.finder).detach();
-    }
-
-    {
-        const std::lock_guard<std::mutex> lock(state.finder->mutex);
-        state.finder->wanted.insert(state.finder->wanted.end(), wanted.begin(), wanted.end());
-    }
-
-    state.finder->wake.notify_one();
-}
-
-/*
- * Merges what the finder has read into the window's font. At the top of a frame: ImGui takes a
- * new source between frames, and drops what it had rasterised from the font as it does, so a
- * character already drawn as missing is looked for again.
- *
- * Returns whether a font was merged, which is a frame to build: characters on the screen as the
- * replacement glyph may have a glyph now.
- */
-bool TakeFonts()
-{
-    if (!state.finder)
-    {
-        return false;
-    }
-
-    std::vector<FoundFont> found;
-    {
-        const std::lock_guard<std::mutex> lock(state.finder->mutex);
-        found.swap(state.finder->found);
-    }
-
-    bool merged = false;
-    ImGuiIO& io = ImGui::GetIO();
-    for (FoundFont& font : found)
-    {
-        if (state.fontData.size() >= fontLimit)
-        {
-            return merged;
-        }
-
-        state.fontData.push_back(std::move(font.data));
-        std::vector<unsigned char>& data = state.fontData.back();
-
-        /* Merged into the font added before it, which is the window's: see deview_init. */
-        ImFontConfig config;
-        config.MergeMode = true;
-        config.FontNo = static_cast<ImU32>(font.face);
-        config.ExtraSizeScale = font.scale;
-        config.FontDataOwnedByAtlas = false;
-
-        /* A font stb_truetype turns out not to read after all is left out. That is nothing for
-         * ImGui to assert or to write to its log, which is what it does with a font it is given
-         * and cannot use. */
-        const bool asserts = io.ConfigErrorRecoveryEnableAssert;
-        const bool logs = io.ConfigErrorRecoveryEnableDebugLog;
-        io.ConfigErrorRecoveryEnableAssert = false;
-        io.ConfigErrorRecoveryEnableDebugLog = false;
-        const ImFont* added = io.Fonts->AddFontFromMemoryTTF(
-            data.data(),
-            static_cast<int>(data.size()),
-            0.0f,
-            &config);
-        io.ConfigErrorRecoveryEnableAssert = asserts;
-        io.ConfigErrorRecoveryEnableDebugLog = logs;
-        if (added == nullptr)
-        {
-            state.fontData.pop_back();
-            continue;
-        }
-
-        merged = true;
-    }
-
-    return merged;
-}
-
-ImFont* AddEmbeddedFont(const uint8_t* fontTtf, int32_t fontLength, float fontSize)
-{
-    /* ImGui frees font data with its own allocator, so hand it a copy rather than memory owned
-     * by the managed heap. */
-    void* copy = IM_ALLOC(static_cast<size_t>(fontLength));
-    memcpy(copy, fontTtf, static_cast<size_t>(fontLength));
-    ImFontConfig config;
-    config.FontDataOwnedByAtlas = true;
-    config.ExtraSizeScale = emScale;
-    return ImGui::GetIO().Fonts->AddFontFromMemoryTTF(copy, fontLength, fontSize <= 0.0f ? 15.0f : fontSize, &config);
-}
-
-/* ---- texture protocol (ImGuiBackendFlags_RendererHasTextures) ---- */
-
-void UpdateTexture(ImTextureData* texture)
-{
-    if (texture->Status == ImTextureStatus_WantCreate)
-    {
-        const int format = texture->Format == ImTextureFormat_Alpha8
-            ? RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE
-            : RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-        const unsigned int id = rlLoadTexture(texture->GetPixels(), texture->Width, texture->Height, format, 1);
-        texture->SetTexID(static_cast<ImTextureID>(id));
-        texture->SetStatus(ImTextureStatus_OK);
-        return;
-    }
-
-    if (texture->Status == ImTextureStatus_WantUpdates)
-    {
-        /* Re-uploading the whole texture keeps the source rows contiguous, which a sub rectangle
-         * of a wider buffer is not. Atlas updates only happen when new glyphs appear, so the extra
-         * bandwidth is irrelevant next to the copy that avoiding it would need. */
-        const int format = texture->Format == ImTextureFormat_Alpha8
-            ? RL_PIXELFORMAT_UNCOMPRESSED_GRAYSCALE
-            : RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-        rlUpdateTexture(
-            static_cast<unsigned int>(texture->TexID),
-            0,
-            0,
-            texture->Width,
-            texture->Height,
-            format,
-            texture->GetPixels());
-        texture->SetStatus(ImTextureStatus_OK);
-        return;
-    }
-
-    if (texture->Status == ImTextureStatus_WantDestroy)
-    {
-        rlUnloadTexture(static_cast<unsigned int>(texture->TexID));
-        texture->SetTexID(ImTextureID_Invalid);
-        texture->SetStatus(ImTextureStatus_Destroyed);
-    }
-}
-
-/* ---- ImDrawData through rlgl ---- */
-
-void RenderTriangles(
-    unsigned int count,
-    unsigned int indexStart,
-    unsigned int vertexOffset,
-    const ImVector<ImDrawIdx>& indices,
-    const ImVector<ImDrawVert>& vertices,
-    ImTextureID textureId)
-{
-    if (count < 3)
-    {
-        return;
-    }
-
-    rlBegin(RL_TRIANGLES);
-    rlSetTexture(static_cast<unsigned int>(textureId));
-
-    for (unsigned int index = 0; index <= count - 3; index += 3)
-    {
-        for (unsigned int corner = 0; corner < 3; corner++)
-        {
-            /* Plus the command's own vertex offset. ImDrawIdx is sixteen bits, so a draw list
-             * that runs past 65535 vertices - a maximised 4K window of dense long lines gets
-             * there - is split by ImGui into commands whose indices restart from a base recorded
-             * here. Without adding it the indices wrapped and the panes drew scrambled, and in a
-             * release build, with IM_ASSERT compiled out, nothing said so. */
-            const ImDrawVert& vertex = vertices[vertexOffset + indices[indexStart + index + corner]];
-            const ImColor colour = ImColor(vertex.col);
-            rlColor4f(colour.Value.x, colour.Value.y, colour.Value.z, colour.Value.w);
-            rlTexCoord2f(vertex.uv.x, vertex.uv.y);
-            rlVertex2f(vertex.pos.x, vertex.pos.y);
-        }
-    }
-
-    rlEnd();
-}
-
-void RenderDrawData(ImDrawData* drawData)
-{
-    for (ImTextureData* texture : drawData->Textures ? *drawData->Textures : ImVector<ImTextureData*>())
-    {
-        if (texture->Status != ImTextureStatus_OK)
-        {
-            UpdateTexture(texture);
-        }
-    }
-
-    rlDrawRenderBatchActive();
-    rlDisableBackfaceCulling();
-
-    /* The height of what is being drawn to, which is not the window's for a capture: that draws to
-     * a render texture of its own size, and BeginTextureMode changes the target without changing
-     * what GetScreenHeight reports. */
-    const float height = drawData->DisplaySize.y;
-    for (int list = 0; list < drawData->CmdListsCount; list++)
-    {
-        const ImDrawList* commands = drawData->CmdLists[list];
-        for (const ImDrawCmd& command : commands->CmdBuffer)
-        {
-            if (command.UserCallback != nullptr)
-            {
-                command.UserCallback(commands, &command);
-                continue;
-            }
-
-            /* ImGui clips in framebuffer space with the origin top left; rlgl scissors from the
-             * bottom left. */
-            rlEnableScissorTest();
-            rlScissor(
-                static_cast<int>(command.ClipRect.x),
-                static_cast<int>(height - command.ClipRect.w),
-                static_cast<int>(command.ClipRect.z - command.ClipRect.x),
-                static_cast<int>(command.ClipRect.w - command.ClipRect.y));
-
-            RenderTriangles(
-                command.ElemCount,
-                command.IdxOffset,
-                command.VtxOffset,
-                commands->IdxBuffer,
-                commands->VtxBuffer,
-                command.GetTexID());
-
-            rlDrawRenderBatchActive();
-        }
-    }
-
-    rlSetTexture(0);
-    rlDisableScissorTest();
-    rlEnableBackfaceCulling();
-}
-
 /* ---- input ---- */
-
-/*
- * `elapsed` is the time since the present before this one began, built or not, which is a frame's
- * length while frames are coming. Not the time since the last frame ImGui was given: after a
- * window has been left alone for an hour, that would have a tooltip's delay, and everything else
- * ImGui times, over in the first frame.
- */
-void PumpInput(float elapsed)
-{
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight()));
-    io.DeltaTime = elapsed;
-
-    /* Nowhere, for a pointer that has left the window: see State::pointerInside. */
-    const Vector2 mouse = GetMousePosition();
-    if (state.pointerGone)
-    {
-        io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
-    }
-    else
-    {
-        io.AddMousePosEvent(mouse.x, mouse.y);
-    }
-
-    /* Every press and release since the last frame built, in the order they came. */
-    for (const State::Press& press : state.presses)
-    {
-        io.AddMouseButtonEvent(press.button, press.down);
-    }
-
-    state.presses.clear();
-
-    if (state.wheelAcross != 0.0f ||
-        state.wheelDown != 0.0f)
-    {
-        io.AddMouseWheelEvent(state.wheelAcross, state.wheelDown);
-        state.wheelAcross = 0.0f;
-        state.wheelDown = 0.0f;
-    }
-}
-
-/* The one character a string is, or zero for a string that is none or several. */
-unsigned int OnlyCharacter(const char* text)
-{
-    if (text == nullptr ||
-        *text == '\0')
-    {
-        return 0;
-    }
-
-    unsigned int codepoint = 0;
-    const int length = ImTextCharFromUtf8(&codepoint, text, nullptr);
-    return length > 0 && text[length] == '\0' ? codepoint : 0;
-}
-
-/* Whether the layout in use has a key that types a letter, unshifted. Asked of every key GLFW
- * names, which are the ones that type something, by their own numbers. */
-bool LayoutTypes(unsigned int letter)
-{
-    for (int key = KEY_APOSTROPHE; key <= 162; key++)
-    {
-        if (OnlyCharacter(glfwGetKeyName(key, 0)) == letter)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/* Whether the layout in use has a key that types any of the letters a to z, unshifted. */
-bool LayoutIsLatin()
-{
-    for (int key = KEY_APOSTROPHE; key <= 162; key++)
-    {
-        const unsigned int typed = OnlyCharacter(glfwGetKeyName(key, 0));
-        if (typed >= 'a' &&
-            typed <= 'z')
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/*
- * Which character a key press is to be read as, in lower case, or zero for none.
- *
- * What it typed, where it typed something. While control is held nothing is typed, and it is what
- * the key types unshifted on the layout in use, which GLFW will say: read by position, as a chord
- * was, Ctrl+A on AZERTY was the key labelled Q, and Ctrl+C on Dvorak the one labelled J.
- *
- * A layout with no Latin letters has neither. Russian, Greek, Hebrew and Arabic type their own
- * letters from the keys a US keyboard has A to Z on, so not one of this head's letters could be
- * typed there, and its user had the footer's buttons and nothing else. Then the key is read as
- * the letter a US keyboard has in its place, which is what such a keyboard has printed on it
- * beside its own. Only where no key of the layout
- * types that letter: a layout that has it somewhere else keeps it there and nowhere else, or a
- * Turkish keyboard's dotless i, which sits where a US keyboard has R, would toggle the drawing.
- */
-unsigned int LetterOf(const State::KeyPress& press)
-{
-    const unsigned int typed = press.character != 0
-        ? press.character
-        : OnlyCharacter(glfwGetKeyName(press.key, press.scancode));
-    if (typed == 0)
-    {
-        return 0;
-    }
-
-    if (typed < 0x80)
-    {
-        /* Which letter, and nothing of its case. A capital says that Shift or Caps Lock was on and
-         * not which of them, so read as typed Caps Lock turned a plain A into accept all - every
-         * pending snapshot written into source, with nothing asked first, by the key that accepts
-         * one - and left D, V, Q, N, P, M, R and J doing nothing. */
-        return typed >= 'A' && typed <= 'Z' ? typed + ('a' - 'A') : typed;
-    }
-
-    if (press.key >= KEY_A &&
-        press.key <= KEY_Z)
-    {
-        const unsigned int letter = static_cast<unsigned int>(press.key - KEY_A) + 'a';
-        if (!LayoutTypes(letter))
-        {
-            return letter;
-        }
-    }
-
-    /*
-     * And the five keys that are not letters, on a layout with no Latin letters at all: Russian
-     * and Arabic type letters of their own where a US keyboard has [ and ], so a paged document
-     * had no key for its pages there, and Persian types its own digits, so zoom had no key to
-     * put it back. Only on such a layout. A German keyboard types u with a diaeresis from the
-     * key where [ is and has [ somewhere else, and reading it by position would give a letter
-     * of its user's own language a command.
-     */
-    if (!LayoutIsLatin())
-    {
-        switch (press.key)
-        {
-            case KEY_LEFT_BRACKET: return '[';
-            case KEY_RIGHT_BRACKET: return ']';
-            case KEY_ZERO: return '0';
-            case KEY_MINUS: return '-';
-            case KEY_EQUAL: return '=';
-            default: break;
-        }
-    }
-
-    return 0;
-}
 
 /*
  * Whether a command goes on for as long as its key is held, at the rate the window system repeats
@@ -2495,13 +1233,13 @@ bool Repeats(int key)
 
 /* What a key going down asks for, or none for a key this head has no use for, whether it is the
  * press or one of its repeats: see KeyOf. */
-int Pressed(const State::KeyPress& press)
+int Pressed(const ph::KeyPress& press)
 {
     const unsigned int letter = LetterOf(press);
 
     /* Super as well as control, so a macOS keyboard driving the Linux build through a remote
      * session still copies with the chord its user has in their fingers. */
-    if ((press.mods & (glfwControl | glfwSuper)) != 0)
+    if ((press.mods & (ph::ModControl | ph::ModSuper)) != 0)
     {
         if (press.repeated)
         {
@@ -2539,7 +1277,7 @@ int Pressed(const State::KeyPress& press)
     }
 
     /* The key itself held down, rather than read off the case of what was typed: see LetterOf. */
-    const bool shift = (press.mods & glfwShift) != 0;
+    const bool shift = (press.mods & ph::ModShift) != 0;
 
     /* Letters by the character typed rather than by key position. raylib's key codes are
      * positions on a US layout, so on AZERTY the key labelled Q reported KEY_A and accepted - a
@@ -2588,7 +1326,7 @@ int Pressed(const State::KeyPress& press)
 
 /* What one key press asks for, or none: a key this head has no use for, or a repeat of one that
  * acts once however long it is held. */
-int KeyOf(const State::KeyPress& press)
+int KeyOf(const ph::KeyPress& press)
 {
     const int key = Pressed(press);
     return press.repeated && !Repeats(key) ? DEVIEW_KEY_NONE : key;
@@ -2602,10 +1340,9 @@ int KeyOf(const State::KeyPress& press)
 int ReadKey(bool& escape)
 {
     escape = false;
-    while (!state.keys.empty())
+    ph::KeyPress press;
+    while (ph::PopKey(press))
     {
-        const State::KeyPress press = state.keys.front();
-        state.keys.pop_front();
         const int key = KeyOf(press);
         if (key != DEVIEW_KEY_NONE)
         {
@@ -3332,128 +2069,6 @@ bool UpdatePan(const DeviewScreen* screen)
 }
 
 /*
- * One line of text in no more than a width, ending in an ellipsis where it was cut short, so it
- * reads as cut rather than as all there was. It takes the place in the layout the text would.
- */
-void TextWithin(const char* begin, const char* end, float width)
-{
-    const float room = std::max(width, 0.0f);
-    const ImVec2 size = ImGui::CalcTextSize(begin, end);
-    const ImVec2 position = ImGui::GetCursorScreenPos();
-    const ImVec2 limit(position.x + room, position.y + size.y);
-    ImGui::Dummy(ImVec2(std::min(size.x, room), size.y));
-    ImGui::RenderTextEllipsis(ImGui::GetWindowDrawList(), position, limit, limit.x, begin, end, &size);
-}
-
-/*
- * ImGui reads a label for more than its text. From "##" on it is the item's identity and is not
- * drawn, which is how two buttons that say the same thing are told apart, and it is so for every
- * label an item takes: a queue row, a menu item, a button, a pane's header. Those are a file's
- * name, a test's, a solution's, and a name with "##" in it was cut short there: "Notes##2.txt" in
- * the queue was "Notes".
- *
- * A label is never an identity here, since every item is given one by its index. So one with the
- * mark in it is drawn by this side, where the item would have drawn it, over an item that is given
- * no text at all. One without it is left to the item, which is every label there has been.
- */
-bool Marked(const std::string& label)
-{
-    return label.find("##") != std::string::npos;
-}
-
-void DrawLabel(const ImVec2& position, const std::string& label)
-{
-    ImGui::GetWindowDrawList()->AddText(
-        position,
-        ImGui::GetColorU32(ImGuiCol_Text),
-        label.data(),
-        label.data() + label.size());
-}
-
-bool SelectableLabel(const std::string& label, bool selected = false)
-{
-    if (!Marked(label))
-    {
-        return ImGui::Selectable(label.c_str(), selected);
-    }
-
-    /* Where Selectable puts its text: at the cursor, on the line's baseline. */
-    const ImGuiWindow* window = ImGui::GetCurrentWindow();
-    const ImVec2 position(window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
-    const bool pressed = ImGui::Selectable("##label", selected);
-    DrawLabel(position, label);
-    return pressed;
-}
-
-/* The width of a label's text, all of it. */
-float LabelWidth(const std::string& label)
-{
-    return ImGui::CalcTextSize(label.data(), label.data() + label.size()).x;
-}
-
-bool ButtonLabel(const std::string& label)
-{
-    if (!Marked(label))
-    {
-        return ImGui::Button(label.c_str());
-    }
-
-    /* The size Button gives itself from its text, and the text where it puts it: inside the
-     * frame's padding. */
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const bool pressed = ImGui::Button(
-        "##label",
-        ImVec2(
-            LabelWidth(label) + style.FramePadding.x * 2.0f,
-            ImGui::GetTextLineHeight() + style.FramePadding.y * 2.0f));
-    const ImVec2 corner = ImGui::GetItemRectMin();
-    DrawLabel(ImVec2(corner.x + style.FramePadding.x, corner.y + style.FramePadding.y), label);
-    return pressed;
-}
-
-/*
- * The header row of the panes' table, as TableHeadersRow lays it out, for a table with a marked
- * header: that one is given no text and has its own drawn over it, cut short with an ellipsis at
- * the column's edge as the table would have cut it.
- */
-void HeadersRow(const std::string* headers, int first, int columns)
-{
-    ImGui::TableNextRow(ImGuiTableRowFlags_Headers, ImGui::TableGetHeaderRowHeight());
-    for (int column = 0; column < columns; column++)
-    {
-        if (!ImGui::TableSetColumnIndex(column))
-        {
-            continue;
-        }
-
-        ImGui::PushID(column);
-        if (column >= first &&
-            Marked(headers[column - first]))
-        {
-            const std::string& header = headers[column - first];
-            const ImVec2 position = ImGui::GetCursorScreenPos();
-            ImGui::TableHeader("");
-            const float edge = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), column).Max.x;
-            const ImVec2 size = ImGui::CalcTextSize(header.data(), header.data() + header.size());
-            ImGui::RenderTextEllipsis(
-                ImGui::GetWindowDrawList(),
-                position,
-                ImVec2(edge, position.y + size.y),
-                edge,
-                header.data(),
-                header.data() + header.size(),
-                &size);
-        }
-        else
-        {
-            ImGui::TableHeader(ImGui::TableGetColumnName(column));
-        }
-
-        ImGui::PopID();
-    }
-}
-
-/*
  * How the footer is laid out: its buttons, on as many rows as the window's width makes of them,
  * and the status line, right aligned beside the last of those rows or on a line of its own.
  *
@@ -4117,203 +2732,6 @@ bool Changed(const DeviewScreen* screen)
     return true;
 }
 
-/*
- * Whether anything has come from the pointer, the keys or the window since the last present: what
- * raylib gathered when it last read the window system's events, which is what the frame about to
- * be built would be given.
- *
- * A key is not something a frame is built from, since ImGui is given none: what a key does comes
- * back from the managed side as a different screen. It counts all the same, because a window is
- * only left alone when nothing at all is happening to it. By the press rather than by what is
- * down, since raylib reports Caps Lock and Num Lock as held for as long as they are on.
- *
- * The buttons, the wheel and the keys are asked of what GLFW's callbacks kept rather than of
- * raylib, for the reason they are kept: see State::presses.
- */
-bool Arrived()
-{
-    bool arrived = false;
-
-    const Vector2 pointer = GetMousePosition();
-    if (pointer.x != state.pointer.x ||
-        pointer.y != state.pointer.y)
-    {
-        state.pointer = pointer;
-        arrived = true;
-    }
-
-    /* A press or a release waiting to be handed to ImGui, a button held, or one of a press and
-     * release handed over together that ImGui is keeping for the frame after. */
-    if (!state.presses.empty() ||
-        state.held[0] ||
-        state.held[1] ||
-        state.held[2] ||
-        state.context->InputEventsQueue.Size > 0)
-    {
-        arrived = true;
-    }
-
-    if (state.wheelAcross != 0.0f ||
-        state.wheelDown != 0.0f)
-    {
-        arrived = true;
-    }
-
-    /* The pointer leaving the window, or coming back to where it left from: raylib's position
-     * for it is the same before and after. */
-    const bool gone =
-        !state.pointerInside &&
-        !state.held[0] &&
-        !state.held[1] &&
-        !state.held[2];
-    if (gone != state.pointerGone)
-    {
-        state.pointerGone = gone;
-        arrived = true;
-    }
-
-    if (state.keyed)
-    {
-        state.keyed = false;
-        arrived = true;
-    }
-
-    const int width = GetScreenWidth();
-    const int height = GetScreenHeight();
-    const bool hidden = IsWindowState(FLAG_WINDOW_HIDDEN);
-    const bool minimised = IsWindowMinimized();
-    const bool focused = IsWindowFocused();
-    if (width != state.width ||
-        height != state.height ||
-        hidden != state.hidden ||
-        minimised != state.minimised)
-    {
-        /* A window of another size has another framebuffer, and one that was not on the screen
-         * was not being kept by anything. */
-        state.stale = true;
-        arrived = true;
-    }
-
-    if (focused != state.focused)
-    {
-        arrived = true;
-    }
-
-    state.width = width;
-    state.height = height;
-    state.hidden = hidden;
-    state.minimised = minimised;
-    state.focused = focused;
-    return arrived;
-}
-
-uint64_t Mix(uint64_t hash, const void* data, size_t size)
-{
-    const unsigned char* bytes = static_cast<const unsigned char*>(data);
-    for (; size >= sizeof(uint64_t); bytes += sizeof(uint64_t), size -= sizeof(uint64_t))
-    {
-        uint64_t word;
-        memcpy(&word, bytes, sizeof word);
-        hash = (hash ^ word) * 0x9E3779B97F4A7C15ull;
-        hash ^= hash >> 29;
-    }
-
-    for (; size > 0; bytes++, size--)
-    {
-        hash = (hash ^ *bytes) * 0x100000001B3ull;
-    }
-
-    return hash;
-}
-
-/*
- * Everything RenderDrawData would draw a frame from, reduced to one number: the size drawn at, and
- * for every draw list its vertices, its indices and what each command clips to and draws with.
- *
- * Two frames with the same number are the same pixels, short of a texture's content having changed
- * behind its name, which is asked separately. That is what lets a frame be built and then not
- * drawn: it is held against the frame on the screen, and a frame that would put the same pixels
- * there again is a full window for a software rasteriser to fill, and for the window system to
- * copy, to no effect. Sixty four bits, so two frames that differ share a number about as often as
- * never, and a pass over the vertices costs a small part of what drawing them would.
- */
-uint64_t Fingerprint(const ImDrawData* drawData)
-{
-    uint64_t hash = 0xCBF29CE484222325ull;
-    hash = Mix(hash, &drawData->DisplaySize, sizeof drawData->DisplaySize);
-    for (int list = 0; list < drawData->CmdListsCount; list++)
-    {
-        const ImDrawList* commands = drawData->CmdLists[list];
-        hash = Mix(
-            hash,
-            commands->VtxBuffer.Data,
-            static_cast<size_t>(commands->VtxBuffer.Size) * sizeof(ImDrawVert));
-        hash = Mix(
-            hash,
-            commands->IdxBuffer.Data,
-            static_cast<size_t>(commands->IdxBuffer.Size) * sizeof(ImDrawIdx));
-        for (const ImDrawCmd& command : commands->CmdBuffer)
-        {
-            const uint64_t drawn[] = {
-                static_cast<uint64_t>(command.GetTexID()),
-                command.VtxOffset,
-                command.IdxOffset,
-                command.ElemCount};
-            hash = Mix(hash, &command.ClipRect, sizeof command.ClipRect);
-            hash = Mix(hash, drawn, sizeof drawn);
-        }
-    }
-
-    return hash;
-}
-
-/*
- * Whether ImGui is waiting for a texture to be made, updated or destroyed, which RenderDrawData
- * does as it draws: the font atlas, when a character is drawn for the first time. Such a frame is
- * drawn whatever its fingerprint, so the atlas on the GPU never falls behind the one ImGui holds.
- */
-bool TexturesWaiting(const ImDrawData* drawData)
-{
-    if (drawData->Textures == nullptr)
-    {
-        return false;
-    }
-
-    for (const ImTextureData* texture : *drawData->Textures)
-    {
-        if (texture->Status != ImTextureStatus_OK)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/*
- * The end of every frame, drawn or not: what EndDrawing does once a frame is on the screen, which
- * it can no longer be left to do, since it only does it for a frame it has put there.
- *
- * It waits out what is left of the frame, counted from when the last one's wait ended, so the
- * managed loop turns sixty times a second whatever a turn drew: without the wait a window with
- * nothing to draw would spin a core. And then it reads the window system's events, last, so that
- * what deview_poll_input reports and what the next frame is built from are as fresh as they can
- * be. That is the order raylib kept them in.
- */
-void Rest()
-{
-    const double left = frameSeconds - (GetTime() - state.ended);
-    if (left > 0.0)
-    {
-        /* Never longer than a frame, whatever the clock has done. */
-        WaitTime(std::min(left, frameSeconds));
-    }
-
-    state.characterFollows = false;
-    PollInputEvents();
-    state.ended = GetTime();
-}
-
 void ApplyStyle()
 {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -4349,131 +2767,54 @@ int32_t deview_init(
         return 1;
     }
 
-    SetTraceLogLevel(LOG_WARNING);
-    /* No MSAA. ImGui draws axis aligned quads with pre-antialiased glyph textures, so multisampling
-     * buys nothing visually, and it is a real source of difference between a GPU and the software
-     * rasteriser the pixel snapshots are pinned to. */
-    /* ALWAYS_RUN because WindowShouldClose waits on events while the window is minimised, and
-     * that call is inside deview_present: without it the managed loop stops being pumped the
-     * moment the window is minimised, so a snapshot arriving after that is accepted by the
-     * listener and never shown. */
-    unsigned int flags = FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN;
-    if (hidden != 0)
+    /* Made hidden, placed where it was left and then shown, by the runtime: see ph::OpenWindow. A
+     * viewer started behind a tray comes up where it was left too, which it did not when the
+     * placement was only used for a window made visible. */
+    ph::WindowOptions options;
+    options.width = width;
+    options.height = height;
+    options.title = title == nullptr ? "DiffEngineViewer" : title;
+    options.hidden = hidden != 0;
+    ph::Placement remembered;
+    if (state.placed)
     {
-        flags |= FLAG_WINDOW_HIDDEN;
+        remembered.x = state.placement.x;
+        remembered.y = state.placement.y;
+        remembered.width = state.placement.width;
+        remembered.height = state.placement.height;
+        remembered.maximized = state.placement.maximized != 0;
+        options.placement = &remembered;
     }
 
-    /* At the size it was left, which is known before there is a window to ask about monitors. Where
-     * it goes is decided below, once there is. */
-    const bool sized = state.placed &&
-                       hidden == 0 &&
-                       state.placement.width > 0 &&
-                       state.placement.height > 0;
-    SetConfigFlags(flags);
-    InitWindow(
-        sized ? state.placement.width : width,
-        sized ? state.placement.height : height,
-        title == nullptr ? "DiffEngineViewer" : title);
-    if (!IsWindowReady())
+    if (!ph::OpenWindow(options))
     {
         return 0;
     }
 
-    void* handle = glfwGetCurrentContext();
-
-    /* Not under 1: a desktop set smaller than a pixel to the pixel is not asking for text below
-     * the size it is legible at. And not a number that is no scale at all. */
-    float across = 1.0f;
-    float down = 1.0f;
-    glfwGetWindowContentScale(handle, &across, &down);
-    state.scale = across > 1.0f && across <= 8.0f ? across : 1.0f;
     state.cellWidth = 0.0f;
     state.lineHeight = 0.0f;
-
-    state.tracked = false;
-    if (!sized &&
-        state.scale != 1.0f)
-    {
-        /* The size asked for is in the pixels of an ordinary display. As much of it at this
-         * display's scale as its monitor has room for, and in the middle of that monitor, which is
-         * where raylib put the window it has just made at the size it was given. There is no
-         * asking the scale before there is a window to ask it of. */
-        const int monitor = GetCurrentMonitor();
-        const int wide = std::min(static_cast<int>(static_cast<float>(width) * state.scale), GetMonitorWidth(monitor));
-        const int tall = std::min(static_cast<int>(static_cast<float>(height) * state.scale), GetMonitorHeight(monitor));
-        const Vector2 origin = GetMonitorPosition(monitor);
-        SetWindowSize(wide, tall);
-        SetWindowPosition(
-            static_cast<int>(origin.x) + (GetMonitorWidth(monitor) - wide) / 2,
-            static_cast<int>(origin.y) + (GetMonitorHeight(monitor) - tall) / 2);
-    }
-
-    if (sized)
-    {
-        if (OnAMonitor(state.placement))
-        {
-            SetWindowPosition(state.placement.x, state.placement.y);
-        }
-
-        /* What it restores to, noted before maximising takes the chance away. */
-        TrackPlacement();
-        if (state.placement.maximized != 0)
-        {
-            MaximizeWindow();
-        }
-    }
-
-    SetExitKey(KEY_NULL);
-
-    /* No SetTargetFPS: raylib only holds to it inside EndDrawing, which is no longer called. The
-     * frame is ended, and waited out, by Rest. And nothing about a window that came before this
-     * one says anything about this one, whose clock has started again from nothing. */
-    glfwSetWindowRefreshCallback(handle, WindowRefreshed);
-    state.raylibCrossing = glfwSetCursorEnterCallback(handle, PointerCrossed);
-    state.pointerInside = true;
-    state.pointerGone = false;
-    state.raylibButton = glfwSetMouseButtonCallback(handle, ButtonChanged);
-    state.raylibScroll = glfwSetScrollCallback(handle, WheelTurned);
-    state.raylibKey = glfwSetKeyCallback(handle, KeyChanged);
-    state.raylibCharacter = glfwSetCharCallback(handle, CharacterTyped);
-    state.presses.clear();
-    state.keys.clear();
-    state.held[0] = state.held[1] = state.held[2] = false;
-    state.wheelAcross = 0.0f;
-    state.wheelDown = 0.0f;
-    state.wheelNotches = 0.0f;
-    state.scrollRemainder = 0.0f;
-    state.characterFollows = false;
-    state.keyed = false;
     state.presented.clear();
     state.watched.clear();
-    state.shown = 0;
-    state.stale = true;
-    state.settled = 0;
     state.tooltipDue = false;
-    state.began = 0.0;
-    state.ended = 0.0;
-    state.pointer = Vector2{};
-    state.width = 0;
-    state.height = 0;
 
     state.context = ImGui::CreateContext();
     ImGui::SetCurrentContext(state.context);
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
     /* Declared, so ImGui splits a long draw list into commands with a vertex offset rather than
-     * refusing to let one grow past what a sixteen bit index can address. RenderTriangles applies
-     * the offset. */
+     * refusing to let one grow past what a sixteen bit index can address. ph::RenderDrawData
+     * applies the offset. */
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     ApplyStyle();
-    if (state.scale != 1.0f)
+    const float scale = ph::WindowScale();
+    if (scale != 1.0f)
     {
         /* The window's context alone. A capture makes its own, which is left at 1. */
         ImGuiStyle& style = ImGui::GetStyle();
-        style.ScaleAllSizes(state.scale);
-        style.FontScaleDpi = state.scale;
+        style.ScaleAllSizes(scale);
+        style.FontScaleDpi = scale;
     }
 
     if (fontTtf != nullptr && fontLength > 0)
@@ -4481,12 +2822,15 @@ int32_t deview_init(
         /*
          * Twice. The first is the atlas's default, and so what a capture's context draws with:
          * the embedded font and nothing else, on every machine. The second is the window's, which
-         * the machine's fonts are merged into, and it is added last because a merge goes into
-         * the font added before it. See State::font.
+         * the machine's fonts are merged into, and it is added last because a merge goes into the
+         * font added before it. So a capture is the same picture on a machine with every font
+         * installed and on one with none, and what the two draw from the embedded font is the
+         * same glyphs, so the captures still describe the window.
          */
-        AddEmbeddedFont(fontTtf, fontLength, fontSize);
-        state.font = AddEmbeddedFont(fontTtf, fontLength, fontSize);
-        io.FontDefault = state.font;
+        ph::AddEmbeddedFont(fontTtf, fontLength, fontSize, emScale);
+        ImFont* font = ph::AddEmbeddedFont(fontTtf, fontLength, fontSize, emScale);
+        io.FontDefault = font;
+        ph::UseSystemFonts(font);
     }
 
     ResetInput();
@@ -4502,22 +2846,15 @@ int32_t deview_present(const DeviewScreen* screen)
         return 0;
     }
 
-    if (WindowShouldClose())
+    /* Reported once to the managed side, which decides between hiding and exiting depending on
+     * whether a tray is running. Cleared at once, so a hidden window can be shown again rather
+     * than closing itself on its first frame back. */
+    if (ph::TakeCloseRequest())
     {
-        /* Reported once to the managed side, which decides between hiding and exiting depending
-         * on whether a tray is running. Cleared immediately so a hidden window can be shown again
-         * rather than closing itself on its first frame back. */
         state.input.closeRequested = 1;
-        ClearCloseFlag();
     }
 
-    ImGui::SetCurrentContext(state.context);
-
-    const double now = GetTime();
-    const float elapsed = state.began > 0.0 && now > state.began
-        ? static_cast<float>(now - state.began)
-        : static_cast<float>(frameSeconds);
-    state.began = now;
+    const float elapsed = ph::BeginPresent(state.context);
 
     /*
      * What has arrived since the last present. Each of these is asked every time, whatever the
@@ -4528,30 +2865,27 @@ int32_t deview_present(const DeviewScreen* screen)
      */
     bool arrived = TakeDecoded();
     /* And its fonts, for that reason and because a font can only be added between frames. */
-    arrived = TakeFonts() || arrived;
+    arrived = ph::TakeFonts() || arrived;
     const bool changed = Changed(screen);
     arrived = changed || arrived;
-    arrived = Arrived() || arrived;
+    arrived = ph::Arrived() || arrived;
     arrived = arrived || state.tooltipDue;
 
     /*
-     * A hidden window is not built for and not drawn into, whatever has arrived. It was, each time
-     * its screen changed, and a viewer hidden behind a tray is handed another screen by every
-     * arrival in its queue: the whole queue laid out and the whole window filled, for nobody.
+     * A hidden or minimised window is not built for and not drawn into, whatever has arrived. It
+     * was, each time its screen changed, and a viewer hidden behind a tray is handed another screen
+     * by every arrival in its queue: the whole queue laid out and the whole window filled, for
+     * nobody.
      *
      * What arrived has still been taken in, above, and the fonts for what the screen holds are
      * still asked for, so that they are there by the time it is shown. Showing it is itself an
      * arrival, and marks the window stale, so the first present after it builds the screen it is
-     * handed and draws it: see deview_set_hidden and Arrived.
-     *
-     * A minimised window the same, which was still built and drawn whenever its screen changed.
-     * Nothing of it is on the screen either, and coming back from the taskbar is an arrival that
-     * marks it stale as being shown is.
+     * handed and draws it.
      *
      * Not before a frame has been built for the window at all. The grid the managed side slices
      * its rows by is measured from one, and ImGui has no font to measure with until its first.
      */
-    if ((state.hidden || state.minimised) &&
+    if (ph::Hidden() &&
         state.cellWidth > 0.0f)
     {
         if (changed)
@@ -4559,9 +2893,8 @@ int32_t deview_present(const DeviewScreen* screen)
             FindFontsFor(screen);
         }
 
-        Rest();
+        ph::Rest();
         MeasureGrid();
-        TrackPlacement();
         return 1;
     }
 
@@ -4571,29 +2904,25 @@ int32_t deview_present(const DeviewScreen* screen)
      * already there, and under a software rasteriser or over a remote session each of those is the
      * whole window filled and copied again.
      *
-     * Left alone only once it is certain the next frame would be the one on the screen. The screen
-     * handed over is the last one byte for byte, nothing has come from the pointer, the keys, the
-     * window system, the decoder or the font finder, no tooltip is waiting to appear, the files
-     * behind the pictures are as they were, and a second of frames built since any of that last
-     * changed have all come out as the frame on the screen. That last is what a spinner fails,
-     * and anything else that moves by itself.
+     * Left alone only once it is certain the next frame would be the one on the screen: see
+     * ph::CanLeaveAlone. And the files behind the pictures are as they were, which only this head
+     * can say.
      */
-    if (!arrived &&
-        !state.stale &&
-        state.settled >= settledFrames)
+    if (ph::CanLeaveAlone(arrived))
     {
         if (!PicturesRewritten())
         {
-            Rest();
+            ph::Rest();
             MeasureGrid();
-            TrackPlacement();
             return 1;
         }
 
         arrived = true;
     }
 
-    PumpInput(elapsed);
+    /* No keys for ImGui: every key is read here and handed to the managed side, and none of this
+     * head's widgets takes text. */
+    ph::FeedImGui(elapsed, false);
     FindFontsFor(screen);
     state.watched.clear();
     state.tooltipDue = false;
@@ -4601,52 +2930,14 @@ int32_t deview_present(const DeviewScreen* screen)
     BuildFrame(screen);
     ImGui::Render();
 
-    /* ImGui only records the cursor it wants. Showing it is the backend's job, and the splitter is
-     * the one thing here that asks for anything but an arrow. */
-    const int cursor = ImGui::GetMouseCursor() == ImGuiMouseCursor_ResizeEW
-        ? MOUSE_CURSOR_RESIZE_EW
-        : MOUSE_CURSOR_DEFAULT;
-    if (cursor != state.cursor)
-    {
-        state.cursor = cursor;
-        SetMouseCursor(cursor);
-    }
-
-    /*
-     * Drawn only if it is not the frame on the screen: the pointer crossing a pane, a key that did
-     * nothing and the frames that follow any change mostly come out as the frame before them.
-     * Building one costs a fraction of drawing it, and is what all of ImGui's own state is kept
-     * moving by, so those frames are built and not drawn rather than not built.
-     */
-    ImDrawData* drawData = ImGui::GetDrawData();
-    const uint64_t frame = Fingerprint(drawData);
-    if (state.stale ||
-        frame != state.shown ||
-        TexturesWaiting(drawData))
-    {
-        BeginDrawing();
-        ClearBackground(Color{24, 24, 24, 255});
-        RenderDrawData(drawData);
-        rlDrawRenderBatchActive();
-        SwapScreenBuffer();
-        state.shown = frame;
-        state.stale = false;
-        state.settled = 0;
-    }
-    else if (arrived)
-    {
-        state.settled = 0;
-    }
-    else if (state.settled < settledFrames)
-    {
-        state.settled++;
-    }
-
-    Rest();
+    /* Drawn only if it is not the frame on the screen: building one costs a fraction of drawing
+     * it, and is what all of ImGui's own state is kept moving by, so those frames are built and
+     * not drawn rather than not built. */
+    ph::Show(ImGui::GetDrawData(), 24, 24, 24, arrived);
+    ph::Rest();
     ForgetUnusedPictures();
 
     MeasureGrid();
-    TrackPlacement();
     return 1;
 }
 
@@ -4672,13 +2963,9 @@ void deview_poll_input(DeviewInput* input)
             state.input.menuClosed = 1;
         }
 
-        /* Whole notches, keeping the fraction. A touchpad sends a fraction of one per frame and
-         * truncating each frame on its own threw every one of them away. Every wheel message since
-         * the last poll, added up: read off raylib it was the last of them alone. */
-        state.scrollRemainder += state.wheelNotches;
-        state.wheelNotches = 0.0f;
-        const int32_t notches = static_cast<int32_t>(state.scrollRemainder);
-        state.scrollRemainder -= static_cast<float>(notches);
+        /* Every wheel message since the last poll, in whole notches with the fraction kept: see
+         * ph::TakeWheelNotches. */
+        const int32_t notches = ph::TakeWheelNotches();
 
         /* Over a picture the wheel is for the picture, and anywhere with control held, as it is in
          * everything else that shows one. Everywhere else it scrolls the rows, as it always has. */
@@ -4697,10 +2984,8 @@ void deview_poll_input(DeviewInput* input)
 
         MeasureGrid();
 
-        /* As it is now, like the grid. Nothing of a window that is hidden or minimised is on the
-         * screen. One behind another window is not known to be: X11 says nothing of it that GLFW
-         * passes on. */
-        state.input.unseen = IsWindowState(FLAG_WINDOW_HIDDEN) || IsWindowMinimized() ? 1 : 0;
+        /* As it is now, like the grid: see ph::Unseen. */
+        state.input.unseen = ph::Unseen() ? 1 : 0;
     }
 
     *input = state.input;
@@ -4727,9 +3012,9 @@ int32_t deview_capture(const DeviewScreen* screen, int32_t width, int32_t height
     ImGui::SetCurrentContext(capture);
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
-    /* As the window's context declares it, and for its reason: both are drawn by RenderTriangles.
-     * Without it a capture of more than 65,535 vertices in one draw list, which dense text at 4K
-     * comes to, had its indices wrap, and came out scrambled. */
+    /* As the window's context declares it, and for its reason. Without it a capture of more than
+     * 65,535 vertices in one draw list, which dense text at 4K comes to, had its indices wrap, and
+     * came out scrambled. */
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
@@ -4776,30 +3061,21 @@ void deview_set_hidden(int32_t hidden)
         return;
     }
 
-    if (hidden != 0)
-    {
-        SetWindowState(FLAG_WINDOW_HIDDEN);
-        return;
-    }
-
-    ClearWindowState(FLAG_WINDOW_HIDDEN);
-    /* The window system asks for a window it has just shown to be drawn. Not waited for: nothing
-     * was keeping what a hidden window showed. */
-    state.stale = true;
+    /* Shown, a minimised window is brought back too: see ph::SetHidden. */
+    ph::SetHidden(hidden != 0);
 }
 
 void deview_set_clipboard(const char* text)
 {
     /* GLFW owns the clipboard and needs its window, so a runtime that never opened one - a capture
      * host - copies nothing rather than crashing. */
-    if (text == nullptr ||
-        !state.initialised ||
+    if (!state.initialised ||
         !state.windowOpen)
     {
         return;
     }
 
-    SetClipboardText(text);
+    ph::SetClipboard(text);
 }
 
 void deview_focus(void)
@@ -4809,17 +3085,7 @@ void deview_focus(void)
         return;
     }
 
-    ClearWindowState(FLAG_WINDOW_HIDDEN);
-    /* A minimised window stays minimised through SetWindowFocused, so a focus for a new snapshot
-     * left it in the taskbar. */
-    if (IsWindowMinimized())
-    {
-        RestoreWindow();
-    }
-
-    SetWindowFocused();
-    /* Shown, restored or raised: drawn again, as in deview_set_hidden. */
-    state.stale = true;
+    ph::Focus();
 }
 
 void deview_set_placement(const DeviewPlacement* placement)
@@ -4835,15 +3101,20 @@ void deview_set_placement(const DeviewPlacement* placement)
 
 int32_t deview_get_placement(DeviewPlacement* placement)
 {
+    ph::Placement normal;
     if (placement == nullptr ||
         !state.initialised ||
         !state.windowOpen ||
-        !state.tracked)
+        !ph::GetPlacement(normal))
     {
         return 0;
     }
 
-    *placement = state.normal;
+    placement->x = normal.x;
+    placement->y = normal.y;
+    placement->width = normal.width;
+    placement->height = normal.height;
+    placement->maximized = normal.maximized ? 1 : 0;
     return 1;
 }
 
@@ -4854,9 +3125,8 @@ void deview_shutdown(void)
         return;
     }
 
-    /* Before CloseWindow, which takes the GL context these live in with it. */
+    /* Before the window closes, which takes the GL context these live in with it. */
     UnloadPictures();
-    StopFontFinder();
 
     if (state.context != nullptr)
     {
@@ -4865,16 +3135,14 @@ void deview_shutdown(void)
         state.context = nullptr;
     }
 
-    /* After the context, whose atlas was still reading glyphs out of these. */
-    state.font = nullptr;
-    state.fontData.clear();
-    state.asked.clear();
+    /* After the context, whose atlas was still reading glyphs out of the fonts merged in. */
+    ph::StopFontFinder();
 
     state.presented.clear();
     state.arriving.clear();
     state.watched.clear();
 
-    CloseWindow();
+    ph::CloseWindow();
     state.initialised = false;
     state.windowOpen = false;
 }
