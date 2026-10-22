@@ -265,8 +265,8 @@ the comment there about not caching "nothing staged" asks for.
   grid. The cost is that none of them exists in `deview_capture`, which makes no window — hence
   `PixelTests.ContextMenu` being skipped there, and the scroller taking its strip out of the
   renderer only when a window exists. AppKit's own loops run inside the pump, so the managed loop
-  waits them out. The scroller is a `PaneScroller`, which follows a drag of its knob as ordinary
-  events for that reason, where AppKit's tracking loop left the panes still until the knob was let
+  waits them out. The scroller is PlatformHeadsMac's `KnobScroller`, which follows a drag of its
+  knob as ordinary events for that reason, where AppKit's tracking loop left the panes still until the knob was let
   go. A live resize is the same kind of loop and still draws the rows sliced for the old size:
   doing better takes a frame callback the C ABI does not have. Keys and clicks are queued in
   `Runtime` and handed over one a poll, as the WinForms head does and for its reason. The footer
@@ -615,10 +615,17 @@ the comment there about not caching "nothing staged" asks for.
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
   github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
-  copied there, and fixes made here did not reach the copy. Five pins name one tag of it and move
+  copied there, and fixes made here did not reach the copy. Six pins name one tag of it and move
   together: the `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
-  `native/CMakeLists.txt`, and `PlatformHeads`, `PlatformHeads.Core` and
-  `PlatformHeads.WindowsForms` in `Directory.Packages.props`. The workflow is its
+  `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core` and
+  `PlatformHeads.WindowsForms` in `Directory.Packages.props`, and the `PlatformHeads` package
+  in `native/swift/Package.swift`. So is the native runtime under both heads' drawing: the C++
+  one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
+  built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
+  `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
+  `NapGuard`, `KnobScroller`, `ScrollerTravel`, `WheelNotches`, `ToolTipRegions`, `StringBlob`,
+  `Capture`, `Clipboard` and `WindowPlacement`). Each was worked out here and copied to
+  BuildMonitor; a fix to any of them goes there now. The workflow is its
   reusable `build-native`. Its CMake module pins raylib and Dear ImGui, carries the raylib 6.0
   option workarounds and links the library, and `native/CMakeLists.txt` names only the picture
   formats, the source file and the two libraries the viewer links beyond raylib. Its package's

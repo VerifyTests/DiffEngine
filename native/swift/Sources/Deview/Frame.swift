@@ -1,5 +1,6 @@
 import CDeview
 import Foundation
+import PlatformHeadsMac
 
 /// One frame, decoded out of the flat description the managed side hands over.
 ///
@@ -196,18 +197,8 @@ struct Frame: Equatable {
         return pane
     }
 
-    /// Every offset is validated against the blob rather than trusted. This is the boundary the
-    /// managed side reaches across, and a bad length here would be a read past the end of it.
+    /// Every offset is validated against the blob rather than trusted: see `StringBlob`.
     private static func string(_ screen: DeviewScreen, _ offset: Int32, _ length: Int32) -> String {
-        guard length > 0,
-              offset >= 0,
-              let base = screen.strings,
-              Int(offset) + Int(length) <= Int(screen.stringsLength)
-        else {
-            return ""
-        }
-
-        let buffer = UnsafeBufferPointer(start: base + Int(offset), count: Int(length))
-        return String(decoding: buffer, as: UTF8.self)
+        StringBlob(screen.strings, length: screen.stringsLength).text(offset: offset, length: length)
     }
 }

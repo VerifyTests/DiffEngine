@@ -1,6 +1,7 @@
 import AppKit
 import CDeview
 import Foundation
+import PlatformHeadsMac
 
 /// Process wide, because the ABI is: one window, addressed by free functions.
 ///
@@ -12,8 +13,15 @@ final class Runtime {
 
     private var delegate: WindowDelegate?
 
-    /// Held here because `NSApplication.delegate` does not keep it alive.
-    private let applicationDelegate = ApplicationDelegate()
+    /// A quit from the Dock or a logout, reported as a close, which the managed side answers the
+    /// way it answers the window's close button: it leaves the loop, persists the queue it owns,
+    /// and exits. macOS has no tray to hold the queue instead. Held here because
+    /// `NSApplication.delegate` does not keep it alive.
+    private lazy var terminateGuard = TerminateGuard { [unowned self] in
+        self.input.closeRequested = 1
+    }
+
+    private let napGuard = NapGuard()
     private var size = CGSize(width: 1100, height: 700)
     private var title = "DiffEngineViewer"
 
@@ -21,7 +29,7 @@ final class Runtime {
     /// is a weak reference and an autoreleased one would leave the menu inert.
     private let target = ControlTarget()
 
-    private var scroller: NSScroller?
+    private var scroller: KnobScroller?
     private var scrollerWidth: CGFloat = 0
 
     /// Whether the menu the current frame carries has already been popped. The managed side takes
@@ -63,10 +71,8 @@ final class Runtime {
         case menuClosed
     }
 
-    /// Keeps App Nap off for as long as the runtime is open: see `open`.
-    private var activity: NSObjectProtocol?
-
-    /// How the last window was left, handed over before this one exists and used as it is made.
+    /// How the last window was left, handed over before this one exists and used as it is made,
+    /// from the top left of the primary screen as every head measures it.
     var placement: DeviewPlacement?
 
     /// Where the right-click that asked for a pane's menu landed, in the view's coordinates, which
@@ -87,15 +93,10 @@ final class Runtime {
         self.title = title
         initialised = true
 
-        // Out of App Nap for as long as this runs. A napped process has its timers coalesced and
-        // its priority lowered, and this one is a loop driven from outside, waiting on
-        // nextEvent(until:) a frame at a time, with a socket listener beside it: covered, it could
-        // be slow to answer a failing test's inline send and slower to bring its window forward,
-        // and hidden while it owns the queue it still has to answer every send promptly. Idle
-        // sleep stays allowed. The loop only redraws on a change, so staying awake costs a pump.
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: .userInitiatedAllowingIdleSystemSleep,
-            reason: "Reviewing snapshots and answering the queue")
+        // Out of App Nap for as long as this runs: covered, it could be slow to answer a failing
+        // test's inline send, and hidden while it owns the queue it still has to answer every
+        // send promptly.
+        napGuard.begin(reason: "Reviewing snapshots and answering the queue")
 
         // A hidden start is capture only, and capture draws into a bitmap of its own making. Not
         // touching AppKit at all in that case is what lets the pixel tests run: NSWindow may only
@@ -118,39 +119,23 @@ final class Runtime {
             return
         }
 
-        let application = NSApplication.shared
-        // Regular rather than accessory, so the window can take focus and appear in the dock
-        // without this being an app bundle. finishLaunching is the part of run() that has to
-        // happen before events are pumped by hand.
-        application.setActivationPolicy(.regular)
-
         // Everything the renderer draws is dark, and everything AppKit draws here — the menus, the
         // tooltips, the scroller, the title bar — would otherwise follow the machine's setting and
         // come up light against it. The WinForms head says the same thing with SetColorMode.
-        application.appearance = NSAppearance(named: .darkAqua)
+        NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        HeadWindow.launch(menu: MainMenu.build(target), delegate: terminateGuard)
 
-        // Before finishLaunching, which is when the bar is first read.
-        application.mainMenu = MainMenu.build(target)
-        application.delegate = applicationDelegate
-        application.finishLaunching()
-
-        let bounds = NSRect(origin: .zero, size: size)
-        let view = ViewerView(renderer: renderer, frame: bounds)
-        let window = NSWindow(
-            contentRect: bounds,
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false)
+        let view = ViewerView(renderer: renderer, frame: NSRect(origin: .zero, size: size))
         let delegate = WindowDelegate()
-
-        window.title = title
-        window.contentView = view
-        window.delegate = delegate
-        window.isReleasedWhenClosed = false
-        if let frame = rememberedFrame() {
-            window.setFrame(frame, display: false)
-        } else {
-            window.center()
+        let window = HeadWindow.make(view: view, size: size, title: title, delegate: delegate)
+        // Where the last window was, when its title bar is still on a screen there is now.
+        // Displays come and go between runs, and a window opened where one used to be is a viewer
+        // that looks as if it did not start. A zoomed window is only a frame here, so there is
+        // nothing separate to restore.
+        if let placement {
+            WindowPlacement.restore(
+                window,
+                to: WindowBounds(x: placement.x, y: placement.y, width: placement.width, height: placement.height))
         }
 
         self.view = view
@@ -159,82 +144,27 @@ final class Runtime {
         makeScroller(in: view, renderer)
     }
 
-    /// Where the last window was, when that is still somewhere it can be reached: its title bar on
-    /// a screen there is now, with enough of its width there to take hold of. Displays come and go
-    /// between runs, and a window opened where one used to be is a viewer that looks as if it did
-    /// not start.
-    ///
-    /// The whole frame, title bar included, in points from the bottom left of the main screen,
-    /// which is what `placementNow` reports. A zoomed window is only a frame here, so there is
-    /// nothing separate to restore.
-    private func rememberedFrame() -> NSRect? {
-        guard let placement, placement.width > 0, placement.height > 0 else {
-            return nil
-        }
-
-        let frame = NSRect(
-            x: CGFloat(placement.x),
-            y: CGFloat(placement.y),
-            width: CGFloat(placement.width),
-            height: CGFloat(placement.height))
-        let reach: CGFloat = 100
-        let reachable = NSScreen.screens.contains { screen in
-            let visible = screen.visibleFrame
-            let overlap = min(frame.maxX, visible.maxX) - max(frame.minX, visible.minX)
-            // A point of slack at the top: the frame was rounded to whole points on its way out
-            return overlap >= reach && frame.maxY <= visible.maxY + 1 && frame.maxY > visible.minY + reach
-        }
-        return reachable ? frame : nil
-    }
-
-    /// The window's frame as it is now, or nil when there is no window, or it is full screen: that
-    /// frame is the display's rather than one the reader chose, and the one they did choose comes
-    /// back when they leave full screen.
+    /// The window's frame as it is now, or nil when there is no window, or it is full screen.
     func placementNow() -> DeviewPlacement? {
-        guard let window, !window.styleMask.contains(.fullScreen) else {
-            return nil
+        WindowPlacement.current(of: window).map {
+            DeviewPlacement(x: $0.x, y: $0.y, width: $0.width, height: $0.height, maximized: 0)
         }
-
-        let frame = window.frame
-        return DeviewPlacement(
-            x: Int32(frame.minX.rounded()),
-            y: Int32(frame.minY.rounded()),
-            width: Int32(frame.width.rounded()),
-            height: Int32(frame.height.rounded()),
-            maximized: 0)
     }
 
-    /// The pane scrollbar.
-    ///
-    /// Legacy rather than overlay, whatever the machine prefers. An overlay scroller only fades in
-    /// and out as part of an `NSScrollView`, and there is none here — the managed side owns the
-    /// scroll position and hands over one screenful of rows at a time. Placed by hand it would
-    /// simply sit over the right hand pane forever. Legacy takes a strip of its own instead, which
-    /// is also what the WinForms head does and for the same reason: a bar that comes and goes
-    /// moves the pane split about.
+    /// The pane scrollbar, a strip of its own beside the right hand pane, whose knob is followed
+    /// as it is dragged: see `KnobScroller`.
     ///
     /// The strip comes off the renderer rather than out of the window, so the offscreen capture —
     /// which has no window and so no scroller — is not left with a gap where one would be.
     private func makeScroller(in view: ViewerView, _ renderer: Renderer) {
-        let width = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
-        let scroller = PaneScroller(
-            frame: NSRect(x: view.bounds.maxX - width, y: 0, width: width, height: view.bounds.height))
-        scroller.scrollerStyle = .legacy
+        let scroller = KnobScroller.legacy(in: view, target: target, action: #selector(ControlTarget.scrolled(_:)))
         scroller.knobStyle = .light
-        // Kept against the right edge and as tall as the window leaves it by AppKit, as well as by
-        // `position`. A window being resized is a loop of AppKit's own, inside the pump, so
-        // `position` does not run until the mouse comes up, and until then the scroller stayed
-        // where the last frame had put it: out in the right hand pane of a window being widened.
-        scroller.autoresizingMask = [.minXMargin, .height]
-        scroller.target = target
-        scroller.action = #selector(ControlTarget.scrolled(_:))
-        // Said rather than left to whatever a scroller starts as. A scroll view sees to this for
-        // its own scrollers and there is none here, and a scroller that is not enabled draws its
-        // slot with no knob in it to take hold of.
-        scroller.isEnabled = true
-        view.addSubview(scroller)
+        scroller.knobDragged = { [unowned self] in
+            self.knobDragged(to: $0)
+        }
 
         self.scroller = scroller
+        let width = scroller.frame.width
         scrollerWidth = width
         renderer.rightInset = width
     }
@@ -299,26 +229,25 @@ final class Runtime {
             width: scrollerWidth,
             height: max(1, body.height))
 
-        // Assigned during a drag of the knob as at any other time. `PaneScroller` reports where a
+        // Assigned during a drag of the knob as at any other time. `KnobScroller` reports where a
         // drag has got to without moving the knob, so this is what moves it: to the row the panes
         // are showing, which is where the WinForms bar's thumb sits too.
-        let visible = max(1, frame.left.rows.count)
-        let total = max(Int(frame.left.totalRows), visible)
-        let maximum = total - visible
-        scroller.knobProportion = CGFloat(visible) / CGFloat(total)
-        scroller.doubleValue = maximum <= 0 ? 0 : Double(frame.left.scrollTop) / Double(maximum)
+        Runtime.travel(of: frame).apply(to: scroller)
+    }
+
+    /// The panes' rows as the scroller counts them.
+    private static func travel(of frame: Frame) -> ScrollerTravel {
+        ScrollerTravel(top: Int(frame.left.scrollTop), visible: frame.left.rows.count, total: Int(frame.left.totalRows))
     }
 
     /// The knob dragged to `value` of the way along its travel, as a first visible row. From
-    /// `PaneScroller`, which follows that drag itself.
+    /// `KnobScroller`, which follows that drag itself.
     func knobDragged(to value: Double) {
         guard let frame = view?.model else {
             return
         }
 
-        let visible = max(1, frame.left.rows.count)
-        let maximum = max(0, Int(frame.left.totalRows) - visible)
-        input.scrollTo = Int32((value * Double(maximum)).rounded())
+        input.scrollTo = Runtime.travel(of: frame).row(at: value)
     }
 
     /// Translates wherever the scroller was grabbed into a first visible row. What reaches here is
@@ -328,20 +257,7 @@ final class Runtime {
             return
         }
 
-        let visible = max(1, frame.left.rows.count)
-        let maximum = max(0, Int(frame.left.totalRows) - visible)
-        switch scroller.hitPart {
-        case .decrementPage:
-            input.scrollTo = Int32(max(0, Int(frame.left.scrollTop) - visible))
-        case .incrementPage:
-            input.scrollTo = Int32(min(maximum, Int(frame.left.scrollTop) + visible))
-        case .decrementLine:
-            input.scrollTo = Int32(max(0, Int(frame.left.scrollTop) - 1))
-        case .incrementLine:
-            input.scrollTo = Int32(min(maximum, Int(frame.left.scrollTop) + 1))
-        default:
-            input.scrollTo = Int32((scroller.doubleValue * Double(maximum)).rounded())
-        }
+        input.scrollTo = Runtime.travel(of: frame).row(for: scroller.hitPart, value: scroller.doubleValue)
     }
 
     /// The context menu, as a real one. The managed side still owns opening and closing; this pops
@@ -396,47 +312,16 @@ final class Runtime {
         }
     }
 
-    /// Drains what is queued and then blocks until the deadline, which is both the pump and the
-    /// frame throttle. Without the second part this would spin a core, since the managed loop
-    /// calls straight back in.
-    ///
-    /// Not blocked while input is still waiting to be handed over, which is the next frame's,
-    /// now. It goes one event a poll, and a frame's wait between two of them would hand a held
-    /// key's repeats over more slowly than a fast repeat rate makes them.
-    ///
-    /// Nor once an event has left something to hand over. The wait used to run to its deadline
-    /// whatever arrived during it, so a key pressed a millisecond into a frame was answered a
-    /// frame late. What else is already queued is still dispatched, without waiting for more.
-    ///
-    /// A window nobody can see waits longer: ordered out behind a tray, miniaturised, or wholly
-    /// covered. The managed loop turns only as fast as this returns, and it was turning sixty
-    /// times a second to present to nothing. An event still ends the wait at once, and a click
-    /// on the Dock icon is one. What does not is the managed side's own reason to show the
-    /// window, a patch arriving over the socket, which it acts on between two presents and has
-    /// no way to interrupt this with: `unseenWait` is how late that can be.
+    /// Drains what is queued and waits out the frame, returning early for input and waiting longer
+    /// for a window nobody can see: see `EventPump`. A patch arriving over the socket is the
+    /// managed side's reason to show the window, and `EventPump.unseenWait` is how late that can
+    /// be.
     private func pump() {
-        let wait = unseen ? Runtime.unseenWait : 1.0 / 60.0
-        var deadline = hasInput ? Date.distantPast : Date(timeIntervalSinceNow: wait)
-        while let event = NSApp.nextEvent(matching: .any, until: deadline, inMode: .default, dequeue: true) {
-            NSApp.sendEvent(event)
-            if hasInput {
-                deadline = Date.distantPast
-            }
-        }
+        EventPump.pump(unseen: unseen) { hasInput }
     }
 
-    /// How long a pump waits for an event while nobody can see the window: ten turns of the
-    /// managed loop a second, and a tenth of a second at most before a window that has been
-    /// asked for comes forward.
-    private static let unseenWait: TimeInterval = 0.1
-
-    /// Nobody can see the window: it is ordered out, in the Dock, or has nothing of it showing.
     private var unseen: Bool {
-        guard let window else {
-            return false
-        }
-
-        return !window.isVisible || window.isMiniaturized || !window.occlusionState.contains(.visible)
+        EventPump.isUnseen(window)
     }
 
     /// Something is waiting for the next poll to hand over: a key or a click in line, or any of
@@ -468,8 +353,7 @@ final class Runtime {
     /// from the managed loop's thread, which is the main one.
     func show() {
         makeWindow()
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        HeadWindow.show(window)
     }
 
     func hide() {
@@ -477,14 +361,8 @@ final class Runtime {
     }
 
     func shutdown() {
-        if let activity {
-            ProcessInfo.processInfo.endActivity(activity)
-            self.activity = nil
-        }
-
-        window?.delegate = nil
-        window?.orderOut(nil)
-        window?.close()
+        napGuard.end()
+        HeadWindow.close(window)
         window = nil
         view = nil
         renderer = nil
@@ -559,26 +437,5 @@ final class Runtime {
         input.panX = -1
         input.panY = -1
         input.rightClickedPane = -1
-    }
-}
-
-/// Answers a quit that comes from outside the managed loop: Quit in the Dock, and logout.
-///
-/// Both arrive as `terminate:`, which does not return. With no delegate to ask, AppKit exits from
-/// inside it, so nothing after the pump call runs, the managed `finally` included. For a viewer
-/// that owns the queue, that `finally` is `PersistOwned`, and macOS has no tray to hold the queue
-/// instead, so the queue was lost.
-///
-/// The quit is refused and reported as a close, which the managed side answers the way it answers
-/// the window's close button: it leaves the loop, persists, and exits. That is what GLFW does.
-/// Not `.terminateLater`, whose reply AppKit waits for in a modal loop inside the pump, while the
-/// thread that would send the reply is the one blocked waiting for the pump to return.
-///
-/// A refused quit also cancels the logout that asked for it. By the time the logout is tried
-/// again the viewer has exited.
-final class ApplicationDelegate: NSObject, NSApplicationDelegate {
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        Runtime.shared.input.closeRequested = 1
-        return .terminateCancel
     }
 }

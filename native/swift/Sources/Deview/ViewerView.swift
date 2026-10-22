@@ -1,9 +1,10 @@
 import AppKit
 import CDeview
+import PlatformHeadsMac
 
 /// The window's content. Drawing goes through the same `Renderer` the capture uses; this only adds
 /// input, which it records into `Runtime` for the next `deview_poll_input` to drain.
-final class ViewerView: NSView, NSViewToolTipOwner {
+final class ViewerView: NSView {
     private let renderer: Renderer
     private var draggingSplitter = false
 
@@ -68,49 +69,18 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         }
     }
 
-    /// One tip region per queue row that has something to say, rebuilt with the frame because
-    /// anything that scrolls the column renumbers the rows. Driven from `Runtime` rather than from
-    /// `draw`, since these are tracking rectangles and rebuilding them while AppKit is drawing
-    /// invites re-entrancy.
-    ///
-    /// A row with an empty tooltip gets no region at all, rather than a region answering with an
-    /// empty string: the second would still open a popup, and a popup that says nothing is worse
-    /// than none.
-    ///
-    /// The text is answered on demand below rather than stored here, so a row whose label changed
-    /// under a resting cursor still reads correctly.
-    /// Rebuilt only when the regions themselves changed. AppKit times its tooltip delay from the
-    /// moment the cursor enters a tracking rectangle, and this runs on every frame, so removing
-    /// and re-adding the rectangle under a resting cursor restarted that delay before it could
-    /// ever elapse - which is to say queue tooltips never appeared on macOS at all.
+    /// One tip region per queue row that has something to say, as the managed side composed it,
+    /// rebuilt with the frame because anything that scrolls the column renumbers the rows, and
+    /// registered again only when that changed them: see `ToolTipRegions`. Driven from `Runtime`
+    /// after drawing, since these are tracking regions.
     func refreshToolTips() {
-        let wanted = layout.queueItems.enumerated()
-            .filter { $0.offset < model.queue.count && !model.queue[$0.offset].tooltip.isEmpty }
-            .map(\.element)
-        guard wanted != toolTipRects else {
-            return
-        }
-
-        toolTipRects = wanted
-        removeAllToolTips()
-        for bounds in wanted {
-            _ = addToolTip(bounds, owner: self, userData: nil)
-        }
+        let rows = layout.queueItems.enumerated()
+            .filter { $0.offset < model.queue.count }
+            .map { (rect: $0.element, text: model.queue[$0.offset].tooltip) }
+        toolTips.apply(rows, to: self)
     }
 
-    /// What the tips are registered on, so an unchanged frame can leave them alone.
-    private var toolTipRects: [NSRect] = []
-
-    /// Composed by the managed side, so this only finds the row under the cursor.
-    func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
-        guard let index = layout.queueItems.firstIndex(where: { $0.contains(point) }),
-              index < model.queue.count
-        else {
-            return ""
-        }
-
-        return model.queue[index].tooltip
-    }
+    private let toolTips = ToolTipRegions()
 
     /// The resize cursor over the splitter, which is the only hint that it can be dragged.
     override func resetCursorRects() {
@@ -327,42 +297,14 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         return false
     }
 
-    /// A notch of a wheel, in the points a precise device reports one movement of it as.
-    ///
-    /// AppKit reports a wheel in lines and a trackpad in points, and rounding both to an integer
-    /// number of notches treated them as the same thing: an ordinary flick of a trackpad reads as
-    /// tens of points, so it arrived as tens of notches and the managed side then multiplied it
-    /// by three. Slow movement rounded to nothing at all.
+    /// A notch of a wheel, in the points a precise device reports one movement of it as. The
+    /// managed side multiplies a notch by three.
     private static let pointsPerNotch = 16.0
 
-    /// What is left over between events, because a trackpad delivers many small deltas between
-    /// two polls and dropping each one on its own is what made slow movement do nothing.
-    private var scrollRemainder = 0.0
+    private var wheel = WheelNotches()
 
     override func scrollWheel(with event: NSEvent) {
-        let notches: Double
-        if event.hasPreciseScrollingDeltas {
-            scrollRemainder += Double(event.scrollingDeltaY) / ViewerView.pointsPerNotch
-            notches = scrollRemainder.rounded(.towardZero)
-            scrollRemainder -= notches
-        } else {
-            // A wheel with notches: an event is a click of it. Its delta is in lines, scaled by
-            // how fast the wheel is turning, and for one click turned slowly that is a tenth of
-            // a line. Added up as a trackpad's are, ten such clicks went by before anything
-            // moved. So at least one notch the way it turned, and more only when it says more.
-            let lines = Double(event.scrollingDeltaY).rounded()
-            if event.scrollingDeltaY > 0 {
-                notches = max(1, lines)
-            } else if event.scrollingDeltaY < 0 {
-                notches = min(-1, lines)
-            } else {
-                // Turned sideways, which nothing here answers
-                notches = 0
-            }
-
-            scrollRemainder = 0
-        }
-
+        let notches = wheel.take(event, pointsPerNotch: ViewerView.pointsPerNotch)
         guard notches != 0 else {
             return
         }
@@ -373,26 +315,21 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         let point = convert(event.locationInWindow, from: nil)
         let modified = event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control)
         if modified || layout.pictures.contains(where: { $0.bounds.contains(point) }) {
-            Runtime.shared.input.zoomDelta += Int32(notches)
+            Runtime.shared.input.zoomDelta += notches
         } else {
-            Runtime.shared.input.scrollDelta += Int32(notches)
+            Runtime.shared.input.scrollDelta += notches
         }
     }
 
     /// How far two fingers have to spread or close for one step of zoom.
     private static let magnificationPerStep = 0.25
 
-    private var magnifyRemainder = 0.0
+    private var magnification = Steps()
 
     /// A pinch, which is how a trackpad says zoom. Steps, like the wheel, so every way of zooming
     /// moves between the same sizes.
     override func magnify(with event: NSEvent) {
-        magnifyRemainder += Double(event.magnification) / ViewerView.magnificationPerStep
-        let steps = magnifyRemainder.rounded(.towardZero)
-        magnifyRemainder -= steps
-        if steps != 0 {
-            Runtime.shared.input.zoomDelta += Int32(steps)
-        }
+        Runtime.shared.input.zoomDelta += magnification.add(Double(event.magnification) / ViewerView.magnificationPerStep)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -525,68 +462,6 @@ final class ViewerView: NSView, NSViewToolTipOwner {
         default:
             return DEVIEW_KEY_NONE.value
         }
-    }
-}
-
-/// The pane scrollbar, with a drag of its knob followed here rather than in AppKit's own loop.
-///
-/// `NSScroller` tracks a press on its knob in a loop of its own, inside `mouseDown`, and returns
-/// when the button comes up. That is inside `Runtime.pump`, so `deview_present` did not return
-/// for the length of the drag: the knob moved under the pointer, every move was reported, and the
-/// managed loop that scrolls the panes in answer ran once, at the release. The WinForms head has
-/// the same loop under its scroll bar and is handed frames from inside it, which this ABI has no
-/// way to ask for.
-///
-/// So the drag is three ordinary events instead, as a selection is in `ViewerView`. The window
-/// sends the moves and the release to the view that took the press, each comes through the pump
-/// on its own, and there is a frame between one and the next.
-///
-/// Only a press on the knob. One in the slot is still AppKit's: what it means is the reader's
-/// setting, a page or the place that was pressed, and it is over in a click.
-final class PaneScroller: NSScroller {
-    /// A knob being dragged: where in the window the pointer took hold of it, where the knob was
-    /// then, as the fraction of its travel `doubleValue` is, and how long that travel is.
-    private var dragging = false
-    private var heldAt: CGFloat = 0
-    private var heldValue = 0.0
-    private var travel: CGFloat = 0
-
-    override func mouseDown(with event: NSEvent) {
-        let knob = rect(for: .knob)
-        let room = rect(for: .knobSlot).height - knob.height
-        guard room > 0, knob.contains(convert(event.locationInWindow, from: nil)) else {
-            super.mouseDown(with: event)
-            return
-        }
-
-        dragging = true
-        heldAt = event.locationInWindow.y
-        heldValue = doubleValue
-        travel = room
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard dragging else {
-            super.mouseDragged(with: event)
-            return
-        }
-
-        // Measured from the press rather than from the last move, as a picture's drag is, and in
-        // the window's coordinates, which count up the screen while the document runs down it.
-        // The knob is not moved here. It goes where the frame that answers this puts it, which
-        // is the row the panes are showing.
-        let moved = Double((heldAt - event.locationInWindow.y) / travel)
-        Runtime.shared.knobDragged(to: min(max(heldValue + moved, 0), 1))
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        guard dragging else {
-            super.mouseUp(with: event)
-            return
-        }
-
-        // Nothing to report: the last move already said where it is.
-        dragging = false
     }
 }
 
