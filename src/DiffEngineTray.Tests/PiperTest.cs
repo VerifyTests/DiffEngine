@@ -315,10 +315,7 @@ public class PiperTest :
             .CreateLogger();
         // ExceptionHandler follows the log with a modal "open an issue?" box, which here would wait
         // for a click forever. It asks once per message, so this one is marked as already asked.
-        var asked = (ConcurrentBag<string>) typeof(IssueLauncher)
-            .GetField("recorded", BindingFlags.NonPublic | BindingFlags.Static)!
-            .GetValue(null)!;
-        asked.Add("Failed to receive payload");
+        IssueLauncher.AlreadyRaised("Failed to receive payload");
 
         using var cancel = new CancelSource();
         var held = new HeldContext();

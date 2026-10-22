@@ -26,8 +26,12 @@
     <None Remove="**\*.ico" />
     <None Remove="**\*.png" />
     <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
     <EmbeddedResource Include="Images\*.ico" />
     <EmbeddedResource Include="Images\*.png" />
+    <!-- The tray pieces BuildMonitor's tray shares: SessionEndWindow, MenuOnOpening, IssueLink
+         and LinkOpener. -->
+    <PackageReference Include="PlatformHeads.WindowsForms" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />

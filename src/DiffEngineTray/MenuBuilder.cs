@@ -7,35 +7,6 @@ static class MenuBuilder
             DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft
         };
         var items = menu.Items;
-        // The items that survive a close, held as themselves. They used to be told apart by their
-        // text, so a solution named after one of them - Options, say - gave that group a header
-        // that was never removed, and another one on every open after that
-        var fixedItems = new HashSet<ToolStripItem>();
-        // Removed while closing and disposed at the next open, rather than disposed while the
-        // close they were removed by is still running
-        var removed = new List<ToolStripItem>();
-        menu.Closed += delegate
-        {
-            foreach (var item in TrackingMenuItems(items, fixedItems))
-            {
-                items.Remove(item);
-                removed.Add(item);
-            }
-        };
-        menu.Opening += delegate
-        {
-            foreach (var item in removed)
-            {
-                item.Dispose();
-            }
-
-            removed.Clear();
-
-            foreach (var item in BuildTrackingMenuItems(tracker))
-            {
-                items.Add(item);
-            }
-        };
         menu.Font = new(menu.Font.FontFamily, 10);
         items.Add(new MenuButton("Exit", exit, Images.Exit));
         items.Add(new MenuButton("Options", launchOptions, Images.Options));
@@ -43,19 +14,20 @@ static class MenuBuilder
         items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
         items.Add(new MenuButton("Purge verified files", FilePurger.Launch, Images.Folder));
         items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
-        fixedItems.UnionWith(items.Cast<ToolStripItem>());
+        // After the fixed items, which it keeps as themselves: told apart by their text, a
+        // solution named after one of them - Options, say - gave that group a header that was
+        // never removed. The tracked ones are built again on every open, and disposed at the next.
+        MenuOnOpening.Rebuild(
+            menu,
+            _ =>
+            {
+                foreach (var item in BuildTrackingMenuItems(tracker))
+                {
+                    _.Add(item);
+                }
+            });
         return menu;
     }
-
-    /// <summary>
-    /// Everything the last open added, which is everything but the items <see cref="Build" /> put
-    /// there. Materialised, because the caller is removing them from the collection it reads.
-    /// </summary>
-    static List<ToolStripItem> TrackingMenuItems(ToolStripItemCollection items, HashSet<ToolStripItem> fixedItems) =>
-        items
-            .Cast<ToolStripItem>()
-            .Where(_ => !fixedItems.Contains(_))
-            .ToList();
 
     internal static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
     {

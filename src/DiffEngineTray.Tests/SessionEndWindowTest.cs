@@ -1,6 +1,7 @@
 /// <summary>
 /// The two messages a logoff or a shutdown sends every top level window, sent to the one the tray
-/// keeps for hearing them.
+/// keeps for hearing them, wired as Program wires it. Whether the window hears a session ending,
+/// and not one that carried on, is PlatformHeads' and tested there.
 /// <para>
 /// Sent from the thread that made the window, which calls its procedure directly, so no message
 /// loop is needed and nothing here awaits between making the window and destroying it.
@@ -8,39 +9,6 @@
 /// </summary>
 public class SessionEndWindowTest
 {
-    [Test]
-    public async Task TheSessionEndingIsHeard()
-    {
-        var heard = 0;
-        IntPtr query;
-        using (var window = new SessionEndWindow(() => heard++))
-        {
-            query = SendMessage(window.Handle, queryEndSession, IntPtr.Zero, logoff);
-            SendMessage(window.Handle, endSession, new(1), logoff);
-        }
-
-        // Agreed to. Refusing would hold up the logoff, and there is nothing here worth that
-        await Assert.That(query).IsEqualTo(new(1));
-        await Assert.That(heard).IsEqualTo(1);
-    }
-
-    /// <summary>
-    /// Another application refused the query, so everything that agreed is told the session goes
-    /// on. A tray that staged its queue for that would have it both on disk and in memory.
-    /// </summary>
-    [Test]
-    public async Task ASessionThatDidNotEndAfterAllIsNotHeard()
-    {
-        var heard = 0;
-        using (var window = new SessionEndWindow(() => heard++))
-        {
-            SendMessage(window.Handle, queryEndSession, IntPtr.Zero, logoff);
-            SendMessage(window.Handle, endSession, IntPtr.Zero, logoff);
-        }
-
-        await Assert.That(heard).IsEqualTo(0);
-    }
-
     /// <summary>
     /// Wired the way Program wires it, over a queue this process holds. The session ending never
     /// reaches the disposal that stages a queue on a clean exit: the message loop does not return

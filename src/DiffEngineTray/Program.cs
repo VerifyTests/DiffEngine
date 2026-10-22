@@ -108,7 +108,9 @@ static class Program
 
         // A logoff or a shutdown does not come back through Application.Run(), so nothing the
         // unwind below performs happens for one
-        using var sessionEnd = new SessionEndWindow(SessionEnding(owned, TrayVersionFile.Delete));
+        using var sessionEnd = new SessionEndWindow(
+            SessionEnding(owned, TrayVersionFile.Delete),
+            _ => Log.Error(_, "Failed while the session was ending"));
 
         // Not a using. Anything throwing between here and the await below would dispose a task
         // that is still running, and Task.Dispose throws for one that has not completed - which

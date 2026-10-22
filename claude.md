@@ -752,8 +752,11 @@ the comment there about not caching "nothing staged" asks for.
   second being what `ViewerClient.FoundUnowned` is for.
 - `Program.Main` is a synchronous `[STAThread]` method that blocks on `Inner`. An attribute on an
   `async Task Main` lands on a method the runtime does not start, and the thread came up MTA.
-- `SessionEndWindow` is a hidden top level window that hears `WM_ENDSESSION`, which neither the
-  notify icon nor a message filter does. An owning tray stages its queue from inside the message
+- `SessionEndWindow`, PlatformHeads.WindowsForms', is a hidden top level window that hears
+  `WM_ENDSESSION`, which neither the notify icon nor a message filter does. So are
+  `MenuOnOpening`, which builds the menu's tracked items on every open beside its fixed ones and
+  disposes them at the next, and `IssueLink` and `LinkOpener` under `IssueLauncher` and
+  `LinkLauncher`: BuildMonitor's tray shares them, and a fix to any of them goes there. An owning tray stages its queue from inside the message
   (`OwnedInlineHost.SessionEnding`) and refuses patches from then on, because a logoff never comes
   back through `Application.Run()`.
 - A move that arrives for a tracked pair with no tool keeps the tool it was tracked with

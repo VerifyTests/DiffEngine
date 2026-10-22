@@ -19,9 +19,9 @@
     -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
-    <PackageVersion Include="PlatformHeads" Version="0.4.0" />
-    <PackageVersion Include="PlatformHeads.Core" Version="0.4.0" />
-    <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.4.0" />
+    <PackageVersion Include="PlatformHeads" Version="0.5.0" />
+    <PackageVersion Include="PlatformHeads.Core" Version="0.5.0" />
+    <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.5.0" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.184" />
     <PackageVersion Include="Squash" Version="2.1.0" />
