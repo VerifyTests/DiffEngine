@@ -30,15 +30,16 @@ public class IssueLauncherTests
     }
 
     /// <summary>
-    /// The body is encoded by its callers and handed over already escaped, so encoding the title
-    /// must not have changed what reaches GitHub as the body.
+    /// Handed over as plain text and encoded once, after the version and OS.
     /// </summary>
     [Test]
     public async Task Keeps_the_body_it_is_given()
     {
-        var url = IssueLauncher.BuildUrl("TheTitle", WebUtility.UrlEncode("\n * Action: TheAction"));
+        var url = IssueLauncher.BuildUrl("TheTitle", "\n * Action: R&D #1");
 
-        await Assert.That(Query(url)["body"]).Contains("* Action: TheAction");
+        var body = Query(url)["body"];
+        await Assert.That(body).Contains("* DiffEngineTray Version:");
+        await Assert.That(body).EndsWith("* Action: R&D #1");
     }
 
     static Dictionary<string, string> Query(string url) =>
