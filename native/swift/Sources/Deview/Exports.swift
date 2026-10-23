@@ -148,6 +148,12 @@ public func deviewShutdown() {
     }
 }
 
+/// Never called here: a logout's quit is the app's own (TerminateGuard), which reaches the clean
+/// exit. Only the Linux shim can lose its display out from under it.
+@_cdecl("deview_on_display_lost")
+public func deviewOnDisplayLost(_ lost: DeviewDisplayLost?) {
+}
+
 /// Renders into a bitmap of this side's own making rather than asking the view for one, with
 /// everything that varies pinned, so a committed baseline matches on any display: see `Capture`.
 @_cdecl("deview_capture")

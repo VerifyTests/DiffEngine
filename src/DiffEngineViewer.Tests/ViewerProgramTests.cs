@@ -36,6 +36,67 @@ public class ViewerProgramTests
     }
 
     /// <summary>
+    /// A logoff never reaches the loop's own shutdown, so the queue is staged as the session ends,
+    /// and nothing that arrives after is taken into a process about to end.
+    /// </summary>
+    [Test]
+    public async Task TheSessionEndingStagesTheQueue()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var host = new SessionHost(Fixtures.Inline(Fixtures.Patch(source: source, framework: "net10.0")));
+
+        ViewerProgram.SessionEnding(host, link: null)();
+
+        await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+        await Assert.That(host.State.Closing).IsTrue();
+    }
+
+    /// <summary>
+    /// On Linux the X server going is heard from inside a call into the window, which can be
+    /// inside a mutation, and a mutation cannot mutate again. The queue is staged anyway.
+    /// </summary>
+    [Test]
+    public async Task TheSessionEndingStagesTheQueueFromInsideAMutation()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var host = new SessionHost(Fixtures.Inline(Fixtures.Patch(source: source, framework: "net10.0")));
+        var ending = ViewerProgram.SessionEnding(host, link: null);
+
+        host.Mutate(_ =>
+        {
+            ending();
+            return _;
+        });
+
+        await Assert.That(project.StagedFiles().Count(_ => _.EndsWith(".inlinepatch"))).IsEqualTo(1);
+    }
+
+    /// <summary>
+    /// A session ends with the X server going, SIGTERM and SIGHUP close together, each heard on its
+    /// own, and the queue is staged for the first of them only.
+    /// </summary>
+    [Test]
+    public async Task TheSessionEndingStagesTheQueueOnce()
+    {
+        using var project = new TempProject();
+        var source = project.Source("SampleTests.cs");
+        var host = new SessionHost(Fixtures.Inline(Fixtures.Patch(source: source, framework: "net10.0")));
+        var ending = ViewerProgram.SessionEnding(host, link: null);
+
+        ending();
+        foreach (var file in project.StagedFiles())
+        {
+            File.Delete(file);
+        }
+
+        ending();
+
+        await Assert.That(project.StagedFiles()).IsEmpty();
+    }
+
+    /// <summary>
     /// The port is bound before the window is asked for, so whoever launched the viewer was told
     /// what it sent had been taken. A window that could not open - no display, a native library
     /// that would not load - returned before anything was written, and the snapshot existed

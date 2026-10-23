@@ -641,7 +641,7 @@ the comment there about not caching "nothing staged" asks for.
   this folder, so a recursive clone on every checkout would serve a path almost nobody takes.
 - Building it needs CMake 3.24+, a C++17 compiler and network access. Contributors do not need
   any of that, because the binaries are committed.
-- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: eleven exports
+- `native/src/deview.cpp` is a renderer for the `Screen` model, not an ImGui binding: twelve exports
   taking one flat blittable frame description. The ABI is `native/include/deview.h`; bump
   `DEVIEW_VERSION` whenever the structs change **or a field changes meaning**. The managed side
   refuses a library whose version is not an exact match, so a bump and a binaries rebuild land
@@ -652,6 +652,19 @@ the comment there about not caching "nothing staged" asks for.
   see its window (hidden or minimised on Linux; ordered out, miniaturised or occluded on macOS;
   minimised on Windows, through `ViewerInput.Unseen`). `ViewerProgram.Loop` keeps its own `hidden`
   and the head's `unseen` apart and slows `OwnerLink`, `TrackedWatch` and `DocumentWatch` on either.
+  Version 13 is `deview_on_display_lost`, which the Linux shim hands to PlatformHeads'
+  `ph::OnDisplayLost`, and the Swift one exports and never calls.
+- A logoff stages an owned queue on every platform, as a clean exit does, since none reaches the
+  loop's own shutdown. `ViewerProgram.SessionEnding` does it, once, touching no window, and is
+  heard three ways: on Windows through `HeadForm.SessionEnding`, which saves the placement after
+  it; on Linux as the X server goes, through `deview_on_display_lost`, which `NativeViewerWindow`
+  takes as `ILoopHooks.SessionEnding` and from inside which Xlib then calls `exit(1)`; and through
+  SIGTERM and SIGHUP, which `ViewerProgram` holds PlatformHeads.Core's `SessionEndSignals` for,
+  since .NET ends the process on either with no `finally` run. The signals do not save the
+  placement, because they come on a thread of their own. A display lost inside a mutation cannot
+  mark the session closing, and the queue is staged anyway. Seen working in the `ubuntu:24.04`
+  container: a viewer launched with an inline payload under Xvfb, then Xvfb killed or the viewer
+  sent SIGTERM, leaves the trio in the project's `obj/VerifyInline`.
 - Built binaries are **committed** to `src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native/`, so a plain
   `dotnet build` produces a shippable package and contributors never need CMake. Regenerate them
   with the `build-native` GitHub workflow, which opens a PR.

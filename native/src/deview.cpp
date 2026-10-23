@@ -2753,6 +2753,11 @@ int32_t deview_version(void)
     return DEVIEW_VERSION;
 }
 
+void deview_on_display_lost(DeviewDisplayLost lost)
+{
+    ph::OnDisplayLost(lost);
+}
+
 int32_t deview_init(
     int32_t width,
     int32_t height,
