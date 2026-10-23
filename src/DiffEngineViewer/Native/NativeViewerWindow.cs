@@ -3,8 +3,16 @@
 /// The <see cref="IViewerWindow" /> backed by the native shim. The only type in the app that
 /// touches it, so everything else stays testable on a machine with no GPU.
 /// </summary>
-sealed class NativeViewerWindow : IViewerWindow
+sealed class NativeViewerWindow :
+    IViewerWindow,
+    ILoopHooks
 {
+    /// <summary>
+    /// What <see cref="DisplayLost" /> runs. Static, since the shim calls back through a plain
+    /// function pointer, which carries no instance to find it on.
+    /// </summary>
+    static Action? sessionEnding;
+
     readonly ScreenPayload payload = new();
     bool disposed;
 
@@ -159,6 +167,47 @@ sealed class NativeViewerWindow : IViewerWindow
 
     public void Focus() =>
         Deview.Focus();
+
+    /// <summary>
+    /// Nothing to run: the Linux shim has no modal loop to be caught in, and the macOS one has no
+    /// callback to run a frame from inside AppKit's. See <see cref="ILoopHooks" />.
+    /// </summary>
+    public Func<Screen>? Frame
+    {
+        set
+        {
+        }
+    }
+
+    /// <summary>
+    /// Heard as the X server goes, which on Linux is how a logoff ends the process, from inside
+    /// whichever call was reading its events. The macOS shim never calls it.
+    /// </summary>
+    public unsafe Action? SessionEnding
+    {
+        set
+        {
+            sessionEnding = value;
+            Deview.OnDisplayLost(value is null ? null : &DisplayLost);
+        }
+    }
+
+    /// <summary>
+    /// Nothing may be thrown back into the shim, which would end the process before Xlib had said
+    /// why.
+    /// </summary>
+    [UnmanagedCallersOnly]
+    static void DisplayLost()
+    {
+        try
+        {
+            sessionEnding?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Failed while the session was ending: {exception}");
+        }
+    }
 
     /// <summary>
     /// Explicit rather than a cast, because the shim reports only the keys a window can produce

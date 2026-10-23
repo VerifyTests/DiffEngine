@@ -434,8 +434,13 @@ typedef struct DeviewPlacement {
  *     DeviewInput also reports a window nobody can see, at its end, in the same bump because
  *     they shipped together. And panX and panY are kept inside what either pane can show, where
  *     they were kept inside what the dragged one can.
+ * 13: deview_on_display_lost. No struct moved: a new entry point, which a library from before
+ *     does not have, and which the managed side calls on every native window.
  */
-#define DEVIEW_VERSION 12
+#define DEVIEW_VERSION 13
+
+/* What deview_on_display_lost calls. */
+typedef void (*DeviewDisplayLost)(void);
 
 /*
  * The Swift implementation imports this header for the struct layouts, because Swift does not
@@ -510,6 +515,15 @@ DEVIEW_API void deview_set_placement(const DeviewPlacement* placement);
 DEVIEW_API int32_t deview_get_placement(DeviewPlacement* placement);
 
 DEVIEW_API void deview_shutdown(void);
+
+/*
+ * Has lost called once as the connection to the X server is lost, which is how a logoff ends the
+ * Linux viewer: Xlib ends the process with exit(1) as it returns, so it is the one chance to stage
+ * an owned queue. Called on the thread inside deview_present or deview_poll_input, from inside that
+ * call. NULL stops it. macOS never calls it: a logout's quit there is the app's own, which reaches
+ * the clean exit.
+ */
+DEVIEW_API void deview_on_display_lost(DeviewDisplayLost lost);
 
 DEVIEW_API int32_t deview_version(void);
 

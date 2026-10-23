@@ -308,16 +308,22 @@ static class ViewerProgram
 
         // One for the loop and for a head's modal loop, which draw the same window on one thread.
         var screens = new ScreenCache(ScreenBuilder.Build);
+        var sessionEnding = SessionEnding(host, link);
         if (window is ILoopHooks hooks)
         {
             hooks.Frame = () => ModalFrame(host, window, link, preferences, screens);
             hooks.SessionEnding = () =>
             {
-                host.Mutate(_ => _ with {Closing = true});
-                PersistOwned(host.State, link);
+                sessionEnding();
+                // Last, since it asks the window, and on Linux the window's display is what has
+                // just gone: the queue is staged by then whatever the asking does
                 Remember(window, preferences);
             };
         }
+
+        // What ends a macOS or Linux session's processes, which no window hears. Not the placement:
+        // these come on a thread of their own, and the window is the loop's.
+        using var signals = new SessionEndSignals(sessionEnding, _ => Console.Error.WriteLine($"Failed while the session was ending: {_}"));
 
         // Whichever of the two produces them; a process either owns the queue or displays one.
         var windowCommands = link?.Windows ?? new();
@@ -416,6 +422,45 @@ static class ViewerProgram
         }
 
         return screens.Get(state);
+    }
+
+    /// <summary>
+    /// The session is ending: stop taking arrivals and stage what the queue holds. A logoff never
+    /// reaches the loop's own shutdown, which is what stages it otherwise, so an owning viewer's
+    /// snapshots went with the process.
+    /// <para>
+    /// Once, however many of the ways a session ends are heard, and a second waits for the first
+    /// to finish rather than returning to a process that is about to end. Touches no window, so it
+    /// can run on a signal's thread, or inside a call into the window, which is where Linux hears
+    /// the X server going. That call may itself be inside a mutation, which cannot mutate again:
+    /// the queue is still staged, and nothing more arrives in a process that is about to end.
+    /// </para>
+    /// </summary>
+    internal static Action SessionEnding(SessionHost host, OwnerLink? link)
+    {
+        var gate = new Lock();
+        var ended = false;
+        return () =>
+        {
+            lock (gate)
+            {
+                if (ended)
+                {
+                    return;
+                }
+
+                ended = true;
+                try
+                {
+                    host.Mutate(_ => _ with {Closing = true});
+                }
+                catch (InvalidOperationException)
+                {
+                }
+
+                PersistOwned(host.State, link);
+            }
+        };
     }
 
     /// <summary>
