@@ -380,9 +380,9 @@ public class TrackerTrackedFilesTest :
     [Test]
     public async Task AlwaysKillAppliesToAnAcceptArrivingOverTheSocket()
     {
-        var previous = LockedFilesHandler.AlwaysKill;
+        var previous = LockedFilesPolicy.AlwaysKill;
         // The stored preference, which Program loads into this at startup
-        LockedFilesHandler.AlwaysKill = true;
+        LockedFilesPolicy.AlwaysKill = true;
         try
         {
             await File.WriteAllTextAsync(temp, "new");
@@ -409,7 +409,7 @@ public class TrackerTrackedFilesTest :
         }
         finally
         {
-            LockedFilesHandler.AlwaysKill = previous;
+            LockedFilesPolicy.AlwaysKill = previous;
         }
     }
 }

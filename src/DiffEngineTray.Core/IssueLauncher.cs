@@ -87,19 +87,11 @@ static class IssueLauncher
     }
 
     /// <summary>
-    /// Puts the question, and answers whether it was declined. A field so that a test process can
-    /// decline without anybody being asked: the box is modal, on the desktop of whoever is at the
-    /// machine, and a test run that reached it waited there for a click.
+    /// Puts the question, and answers whether it was declined. Declined until a head says how to
+    /// ask, since asking is a box of a toolkit's own: the Windows head hands over a MessageBox
+    /// (<c>IssueQuestion</c>) as it starts. A field so that a test process can decline without
+    /// anybody being asked: the box is modal, on the desktop of whoever is at the machine, and a
+    /// test run that reached it waited there for a click.
     /// </summary>
-    internal static Func<string, bool> Declined = AskIfOpenIssue;
-
-    static bool AskIfOpenIssue(string text)
-    {
-        var result = MessageBox.Show(
-            text,
-            "DiffEngineTray Error",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Error);
-        return result == DialogResult.No;
-    }
+    internal static Func<string, bool> Declined = _ => true;
 }

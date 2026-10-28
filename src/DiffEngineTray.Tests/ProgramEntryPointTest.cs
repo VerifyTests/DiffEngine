@@ -18,7 +18,8 @@ public class ProgramEntryPointTest
     [Test]
     public async Task TheEntryPointStartsOnAnStaThread()
     {
-        var entryPoint = typeof(Tracker).Assembly.EntryPoint!;
+        // The Windows head's own assembly. Tracker is the core's, a library with no entry point
+        var entryPoint = typeof(MenuBuilder).Assembly.EntryPoint!;
 
         await Assert.That(entryPoint.GetCustomAttribute<STAThreadAttribute>()).IsNotNull();
     }

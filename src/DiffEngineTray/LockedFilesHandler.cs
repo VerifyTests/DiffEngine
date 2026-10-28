@@ -1,10 +1,8 @@
 static class LockedFilesHandler
 {
-    public static bool AlwaysKill { get; set; }
-
     public static LockedFilesResponse Resolve(TrackedMove move, LockedFiles locked)
     {
-        if (AlwaysKill)
+        if (LockedFilesPolicy.AlwaysKill)
         {
             return LockedFilesResponse.Kill;
         }
@@ -14,7 +12,7 @@ static class LockedFilesHandler
 
         if (form.AlwaysKill)
         {
-            AlwaysKill = true;
+            LockedFilesPolicy.AlwaysKill = true;
             Persist();
         }
 
