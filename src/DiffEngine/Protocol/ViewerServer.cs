@@ -5,8 +5,8 @@ namespace DiffEngine;
 /// <para>
 /// Ownership is decided by the bind, not a named mutex: whoever binds the port owns the queue, and
 /// a process that fails to bind talks to the owner instead. That is race free without any extra
-/// coordination, and it sidesteps the mac named mutex IOException already documented in
-/// <see cref="TrayDetector"/>.
+/// coordination, and it sidesteps what a named mutex is off Windows: one session's and one
+/// runtime's, as <see cref="TrayDetector"/> says.
 /// </para>
 /// <para>
 /// Lives here rather than in the viewer because either process can be the owner, and a second

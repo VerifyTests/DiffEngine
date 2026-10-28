@@ -48,7 +48,24 @@ static class ListenerTable
     }
 
     /// <summary>
-    /// What <see cref="IsHeld"/> asks. Replaced by the tests, for the two things about the table
+    /// True only when the table was read and has a listener on <paramref name="port"/>: the other
+    /// way round from <see cref="IsHeld"/>, for a caller that acts on somebody being there rather
+    /// than on nobody being there, and has no connect behind it to correct a wrong answer.
+    /// </summary>
+    public static bool IsListed(int port)
+    {
+        try
+        {
+            return Lookup(port);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// What <see cref="IsHeld"/> and <see cref="IsListed"/> ask. Replaced by the tests, for the two things about the table
     /// that cannot be arranged or seen from outside: that it could not be read, and that it was
     /// not asked at all. Given the port, so a test can answer for its own and pass every other
     /// through: the tests beside it are asking about theirs at the same time.

@@ -3,28 +3,11 @@
 [Obsolete("Use DiffRunner")]
 public static class DiffEngineTray
 {
-    static DiffEngineTray()
-    {
-        try
-        {
-            if (Mutex.TryOpenExisting("DiffEngine", out var mutex))
-            {
-                IsRunning = true;
-                mutex.Dispose();
-            }
-        }
-        //net7 on mac throws an exception if the mutex does not exist
-        catch (IOException)
-        {
-        }
-        // A mutex that exists but is not accessible to this caller, which Mutex.TryOpenExisting
-        // documents: the tray under one account and the tests under another. Uncaught in a static
-        // constructor it is far worse than a wrong answer - the type never initialises, so every
-        // later DiffRunner.Launch and AddDelete in the process throws TypeInitializationException
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
+    // TrayDetector catches what the mutex can throw, which uncaught in a static constructor is far
+    // worse than a wrong answer: the type never initialises, so every later DiffRunner.Launch and
+    // AddDelete in the process throws TypeInitializationException
+    static DiffEngineTray() =>
+        IsRunning = TrayDetector.IsRunning(PiperClient.Port);
 
     public static bool IsRunning { get; internal set; }
 

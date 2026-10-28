@@ -3,7 +3,8 @@
 /// every machine except the ones actually using the thing.
 /// <para>
 /// The signal here is deliberately <em>not</em> the one under test. It reads the process list,
-/// while <see cref="DiffEngine.DiffEngineTray.IsRunning"/> reads a named mutex. Skipping on
+/// while <see cref="DiffEngine.DiffEngineTray.IsRunning"/> reads a named mutex on Windows and the
+/// listener table elsewhere. Skipping on
 /// <c>IsRunning</c> itself would make the test vacuous: a detector wedged at true would skip
 /// forever rather than fail, which is the one outcome the test exists to catch.
 /// </para>
