@@ -155,15 +155,20 @@ public class FileComparerTests
         try
         {
             var comparing = FileComparer.FilesAreEqual(received, verified);
+
+            // Not complete means the sizes matched and both files are open, so a false can only come
+            // from comparing the streams. Read before the cut rather than after it: cut short, the
+            // compare ends as soon as it reads to the new end, and under load on CI that was before
+            // the cut's stream had closed
+            var runningAtCut = !comparing.IsCompleted;
             await using (var cut = new FileStream(received, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
             {
                 cut.SetLength(8 * 1024 * 1024);
             }
 
-            var overlapped = !comparing.IsCompleted;
             var equal = await comparing;
 
-            await Assert.That(overlapped).IsTrue();
+            await Assert.That(runningAtCut).IsTrue();
             await Assert.That(equal).IsFalse();
         }
         finally
