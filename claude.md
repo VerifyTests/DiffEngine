@@ -730,7 +730,9 @@ the comment there about not caching "nothing staged" asks for.
   cannot hold a list of itself, and the Swift side (`Sources/Detray`) makes it a tree again. Its
   managed half is in the core (`Detray`, `MacTray`), as ProcessEx's native calls are, so the
   core's tests run it on the macOS job: `MacTrayTests` hands it a menu and reads back what it
-  rebuilt (`detray_describe`), with no status bar. AppKit is driven from the main thread only, so
+  rebuilt (`detray_describe`), with no status bar. The `unix` job builds it from source first, as
+  it does the viewer's, and the `native` job loads the committed one and checks it is universal.
+  AppKit is driven from the main thread only, so
   the loop is `TrayLoop.RunPumped`, on the thread `Main` starts on, with the library's pump as
   its wait; nothing in `Program.Inner` awaits before the loop returns. The app is an accessory,
   with no Dock icon, App Nap is off (`NapGuard`), and a logout is `TerminateGuard`'s, which

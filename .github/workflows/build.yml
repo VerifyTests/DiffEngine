@@ -164,15 +164,19 @@ jobs:
       # committed universal binary is still loaded and still checked, by the native job below —
       # which is the job that exists to prove what actually ships.
       #
-      # Not cached: this is six Swift files against system frameworks, twenty-odd seconds, and a
-      # stale cache here would reintroduce exactly the staleness the step removes.
+      # The tray's library too, which the same package builds, so MacTrayTests hands its menu to
+      # the Swift as it is now rather than as it was at the last rebuild.
+      #
+      # Not cached: this is a handful of Swift files against system frameworks, twenty-odd seconds,
+      # and a stale cache here would reintroduce exactly the staleness the step removes.
       - name: Build native renderer
         if: runner.os == 'macOS'
         run: |
           swift build -c release --package-path native/swift
-          mkdir -p src/DiffEngineViewer.Mac/runtimes/osx-arm64/native
-          cp "$(swift build -c release --package-path native/swift --show-bin-path)/libdiffengine_viewer.dylib" \
-            src/DiffEngineViewer.Mac/runtimes/osx-arm64/native/
+          bin="$(swift build -c release --package-path native/swift --show-bin-path)"
+          mkdir -p src/DiffEngineViewer.Mac/runtimes/osx-arm64/native src/DiffEngineTray.Mac/runtimes/osx-arm64/native
+          cp "$bin/libdiffengine_viewer.dylib" src/DiffEngineViewer.Mac/runtimes/osx-arm64/native/
+          cp "$bin/libdiffengine_tray.dylib" src/DiffEngineTray.Mac/runtimes/osx-arm64/native/
 
       # Release-NotWindows drops the WinForms tray and its tests from the solution.
       - name: Build
@@ -290,7 +294,7 @@ jobs:
   #
   # It runs DiffEngineViewer.Tests rather than the whole suite: that is where the native smoke test
   # lives, it takes seconds, and it gives the screen and IPC tests some cross architecture coverage
-  # for free.
+  # for free. On macOS also DiffEngineTray.Core.Tests, whose MacTrayTests loads the tray's library.
   native:
     name: native ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
@@ -335,23 +339,30 @@ jobs:
 
       # The runtime load above only exercises the arm64 slice. Assert the x86_64 one is there too,
       # since osx-x64 ships this identical file and cannot be loaded anywhere in CI.
-      - name: Check the macOS dylib is universal
+      - name: Check the macOS dylibs are universal
         if: matrix.rid == 'osx-arm64'
         run: |
           for rid in osx-arm64 osx-x64; do
-            dylib="src/DiffEngineViewer.Mac/runtimes/$rid/native/libdiffengine_viewer.dylib"
-            archs=$(lipo -archs "$dylib")
-            echo "$rid: $archs"
-            for arch in x86_64 arm64; do
-              case " $archs " in
-                *" $arch "*) ;;
-                *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
-              esac
+            for dylib in \
+              "src/DiffEngineViewer.Mac/runtimes/$rid/native/libdiffengine_viewer.dylib" \
+              "src/DiffEngineTray.Mac/runtimes/$rid/native/libdiffengine_tray.dylib"; do
+              archs=$(lipo -archs "$dylib")
+              echo "$dylib: $archs"
+              for arch in x86_64 arm64; do
+                case " $archs " in
+                  *" $arch "*) ;;
+                  *) echo "::error::$dylib is missing the $arch slice"; exit 1 ;;
+                esac
+              done
             done
           done
 
       - name: Test
         run: dotnet test src/DiffEngineViewer.Tests/DiffEngineViewer.Tests.csproj --configuration Release
+
+      - name: Test the tray's library
+        if: matrix.rid == 'osx-arm64'
+        run: dotnet test src/DiffEngineTray.Core.Tests/DiffEngineTray.Core.Tests.csproj --configuration Release
 
       - name: Upload received on failure
         if: failure()
