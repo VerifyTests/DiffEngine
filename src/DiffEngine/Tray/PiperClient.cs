@@ -2,7 +2,7 @@
 
 static class PiperClient
 {
-    public static int Port = 3492;
+    public static int Port = TrayDetector.PiperPort;
 
     public static bool SendDelete(string file, string? source = null) =>
         Send(BuildDeletePayload(file, source));

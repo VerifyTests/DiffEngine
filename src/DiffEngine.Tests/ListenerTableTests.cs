@@ -10,6 +10,33 @@
 /// </summary>
 public class ListenerTableTests
 {
+    /// <summary>
+    /// What .NET lists, on every platform: off Windows it is all there is, and whether a tray is
+    /// running is asked of it there.
+    /// </summary>
+    [Test]
+    public async Task AListenerIsListedOnEveryPlatform()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint) listener.LocalEndpoint).Port;
+        bool listed;
+        bool enumerated;
+        try
+        {
+            listed = ListenerTable.IsListed(port);
+            enumerated = ListenerTable.Enumerated(port);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+
+        await Assert.That(listed).IsTrue();
+        await Assert.That(enumerated).IsTrue();
+        await Assert.That(ListenerTable.IsListed(port)).IsFalse();
+    }
+
     [Test]
     [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AListenerIsFoundOnItsPort()
