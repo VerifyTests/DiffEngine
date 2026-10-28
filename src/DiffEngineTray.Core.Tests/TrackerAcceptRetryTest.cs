@@ -28,7 +28,12 @@ public class TrackerAcceptRetryTest :
         await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("new");
     }
 
+    /// <summary>
+    /// Windows only: a file open with no sharing cannot be moved over there. On Unix the lock is
+    /// advisory, and a rename takes no notice of it.
+    /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task UnresolvedLock_KeepsMovePendingAndNotifies()
     {
         TrackedMove? failed = null;

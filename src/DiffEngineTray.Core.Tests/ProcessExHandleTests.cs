@@ -11,8 +11,12 @@
 /// ended. That is the same thing as the id being held, since Windows will not hand out an id while
 /// a handle to it exists.
 /// </para>
+/// <para>
+/// Windows only, as ProcessEx is: the handle is kernel32's.
+/// </para>
 /// </summary>
 [NotInParallel]
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class ProcessExHandleTests
 {
     [Test]

@@ -1,3 +1,8 @@
+/// <summary>
+/// Windows only: FileLockKiller asks the restart manager who holds a file, and the lock is held by
+/// a Windows PowerShell process. A Unix head that kills lockers will need a way of its own to ask.
+/// </summary>
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class FileLockKillerTest
 {
     [Test]

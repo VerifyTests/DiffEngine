@@ -14,7 +14,12 @@
 public class TrackerVersionTest :
     IDisposable
 {
+    /// <summary>
+    /// Windows only: a read-only file cannot be moved over there. On Unix a rename needs only the
+    /// directory to be writable.
+    /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AMoveTakenOutAndPutBackIsAChange()
     {
         ITrackedFiles tracked = null!;
@@ -39,8 +44,13 @@ public class TrackerVersionTest :
     /// <summary>
     /// The same gap for a delete, which is untracked while its file is deleted and tracked again
     /// when that fails.
+    /// <para>
+    /// Windows only: a file open with no sharing cannot be deleted there. On Unix the lock is
+    /// advisory, and an unlink takes no notice of it.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task ADeleteTakenOutAndPutBackIsAChange()
     {
         await using var tracker = new RecordingTracker();

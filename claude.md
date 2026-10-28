@@ -687,7 +687,20 @@ the comment there about not caching "nothing staged" asks for.
   the core's, and the question a locked file asks is the head's form (`LockedFilesHandler`).
   `IssueLauncher.Declined` declines in the core, which has no toolkit to ask with, and the head
   hands it `IssueQuestion`'s MessageBox first thing in Main. The core is signed and named in
-  DiffEngine's `InternalsVisibleTo`, and names the head and the tests in its own
+  DiffEngine's `InternalsVisibleTo`, and names the head and both test projects in its own
+- The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
+  well as on Windows. `DiffEngineTray.Tests` keeps what needs the head: the menu, the forms, the
+  hot keys, `LockedFilesHandler`, `DiffToolLauncher` and `TrayViewerSyncTest`. The helpers both
+  use (`RecordingTracker`, `FakeViewer`, `FileLockUtils` and the rest) live with the core's tests
+  and are linked into the head's. What stays Windows only is marked `[RunOn(OS.Windows)]` with
+  the reason in its summary, and is of three kinds: `ProcessEx` and `FileLockKiller`, a lock held
+  by a Windows PowerShell process, and Windows' file semantics, under which a file open with no
+  sharing or marked read-only cannot be moved over or deleted. On Unix a rename or an unlink
+  takes no notice of either. Test data is written as the platform roots a path
+  (`OwnedInlineHostTest.Repo`): a Windows path read on Linux is one file name of the whole
+  string, so every entry had the same name, and a viewer at `C:\tools\DiffEngineViewer.exe` was
+  not the viewer. `DebugReportTests` writes `{Directory}\` for the separator on every platform,
+  so one snapshot holds for all of them
 - `PiperServer` - TCP server (localhost, 3492) receiving move/delete payloads from DiffEngine.
   Deliberately a second listener beside the viewer protocol, not debt: its format is frozen
   (every stable DiffEngine embeds PiperClient, pinned in test projects while the tray updates

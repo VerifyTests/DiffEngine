@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+  The tests of the tray's core, on every platform, where DiffEngineTray.Tests is net10.0-windows
+  and has the head's WinForms. The helpers both use live here, and that project links them.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <NoWarn>$(NoWarn);CA1416;NU1902</NoWarn>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />
+    <Using Include="DiffEngine" />
+    <PackageReference Include="Argon" />
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="EmptyFiles" />
+    <PackageReference Include="SimpleInfoName" />
+    <PackageReference Include="Verify" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+</Project>

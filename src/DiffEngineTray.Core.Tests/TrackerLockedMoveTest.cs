@@ -1,3 +1,8 @@
+/// <summary>
+/// Windows only: a file another process has open cannot be moved over there, which is the lock
+/// these are about, and the restart manager is what says who holds it. On Unix the move succeeds.
+/// </summary>
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class TrackerLockedMoveTest :
     IDisposable
 {

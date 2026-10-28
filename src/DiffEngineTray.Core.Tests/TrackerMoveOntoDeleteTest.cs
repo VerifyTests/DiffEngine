@@ -251,8 +251,13 @@ public class TrackerMoveOntoDeleteTest :
     /// delete on its target was held by nothing meanwhile: not by a pending move, which had left,
     /// and not by a write, which had yet to be marked. Asked from where a refused move is reported,
     /// which is inside the accept, before the move is put back.
+    /// <para>
+    /// Windows only: a read-only file cannot be moved over there. On Unix a rename needs only the
+    /// directory to be writable.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task ADeleteIsHeldWhileTheMoveOntoItsFileIsBeingAccepted()
     {
         RecordingTracker? tracker = null;
@@ -352,8 +357,13 @@ public class TrackerMoveOntoDeleteTest :
     /// <summary>
     /// A move that could not be carried out is still going to write the file, so the delete waits
     /// for it as well. Deleting here left the old snapshot gone and the new one not yet in place.
+    /// <para>
+    /// Windows only: a file open with no sharing cannot be moved there. On Unix the lock is
+    /// advisory, and a rename takes no notice of it.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task TheWireSweepHoldsADeleteOfAFileAMoveStillPendingTargets()
     {
         await using var tracker = new RecordingTracker();

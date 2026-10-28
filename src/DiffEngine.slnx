@@ -88,6 +88,10 @@
   <Project Path="DiffEngineTray.Core/DiffEngineTray.Core.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <!-- Its tests, which run everywhere too. -->
+  <Project Path="DiffEngineTray.Core.Tests/DiffEngineTray.Core.Tests.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <!--

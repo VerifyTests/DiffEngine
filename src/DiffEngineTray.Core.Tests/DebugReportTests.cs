@@ -27,6 +27,10 @@ public class DebugReportTests :
 
         settings = new();
         settings.AddScrubber(_ => _.Replace(directory, "{Directory}"));
+        // With the separator after it, as Windows writes one, so the report reads the same on
+        // every platform and one snapshot holds for all of them. Added after the one above so
+        // that it runs first: Verify runs the scrubber added last ahead of the others
+        settings.AddScrubber(_ => _.Replace(directory + Path.DirectorySeparatorChar, @"{Directory}\"));
         // Read when the scrubber runs, not when it is added: every test points at an ephemeral
         // port so that a viewer running on this machine is not talked to, and FakeViewer moves it
         // again for the tests that want one
@@ -81,7 +85,9 @@ public class DebugReportTests :
         await File.WriteAllTextAsync(document, "");
         await File.WriteAllTextAsync(page, "");
         await File.WriteAllTextAsync(stale, "");
-        const string viewer = @"C:\tools\DiffEngineViewer.exe";
+        // A path as this platform writes one, so its file name is the viewer's and the moves are
+        // open: on Linux all of C:\tools\DiffEngineViewer.exe is one file name
+        var viewer = Path.Combine(directory, "DiffEngineViewer.exe");
         tracker.AddMove(
             document,
             Path.Combine(directory, "Sample.Test.verified.pdf"),
@@ -117,7 +123,9 @@ public class DebugReportTests :
         // The key a patch is filed under is case folded, so the directory shows up twice
         settings.AddScrubber(_ => _.Replace(directory.ToLowerInvariant(), "{Directory}"));
 
-        var source = Path.Combine(directory, "SampleTests.cs");
+        // In lower case, so the key reads the same where it is case folded and on Linux, where it
+        // is not
+        var source = Path.Combine(directory, "sampletests.cs");
         await File.WriteAllTextAsync(source, "");
         var patch = new InlinePatch(source, 42, "\"old\"", "line one\nline two")
         {

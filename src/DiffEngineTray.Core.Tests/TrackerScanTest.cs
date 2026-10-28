@@ -70,8 +70,12 @@ public class TrackerScanTest :
     /// A file that may not be read is no more a failure of the scan than one that is locked: the
     /// pair cannot be compared this round. Only the locked one was caught, so this one failed the
     /// whole scan, every two seconds, for as long as the move stayed pending.
+    /// <para>
+    /// Windows only: the read is denied by an access control entry.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task ATargetThatMayNotBeReadIsPassedOver()
     {
         await using var tracker = new RecordingTracker();
