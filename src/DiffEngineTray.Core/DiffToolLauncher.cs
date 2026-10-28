@@ -1,10 +1,14 @@
+/// <summary>
+/// The menu's "Open diff tool" over a tracked move, which each head hands to the menu as
+/// <see cref="TrayActions.OpenDiffTool"/>.
+/// </summary>
 static class DiffToolLauncher
 {
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
     public static void Launch(TrackedMove move) =>
-        Launch(move.Exe!, move.Arguments!, move.CanKill, move.Process, _ => move.Process = _);
+        Launch(move.Exe!, move.Arguments!, move.CanKill, move.Temp, move.Process, _ => move.Process = _);
 
     /// <summary>
     /// The two start flags the tool itself declares. Hard coded here before, so a console
@@ -49,19 +53,19 @@ static class DiffToolLauncher
         return (true, false);
     }
 
-    static void Launch(string exe, string arguments, bool canKill, Process? process, Action<Process?> assign)
+    static void Launch(string exe, string arguments, bool canKill, string temp, Process? process, Action<Process?> assign)
     {
-        if (process is { HasExited: false })
+        if (process is { HasExited: false } &&
+            BringToFront(process))
         {
-            if (SetForegroundWindow(process.MainWindowHandle))
-            {
-                return;
-            }
+            return;
         }
 
-        if (canKill)
+        if (canKill &&
+            process != null &&
+            ProcessEx.StillTheTool(process, exe, temp))
         {
-            process?.Kill();
+            process.Kill();
         }
 
         process?.Dispose();
@@ -102,4 +106,13 @@ static class DiffToolLauncher
                 arguments);
         }
     }
+
+    /// <summary>
+    /// Windows only. Elsewhere one program cannot bring another's window forward with any
+    /// reliability, so a tool still showing the pair is ended, where it may be, and started again,
+    /// which puts a window in front.
+    /// </summary>
+    static bool BringToFront(Process process) =>
+        OperatingSystem.IsWindows() &&
+        SetForegroundWindow(process.MainWindowHandle);
 }

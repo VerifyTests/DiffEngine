@@ -3,9 +3,9 @@
   <!--
   Everything the tray does that is not WinForms: the tracked moves and deletes, the inline queue it
   owns or drives, the piper port, the settings and the debug report. Built and tested on every
-  platform, so a head for macOS and Linux can be put on it. ProcessEx and FileLockKiller call
-  Windows APIs, which compile anywhere and run only on Windows until they have Unix paths of their
-  own.
+  platform, so a head for macOS and Linux can be put on it. FileLockKiller calls the restart
+  manager, which compiles anywhere and runs only on Windows: Unix locks are advisory, so there is
+  nothing for it to do elsewhere.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,5 +21,7 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <!-- One way of showing a file in a file manager, the viewer's, rather than a second one. -->
+    <Compile Include="..\DiffEngineViewer\RevealFile.cs" Link="RevealFile.cs" />
   </ItemGroup>
 </Project>

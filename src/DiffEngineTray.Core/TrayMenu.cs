@@ -250,7 +250,7 @@ sealed class TrayMenu
         // Replaces "Open diff tool": the viewer is the diff tool, so the useful action is to bring
         // it forward on this item, starting one if the queue is here and nothing is showing it.
         children.Add(Button($"{id}:viewer", "Open in viewer", focus));
-        children.Add(Button($"{id}:source", "Open source file", () => ExplorerLauncher.ShowFileInExplorer(snapshot.Source)));
+        children.Add(Button($"{id}:source", "Open source file", () => DirectoryLauncher.Reveal(snapshot.Source)));
         return new(id, $"{snapshot.Name} (inline){failed}", Children: children);
     }
 
@@ -346,7 +346,7 @@ sealed class TrayMenu
     }
 
     TrayMenuItem OpenDirectory(string id, string file) =>
-        Button($"{id}:directory", "Open directory", () => ExplorerLauncher.ShowFileInExplorer(file));
+        Button($"{id}:directory", "Open directory", () => DirectoryLauncher.Reveal(file));
 
     TrayMenuItem Button(string id, string label, Action action, string? icon = null)
     {

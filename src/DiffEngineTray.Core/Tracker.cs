@@ -1207,6 +1207,14 @@ class Tracker :
             return;
         }
 
+        if (!ProcessEx.StillTheTool(move.Process, move.Exe, move.Temp))
+        {
+            // Not by id: a disposed process throws for it
+            Log.Information("Did not kill for `{Name}` since its process is no longer its diff tool", move.Name);
+            Release(move);
+            return;
+        }
+
         move.Process.KillAndDispose();
 
         // The move can come back: a locked target, the user picking Ignore, or the retries running
