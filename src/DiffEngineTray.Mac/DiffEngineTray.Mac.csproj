@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+  The tray on macOS: the core's tracker and queue, with a status bar item from the tray's own
+  native library, which is PlatformHeadsMac's StatusItem behind native/include/detray.h. No window.
+  Named as the other heads are, so the core's InternalsVisibleTo names it too. Not packed yet: how
+  the heads ship is phase 4's.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>DiffEngineTray</AssemblyName>
+    <RootNamespace>DiffEngineTray</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RollForward>LatestMajor</RollForward>
+    <!--
+    The library under runtimes is built by build-native.yml from native/swift and committed, as the
+    viewer's is, so a plain dotnet build needs no Swift. One universal binary, copied for each RID.
+    This has PlatformHeads carry it into the output.
+    -->
+    <PlatformHeadsNativeRuntimes>true</PlatformHeadsNativeRuntimes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
+    <Using Include="Serilog" />
+    <PackageReference Include="PlatformHeads" PrivateAssets="all" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+  </ItemGroup>
+</Project>

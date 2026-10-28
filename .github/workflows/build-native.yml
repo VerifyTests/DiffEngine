@@ -1,8 +1,9 @@
 name: Build native
 
 # Produces the diffengine_viewer binaries committed under
-# src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native, in the head that loads them. There is no
-# Windows equivalent: that head renders with WinForms.
+# src/DiffEngineViewer.{Linux,Mac}/runtimes/{rid}/native, in the head that loads them, and the
+# macOS tray's diffengine_tray under src/DiffEngineTray.Mac/runtimes. There is no Windows
+# equivalent: those heads draw with WinForms.
 #
 # They are committed rather than built during a normal build so that a plain
 # `dotnet build src --configuration Release` produces a shippable package on any machine, and
@@ -35,7 +36,7 @@ concurrency:
 
 jobs:
   native:
-    uses: SimonCropp/PlatformHeads/.github/workflows/build-native.yml@0.6.0
+    uses: SimonCropp/PlatformHeads/.github/workflows/build-native.yml@0.8.0
     permissions:
       contents: write
       pull-requests: write
@@ -44,6 +45,8 @@ jobs:
       linux-runtimes: src/DiffEngineViewer.Linux/runtimes
       swift-package: native/swift
       mac-runtimes: src/DiffEngineViewer.Mac/runtimes
+      # The tray's status bar item, which the same Swift package builds as a library of its own
+      mac-libraries: diffengine_tray src/DiffEngineTray.Mac/runtimes
       # Also on push, not just manual dispatch. workflow_dispatch does not appear in the Actions
       # UI until the workflow is on the default branch, so on a feature branch a push is the only
       # way to trigger this, and leaving the binaries as bare artifacts to copy by hand is worse.

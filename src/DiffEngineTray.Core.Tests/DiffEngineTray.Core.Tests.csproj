@@ -19,6 +19,10 @@
     <PackageReference Include="Verify" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+    <!-- The macOS tray's committed library, which MacTrayTests hands a menu to on the macOS job. -->
+    <None Include="..\DiffEngineTray.Mac\runtimes\**\libdiffengine_tray.dylib"
+          LinkBase="runtimes"
+          CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />

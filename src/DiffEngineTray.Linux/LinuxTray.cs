@@ -9,8 +9,8 @@ static class LinuxTray
             new(
                 "DiffEngineTray",
                 "DiffEngineTray",
-                TrayImages.Pixels,
-                TrayImages.Glyph,
+                TrayPictures.Pixels,
+                TrayPictures.Glyph,
                 _ => _ == TrayIcon.Active,
                 Failed),
             out error);

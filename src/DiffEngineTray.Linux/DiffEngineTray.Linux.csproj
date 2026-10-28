@@ -19,10 +19,6 @@
     <Using Include="DiffEngine" />
     <Using Include="PlatformHeads" />
     <Using Include="Serilog" />
-    <!-- The Windows head's pictures, under the names it embeds them by. -->
-    <EmbeddedResource Include="..\DiffEngineTray\Images\*.ico;..\DiffEngineTray\Images\*.png"
-                      LinkBase="Images"
-                      LogicalName="DiffEngineTray.Images.%(Filename)%(Extension)" />
     <PackageReference Include="PlatformHeads.Linux" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
