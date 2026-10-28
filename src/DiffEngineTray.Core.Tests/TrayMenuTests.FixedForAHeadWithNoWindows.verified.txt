@@ -1,0 +1,5 @@
+﻿Exit  [glyph: exit]
+Run at startup  [unchecked]
+Debug view  [glyph: options]
+Open logs  [glyph: folder]
+Raise issue  [glyph: link]

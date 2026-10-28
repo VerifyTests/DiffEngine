@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+  The tray on Linux: the core's tracker and queue, with PlatformHeads' StatusNotifierItem for its
+  icon and menu, and no window and no native library. Named as the Windows head is, so the core's
+  InternalsVisibleTo names it too. Not packed yet: how the heads ship is phase 4's.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>DiffEngineTray</AssemblyName>
+    <RootNamespace>DiffEngineTray</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
+    <Using Include="Serilog" />
+    <!-- The Windows head's pictures, under the names it embeds them by. -->
+    <EmbeddedResource Include="..\DiffEngineTray\Images\*.ico;..\DiffEngineTray\Images\*.png"
+                      LinkBase="Images"
+                      LogicalName="DiffEngineTray.Images.%(Filename)%(Extension)" />
+    <PackageReference Include="PlatformHeads.Linux" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+  </ItemGroup>
+</Project>

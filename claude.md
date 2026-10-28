@@ -39,7 +39,7 @@ dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --fil
 
 **Target Frameworks:**
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
-- DiffEngineTray: net10.0 Windows Forms application, on DiffEngineTray.Core (net10.0, every platform)
+- DiffEngineTray: net10.0 Windows Forms application, and a net10.0 Linux head, both on DiffEngineTray.Core (net10.0, every platform)
 - Tests: net10.0 (net48 on Windows)
 
 ## Architecture Overview
@@ -615,11 +615,14 @@ the comment there about not caching "nothing staged" asks for.
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
   github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
-  copied there, and fixes made here did not reach the copy. Six pins name one tag of it and move
-  together: the `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
-  `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core` and
-  `PlatformHeads.WindowsForms` in `Directory.Packages.props`, and the `PlatformHeads` package
-  in `native/swift/Package.swift`. So is the native runtime under both heads' drawing: the C++
+  copied there, and fixes made here did not reach the copy. Seven pins name a tag of it: the
+  `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
+  `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
+  Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
+  together, and the `PlatformHeads` package
+  in `native/swift/Package.swift`. The packages are at 0.7.1 and the native three at 0.6.0,
+  since all that has changed natively since is `StatusItem`, which the viewer does not use; the
+  macOS tray will move them. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -701,6 +704,23 @@ the comment there about not caching "nothing staged" asks for.
   `IssueLauncher.Declined` declines in the core, which has no toolkit to ask with, and the head
   hands it `IssueQuestion`'s MessageBox first thing in Main. The core is signed and named in
   DiffEngine's `InternalsVisibleTo`, and names the head and both test projects in its own
+- `src/DiffEngineTray.Linux` is the Linux head, an `Exe` named `DiffEngineTray` as the Windows
+  head is, so the core's `InternalsVisibleTo` names it too. No window and no native library: its
+  icon and menu are PlatformHeads.Linux's `StatusNotifierTray`, which the core's `TrayLoop` hands
+  a model a tenth of a second and polls for what was chosen, since PlatformHeads answers a
+  panel's `AboutToShow` itself and the layout has to be current before anyone opens the menu.
+  Its one option is "Run at startup", a checked item over
+  PlatformHeads' `XdgAutostart` (`TrayActions.RunAtLogin`), and the settings file is not read: the
+  hot keys are Windows', and target on left and the launch limit are user environment variables,
+  which .NET sets only on Windows. No purge, which needs a folder picker. The debug view is
+  written beside the logs and opened (`DebugReportFile`). The icon is the Windows head's `.ico`,
+  whose one picture is a 48 pixel, 32 bit bitmap and needs no decoder (`IconPixels`). With no
+  StatusNotifierWatcher on the bus, as on a stock GNOME, it runs anyway, holding the queue and
+  tracking what test runs send it, and says so once. A session ending is SIGTERM or SIGHUP,
+  heard by PlatformHeads.Core's `SessionEndSignals` and handed `TraySessionEnd.For`, which the
+  Windows head hands its `SessionEndWindow`. Seen working in a `dotnet/sdk:10.0` container on a
+  private `dbus-daemon` with a stand-in watcher: the menu, run at startup, the debug view, exit
+  and SIGTERM. Not packed yet
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
@@ -846,8 +866,8 @@ the comment there about not caching "nothing staged" asks for.
   carried out marks it (`QueueEntry.Written`), a batch keeps a marked or awaited delete
   (`ViewerSession.HeldReason`), a single accept still deletes, and `TrackedEntry.DeleteAgain`
   carries the mark across the watch's re-read. "Discard (n)" runs wholly on a worker. A scan that fails three times running is one
-  balloon for the run. Every tray keeps the `SessionEndWindow` now, and `Program.SessionEnding`
-  stages the queue where it is held here and then removes the version marker.
+  balloon for the run. Every Windows tray keeps the `SessionEndWindow` now, and
+  `TraySessionEnd.For` stages the queue where it is held here and then removes the version marker.
 - `ITrackedFiles.Version` is what `ListingTag` asks about the tracked files: the identity of the
   tracked objects, so `TrackedMove` and `TrackedDelete` must stay immutable in everything a
   listing carries. `TrackedDelete.Written` is the exception, and its changes are counted into the

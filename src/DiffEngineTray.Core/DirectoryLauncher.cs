@@ -1,10 +1,13 @@
 static class DirectoryLauncher
 {
-    public static void Open(string directory)
+    /// <summary>
+    /// A directory, or a file, opened by whatever the desktop opens it with.
+    /// </summary>
+    public static void Open(string path)
     {
         var info = new ProcessStartInfo
         {
-            FileName = directory,
+            FileName = path,
             UseShellExecute = true,
             Verb = "open"
         };
@@ -16,7 +19,7 @@ static class DirectoryLauncher
         }
         catch (Exception exception)
         {
-            ExceptionHandler.Handle($"Failed to open directory: {directory}", exception);
+            ExceptionHandler.Handle($"Failed to open: {path}", exception);
         }
     }
 
