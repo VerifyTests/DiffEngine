@@ -44,18 +44,32 @@ sealed class TrayMenu
         return true;
     }
 
+    /// <summary>
+    /// Built again for each model by a head that shows one, since whether run at login is checked
+    /// is read from the desktop each time rather than remembered.
+    /// </summary>
     public static TrayMenu Fixed(TrayActions head)
     {
         var menu = new TrayMenu();
-        menu.items.AddRange(
-        [
-            menu.Button("exit", "Exit", head.Exit, "exit"),
-            menu.Button("options", "Options", head.Options, "options"),
-            menu.Button("debug", "Debug view", head.DebugView, "options"),
-            menu.Button("logs", "Open logs", Logging.OpenDirectory, "folder"),
-            menu.Button("purge", "Purge verified files", head.Purge, "folder"),
-            menu.Button("issue", "Raise issue", IssueLauncher.Launch, "link")
-        ]);
+        menu.items.Add(menu.Button("exit", "Exit", head.Exit, "exit"));
+        if (head.Options is { } options)
+        {
+            menu.items.Add(menu.Button("options", "Options", options, "options"));
+        }
+
+        if (head.RunAtLogin is { } runAtLogin)
+        {
+            menu.items.Add(menu.Toggle("startup", "Run at startup", runAtLogin.Exists(), () => runAtLogin.Set(!runAtLogin.Exists())));
+        }
+
+        menu.items.Add(menu.Button("debug", "Debug view", head.DebugView, "options"));
+        menu.items.Add(menu.Button("logs", "Open logs", Logging.OpenDirectory, "folder"));
+        if (head.Purge is { } purge)
+        {
+            menu.items.Add(menu.Button("purge", "Purge verified files", purge, "folder"));
+        }
+
+        menu.items.Add(menu.Button("issue", "Raise issue", IssueLauncher.Launch, "link"));
         return menu;
     }
 
@@ -352,6 +366,12 @@ sealed class TrayMenu
     {
         actions.Add(id, action);
         return new(id, label, IconName: icon);
+    }
+
+    TrayMenuItem Toggle(string id, string label, bool on, Action toggle)
+    {
+        actions.Add(id, toggle);
+        return new(id, label, Checked: on);
     }
 
     static TrayMenuItem Label(string id, string label, string? icon = null) =>

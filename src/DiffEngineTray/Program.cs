@@ -110,7 +110,7 @@ static class Program
         // A logoff or a shutdown does not come back through Application.Run(), so nothing the
         // unwind below performs happens for one
         using var sessionEnd = new SessionEndWindow(
-            SessionEnding(owned, TrayVersionFile.Delete),
+            TraySessionEnd.For(owned, TrayVersionFile.Delete),
             _ => Log.Error(_, "Failed while the session was ending"));
 
         // Not a using. Anything throwing between here and the await below would dispose a task
@@ -124,7 +124,7 @@ static class Program
             Warn($"Could not listen on port {PiperClient.Port}, so moves and deletes from test runs will not reach the tray. {bindError!.Message}");
         }
 
-        var task = listener is null ? Task.CompletedTask : StartServer(listener, tracker, cancel);
+        var task = listener is null ? Task.CompletedTask : PiperServer.Serve(listener, tracker, cancel);
 
         using var keyRegister = new KeyRegister(icon.Handle());
         ReBindKeys(settings, keyRegister, tracker, Warn);
@@ -163,34 +163,6 @@ static class Program
         await tokenSource.CancelAsync();
         await task;
     }
-
-    /// <summary>
-    /// What a clean exit does on its way out, for a session that ends instead: the queue staged,
-    /// when it is held here, and the version marker removed.
-    /// <para>
-    /// The queue only where this tray owns it, since a viewer that owns it stages its own. The
-    /// marker whoever owns the queue: it says a tray of this version is running, to whatever
-    /// reads it to decide what it may send, and left behind by a logoff it went on saying so
-    /// until a tray was next started, which after a logoff need not be this version or any.
-    /// </para>
-    /// <para>
-    /// The queue first, being the one that cannot be had again, and the marker whether or not
-    /// that worked.
-    /// </para>
-    /// </summary>
-    /// <param name="removeMarker"><see cref="TrayVersionFile.Delete"/>, except in a test.</param>
-    internal static Action SessionEnding(OwnedInlineHost? owned, Action removeMarker) =>
-        () =>
-        {
-            try
-            {
-                owned?.SessionEnding();
-            }
-            finally
-            {
-                removeMarker();
-            }
-        };
 
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ShowContextMenu")]
     static extern void ShowContextMenu(NotifyIcon icon);
@@ -253,33 +225,5 @@ static class Program
             IssueLauncher.LaunchForException($"Cannot start. Failed to read settings: {SettingsHelper.FilePath}", exception);
             return null;
         }
-    }
-
-    static Task StartServer(TcpListener listener, Tracker tracker, Cancel cancel) =>
-        PiperServer.Serve(
-            listener,
-            payload =>
-            {
-                tracker.AddMove(
-                    payload.Temp,
-                    payload.Target,
-                    payload.Exe,
-                    payload.Arguments,
-                    payload.CanKill,
-                    payload.ProcessId,
-                    Source(payload.Source));
-            },
-            payload => tracker.AddDelete(payload.File, Source(payload.Source)),
-            cancel);
-
-    // An empty one names nothing, as on the viewer port
-    static string? Source(string? source)
-    {
-        if (string.IsNullOrEmpty(source))
-        {
-            return null;
-        }
-
-        return source;
     }
 }

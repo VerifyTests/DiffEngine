@@ -59,7 +59,7 @@ public class SessionEndWindowTest
     public async Task ATrayThatDoesNotOwnTheQueueRemovesItsMarkerAsTheSessionEnds()
     {
         var removed = 0;
-        using (var window = new SessionEndWindow(Program.SessionEnding(null, () => removed++)))
+        using (var window = new SessionEndWindow(TraySessionEnd.For(null, () => removed++)))
         {
             SendMessage(window.Handle, queryEndSession, IntPtr.Zero, logoff);
             SendMessage(window.Handle, endSession, new(1), logoff);
@@ -86,7 +86,7 @@ public class SessionEndWindowTest
             bool? stagedWhenRemoved = null;
 
             using (var window = new SessionEndWindow(
-                       Program.SessionEnding(
+                       TraySessionEnd.For(
                            host,
                            () => stagedWhenRemoved = Directory.Exists(staging) &&
                                                      Directory.GetFiles(staging).Any(_ => _.EndsWith(".inlinepatch")))))

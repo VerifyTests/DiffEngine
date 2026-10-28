@@ -88,6 +88,10 @@
   <Project Path="DiffEngineTray.Core/DiffEngineTray.Core.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <!-- The Linux head, which is managed only and so builds everywhere too. -->
+  <Project Path="DiffEngineTray.Linux/DiffEngineTray.Linux.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <!-- Its tests, which run everywhere too. -->
   <Project Path="DiffEngineTray.Core.Tests/DiffEngineTray.Core.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />

@@ -327,6 +327,11 @@ public class TrayMenuTests :
                 builder.Append($"  [glyph: {item.IconName}]");
             }
 
+            if (item.Checked is { } on)
+            {
+                builder.Append(on ? "  [checked]" : "  [unchecked]");
+            }
+
             if (!item.Enabled)
             {
                 builder.Append("  [disabled]");
@@ -345,10 +350,37 @@ public class TrayMenuTests :
         }
     }
 
+    /// <summary>
+    /// A head with no options window and no folder picker, as on Linux: run at login is on the
+    /// menu, checked as the desktop says, and there is no purge.
+    /// </summary>
+    [Test]
+    public async Task FixedForAHeadWithNoWindows() =>
+        await Verify(Render(TrayMenu.Fixed(head.Windowless)));
+
+    /// <summary>
+    /// What the desktop has, read again for each menu, rather than a setting that can say
+    /// otherwise.
+    /// </summary>
+    [Test]
+    public async Task RunAtStartupSetsTheDesktopsEntry()
+    {
+        var menu = TrayMenu.Fixed(head.Windowless);
+
+        await Assert.That(menu.Invoke(Find(menu, "Run at startup").Id)).IsTrue();
+        await Assert.That(head.Login.Enabled).IsTrue();
+        await Assert.That(Find(TrayMenu.Fixed(head.Windowless), "Run at startup").Checked).IsTrue();
+
+        menu.Invoke(Find(menu, "Run at startup").Id);
+        await Assert.That(head.Login.Enabled).IsFalse();
+        await Assert.That(Find(TrayMenu.Fixed(head.Windowless), "Run at startup").Checked).IsFalse();
+    }
+
     sealed class Head
     {
         public List<string> Calls { get; } = [];
         public List<TrackedMove> Opened { get; } = [];
+        public StandInLogin Login { get; } = new();
 
         public TrayActions Actions =>
             new(
@@ -357,6 +389,26 @@ public class TrayMenuTests :
                 DebugView: () => Calls.Add("DebugView"),
                 Purge: () => Calls.Add("Purge"),
                 OpenDiffTool: Opened.Add);
+
+        public TrayActions Windowless =>
+            new(
+                Exit: () => Calls.Add("Exit"),
+                Options: null,
+                DebugView: () => Calls.Add("DebugView"),
+                Purge: null,
+                OpenDiffTool: Opened.Add,
+                RunAtLogin: Login);
+    }
+
+    sealed class StandInLogin : IRunAtLogin
+    {
+        public bool Enabled { get; private set; }
+
+        public bool Exists() =>
+            Enabled;
+
+        public void Set(bool enabled) =>
+            Enabled = enabled;
     }
 
     Head head = new();
