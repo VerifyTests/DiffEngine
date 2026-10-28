@@ -39,7 +39,7 @@ dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --fil
 
 **Target Frameworks:**
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
-- DiffEngineTray: net10.0 Windows Forms application
+- DiffEngineTray: net10.0 Windows Forms application, on DiffEngineTray.Core (net10.0, every platform)
 - Tests: net10.0 (net48 on Windows)
 
 ## Architecture Overview
@@ -677,7 +677,17 @@ the comment there about not caching "nothing staged" asks for.
   `libX11` is left of them.
 
 **DiffEngineTray (`src/DiffEngineTray/`):**
-- Windows Forms tray application that handles pending file diffs
+- Windows Forms tray application that handles pending file diffs, in two projects. `src/DiffEngineTray.Core`
+  is everything that is not WinForms - `Tracker`, both inline hosts, `PiperServer`, the settings,
+  `DebugReport`, `IssueLauncher` and the Windows API helpers `ProcessEx` and `FileLockKiller`, which
+  compile anywhere and run only on Windows until they have Unix paths - and builds on every
+  platform, so a macOS or Linux head can be put on it. `src/DiffEngineTray` is the Windows head:
+  `Program`, the menu, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
+  `Keys`), the icons and the Run key. Two seams cross between them. `LockedFilesPolicy.AlwaysKill` is
+  the core's, and the question a locked file asks is the head's form (`LockedFilesHandler`).
+  `IssueLauncher.Declined` declines in the core, which has no toolkit to ask with, and the head
+  hands it `IssueQuestion`'s MessageBox first thing in Main. The core is signed and named in
+  DiffEngine's `InternalsVisibleTo`, and names the head and the tests in its own
 - `PiperServer` - TCP server (localhost, 3492) receiving move/delete payloads from DiffEngine.
   Deliberately a second listener beside the viewer protocol, not debt: its format is frozen
   (every stable DiffEngine embeds PiperClient, pinned in test projects while the tray updates

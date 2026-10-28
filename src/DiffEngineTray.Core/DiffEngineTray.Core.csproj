@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+  Everything the tray does that is not WinForms: the tracked moves and deletes, the inline queue it
+  owns or drives, the piper port, the settings and the debug report. Built and tested on every
+  platform, so a head for macOS and Linux can be put on it. ProcessEx and FileLockKiller call
+  Windows APIs, which compile anywhere and run only on Windows until they have Unix paths of their
+  own.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
+    <PackageReference Include="PlatformHeads.Core" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+  </ItemGroup>
+</Project>

@@ -84,6 +84,10 @@
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
+  <!-- Builds everywhere: the tray's non-WinForms half, which a macOS or Linux head shares. -->
+  <Project Path="DiffEngineTray.Core/DiffEngineTray.Core.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <!--

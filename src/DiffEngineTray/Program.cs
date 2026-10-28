@@ -17,6 +17,7 @@ static class Program
     [STAThread]
     static void Main()
     {
+        IssueLauncher.Declined = IssueQuestion.Declined;
         TrayViewerDirectory.Register();
         Logging.Init();
         Application.EnableVisualStyles();
@@ -75,7 +76,7 @@ static class Program
             return;
         }
 
-        LockedFilesHandler.AlwaysKill = settings.AlwaysKillLockingProcesses;
+        LockedFilesPolicy.AlwaysKill = settings.AlwaysKillLockingProcesses;
 
         // Ownership of the inline queue is decided here, once, by whether the bind succeeds, and
         // never transfers. Usually the tray wins, because it starts at login. A viewer that was

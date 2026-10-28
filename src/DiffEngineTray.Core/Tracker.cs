@@ -1115,7 +1115,7 @@ class Tracker :
         // as locked with "accept from the tray menu" - where the same accept killed without asking.
         if (move.KillLockingProcess ||
             batch.KillWithoutPrompt ||
-            LockedFilesHandler.AlwaysKill)
+            LockedFilesPolicy.AlwaysKill)
         {
             return true;
         }

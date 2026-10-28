@@ -36,6 +36,8 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <!-- Everything that is not WinForms, which a head for another platform shares. -->
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
   </ItemGroup>
 
   <!--

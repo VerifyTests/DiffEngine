@@ -43,7 +43,7 @@ static class OptionsFormLauncher
         }
 
         await SettingsHelper.Write(settings);
-        LockedFilesHandler.AlwaysKill = settings.AlwaysKillLockingProcesses;
+        LockedFilesPolicy.AlwaysKill = settings.AlwaysKillLockingProcesses;
         return [];
     }
 
