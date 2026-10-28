@@ -79,8 +79,13 @@ public class TrackerTrackedFilesTest :
     /// <summary>
     /// Wire accepts run on a listener thread with nobody at a dialog, so a locked move is refused
     /// with a pointer at the tray menu and the resolver is never consulted.
+    /// <para>
+    /// Windows only: a file open with no sharing cannot be moved over there. On Unix the lock is
+    /// advisory, and a rename takes no notice of it.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task ALockedMoveIsRefusedWithoutPrompting()
     {
         await using var tracker = new RecordingTracker(
@@ -280,8 +285,13 @@ public class TrackerTrackedFilesTest :
     /// <summary>
     /// The same for any other tool: what the sender said about it, and the process it started,
     /// are still the tool showing the pair.
+    /// <para>
+    /// Windows only: the tool is a Windows PowerShell process, and a move's process is tracked
+    /// only where its image and command line can be read.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AMoveArrivingAgainOverTheViewerPortKeepsAnotherToolAndItsProcess()
     {
         await using var tracker = new RecordingTracker();
@@ -370,46 +380,5 @@ public class TrackerTrackedFilesTest :
         Directory.CreateDirectory(tempDirectory);
         temp = Path.Combine(tempDirectory, "Sample.Test.received.txt");
         target = Path.Combine(Path.GetTempPath(), $"TrackedFilesTest_{Guid.NewGuid():N}.verified.txt");
-    }
-
-    /// <summary>
-    /// With "Always kill locking processes" on, the menu accepts a locked move by killing
-    /// the locker without asking. The same accept arriving from the viewer is refused as locked,
-    /// because the preference lives inside the resolver and a wire accept never consults it.
-    /// </summary>
-    [Test]
-    public async Task AlwaysKillAppliesToAnAcceptArrivingOverTheSocket()
-    {
-        var previous = LockedFilesPolicy.AlwaysKill;
-        // The stored preference, which Program loads into this at startup
-        LockedFilesPolicy.AlwaysKill = true;
-        try
-        {
-            await File.WriteAllTextAsync(temp, "new");
-            await File.WriteAllTextAsync(target, "old");
-            // The resolver Program passes
-            await using var tracker = new RecordingTracker(LockedFilesHandler.Resolve);
-            var locker = FileLockUtils.StartFileLockProcess(target);
-            try
-            {
-                tracker.AddMove(temp, target, "theExe", "theArguments", false, null);
-
-                // What OwnedInlineHost does with an accept sent by a viewer displaying this queue
-                var (ok, message) = ((ITrackedFiles) tracker).Accept(TrackedKeys.ForMove(temp));
-
-                await Assert.That(message).IsNotEqualTo($"Files for '{Path.GetFileNameWithoutExtension(target)}' are locked. Accept from the tray menu to resolve.");
-                await Assert.That(ok).IsTrue();
-            }
-            finally
-            {
-                FileLockUtils.Cleanup(locker);
-            }
-
-            await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("new");
-        }
-        finally
-        {
-            LockedFilesPolicy.AlwaysKill = previous;
-        }
     }
 }

@@ -8,8 +8,13 @@
 /// Every process here is started by the test, and stands in both for a diff tool and for the
 /// stranger that got a diff tool's id.
 /// </para>
+/// <para>
+/// Windows only: an image and a command line are read through kernel32 and ntdll, and with
+/// neither a move is tracked with no process at all.
+/// </para>
 /// </summary>
 [NotInParallel]
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class TrackerProcessImageTest :
     IDisposable
 {

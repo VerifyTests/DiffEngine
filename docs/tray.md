@@ -202,7 +202,7 @@ The case it exists for is a test suite that needs the launch to happen but does 
 "ProcessId":1000
 }
 ```
-<sup><a href='/src/DiffEngineTray.Tests/PiperTest.MoveJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngineTray.Core.Tests/PiperTest.MoveJson.verified.txt#L1-L9' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -216,7 +216,7 @@ The case it exists for is a test suite that needs the launch to happen but does 
 "File":"theFilePath"
 }
 ```
-<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteJson.verified.txt#L1-L4' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngineTray.Core.Tests/PiperTest.DeleteJson.verified.txt#L1-L4' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 
@@ -238,7 +238,7 @@ A move or a delete of a file that was [derived from a document](/docs/viewer.md#
 "Source":"theSourceTempFilePath"
 }
 ```
-<sup><a href='/src/DiffEngineTray.Tests/PiperTest.MoveWithSourceJson.verified.txt#L1-L10' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngineTray.Core.Tests/PiperTest.MoveWithSourceJson.verified.txt#L1-L10' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.MoveWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- snippet: PiperTest.DeleteWithSourceJson.verified.txt -->
@@ -250,7 +250,7 @@ A move or a delete of a file that was [derived from a document](/docs/viewer.md#
 "Source":"theSourceTempFilePath"
 }
 ```
-<sup><a href='/src/DiffEngineTray.Tests/PiperTest.DeleteWithSourceJson.verified.txt#L1-L5' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngineTray.Core.Tests/PiperTest.DeleteWithSourceJson.verified.txt#L1-L5' title='Snippet source file'>snippet source</a> | <a href='#snippet-PiperTest.DeleteWithSourceJson.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The tray tracks such a file as it tracks any other, so it is listed in the menu and taken by an accept-all. The property is only passed on to the viewer, which is what folds the file beneath its document. A tray older than the property ignores it.

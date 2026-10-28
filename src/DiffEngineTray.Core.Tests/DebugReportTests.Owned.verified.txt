@@ -13,12 +13,12 @@ none
 
 Snapshots (1)
 -------------
-[1] SampleTests.cs:42
+[1] sampletests.cs:42
     Key:                {Directory}\sampletests.cs|42
     Source:             {Directory}\sampletests.cs (exists)
     Group:              <null>
     Status:             <null>
-    SourceFile:         {Directory}\SampleTests.cs
+    SourceFile:         {Directory}\sampletests.cs
     LineHint:           42
     Mode:               Set
     OriginalExpression: "old"

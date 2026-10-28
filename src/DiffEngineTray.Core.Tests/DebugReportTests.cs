@@ -26,7 +26,7 @@ public class DebugReportTests :
         File.WriteAllText(received, "");
 
         settings = new();
-        settings.AddScrubber(_ => _.Replace(directory, "{Directory}"));
+        settings.AddScrubber(_ => ScrubDirectory(_, directory));
         // Read when the scrubber runs, not when it is added: every test points at an ephemeral
         // port so that a viewer running on this machine is not talked to, and FakeViewer moves it
         // again for the tests that want one
@@ -81,7 +81,9 @@ public class DebugReportTests :
         await File.WriteAllTextAsync(document, "");
         await File.WriteAllTextAsync(page, "");
         await File.WriteAllTextAsync(stale, "");
-        const string viewer = @"C:\tools\DiffEngineViewer.exe";
+        // A path as this platform writes one, so its file name is the viewer's and the moves are
+        // open: on Linux all of C:\tools\DiffEngineViewer.exe is one file name
+        var viewer = Path.Combine(directory, "DiffEngineViewer.exe");
         tracker.AddMove(
             document,
             Path.Combine(directory, "Sample.Test.verified.pdf"),
@@ -114,10 +116,13 @@ public class DebugReportTests :
         host.Start();
         // Ephemeral, so a viewer or tray running on this machine is not in the way
         settings.AddScrubber(_ => _.Replace(host.Port.ToString(), "{Port}"));
-        // The key a patch is filed under is case folded, so the directory shows up twice
-        settings.AddScrubber(_ => _.Replace(directory.ToLowerInvariant(), "{Directory}"));
+        // The key a patch is filed under is case folded on Windows and macOS, so the directory
+        // shows up twice there
+        settings.AddScrubber(_ => ScrubDirectory(_, directory.ToLowerInvariant()));
 
-        var source = Path.Combine(directory, "SampleTests.cs");
+        // In lower case, so the key reads the same where it is case folded and on Linux, where it
+        // is not
+        var source = Path.Combine(directory, "sampletests.cs");
         await File.WriteAllTextAsync(source, "");
         var patch = new InlinePatch(source, 42, "\"old\"", "line one\nline two")
         {
@@ -133,6 +138,17 @@ public class DebugReportTests :
 
         await Verify(DebugReport.Build(tracker, now), settings);
     }
+
+    /// <summary>
+    /// The directory, and the separator after it as Windows writes one, so the report reads the
+    /// same on every platform and one snapshot holds for all of them. One scrubber for both, in
+    /// that order: as two, a later one ran first and took the directory from in front of the
+    /// separator.
+    /// </summary>
+    static void ScrubDirectory(StringBuilder builder, string path) =>
+        builder
+            .Replace(path + Path.DirectorySeparatorChar, @"{Directory}\")
+            .Replace(path, "{Directory}");
 
     /// <summary>
     /// Owning the queue means a window can be asked for, and this test wants none. Reporting one

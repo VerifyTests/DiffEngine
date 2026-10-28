@@ -6,6 +6,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />
+    <!-- The helpers the core's tests and these share, which live with the core's tests. -->
+    <Compile Include="..\DiffEngineTray.Core.Tests\FakeLauncher.cs" Link="Shared\FakeLauncher.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\FakeViewer.cs" Link="Shared\FakeViewer.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\FileLockUtils.cs" Link="Shared\FileLockUtils.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\HeldApply.cs" Link="Shared\HeldApply.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\RecordingTracker.cs" Link="Shared\RecordingTracker.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\SilentOwner.cs" Link="Shared\SilentOwner.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\StubInlineHost.cs" Link="Shared\StubInlineHost.cs" />
+    <Compile Include="..\DiffEngineTray.Core.Tests\TrackedFilesExtensions.cs" Link="Shared\TrackedFilesExtensions.cs" />
     <Using Include="DiffEngine" />
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.WinForms" />

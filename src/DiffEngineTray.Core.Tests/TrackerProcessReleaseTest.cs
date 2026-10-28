@@ -7,8 +7,12 @@
 /// Every process here is one the test started, and none of them may be ended by the tray: the
 /// move says it cannot be killed.
 /// </para>
+/// <para>
+/// Windows only: the tool is a Windows PowerShell process, and the handle is kernel32's.
+/// </para>
 /// </summary>
 [NotInParallel]
+[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class TrackerProcessReleaseTest :
     IDisposable
 {

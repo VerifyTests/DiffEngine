@@ -6,6 +6,16 @@
 /// </summary>
 public class OwnedInlineHostTest
 {
+    /// <summary>
+    /// A source file in a repository that need not exist, rooted as this platform roots a path.
+    /// The queue names an entry by its source's file name, and a Windows path read on Linux is one
+    /// file name of the whole string, so every entry was named c:\repo\SampleTests.cs there.
+    /// </summary>
+    static string Repo(string file) =>
+        Path.Combine(repo, file);
+
+    static readonly string repo = OperatingSystem.IsWindows() ? @"c:\repo" : "/repo";
+
     sealed class Owner : IDisposable
     {
         public Owner(Func<InlinePatch, InlineApplyResult>? applier = null)
@@ -32,12 +42,12 @@ public class OwnedInlineHostTest
         }
 
         public ViewerResponse Queue(
-            string source = @"c:\repo\SampleTests.cs",
+            string? source = null,
             int line = 42,
             string content = "new",
             string? framework = null,
             string? testName = null) =>
-            Send(new(ViewerVerb.Inline, Body: InlinePatchFile.Build(new(source, line, "\"old\"", content)
+            Send(new(ViewerVerb.Inline, Body: InlinePatchFile.Build(new(source ?? Repo("SampleTests.cs"), line, "\"old\"", content)
             {
                 Framework = framework,
                 TestName = testName
@@ -110,7 +120,7 @@ public class OwnedInlineHostTest
         owner.Queue();
 
         owner.Host.SessionEnding();
-        var response = owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        var response = owner.Queue(Repo("OtherTests.cs"), 7);
 
         await Assert.That(response.Ok).IsFalse();
         await Assert.That(response.Message).IsEqualTo("This tray is going with the session and can take nothing more.");
@@ -139,7 +149,7 @@ public class OwnedInlineHostTest
         using var owner = new Owner();
         owner.Queue();
 
-        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue(Repo("OtherTests.cs"), 7);
 
         await Assert.That(owner.Launcher.Launches).IsEqualTo(1);
         await Assert.That(owner.Host.List().Count).IsEqualTo(2);
@@ -152,7 +162,7 @@ public class OwnedInlineHostTest
         owner.Queue();
         owner.Launcher.Running = false;
 
-        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue(Repo("OtherTests.cs"), 7);
 
         await Assert.That(owner.Launcher.Launches).IsEqualTo(2);
     }
@@ -176,7 +186,7 @@ public class OwnedInlineHostTest
         using var owner = new Owner();
         owner.Queue();
 
-        var response = owner.Send(new(ViewerVerb.Settle, InlineKey.For(@"c:\repo\SampleTests.cs", 42)));
+        var response = owner.Send(new(ViewerVerb.Settle, InlineKey.For(Repo("SampleTests.cs"), 42)));
 
         await Assert.That(response.Ok).IsTrue();
         await Assert.That(owner.Host.List()).IsEmpty();
@@ -370,7 +380,7 @@ public class OwnedInlineHostTest
     {
         using var owner = new Owner();
         owner.Queue();
-        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue(Repo("OtherTests.cs"), 7);
 
         owner.Host.DiscardAll(out _);
 
@@ -549,7 +559,7 @@ public class OwnedInlineHostTest
         owner.Queue(content: "eight", framework: "net8.0");
         owner.Queue(content: "nine", framework: "net9.0");
 
-        var response = owner.Send(new(ViewerVerb.Accept, InlineKey.For(@"c:\repo\SampleTests.cs", 42)));
+        var response = owner.Send(new(ViewerVerb.Accept, InlineKey.For(Repo("SampleTests.cs"), 42)));
 
         await Assert.That(response.Ok).IsFalse();
         await Assert.That(response.Message).IsEqualTo("Conflicting snapshots (net8.0 / net9.0), resolve in the viewer");
@@ -572,7 +582,7 @@ public class OwnedInlineHostTest
         owner.Queue(content: "eight", framework: "net8.0");
         owner.Queue(content: "nine", framework: "net9.0");
 
-        var response = owner.Send(new(ViewerVerb.Accept, InlineKey.For(@"c:\repo\SampleTests.cs", 42), "net9.0"));
+        var response = owner.Send(new(ViewerVerb.Accept, InlineKey.For(Repo("SampleTests.cs"), 42), "net9.0"));
 
         await Assert.That(response.Ok).IsTrue();
         await Assert.That(applied.Single().NewContent).IsEqualTo("nine");
@@ -583,7 +593,7 @@ public class OwnedInlineHostTest
     public async Task AcceptAllOverTheWireSkipsConflicts()
     {
         using var owner = new Owner(_ => InlineApplyResult.Applied);
-        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue(Repo("OtherTests.cs"), 7);
         owner.Queue(content: "eight", framework: "net8.0");
         owner.Queue(content: "nine", framework: "net9.0");
 
@@ -600,10 +610,10 @@ public class OwnedInlineHostTest
         owner.Queue(content: "eight", framework: "net8.0");
         owner.Queue(content: "nine", framework: "net9.0");
 
-        owner.Send(new(ViewerVerb.Settle, InlineKey.For(@"c:\repo\SampleTests.cs", 42), "net8.0"));
+        owner.Send(new(ViewerVerb.Settle, InlineKey.For(Repo("SampleTests.cs"), 42), "net8.0"));
         await Assert.That(owner.Host.List().Single().Status).IsNull();
 
-        owner.Send(new(ViewerVerb.Settle, InlineKey.For(@"c:\repo\SampleTests.cs", 42), "net9.0"));
+        owner.Send(new(ViewerVerb.Settle, InlineKey.For(Repo("SampleTests.cs"), 42), "net9.0"));
         await Assert.That(owner.Host.List()).IsEmpty();
     }
 
@@ -814,7 +824,7 @@ public class OwnedInlineHostTest
     {
         using var held = new HeldApply(2);
         using var owner = new Owner(held.Apply);
-        owner.Queue(@"c:\repo\OtherTests.cs", 7);
+        owner.Queue(Repo("OtherTests.cs"), 7);
         owner.Queue();
 
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
@@ -842,9 +852,9 @@ public class OwnedInlineHostTest
     {
         using var held = new HeldApply(2);
         using var owner = new Owner(held.Apply);
-        owner.Queue(@"c:\repo\SampleTests.cs", 7);
-        owner.Queue(@"c:\repo\SampleTests.cs", 9);
-        owner.Queue(@"c:\repo\OtherTests.cs", 3);
+        owner.Queue(Repo("SampleTests.cs"), 7);
+        owner.Queue(Repo("SampleTests.cs"), 9);
+        owner.Queue(Repo("OtherTests.cs"), 3);
 
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
         held.WaitUntilHeld();
@@ -871,15 +881,15 @@ public class OwnedInlineHostTest
             _ => _.LineHint == 9
                 ? InlineApplyResult.Failed("the file is held")
                 : InlineApplyResult.Applied);
-        owner.Queue(@"c:\repo\SampleTests.cs", 7);
-        owner.Queue(@"c:\repo\SampleTests.cs", 9);
-        owner.Queue(@"c:\repo\SampleTests.cs", 11);
+        owner.Queue(Repo("SampleTests.cs"), 7);
+        owner.Queue(Repo("SampleTests.cs"), 9);
+        owner.Queue(Repo("SampleTests.cs"), 11);
 
         var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
 
         await Assert.That(response.Message).IsEqualTo("Accepted 2, 1 failed. the file is held");
         var left = owner.Send(new(ViewerVerb.ListFull)).Items.Single();
-        await Assert.That(left.Key).IsEqualTo(InlineKey.For(@"c:\repo\SampleTests.cs", 9));
+        await Assert.That(left.Key).IsEqualTo(InlineKey.For(Repo("SampleTests.cs"), 9));
     }
 
     /// <summary>
@@ -898,24 +908,24 @@ public class OwnedInlineHostTest
                 9 => InlineApplyResult.Failed("the file is held"),
                 _ => InlineApplyResult.Applied
             });
-        owner.Queue(@"c:\repo\SampleTests.cs", 7);
-        owner.Queue(@"c:\repo\SampleTests.cs", 9);
-        owner.Queue(@"c:\repo\OtherTests.cs", 11);
+        owner.Queue(Repo("SampleTests.cs"), 7);
+        owner.Queue(Repo("SampleTests.cs"), 9);
+        owner.Queue(Repo("OtherTests.cs"), 11);
 
         var accepted = owner.Host.Accept(owner.Host.List()[0], out _);
 
         await Assert.That(accepted).IsEqualTo(AcceptOutcome.Applied);
         await Assert.That(owner.Send(new(ViewerVerb.ListFull)).Items.Select(_ => _.Key))
-            .IsEquivalentTo([InlineKey.For(@"c:\repo\SampleTests.cs", 13), InlineKey.For(@"c:\repo\OtherTests.cs", 11)]);
+            .IsEquivalentTo([InlineKey.For(Repo("SampleTests.cs"), 13), InlineKey.For(Repo("OtherTests.cs"), 11)]);
 
-        owner.Queue(@"c:\repo\SampleTests.cs", 7);
-        owner.Queue(@"c:\repo\SampleTests.cs", 9);
+        owner.Queue(Repo("SampleTests.cs"), 7);
+        owner.Queue(Repo("SampleTests.cs"), 9);
         var response = owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30));
 
         // The one at 13 is applied, and the one at 9 is not and is four lines down
         await Assert.That(response.Message).IsEqualTo("Accepted 3, 1 failed. the file is held");
         var left = owner.Send(new(ViewerVerb.ListFull)).Items.Single();
-        await Assert.That(left.Key).IsEqualTo(InlineKey.For(@"c:\repo\SampleTests.cs", 13));
+        await Assert.That(left.Key).IsEqualTo(InlineKey.For(Repo("SampleTests.cs"), 13));
         await Assert.That(left.Status).IsEqualTo("the file is held");
     }
 
@@ -1083,12 +1093,12 @@ public class OwnedInlineHostTest
 
                 return held.Apply(patch);
             });
-        owner.Queue(@"c:\repo\SampleTests.cs", 1);
-        owner.Queue(@"c:\repo\OtherTests.cs", 2);
+        owner.Queue(Repo("SampleTests.cs"), 1);
+        owner.Queue(Repo("OtherTests.cs"), 2);
 
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
         held.WaitUntilHeld();
-        owner.Send(new(ViewerVerb.Discard, InlineKey.For(@"c:\repo\OtherTests.cs", 2)));
+        owner.Send(new(ViewerVerb.Discard, InlineKey.For(Repo("OtherTests.cs"), 2)));
         held.Release();
         await accepting;
 
@@ -1123,7 +1133,7 @@ public class OwnedInlineHostTest
 
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
         held.WaitUntilHeld();
-        owner.Send(new(ViewerVerb.Discard, InlineKey.For(@"c:\repo\SampleTests.cs", 2)));
+        owner.Send(new(ViewerVerb.Discard, InlineKey.For(Repo("SampleTests.cs"), 2)));
         held.Release();
         var response = await accepting;
 
@@ -1158,7 +1168,7 @@ public class OwnedInlineHostTest
 
         var accepting = Task.Run(() => owner.Send(new(ViewerVerb.AcceptAll), TimeSpan.FromSeconds(30)));
         held.WaitUntilHeld();
-        owner.Send(new(ViewerVerb.Settle, InlineKey.For(@"c:\repo\SampleTests.cs", 2)));
+        owner.Send(new(ViewerVerb.Settle, InlineKey.For(Repo("SampleTests.cs"), 2)));
         held.Release();
         var response = await accepting;
 

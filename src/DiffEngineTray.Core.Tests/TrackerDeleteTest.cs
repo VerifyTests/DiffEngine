@@ -85,8 +85,13 @@ public class TrackerDeleteTest :
     /// read-only or open verified file threw out of the click handler - onto the UI thread, where
     /// nothing hooks Application.ThreadException - and the entry had already been untracked, so
     /// the pending delete went with it.
+    /// <para>
+    /// Windows only: a file open with no sharing cannot be deleted there. On Unix the lock is
+    /// advisory, and an unlink takes no notice of it.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AcceptLeavesAnUndeletableFileTracked()
     {
         await using var tracker = new RecordingTracker();
@@ -104,8 +109,12 @@ public class TrackerDeleteTest :
     /// <summary>
     /// And one bad delete does not stop the rest of Accept all. Unguarded, the throw skipped the
     /// remaining deletes, every pending move, and the snapshots.
+    /// <para>
+    /// Windows only, for the reason above.
+    /// </para>
     /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AcceptAllContinuesPastAnUndeletableFile()
     {
         await using var tracker = new RecordingTracker();

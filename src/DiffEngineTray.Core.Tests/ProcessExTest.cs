@@ -1,6 +1,10 @@
 ﻿public class ProcessExTest
 {
+    /// <summary>
+    /// Windows only, as TryGet is: it opens the process through kernel32.
+    /// </summary>
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task TryGet()
     {
         using var current = Process.GetCurrentProcess();
@@ -8,7 +12,9 @@
         found!.Dispose();
     }
 
+    /// <inheritdoc cref="TryGet" />
     [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task TryGetMissing()
     {
         await Assert.That(ProcessEx.TryGet(40000, out var found)).IsFalse();
