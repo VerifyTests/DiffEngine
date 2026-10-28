@@ -682,14 +682,23 @@ the comment there about not caching "nothing staged" asks for.
   `DebugReport`, `IssueLauncher` and the Windows API helpers `ProcessEx` and `FileLockKiller`, which
   compile anywhere and run only on Windows until they have Unix paths - and builds on every
   platform, so a macOS or Linux head can be put on it. `src/DiffEngineTray` is the Windows head:
-  `Program`, the menu, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
-  `Keys`), the icons and the Run key. Two seams cross between them. `LockedFilesPolicy.AlwaysKill` is
+  `Program`, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
+  `Keys`), the icons and the Run key. The menu is the core's `TrayMenu`: PlatformHeads'
+  `TrayMenuItem`s built from what the tracker holds, an action for each by id, and tips kept beside
+  the items since a Linux tray's menu cannot show one. Ids name the entry acted on by its key, so a
+  click from a menu built before a change acts on that entry or on nothing. It comes in two halves,
+  `Fixed` and `Tracked`, because the head's `MenuBuilder` keeps the fixed items and builds the
+  tracked ones on every open, making each a ToolStrip item with PlatformHeads' `TrayMenuItems`,
+  and setting the tips and the submenus' direction through its options' `Style`. What only a head
+  can do (its windows, exit, starting a move's diff tool) is handed in as `TrayActions`. Two seams
+  cross between them. `LockedFilesPolicy.AlwaysKill` is
   the core's, and the question a locked file asks is the head's form (`LockedFilesHandler`).
   `IssueLauncher.Declined` declines in the core, which has no toolkit to ask with, and the head
   hands it `IssueQuestion`'s MessageBox first thing in Main. The core is signed and named in
   DiffEngine's `InternalsVisibleTo`, and names the head and both test projects in its own
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
-  well as on Windows. `DiffEngineTray.Tests` keeps what needs the head: the menu, the forms, the
+  well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
+  `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
   hot keys, `LockedFilesHandler`, `DiffToolLauncher` and `TrayViewerSyncTest`. The helpers both
   use (`RecordingTracker`, `FakeViewer`, `FileLockUtils` and the rest) live with the core's tests
   and are linked into the head's. What stays Windows only is marked `[RunOn(OS.Windows)]` with

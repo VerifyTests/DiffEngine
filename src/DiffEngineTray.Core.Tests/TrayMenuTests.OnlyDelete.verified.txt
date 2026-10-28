@@ -1,0 +1,9 @@
+﻿----
+DiffEngine  [glyph: solution]  [disabled]
+Pending Deletes (1):  [glyph: delete]
+file1.txt
+  Accept delete
+  Open directory
+----
+Discard (1)  [glyph: discard]
+Accept all (1)  [glyph: acceptAll]

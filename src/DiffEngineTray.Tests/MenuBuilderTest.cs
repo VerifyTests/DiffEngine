@@ -1,43 +1,16 @@
+/// <summary>
+/// How WinForms shows the tray's menu. What the menu says and does is <c>TrayMenuTests</c>', in
+/// the core's tests, as text.
+/// </summary>
 [TUnit.Core.Executors.STAThreadExecutor]
 public class MenuBuilderTest :
     IDisposable
 {
-    static Action emptyAction = () =>
-    {
-    };
-
     [Test]
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task OnlyMove()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddMove(file2, file2, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task OnlyDelete()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete(file1);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
+        var menu = MenuBuilder.Build(actions, tracker);
         await Verify(menu, settings);
     }
 
@@ -50,123 +23,44 @@ public class MenuBuilderTest :
         tracker.AddDelete(file2);
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, file4, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
+        var menu = MenuBuilder.Build(actions, tracker);
+        await Verify(menu, settings);
+    }
+
+    [Test]
+    public async Task FullGrouped()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        tracker.AddDelete("file2.txt");
+        tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
+        tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
+        var menu = MenuBuilder.Build(actions, tracker);
         await Verify(menu, settings);
     }
 
     /// <summary>
-    /// A snapshot the applier would not write. The menu marked it with an exclamation and stopped
-    /// there, so a sweep reporting "13 not written" left thirteen items saying only that something
-    /// was wrong with them. The reason goes on the item, trimmed to a width a menu can hold,
-    /// because a tray menu grows to its widest entry.
+    /// The model's tips, which it keeps beside its items since not every head can show one, put on
+    /// the ToolStrip items they belong to.
     /// </summary>
     [Test]
-    public async Task SnapshotThatWasNotWrittenCarriesItsReason()
+    public async Task ATipIsOnItsItem()
     {
-        const string status = "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.";
-        // The host directly rather than through a FakeViewer: that one publishes its port in an
-        // environment variable, which the tests running beside it are free to overwrite
-        await using var tracker = new RecordingTracker(
-            inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
-
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        // The tracked items are built on Opening and exist only while the menu is up, so a test
-        // that reads Items without this one sees the six fixed entries and nothing else
+        await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
+        var menu = MenuBuilder.Build(actions, tracker);
         Open(menu);
 
-        var item = menu.Items
-            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
-            .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
-        await Assert.That(item.ToolTipText).IsEqualTo(status);
-
-        // On the item as well as in the tip, since a reason only a hover reveals is one most
-        // people never see. The name goes, having just been said by the item this hangs under,
-        // and what is left is one line so the drop down does not give every entry its height
+        var item = Snapshot(menu);
         var label = item.DropDownItems
             .OfType<System.Windows.Forms.ToolStripMenuItem>()
             .Single(_ => !_.Enabled);
-        await Assert.That(label.ToolTipText).IsEqualTo(status);
-        await Assert.That(label.Text).DoesNotContain("Sample.cs:12");
-        await Assert.That(label.Text).StartsWith("No Verify or Throws call at line 12.");
-        await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(60);
-        await Assert.That(label.Text).DoesNotContain("\n");
+        var accept = item.DropDownItems
+            .OfType<System.Windows.Forms.ToolStripMenuItem>()
+            .Single(_ => _.Text == "Accept snapshot");
+        var tips = (item.ToolTipText, label.ToolTipText, accept.ToolTipText);
         menu.Close();
-    }
 
-    /// <summary>
-    /// A delete "Accept all" passes over, because a move was accepted onto its file. It was listed
-    /// like every other delete, under a button that had just been pressed without removing it, and
-    /// only the log said why. Marked and given its reason the way a snapshot that was not written
-    /// is.
-    /// <para>
-    /// The items are built without the menu being opened, so nothing is put on the desktop.
-    /// </para>
-    /// </summary>
-    [Test]
-    public async Task ADeleteAcceptAllWouldKeepCarriesItsReason()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), $"MenuBuilderTest_{Guid.NewGuid():N}");
-        var staged = Path.Combine(directory, "staged");
-        Directory.CreateDirectory(staged);
-        try
-        {
-            var received = Path.Combine(staged, "Sample.Test.received.txt");
-            var verified = Path.Combine(directory, "Sample.Test.verified.txt");
-            var plain = Path.Combine(directory, "Plain.verified.txt");
-            await File.WriteAllTextAsync(received, "received");
-            await File.WriteAllTextAsync(verified, "verified");
-            await File.WriteAllTextAsync(plain, "plain");
-            await using var tracker = new RecordingTracker();
-            tracker.AddMove(received, verified, "theExe", "theArguments", true, null);
-            tracker.AddDelete(verified);
-            tracker.AddDelete(plain);
-            await tracker.AcceptAll();
-            // The plain delete went with the sweep, and is tracked again for something to compare
-            await File.WriteAllTextAsync(plain, "plain");
-            tracker.AddDelete(plain);
-
-            var items = MenuBuilder.BuildTrackingMenuItems(tracker).ToList();
-            try
-            {
-                var deletes = items
-                    .OfType<System.Windows.Forms.ToolStripDropDownButton>()
-                    .ToList();
-                var held = deletes.Single(_ => _.Text!.StartsWith("Sample.Test.verified.txt"));
-                // Its own mark, and not the one a snapshot that failed to apply carries
-                await Assert.That(held.Text).IsEqualTo("Sample.Test.verified.txt ~");
-                await Assert.That(held.ToolTipText).IsEqualTo(Tracker.WroteItsFile);
-                var label = held.DropDownItems
-                    .OfType<System.Windows.Forms.ToolStripMenuItem>()
-                    .Single(_ => !_.Enabled);
-                await Assert.That(label.ToolTipText).IsEqualTo(Tracker.WroteItsFile);
-                await Assert.That(label.Text!.Length).IsLessThanOrEqualTo(60);
-                await Assert.That(label.Text).StartsWith("Kept by 'Accept all': a move was accepted onto this file");
-
-                var other = deletes.Single(_ => _.Text!.StartsWith("Plain.verified.txt"));
-                await Assert.That(other.Text).IsEqualTo("Plain.verified.txt");
-                await Assert.That(other.DropDownItems
-                        .OfType<System.Windows.Forms.ToolStripMenuItem>()
-                        .Where(_ => !_.Enabled))
-                    .IsEmpty();
-            }
-            finally
-            {
-                foreach (var item in items)
-                {
-                    item.Dispose();
-                }
-            }
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        await Assert.That(tips).IsEqualTo((status, status, (string?) null));
     }
 
     /// <summary>
@@ -178,21 +72,11 @@ public class MenuBuilderTest :
     [Test]
     public async Task SnapshotThatWasNotWrittenDropDown()
     {
-        await using var tracker = new RecordingTracker(
-            inline: new StubInlineHost(
-                new PendingSnapshot(
-                    "c:\\repo\\sample.cs|12",
-                    "Sample.cs:12",
-                    "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.")));
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
+        await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
+        var menu = MenuBuilder.Build(actions, tracker);
         Open(menu);
 
-        var item = menu.Items
-            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
-            .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
+        var item = Snapshot(menu);
         // Before it is shown, as the menu was: a drop down is a window of its own
         item.DropDown.TopLevel = false;
         item.ShowDropDown();
@@ -200,6 +84,43 @@ public class MenuBuilderTest :
         await Verify(Draw(item.DropDown), "png", settings);
         menu.Close();
     }
+
+    /// <summary>
+    /// A click reports the item's id, and each half of the menu answers for its own: the fixed
+    /// items reach the head's actions, the tracked ones the tracker.
+    /// </summary>
+    [Test]
+    public async Task AClickDoesWhatItsItemDoes()
+    {
+        await using var tracker = new RecordingTracker();
+        tracker.AddDelete(file1);
+        var menu = MenuBuilder.Build(actions, tracker);
+        Open(menu);
+        // Both found first, since a click closes the menu and the close takes the tracked items
+        var exit = Item(menu.Items, "Exit");
+        var accept = Item(menu.Items, "Accept delete");
+
+        exit.PerformClick();
+        accept.PerformClick();
+        menu.Close();
+
+        await Assert.That(exits).IsEqualTo(1);
+        await Assert.That(tracker.Deletes).IsEmpty();
+        await Assert.That(File.Exists(file1)).IsFalse();
+    }
+
+    static System.Windows.Forms.ToolStripMenuItem Item(System.Windows.Forms.ToolStripItemCollection items, string text) =>
+        Flatten(items).First(_ => _.Text == text);
+
+    static IEnumerable<System.Windows.Forms.ToolStripMenuItem> Flatten(System.Windows.Forms.ToolStripItemCollection items) =>
+        items
+            .OfType<System.Windows.Forms.ToolStripMenuItem>()
+            .SelectMany(_ => Flatten(_.DropDownItems).Prepend(_));
+
+    static System.Windows.Forms.ToolStripMenuItem Snapshot(System.Windows.Forms.ContextMenuStrip menu) =>
+        menu.Items
+            .OfType<System.Windows.Forms.ToolStripMenuItem>()
+            .Single(_ => _.Text!.StartsWith("Sample.cs:12"));
 
     /// <summary>
     /// Opened, for the items an open builds, with nothing put on the desktop. A menu is a top
@@ -223,16 +144,10 @@ public class MenuBuilderTest :
     [Test]
     public async Task AMenuOpenedByATestIsNotOnTheDesktop()
     {
-        await using var tracker = new RecordingTracker(
-            inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null)));
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
+        await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null)));
+        var menu = MenuBuilder.Build(actions, tracker);
         Open(menu);
-        var item = menu.Items
-            .OfType<System.Windows.Forms.ToolStripDropDownButton>()
-            .Single();
+        var item = Snapshot(menu);
         item.DropDown.TopLevel = false;
         item.ShowDropDown();
 
@@ -267,76 +182,6 @@ public class MenuBuilderTest :
         return stream;
     }
 
-    [Test]
-    public async Task DiffTempTarget()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete(file1);
-        tracker.AddDelete(file2);
-        tracker.AddMove(file3, file4, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task Many()
-    {
-        await using var tracker = new RecordingTracker();
-        foreach (var file in AllFiles.AllPaths)
-        {
-            tracker.AddDelete(file);
-        }
-
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task Grouped()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete("file2.txt");
-        tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task FullGrouped()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete(file1);
-        tracker.AddDelete("file2.txt");
-        tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
-        tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
-    [Test]
-    public async Task OnlyInline()
-    {
-        using var viewer = new FakeViewer("Sample.cs:12", "Other.cs:40");
-        await using var tracker = new RecordingTracker();
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
-        await Verify(menu, settings);
-    }
-
     /// <summary>
     /// The tracked items were told from the fixed ones by their text, so a solution named after
     /// one of them kept its group header through the close that removed everything under it, and
@@ -354,10 +199,7 @@ public class MenuBuilderTest :
             await File.WriteAllTextAsync(file, "");
             await using var tracker = new RecordingTracker();
             tracker.AddDelete(file);
-            var menu = MenuBuilder.Build(
-                emptyAction,
-                emptyAction,
-                tracker);
+            var menu = MenuBuilder.Build(actions, tracker);
             var fixedCount = menu.Items.Count;
 
             Open(menu);
@@ -388,10 +230,7 @@ public class MenuBuilderTest :
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        var menu = MenuBuilder.Build(
-            emptyAction,
-            emptyAction,
-            tracker);
+        var menu = MenuBuilder.Build(actions, tracker);
         var fixedCount = menu.Items.Count;
 
         Open(menu);
@@ -415,9 +254,25 @@ public class MenuBuilderTest :
         await Assert.That(disposed).IsEqualTo(tracked.Count);
     }
 
+    const string status = "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.";
+
     public MenuBuilderTest()
     {
         settings = new();
+        actions = new(
+            Exit: () => exits++,
+            Options: () =>
+            {
+            },
+            DebugView: () =>
+            {
+            },
+            Purge: () =>
+            {
+            },
+            OpenDiffTool: _ =>
+            {
+            });
         file1 = Path.GetFullPath("file1.txt");
         file2 = Path.GetFullPath("file2.txt");
         file3 = Path.GetFullPath("file3.txt");
@@ -436,6 +291,8 @@ public class MenuBuilderTest :
         File.Delete(file4);
     }
 
+    int exits;
+    TrayActions actions;
     string file1;
     string file2;
     string file3;

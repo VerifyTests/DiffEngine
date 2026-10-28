@@ -1,0 +1,18 @@
+﻿----
+DiffEngine  [glyph: solution]  [disabled]
+Pending Deletes (2):  [glyph: delete]
+file1.txt
+  Accept delete
+  Open directory
+file2.txt
+  Accept delete
+  Open directory
+Pending Moves (1):  [glyph: accept]
+file3 > file4 (txt)
+  Accept move
+  Discard
+  Open diff tool
+  Open directory
+----
+Discard (3)  [glyph: discard]
+Accept all (3)  [glyph: acceptAll]

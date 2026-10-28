@@ -1,0 +1,13 @@
+﻿----
+Pending Snapshots (1):  [glyph: accept]
+Sample.cs:12 (inline) !  [tip: Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.]
+  No Verify or Throws call at line 12. One reached through a…  [disabled]  [tip: Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.]
+  Accept snapshot
+  Discard
+  Open in viewer
+  Open source file
+----
+Close snapshot viewer
+----
+Discard (1)  [glyph: discard]
+Accept all (1)  [glyph: acceptAll]

@@ -130,8 +130,12 @@ static class Program
         ReBindKeys(settings, keyRegister, tracker, Warn);
 
         var menuStrip = MenuBuilder.Build(
-            Application.Exit,
-            async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
+            new(
+                Exit: Application.Exit,
+                Options: async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
+                DebugView: async () => await DebugFormLauncher.Launch(tracker),
+                Purge: FilePurger.Launch,
+                OpenDiffTool: DiffToolLauncher.Launch),
             tracker);
 
         icon.MouseClick += (_, args) =>

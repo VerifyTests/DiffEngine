@@ -1,0 +1,17 @@
+﻿----
+Pending Snapshots (2):  [glyph: accept]
+Other.cs:40 (inline)
+  Accept snapshot
+  Discard
+  Open in viewer
+  Open source file
+Sample.cs:12 (inline)
+  Accept snapshot
+  Discard
+  Open in viewer
+  Open source file
+----
+Close snapshot viewer
+----
+Discard (2)  [glyph: discard]
+Accept all (2)  [glyph: acceptAll]

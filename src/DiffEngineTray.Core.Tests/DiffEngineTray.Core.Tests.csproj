@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />
     <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
     <PackageReference Include="Argon" />
     <PackageReference Include="Verify.TUnit" />
     <PackageReference Include="EmptyFiles" />
