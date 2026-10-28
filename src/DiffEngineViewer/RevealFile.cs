@@ -2,10 +2,20 @@
 /// Shows a file in the platform's file manager. Best effort: revealing is a convenience beside
 /// the review, so a missing file manager or a deleted file degrades to nothing rather than an
 /// error under the reviewer.
+/// <para>
+/// The tray links this file, for its menu's "Open directory" and "Open source file".
+/// </para>
 /// </summary>
 static class RevealFile
 {
-    public static void Show(string path)
+    public static void Show(string path) =>
+        Show(path, WriteToConsole);
+
+    static void WriteToConsole(string target, Exception exception) =>
+        Console.Error.WriteLine($"Could not open a file manager on {target}: {exception.Message}");
+
+    /// <param name="failed">Told what could not be opened, and why.</param>
+    public static void Show(string path, Action<string, Exception> failed)
     {
         if (Resolve(path) is not var (target, select))
         {
@@ -35,7 +45,7 @@ static class RevealFile
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"Could not open a file manager on {target}: {exception.Message}");
+            failed(target, exception);
         }
     }
 

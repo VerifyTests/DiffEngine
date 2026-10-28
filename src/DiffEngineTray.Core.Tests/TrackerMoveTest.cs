@@ -20,21 +20,16 @@ public class TrackerMoveTest :
         await Assert.That(tracker.TrackingAny).IsTrue();
     }
 
-    /// <summary>
-    /// Windows only: the tool is a Windows PowerShell process, and a move's process is tracked
-    /// only where its image and command line can be read.
-    /// </summary>
     [Test]
-    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AddSame()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddMove(file1, file1, "theExe", "theArguments", true, null);
         // Stands in for the diff tool showing the pair, started with the received file as one is
-        var process = FileLockUtils.StartFileLockProcess(file3, shows: file1);
+        var process = StandInTool.Start(shows: file1);
         try
         {
-            var tracked = tracker.AddMove(file1, file1, process.MainModule!.FileName, "theArguments", false, process.Id);
+            var tracked = tracker.AddMove(file1, file1, StandInTool.Image, "theArguments", false, process.Id);
             await Assert.That(tracker.Moves).HasSingleItem();
             await Assert.That(tracked.Process!.Id).IsEqualTo(process.Id);
             await Assert.That(tracker.TrackingAny).IsTrue();
@@ -111,10 +106,8 @@ public class TrackerMoveTest :
     {
         File.Delete(file1);
         File.Delete(file2);
-        File.Delete(file3);
     }
 
     string file1 = Path.GetTempFileName();
     string file2 = Path.GetTempFileName();
-    string file3 = Path.GetTempFileName();
 }

@@ -1,18 +1,14 @@
 /// <summary>
 /// A move that cannot be killed still has a process: DiffRunner sends the id for an MDI tool too,
-/// and <see cref="ProcessEx.TryGet"/> holds a handle on it. Nothing let go of
+/// and <see cref="ProcessEx.TryGet"/> holds a handle on it on Windows. Nothing let go of
 /// that handle when the move left, since the only place a tracked process was disposed was the
 /// kill these moves are passed over for. One handle a tracked move, until a finaliser ran.
 /// <para>
 /// Every process here is one the test started, and none of them may be ended by the tray: the
 /// move says it cannot be killed.
 /// </para>
-/// <para>
-/// Windows only: the tool is a Windows PowerShell process, and the handle is kernel32's.
-/// </para>
 /// </summary>
 [NotInParallel]
-[RunOn(TUnit.Core.Enums.OS.Windows)]
 public class TrackerProcessReleaseTest :
     IDisposable
 {
@@ -85,7 +81,7 @@ public class TrackerProcessReleaseTest :
 
     TrackedMove Track(Tracker tracker)
     {
-        var tracked = tracker.AddMove(temp, target, tool.MainModule!.FileName, "theArguments", false, tool.Id);
+        var tracked = tracker.AddMove(temp, target, StandInTool.Image, "theArguments", false, tool.Id);
         if (tracked.Process is null)
         {
             throw new("The process was not tracked.");
@@ -114,22 +110,13 @@ public class TrackerProcessReleaseTest :
         target = Path.Combine(verified, "file.txt");
         File.WriteAllText(temp, "received");
         File.WriteAllText(target, "verified");
-        var locked = Path.Combine(directory, "locked.txt");
-        File.WriteAllText(locked, "");
-        tool = FileLockUtils.StartFileLockProcess(locked, shows: temp);
+        tool = StandInTool.Start(shows: temp);
     }
 
     public void Dispose()
     {
         FileLockUtils.Cleanup(tool);
-        try
-        {
-            Directory.Delete(directory, true);
-        }
-        catch (IOException)
-        {
-            // The process that held a file in it is still on its way out
-        }
+        Directory.Delete(directory, true);
     }
 
     readonly string directory;

@@ -7,6 +7,23 @@ static class ProcessEx
 
     public static bool TryGet(int id, [NotNullWhen(true)] out Process? process)
     {
+        // Off Windows there is no handle to hold: nothing keeps an id from being handed out again
+        // once its process exits, which is why StillTheTool asks again before one is ended
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                process = Process.GetProcessById(id);
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                // Not running
+                process = null;
+                return false;
+            }
+        }
+
         using (var handle = OpenProcess(processQueryInfo, false, id))
         {
             if (handle.IsInvalid)
@@ -123,6 +140,37 @@ static class ProcessEx
     }
 
     /// <summary>
+    /// Whether the process a move was tracked with is still the move's tool, asked before it is
+    /// ended.
+    /// <para>
+    /// On Windows the handle <see cref="TryGet"/> holds keeps the id from being handed out again,
+    /// so the process is the one that was checked. Elsewhere nothing is held, and a tracked move
+    /// outlives its tool by design: once the tool exits, its id can go to any process started
+    /// since, and an accept hours later ended whatever had it. So the question
+    /// <see cref="TryGetTool"/> asked is asked again, of whatever has the id now.
+    /// </para>
+    /// </summary>
+    public static bool StillTheTool(Process process, string? exe, string temp)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        try
+        {
+            return IsSameExecutable(ImagePath(process), exe) &&
+                   WasStartedFor(CommandLine(process), temp);
+        }
+        catch (InvalidOperationException)
+        {
+            // Disposed, so it no longer says which id it had. The kill this stands in front of
+            // has always let one of those through, and the tracker's dispose kills every move's
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Whether a process running the tool is the one showing this pair, by whether it was started
     /// with the received file on its command line.
     /// <para>
@@ -185,10 +233,20 @@ static class ProcessEx
 
     /// <summary>
     /// The command line a process was started with, asked of the handle that is held, or null
-    /// when it will not say.
+    /// when it will not say. Off Windows, its arguments joined by spaces.
     /// </summary>
     internal static string? CommandLine(Process process)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            return LinuxCommandLine(process.Id);
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            return MacCommandLine(process.Id);
+        }
+
         try
         {
             var handle = process.SafeHandle;
@@ -231,6 +289,67 @@ static class ProcessEx
     }
 
     /// <summary>
+    /// <c>/proc/{id}/cmdline</c>, which holds each argument ended by a NUL. They are joined by
+    /// spaces, as <c>ps</c> shows them, so a path is followed by what <see cref="WasStartedFor"/>
+    /// takes as the end of an argument.
+    /// </summary>
+    static string? LinuxCommandLine(int id)
+    {
+        try
+        {
+            var arguments = File.ReadAllText($"/proc/{id}/cmdline").TrimEnd('\0');
+            // A process on its way out has none
+            if (arguments.Length == 0)
+            {
+                return null;
+            }
+
+            return arguments.Replace('\0', ' ');
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Exited
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// What <c>ps</c> says the process's command is, which is its arguments joined by spaces.
+    /// macOS has no <c>/proc</c>, and the arguments are otherwise a sysctl's packed buffer to take
+    /// apart. Asked with <c>-ww</c>, as <c>ProcessCleanup</c> asks, for a command line of any
+    /// length. Another account's process shows only its name, in parentheses, which names no
+    /// received file.
+    /// </summary>
+    static string? MacCommandLine(int id)
+    {
+        var info = new ProcessStartInfo("ps", ["-ww", "-o", "command=", "-p", id.ToString()])
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        };
+        try
+        {
+            using var ps = Process.Start(info)!;
+            var output = ps.StandardOutput.ReadToEnd().TrimEnd();
+            ps.WaitForExit();
+            // Exits with 1 for an id nothing has
+            if (ps.ExitCode != 0 ||
+                output.Length == 0)
+            {
+                return null;
+            }
+
+            return output;
+        }
+        catch (Win32Exception)
+        {
+            // No ps
+            return null;
+        }
+    }
+
+    /// <summary>
     /// By file name and not by path. One executable has several paths - through a junction, a
     /// substituted drive, a short name, another case - and the one the sender resolved need not be
     /// the one the system reports, so comparing whole paths would stop closing tools that should
@@ -243,10 +362,20 @@ static class ProcessEx
 
     /// <summary>
     /// Asked of the handle that is held, so it is the process that would be ended that answers,
-    /// and through the call that needs the least access to it.
+    /// and through the call that needs the least access to it. Off Windows, of the id.
     /// </summary>
     static string? ImagePath(Process process)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            return LinuxImagePath(process.Id);
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            return MacImagePath(process.Id);
+        }
+
         try
         {
             // The longest a path can be
@@ -264,6 +393,43 @@ static class ProcessEx
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// What <c>/proc/{id}/exe</c> links to. Another account's process cannot be read, and is not
+    /// known to be the tool, as one this account cannot open is not on Windows.
+    /// </summary>
+    static string? LinuxImagePath(int id)
+    {
+        try
+        {
+            return new FileInfo($"/proc/{id}/exe").LinkTarget;
+        }
+        catch (Exception exception)
+            when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Exited, or another account's
+            return null;
+        }
+    }
+
+    [DllImport("libproc", EntryPoint = "proc_pidpath")]
+    static extern int ProcPidPath(int pid, byte[] buffer, uint size);
+
+    // PROC_PIDPATHINFO_MAXSIZE
+    const int macPathSize = 4096;
+
+    static string? MacImagePath(int id)
+    {
+        var buffer = new byte[macPathSize];
+        var length = ProcPidPath(id, buffer, macPathSize);
+        // Nothing for an id nothing has, and for another account's process
+        if (length <= 0)
+        {
+            return null;
+        }
+
+        return Encoding.UTF8.GetString(buffer, 0, length);
     }
 
     public static void KillAndDispose(this Process process)

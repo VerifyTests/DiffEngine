@@ -12,7 +12,8 @@
 /// a handle to it exists.
 /// </para>
 /// <para>
-/// Windows only, as ProcessEx is: the handle is kernel32's.
+/// Windows only: the handle is kernel32's. Elsewhere nothing is held, so ProcessEx.StillTheTool
+/// asks again before a tracked process is ended.
 /// </para>
 /// </summary>
 [NotInParallel]

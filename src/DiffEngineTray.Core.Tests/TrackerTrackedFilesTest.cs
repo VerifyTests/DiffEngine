@@ -285,24 +285,19 @@ public class TrackerTrackedFilesTest :
     /// <summary>
     /// The same for any other tool: what the sender said about it, and the process it started,
     /// are still the tool showing the pair.
-    /// <para>
-    /// Windows only: the tool is a Windows PowerShell process, and a move's process is tracked
-    /// only where its image and command line can be read.
-    /// </para>
     /// </summary>
     [Test]
-    [RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task AMoveArrivingAgainOverTheViewerPortKeepsAnotherToolAndItsProcess()
     {
         await using var tracker = new RecordingTracker();
         await File.WriteAllTextAsync(temp, "content");
         // Stands in for the diff tool the sender started for the pair. A process of its own,
         // since the tray kills the tool of a move it may kill
-        var tool = FileLockUtils.StartFileLockProcess(file, shows: temp);
+        var tool = StandInTool.Start(shows: temp);
         try
         {
             // Named as the tool, since a process running something else is not tracked
-            var exe = tool.MainModule!.FileName;
+            var exe = StandInTool.Image;
             tracker.AddMove(temp, target, exe, "theArguments", true, tool.Id);
 
             ((ITrackedFiles) tracker).AddMove(temp, target, null);

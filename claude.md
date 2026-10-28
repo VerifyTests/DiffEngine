@@ -679,9 +679,12 @@ the comment there about not caching "nothing staged" asks for.
 **DiffEngineTray (`src/DiffEngineTray/`):**
 - Windows Forms tray application that handles pending file diffs, in two projects. `src/DiffEngineTray.Core`
   is everything that is not WinForms - `Tracker`, both inline hosts, `PiperServer`, the settings,
-  `DebugReport`, `IssueLauncher` and the Windows API helpers `ProcessEx` and `FileLockKiller`, which
-  compile anywhere and run only on Windows until they have Unix paths - and builds on every
-  platform, so a macOS or Linux head can be put on it. `src/DiffEngineTray` is the Windows head:
+  `DebugReport`, `IssueLauncher`, `ProcessEx` (which reads a process's image and command line
+  through kernel32 and ntdll, `/proc` on Linux, and `proc_pidpath` and `ps -ww` on macOS),
+  `DiffToolLauncher` and `FileLockKiller` (the restart manager's, which compiles anywhere and runs
+  only on Windows, Unix locks being advisory) - and builds on every platform, so a macOS or
+  Linux head can be put on it. Showing a file in a file manager is the viewer's `RevealFile`,
+  which the core links. `src/DiffEngineTray` is the Windows head:
   `Program`, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
   `Keys`), the icons and the Run key. The menu is the core's `TrayMenu`: PlatformHeads'
   `TrayMenuItem`s built from what the tracker holds, an action for each by id, and tips kept beside
@@ -690,7 +693,9 @@ the comment there about not caching "nothing staged" asks for.
   `Fixed` and `Tracked`, because the head's `MenuBuilder` keeps the fixed items and builds the
   tracked ones on every open, making each a ToolStrip item with PlatformHeads' `TrayMenuItems`,
   and setting the tips and the submenus' direction through its options' `Style`. What only a head
-  can do (its windows, exit, starting a move's diff tool) is handed in as `TrayActions`. Two seams
+  can do (its windows, exit) is handed in as `TrayActions`, with the core's `DiffToolLauncher` for
+  a move's diff tool, which brings the tool forward only on Windows and elsewhere ends it, where it
+  may, and starts it again. Two seams
   cross between them. `LockedFilesPolicy.AlwaysKill` is
   the core's, and the question a locked file asks is the head's form (`LockedFilesHandler`).
   `IssueLauncher.Declined` declines in the core, which has no toolkit to ask with, and the head
@@ -699,10 +704,13 @@ the comment there about not caching "nothing staged" asks for.
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
-  hot keys, `LockedFilesHandler`, `DiffToolLauncher` and `TrayViewerSyncTest`. The helpers both
+  hot keys, `LockedFilesHandler` and `TrayViewerSyncTest`. The helpers both
   use (`RecordingTracker`, `FakeViewer`, `FileLockUtils` and the rest) live with the core's tests
-  and are linked into the head's. What stays Windows only is marked `[RunOn(OS.Windows)]` with
-  the reason in its summary, and is of three kinds: `ProcessEx` and `FileLockKiller`, a lock held
+  and are linked into the head's. A diff tool is stood in for by `StandInTool`, Windows
+  PowerShell or bash started with the received file on its command line, so the process tests
+  run on every platform. What stays Windows only is marked `[RunOn(OS.Windows)]` with
+  the reason in its summary, and is of three kinds: the handle `ProcessEx` holds and
+  `FileLockKiller`, a lock held
   by a Windows PowerShell process, and Windows' file semantics, under which a file open with no
   sharing or marked read-only cannot be moved over or deleted. On Unix a rename or an unlink
   takes no notice of either. Test data is written as the platform roots a path
@@ -814,7 +822,12 @@ the comment there about not caching "nothing staged" asks for.
   does not rule out another copy of the same tool holding a reused id, so the process's command
   line has to name the received file as well (`ProcessEx.WasStartedFor`): every definition
   passes that path as it was given. A tool started through a script, or one that hands over to
-  another process and exits, cannot be tracked from here at all.
+  another process and exits, cannot be tracked from here at all. On Windows the handle
+  `ProcessEx.TryGet` holds keeps the id from being handed out again. Elsewhere nothing does, so
+  both questions are asked again before a tracked tool is ended, on accept and on "Open diff
+  tool" (`ProcessEx.StillTheTool`): a move outlives its tool, and its id can be anything's by
+  then. Whether a move is open (`TrackedMove.IsOpen`) is not asked again: "Accept all open" is a
+  hot key, which only Windows has.
 - A move that writes a file marks the delete pending on it (`TrackedDelete.Written`), however
   the move was accepted, and no accept-all carries a marked delete out until it is raised again
   over a file written since (`TrackedDelete.WrittenAs`, `QueueEntry.WrittenAs`): raised over the
