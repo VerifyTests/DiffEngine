@@ -39,7 +39,7 @@ Moves, deletes and pending snapshots are grouped by the containing solution. In 
 
 "Pending Moves" will accept the changes to file3 and file4.
 
-Clicking "file3" or "file4" will accept the changes to file3 or file4 respectively. The drop down will expose extra actions for that change.
+Each of "file3" and "file4" opens a submenu of actions for that change: accept it, discard it, open the diff tool on it, and open its directory.
 
 
 ### Deletes
@@ -48,7 +48,7 @@ A test can produce multiple resulting snapshots. If the accepted versions has a 
 
 "Pending Deletes" will delete file1 and file2.
 
-Clicking "file1" or "file2" will delete file1 or file2 respectively. The drop down will expose extra actions for that change.
+Each of "file1" and "file2" opens a submenu with "Accept delete", which deletes that file, and "Open directory".
 
 A delete is withdrawn when a later test run verifies against its file again, since the file is then in use rather than stale: `DiffRunner.SettleDelete(file)` drops the pending delete and leaves the file alone. It reaches a tray that owns the inline queue, which is the usual arrangement since the tray starts at login. A pending move onto the file withdraws the delete as well, whichever process owns the queue: a run that produced a received file for it is a run that verified against it.
 
@@ -61,7 +61,7 @@ When the tray holds it, the window becomes disposable. A viewer that is closed, 
 
 The viewer installed with the tray also reads [documents](/docs/viewer.md#documents): PDF, Word, Excel and PowerPoint files as text, as their pages drawn, or both, and SVGs and maps drawn beside their text. The copy bundled in the DiffEngine package does not. On a machine with the tray installed, test runs resolve the tray's copy ahead of the bundled one, so pending documents open in a viewer that can read them.
 
-"Pending Snapshots" accepts all of them. Clicking one accepts that one, and its drop down offers discard, opening the viewer on it, and opening the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
+"Pending Snapshots" accepts all of them. Each one opens a submenu that accepts it, discards it, opens the viewer on it, and opens the source file. A snapshot that failed to apply is marked with `!` and stays pending, so it can be retried once whatever blocked it is out of the way.
 
 Exiting the tray writes any still-pending inline snapshots back to disk, under the source project's `obj/VerifyInline/`, where accept tooling such as [Verify.Terminal](https://github.com/VerifyTests/Verify.Terminal) still finds them. Logging off or shutting down does the same, and a snapshot that arrives once the session is ending is refused, so the test run stages it itself. A kill or a crash skips that, and loses the queue as it loses pending moves and deletes; re-run the tests.
 

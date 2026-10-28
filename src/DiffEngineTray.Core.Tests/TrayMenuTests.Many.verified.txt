@@ -1,0 +1,62 @@
+﻿----
+Pending Deletes (55):  [glyph: delete]
+empty.7z
+  Accept delete
+  Open directory
+empty.7zip
+  Accept delete
+  Open directory
+empty.bz2
+  Accept delete
+  Open directory
+empty.bzip2
+  Accept delete
+  Open directory
+empty.gz
+  Accept delete
+  Open directory
+empty.gzip
+  Accept delete
+  Open directory
+empty.kmz
+  Accept delete
+  Open directory
+empty.nupkg
+  Accept delete
+  Open directory
+empty.tar
+  Accept delete
+  Open directory
+empty.xz
+  Accept delete
+  Open directory
+empty.zip
+  Accept delete
+  Open directory
+empty.bin
+  Accept delete
+  Open directory
+empty.docx
+  Accept delete
+  Open directory
+empty.odt
+  Accept delete
+  Open directory
+empty.pdf
+  Accept delete
+  Open directory
+empty.rtf
+  Accept delete
+  Open directory
+empty.avif
+  Accept delete
+  Open directory
+empty.bmp
+  Accept delete
+  Open directory
+empty.dds
+  Accept delete
+  Open directory
+Only 20 items rendered  [disabled]
+Discard (55)  [glyph: discard]
+Accept all (55)  [glyph: acceptAll]

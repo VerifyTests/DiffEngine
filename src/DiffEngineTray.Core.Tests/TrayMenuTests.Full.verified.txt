@@ -1,0 +1,37 @@
+﻿----
+DiffEngine  [glyph: solution]  [disabled]
+Pending Deletes (2):  [glyph: delete]
+file1.txt
+  Accept delete
+  Open directory
+file2.txt
+  Accept delete
+  Open directory
+Pending Moves (2):  [glyph: accept]
+file3 (txt)
+  Accept move
+  Discard
+  Open diff tool
+  Open directory
+file4 (txt)
+  Accept move
+  Discard
+  Open diff tool
+  Open directory
+----
+Pending Snapshots (2):  [glyph: accept]
+Other.cs:40 (inline)
+  Accept snapshot
+  Discard
+  Open in viewer
+  Open source file
+Sample.cs:12 (inline)
+  Accept snapshot
+  Discard
+  Open in viewer
+  Open source file
+----
+Close snapshot viewer
+----
+Discard (6)  [glyph: discard]
+Accept all (6)  [glyph: acceptAll]

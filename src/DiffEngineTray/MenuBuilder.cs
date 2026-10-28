@@ -1,19 +1,46 @@
+/// <summary>
+/// The tray's menu as WinForms shows it: <see cref="TrayMenu" />'s items made ToolStrip items by
+/// PlatformHeads' <see cref="TrayMenuItems" />, which BuildMonitor's tray shows its model with too.
+/// What the menu says and does is the core's; what is here is how it looks.
+/// </summary>
 static class MenuBuilder
 {
-    public static ContextMenuStrip Build(Action exit, Action launchOptions, Tracker tracker)
+    public static ContextMenuStrip Build(TrayActions actions, Tracker tracker)
     {
         var menu = new ContextMenuStrip
         {
             DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft
         };
-        var items = menu.Items;
         menu.Font = new(menu.Font.FontFamily, 10);
-        items.Add(new MenuButton("Exit", exit, Images.Exit));
-        items.Add(new MenuButton("Options", launchOptions, Images.Options));
-        items.Add(new MenuButton("Debug view", async () => await DebugFormLauncher.Launch(tracker), Images.Options));
-        items.Add(new MenuButton("Open logs", Logging.OpenDirectory, Images.Folder));
-        items.Add(new MenuButton("Purge verified files", FilePurger.Launch, Images.Folder));
-        items.Add(new MenuButton("Raise issue", IssueLauncher.Launch, Images.Link));
+        var fixedItems = TrayMenu.Fixed(actions);
+        TrayMenu? tracked = null;
+
+        var options = new NotifyIconOptions<TrayIcon>(
+            "DiffEngineTray",
+            _ => _ == TrayIcon.Active ? Images.Active : Images.Default,
+            Glyph,
+            Style: (item, model) =>
+            {
+                item.ToolTipText = fixedItems.Tooltip(model.Id) ?? tracked?.Tooltip(model.Id);
+                if (model.HasChildren)
+                {
+                    item.DropDownDirection = ToolStripDropDownDirection.Left;
+                }
+            });
+
+        void Clicked(string id)
+        {
+            if (!fixedItems.Invoke(id))
+            {
+                tracked?.Invoke(id);
+            }
+        }
+
+        foreach (var item in fixedItems.Items)
+        {
+            menu.Items.Add(TrayMenuItems.Create(item, options, Clicked));
+        }
+
         // After the fixed items, which it keeps as themselves: told apart by their text, a
         // solution named after one of them - Options, say - gave that group a header that was
         // never removed. The tracked ones are built again on every open, and disposed at the next.
@@ -21,296 +48,27 @@ static class MenuBuilder
             menu,
             _ =>
             {
-                foreach (var item in BuildTrackingMenuItems(tracker))
+                tracked = TrayMenu.Tracked(tracker, actions);
+                foreach (var item in tracked.Items)
                 {
-                    _.Add(item);
+                    _.Add(TrayMenuItems.Create(item, options, Clicked));
                 }
             });
         return menu;
     }
 
-    internal static IEnumerable<ToolStripItem> BuildTrackingMenuItems(Tracker tracker)
-    {
-        // Read everything first and decide from the counts. TrackingAny is backed by the scan
-        // cache, which drives the icon, and the snapshot half of it can be up to one scan behind
-        // what the viewer actually has queued.
-        var deletes = tracker
-            .Deletes
-            .OrderBy(_ => _.File)
-            .ToList();
-
-        var moves = tracker
-            .Moves
-            .OrderBy(_ => _.Temp)
-            .ToList();
-
-        var snapshots = tracker
-            .Snapshots
-            .OrderBy(_ => _.Name)
-            .ToList();
-
-        var count = moves.Count + deletes.Count + snapshots.Count;
-        if (count == 0)
+    static Image? Glyph(string name) =>
+        name switch
         {
-            yield break;
-        }
-
-        yield return new ToolStripSeparator();
-
-        foreach (var item in BuildGroupedMenuItems(tracker, deletes, moves, snapshots))
-        {
-            yield return item;
-        }
-
-        // Closing the viewer is a process-wide action, not something done to one group's
-        // snapshots, so it sits on its own rather than trailing the last group that happens to
-        // have some.
-        if (snapshots.Count != 0)
-        {
-            yield return new MenuButton("Close snapshot viewer", tracker.CloseViewer);
-            yield return new ToolStripSeparator();
-        }
-
-        yield return new MenuButton($"Discard ({count})", () => tracker.Clear(),Images.Discard);
-        yield return new MenuButton($"Accept all ({count})", () => tracker.AcceptAll(), Images.AcceptAll);
-    }
-
-    static IEnumerable<ToolStripItem> BuildGroupedMenuItems(
-        Tracker tracker,
-        List<TrackedDelete> deletes,
-        List<TrackedMove> moves,
-        List<PendingSnapshot> snapshots)
-    {
-        var groups = deletes
-            .Select(_ => _.Group)
-            .Concat(moves.Select(_ => _.Group))
-            .Concat(snapshots.Select(_ => _.Group))
-            .Distinct()
-            .ToList();
-
-        var addedCount = 0;
-        foreach (var group in groups)
-        {
-            foreach (var toolStripItem in BuildMovesAndDeletes(
-                         group,
-                         tracker,
-                         deletes
-                             .Where(_ => _.Group == group)
-                             .ToList(),
-                         moves
-                             .Where(_ => _.Group == group)
-                             .ToList(),
-                         snapshots
-                             .Where(_ => _.Group == group)
-                             .ToList()))
-            {
-                yield return toolStripItem;
-                addedCount++;
-                if (addedCount == 20)
-                {
-                    yield return new MenuButton("Only 20 items rendered");
-                    yield break;
-                }
-            }
-        }
-    }
-
-    static IEnumerable<ToolStripItem> BuildMovesAndDeletes(
-        string? name,
-        Tracker tracker,
-        List<TrackedDelete> deletes,
-        List<TrackedMove> moves,
-        List<PendingSnapshot> snapshots)
-    {
-        if (name != null)
-        {
-            yield return new MenuButton(name, null, Images.VisualStudio);
-        }
-
-        if (deletes.Count != 0)
-        {
-            yield return new MenuButton(
-                $"Pending Deletes ({deletes.Count}):",
-                () => tracker.Accept(deletes),
-                Images.Delete);
-            foreach (var delete in deletes)
-            {
-                yield return BuildDelete(delete, tracker.HeldReason(delete), () => tracker.Accept(delete));
-            }
-        }
-
-        if (moves.Count != 0)
-        {
-            yield return new MenuButton(
-                $"Pending Moves ({moves.Count}):",
-                () => tracker.Accept(moves),
-                Images.Accept);
-            foreach (var move in moves)
-            {
-                yield return BuildMove(
-                    move,
-                    () => tracker.Accept(move),
-                    () => tracker.Discard(move),
-                    () => tracker.FindMove(move.Temp));
-            }
-        }
-
-        if (snapshots.Count != 0)
-        {
-            // The group's own list, matching the deletes and moves headers above: solution A's
-            // header must not accept solution B's queue.
-            yield return new MenuButton(
-                $"Pending Snapshots ({snapshots.Count}):",
-                () => tracker.Accept(snapshots),
-                Images.Accept);
-            foreach (var snapshot in snapshots)
-            {
-                yield return BuildSnapshot(
-                    snapshot,
-                    () => tracker.Accept(snapshot),
-                    () => tracker.Discard(snapshot),
-                    () => tracker.Focus(snapshot));
-            }
-        }
-
-        yield return new ToolStripSeparator();
-    }
-
-    static ToolStripDropDownButton BuildSnapshot(PendingSnapshot snapshot, Action accept, Action discard, Action focus)
-    {
-        var failed = snapshot.Status == null ? "" : " !";
-        var menu = new ToolStripDropDownButton($"{snapshot.Name} (inline){failed}")
-        {
-            DropDownDirection = ToolStripDropDownDirection.Left
+            "exit" => Images.Exit,
+            "options" => Images.Options,
+            "folder" => Images.Folder,
+            "link" => Images.Link,
+            "solution" => Images.VisualStudio,
+            "delete" => Images.Delete,
+            "accept" => Images.Accept,
+            "acceptAll" => Images.AcceptAll,
+            "discard" => Images.Discard,
+            _ => null
         };
-        if (snapshot.Status is { } status)
-        {
-            // The marker said something had gone wrong and the menu had nowhere to say what. An
-            // accept reporting "13 not written" over thirteen bare exclamation marks tells a
-            // reader only that they are on their own. On the item itself as well as in the tip,
-            // because a reason that has to be hovered for is a reason most people never see
-            menu.ToolTipText = status;
-            // A menu item rather than a label: a label does not count towards the drop down's
-            // width, so its text was clipped to whatever the buttons below happened to make the
-            // menu - about twenty characters of a sentence
-            menu.DropDownItems.Add(new ToolStripMenuItem(ForMenu(snapshot.Name, status))
-            {
-                Enabled = false,
-                ToolTipText = status
-            });
-        }
-
-        menu.DropDownItems.Add(new MenuButton("Accept snapshot", accept));
-        menu.DropDownItems.Add(new MenuButton("Discard", discard));
-        // Replaces "Open diff tool": the viewer is the diff tool, so the useful action is to bring
-        // it forward on this item, starting one if the queue is here and nothing is showing it.
-        menu.DropDownItems.Add(new MenuButton("Open in viewer", focus));
-        menu.DropDownItems.Add(new MenuButton("Open source file", () => ExplorerLauncher.ShowFileInExplorer(snapshot.Source)));
-        return menu;
-    }
-
-    /// <summary>
-    /// One line of it, and the part worth the room. The status leads with the name of the snapshot,
-    /// which the item this hangs under has just said, so the prefix goes and the reason itself gets
-    /// the width.
-    /// <para>
-    /// One line rather than a wrapped block: a drop down gives every item the height of its tallest,
-    /// so a reason over three lines pushed Accept, Discard and the rest three lines apart each. The
-    /// tip carries the sentence whole for anyone who wants the end of it.
-    /// </para>
-    /// </summary>
-    static string ForMenu(string name, string status)
-    {
-        var prefix = $"{name} not written. ";
-        if (status.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            status = status[prefix.Length..];
-        }
-
-        return Shortened(status);
-    }
-
-    static string Shortened(string text) =>
-        text.Length <= 60 ? text : $"{text[..59].TrimEnd()}…";
-
-    /// <summary>
-    /// What a delete "Accept all" would leave pending is marked with. Not the <c>!</c> of a
-    /// snapshot that failed to apply, which it used to share: nothing failed here, and the delete
-    /// is waiting to be accepted on its own. The character the viewer's queue column leads a held
-    /// delete's row with.
-    /// </summary>
-    internal const string HeldMark = " ~";
-
-    /// <param name="delete">The pending delete.</param>
-    /// <param name="held">
-    /// Why "Accept all" leaves this delete pending, when it does. Marked, and said the way a
-    /// snapshot that was not written says why: a delete an accept-all had just passed over looked
-    /// like every other, and pressing "Accept all" again was the natural thing to try.
-    /// </param>
-    /// <param name="accept">Accepts this delete on its own.</param>
-    static ToolStripDropDownButton BuildDelete(TrackedDelete delete, string? held, Action accept)
-    {
-        var marker = held == null ? "" : HeldMark;
-        var menu = new ToolStripDropDownButton($"{delete.Name}{marker}")
-        {
-            DropDownDirection = ToolStripDropDownDirection.Left
-        };
-        if (held != null)
-        {
-            menu.ToolTipText = held;
-            menu.DropDownItems.Add(new ToolStripMenuItem(Shortened(held))
-            {
-                Enabled = false,
-                ToolTipText = held
-            });
-        }
-
-        menu.DropDownItems.Add(new MenuButton("Accept delete", accept));
-        menu.DropDownItems.Add(BuildShowInExplorer(delete.File));
-        return menu;
-    }
-
-    /// <param name="current">
-    /// The move as it is when an item is clicked, found again by its received file. A re-run
-    /// replaces the move while a menu built before it can still be open, and the one captured
-    /// here then holds a process the replacement has disposed.
-    /// </param>
-    static ToolStripDropDownButton BuildMove(TrackedMove move, Action accept, Action discard, Func<TrackedMove?> current)
-    {
-        var tempName = Path.GetFileNameWithoutExtension(move.Temp);
-        var targetName = Path.GetFileNameWithoutExtension(move.Target);
-        var text = GetMoveText(move, tempName, targetName);
-        var menu = new ToolStripDropDownButton(text)
-        {
-            DropDownDirection = ToolStripDropDownDirection.Left
-        };
-        menu.DropDownItems.Add(new MenuButton("Accept move", accept));
-        menu.DropDownItems.Add(new MenuButton("Discard", discard));
-        if (move.Exe != null)
-        {
-            menu.DropDownItems.Add(new MenuButton("Open diff tool", () =>
-            {
-                if (current() is { Exe: not null } live)
-                {
-                    DiffToolLauncher.Launch(live);
-                }
-            }));
-        }
-
-        menu.DropDownItems.Add(BuildShowInExplorer(move.Temp));
-        return menu;
-    }
-
-    static string GetMoveText(TrackedMove move, string tempName, string targetName)
-    {
-        if (Path.GetFileNameWithoutExtension(tempName) == Path.GetFileNameWithoutExtension(targetName))
-        {
-            return $"{move.Name} ({move.Extension})";
-        }
-
-        return $"{tempName} > {targetName} ({move.Extension})";
-    }
-
-    static MenuButton BuildShowInExplorer(string file) =>
-        new("Open directory", () => ExplorerLauncher.ShowFileInExplorer(file));
 }

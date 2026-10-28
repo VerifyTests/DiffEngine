@@ -1,0 +1,6 @@
+﻿Exit  [glyph: exit]
+Options  [glyph: options]
+Debug view  [glyph: options]
+Open logs  [glyph: folder]
+Purge verified files  [glyph: folder]
+Raise issue  [glyph: link]

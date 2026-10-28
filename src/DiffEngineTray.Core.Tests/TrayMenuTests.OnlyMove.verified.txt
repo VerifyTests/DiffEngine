@@ -1,0 +1,11 @@
+﻿----
+DiffEngine  [glyph: solution]  [disabled]
+Pending Moves (1):  [glyph: accept]
+file2 (txt)
+  Accept move
+  Discard
+  Open diff tool
+  Open directory
+----
+Discard (1)  [glyph: discard]
+Accept all (1)  [glyph: acceptAll]

@@ -241,7 +241,7 @@ public class TrayViewerSyncTest
         await Assert.That(row.Label).StartsWith(QueueProjection.HeldMark);
         await Assert.That(row.Status).IsNull();
         await Assert.That(row.Tooltip!).Contains(Tracker.WroteItsFile);
-        await Assert.That(MenuBuilder.HeldMark.Trim()).IsEqualTo(QueueProjection.HeldMark.Trim());
+        await Assert.That(TrayMenu.HeldMark.Trim()).IsEqualTo(QueueProjection.HeldMark.Trim());
 
         // Raised again over the file as the move left it, which a process that decided before
         // the move was accepted does too: still held
