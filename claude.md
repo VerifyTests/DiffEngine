@@ -406,9 +406,10 @@ the comment there about not caching "nothing staged" asks for.
   in it differs from the one before, so frames go on being built and drawn while one is up.
 - Documents (PDF, docx, xlsx, pptx, and SVG and maps drawn beside their text) need **`src/DiffEngineViewer.Documents`**,
   a separate assembly with Morph, Morph.PDFium, Skia, GeoConvert and the OpenXml SDK behind it: tens of MB per
-  RID. So it ships only in a `documents/` folder of the three tool packages and of the tray (one folder
-  at `viewer/documents/`, which each RID copy finds one directory up), never in DiffEngine's bundle.
-  `Documents.targets` adds it, and only to RID-less builds - the bundle is the only per-RID publish -
+  RID. So it ships only in a `documents/` folder of the three tool packages and of each RID's tray
+  package (at `viewer/documents/`, which the viewer beside it finds one directory up), never in
+  DiffEngine's bundle. `Documents.targets` adds it, and only to RID-less builds and to the tray
+  heads' RID builds (`DocumentsInRidBuild`) - the bundle is the only other per-RID publish -
   which is the same switch the Mac and Linux heads use for their own natives. Its natives and `.pdb`s
   are trimmed inside that project, from the items `deps.json` is generated from, because
   `AssemblyDependencyResolver` refuses a folder whose `deps.json` names a missing asset for the
@@ -632,8 +633,8 @@ the comment there about not caching "nothing staged" asks for.
   formats, the source file and the two libraries the viewer links beyond raylib. Its package's
   targets publish and bundle the `PlatformHead` items of `DiffEngine.csproj` (`PH0001` for a
   native head with no library, `PH0002` for an apphost that was not staged), staged in
-  `obj\viewer`, where `DiffEngineTray.csproj` takes the two Windows heads from by calling
-  `PlatformHeadsPublish`. A fix to any of that goes there, not here. To build the Linux library by
+  `obj\viewer`, where each tray head takes its RIDs' heads from by calling
+  `PlatformHeadsPublish` (`TrayHead.targets`). A fix to any of that goes there, not here. To build the Linux library by
   hand, from the repository root: `docker run --rm -v "$PWD:/src" -v
   "D:/Code/PlatformHeads/native:/ph:ro" -w /src -e LIBRARY=diffengine_viewer
   "quay.io/pypa/manylinux_2_28_$(uname -m)" bash /ph/build-linux.sh`.
@@ -719,7 +720,7 @@ the comment there about not caching "nothing staged" asks for.
   heard by PlatformHeads.Core's `SessionEndSignals` and handed `TraySessionEnd.For`, which the
   Windows head hands its `SessionEndWindow`. Seen working in a `dotnet/sdk:10.0` container on a
   private `dbus-daemon` with a stand-in watcher: the menu, run at startup, the debug view, exit
-  and SIGTERM. Not packed yet
+  and SIGTERM. Packed as `DiffEngineTray.linux-x64` and `.linux-arm64`
 - `src/DiffEngineTray.Mac` is the macOS head, an `Exe` named `DiffEngineTray` too, and the Linux
   head with a status bar item for the StatusNotifierItem: PlatformHeadsMac's `StatusItem`, in a
   native library of its own, `diffengine_tray` (decision G), so a tray change never moves the
@@ -737,15 +738,40 @@ the comment there about not caching "nothing staged" asks for.
   its wait; nothing in `Program.Inner` awaits before the loop returns. The app is an accessory,
   with no Dock icon, App Nap is off (`NapGuard`), and a logout is `TerminateGuard`'s, which
   refuses the quit and reports it, for the loop to end as Exit does. "Run at startup" is a
-  launch agent. Not packed yet
-- A test run finds the viewer installed with the tray by `FallbackViewerDirectories`: on Windows
-  in the one portable package, `tools/*/any/viewer/{rid}`, and on macOS and Linux in a RID
-  specific one, which is where the macOS and Linux heads have to be packed. .NET 10 installs a
-  RID specific tool beside the package it was asked for, which only names one package per RID,
-  as `.store/diffenginetray/{version}/diffenginetray.{rid}/{version}/tools/{tfm}/{rid}/` (seen
-  by packing and installing one), so the viewer goes in `viewer/{rid}` inside that, still in a
-  folder of its RID's name, which `TrayViewerDirectory` hands on as the Windows head does. On
-  Windows such a tool's command is a `.cmd` that starts the apphost, not a copy of it
+  launch agent. Packed as `DiffEngineTray.osx-x64` and `.osx-arm64`
+- The tray ships as .NET 10 RID specific tool packages (decision F), by
+  `src/DiffEngineTray.Core/TrayHead.targets`, which every head imports after naming its RIDs in
+  `TrayRids`. `DiffEngineTray` only names a package per RID (`tools/any/any/DotnetToolSettings.xml`),
+  and `dotnet tool install -g DiffEngineTray` fetches `DiffEngineTray.{rid}` beside it, so the
+  command did not change. Each RID's package is its head built for that RID, with that RID's viewer
+  at `viewer/{rid}` and the documents folder, with that RID's natives only, at `viewer/documents`.
+  The Windows head's build for no RID packs `DiffEngineTray` (`TrayPointer`), and its
+  `PackTrayHeads` first builds each RID's head by the MSBuild task with `RuntimeIdentifier` added
+  and nothing else, as the SDK does for a tool's own RID list: their references are then the
+  instances the solution already built, restore is the solution's (`RuntimeIdentifiers` is each
+  head's RIDs), and each head project is built once per output. It calls `Build`, not `Pack`,
+  because with ProjectDefaults' `GeneratePackageOnBuild` a `Pack` publishes for the RID without
+  building for it. `Documents.targets` collects for those RID builds too (`DocumentsInRidBuild`).
+- No apphost in a RID's package (`UseAppHost` false for a RID build), which makes its tool
+  settings the dotnet runner and the dll, as a portable tool's are. `dotnet tool install` then
+  writes the command as an apphost of its own, a GUI one on Windows for the `WinExe`, at
+  `.dotnet/tools/DiffEngineTray[.exe]`, and `Environment.ProcessPath`, which the Run key, the XDG
+  autostart and the launch agent name, is that path, the same after an update. Given an apphost,
+  the CLI writes a `.cmd` on Windows that starts the store's copy by a path with the version in it,
+  which an update deletes, and which opens a console at login. Seen by packing and installing the
+  Windows head both ways, and the Linux packages in a `dotnet/sdk:10.0` container, where the
+  installed tray listened on 3492 with no session bus
+- A test run finds the viewer installed with the tray by `FallbackViewerDirectories`. .NET 10
+  installs a RID specific tool beside the package it was asked for as
+  `.store/diffenginetray/{version}/diffenginetray.{rid}/{version}/tools/{tfm}/{rid}/` (seen by
+  packing and installing one), so the viewer is in `viewer/{rid}` inside that, still in a folder
+  of its RID's name, which `TrayViewerDirectory` hands on. On Windows the old portable package's
+  `tools/*/any/viewer/{rid}` is looked in second, for a tray installed up to 20.8.2 and not since
+  updated
+- CI's `tray-install` job installs the tray from the `windows` job's packages on Windows, Linux
+  and macOS, from a source of those alone, checks the viewer and documents folder are where the
+  lookups expect and (on Windows) that the command is a GUI apphost, then starts it and waits for
+  it to listen on 3492. `publish` waits for it
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
@@ -945,9 +971,11 @@ the comment there about not caching "nothing staged" asks for.
 
 **Packaging.Tests (`src/Packaging.Tests/`):**
 - Opens each `.nupkg` a Release build drops in `nugets` and snapshots its entry list, plus a few
-  invariants a snapshot states poorly: an apphost with no assembly beside it, a viewer file in the
-  tray package, an incomplete bundled head, a documents folder in DiffEngine's bundle, and a
-  documents folder whose `deps.json` names a native it does not carry.
+  invariants a snapshot states poorly: an apphost with no assembly beside it, a viewer file outside
+  a tray package's viewer folder or for another RID, an incomplete bundled head, a documents
+  folder in DiffEngine's bundle, a documents folder whose `deps.json` names a native it does not
+  carry, a tray package `DiffEngineTray` does not name (or one it names that was not packed), and
+  a tray package that is not on the dotnet runner.
 - Exists because package content is assembled by several unrelated MSBuild mechanisms and nothing
   else asserts the result. The failure mode it was written for is stale build output: `PackAsTool`
   packages the publish directory wholesale, and MSBuild never removes a file that stopped being

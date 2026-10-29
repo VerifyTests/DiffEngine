@@ -19,8 +19,10 @@ namespace DiffEngine;
 static class FallbackViewerDirectories
 {
     /// <summary>
-    /// The tray is a dotnet tool, and ships a viewer for itself under its package in the store. On
-    /// Windows that is one package for every architecture, so it carries a viewer for each.
+    /// The tray is a dotnet tool, and ships a viewer for itself under its package in the store.
+    /// Up to 20.8.2 it was one package for every Windows architecture, with a viewer for each, and
+    /// a tray installed then is still laid out that way until it is updated, so that is looked for
+    /// second.
     /// </summary>
     public static IEnumerable<string> WindowsTray()
     {
@@ -30,6 +32,7 @@ static class FallbackViewerDirectories
             yield break;
         }
 
+        yield return Tray(@"%USERPROFILE%\.dotnet\tools", rid, '\\');
         yield return $@"%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray\*\tools\*\any\viewer\{rid}\";
     }
 
@@ -49,13 +52,6 @@ static class FallbackViewerDirectories
         return UnixTray("linux");
     }
 
-    /// <summary>
-    /// On macOS and Linux the tray is a RID specific tool. The package `dotnet tool install` is
-    /// asked for only names one package per RID, and the store keeps the one for this machine
-    /// beside it, under the id it was named by, with the tool in that RID's folder rather than in
-    /// <c>any</c>. It carries this RID's viewer alone, still in a folder of the RID's name, so the
-    /// tray hands it to <see cref="BundledViewerDirectory" /> as the Windows tray does.
-    /// </summary>
     static IEnumerable<string> UnixTray(string os)
     {
         var rid = Rid(os);
@@ -64,8 +60,18 @@ static class FallbackViewerDirectories
             yield break;
         }
 
-        yield return $"%HOME%/.dotnet/tools/.store/diffenginetray/*/diffenginetray.{rid}/*/tools/*/{rid}/viewer/{rid}/";
+        yield return Tray("%HOME%/.dotnet/tools", rid, '/');
     }
+
+    /// <summary>
+    /// The tray is a RID specific tool. The package `dotnet tool install` is asked for only names
+    /// one package per RID, and the store keeps the one for this machine beside it, under the id it
+    /// was named by, with the tool in that RID's folder rather than in <c>any</c>. It carries this
+    /// RID's viewer alone, still in a folder of the RID's name, so the tray hands it to
+    /// <see cref="BundledViewerDirectory" /> as it always has.
+    /// </summary>
+    static string Tray(string tools, string rid, char separator) =>
+        $"{tools}{separator}.store{separator}diffenginetray{separator}*{separator}diffenginetray.{rid}{separator}*{separator}tools{separator}*{separator}{rid}{separator}viewer{separator}{rid}{separator}";
 
     public static IEnumerable<string> Windows()
     {

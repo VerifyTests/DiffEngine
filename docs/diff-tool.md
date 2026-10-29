@@ -345,6 +345,7 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%USERPROFILE%\.dotnet\tools\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray.win-x64\*\tools\*\win-x64\viewer\win-x64\DiffEngineViewer.exe`
     * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray\*\tools\*\any\viewer\win-x64\DiffEngineViewer.exe`
     * `%NUGET_PACKAGES%\diffengine\20.7.1\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%NUGET_PACKAGES%\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`

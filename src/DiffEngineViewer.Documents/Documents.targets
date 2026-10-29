@@ -6,9 +6,10 @@
   DiffEngine's bundled copy does not, which is why nothing here runs for a build with a
   RuntimeIdentifier: the bundle is the only thing published per RID, and the tool is RID agnostic.
   It is the same switch the Mac and Linux heads already use to keep their own natives out of the
-  bundle.
+  bundle. The tray's heads are the exception, and set DocumentsInRidBuild: each RID's tray package
+  is built for that RID, and carries the folder beside its viewer.
 
-  Imported by each head, by DiffEngineTray, by DiffEngineViewer.Tests and by
+  Imported by each head, by DiffEngineTray's heads, by DiffEngineViewer.Tests and by
   DiffEngineViewer.Benchmarks. Each says in DocumentsRids
   which RIDs it ships natives for. The other runtimes folders are left out, which is safe because the
   running RID is the only one probed: deps.json still naming a folder for another OS costs nothing,
@@ -18,8 +19,10 @@
   <PropertyGroup>
     <_DocumentsAllRids>win-x64;win-arm64;osx;osx-x64;osx-arm64;linux-x64;linux-arm64</_DocumentsAllRids>
     <DocumentsRids Condition="'$(DocumentsRids)' == ''">$(_DocumentsAllRids)</DocumentsRids>
-    <!-- False for DiffEngineTray, which puts the folder beside the viewer it bundles, not itself. -->
+    <!-- False for the tray's heads, which put the folder beside the viewer they bundle, not themselves. -->
     <DocumentsBesideOutput Condition="'$(DocumentsBesideOutput)' == ''">true</DocumentsBesideOutput>
+    <_DocumentsCollected>false</_DocumentsCollected>
+    <_DocumentsCollected Condition="'$(RuntimeIdentifier)' == '' Or '$(DocumentsInRidBuild)' == 'true'">true</_DocumentsCollected>
   </PropertyGroup>
 
   <!--
@@ -27,9 +30,10 @@
   restored into whoever imports this. Conditioned rather than left for the RID agnostic library to
   ignore a RuntimeIdentifier, because restore still walks every reference with the RID it was given,
   and each of DiffEngine's per-RID publishes would otherwise rewrite the documents project's assets
-  while the rest of the solution reads them.
+  while the rest of the solution reads them. A tray head's RID builds restore nothing, so they keep
+  it.
   -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+  <ItemGroup Condition="$(_DocumentsCollected)">
     <ProjectReference Include="$(MSBuildThisFileDirectory)DiffEngineViewer.Documents.csproj"
                       ReferenceOutputAssembly="false"
                       Private="false"
@@ -45,7 +49,7 @@
   -->
   <Target Name="CollectDocuments"
           DependsOnTargets="ResolveProjectReferences"
-          Condition="'$(RuntimeIdentifier)' == ''">
+          Condition="$(_DocumentsCollected)">
     <ItemGroup>
       <_DocumentsOtherRid Include="$(_DocumentsAllRids)" Exclude="$(DocumentsRids)" />
     </ItemGroup>

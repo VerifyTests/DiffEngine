@@ -73,8 +73,11 @@ public class SettingsWriteTests :
         await reading.Task;
 
         // Until the reader has looked enough times for the window to have shown itself, rather
-        // than a count of writes, which on a fast machine all pass between two of its looks
-        for (var index = 0; Volatile.Read(ref looks) < 100 && index < 5000; index++)
+        // than a count of writes, which on a fast machine all pass between two of its looks. Given
+        // up on by time for the same reason: it was given up on after 5000 writes, and on a macOS
+        // runner those were done in under 0.7 s, by which time the reader had looked 81 times
+        var writing = Stopwatch.StartNew();
+        for (var index = 0; Volatile.Read(ref looks) < 100 && writing.Elapsed < TimeSpan.FromSeconds(30); index++)
         {
             await SettingsHelper.WriteFile(
                 new()

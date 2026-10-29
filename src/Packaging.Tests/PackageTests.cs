@@ -22,13 +22,23 @@ public class PackageTests
 {
     const string bundled = "tools/viewer/";
 
-    /// <summary>
-    /// PackAsTool packs the publish directory wholesale, so the tray's copy sits under its tool
-    /// payload rather than at a path of its own choosing.
-    /// </summary>
-    const string trayBundled = "tools/net10.0/any/viewer/";
-
     const string runtimeConfig = ".runtimeconfig.json";
+
+    /// <summary>
+    /// What DiffEngineTray names, the one package `dotnet tool install` reads for the tray.
+    /// </summary>
+    const string pointerSettings = "tools/any/any/DotnetToolSettings.xml";
+
+    /// <summary>
+    /// A RID's tray package carries its tool under that RID's folder, and PackAsTool packs the
+    /// publish directory wholesale, so the tray's viewer sits under that rather than at a path of
+    /// its own choosing.
+    /// </summary>
+    static string TrayTool(string rid) =>
+        $"tools/net10.0/{rid}/";
+
+    static string TrayViewer(string rid) =>
+        $"{TrayTool(rid)}viewer/";
 
     /// <summary>
     /// Guards the set itself. Without this, a package that stopped being produced would take its
@@ -43,6 +53,12 @@ public class PackageTests
     [PackageTest]
     [Arguments("DiffEngine")]
     [Arguments("DiffEngineTray")]
+    [Arguments("DiffEngineTray.win-x64")]
+    [Arguments("DiffEngineTray.win-arm64")]
+    [Arguments("DiffEngineTray.linux-x64")]
+    [Arguments("DiffEngineTray.linux-arm64")]
+    [Arguments("DiffEngineTray.osx-x64")]
+    [Arguments("DiffEngineTray.osx-arm64")]
     [Arguments("DiffEngineViewer.Windows")]
     [Arguments("DiffEngineViewer.Mac")]
     [Arguments("DiffEngineViewer.Linux")]
@@ -60,7 +76,12 @@ public class PackageTests
     [Test]
     [PackageTest]
     [Arguments("DiffEngine")]
-    [Arguments("DiffEngineTray")]
+    [Arguments("DiffEngineTray.win-x64")]
+    [Arguments("DiffEngineTray.win-arm64")]
+    [Arguments("DiffEngineTray.linux-x64")]
+    [Arguments("DiffEngineTray.linux-arm64")]
+    [Arguments("DiffEngineTray.osx-x64")]
+    [Arguments("DiffEngineTray.osx-arm64")]
     [Arguments("DiffEngineViewer.Windows")]
     [Arguments("DiffEngineViewer.Mac")]
     [Arguments("DiffEngineViewer.Linux")]
@@ -98,6 +119,8 @@ public class PackageTests
     /// <summary>
     /// The tray can own the inline queue, so it has to be able to open a window on one, and the
     /// copy inside DiffEngine.nupkg is only reachable from a project that references that package.
+    /// Each RID's package carries that RID's viewer and no other, which is what the RID packages
+    /// are for.
     /// <para>
     /// This assertion used to be the reverse. The tray once shipped 13 MB of broken viewer payload
     /// through a solution level build dependency nobody intended; what it carries now is a
@@ -107,19 +130,93 @@ public class PackageTests
     /// </summary>
     [Test]
     [PackageTest]
-    public async Task TheTrayShipsAViewer()
+    [Arguments("win-x64")]
+    [Arguments("win-arm64")]
+    [Arguments("linux-x64")]
+    [Arguments("linux-arm64")]
+    [Arguments("osx-x64")]
+    [Arguments("osx-arm64")]
+    public async Task EachTrayPackageShipsItsOwnViewer(string rid)
     {
-        await using var archive = Packages.Open("DiffEngineTray");
+        await using var archive = Packages.Open($"DiffEngineTray.{rid}");
+        var root = TrayViewer(rid);
         var stray = Packages.Entries(archive)
             .Where(_ => _.Contains("DiffEngineViewer", StringComparison.Ordinal) ||
                         _.Contains("diffengine_viewer", StringComparison.Ordinal))
-            .Where(_ => !_.StartsWith(trayBundled, StringComparison.Ordinal))
+            .Where(_ => !_.StartsWith(root, StringComparison.Ordinal))
             .ToList();
 
-        // Under tools/net10.0/any/viewer and nowhere else. Loose beside the tray's own assemblies
+        // Under the tool's viewer folder and nowhere else. Loose beside the tray's own assemblies
         // is how the leak looked.
         await Assert.That(stray).IsEmpty();
-        await Assert.That(Rids(archive, trayBundled)).IsNotEmpty();
+        await Assert.That(Rids(archive, root).Select(_ => _.Key).ToList()).IsEquivalentTo([rid]);
+    }
+
+    /// <summary>
+    /// DiffEngineTray only names a package for each RID, and `dotnet tool install` fetches the one
+    /// it names for the machine. A RID it names that was not packed fails that install, and one
+    /// packed that it does not name is never installed. Nothing else in it is a tool.
+    /// </summary>
+    [Test]
+    [PackageTest]
+    public async Task ThePointerNamesEveryRidsPackage()
+    {
+        await using var archive = Packages.Open("DiffEngineTray");
+        var tools = Packages.Entries(archive)
+            .Where(_ => _.StartsWith("tools/", StringComparison.Ordinal))
+            .ToList();
+        await Assert.That(tools).IsEquivalentTo([pointerSettings]);
+
+        var settings = await Settings(archive, pointerSettings);
+        var named = settings
+            .Descendants("RuntimeIdentifierPackage")
+            .Select(_ => $"{(string?) _.Attribute("Id")}.{{version}}.nupkg")
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        var packed = Packages.Produced()
+            .Where(_ => _.StartsWith("DiffEngineTray.", StringComparison.Ordinal) &&
+                        _ != "DiffEngineTray.{version}.nupkg")
+            .ToList();
+
+        await Assert.That(named).IsEquivalentTo(packed);
+        await Assert.That(named.Count).IsEqualTo(6);
+    }
+
+    /// <summary>
+    /// Each RID's package runs its dll on the dotnet runner, so `dotnet tool install` writes the
+    /// command as an apphost of its own: an exe on Windows, a GUI one for the Windows head, at a
+    /// path the Run key and the login items can go on naming across updates. A package with an
+    /// apphost in it gets a .cmd instead, which names the store's copy by its version and opens a
+    /// console when Windows starts it at login.
+    /// </summary>
+    [Test]
+    [PackageTest]
+    [Arguments("win-x64")]
+    [Arguments("win-arm64")]
+    [Arguments("linux-x64")]
+    [Arguments("linux-arm64")]
+    [Arguments("osx-x64")]
+    [Arguments("osx-arm64")]
+    public async Task EveryTrayPackageRunsOnTheDotnetRunner(string rid)
+    {
+        await using var archive = Packages.Open($"DiffEngineTray.{rid}");
+        var tool = TrayTool(rid);
+        var settings = await Settings(archive, $"{tool}DotnetToolSettings.xml");
+        var command = settings.Descendants("Command").Single();
+
+        await Assert.That((string?) command.Attribute("Name")).IsEqualTo("DiffEngineTray");
+        await Assert.That((string?) command.Attribute("Runner")).IsEqualTo("dotnet");
+        await Assert.That((string?) command.Attribute("EntryPoint")).IsEqualTo("DiffEngineTray.dll");
+        var apphosts = Packages.Entries(archive)
+            .Where(_ => _ == $"{tool}DiffEngineTray" || _ == $"{tool}DiffEngineTray.exe")
+            .ToList();
+        await Assert.That(apphosts).IsEmpty();
+    }
+
+    static async Task<XDocument> Settings(ZipArchive archive, string path)
+    {
+        await using var stream = await archive.GetEntry(path)!.OpenAsync();
+        return await XDocument.LoadAsync(stream, LoadOptions.None, Cancel.None);
     }
 
     /// <summary>
@@ -129,7 +226,12 @@ public class PackageTests
     [Test]
     [PackageTest]
     [Arguments("DiffEngine", bundled)]
-    [Arguments("DiffEngineTray", trayBundled)]
+    [Arguments("DiffEngineTray.win-x64", "tools/net10.0/win-x64/viewer/")]
+    [Arguments("DiffEngineTray.win-arm64", "tools/net10.0/win-arm64/viewer/")]
+    [Arguments("DiffEngineTray.linux-x64", "tools/net10.0/linux-x64/viewer/")]
+    [Arguments("DiffEngineTray.linux-arm64", "tools/net10.0/linux-arm64/viewer/")]
+    [Arguments("DiffEngineTray.osx-x64", "tools/net10.0/osx-x64/viewer/")]
+    [Arguments("DiffEngineTray.osx-arm64", "tools/net10.0/osx-arm64/viewer/")]
     public async Task EveryBundledViewerIsComplete(string id, string root)
     {
         await using var archive = Packages.Open(id);
@@ -207,7 +309,12 @@ public class PackageTests
     [Arguments("DiffEngineViewer.Windows", tool, "win-x64;win-arm64")]
     [Arguments("DiffEngineViewer.Mac", tool, "osx;osx-x64;osx-arm64")]
     [Arguments("DiffEngineViewer.Linux", tool, "linux-x64;linux-arm64")]
-    [Arguments("DiffEngineTray", trayDocuments, "win-x64;win-arm64")]
+    [Arguments("DiffEngineTray.win-x64", "tools/net10.0/win-x64/viewer/documents/", "win-x64")]
+    [Arguments("DiffEngineTray.win-arm64", "tools/net10.0/win-arm64/viewer/documents/", "win-arm64")]
+    [Arguments("DiffEngineTray.linux-x64", "tools/net10.0/linux-x64/viewer/documents/", "linux-x64")]
+    [Arguments("DiffEngineTray.linux-arm64", "tools/net10.0/linux-arm64/viewer/documents/", "linux-arm64")]
+    [Arguments("DiffEngineTray.osx-x64", "tools/net10.0/osx-x64/viewer/documents/", "osx;osx-x64")]
+    [Arguments("DiffEngineTray.osx-arm64", "tools/net10.0/osx-arm64/viewer/documents/", "osx;osx-arm64")]
     public async Task EveryDocumentsFolderIsComplete(string id, string root, string rids)
     {
         await using var archive = Packages.Open(id);
@@ -266,16 +373,11 @@ public class PackageTests
 
     const string tool = "tools/net10.0/any/documents/";
 
-    /// <summary>
-    /// One folder beside the tray's two RID copies of the viewer, which each find one directory up.
-    /// </summary>
-    const string trayDocuments = "tools/net10.0/any/viewer/documents/";
-
     const string depsJson = "DiffEngineViewer.Documents.deps.json";
 
     /// <summary>
     /// The viewer copies under <paramref name="root"/>, by RID. Not the tray's documents folder,
-    /// which sits beside them and is not a RID.
+    /// which sits beside its viewer, which finds it one directory up, and is not a RID.
     /// </summary>
     static List<IGrouping<string, string>> Rids(ZipArchive archive, string root) =>
         Packages.Entries(archive)
