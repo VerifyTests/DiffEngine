@@ -213,6 +213,68 @@ public class TrackerSnapshotTest
         await Assert.That(pending.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:1"]);
     }
 
+    /// <summary>
+    /// Whether anything holds the port is asked of <see cref="ListenerTable"/>, as ViewerClient and
+    /// PiperClient ask it, rather than of .NET's list of listeners. Windows 10.0.26300 gives a
+    /// listening socket's row in the table that list is read from a state of 0, which .NET reads as
+    /// Unknown, so every listener an app opened was left out: on that build this said nobody held
+    /// the port, and every test here with a <see cref="FakeViewer"/> found an empty queue.
+    /// </summary>
+    [Test]
+    public async Task TheOwnerIsLookedForInTheListenerTable()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1");
+        var port = ViewerClient.Port;
+        var previous = ListenerTable.Lookup;
+        var asked = 0;
+        ListenerTable.Lookup = _ =>
+        {
+            if (_ == port)
+            {
+                asked++;
+            }
+
+            return previous(_);
+        };
+        try
+        {
+            var answered = new RemoteInlineHost().TryList(out var pending);
+
+            await Assert.That(answered).IsTrue();
+            await Assert.That(pending.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:1"]);
+            await Assert.That(asked).IsGreaterThan(0);
+        }
+        finally
+        {
+            ListenerTable.Lookup = previous;
+        }
+    }
+
+    /// <summary>
+    /// A table that says nobody holds the port is believed, with no connect behind it: that is
+    /// the half second a connect costs where a dropped SYN is never refused.
+    /// </summary>
+    [Test]
+    public async Task NobodyInTheListenerTableIsNoOwner()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1");
+        var port = ViewerClient.Port;
+        var previous = ListenerTable.Lookup;
+        ListenerTable.Lookup = _ => _ != port && previous(_);
+        try
+        {
+            var answered = new RemoteInlineHost().TryList(out var pending);
+
+            await Assert.That(answered).IsTrue();
+            await Assert.That(pending).IsEmpty();
+            await Assert.That(viewer.Verbs).IsEmpty();
+        }
+        finally
+        {
+            ListenerTable.Lookup = previous;
+        }
+    }
+
     /// <inheritdoc cref="NoOwnerIsNothingPending"/>
     [Test]
     public async Task AnOwnerThatDoesNotAnswerIsNotAnEmptyQueue()
