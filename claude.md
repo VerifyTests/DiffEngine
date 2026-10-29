@@ -738,6 +738,14 @@ the comment there about not caching "nothing staged" asks for.
   with no Dock icon, App Nap is off (`NapGuard`), and a logout is `TerminateGuard`'s, which
   refuses the quit and reports it, for the loop to end as Exit does. "Run at startup" is a
   launch agent. Not packed yet
+- A test run finds the viewer installed with the tray by `FallbackViewerDirectories`: on Windows
+  in the one portable package, `tools/*/any/viewer/{rid}`, and on macOS and Linux in a RID
+  specific one, which is where the macOS and Linux heads have to be packed. .NET 10 installs a
+  RID specific tool beside the package it was asked for, which only names one package per RID,
+  as `.store/diffenginetray/{version}/diffenginetray.{rid}/{version}/tools/{tfm}/{rid}/` (seen
+  by packing and installing one), so the viewer goes in `viewer/{rid}` inside that, still in a
+  folder of its RID's name, which `TrayViewerDirectory` hands on as the Windows head does. On
+  Windows such a tool's command is a `.cmd` that starts the apphost, not a copy of it
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the

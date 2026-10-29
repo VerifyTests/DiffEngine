@@ -26,15 +26,15 @@ static partial class Implementation
                 Windows: new(
                     "DiffEngineViewer.exe",
                     launchArguments,
-                    SearchDirectories(@"%USERPROFILE%\.dotnet\tools\", FallbackViewerDirectories.Tray(), FallbackViewerDirectories.Windows())),
+                    SearchDirectories(@"%USERPROFILE%\.dotnet\tools\", FallbackViewerDirectories.WindowsTray(), FallbackViewerDirectories.Windows())),
                 Linux: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Linux())),
+                    SearchDirectories("%HOME%/.dotnet/tools/", FallbackViewerDirectories.LinuxTray(), FallbackViewerDirectories.Linux())),
                 Osx: new(
                     "DiffEngineViewer",
                     launchArguments,
-                    SearchDirectories("%HOME%/.dotnet/tools/", [], FallbackViewerDirectories.Osx()))),
+                    SearchDirectories("%HOME%/.dotnet/tools/", FallbackViewerDirectories.OsxTray(), FallbackViewerDirectories.Osx()))),
             UseShellExecute: false,
             // A copy from before 20.5 is a console executable, so without this a console window
             // flashes when one is started by these flags, which the tray's Open diff tool does.

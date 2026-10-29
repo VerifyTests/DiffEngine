@@ -364,6 +364,7 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
+    * `%HOME%/.dotnet/tools/.store/diffenginetray/*/diffenginetray.osx-x64/*/tools/*/osx-x64/viewer/osx-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/20.7.1/tools/viewer/osx-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/20.7.1/tools/viewer/osx-x64/DiffEngineViewer`
@@ -382,6 +383,7 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
    ```
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
+    * `%HOME%/.dotnet/tools/.store/diffenginetray/*/diffenginetray.linux-x64/*/tools/*/linux-x64/viewer/linux-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/20.7.1/tools/viewer/linux-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/20.7.1/tools/viewer/linux-x64/DiffEngineViewer`
