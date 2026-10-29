@@ -9,9 +9,9 @@
     <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.5.1" />
-    <PackageVersion Include="Morph" Version="1.23.4" />
+    <PackageVersion Include="Morph" Version="1.23.5" />
     <PackageVersion Include="Morph.PDFium" Version="1.6.1" />
-    <PackageVersion Include="Morph.Skia" Version="1.23.4" />
+    <PackageVersion Include="Morph.Skia" Version="1.23.5" />
     <!--
     Pinned with its Linux natives, which DiffEngineViewer.Documents references directly: SkiaSharp
     refuses a native library from another version, and the managed half arrives transitively
