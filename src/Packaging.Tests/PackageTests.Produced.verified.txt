@@ -1,4 +1,10 @@
-DiffEngine.{version}.nupkg
+﻿DiffEngine.{version}.nupkg
+DiffEngineTray.linux-arm64.{version}.nupkg
+DiffEngineTray.linux-x64.{version}.nupkg
+DiffEngineTray.osx-arm64.{version}.nupkg
+DiffEngineTray.osx-x64.{version}.nupkg
+DiffEngineTray.win-arm64.{version}.nupkg
+DiffEngineTray.win-x64.{version}.nupkg
 DiffEngineTray.{version}.nupkg
 DiffEngineViewer.Linux.{version}.nupkg
 DiffEngineViewer.Mac.{version}.nupkg

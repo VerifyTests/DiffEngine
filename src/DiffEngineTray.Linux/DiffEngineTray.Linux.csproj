@@ -3,16 +3,17 @@
   <!--
   The tray on Linux: the core's tracker and queue, with PlatformHeads' StatusNotifierItem for its
   icon and menu, and no window and no native library. Named as the Windows head is, so the core's
-  InternalsVisibleTo names it too. Not packed yet: how the heads ship is phase 4's.
+  InternalsVisibleTo names it too.
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>DiffEngineTray</AssemblyName>
     <RootNamespace>DiffEngineTray</RootNamespace>
-    <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RollForward>LatestMajor</RollForward>
+    <!-- Packed as DiffEngineTray.linux-x64 and .linux-arm64, by TrayHead.targets. -->
+    <TrayRids>linux-x64;linux-arm64</TrayRids>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,4 +26,6 @@
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
   </ItemGroup>
+
+  <Import Project="..\DiffEngineTray.Core\TrayHead.targets" />
 </Project>

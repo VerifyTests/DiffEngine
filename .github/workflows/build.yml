@@ -373,12 +373,111 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The tray ships as DiffEngineTray, which only names a package for each RID, and those packages.
+  # The packaging tests read them; only `dotnet tool install` choosing between them shows the
+  # right one is found for a machine, and only starting what it laid out shows that it runs. So
+  # this installs the tray from the windows job's packages, on each platform, as someone would
+  # from nuget.org, and waits for the installed tray to listen on the piper port.
+  #
+  # From a source of those packages alone. Until a release, their version is the one in
+  # Directory.Build.props, which nuget.org already has as an older tray, and an install that could
+  # see nuget.org might take that one.
+  tray-install:
+    name: tray install ${{ matrix.os }}
+    needs: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: nupkgs
+          path: packages
+
+      # The command is an apphost the CLI writes from the dll, as for a portable tool, so the path
+      # the login item names is the same after an update.
+      - name: Install and start the tray
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version=$(ls packages | sed -n 's/^DiffEngineTray\.\([0-9].*\)\.nupkg$/\1/p')
+          rid=$(dotnet --info | sed -n 's/^ *RID: *//p' | head -1)
+          printf '<configuration><packageSources><clear /><add key="built" value="%s" /></packageSources></configuration>' \
+            "$PWD/packages" > "$RUNNER_TEMP/nuget.config"
+          tray="$RUNNER_TEMP/tray"
+          dotnet tool install DiffEngineTray --tool-path "$tray" --configfile "$RUNNER_TEMP/nuget.config" --version "$version"
+
+          tool="$tray/.store/diffenginetray/$version/diffenginetray.$rid/$version/tools/net10.0/$rid"
+          test -x "$tool/viewer/$rid/DiffEngineViewer" || { echo "::error::No viewer for $rid at $tool/viewer"; exit 1; }
+          test -f "$tool/viewer/documents/DiffEngineViewer.Documents.dll" || { echo "::error::No documents folder at $tool/viewer"; exit 1; }
+
+          "$tray/DiffEngineTray" &
+          pid=$!
+          listening=
+          for i in $(seq 1 30); do
+            if (exec 3<>/dev/tcp/127.0.0.1/3492) 2>/dev/null; then
+              listening=1
+              break
+            fi
+            sleep 1
+          done
+          cat "$tool/logs/log.txt" || true
+          kill "$pid" || true
+          [ -n "$listening" ] || { echo "::error::The installed tray did not listen on 3492"; exit 1; }
+
+      # On Windows the command has to be a GUI apphost as well: a Run key naming a console one, or
+      # a .cmd, opens a console at every login.
+      - name: Install and start the tray
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $pointer = Get-ChildItem packages -Filter 'DiffEngineTray.*.nupkg' | Where-Object { $_.Name -match '^DiffEngineTray\.\d' }
+          $version = $pointer.Name -replace '^DiffEngineTray\.(.*)\.nupkg$', '$1'
+          $rid = 'win-' + [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+          Set-Content "$env:RUNNER_TEMP\nuget.config" "<configuration><packageSources><clear /><add key=`"built`" value=`"$PWD\packages`" /></packageSources></configuration>"
+          $tray = "$env:RUNNER_TEMP\tray"
+          dotnet tool install DiffEngineTray --tool-path $tray --configfile "$env:RUNNER_TEMP\nuget.config" --version $version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $tool = "$tray\.store\diffenginetray\$version\diffenginetray.$rid\$version\tools\net10.0\$rid"
+          if (-not (Test-Path "$tool\viewer\$rid\DiffEngineViewer.exe")) { Write-Output "::error::No viewer for $rid at $tool\viewer"; exit 1 }
+          if (-not (Test-Path "$tool\viewer\documents\DiffEngineViewer.Documents.dll")) { Write-Output "::error::No documents folder at $tool\viewer"; exit 1 }
+
+          $shim = "$tray\DiffEngineTray.exe"
+          $bytes = [IO.File]::ReadAllBytes($shim)
+          $subsystem = [BitConverter]::ToUInt16($bytes, [BitConverter]::ToInt32($bytes, 0x3C) + 0x5C)
+          if ($subsystem -ne 2) { Write-Output "::error::$shim is not a GUI apphost (subsystem $subsystem)"; exit 1 }
+
+          $process = Start-Process $shim -PassThru
+          $listening = $false
+          foreach ($attempt in 1..30) {
+            $client = [Net.Sockets.TcpClient]::new()
+            try { $client.Connect('127.0.0.1', 3492); $listening = $true } catch { } finally { $client.Dispose() }
+            if ($listening) { break }
+            Start-Sleep -Seconds 1
+          }
+          Get-Content "$tool\logs\log.txt" -ErrorAction SilentlyContinue
+          Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+          if (-not $listening) { Write-Output "::error::The installed tray did not listen on 3492"; exit 1 }
+
   # Trusted publishing: no stored API key. nuget.org validates GitHub's OIDC token against the
   # policy naming this repository and this workflow file, and returns a key good for an hour.
-  # Waits on every job, so a package only ships once all platforms and the committed native
-  # binaries have passed.
+  # Waits on every job, so a package only ships once all platforms, the committed native
+  # binaries and an install of the tray from its packages have passed.
   publish:
-    needs: [windows, unix, native]
+    needs: [windows, unix, native, tray-install]
     environment: nuget
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest

@@ -203,16 +203,18 @@ The tray tracks such a file as it tracks any other, so it is listed in the menu 
 
 ## Logging Directory
 
-Beside the installed tool, so it moves with the target framework the tray is built for:
+Beside the installed tool, in the package for the machine's runtime identifier, so it moves with the target framework the tray is built for:
 
 ```
-%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net10.0\any\logs
+%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray.{RID}\{VERSION}\tools\net10.0\{RID}\logs
 ```
 
 For example:
 
 ```
-C:\Users\simon\.dotnet\tools\.store\diffenginetray\20.0.0\diffenginetray\20.0.0\tools\net10.0\any\logs
+C:\Users\simon\.dotnet\tools\.store\diffenginetray\21.0.0\diffenginetray.win-x64\21.0.0\tools\net10.0\win-x64\logs
 ```
+
+Up to 20.8.2 the tray was one package for every architecture, and logged to `...\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net10.0\any\logs`.
 
 The menu's "Open logs" opens it without any of that.
