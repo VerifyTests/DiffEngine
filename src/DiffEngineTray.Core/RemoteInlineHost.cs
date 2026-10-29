@@ -1,5 +1,3 @@
-using System.Net.NetworkInformation;
-
 /// <summary>
 /// The queue belongs to a viewer that bound the port before this tray started, so every call is a
 /// short loopback round trip and the tray is a remote control.
@@ -217,7 +215,7 @@ class RemoteInlineHost : IInlineHost
     {
         // Only a table that says nothing holds the port skips the round trip. With no table to
         // read, the connect decides as it always did
-        if (PortIsHeld() == false)
+        if (!PortIsHeld())
         {
             response = null;
             return false;
@@ -240,7 +238,7 @@ class RemoteInlineHost : IInlineHost
     /// </para>
     /// </summary>
     static bool OwnerPresent() =>
-        PortIsHeld() != false &&
+        PortIsHeld() &&
         !ViewerClient.FoundUnowned();
 
     /// <summary>
@@ -263,21 +261,18 @@ class RemoteInlineHost : IInlineHost
     /// before.
     /// </para>
     /// <para>
-    /// Null when there is no table to read.
+    /// <see cref="ListenerTable"/>, which ViewerClient and PiperClient ask, rather than .NET's
+    /// list of listeners. On Windows the table asks for the listeners alone, where .NET's list is
+    /// every TCP row with those in the LISTEN state picked out, and Windows 10.0.26300 gives a
+    /// listening socket's row a state of 0, which .NET reads as Unknown: a TcpListener's row there
+    /// has dwState 0, and netstat shows it as CLOSED. Every listener an app opened was missing, so
+    /// this said nothing held the port while a viewer did: the tray showed none of its queue, and
+    /// took an owner that held patches for one that had gone.
+    /// </para>
+    /// <para>
+    /// True when there is no table to read, which leaves the connect to decide.
     /// </para>
     /// </summary>
-    static bool? PortIsHeld()
-    {
-        var port = ViewerClient.Port;
-        try
-        {
-            return IPGlobalProperties.GetIPGlobalProperties()
-                .GetActiveTcpListeners()
-                .Any(_ => _.Port == port);
-        }
-        catch (NetworkInformationException)
-        {
-            return null;
-        }
-    }
+    static bool PortIsHeld() =>
+        ListenerTable.IsHeld(ViewerClient.Port);
 }
