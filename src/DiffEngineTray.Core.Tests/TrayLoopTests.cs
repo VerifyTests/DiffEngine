@@ -95,6 +95,47 @@ public class TrayLoopTests :
         await loop.WaitAsync(wait);
     }
 
+    /// <summary>
+    /// The macOS head's loop, which AppKit needs on the thread that opened the tray: the pump, the
+    /// model and what was chosen all on the thread that called it.
+    /// </summary>
+    [Test]
+    public async Task APumpedLoopStaysOnItsThread()
+    {
+        await using var tracker = new RecordingTracker();
+        using var cancel = new CancelSource();
+        var threads = new ConcurrentBag<int>();
+        var actions = Actions(cancel) with
+        {
+            DebugView = () => threads.Add(Environment.CurrentManagedThreadId)
+        };
+        var tray = new StandInTray();
+        tray.Choose("debug");
+        tray.Choose("exit");
+        var loopThread = 0;
+
+        var loop = new Thread(() =>
+        {
+            loopThread = Environment.CurrentManagedThreadId;
+            TrayLoop.RunPumped(
+                tray,
+                () =>
+                {
+                    threads.Add(Environment.CurrentManagedThreadId);
+                    Thread.Sleep(10);
+                },
+                tracker,
+                actions,
+                () => TrayIcon.Default,
+                cancel.Token);
+        });
+        loop.Start();
+
+        await Assert.That(loop.Join(wait)).IsTrue();
+        await Assert.That(threads.Distinct()).IsEquivalentTo([loopThread]);
+        await Assert.That(tray.Applied).IsNotEmpty();
+    }
+
     static TrayActions Actions(CancelSource cancel) =>
         new(
             Exit: cancel.Cancel,

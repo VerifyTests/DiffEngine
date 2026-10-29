@@ -92,6 +92,10 @@
   <Project Path="DiffEngineTray.Linux/DiffEngineTray.Linux.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
   </Project>
+  <!-- The macOS head, whose native library is committed, so it builds everywhere too. -->
+  <Project Path="DiffEngineTray.Mac/DiffEngineTray.Mac.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+  </Project>
   <!-- Its tests, which run everywhere too. -->
   <Project Path="DiffEngineTray.Core.Tests/DiffEngineTray.Core.Tests.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />

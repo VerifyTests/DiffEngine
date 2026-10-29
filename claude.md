@@ -39,7 +39,7 @@ dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --fil
 
 **Target Frameworks:**
 - DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
-- DiffEngineTray: net10.0 Windows Forms application, and a net10.0 Linux head, both on DiffEngineTray.Core (net10.0, every platform)
+- DiffEngineTray: net10.0 Windows Forms application, and net10.0 Linux and macOS heads, all on DiffEngineTray.Core (net10.0, every platform)
 - Tests: net10.0 (net48 on Windows)
 
 ## Architecture Overview
@@ -620,14 +620,12 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`. The packages are at 0.7.1 and the native three at 0.6.0,
-  since all that has changed natively since is `StatusItem`, which the viewer does not use; the
-  macOS tray will move them. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.8.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
   `NapGuard`, `KnobScroller`, `ScrollerTravel`, `WheelNotches`, `ToolTipRegions`, `StringBlob`,
-  `Capture`, `Clipboard` and `WindowPlacement`). Each was worked out here and copied to
+  `Capture`, `Clipboard` and `WindowPlacement`, and the tray's `StatusItem`). Each was worked out here and copied to
   BuildMonitor; a fix to any of them goes there now. The workflow is its
   reusable `build-native`. Its CMake module pins raylib and Dear ImGui, carries the raylib 6.0
   option workarounds and links the library, and `native/CMakeLists.txt` names only the picture
@@ -714,13 +712,32 @@ the comment there about not caching "nothing staged" asks for.
   hot keys are Windows', and target on left and the launch limit are user environment variables,
   which .NET sets only on Windows. No purge, which needs a folder picker. The debug view is
   written beside the logs and opened (`DebugReportFile`). The icon is the Windows head's `.ico`,
-  whose one picture is a 48 pixel, 32 bit bitmap and needs no decoder (`IconPixels`). With no
+  whose one picture is a 48 pixel, 32 bit bitmap and needs no decoder (`IconPixels`); the core
+  embeds the Windows head's pictures for both heads off Windows (`TrayPictures`). With no
   StatusNotifierWatcher on the bus, as on a stock GNOME, it runs anyway, holding the queue and
   tracking what test runs send it, and says so once. A session ending is SIGTERM or SIGHUP,
   heard by PlatformHeads.Core's `SessionEndSignals` and handed `TraySessionEnd.For`, which the
   Windows head hands its `SessionEndWindow`. Seen working in a `dotnet/sdk:10.0` container on a
   private `dbus-daemon` with a stand-in watcher: the menu, run at startup, the debug view, exit
   and SIGTERM. Not packed yet
+- `src/DiffEngineTray.Mac` is the macOS head, an `Exe` named `DiffEngineTray` too, and the Linux
+  head with a status bar item for the StatusNotifierItem: PlatformHeadsMac's `StatusItem`, in a
+  native library of its own, `diffengine_tray` (decision G), so a tray change never moves the
+  viewer's ABI version. It is a second product of `native/swift`, built by the same `build-native`
+  run, which collects it into the head's `runtimes` through PlatformHeads' `mac-libraries`, and
+  committed as the viewer's is. The ABI is `native/include/detray.h`, `DETRAY_VERSION` 1: the
+  menu goes over as one array of `DetrayItem`s, each with its parent by index, since a C struct
+  cannot hold a list of itself, and the Swift side (`Sources/Detray`) makes it a tree again. Its
+  managed half is in the core (`Detray`, `MacTray`), as ProcessEx's native calls are, so the
+  core's tests run it on the macOS job: `MacTrayTests` hands it a menu and reads back what it
+  rebuilt (`detray_describe`), with no status bar. The `unix` job builds it from source first, as
+  it does the viewer's, and the `native` job loads the committed one and checks it is universal.
+  AppKit is driven from the main thread only, so
+  the loop is `TrayLoop.RunPumped`, on the thread `Main` starts on, with the library's pump as
+  its wait; nothing in `Program.Inner` awaits before the loop returns. The app is an accessory,
+  with no Dock icon, App Nap is off (`NapGuard`), and a logout is `TerminateGuard`'s, which
+  refuses the quit and reports it, for the loop to end as Exit does. "Run at startup" is a
+  launch agent. Not packed yet
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
