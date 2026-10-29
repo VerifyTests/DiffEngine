@@ -43,8 +43,9 @@ public class FallbackViewerDirectoriesTests
     /// A store laid out as .NET 10's `dotnet tool install` lays out a RID specific tool, with the
     /// viewer where the tray's package for that RID carries it: the package that was asked for,
     /// which only names one per RID, and beside it the one for this RID, its tool in the RID's
-    /// folder. Another RID's package beside it is not taken. Every platform's, on every platform,
-    /// since the finder splits on either separator.
+    /// folder. Another RID's package beside it is not taken. Every platform's, on every platform:
+    /// the finder walks directories split on either separator, and the Windows lookup is given the
+    /// running platform's (<see cref="Windows" />).
     /// </summary>
     [Test]
     [Arguments("osx")]
@@ -96,7 +97,7 @@ public class FallbackViewerDirectoriesTests
             File.WriteAllText(Path.Combine(viewer, "DiffEngineViewer.exe"), "");
 
             var lookups = FallbackViewerDirectories.WindowsTray()
-                .Select(_ => WildcardFileFinder.FindAll(_.Replace("%USERPROFILE%", home) + "DiffEngineViewer.exe").ToList())
+                .Select(_ => WildcardFileFinder.FindAll(Windows(_, home) + "DiffEngineViewer.exe").ToList())
                 .ToList();
 
             await Assert.That(lookups[0]).IsEmpty();
@@ -114,6 +115,15 @@ public class FallbackViewerDirectoriesTests
         {
             "osx" => FallbackViewerDirectories.OsxTray().Single().Replace("%HOME%", home),
             "linux" => FallbackViewerDirectories.LinuxTray().Single().Replace("%HOME%", home),
-            _ => FallbackViewerDirectories.WindowsTray().First().Replace("%USERPROFILE%", home)
+            _ => Windows(FallbackViewerDirectories.WindowsTray().First(), home)
         };
+
+    /// <summary>
+    /// A Windows lookup with the running platform's separator. Off Windows a backslash is part of a
+    /// file name, so the whole pattern was the file the finder looked for, wildcards and all.
+    /// </summary>
+    static string Windows(string lookup, string home) =>
+        lookup
+            .Replace("%USERPROFILE%", home)
+            .Replace('\\', Path.DirectorySeparatorChar);
 }
