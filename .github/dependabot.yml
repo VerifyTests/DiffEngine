@@ -5,3 +5,9 @@ updates:
   schedule:
     interval: daily
   open-pull-requests-limit: 10
+  groups:
+    # SkiaSharp refuses a native library from another version, and the Linux natives are a
+    # package of their own, so a bump of one alone fails every Linux job
+    skiasharp:
+      patterns:
+      - "SkiaSharp*"
