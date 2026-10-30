@@ -18,7 +18,7 @@
     through Morph.Skia, so without this the two could drift apart.
     -->
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
     <PackageVersion Include="PlatformHeads" Version="0.9.0" />
     <PackageVersion Include="PlatformHeads.Core" Version="0.9.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.9.0" />
