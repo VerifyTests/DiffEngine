@@ -10,10 +10,16 @@
 /// option that does anything off Windows: the hot keys are Windows', and target on left and the
 /// launch limit are user environment variables, which .NET sets only there.
 /// </param>
+/// <param name="Update">
+/// For a head with no options window, which holds the button on Windows, the update as an item on
+/// the menu (<see cref="TrayUpdate.MenuAction" />). Null there too where the tray is not an
+/// installed tool.
+/// </param>
 record TrayActions(
     Action Exit,
     Action? Options,
     Action DebugView,
     Action? Purge,
     Action<TrackedMove> OpenDiffTool,
-    IRunAtLogin? RunAtLogin = null);
+    IRunAtLogin? RunAtLogin = null,
+    Action? Update = null);

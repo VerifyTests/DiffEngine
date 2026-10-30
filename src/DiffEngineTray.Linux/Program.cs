@@ -53,6 +53,11 @@ static class Program
             Warn($"There is nowhere to show DiffEngineTray's menu, so it is holding the snapshot queue and tracking what test runs send it without one. {trayError}");
         }
 
+        if (TrayUpdate.Report() is { } report)
+        {
+            DesktopNotification.Show("DiffEngineTray", report);
+        }
+
         // Ownership of the inline queue is decided here, once, by whether the bind succeeds, and
         // never transfers. See the Windows head's Program
         await using var owned = OwnedInlineHost.TryOwn(Warn);
@@ -100,7 +105,8 @@ static class Program
             DebugView: () => DebugReportFile.Open(tracker),
             Purge: null,
             OpenDiffTool: DiffToolLauncher.Launch,
-            RunAtLogin: RunAtLogin.ForPlatform(TrayLogin.Item));
+            RunAtLogin: RunAtLogin.ForPlatform(TrayLogin.Item),
+            Update: TrayUpdate.MenuAction(tokenSource.Cancel));
         try
         {
             await TrayLoop.Run(tray, tracker, actions, () => icon, cancel);
