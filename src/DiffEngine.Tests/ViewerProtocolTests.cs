@@ -1151,12 +1151,14 @@ public class ViewerProtocolTests
         // runner with tests running in parallel, injection is throttled to roughly one thread every
         // half second. The second exchange used to run on the client's default three seconds, which
         // is not reliably longer than that, and the test failed as though the server were serial.
+        // Ten seconds failed too, on net48 in a process started seconds before beside four other
+        // test assemblies, where the first exchange took eight seconds to reach its handler.
         //
         // What is asserted does not change. The claim is that the second exchange is answered while
         // the first is still held, so any client timeout shorter than the hold proves it: a server
         // answering one at a time would not reply until the hold ended.
-        var hold = TimeSpan.FromSeconds(30);
-        var secondExchange = TimeSpan.FromSeconds(10);
+        var hold = TimeSpan.FromSeconds(60);
+        var secondExchange = TimeSpan.FromSeconds(30);
 
         await Assert.That(ViewerServer.TryBind(0, out var bound)).IsTrue();
         using var server = bound!;
