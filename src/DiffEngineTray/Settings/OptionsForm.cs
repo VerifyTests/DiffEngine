@@ -58,6 +58,19 @@
     void trayDocsLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) =>
         LinkLauncher.LaunchUrl("https://github.com/VerifyTests/DiffEngine/blob/master/docs/tray.md");
 
-    void updateButton_Click(object sender, EventArgs e) =>
-        Updater.Run();
+    void updateButton_Click(object sender, EventArgs e)
+    {
+        var update = TrayUpdate.Find();
+        if (update is null)
+        {
+            MessageBox.Show(
+                $"This tray is not installed as a dotnet tool, so there is nothing to update. It is running from {AssemblyLocation.CurrentDirectory}.",
+                "Update",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        TrayUpdate.Start(update, Application.Exit);
+    }
 }

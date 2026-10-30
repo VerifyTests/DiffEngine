@@ -70,6 +70,12 @@ static class Program
         void Warn(string message) =>
             icon.ShowBalloonTip(10000, "DiffEngineTray", message, ToolTipIcon.Warning);
 
+        if (TrayUpdate.Report() is { } report)
+        {
+            var kind = report.Kind == TrayNotificationKind.Info ? ToolTipIcon.Info : ToolTipIcon.Warning;
+            icon.ShowBalloonTip(10000, report.Title, report.Message, kind);
+        }
+
         var settings = GetSettings();
         if (settings == null)
         {

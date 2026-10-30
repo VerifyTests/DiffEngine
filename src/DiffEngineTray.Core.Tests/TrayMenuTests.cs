@@ -351,12 +351,27 @@ public class TrayMenuTests :
     }
 
     /// <summary>
-    /// A head with no options window and no folder picker, as on Linux: run at login is on the
-    /// menu, checked as the desktop says, and there is no purge.
+    /// A head with no options window and no folder picker, as on Linux: run at login and the
+    /// update are on the menu, run at login checked as the desktop says, and there is no purge.
     /// </summary>
     [Test]
     public async Task FixedForAHeadWithNoWindows() =>
         await Verify(Render(TrayMenu.Fixed(head.Windowless)));
+
+    /// <summary>
+    /// A tray that is not an installed tool has no update to offer, which is what the head is told
+    /// by being handed none.
+    /// </summary>
+    [Test]
+    public async Task UpdateIsOnlyOnTheMenuWhenThereIsOne()
+    {
+        var menu = TrayMenu.Fixed(head.Windowless);
+        await Assert.That(menu.Invoke(Find(menu, "Update").Id)).IsTrue();
+        await Assert.That(head.Calls).IsEquivalentTo(["Update"]);
+
+        var withNone = TrayMenu.Fixed(head.Windowless with {Update = null});
+        await Assert.That(withNone.Items.Any(_ => _.Label == "Update")).IsFalse();
+    }
 
     /// <summary>
     /// What the desktop has, read again for each menu, rather than a setting that can say
@@ -397,7 +412,8 @@ public class TrayMenuTests :
                 DebugView: () => Calls.Add("DebugView"),
                 Purge: null,
                 OpenDiffTool: Opened.Add,
-                RunAtLogin: Login);
+                RunAtLogin: Login,
+                Update: () => Calls.Add("Update"));
     }
 
     sealed class StandInLogin : IRunAtLogin

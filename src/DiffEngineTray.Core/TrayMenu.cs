@@ -62,6 +62,11 @@ sealed class TrayMenu
             menu.items.Add(menu.Toggle("startup", "Run at startup", runAtLogin.Exists(), () => runAtLogin.Set(!runAtLogin.Exists())));
         }
 
+        if (head.Update is { } update)
+        {
+            menu.items.Add(menu.Button("update", "Update", update));
+        }
+
         menu.items.Add(menu.Button("debug", "Debug view", head.DebugView, "options"));
         menu.items.Add(menu.Button("logs", "Open logs", Logging.OpenDirectory, "folder"));
         if (head.Purge is { } purge)

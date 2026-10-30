@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.8.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.9.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -772,6 +772,21 @@ the comment there about not caching "nothing staged" asks for.
   and macOS, from a source of those alone, checks the viewer and documents folder are where the
   lookups expect and (on Windows) that the command is a GUI apphost, then starts it and waits for
   it to listen on 3492. `publish` waits for it
+- Update is PlatformHeads' `ToolUpdate` on every head, through the core's `TrayUpdate`, which
+  finds the shim from where the tray runs (`ToolUpdate.ShimFor`, null for a build's output) and
+  keeps the outcome beside the settings, out of the store the update replaces. A shell waits for
+  the tray to exit, runs `dotnet tool update DiffEngineTray --tool-path {the shim's folder}
+  --prerelease` with the dotnet the tray runs on, and starts the shim; the tray it starts says how
+  that went once (`TrayUpdate.Report`), after the single instance lock, as a balloon on Windows
+  and a desktop notification elsewhere. The Windows head keeps it on the options window's button,
+  which says so when there is no installed tool rather than going grey, since the form's pictures
+  are snapshot tested; the others put it on the menu (`TrayActions.Update`). It was a Windows
+  PowerShell line that did not wait for the tray and updated the global install whichever tray
+  asked. On Windows the shell stops what runs from the store first, which includes a viewer the
+  tray started: one that owns the queue is ended without staging it. Seen in a `dotnet/sdk:10.0`
+  container on a private `dbus-daemon` with a stand-in watcher: Update chosen from the menu, the
+  tray gone, the install moved from one version to the next, and the new tray registered,
+  listening and logging what the update said
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
