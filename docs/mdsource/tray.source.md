@@ -1,6 +1,6 @@
 # DiffEngineTray
 
-DiffEngineTray sits in the Windows tray. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
+DiffEngineTray sits in the notification area on Windows, the menu bar on macOS, and the panel's tray on Linux. For supported snapshot testing libraries, it monitors pending changes in snapshots, and provides a mechanism for accepting those changes. It is intended as an alternative to using the clipboard as an approval mechanism.
 
 
 ## NuGet
@@ -12,10 +12,12 @@ DiffEngineTray sits in the Windows tray. For supported snapshot testing librarie
 
 `dotnet tool install -g DiffEngineTray`
 
+The same command on Windows, macOS and Linux, x64 or Arm64. `DiffEngineTray` only names a package for each platform, and the one for the machine's is installed with it: `DiffEngineTray.win-x64`, `DiffEngineTray.osx-arm64`, `DiffEngineTray.linux-x64` and so on. Each carries that platform's tray and a [viewer](/docs/viewer.md) that reads documents.
+
 
 ## Running
 
-Run `diffenginetray` in a console to start the app.
+Run `diffenginetray` in a console to start the app. To have it start at login, use "Run at startup": in the [Options](#options) window on Windows, and on the menu on [macOS and Linux](#on-macos-and-linux).
 
 
 ## UI
@@ -70,6 +72,8 @@ A long queue takes a while to accept. An open [DiffEngineViewer](/docs/viewer.md
 
 ### Locked files
 
+Windows only. A lock elsewhere is advisory and keeps nothing from replacing the file, so there is nothing to resolve.
+
 If accepting a move fails because the files are locked by another process (for example the snapshot is open in Microsoft Word), a prompt is shown listing the locked files and the locking processes:
 
 <img src="..\src\DiffEngineTray.Tests\LockedFilesFormTests.Default.verified.png">
@@ -87,7 +91,7 @@ Discard will clear all currently tracked items. It is the same discard as the pe
 
 ### Purge verified files
 
-Prompts for a directory, and then recursively deletes all `*.verified.*` in that directory.
+Windows only. Prompts for a directory, and then recursively deletes all `*.verified.*` in that directory.
 
 
 ### Debug view
@@ -100,8 +104,27 @@ The menu shows each pending item reduced to what fits on a line, a name and a fe
 
 Nothing pushes at the window, so it shows the moment it was read. "Refresh" takes a newer reading.
 
+On macOS and Linux there is no window: the same report is written to `debug.txt` in the [logging directory](#logging-directory) and opened with whatever the desktop opens a text file with. Choosing "Debug view" again writes a newer one.
+
+
+### Update
+
+Updates the tray to the latest version on NuGet, prereleases included. On Windows it is the "Update" button in the [Options](#options) window, and on macOS and Linux an "Update" item on the menu. It is offered only for a tray installed as a .NET tool, which a build's output is not.
+
+The tray exits, and a shell it started then:
+
+ 1. waits for the tray to be gone;
+ 1. runs `dotnet tool update DiffEngineTray --tool-path {folder} --prerelease`, where the folder is the one holding the `diffenginetray` command the tray was started as, so a global install and one made with `--tool-path` are both updated where they are;
+ 1. starts the tray again.
+
+The tray it starts says once how the update went. The `dotnet` used is the one the tray runs on, since a tray started at login may have none on its `PATH`.
+
+On Windows, anything still running from the tray's install is stopped first, since a file in use cannot be replaced. That includes a [viewer](/docs/viewer.md) window the tray opened. A viewer that holds the snapshot queue loses it unstaged, so accept or close what is pending in it before updating.
+
 
 ### Options
+
+Windows only. On macOS and Linux the menu has "Run at startup", and the rest is [set otherwise or not there](#on-macos-and-linux).
 
 <img src="..\src\DiffEngineTray.Tests\OptionsFormTests.Default.verified.png">
 
@@ -155,6 +178,31 @@ Registers a system wide HotKey to accept pending:
 To limit impact on system resources, the [default max concurrent open tool instances is limited to 5](/docs/diff-tool.md#maxinstancestolaunch).
 
 Accept all open HotKey allows the current batch of open diffs to be accepted.
+
+
+## On macOS and Linux
+
+The tray does the same there: it tracks pending moves and deletes, holds the inline snapshot queue, and lists all of it in a menu grouped by solution, with the same actions on each item and the same "Accept all" and "Discard". The menu's other items are:
+
+ * Exit
+ * Run at startup
+ * [Update](#update)
+ * [Debug view](#debug-view)
+ * Open logs
+ * Raise issue
+
+On macOS the icon is in the menu bar, and the tray has no Dock icon. On Linux the icon and menu are a StatusNotifierItem, which KDE Plasma and most other panels show. GNOME shows one only with an AppIndicator extension, which Ubuntu's GNOME has and a stock GNOME does not. With nowhere to show its menu the tray runs anyway, holding the queue and tracking what test runs send it, and says so once. The [viewer](/docs/viewer.md) still shows everything it holds.
+
+What a balloon says on Windows is a desktop notification on both.
+
+"Run at startup" is an autostart entry, `~/.config/autostart/diffenginetray.desktop` on Linux (under `XDG_CONFIG_HOME` where that is set), and a launch agent, `~/Library/LaunchAgents/org.verifytests.diffenginetray.plist`, on macOS. Either starts the `diffenginetray` command the tray was started as.
+
+What is not there:
+
+ * The Options window. "Open on left" and "Max instances to launch" are environment variables, which the window sets for the user on Windows. Elsewhere set [`DiffEngine_TargetOnLeft`](/docs/diff-tool.md#leftright-diff-behavior) or [`DiffEngine_MaxInstances`](/docs/diff-tool.md#using-an-environment-variable) in the environment test runs start in.
+ * The HotKeys, which are registered with Windows.
+ * [Purge verified files](#purge-verified-files).
+ * The [locked files](#locked-files) prompt, which has nothing to resolve.
 
 
 ## Opting out of tracking
@@ -213,6 +261,12 @@ For example:
 
 ```
 C:\Users\simon\.dotnet\tools\.store\diffenginetray\21.0.0\diffenginetray.win-x64\21.0.0\tools\net10.0\win-x64\logs
+```
+
+On macOS and Linux the same, under the home directory:
+
+```
+~/.dotnet/tools/.store/diffenginetray/{VERSION}/diffenginetray.{RID}/{VERSION}/tools/net10.0/{RID}/logs
 ```
 
 Up to 20.8.2 the tray was one package for every architecture, and logged to `...\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net10.0\any\logs`.

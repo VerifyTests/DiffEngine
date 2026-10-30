@@ -42,7 +42,7 @@ flowchart TD
     Override -->|yes| Named["The copy it names"]
     Override -->|no| Tool{"DiffEngineViewer.Windows, .Mac or .Linux<br/>installed as a global tool?"}
     Tool -->|yes| Installed["The installed tool"]
-    Tool -->|no| Tray{"DiffEngineTray installed?<br/>Windows only"}
+    Tool -->|no| Tray{"DiffEngineTray installed?"}
     Tray -->|yes| Beside["The copy inside the tray's package"]
     Tray -->|no| Bundled{"A copy for this platform bundled in the<br/>DiffEngine package the project references?"}
     Bundled -->|yes| Package["The bundled copy"]
@@ -76,7 +76,7 @@ So the full viewer is one install away, with nothing to configure afterwards:
 dotnet tool install -g DiffEngineViewer.Windows
 ```
 
-or, on Windows, [DiffEngineTray](/docs/tray.md), which carries one.
+or [DiffEngineTray](/docs/tray.md), which carries one on Windows, macOS and Linux.
 
 
 ### Why the bundled copy is minimal
