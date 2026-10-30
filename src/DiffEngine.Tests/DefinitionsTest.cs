@@ -284,9 +284,26 @@ public class DefinitionsTest
 
         foreach (var path in paths)
         {
-            writer.WriteLine($"    * `{path}{exeName}`");
+            writer.WriteLine($"    * `{WithoutLibraryVersion(path)}{exeName}`");
         }
 
         writer.WriteLine($"    * `%PATH%{pathCommandName}`");
+    }
+
+    /// <summary>
+    /// The viewer is looked for in the NuGet cache under this library's own version first, which
+    /// written as it is made the generated docs stale at every release.
+    /// </summary>
+    static string WithoutLibraryVersion(string path)
+    {
+        var version = FallbackViewerDirectories.LibraryVersion();
+        if (version == null)
+        {
+            return path;
+        }
+
+        return path
+            .Replace($@"\diffengine\{version}\", @"\diffengine\{version}\")
+            .Replace($"/diffengine/{version}/", "/diffengine/{version}/");
     }
 }

@@ -347,9 +347,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
     * `%USERPROFILE%\.dotnet\tools\DiffEngineViewer.exe`
     * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray.win-x64\*\tools\*\win-x64\viewer\win-x64\DiffEngineViewer.exe`
     * `%USERPROFILE%\.dotnet\tools\.store\diffenginetray\*\diffenginetray\*\tools\*\any\viewer\win-x64\DiffEngineViewer.exe`
-    * `%NUGET_PACKAGES%\diffengine\20.8.2\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%NUGET_PACKAGES%\diffengine\{version}\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%NUGET_PACKAGES%\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
-    * `%USERPROFILE%\.nuget\packages\diffengine\20.8.2\tools\viewer\win-x64\DiffEngineViewer.exe`
+    * `%USERPROFILE%\.nuget\packages\diffengine\{version}\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%USERPROFILE%\.nuget\packages\diffengine\*\tools\viewer\win-x64\DiffEngineViewer.exe`
     * `%PATH%DiffEngineViewer.exe`
 
@@ -366,9 +366,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
     * `%HOME%/.dotnet/tools/.store/diffenginetray/*/diffenginetray.osx-x64/*/tools/*/osx-x64/viewer/osx-x64/DiffEngineViewer`
-    * `%NUGET_PACKAGES%/diffengine/20.8.2/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/{version}/tools/viewer/osx-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
-    * `%HOME%/.nuget/packages/diffengine/20.8.2/tools/viewer/osx-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/{version}/tools/viewer/osx-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/osx-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
@@ -385,9 +385,9 @@ DiffTools.UseOrder(DiffTool.DiffEngineViewer);
   * Scanned paths:
     * `%HOME%/.dotnet/tools/DiffEngineViewer`
     * `%HOME%/.dotnet/tools/.store/diffenginetray/*/diffenginetray.linux-x64/*/tools/*/linux-x64/viewer/linux-x64/DiffEngineViewer`
-    * `%NUGET_PACKAGES%/diffengine/20.8.2/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%NUGET_PACKAGES%/diffengine/{version}/tools/viewer/linux-x64/DiffEngineViewer`
     * `%NUGET_PACKAGES%/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
-    * `%HOME%/.nuget/packages/diffengine/20.8.2/tools/viewer/linux-x64/DiffEngineViewer`
+    * `%HOME%/.nuget/packages/diffengine/{version}/tools/viewer/linux-x64/DiffEngineViewer`
     * `%HOME%/.nuget/packages/diffengine/*/tools/viewer/linux-x64/DiffEngineViewer`
     * `%PATH%DiffEngineViewer`
 
