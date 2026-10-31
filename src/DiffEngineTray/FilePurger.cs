@@ -36,7 +36,7 @@ static class FilePurger
             return;
         }
 
-        var files = Find(path);
+        var files = VerifiedFiles.Find(path);
 
         if (files.Length == 0)
         {
@@ -49,26 +49,6 @@ static class FilePurger
             DeleteFiles(files);
         }
     }
-
-    /// <summary>
-    /// SearchOption.AllDirectories is the compatibility enumeration: it does not ignore what it
-    /// cannot read, and it follows reparse points. The dialog lets the user pick a profile folder
-    /// or a drive root, either of which holds a deny-ACL junction - Application Data,
-    /// $Recycle.Bin - so the scan reliably threw UnauthorizedAccessException before it had looked
-    /// at a single file.
-    /// </summary>
-    static readonly EnumerationOptions enumeration = new()
-    {
-        RecurseSubdirectories = true,
-        IgnoreInaccessible = true,
-        AttributesToSkip = FileAttributes.ReparsePoint
-    };
-
-    internal static string[] Find(string path) =>
-    [
-        .. Directory.GetFiles(path, "*.verified.*", enumeration),
-        .. Directory.GetFiles(path, "*.received.*", enumeration)
-    ];
 
     static bool Confirm(string[] files)
     {
@@ -87,7 +67,7 @@ static class FilePurger
         for (var index = 0; index < files.Length; index++)
         {
             var file = files[index];
-            var result = TryDeleteWithLockKill(file);
+            var result = VerifiedFiles.TryDelete(file);
             if (result.Deleted)
             {
                 continue;
@@ -112,38 +92,6 @@ static class FilePurger
             }
         }
     }
-
-    internal static DeleteResult TryDeleteWithLockKill(string file)
-    {
-        try
-        {
-            if (File.Exists(file))
-            {
-                File.Delete(file);
-            }
-
-            return new(true, null);
-        }
-        catch (Exception exception)
-        {
-            if (FileLockKiller.KillLockingProcesses(file))
-            {
-                try
-                {
-                    File.Delete(file);
-                    return new(true, null);
-                }
-                catch (Exception retryException)
-                {
-                    return new(false, retryException);
-                }
-            }
-
-            return new(false, exception);
-        }
-    }
-
-    internal record DeleteResult(bool Deleted, Exception? Exception);
 
     static DialogResult AskQuestion(string text, string caption, MessageBoxButtons buttons) =>
         MessageBox.Show(

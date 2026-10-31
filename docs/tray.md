@@ -98,7 +98,9 @@ Discard will clear all currently tracked items. It is the same discard as the pe
 
 ### Purge verified files
 
-Windows only. Prompts for a directory, and then recursively deletes all `*.verified.*` in that directory.
+Prompts for a directory, says how many `*.verified.*` and `*.received.*` files are under it, and once that is confirmed deletes them all.
+
+On Windows a file that cannot be deleted is asked about, with a choice to retry it, skip it or stop. On macOS and Linux the questions are put by the desktop's own programs: AppleScript's dialogs on macOS, and on Linux zenity's, or kdialog's on KDE. Either one is used where only one is installed, and with neither the item is not on the menu. A file that cannot be deleted there is skipped, and a notification says how many were deleted and what stopped the rest.
 
 
 ### Debug view
@@ -195,6 +197,7 @@ The tray does the same there: it tracks pending moves and deletes, holds the inl
  * Run at startup
  * [Update](#update)
  * [Debug view](#debug-view)
+ * [Purge verified files](#purge-verified-files), on Linux where zenity or kdialog is installed
  * Open logs
  * Raise issue
 
@@ -208,7 +211,6 @@ What is not there:
 
  * The Options window. "Open on left" and "Max instances to launch" are environment variables, which the window sets for the user on Windows. Elsewhere set [`DiffEngine_TargetOnLeft`](/docs/diff-tool.md#leftright-diff-behavior) or [`DiffEngine_MaxInstances`](/docs/diff-tool.md#using-an-environment-variable) in the environment test runs start in.
  * The HotKeys, which are registered with Windows.
- * [Purge verified files](#purge-verified-files).
  * The [locked files](#locked-files) prompt, which has nothing to resolve.
 
 

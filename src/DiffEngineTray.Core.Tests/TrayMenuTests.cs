@@ -351,8 +351,9 @@ public class TrayMenuTests :
     }
 
     /// <summary>
-    /// A head with no options window and no folder picker, as on Linux: run at login and the
-    /// update are on the menu, run at login checked as the desktop says, and there is no purge.
+    /// A head with no options window and no folder picker, as on a Linux desktop with neither
+    /// zenity nor kdialog: run at login and the update are on the menu, run at login checked as
+    /// the desktop says, and there is no purge.
     /// </summary>
     [Test]
     public async Task FixedForAHeadWithNoWindows() =>

@@ -1,8 +1,9 @@
 /// <summary>
 /// The tray on Linux. What it does is the Windows head's, in the same order, less what only a
-/// window or Windows can do: no hot keys, no options window and no purge, and no settings file
-/// read, since nothing in it does anything here. Nothing kills a process holding a file either, a
-/// Unix lock keeping nothing out.
+/// window or Windows can do: no hot keys, no options window, and no settings file read, since
+/// nothing in it does anything here. Purge asks through zenity or kdialog, and is not on the menu
+/// where neither is installed. Nothing kills a process holding a file either, a Unix lock keeping
+/// nothing out.
 /// </summary>
 static class Program
 {
@@ -103,7 +104,7 @@ static class Program
             Exit: tokenSource.Cancel,
             Options: null,
             DebugView: () => DebugReportFile.Open(tracker),
-            Purge: null,
+            Purge: DesktopPurge.For(DesktopDialog.ForPlatform(), Warn),
             OpenDiffTool: DiffToolLauncher.Launch,
             RunAtLogin: RunAtLogin.ForPlatform(TrayLogin.Item),
             Update: TrayUpdate.MenuAction(tokenSource.Cancel));

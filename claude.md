@@ -711,7 +711,12 @@ the comment there about not caching "nothing staged" asks for.
   Its one option is "Run at startup", a checked item over
   PlatformHeads' `XdgAutostart` (`TrayActions.RunAtLogin`), and the settings file is not read: the
   hot keys are Windows', and target on left and the launch limit are user environment variables,
-  which .NET sets only on Windows. No purge, which needs a folder picker. The debug view is
+  which .NET sets only on Windows. Purge asks its folder and its go ahead through a program the
+  desktop has (`DesktopDialog`: zenity, or kdialog on KDE, and AppleScript's on the macOS head),
+  as `DesktopNotification` pops a balloon, and is not on the menu where there is none. Each
+  question waits on the person, so the purge runs on a thread of its own (`DesktopPurge`), and a
+  file it cannot delete is counted where the Windows head asks about it. What it finds and
+  deletes is the core's `VerifiedFiles`, which the Windows head's `FilePurger` uses too. The debug view is
   written beside the logs and opened (`DebugReportFile`). The icon is the Windows head's `.ico`,
   whose one picture is a 48 pixel, 32 bit bitmap and needs no decoder (`IconPixels`); the core
   embeds the Windows head's pictures for both heads off Windows (`TrayPictures`). With no

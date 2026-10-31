@@ -107,7 +107,7 @@ static class Program
             Exit: tokenSource.Cancel,
             Options: null,
             DebugView: () => DebugReportFile.Open(tracker),
-            Purge: null,
+            Purge: DesktopPurge.For(DesktopDialog.ForPlatform(), Warn),
             OpenDiffTool: DiffToolLauncher.Launch,
             RunAtLogin: RunAtLogin.ForPlatform(TrayLogin.Item),
             Update: TrayUpdate.MenuAction(tokenSource.Cancel));

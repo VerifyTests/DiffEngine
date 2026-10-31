@@ -22,7 +22,7 @@ public class FilePurgerTest
         denied.SetAccessControl(security);
         try
         {
-            var found = FilePurger.Find(root.FullName);
+            var found = VerifiedFiles.Find(root.FullName);
 
             await Assert.That(found).HasSingleItem();
             await Assert.That(Path.GetFileName(found[0])).IsEqualTo("a.verified.txt");
@@ -40,7 +40,7 @@ public class FilePurgerTest
         var file = Path.Combine(Path.GetTempPath(), $"FilePurgerTest_{Guid.NewGuid()}.verified.txt");
         await File.WriteAllTextAsync(file, "content");
 
-        var result = FilePurger.TryDeleteWithLockKill(file);
+        var result = VerifiedFiles.TryDelete(file);
 
         await Assert.That(result.Deleted).IsTrue();
         await Assert.That(result.Exception).IsNull();
@@ -52,7 +52,7 @@ public class FilePurgerTest
     {
         var file = Path.Combine(Path.GetTempPath(), $"FilePurgerTest_{Guid.NewGuid()}.verified.txt");
 
-        var result = FilePurger.TryDeleteWithLockKill(file);
+        var result = VerifiedFiles.TryDelete(file);
 
         await Assert.That(result.Deleted).IsTrue();
         await Assert.That(result.Exception).IsNull();
@@ -70,7 +70,7 @@ public class FilePurgerTest
         {
             await Assert.That(IsFileLocked(file)).IsTrue();
 
-            var result = FilePurger.TryDeleteWithLockKill(file);
+            var result = VerifiedFiles.TryDelete(file);
 
             await Assert.That(result.Deleted).IsTrue();
             await Assert.That(result.Exception).IsNull();
