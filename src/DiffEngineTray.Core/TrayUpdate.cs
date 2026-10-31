@@ -48,7 +48,8 @@ static class TrayUpdate
 
     /// <summary>
     /// Starts the update, then exits the tray, which the update waits for. A shell that would not
-    /// start leaves the tray running, since nothing would start it again.
+    /// start leaves the tray running, since nothing would start it again, and leaves the viewer
+    /// holding the queue alone, since nothing would stop it.
     /// </summary>
     public static void Start(ToolUpdate update, Action exit)
     {
@@ -63,7 +64,83 @@ static class TrayUpdate
             return;
         }
 
+        // While the shell waits for this tray, which it does for longer than the viewer is given
+        if (OperatingSystem.IsWindows())
+        {
+            CloseOwningViewer(update, ViewerClient.Port);
+        }
+
         exit();
+    }
+
+    /// <summary>
+    /// How long a viewer asked to close before an update has to stage its queue and go. Its close
+    /// finishes an accept-all under way and gives each of its listeners two seconds to stop.
+    /// </summary>
+    static readonly TimeSpan closeWait = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// On Windows the update stops whatever runs from the store before it updates, and a viewer
+    /// started from this tray's own viewer folder runs from there. One that holds the inline queue
+    /// holds it in memory and stages it only as it exits, so stopped, its snapshots were gone. So
+    /// it is asked to close, which an owning viewer takes as exiting (<c>Quit</c>), and waited for.
+    /// A viewer from anywhere else is left alone, since nothing stops it.
+    /// </summary>
+    /// <returns>Whether a viewer was asked to close.</returns>
+    internal static bool CloseOwningViewer(ToolUpdate update, int port)
+    {
+        if (ListenerTable.Owner(port) is not { } id ||
+            id == Environment.ProcessId ||
+            !ProcessEx.TryGet(id, out var process))
+        {
+            return false;
+        }
+
+        using (process)
+        {
+            var image = ProcessEx.ImagePath(process);
+            if (!Stops(update, image))
+            {
+                return false;
+            }
+
+            Log.Information("Asking the viewer that holds the queue, {Image}, to stage it and close before the update stops it", image);
+            if (!ViewerClient.TrySend(new(ViewerVerb.Quit), out _, port))
+            {
+                Log.Warning("The viewer that holds the queue did not answer, and the update will stop it");
+                return true;
+            }
+
+            if (!process.WaitForExit(closeWait))
+            {
+                Log.Warning("The viewer that holds the queue had not closed after {Wait}, and the update will stop it", closeWait);
+            }
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Whether the update stops a process running <paramref name="image" />: one under the store,
+    /// or under a folder it was told to stop as well. As the update's script matches them, without
+    /// regard to case, and by whole folders.
+    /// </summary>
+    internal static bool Stops(ToolUpdate update, string? image)
+    {
+        if (image is null)
+        {
+            return false;
+        }
+
+        foreach (var directory in update.AlsoStopUnder.Prepend(update.StoreDirectory))
+        {
+            if (image.StartsWith(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

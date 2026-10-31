@@ -85,6 +85,34 @@ public class ListenerTableTests
     }
 
     /// <summary>
+    /// The id at the end of each layout's row, read from the row that names the port: this
+    /// process, for a listener of either family it holds.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AListenerSaysWhoseItIs()
+    {
+        using var current = Process.GetCurrentProcess();
+        IPAddress[] addresses = Socket.OSSupportsIPv6 ? [IPAddress.Loopback, IPAddress.IPv6Loopback] : [IPAddress.Loopback];
+        foreach (var address in addresses)
+        {
+            var listener = new TcpListener(address, 0);
+            listener.Start();
+            var port = ((IPEndPoint) listener.LocalEndpoint).Port;
+            try
+            {
+                await Assert.That(ListenerTable.Owner(port)).IsEqualTo(current.Id);
+            }
+            finally
+            {
+                listener.Stop();
+            }
+
+            await Assert.That(ListenerTable.Owner(port)).IsNull();
+        }
+    }
+
+    /// <summary>
     /// A port that is bound and not listening has nobody to accept a connection, which is the
     /// answer the caller is spared two seconds by, and it takes both tables being read to their
     /// ends to give it. Bound rather than free, so that nothing else can start listening on it
