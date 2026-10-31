@@ -121,7 +121,7 @@ The tray exits, and a shell it started then:
 
 The tray it starts says once how the update went. The `dotnet` used is the one the tray runs on, since a tray started at login may have none on its `PATH`.
 
-On Windows, anything still running from the tray's install is stopped first, since a file in use cannot be replaced. That includes a [viewer](/docs/viewer.md) window the tray opened. A viewer that holds the snapshot queue loses it unstaged, so accept or close what is pending in it before updating.
+On Windows, anything still running from the tray's install is stopped first, since a file in use cannot be replaced. That includes a [viewer](/docs/viewer.md) window the tray opened. A viewer from there that holds the snapshot queue is asked to close before the tray exits, and stages what is pending in it as files under each source project's `obj/VerifyInline`, as any viewer does on exit, where an IDE plugin or a text diff tool can still review them.
 
 
 ### Options

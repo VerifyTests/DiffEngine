@@ -788,7 +788,11 @@ the comment there about not caching "nothing staged" asks for.
   are snapshot tested; the others put it on the menu (`TrayActions.Update`). It was a Windows
   PowerShell line that did not wait for the tray and updated the global install whichever tray
   asked. On Windows the shell stops what runs from the store first, which includes a viewer the
-  tray started: one that owns the queue is ended without staging it. Seen in a `dotnet/sdk:10.0`
+  tray started, and one that owns the queue would go without staging it. So the tray, once the
+  shell has started, finds who listens on the viewer port (`ListenerTable.Owner`, the process id
+  out of the same row), and if that process runs from somewhere the update stops
+  (`TrayUpdate.Stops`) sends it `Quit`, which an owning viewer takes as exiting whatever a tray
+  says, and waits for it to go (`TrayUpdate.CloseOwningViewer`). Seen in a `dotnet/sdk:10.0`
   container on a private `dbus-daemon` with a stand-in watcher: Update chosen from the menu, the
   tray gone, the install moved from one version to the next, and the new tray registered,
   listening and logging what the update said

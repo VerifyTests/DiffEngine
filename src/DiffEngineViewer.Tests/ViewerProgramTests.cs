@@ -281,6 +281,31 @@ public class ViewerProgramTests
     }
 
     /// <summary>
+    /// A close from the wire ends the loop, and with it the process, which then stages the queue,
+    /// even with a tray running and snapshots in the queue, where a close of the window by hand
+    /// only hides it. That is what a tray about to be updated asks of a viewer the update would
+    /// stop. On Windows, where the tray is a named mutex, which the test holds, and the update
+    /// stops what it replaces.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AQuitFromTheWireClosesBesideATray()
+    {
+        using var tray = new Mutex(false, "DiffEngine");
+        await Assert.That(TrayDetector.IsRunning()).IsTrue();
+        var host = new SessionHost(Fixtures.Inline(Fixtures.Patch()));
+        var presents = 0;
+        var window = new ScriptedWindow([false, false], () => presents++);
+        ConcurrentQueue<WindowCommand> commands = new();
+        commands.Enqueue(WindowCommand.Close);
+
+        ViewerProgram.Loop(host, window, null, null, null, commands, null, new(), new(ScreenBuilder.Build));
+
+        await Assert.That(presents).IsEqualTo(0);
+        await Assert.That(host.State.Queue).HasSingleItem();
+    }
+
+    /// <summary>
     /// A window that says, poll by poll, whether anybody can see it, and nothing else. It closes
     /// on the present after its last poll, and tells the test as each present begins.
     /// </summary>

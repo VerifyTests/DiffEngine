@@ -364,7 +364,7 @@ static class ProcessEx
     /// Asked of the handle that is held, so it is the process that would be ended that answers,
     /// and through the call that needs the least access to it. Off Windows, of the id.
     /// </summary>
-    static string? ImagePath(Process process)
+    internal static string? ImagePath(Process process)
     {
         if (OperatingSystem.IsLinux())
         {

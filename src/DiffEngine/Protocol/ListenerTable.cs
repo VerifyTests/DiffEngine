@@ -110,12 +110,36 @@ static class ListenerTable
     /// loopback connect can reach either. A machine with IPv6 off has no second table to ask for.
     /// </para>
     /// </summary>
-    internal static bool? Listeners(int port)
+    internal static bool? Listeners(int port) =>
+        Rows(port, out _);
+
+    /// <summary>
+    /// The process listening on <paramref name="port"/>, out of the same table, or null where
+    /// nothing listens there or the table could not be read, which is everywhere but Windows.
+    /// For a caller about to do something to that process, so the table not being read is never
+    /// taken for an answer.
+    /// </summary>
+    internal static int? Owner(int port)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return null;
+        }
+
+        if (Rows(port, out var owner) == true)
+        {
+            return owner;
+        }
+
+        return null;
+    }
+
+    static bool? Rows(int port, out int owner)
     {
         try
         {
             // MIB_TCPROW_OWNER_PID, whose third field is the local port
-            var held = Read(port, interNetwork, 24, 8);
+            var held = Read(port, interNetwork, 24, 8, out owner);
             if (held != false ||
                 !Socket.OSSupportsIPv6)
             {
@@ -123,17 +147,23 @@ static class ListenerTable
             }
 
             // MIB_TCP6ROW_OWNER_PID, where the port follows the address and its scope
-            return Read(port, interNetworkV6, 56, 20);
+            return Read(port, interNetworkV6, 56, 20, out owner);
         }
         catch (Exception exception)
             when (exception is DllNotFoundException or EntryPointNotFoundException or MarshalDirectiveException)
         {
+            owner = 0;
             return null;
         }
     }
 
-    static bool? Read(int port, int family, int rowSize, int portOffset)
+    /// <summary>
+    /// Both row layouts end with the owning process's id, which <paramref name="owner"/> is given
+    /// from the row that names the port.
+    /// </summary>
+    static bool? Read(int port, int family, int rowSize, int portOffset, out int owner)
     {
+        owner = 0;
         var size = 4096;
         // A table that outgrew the buffer says how much it needs, and can have grown again by
         // the time it is asked for with that. Not for ever: a call that keeps saying so is one
@@ -164,9 +194,11 @@ static class ListenerTable
             for (var index = 0; index < count; index++)
             {
                 // Network byte order, in the low half of a field twice the size
-                var at = 4 + index * rowSize + portOffset;
+                var row = 4 + index * rowSize;
+                var at = row + portOffset;
                 if (((table[at] << 8) | table[at + 1]) == port)
                 {
+                    owner = BitConverter.ToInt32(table, row + rowSize - 4);
                     return true;
                 }
             }

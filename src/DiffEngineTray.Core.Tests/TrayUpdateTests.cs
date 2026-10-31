@@ -67,6 +67,121 @@ public class TrayUpdateTests
         await Assert.That(TrayUpdate.Report(file.Path)).IsNull();
     }
 
+    /// <summary>
+    /// What the update's Windows script stops, matched as it matches: anything under the store or
+    /// a folder named beside it, whatever the case, and nothing in a folder that only starts with
+    /// the same name.
+    /// </summary>
+    [Test]
+    public async Task TheUpdateStopsWhatRunsFromTheStore()
+    {
+        var tools = Path.Combine(Path.GetTempPath(), "home", ".dotnet", "tools");
+        var also = Path.Combine(Path.GetTempPath(), "fixed", "viewer");
+        var update = new ToolUpdate("DiffEngineTray", Path.Combine(tools, "DiffEngineTray.exe"), Path.Combine(tools, "outcome.log"))
+        {
+            AlsoStopUnder = [also]
+        };
+        var viewer = Path.Combine(tools, ".store", "diffenginetray", "21.0.0", "diffenginetray.win-x64", "21.0.0", "tools", "net10.0", "win-x64", "viewer", "win-x64", "DiffEngineViewer.exe");
+
+        await Assert.That(TrayUpdate.Stops(update, viewer)).IsTrue();
+        await Assert.That(TrayUpdate.Stops(update, viewer.ToUpperInvariant())).IsTrue();
+        await Assert.That(TrayUpdate.Stops(update, Path.Combine(also, "DiffEngineViewer.exe"))).IsTrue();
+        await Assert.That(TrayUpdate.Stops(update, Path.Combine(tools, ".store", "diffenginetray.other", "DiffEngineViewer.exe"))).IsFalse();
+        await Assert.That(TrayUpdate.Stops(update, Path.Combine(Path.GetTempPath(), ".nuget", "packages", "diffengine", "DiffEngineViewer.exe"))).IsFalse();
+        await Assert.That(TrayUpdate.Stops(update, null)).IsFalse();
+    }
+
+    /// <summary>
+    /// A queue this tray holds itself goes with the tray, which stages it as it exits.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AQueueThisTrayHoldsIsNotAskedToClose()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var port = ((IPEndPoint) listener.LocalEndpoint).Port;
+            await Assert.That(TrayUpdate.CloseOwningViewer(StoppingUnder(Environment.ProcessPath!), port)).IsFalse();
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    /// <summary>
+    /// The process listening on the port is found by the listener table, matched by its image
+    /// against what the update stops, sent <c>Quit</c> and waited for. Windows PowerShell stands
+    /// in for the viewer, saying the first line it is sent, so the update is told to stop under
+    /// PowerShell's folder.
+    /// </summary>
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AViewerTheUpdateStopsIsAskedToClose()
+    {
+        using var viewer = StandInViewer(out var port);
+
+        var asked = TrayUpdate.CloseOwningViewer(StoppingUnder(StandInTool.Image), port);
+
+        await Assert.That(asked).IsTrue();
+        await Assert.That(viewer.StandardOutput.ReadLine()).IsEqualTo("verb: quit");
+        await Assert.That(viewer.WaitForExit(10_000)).IsTrue();
+    }
+
+    [Test]
+    [RunOn(TUnit.Core.Enums.OS.Windows)]
+    public async Task AViewerTheUpdateLeavesAloneIsLeftAlone()
+    {
+        using var viewer = StandInViewer(out var port);
+        try
+        {
+            var asked = TrayUpdate.CloseOwningViewer(StoppingUnder(Path.Combine(Path.GetTempPath(), "elsewhere", "DiffEngineViewer.exe")), port);
+
+            await Assert.That(asked).IsFalse();
+            await Assert.That(viewer.HasExited).IsFalse();
+        }
+        finally
+        {
+            viewer.Kill();
+        }
+    }
+
+    static ToolUpdate StoppingUnder(string image)
+    {
+        var tools = Path.Combine(Path.GetTempPath(), "TrayUpdateTests", "tools");
+        return new("DiffEngineTray", Path.Combine(tools, "DiffEngineTray.exe"), Path.Combine(tools, "outcome.log"))
+        {
+            AlsoStopUnder = [Path.GetDirectoryName(image)!]
+        };
+    }
+
+    /// <summary>
+    /// Listens on a port of its own, says which, and says the verb line of what a connection sends
+    /// before it exits.
+    /// </summary>
+    static Process StandInViewer(out int port)
+    {
+        const string script =
+            "$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0); " +
+            "$listener.Start(); " +
+            "[Console]::WriteLine($listener.LocalEndpoint.Port); " +
+            "$client = $listener.AcceptTcpClient(); " +
+            "$reader = [System.IO.StreamReader]::new($client.GetStream()); " +
+            "do { $line = $reader.ReadLine() } until ($line -eq $null -or $line.StartsWith('verb:')); " +
+            "[Console]::WriteLine($line)";
+        var process = Process.Start(
+            new ProcessStartInfo(StandInTool.Image, ["-NoProfile", "-Command", script])
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            })!;
+        port = int.Parse(process.StandardOutput.ReadLine()!);
+        return process;
+    }
+
     sealed class TempOutcome : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"TrayUpdateTests.{Guid.NewGuid():N}.log");
