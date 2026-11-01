@@ -1,61 +1,43 @@
 /// <summary>
-/// The tray's menu as WinForms shows it: <see cref="TrayMenu" />'s items made ToolStrip items by
-/// PlatformHeads' <see cref="TrayMenuItems" />, which BuildMonitor's tray shows its model with too.
-/// What the menu says and does is the core's; what is here is how it looks.
+/// How the tray's menu looks on Windows: the options PlatformHeads' <see cref="NotifyIconTray{TIcon}" />
+/// makes its menu from <see cref="TrayMenu" />'s items with, by <see cref="TrayMenuItems" />,
+/// which BuildMonitor's tray shows its model with too. What the menu says and does is the core's.
 /// </summary>
 static class MenuBuilder
 {
-    public static ContextMenuStrip Build(TrayActions actions, Tracker tracker)
-    {
-        var menu = new ContextMenuStrip
-        {
-            DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft
-        };
-        menu.Font = new(menu.Font.FontFamily, 10);
-        var fixedItems = TrayMenu.Fixed(actions);
-        TrayMenu? tracked = null;
-
-        var options = new NotifyIconOptions<TrayIcon>(
+    /// <param name="tooltip">The tip for an item, by its id, from the menus last shown.</param>
+    public static NotifyIconOptions<TrayIcon> Options(Func<string, string?> tooltip) =>
+        new(
             "DiffEngineTray",
             _ => _ == TrayIcon.Active ? Images.Active : Images.Default,
             Glyph,
+            Theme: _ =>
+            {
+                // The menu itself, which this is handed before every opening, and not a submenu,
+                // which opens where its item says
+                if (_ is not ContextMenuStrip menu)
+                {
+                    return;
+                }
+
+                menu.DefaultDropDownDirection = ToolStripDropDownDirection.AboveLeft;
+                if (menu.Font.Size != fontSize)
+                {
+                    menu.Font = new(menu.Font.FontFamily, fontSize);
+                }
+            },
             Style: (item, model) =>
             {
-                item.ToolTipText = fixedItems.Tooltip(model.Id) ?? tracked?.Tooltip(model.Id);
+                item.ToolTipText = tooltip(model.Id);
                 if (model.HasChildren)
                 {
                     item.DropDownDirection = ToolStripDropDownDirection.Left;
                 }
-            });
+            },
+            // The menu is all the icon has, so either button opens it
+            LeftClickOpensMenu: true);
 
-        void Clicked(string id)
-        {
-            if (!fixedItems.Invoke(id))
-            {
-                tracked?.Invoke(id);
-            }
-        }
-
-        foreach (var item in fixedItems.Items)
-        {
-            menu.Items.Add(TrayMenuItems.Create(item, options, Clicked));
-        }
-
-        // After the fixed items, which it keeps as themselves: told apart by their text, a
-        // solution named after one of them - Options, say - gave that group a header that was
-        // never removed. The tracked ones are built again on every open, and disposed at the next.
-        MenuOnOpening.Rebuild(
-            menu,
-            _ =>
-            {
-                tracked = TrayMenu.Tracked(tracker, actions);
-                foreach (var item in tracked.Items)
-                {
-                    _.Add(TrayMenuItems.Create(item, options, Clicked));
-                }
-            });
-        return menu;
-    }
+    const float fontSize = 10;
 
     static Image? Glyph(string name) =>
         name switch

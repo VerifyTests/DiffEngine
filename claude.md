@@ -279,7 +279,7 @@ the comment there about not caching "nothing staged" asks for.
   by which colour object, so a draw that changes little lays out little. An enlarged picture below
   its own size is drawn from a copy at that size (`reduced`), made on the work queue in the fitted
   copy's slot, except in a capture, past its own size, or when both panes name one picture. None
-  of this head can be compiled or run from Windows: CI's `macos-14` job is the first build, and
+  of this head can be compiled or run from Windows: the macOS leg of CI's `unix` job is the first build, and
   its OSX baselines come from that job's `received-*` artifacts. That job only captures, so it
   exercises none of the clip test and none of `reduced`. A picture or a scaled copy that lands
   during a draw clipped to less than the window is owed a whole redraw, which `takeFinished`
@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.9.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.10.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -692,9 +692,18 @@ the comment there about not caching "nothing staged" asks for.
   `TrayMenuItem`s built from what the tracker holds, an action for each by id, and tips kept beside
   the items since a Linux tray's menu cannot show one. Ids name the entry acted on by its key, so a
   click from a menu built before a change acts on that entry or on nothing. It comes in two halves,
-  `Fixed` and `Tracked`, because the head's `MenuBuilder` keeps the fixed items and builds the
-  tracked ones on every open, making each a ToolStrip item with PlatformHeads' `TrayMenuItems`,
-  and setting the tips and the submenus' direction through its options' `Style`. What only a head
+  `Fixed` and `Tracked`. Every head shows it the same way, by `TrayTurns`: a model of both halves
+  handed to the tray every tenth of a second, and a click done on the menus it was chosen from.
+  The Windows head's tray is PlatformHeads.WindowsForms' `NotifyIconTray`, which makes the menu
+  from the last model as it opens, and its turns run from a WinForms timer on the message loop,
+  where the icon's events are raised. It used to build the tracked half itself on every open, and
+  a menu can now be a turn behind the tracker, which the ids make safe. `MenuBuilder` is only
+  how it looks: the options the tray is made with, the tips and the submenus' direction through
+  `Style`, the font and the direction through `Theme`, and either button opening it
+  (`LeftClickOpensMenu`). Hot keys are registered against the icon's window
+  (`NotifyIconTray.Handle`), and its balloons are `TrayNotificationKind.Warning`. `MenuBuilderTest`
+  shows the menu through `MenuTray`, which makes it as `NotifyIconTray` does with no icon in the
+  notification area. What only a head
   can do (its windows, exit) is handed in as `TrayActions`, with the core's `DiffToolLauncher` for
   a move's diff tool, which brings the tool forward only on Windows and elsewhere ends it, where it
   may, and starts it again. Two seams
@@ -902,7 +911,7 @@ the comment there about not caching "nothing staged" asks for.
   `async Task Main` lands on a method the runtime does not start, and the thread came up MTA.
 - `SessionEndWindow`, PlatformHeads.WindowsForms', is a hidden top level window that hears
   `WM_ENDSESSION`, which neither the notify icon nor a message filter does. So are
-  `MenuOnOpening`, which builds the menu's tracked items on every open beside its fixed ones and
+  `NotifyIconTray`, and `MenuOnOpening` under it, which builds the menu's items on every open and
   disposes them at the next, and `IssueLink` and `LinkOpener` under `IssueLauncher` and
   `LinkLauncher`: BuildMonitor's tray shares them, and a fix to any of them goes there. An owning tray stages its queue from inside the message
   (`OwnedInlineHost.SessionEnding`) and refuses patches from then on, because a logoff never comes
