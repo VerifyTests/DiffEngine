@@ -1455,9 +1455,8 @@ public class ViewerProtocolTests
     [NotInParallel]
     public async Task AConnectGivenUpOnIsObserved()
     {
-        ViewerServer.TryBind(0, out var server);
-        var port = server!.Port;
-        server.Dispose();
+        using var held = new HeldPort();
+        var port = held.Port;
         ViewerClient.ForgetUnowned();
 
         var unobserved = new List<Exception>();
@@ -1469,8 +1468,7 @@ public class ViewerProtocolTests
             }
         }
 
-        var lookup = ListenerTable.Lookup;
-        ListenerTable.Lookup = _ => _ == port || lookup(_);
+        using var listed = ListenerTable.Answer(port, () => true);
         TaskScheduler.UnobservedTaskException += Record;
         try
         {
@@ -1491,7 +1489,6 @@ public class ViewerProtocolTests
         finally
         {
             TaskScheduler.UnobservedTaskException -= Record;
-            ListenerTable.Lookup = lookup;
             ViewerClient.ForgetUnowned();
         }
 
