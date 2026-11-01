@@ -225,29 +225,20 @@ public class TrackerSnapshotTest
     {
         using var viewer = new FakeViewer("Sample.cs:1");
         var port = ViewerClient.Port;
-        var previous = ListenerTable.Lookup;
         var asked = 0;
-        ListenerTable.Lookup = _ =>
-        {
-            if (_ == port)
+        using var counted = ListenerTable.Answer(
+            port,
+            () =>
             {
                 asked++;
-            }
+                return ListenerTable.Listed(port);
+            });
 
-            return previous(_);
-        };
-        try
-        {
-            var answered = new RemoteInlineHost().TryList(out var pending);
+        var answered = new RemoteInlineHost().TryList(out var pending);
 
-            await Assert.That(answered).IsTrue();
-            await Assert.That(pending.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:1"]);
-            await Assert.That(asked).IsGreaterThan(0);
-        }
-        finally
-        {
-            ListenerTable.Lookup = previous;
-        }
+        await Assert.That(answered).IsTrue();
+        await Assert.That(pending.Select(_ => _.Name)).IsEquivalentTo(["Sample.cs:1"]);
+        await Assert.That(asked).IsGreaterThan(0);
     }
 
     /// <summary>
@@ -258,21 +249,13 @@ public class TrackerSnapshotTest
     public async Task NobodyInTheListenerTableIsNoOwner()
     {
         using var viewer = new FakeViewer("Sample.cs:1");
-        var port = ViewerClient.Port;
-        var previous = ListenerTable.Lookup;
-        ListenerTable.Lookup = _ => _ != port && previous(_);
-        try
-        {
-            var answered = new RemoteInlineHost().TryList(out var pending);
+        using var unlisted = ListenerTable.Answer(ViewerClient.Port, () => false);
 
-            await Assert.That(answered).IsTrue();
-            await Assert.That(pending).IsEmpty();
-            await Assert.That(viewer.Verbs).IsEmpty();
-        }
-        finally
-        {
-            ListenerTable.Lookup = previous;
-        }
+        var answered = new RemoteInlineHost().TryList(out var pending);
+
+        await Assert.That(answered).IsTrue();
+        await Assert.That(pending).IsEmpty();
+        await Assert.That(viewer.Verbs).IsEmpty();
     }
 
     /// <inheritdoc cref="NoOwnerIsNothingPending"/>
