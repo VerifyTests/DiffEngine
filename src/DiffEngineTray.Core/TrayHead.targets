@@ -11,21 +11,19 @@
   viewers and six sets of document natives, at tens of MB each.
 
   A build of a head for one of its RIDs packs that RID's package, with that RID's viewer and
-  documents folder in it. The Windows head's own build, for no RID, packs DiffEngineTray, and
-  builds every RID's head first to pack the rest (TrayPointer, below).
+  documents folder in it. A head's build for no RID packs nothing. DiffEngineTray itself is the
+  project in src/DiffEngineTray, which builds every RID's head first to pack the rest.
   -->
 
+  <Import Project="TrayPackage.props" />
+
   <PropertyGroup>
-    <PackAsTool>true</PackAsTool>
-    <PackageId>DiffEngineTray</PackageId>
-    <ToolCommandName>DiffEngineTray</ToolCommandName>
-    <Description>A utility that runs in the notification area, or the menu bar on macOS, and handles the results of file differences.</Description>
     <!--
     So the solution's restore covers each RID's build, since nothing restores for it on its own: it
-    is built by the MSBuild task in PackTrayHeads, which does not restore.
+    is built by the MSBuild task in DiffEngineTray's PackTrayHeads, which does not restore.
     -->
     <RuntimeIdentifiers>$(TrayRids)</RuntimeIdentifiers>
-    <!-- For no RID, so the SDK does not pack the Windows head for every RID itself. -->
+    <!-- For no RID, so the SDK does not pack a head for every RID itself. -->
     <CreateRidSpecificToolPackages Condition="'$(RuntimeIdentifier)' == ''">false</CreateRidSpecificToolPackages>
     <CreateRidSpecificToolPackages Condition="'$(RuntimeIdentifier)' != ''">true</CreateRidSpecificToolPackages>
     <!--
@@ -38,7 +36,7 @@
     .cmd opens a console at every login.
     -->
     <UseAppHost Condition="'$(RuntimeIdentifier)' != ''">false</UseAppHost>
-    <IsPackable Condition="'$(RuntimeIdentifier)' == '' And '$(TrayPointer)' != 'true'">false</IsPackable>
+    <IsPackable Condition="'$(RuntimeIdentifier)' == ''">false</IsPackable>
   </PropertyGroup>
 
   <!--
@@ -125,59 +123,6 @@
                              RelativePath="viewer\documents\%(DocumentsFile.DocumentsPath)"
                              CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
-  </Target>
-
-  <!--
-  DiffEngineTray itself, which the Windows head packs: a package naming one for each RID, and
-  nothing else, which `dotnet tool install` reads to choose the one to fetch beside it. Each is
-  packed by a build of its head for that RID, from here, before this package is, so DiffEngineTray
-  is never packed without them.
-
-  By the MSBuild task with RuntimeIdentifier and nothing else, so the projects each one references
-  are the instances the solution already built, as the SDK does for a tool with a RID list of its
-  own. A separate `dotnet pack` for each RID would restore them all again under the solution being
-  built. Build rather than Pack, which ProjectDefaults' GeneratePackageOnBuild hooks the pack to:
-  Pack on its own then publishes for the RID without building for it.
-
-  The RIDs here and in ToolPackageRuntimeIdentifiers have to be the same, and
-  PackageTests.ThePointerNamesEveryRidsPackage checks that what it names was packed.
-  -->
-  <PropertyGroup Condition="'$(TrayPointer)' == 'true' And '$(RuntimeIdentifier)' == ''">
-    <ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</ToolPackageRuntimeIdentifiers>
-    <GenerateNuspecDependsOn>PackTrayHeads;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
-  </PropertyGroup>
-
-  <!--
-  For restore and build order, nothing else, as DiffEngine references the viewer's heads: restore
-  then covers their RIDs when this is built on its own, and each is built for no RID before it is
-  built for one. Every piece of metadata keeps the head's output, natives included, out of this
-  one's.
-  -->
-  <ItemGroup Condition="'$(TrayPointer)' == 'true' And '$(RuntimeIdentifier)' == ''">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj"
-                      ReferenceOutputAssembly="false"
-                      Private="false"
-                      ExcludeAssets="all" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj"
-                      ReferenceOutputAssembly="false"
-                      Private="false"
-                      ExcludeAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TrayPointer)' == 'true' And '$(RuntimeIdentifier)' == ''">
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray\DiffEngineTray.csproj" AdditionalProperties="RuntimeIdentifier=win-x64" />
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray\DiffEngineTray.csproj" AdditionalProperties="RuntimeIdentifier=win-arm64" />
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj" AdditionalProperties="RuntimeIdentifier=linux-x64" />
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj" AdditionalProperties="RuntimeIdentifier=linux-arm64" />
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj" AdditionalProperties="RuntimeIdentifier=osx-x64" />
-    <_TrayRidPackage Include="$(MSBuildThisFileDirectory)..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj" AdditionalProperties="RuntimeIdentifier=osx-arm64" />
-  </ItemGroup>
-
-  <Target Name="PackTrayHeads"
-          Condition="'$(TrayPointer)' == 'true' And '$(RuntimeIdentifier)' == ''">
-    <MSBuild Projects="@(_TrayRidPackage)"
-             Targets="Build"
-             BuildInParallel="true" />
   </Target>
 
   <Import Project="$(MSBuildThisFileDirectory)..\DiffEngineViewer.Documents\Documents.targets" />
