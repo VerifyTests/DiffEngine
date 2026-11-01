@@ -87,5 +87,5 @@ public class IconPixelsTests
     }
 
     static string Image(string name, [CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(source)!, "..", "DiffEngineTray", "Images", name);
+        Path.Combine(Path.GetDirectoryName(source)!, "..", "DiffEngineTray.Windows", "Images", name);
 }

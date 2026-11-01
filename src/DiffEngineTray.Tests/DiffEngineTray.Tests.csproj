@@ -23,7 +23,7 @@
     <PackageReference Include="SimpleInfoName" />
     <PackageReference Include="Verify" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
-    <ProjectReference Include="..\DiffEngineTray\DiffEngineTray.csproj" />
+    <ProjectReference Include="..\DiffEngineTray.Windows\DiffEngineTray.Windows.csproj" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
     <!--
     Aliased. DiffEngineViewer links DiffEngine's Inline and Protocol sources rather than referencing

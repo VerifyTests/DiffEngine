@@ -1,46 +1,73 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+  DiffEngineTray itself: a package naming one for each RID, and nothing else, which `dotnet tool
+  install` reads to choose the one to fetch beside it. The heads are DiffEngineTray.Windows, .Linux
+  and .Mac, and each RID's package is packed by a build of its head for that RID, from here, before
+  this package is, so DiffEngineTray is never packed without them.
+
+  By the MSBuild task with RuntimeIdentifier and nothing else, so the projects each one references
+  are the instances the solution already built, as the SDK does for a tool with a RID list of its
+  own. A separate `dotnet pack` for each RID would restore them all again under the solution being
+  built. Build rather than Pack, which ProjectDefaults' GeneratePackageOnBuild hooks the pack to:
+  Pack on its own then publishes for the RID without building for it.
+
+  The RIDs here and in ToolPackageRuntimeIdentifiers have to be the same, and
+  PackageTests.ThePointerNamesEveryRidsPackage checks that what it names was packed.
+
+  Windows only, as the Windows head is, since it packs that head's RIDs.
+  -->
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <!--
+    An Exe, because the SDK packs a tool only from one, and builds it though this package holds none
+    of its output: Program.cs is that, and ships nowhere.
+    -->
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <NoWarn>NETSDK1137;WFAC010;NU5119</NoWarn>
+    <AssemblyName>DiffEngineTray</AssemblyName>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <RollForward>LatestMajor</RollForward>
-    <!-- How it is packed is TrayHead.targets'. -->
-    <TrayRids>win-x64;win-arm64</TrayRids>
-    <!-- This head's build for no RID also packs DiffEngineTray, which names every RID's package. -->
-    <TrayPointer>true</TrayPointer>
+    <ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</ToolPackageRuntimeIdentifiers>
+    <!-- So the SDK does not pack this project for every RID itself. -->
+    <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+    <GenerateNuspecDependsOn>PackTrayHeads;$(GenerateNuspecDependsOn)</GenerateNuspecDependsOn>
   </PropertyGroup>
-  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
-    <PropertyGroup>
-      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
-    </PropertyGroup>
-  </Target>
-  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
-    <PropertyGroup>
-      <TargetPlatformIdentifier></TargetPlatformIdentifier>
-    </PropertyGroup>
-  </Target>
 
+  <Import Project="..\DiffEngineTray.Core\TrayPackage.props" />
+
+  <!--
+  For restore and build order, nothing else, as DiffEngine references the viewer's heads: restore
+  then covers their RIDs when this is built on its own, and each is built for no RID before it is
+  built for one. Every piece of metadata keeps the heads' output, natives included, out of this
+  one's.
+  -->
   <ItemGroup>
-    <None Remove="**\*.ico" />
-    <None Remove="**\*.png" />
-    <Using Include="DiffEngine" />
-    <Using Include="PlatformHeads" />
-    <EmbeddedResource Include="Images\*.ico" />
-    <EmbeddedResource Include="Images\*.png" />
-    <!-- The tray pieces BuildMonitor's tray shares: SessionEndWindow, MenuOnOpening, IssueLink
-         and LinkOpener. -->
-    <PackageReference Include="PlatformHeads.WindowsForms" />
-    <PackageReference Include="Serilog" />
-    <PackageReference Include="Serilog.Sinks.File" />
+    <ProjectReference Include="..\DiffEngineTray.Windows\DiffEngineTray.Windows.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+    <ProjectReference Include="..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
+    <ProjectReference Include="..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      ExcludeAssets="all" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
-    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-    <!-- Everything that is not WinForms, which a head for another platform shares. -->
-    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
   </ItemGroup>
 
-  <Import Project="..\DiffEngineTray.Core\TrayHead.targets" />
+  <ItemGroup>
+    <_TrayRidPackage Include="..\DiffEngineTray.Windows\DiffEngineTray.Windows.csproj" AdditionalProperties="RuntimeIdentifier=win-x64" />
+    <_TrayRidPackage Include="..\DiffEngineTray.Windows\DiffEngineTray.Windows.csproj" AdditionalProperties="RuntimeIdentifier=win-arm64" />
+    <_TrayRidPackage Include="..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj" AdditionalProperties="RuntimeIdentifier=linux-x64" />
+    <_TrayRidPackage Include="..\DiffEngineTray.Linux\DiffEngineTray.Linux.csproj" AdditionalProperties="RuntimeIdentifier=linux-arm64" />
+    <_TrayRidPackage Include="..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj" AdditionalProperties="RuntimeIdentifier=osx-x64" />
+    <_TrayRidPackage Include="..\DiffEngineTray.Mac\DiffEngineTray.Mac.csproj" AdditionalProperties="RuntimeIdentifier=osx-arm64" />
+  </ItemGroup>
+
+  <Target Name="PackTrayHeads">
+    <MSBuild Projects="@(_TrayRidPackage)"
+             Targets="Build"
+             BuildInParallel="true" />
+  </Target>
 </Project>

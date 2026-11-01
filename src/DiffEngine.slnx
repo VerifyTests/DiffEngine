@@ -80,7 +80,13 @@
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
+  <!-- The package naming every RID's, which packs the Windows head's RIDs, so Windows only too. -->
   <Project Path="DiffEngineTray/DiffEngineTray.csproj">
+    <BuildType Solution="Release-NotWindows|*" Project="Release" />
+    <Build Solution="Release-NotWindows|*" Project="false" />
+  </Project>
+  <!-- The Windows head. -->
+  <Project Path="DiffEngineTray.Windows/DiffEngineTray.Windows.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>

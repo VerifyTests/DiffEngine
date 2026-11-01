@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <!--
+  The tray on Windows. Named as the other heads are, so the core's InternalsVisibleTo names it, and
+  the pictures and forms keep their resource names.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>DiffEngineTray</AssemblyName>
+    <RootNamespace>DiffEngineTray</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <NoWarn>NETSDK1137;WFAC010;NU5119</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RollForward>LatestMajor</RollForward>
+    <!-- Packed as DiffEngineTray.win-x64 and .win-arm64, by TrayHead.targets. -->
+    <TrayRids>win-x64;win-arm64</TrayRids>
+  </PropertyGroup>
+  <Target Name="RemoveTargetPlatformIdentifier" BeforeTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+  <Target Name="RestoreTargetPlatformIdentifier" AfterTargets="_CheckForInvalidWindowsDesktopTargetingConfiguration">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <None Remove="**\*.ico" />
+    <None Remove="**\*.png" />
+    <Using Include="DiffEngine" />
+    <Using Include="PlatformHeads" />
+    <EmbeddedResource Include="Images\*.ico" />
+    <EmbeddedResource Include="Images\*.png" />
+    <!-- The tray pieces BuildMonitor's tray shares: SessionEndWindow, MenuOnOpening, IssueLink
+         and LinkOpener. -->
+    <PackageReference Include="PlatformHeads.WindowsForms" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
+    <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
+    <!-- Everything that is not WinForms, which a head for another platform shares. -->
+    <ProjectReference Include="..\DiffEngineTray.Core\DiffEngineTray.Core.csproj" />
+  </ItemGroup>
+
+  <Import Project="..\DiffEngineTray.Core\TrayHead.targets" />
+</Project>

@@ -1,0 +1,14 @@
+<Project>
+
+  <!--
+  What DiffEngineTray is called and says about itself, in its own package and in every RID's:
+  imported by TrayHead.targets for the heads and by src/DiffEngineTray for the package that names
+  them.
+  -->
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <PackageId>DiffEngineTray</PackageId>
+    <ToolCommandName>DiffEngineTray</ToolCommandName>
+    <Description>A utility that runs in the notification area, or the menu bar on macOS, and handles the results of file differences.</Description>
+  </PropertyGroup>
+</Project>

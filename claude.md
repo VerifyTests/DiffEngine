@@ -678,7 +678,7 @@ the comment there about not caching "nothing staged" asks for.
   itself) had not. GLFW opens the X11 extension libraries and `libGL` itself at run time, so only
   `libX11` is left of them.
 
-**DiffEngineTray (`src/DiffEngineTray/`):**
+**DiffEngineTray (`src/DiffEngineTray.*`):**
 - Windows Forms tray application that handles pending file diffs, in two projects. `src/DiffEngineTray.Core`
   is everything that is not WinForms - `Tracker`, both inline hosts, `PiperServer`, the settings,
   `DebugReport`, `IssueLauncher`, `ProcessEx` (which reads a process's image and command line
@@ -686,7 +686,8 @@ the comment there about not caching "nothing staged" asks for.
   `DiffToolLauncher` and `FileLockKiller` (the restart manager's, which compiles anywhere and runs
   only on Windows, Unix locks being advisory) - and builds on every platform, so a macOS or
   Linux head can be put on it. Showing a file in a file manager is the viewer's `RevealFile`,
-  which the core links. `src/DiffEngineTray` is the Windows head:
+  which the core links. `src/DiffEngineTray.Windows` is the Windows head, a `WinExe` named
+  `DiffEngineTray` as the other heads are:
   `Program`, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
   `Keys`), the icons and the Run key. The menu is the core's `TrayMenu`: PlatformHeads'
   `TrayMenuItem`s built from what the tracker holds, an action for each by id, and tips kept beside
@@ -759,7 +760,9 @@ the comment there about not caching "nothing staged" asks for.
   and `dotnet tool install -g DiffEngineTray` fetches `DiffEngineTray.{rid}` beside it, so the
   command did not change. Each RID's package is its head built for that RID, with that RID's viewer
   at `viewer/{rid}` and the documents folder, with that RID's natives only, at `viewer/documents`.
-  The Windows head's build for no RID packs `DiffEngineTray` (`TrayPointer`), and its
+  `DiffEngineTray` is packed by `src/DiffEngineTray`, a project that is that package and nothing
+  else: a head's build for no RID packs nothing. The SDK packs a tool only from an `Exe`, and builds
+  it though the package holds none of its output, so it has a `Program.cs` that ships nowhere. Its
   `PackTrayHeads` first builds each RID's head by the MSBuild task with `RuntimeIdentifier` added
   and nothing else, as the SDK does for a tool's own RID list: their references are then the
   instances the solution already built, restore is the solution's (`RuntimeIdentifiers` is each
