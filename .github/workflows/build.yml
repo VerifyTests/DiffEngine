@@ -112,8 +112,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS is pinned rather than latest, because it carries committed pixel baselines and
-        # Core Text rasterisation moves between OS versions. Same image build-native uses.
+        # macOS carries committed pixel baselines, and Core Text rasterisation moves between OS
+        # versions, so when macos-latest moves to a new image the OSX baselines may have to be
+        # taken again from this job's received-* artifacts.
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
