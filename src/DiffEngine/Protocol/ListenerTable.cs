@@ -65,14 +65,48 @@ static class ListenerTable
     }
 
     /// <summary>
-    /// What <see cref="IsHeld"/> and <see cref="IsListed"/> ask. Replaced by the tests, for the two things about the table
-    /// that cannot be arranged or seen from outside: that it could not be read, and that it was
-    /// not asked at all. Given the port, so a test can answer for its own and pass every other
-    /// through: the tests beside it are asking about theirs at the same time.
+    /// What <see cref="IsHeld"/> and <see cref="IsListed"/> ask: a test's answer for the port,
+    /// where one stands (<see cref="Answer"/>), and otherwise the table.
     /// </summary>
-    internal static Func<int, bool> Lookup { get; set; } = Listed;
+    static bool Lookup(int port) =>
+        answers.TryGetValue(port, out var answer) ? answer() : Listed(port);
 
-    static bool Listed(int port)
+    static readonly ConcurrentDictionary<int, Func<bool>> answers = new();
+
+    /// <summary>
+    /// Answers for <paramref name="port"/> in place of the table until disposed. For the tests, and
+    /// the two things about the table that cannot be arranged or seen from outside: that it could
+    /// not be read, which is an answer that throws, and that it was not asked at all, which is one
+    /// that counts. <see cref="Listed"/> is the table's own answer, for one that passes through.
+    /// <para>
+    /// One answer a port, kept apart from every other port's, since the tests beside one are asking
+    /// about theirs at the same time. It was a lookup a test replaced with one that wrapped the
+    /// lookup before it, and two tests that overlapped put each other's back: the one left
+    /// answered for its port for the rest of the run.
+    /// </para>
+    /// <para>
+    /// Only for a port the test holds, listening or bound, for as long as the answer stands. A free
+    /// port can be handed to a test that binds port zero, which is then told this answer about its
+    /// own listener.
+    /// </para>
+    /// </summary>
+    internal static IDisposable Answer(int port, Func<bool> answer)
+    {
+        if (!answers.TryAdd(port, answer))
+        {
+            throw new InvalidOperationException($"Port {port} is already answered for.");
+        }
+
+        return new Answered(port, answer);
+    }
+
+    sealed class Answered(int port, Func<bool> answer) : IDisposable
+    {
+        public void Dispose() =>
+            ((ICollection<KeyValuePair<int, Func<bool>>>) answers).Remove(new(port, answer));
+    }
+
+    internal static bool Listed(int port)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
             Listeners(port) is { } held)

@@ -168,13 +168,16 @@ public class ViewerClientUnownedTests
     public async Task APortAConnectFoundEmptyIsNotAskedAboutAgainSoSoon()
     {
         ViewerClient.RecheckUnlistedAfter = TimeSpan.Zero;
-        var port = FreePort();
+        var held = new HeldPort();
+        var port = held.Port;
         using var unreadable = new Lookup(port)
         {
             Unreadable = true
         };
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
 
+        // Let go only to be listened on, so the port is held again a moment later
+        held.Dispose();
         using var owner = new Owner(port);
         await Assert.That(ViewerClient.TrySend(settle, out _, port, skipIfUnowned: true)).IsFalse();
         await Assert.That(owner.Heard).IsEmpty();
@@ -303,7 +306,8 @@ public class ViewerClientUnownedTests
     public async Task ATableThatCannotBeReadLeavesTheConnectToAnswer()
     {
         using var owner = new Owner();
-        var dead = FreePort();
+        using var held = new HeldPort();
+        var dead = held.Port;
         using var unreadable = new Lookup(owner.Port, dead)
         {
             Unreadable = true
@@ -457,19 +461,17 @@ public class ViewerClientUnownedTests
     /// Stands in front of the listener table for the ports a test names, counting how often each
     /// was asked about and, when told to, failing the way a table that cannot be read does, or
     /// saying nobody listens there whoever does. Every other port goes through untouched, since
-    /// the tests beside this one are asking about theirs at the same time.
+    /// the tests beside this one are asking about theirs at the same time. Each port named is one
+    /// the test holds (<see cref="HeldPort"/> or an <see cref="Owner"/>), or port zero, which
+    /// nothing is ever handed.
     /// </summary>
     sealed class Lookup : IDisposable
     {
-        readonly Func<int, bool> previous = ListenerTable.Lookup;
-        readonly int[] ports;
+        readonly IDisposable[] answers;
         int asked;
 
-        public Lookup(params int[] ports)
-        {
-            this.ports = ports;
-            ListenerTable.Lookup = Answer;
-        }
+        public Lookup(params int[] ports) =>
+            answers = ports.Select(_ => ListenerTable.Answer(_, () => Answer(_))).ToArray();
 
         public bool Unreadable { get; init; }
 
@@ -479,11 +481,6 @@ public class ViewerClientUnownedTests
 
         bool Answer(int port)
         {
-            if (!ports.Contains(port))
-            {
-                return previous(port);
-            }
-
             Interlocked.Increment(ref asked);
             if (Unreadable)
             {
@@ -495,11 +492,16 @@ public class ViewerClientUnownedTests
                 return false;
             }
 
-            return previous(port);
+            return ListenerTable.Listed(port);
         }
 
-        public void Dispose() =>
-            ListenerTable.Lookup = previous;
+        public void Dispose()
+        {
+            foreach (var answer in answers)
+            {
+                answer.Dispose();
+            }
+        }
     }
 
     /// <summary>

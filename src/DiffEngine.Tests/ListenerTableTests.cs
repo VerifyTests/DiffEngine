@@ -15,26 +15,53 @@ public class ListenerTableTests
     /// running is asked of it there.
     /// </summary>
     [Test]
-    public async Task AListenerIsListedOnEveryPlatform()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint) listener.LocalEndpoint).Port;
-        bool listed;
-        bool enumerated;
-        try
-        {
-            listed = ListenerTable.IsListed(port);
-            enumerated = ListenerTable.Enumerated(port);
-        }
-        finally
-        {
-            listener.Stop();
-        }
+    public Task AListenerIsListedOnEveryPlatform() =>
+        HeldPort.AfterListening(
+            IPAddress.Loopback,
+            async _ =>
+            {
+                await Assert.That(ListenerTable.IsListed(_)).IsTrue();
+                await Assert.That(ListenerTable.Enumerated(_)).IsTrue();
+            },
+            async _ => await Assert.That(ListenerTable.IsListed(_)).IsFalse());
 
-        await Assert.That(listed).IsTrue();
-        await Assert.That(enumerated).IsTrue();
-        await Assert.That(ListenerTable.IsListed(port)).IsFalse();
+    /// <summary>
+    /// Answers that overlap and end in either order leave the table answering for both ports,
+    /// which is what a lookup each test wrapped around the one before did not: the second test to
+    /// finish put back the first one's.
+    /// </summary>
+    [Test]
+    public async Task AnswersThatOverlapLeaveNothingBehind()
+    {
+        using var first = new HeldPort();
+        using var second = new HeldPort();
+
+        var firstAnswer = ListenerTable.Answer(first.Port, () => true);
+        var secondAnswer = ListenerTable.Answer(second.Port, () => true);
+        await Assert.That(ListenerTable.IsListed(first.Port)).IsTrue();
+        await Assert.That(ListenerTable.IsListed(second.Port)).IsTrue();
+
+        firstAnswer.Dispose();
+        await Assert.That(ListenerTable.IsListed(first.Port)).IsFalse();
+        await Assert.That(ListenerTable.IsListed(second.Port)).IsTrue();
+
+        secondAnswer.Dispose();
+        await Assert.That(ListenerTable.IsListed(second.Port)).IsFalse();
+    }
+
+    /// <summary>
+    /// One answer a port, so two tests that believe they hold the same port find out, rather than
+    /// one quietly answering for the other.
+    /// </summary>
+    [Test]
+    public async Task APortIsAnsweredForOnce()
+    {
+        using var held = new HeldPort();
+        using var answer = ListenerTable.Answer(held.Port, () => true);
+
+        await Assert.That(() => ListenerTable.Answer(held.Port, () => false))
+            .Throws<InvalidOperationException>();
+        await Assert.That(ListenerTable.IsListed(held.Port)).IsTrue();
     }
 
     [Test]
@@ -96,19 +123,10 @@ public class ListenerTableTests
         IPAddress[] addresses = Socket.OSSupportsIPv6 ? [IPAddress.Loopback, IPAddress.IPv6Loopback] : [IPAddress.Loopback];
         foreach (var address in addresses)
         {
-            var listener = new TcpListener(address, 0);
-            listener.Start();
-            var port = ((IPEndPoint) listener.LocalEndpoint).Port;
-            try
-            {
-                await Assert.That(ListenerTable.Owner(port)).IsEqualTo(current.Id);
-            }
-            finally
-            {
-                listener.Stop();
-            }
-
-            await Assert.That(ListenerTable.Owner(port)).IsNull();
+            await HeldPort.AfterListening(
+                address,
+                async _ => await Assert.That(ListenerTable.Owner(_)).IsEqualTo(current.Id),
+                async _ => await Assert.That(ListenerTable.Owner(_)).IsNull());
         }
     }
 
