@@ -1,5 +1,3 @@
-using NotifyIcon = System.Windows.Forms.NotifyIcon;
-
 static class Program
 {
     /// <summary>
@@ -60,20 +58,21 @@ static class Program
         // first use of a setting needs one, and until this line the user is looking at an empty
         // notification area. Still after the mutex, so a second instance exits without ever
         // showing an icon.
-        using var icon = new NotifyIcon
-        {
-            Icon = Images.Default,
-            Visible = true,
-            Text = "DiffEngineTray"
-        };
+        // The tips are those of the menus last shown, which the turns below hold, and are asked
+        // for only as a menu is built, by when there are turns to ask
+        TrayTurns? turns = null;
+        using var tray = NotifyIconTray<TrayIcon>.Open(MenuBuilder.Options(_ => turns?.Tooltip(_)), out var trayError) ??
+                         throw new InvalidOperationException($"Could not make the tray icon. {trayError}");
+        // A picture now rather than at the first turn, which waits on everything below
+        tray.Apply(new(TrayIcon.Default, "DiffEngineTray", []));
 
         void Warn(string message) =>
-            icon.ShowBalloonTip(10000, "DiffEngineTray", message, ToolTipIcon.Warning);
+            tray.Notify(new("DiffEngineTray", message, Kind: TrayNotificationKind.Warning));
 
         if (TrayUpdate.Report() is { } report)
         {
-            var kind = report.Kind == TrayNotificationKind.Info ? ToolTipIcon.Info : ToolTipIcon.Warning;
-            icon.ShowBalloonTip(10000, report.Title, report.Message, kind);
+            // A failure as a warning, as every balloon of this tray's is
+            tray.Notify(report.Kind == TrayNotificationKind.Info ? report : report with {Kind = TrayNotificationKind.Warning});
         }
 
         var settings = GetSettings();
@@ -94,9 +93,10 @@ static class Program
             Log.Information("A viewer owns the inline queue. Driving it remotely.");
         }
 
+        var icon = TrayIcon.Default;
         await using var tracker = new Tracker(
-            active: () => icon.Icon = Images.Active,
-            inactive: () => icon.Icon = Images.Default,
+            active: () => icon = TrayIcon.Active,
+            inactive: () => icon = TrayIcon.Default,
             lockedFilesResolver: LockedFilesHandler.Resolve,
             acceptFailed: move => Warn(
                 $"Could not accept '{move.Name}': the file move keeps failing. The move is still pending, so accept can be retried."),
@@ -132,30 +132,28 @@ static class Program
 
         var task = listener is null ? Task.CompletedTask : PiperServer.Serve(listener, tracker, cancel);
 
-        using var keyRegister = new KeyRegister(icon.Handle());
+        using var keyRegister = new KeyRegister(tray.Handle);
         ReBindKeys(settings, keyRegister, tracker, Warn);
 
-        var menuStrip = MenuBuilder.Build(
+        turns = new(
+            tray,
+            tracker,
             new(
                 Exit: Application.Exit,
                 Options: async () => await OptionsFormLauncher.Launch(keyRegister, tracker),
                 DebugView: async () => await DebugFormLauncher.Launch(tracker),
                 Purge: FilePurger.Launch,
                 OpenDiffTool: DiffToolLauncher.Launch),
-            tracker);
+            () => icon);
 
-        icon.MouseClick += (_, args) =>
+        // The tray's events are raised on this thread as Application.Run pumps it, and what they
+        // chose is done here too, a turn at a time, as the other heads' loops do
+        using var timer = new System.Windows.Forms.Timer
         {
-            if (args.Button == MouseButtons.Left)
-            {
-                var position = Cursor.Position;
-                position.Offset(-menuStrip.Width, -menuStrip.Height);
-                menuStrip.Location = position;
-                ShowContextMenu(icon);
-            }
+            Interval = (int) TrayLoop.Turn.TotalMilliseconds
         };
-
-        icon.ContextMenuStrip = menuStrip;
+        timer.Tick += (_, _) => turns.Turn();
+        timer.Start();
 
         try
         {
@@ -169,9 +167,6 @@ static class Program
         await tokenSource.CancelAsync();
         await task;
     }
-
-    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ShowContextMenu")]
-    static extern void ShowContextMenu(NotifyIcon icon);
 
     internal static void ReBindKeys(Settings settings, KeyRegister keyRegister, Tracker tracker, Action<string>? warn = null)
     {

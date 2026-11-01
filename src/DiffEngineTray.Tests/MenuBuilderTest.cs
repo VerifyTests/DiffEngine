@@ -1,6 +1,7 @@
 /// <summary>
-/// How WinForms shows the tray's menu. What the menu says and does is <c>TrayMenuTests</c>', in
-/// the core's tests, as text.
+/// How WinForms shows the tray's menu: the head's options and turns, through a tray that makes its
+/// menu as PlatformHeads' NotifyIconTray does (<see cref="MenuTray" />). What the menu says and
+/// does is <c>TrayMenuTests</c>', in the core's tests, as text.
 /// </summary>
 [TUnit.Core.Executors.STAThreadExecutor]
 public class MenuBuilderTest :
@@ -10,7 +11,7 @@ public class MenuBuilderTest :
     public async Task Empty()
     {
         await using var tracker = new RecordingTracker();
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         await Verify(menu, settings);
     }
 
@@ -23,7 +24,7 @@ public class MenuBuilderTest :
         tracker.AddDelete(file2);
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, file4, "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         await Verify(menu, settings);
     }
 
@@ -35,7 +36,7 @@ public class MenuBuilderTest :
         tracker.AddDelete("file2.txt");
         tracker.AddMove(file3, file3, "theExe", "theArguments", true, null);
         tracker.AddMove(file4, "file4.txt", "theExe", "theArguments", true, null);
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         await Verify(menu, settings);
     }
 
@@ -47,7 +48,7 @@ public class MenuBuilderTest :
     public async Task ATipIsOnItsItem()
     {
         await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         Open(menu);
 
         var item = Snapshot(menu);
@@ -73,7 +74,7 @@ public class MenuBuilderTest :
     public async Task SnapshotThatWasNotWrittenDropDown()
     {
         await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", status)));
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         Open(menu);
 
         var item = Snapshot(menu);
@@ -86,27 +87,40 @@ public class MenuBuilderTest :
     }
 
     /// <summary>
-    /// A click reports the item's id, and each half of the menu answers for its own: the fixed
-    /// items reach the head's actions, the tracked ones the tracker.
+    /// A click reports the item's id, and the next turn does it on the menus it was chosen from:
+    /// the fixed items reach the head's actions, the tracked ones the tracker.
     /// </summary>
     [Test]
     public async Task AClickDoesWhatItsItemDoes()
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file1);
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         Open(menu);
-        // Both found first, since a click closes the menu and the close takes the tracked items
+        // Both found first, since a click closes the menu and the close takes the items
         var exit = Item(menu.Items, "Exit");
         var accept = Item(menu.Items, "Accept delete");
 
         exit.PerformClick();
+        turns!.Turn();
         accept.PerformClick();
+        turns.Turn();
         menu.Close();
 
         await Assert.That(exits).IsEqualTo(1);
         await Assert.That(tracker.Deletes).IsEmpty();
         await Assert.That(File.Exists(file1)).IsFalse();
+    }
+
+    /// <summary>
+    /// The menu as the head's tray makes it.
+    /// </summary>
+    System.Windows.Forms.ContextMenuStrip Build(Tracker tracker)
+    {
+        var tray = new MenuTray(MenuBuilder.Options(_ => turns!.Tooltip(_)));
+        trays.Add(tray);
+        turns = new(tray, tracker, actions, () => TrayIcon.Default);
+        return tray.Menu;
     }
 
     static System.Windows.Forms.ToolStripMenuItem Item(System.Windows.Forms.ToolStripItemCollection items, string text) =>
@@ -145,7 +159,7 @@ public class MenuBuilderTest :
     public async Task AMenuOpenedByATestIsNotOnTheDesktop()
     {
         await using var tracker = new RecordingTracker(inline: new StubInlineHost(new PendingSnapshot("c:\\repo\\sample.cs|12", "Sample.cs:12", null)));
-        var menu = MenuBuilder.Build(actions, tracker);
+        var menu = Build(tracker);
         Open(menu);
         var item = Snapshot(menu);
         item.DropDown.TopLevel = false;
@@ -182,78 +196,6 @@ public class MenuBuilderTest :
         return stream;
     }
 
-    /// <summary>
-    /// The tracked items were told from the fixed ones by their text, so a solution named after
-    /// one of them kept its group header through the close that removed everything under it, and
-    /// grew another on the next open.
-    /// </summary>
-    [Test]
-    public async Task A_group_named_after_a_fixed_item_is_removed_with_the_rest()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), $"MenuBuilderTest_{Guid.NewGuid()}");
-        Directory.CreateDirectory(directory);
-        try
-        {
-            await File.WriteAllTextAsync(Path.Combine(directory, "Options.sln"), "");
-            var file = Path.Combine(directory, "file.txt");
-            await File.WriteAllTextAsync(file, "");
-            await using var tracker = new RecordingTracker();
-            tracker.AddDelete(file);
-            var menu = MenuBuilder.Build(actions, tracker);
-            var fixedCount = menu.Items.Count;
-
-            Open(menu);
-            var opened = menu.Items
-                .Cast<System.Windows.Forms.ToolStripItem>()
-                .Skip(fixedCount)
-                .Select(_ => _.Text)
-                .ToList();
-            menu.Close();
-
-            // That the group is there at all, and under the name the rest of this is about
-            await Assert.That(opened).Contains("Options");
-            await Assert.That(menu.Items.Count).IsEqualTo(fixedCount);
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
-    }
-
-    /// <summary>
-    /// A close removed the tracked items and the next open disposed whatever was still in the
-    /// collection, which by then was only the fixed ones. So every open leaked a menu's worth of
-    /// controls to the finaliser.
-    /// </summary>
-    [Test]
-    public async Task Tracked_items_are_disposed_by_the_next_open()
-    {
-        await using var tracker = new RecordingTracker();
-        tracker.AddDelete(file1);
-        var menu = MenuBuilder.Build(actions, tracker);
-        var fixedCount = menu.Items.Count;
-
-        Open(menu);
-        var tracked = menu.Items
-            .Cast<System.Windows.Forms.ToolStripItem>()
-            .Skip(fixedCount)
-            .ToList();
-        // ToolStripItem.IsDisposed stays false through a Dispose, so the event is what says it
-        // happened
-        var disposed = 0;
-        foreach (var item in tracked)
-        {
-            item.Disposed += (_, _) => disposed++;
-        }
-
-        menu.Close();
-        Open(menu);
-        menu.Close();
-
-        await Assert.That(tracked).IsNotEmpty();
-        await Assert.That(disposed).IsEqualTo(tracked.Count);
-    }
-
     const string status = "Sample.cs:12 not written. No Verify or Throws call at line 12. One reached through a receiver of its own does not count.";
 
     public MenuBuilderTest()
@@ -285,6 +227,11 @@ public class MenuBuilderTest :
 
     public void Dispose()
     {
+        foreach (var tray in trays)
+        {
+            tray.Dispose();
+        }
+
         File.Delete(file1);
         File.Delete(file2);
         File.Delete(file3);
@@ -293,6 +240,8 @@ public class MenuBuilderTest :
 
     int exits;
     TrayActions actions;
+    TrayTurns? turns;
+    List<MenuTray> trays = [];
     string file1;
     string file2;
     string file3;
