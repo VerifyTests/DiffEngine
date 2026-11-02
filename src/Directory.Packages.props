@@ -24,7 +24,7 @@
     <PackageVersion Include="PlatformHeads.Linux" Version="0.10.0" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.10.0" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.184" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.185" />
     <PackageVersion Include="Squash" Version="2.1.0" />
     <PackageVersion Include="Sbom" Version="0.3.1" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
