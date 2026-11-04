@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.11.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.12.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -803,7 +803,7 @@ the comment there about not caching "nothing staged" asks for.
   tray started, and one that owns the queue would go without staging it. So the tray, once the
   shell has started, finds who listens on the viewer port (`ListenerTable.Owner`, the process id
   out of the same row), and if that process runs from somewhere the update stops
-  (`TrayUpdate.Stops`) sends it `Quit`, which an owning viewer takes as exiting whatever a tray
+  (PlatformHeads' `ToolUpdate.WindowsScriptStops`) sends it `Quit`, which an owning viewer takes as exiting whatever a tray
   says, and waits for it to go (`TrayUpdate.CloseOwningViewer`). Seen in a `dotnet/sdk:10.0`
   container on a private `dbus-daemon` with a stand-in watcher: Update chosen from the menu, the
   tray gone, the install moved from one version to the next, and the new tray registered,

@@ -83,12 +83,12 @@ public class TrayUpdateTests
         };
         var viewer = Path.Combine(tools, ".store", "diffenginetray", "21.0.0", "diffenginetray.win-x64", "21.0.0", "tools", "net10.0", "win-x64", "viewer", "win-x64", "DiffEngineViewer.exe");
 
-        await Assert.That(TrayUpdate.Stops(update, viewer)).IsTrue();
-        await Assert.That(TrayUpdate.Stops(update, viewer.ToUpperInvariant())).IsTrue();
-        await Assert.That(TrayUpdate.Stops(update, Path.Combine(also, "DiffEngineViewer.exe"))).IsTrue();
-        await Assert.That(TrayUpdate.Stops(update, Path.Combine(tools, ".store", "diffenginetray.other", "DiffEngineViewer.exe"))).IsFalse();
-        await Assert.That(TrayUpdate.Stops(update, Path.Combine(Path.GetTempPath(), ".nuget", "packages", "diffengine", "DiffEngineViewer.exe"))).IsFalse();
-        await Assert.That(TrayUpdate.Stops(update, null)).IsFalse();
+        await Assert.That(update.WindowsScriptStops(viewer)).IsTrue();
+        await Assert.That(update.WindowsScriptStops(viewer.ToUpperInvariant())).IsTrue();
+        await Assert.That(update.WindowsScriptStops(Path.Combine(also, "DiffEngineViewer.exe"))).IsTrue();
+        await Assert.That(update.WindowsScriptStops(Path.Combine(tools, ".store", "diffenginetray.other", "DiffEngineViewer.exe"))).IsFalse();
+        await Assert.That(update.WindowsScriptStops(Path.Combine(Path.GetTempPath(), ".nuget", "packages", "diffengine", "DiffEngineViewer.exe"))).IsFalse();
+        await Assert.That(update.WindowsScriptStops(null)).IsFalse();
     }
 
     /// <summary>

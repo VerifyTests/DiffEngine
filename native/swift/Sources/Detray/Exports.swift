@@ -77,7 +77,7 @@ public func detrayQuitting() -> Int32 {
 
 @_cdecl("detray_describe")
 public func detrayDescribe(_ buffer: UnsafeMutablePointer<CChar>?, _ capacity: Int32) -> Int32 {
-    Utf8Buffer.write(MenuItems.describe(Tray.shared.item.items), buffer, capacity)
+    Utf8Buffer.write(StatusMenuItem.describe(Tray.shared.item.items), buffer, capacity)
 }
 
 @_cdecl("detray_shutdown")
