@@ -21,8 +21,6 @@
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="ProjectDefaults" PrivateAssets="all" />
     <ProjectReference Include="..\DiffEngine\DiffEngine.csproj" />
-    <!-- One way of showing a file in a file manager, the viewer's, rather than a second one. -->
-    <Compile Include="..\DiffEngineViewer\RevealFile.cs" Link="RevealFile.cs" />
     <!-- The Windows head's pictures, under the names it embeds them by, for the heads with no WinForms. -->
     <EmbeddedResource Include="..\DiffEngineTray.Windows\Images\*.ico;..\DiffEngineTray.Windows\Images\*.png"
                       LinkBase="Images"

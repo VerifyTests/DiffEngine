@@ -8,6 +8,9 @@
 /// </summary>
 static class DesktopPurge
 {
+    const string title = "Purge verified files";
+    const string prompt = "The folder to delete every *.verified.* and *.received.* file under";
+
     /// <summary>
     /// The menu's action, or null where there is nothing to ask with. It returns at once: the
     /// purge runs on a thread of its own, because each question waits on the person and the
@@ -33,7 +36,10 @@ static class DesktopPurge
             {
                 try
                 {
-                    Run(dialog.PickFolder, dialog.Confirm, tell);
+                    Run(
+                        () => dialog.PickFolder(prompt),
+                        _ => dialog.Confirm(title, _, "Delete"),
+                        tell);
                 }
                 catch (Exception exception)
                 {
