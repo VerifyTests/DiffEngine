@@ -1,5 +1,6 @@
  * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Windows/OSX (Cost: Paid)
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
+ * **[CodeCompare](/docs/diff-tool.md#codecompare)** Windows (Cost: Free and Paid)
  * **[Cursor](/docs/diff-tool.md#cursor)** Windows/OSX/Linux (Cost: Free and Paid)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
  * **[DiffEngineViewer](/docs/diff-tool.md#diffengineviewer)** Windows/OSX/Linux (Cost: Free)
