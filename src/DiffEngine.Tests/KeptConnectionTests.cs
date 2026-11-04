@@ -552,7 +552,11 @@ public class KeptConnectionTests
                 }
             }
             catch (Exception exception)
-                when (exception is SocketException or ObjectDisposedException or InvalidOperationException or IOException)
+                when (exception is
+                          SocketException or
+                          ObjectDisposedException or
+                          InvalidOperationException or
+                          IOException)
             {
                 // Stopped
             }
