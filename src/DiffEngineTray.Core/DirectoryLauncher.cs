@@ -24,18 +24,19 @@ static class DirectoryLauncher
     }
 
     /// <summary>
-    /// Shows a file in the platform's file manager, through the viewer's <see cref="RevealFile"/>,
-    /// which this project links. It was <c>explorer.exe /select</c>, so on Windows only, and for a
-    /// file not there yet it opened Documents, which the viewer had already stopped doing.
+    /// Shows a file in the platform's file manager, through PlatformHeads'
+    /// <see cref="FileManager"/>, as the viewer does.
     /// <para>
     /// A failure is logged and not taken to an issue, as one in the viewer is written to the
     /// console: a file manager that would not start is nothing for DiffEngine to fix, and on
     /// Linux there need not be one.
     /// </para>
     /// </summary>
-    public static void Reveal(string file) =>
-        RevealFile.Show(file, Failed);
-
-    static void Failed(string target, Exception exception) =>
-        Log.Warning(exception, "Could not open a file manager on {Target}", target);
+    public static void Reveal(string file)
+    {
+        if (!FileManager.TryReveal(file, out var error))
+        {
+            Log.Warning(error, "Could not open a file manager on {File}", file);
+        }
+    }
 }

@@ -89,13 +89,25 @@ record ViewerActions(
     public static readonly ViewerActions Real = new(
         InlineApplier.Apply,
         static (source, destination) => File.Copy(source, destination, true),
-        RevealFile.Show)
+        ShowInFileManager)
     {
         MoveFile = Move,
         DeleteFile = File.Delete,
         ApplyInlineTogether = InlineApplier.ApplyAll,
         ApplyInlineWanted = InlineApplier.ApplyAll
     };
+
+    /// <summary>
+    /// Best effort: revealing is a convenience beside the review, so a file manager that would
+    /// not start is said on the console rather than put in front of the reviewer.
+    /// </summary>
+    static void ShowInFileManager(string path)
+    {
+        if (!FileManager.TryReveal(path, out var error))
+        {
+            Console.Error.WriteLine($"Could not open a file manager on {path}: {error.Message}");
+        }
+    }
 
     /// <summary>
     /// Refuses everything. Held by the view only <c>Apply</c> overload, so a command that turns
