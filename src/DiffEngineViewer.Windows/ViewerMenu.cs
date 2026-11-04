@@ -16,7 +16,7 @@ static class ViewerMenu
             // colour table would otherwise have to fight.
             ShowImageMargin = false,
             ShowCheckMargin = false,
-            Renderer = new MenuRenderer(),
+            Renderer = new PaletteMenuRenderer(MenuTheme.Colours),
             // For the slivers the renderer does not paint, such as overflow buttons.
             BackColor = Palette.Filler,
             ForeColor = Palette.Text

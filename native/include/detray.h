@@ -22,6 +22,7 @@ extern "C" {
 
 #define DETRAY_VERSION 1
 
+/* PlatformHeads' TrayMenuFlags and PlatformHeadsMac's StatusMenuFlags, which write and read them. */
 #define DETRAY_ENABLED 1
 #define DETRAY_SEPARATOR 2
 /* A toggle, drawn with a check when DETRAY_CHECKED is set as well. */

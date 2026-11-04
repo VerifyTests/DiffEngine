@@ -99,7 +99,7 @@ static class TrayUpdate
         using (process)
         {
             var image = ProcessEx.ImagePath(process);
-            if (!Stops(update, image))
+            if (!update.WindowsScriptStops(image))
             {
                 return false;
             }
@@ -121,65 +121,31 @@ static class TrayUpdate
     }
 
     /// <summary>
-    /// Whether the update stops a process running <paramref name="image" />: one under the store,
-    /// or under a folder it was told to stop as well. As the update's script matches them, without
-    /// regard to case, and by whole folders.
-    /// </summary>
-    internal static bool Stops(ToolUpdate update, string? image)
-    {
-        if (image is null)
-        {
-            return false;
-        }
-
-        foreach (var directory in update.AlsoStopUnder.Prepend(update.StoreDirectory))
-        {
-            if (image.StartsWith(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// What to say about the update that started this tray, or null where none did, which is every
-    /// start but the one after an update. Said once, since reading it removes it, and only by a
-    /// tray that got past the single instance lock, so one started beside it and leaving at once
-    /// does not take it away. The whole of what the update said goes to the log.
+    /// start but the one after an update: PlatformHeads' <see cref="ToolUpdateOutcome.Report" />.
+    /// Said once, since reading it removes it, and only by a tray that got past the single instance
+    /// lock, so one started beside it and leaving at once does not take it away. The whole of what
+    /// the update said goes to the log.
     /// </summary>
     public static TrayNotification? Report() =>
         Report(OutcomePath);
 
-    internal static TrayNotification? Report(string path)
+    internal static TrayNotification? Report(string path) =>
+        ToolUpdateOutcome.Report(
+            path,
+            "DiffEngineTray",
+            VersionReader.VersionString,
+            Taken,
+            _ => Log.Warning(_, "Could not read how the update went, at {Path}", path));
+
+    static void Taken(ToolUpdateOutcome outcome)
     {
-        ToolUpdateOutcome? outcome;
-        try
-        {
-            outcome = ToolUpdateOutcome.Take(path);
-        }
-        catch (Exception exception)
-            when (exception is IOException or UnauthorizedAccessException)
-        {
-            Log.Warning(exception, "Could not read how the update went, at {Path}", path);
-            return null;
-        }
-
-        if (outcome is null)
-        {
-            return null;
-        }
-
         if (outcome.Succeeded)
         {
             Log.Information("Updated. dotnet tool update said:\n{Output}", outcome.Output);
-            // The version rather than what the tool said: this is the tray the update started, so
-            // it is the installed one, whether the update moved it or found it already current
-            return new("DiffEngineTray updated", $"Now running {VersionReader.VersionString}.", Kind: TrayNotificationKind.Info);
+            return;
         }
 
         Log.Warning("The update failed, so {Version} is still the one installed. dotnet tool update said:\n{Output}", VersionReader.VersionString, outcome.Output);
-        return new("DiffEngineTray did not update", outcome.Reason);
     }
 }

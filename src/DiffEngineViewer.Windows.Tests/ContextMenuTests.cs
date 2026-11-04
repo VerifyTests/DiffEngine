@@ -7,7 +7,7 @@
 /// there photographs the client area, which cannot contain one.
 /// </para>
 /// <para>
-/// The baseline does not move with the OS theme: <see cref="MenuRenderer" /> is assigned per strip,
+/// The baseline does not move with the OS theme: <see cref="PaletteMenuRenderer" /> is assigned per strip,
 /// so it beats the system dark mode renderer and every pixel here is ours.
 /// </para>
 /// </summary>
@@ -46,7 +46,7 @@ public class ContextMenuTests
         using var strip = ViewerMenu.Create();
 
         await Assert.That(strip.RenderMode).IsEqualTo(ToolStripRenderMode.Custom);
-        await Assert.That(strip.Renderer).IsTypeOf<MenuRenderer>();
+        await Assert.That(strip.Renderer).IsTypeOf<PaletteMenuRenderer>();
     }
 
     static ContextMenuStrip Build(SessionState state, int row)

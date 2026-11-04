@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.10.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.12.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -685,8 +685,8 @@ the comment there about not caching "nothing staged" asks for.
   through kernel32 and ntdll, `/proc` on Linux, and `proc_pidpath` and `ps -ww` on macOS),
   `DiffToolLauncher` and `FileLockKiller` (the restart manager's, which compiles anywhere and runs
   only on Windows, Unix locks being advisory) - and builds on every platform, so a macOS or
-  Linux head can be put on it. Showing a file in a file manager is the viewer's `RevealFile`,
-  which the core links. `src/DiffEngineTray.Windows` is the Windows head, a `WinExe` named
+  Linux head can be put on it. Showing a file in a file manager is PlatformHeads'
+  `FileManager`, as it is in the viewer. `src/DiffEngineTray.Windows` is the Windows head, a `WinExe` named
   `DiffEngineTray` as the other heads are:
   `Program`, the forms, the hot keys (`KeyRegister`, `KeyName`, which parses into WinForms'
   `Keys`), the icons and the Run key. The menu is the core's `TrayMenu`: PlatformHeads'
@@ -722,7 +722,7 @@ the comment there about not caching "nothing staged" asks for.
   PlatformHeads' `XdgAutostart` (`TrayActions.RunAtLogin`), and the settings file is not read: the
   hot keys are Windows', and target on left and the launch limit are user environment variables,
   which .NET sets only on Windows. Purge asks its folder and its go ahead through a program the
-  desktop has (`DesktopDialog`: zenity, or kdialog on KDE, and AppleScript's on the macOS head),
+  desktop has (PlatformHeads' `DesktopDialog`: zenity, or kdialog on KDE, and AppleScript's on the macOS head),
   as `DesktopNotification` pops a balloon, and is not on the menu where there is none. Each
   question waits on the person, so the purge runs on a thread of its own (`DesktopPurge`), and a
   file it cannot delete is counted where the Windows head asks about it. What it finds and
@@ -803,7 +803,7 @@ the comment there about not caching "nothing staged" asks for.
   tray started, and one that owns the queue would go without staging it. So the tray, once the
   shell has started, finds who listens on the viewer port (`ListenerTable.Owner`, the process id
   out of the same row), and if that process runs from somewhere the update stops
-  (`TrayUpdate.Stops`) sends it `Quit`, which an owning viewer takes as exiting whatever a tray
+  (PlatformHeads' `ToolUpdate.WindowsScriptStops`) sends it `Quit`, which an owning viewer takes as exiting whatever a tray
   says, and waits for it to go (`TrayUpdate.CloseOwningViewer`). Seen in a `dotnet/sdk:10.0`
   container on a private `dbus-daemon` with a stand-in watcher: Update chosen from the menu, the
   tray gone, the install moved from one version to the next, and the new tray registered,
