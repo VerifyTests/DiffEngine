@@ -304,9 +304,12 @@ static class ViewerLaunchGate
                 return null;
             }
 
-            return viewer.ExitCode == ViewerExit.Staged
-                ? ViewerLaunchOutcome.Staged
-                : ViewerLaunchOutcome.Failed;
+            if (viewer.ExitCode == ViewerExit.Staged)
+            {
+                return ViewerLaunchOutcome.Staged;
+            }
+
+            return ViewerLaunchOutcome.Failed;
         }
         catch (Exception exception)
             when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)

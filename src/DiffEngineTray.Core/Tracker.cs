@@ -9,7 +9,9 @@ class Tracker :
     Action<string>? inlineFailed;
     ConcurrentDictionary<string, TrackedMove> moves = new(StringComparer.OrdinalIgnoreCase);
     ConcurrentDictionary<string, TrackedDelete> deletes = new(StringComparer.OrdinalIgnoreCase);
+
     IInlineHost inline;
+
     // The last listing seen, used for the icon state and for the menu. Free when this tray owns
     // the queue, and a loopback round trip when a viewer does, which is why nothing re-reads it
     // from a click.
@@ -145,6 +147,7 @@ class Tracker :
         {
             return;
         }
+
         // A pair found different, and untouched since, is still different. The scan runs every two
         // seconds and read both files through again each time, which for a few large same-size
         // pairs - bitmaps, fixed-size data - was hundreds of megabytes a scan for as long as they
@@ -477,7 +480,7 @@ class Tracker :
     // and a space reads as a message that went missing
     static string CouldNotAccept(string name, string? message)
     {
-        if (message is { Length: > 0 })
+        if (message is {Length: > 0})
         {
             return $"Could not accept the snapshot for '{name}'. {message}";
         }
@@ -641,9 +644,14 @@ class Tracker :
 
                 if (failures.Count > 0)
                 {
-                    inlineFailed?.Invoke(failures.Count == 1
-                        ? $"Could not accept a snapshot. {failures[0]}"
-                        : $"Could not accept {failures.Count} snapshots. {failures[0]}");
+                    if (failures.Count == 1)
+                    {
+                        inlineFailed?.Invoke($"Could not accept a snapshot. {failures[0]}");
+                    }
+                    else
+                    {
+                        inlineFailed?.Invoke($"Could not accept {failures.Count} snapshots. {failures[0]}");
+                    }
                 }
 
                 Refresh();
@@ -1285,7 +1293,7 @@ class Tracker :
     /// </summary>
     internal static string CouldNotDiscard(string? message)
     {
-        if (message is { Length: > 0 })
+        if (message is {Length: > 0})
         {
             return $"Could not discard the pending snapshots. {message}";
         }
@@ -1488,16 +1496,17 @@ class Tracker :
         return
         [
             .. deletes.Values
-                .Select(_ => new ViewerResponseDelete(
-                    TrackedKeys.ForDelete(_.File),
-                    _.Name,
-                    _.Group,
-                    _.File)
-                {
-                    // What the menu says beside it, for a viewer showing this queue to say too
-                    Held = HeldReason(_, awaited.Contains(_.File)),
-                    SourceKey = KeyOfSource(_.Source)
-                })
+                .Select(_ =>
+                    new ViewerResponseDelete(
+                        TrackedKeys.ForDelete(_.File),
+                        _.Name,
+                        _.Group,
+                        _.File)
+                    {
+                        // What the menu says beside it, for a viewer showing this queue to say too
+                        Held = HeldReason(_, awaited.Contains(_.File)),
+                        SourceKey = KeyOfSource(_.Source)
+                    })
         ];
     }
 

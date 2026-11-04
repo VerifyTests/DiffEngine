@@ -301,9 +301,12 @@ static class ViewerProgram
             // second trio beside the one just written. So where everything held is staged, the
             // exit says that instead. Only then: one that could not be written is still nowhere,
             // and a failure is the answer that has the launcher keep what it sent.
-            return staged > 0 && staged == OwnedVariants(held)
-                ? ViewerExit.Staged
-                : noWindow;
+            if (staged > 0 && staged == OwnedVariants(held))
+            {
+                return ViewerExit.Staged;
+            }
+
+            return noWindow;
         }
 
         // One for the loop and for a head's modal loop, which draw the same window on one thread.
@@ -734,7 +737,7 @@ static class ViewerProgram
             if (state.Menu is { } open &&
                 input.ClickedMenuItem < open.Items.Count)
             {
-                state = Dispatch(state, open.Items[input.ClickedMenuItem].Kind, link, window);
+                state = Dispatch(state, open.Items[input.ClickedMenuItem].Kind, link);
             }
         }
         else if (input.RightClickedQueueItem >= 0)
@@ -827,14 +830,14 @@ static class ViewerProgram
                 var button = buttons[input.ClickedButton];
                 if (button.Enabled)
                 {
-                    state = Dispatch(state, button.Command, link, window);
+                    state = Dispatch(state, button.Command, link);
                 }
             }
         }
 
         if (input.Key != CommandKind.None)
         {
-            state = Dispatch(state, input.Key, link, window);
+            state = Dispatch(state, input.Key, link);
         }
 
         return state;
@@ -845,7 +848,7 @@ static class ViewerProgram
     /// to them and letting the next refresh bring the result back, which keeps the round trip and
     /// the ten second mutex behind it off this thread.
     /// </summary>
-    static SessionState Dispatch(SessionState state, Command command, OwnerLink? link, IViewerWindow window)
+    static SessionState Dispatch(SessionState state, Command command, OwnerLink? link)
     {
         // Before everything, including the link check. Copying reads what is on screen and writes
         // it to this machine's clipboard, so it is never something to ask an owner for - and the

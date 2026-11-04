@@ -552,9 +552,15 @@ public class InlineQueueTests
             .Enqueue(Patch("A.cs", 1))
             .Enqueue(Patch("B.cs", 2))
             .AcceptAll(
-                patch => patch.SourceFile == "A.cs"
-                    ? InlineApplyResult.Applied
-                    : InlineApplyResult.NotFound("no Verify or Throws call"),
+                patch =>
+                {
+                    if (patch.SourceFile == "A.cs")
+                    {
+                        return InlineApplyResult.Applied;
+                    }
+
+                    return InlineApplyResult.NotFound("no Verify or Throws call");
+                },
                 out var message);
 
         await Assert.That(queue.Count).IsEqualTo(1);

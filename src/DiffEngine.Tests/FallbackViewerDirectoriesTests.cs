@@ -63,11 +63,11 @@ public class FallbackViewerDirectoriesTests
             Directory.CreateDirectory(Path.Combine(version, "diffenginetray", "21.0.0", "tools", "any", "any"));
             var viewer = Path.Combine(version, $"diffenginetray.{rid}", "21.0.0", "tools", "net10.0", rid, "viewer", rid);
             Directory.CreateDirectory(viewer);
-            File.WriteAllText(Path.Combine(viewer, viewerName), "");
+            await File.WriteAllTextAsync(Path.Combine(viewer, viewerName), "");
             var other = $"{os}-{(architecture == "arm64" ? "x64" : "arm64")}";
             var otherViewer = Path.Combine(version, $"diffenginetray.{other}", "21.0.0", "tools", "net10.0", other, "viewer", other);
             Directory.CreateDirectory(otherViewer);
-            File.WriteAllText(Path.Combine(otherViewer, viewerName), "");
+            await File.WriteAllTextAsync(Path.Combine(otherViewer, viewerName), "");
 
             var found = WildcardFileFinder.FindAll(TrayPattern(os, home) + viewerName).ToList();
 
@@ -94,7 +94,7 @@ public class FallbackViewerDirectoriesTests
             var tool = Path.Combine(home, ".dotnet", "tools", ".store", "diffenginetray", "20.8.2", "diffenginetray", "20.8.2", "tools", "net10.0", "any");
             var viewer = Path.Combine(tool, "viewer", rid);
             Directory.CreateDirectory(viewer);
-            File.WriteAllText(Path.Combine(viewer, "DiffEngineViewer.exe"), "");
+            await File.WriteAllTextAsync(Path.Combine(viewer, "DiffEngineViewer.exe"), "");
 
             var lookups = FallbackViewerDirectories.WindowsTray()
                 .Select(_ => WildcardFileFinder.FindAll(Windows(_, home) + "DiffEngineViewer.exe").ToList())

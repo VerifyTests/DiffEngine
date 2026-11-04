@@ -523,10 +523,15 @@ sealed class SourceScan(SourceLanguage language, string source) :
 
         // A tie goes to the shorter step, since a longer one is two levels taken at once, and
         // then to ordinal order so the answer cannot depend on the order they were met in
-        static bool Closer(string candidate, string current) =>
-            candidate.Length == current.Length
-                ? string.CompareOrdinal(candidate, current) < 0
-                : candidate.Length < current.Length;
+        static bool Closer(string candidate, string current)
+        {
+            if (candidate.Length == current.Length)
+            {
+                return string.CompareOrdinal(candidate, current) < 0;
+            }
+
+            return candidate.Length < current.Length;
+        }
     }
 
     void Count(List<(string Step, int Count)> counts, int start, int length)

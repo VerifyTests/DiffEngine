@@ -1185,9 +1185,14 @@ public class ViewerProtocolTests
             // Canceled and the await below throwing. TrySend is blocking and takes no token anyway
             // ReSharper disable once MethodSupportsCancellation
             var accepting = Task.Run(() =>
-                ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, hold)
-                    ? slow
-                    : null);
+            {
+                if (ViewerClient.TrySend(new(ViewerVerb.Accept, "key"), out var slow, server.Port, hold))
+                {
+                    return slow;
+                }
+
+                return null;
+            });
 
             // Asserted rather than assumed. If the accept is not actually being held then nothing
             // below is a test of concurrency, and it would read as one

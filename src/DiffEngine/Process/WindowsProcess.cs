@@ -349,9 +349,12 @@ static partial class WindowsProcess
             // nothing usable - so every 32-bit diff tool, which is most of the %ProgramFiles(x86)%
             // installs the resolver goes out of its way to find, had no command line at all: never
             // detected as already running, and never killed. The 32-bit PEB has to be asked for
-            return TryGetWow64Peb(handle, out var wow64Peb)
-                ? ReadCommandLine32(handle, wow64Peb)
-                : null;
+            if (TryGetWow64Peb(handle, out var wow64Peb))
+            {
+                return ReadCommandLine32(handle, wow64Peb);
+            }
+
+            return null;
         }
         catch
         {

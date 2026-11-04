@@ -166,7 +166,7 @@ public class WslHostTests :
         Directory.CreateDirectory(elsewhere);
         try
         {
-            File.WriteAllText($"{elsewhere}/tool.exe", "");
+            await File.WriteAllTextAsync($"{elsewhere}/tool.exe", "");
             Write("WINDOWS/system32/tool.exe");
             Write("WINDOWS/other.exe");
             var first = Write("first/Tool.exe");

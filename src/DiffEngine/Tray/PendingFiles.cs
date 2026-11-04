@@ -157,9 +157,12 @@ static class PendingFiles
         // before launching, and its probe corrects the memory when an owner has arrived since
         if (ViewerClient.TrySend(Pair(ViewerVerb.Diff, tempFile, targetFile, source), out var response, skipIfUnowned: true))
         {
-            return response.Ok
-                ? LaunchResult.AlreadyRunningAndSupportsRefresh
-                : Refused(tempFile, targetFile, source);
+            if (response.Ok)
+            {
+                return LaunchResult.AlreadyRunningAndSupportsRefresh;
+            }
+
+            return Refused(tempFile, targetFile, source);
         }
 
         return Launched(
@@ -220,9 +223,12 @@ static class PendingFiles
 
         if (outcome == SendOutcome.Refused)
         {
-            return await ViewerClient.TrySendAsync(Pair(ViewerVerb.Move, tempFile, targetFile, source), cancel)
-                ? LaunchResult.AlreadyRunningAndSupportsRefresh
-                : LaunchResult.NoDiffToolFound;
+            if (await ViewerClient.TrySendAsync(Pair(ViewerVerb.Move, tempFile, targetFile, source), cancel))
+            {
+                return LaunchResult.AlreadyRunningAndSupportsRefresh;
+            }
+
+            return LaunchResult.NoDiffToolFound;
         }
 
         return Launched(

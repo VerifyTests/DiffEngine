@@ -878,9 +878,15 @@ public class OwnedInlineHostTest
     public async Task EachSnapshotOfAFileHasItsOwnOutcome()
     {
         using var owner = new Owner(
-            _ => _.LineHint == 9
-                ? InlineApplyResult.Failed("the file is held")
-                : InlineApplyResult.Applied);
+            _ =>
+            {
+                if (_.LineHint == 9)
+                {
+                    return InlineApplyResult.Failed("the file is held");
+                }
+
+                return InlineApplyResult.Applied;
+            });
         owner.Queue(Repo("SampleTests.cs"), 7);
         owner.Queue(Repo("SampleTests.cs"), 9);
         owner.Queue(Repo("SampleTests.cs"), 11);

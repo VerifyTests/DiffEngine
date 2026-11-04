@@ -760,9 +760,15 @@ public class TrayViewerSyncTest
     public async Task TrayAcceptAllReportsWhatStayedPending()
     {
         await using var pair = new TrayOwned(
-            patch => patch.SourceFile == sample
-                ? InlineApplyResult.Failed("the file is locked")
-                : InlineApplyResult.Applied);
+            patch =>
+            {
+                if (patch.SourceFile == sample)
+                {
+                    return InlineApplyResult.Failed("the file is locked");
+                }
+
+                return InlineApplyResult.Applied;
+            });
         pair.Queue(sample, 1);
         pair.Queue(other, 7);
         pair.Pump();
@@ -940,9 +946,15 @@ public class TrayViewerSyncTest
     public async Task TrayAcceptAllReportsWhatTheOwningViewerKept()
     {
         await using var pair = new ViewerOwned(
-            patch => patch.SourceFile == sample
-                ? ViewerSideApplyResult.Failed("the file is locked")
-                : ViewerSideApplyResult.Applied);
+            patch =>
+            {
+                if (patch.SourceFile == sample)
+                {
+                    return ViewerSideApplyResult.Failed("the file is locked");
+                }
+
+                return ViewerSideApplyResult.Applied;
+            });
         pair.Queue(sample, 1);
         pair.Queue(other, 7);
 

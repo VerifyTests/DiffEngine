@@ -536,9 +536,12 @@ public class InlineStagingTests
         public IReadOnlyList<string> StagedFiles()
         {
             var staging = Path.Combine(directory, "obj", InlineStaging.DirectoryName);
-            return Directory.Exists(staging)
-                ? Directory.GetFiles(staging).OrderBy(_ => _, StringComparer.Ordinal).ToList()
-                : [];
+            if (Directory.Exists(staging))
+            {
+                return Directory.GetFiles(staging).OrderBy(_ => _, StringComparer.Ordinal).ToList();
+            }
+
+            return (List<string>) [];
         }
 
         public void Dispose()

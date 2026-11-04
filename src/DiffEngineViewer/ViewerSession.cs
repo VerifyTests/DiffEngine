@@ -821,9 +821,15 @@ static class ViewerSession
                 // A move or a delete is applied by whoever holds it, and in queue mode that is
                 // either this process or the owner this one forwards to. Reaching here means the
                 // former, because forwarding never gets this far.
-                return state.Current is { Kind: QueueEntryKind.Move or QueueEntryKind.Delete } accepting
-                    ? AcceptTracked(state, accepting, actions)
-                    : AcceptInline(state, actions);
+                if (state.Current is
+                    {
+                        Kind: QueueEntryKind.Move or QueueEntryKind.Delete
+                    } accepting)
+                {
+                    return AcceptTracked(state, accepting, actions);
+                }
+
+                return AcceptInline(state, actions);
             case CommandKind.AcceptAll:
                 // File mode shows one comparison and cannot grow, so accepting all of it is
                 // accepting it. Reachable through shift+A even though the button is disabled for
@@ -835,9 +841,12 @@ static class ViewerSession
                     return DiscardFile(state);
                 }
 
-                return state.Current is { Kind: QueueEntryKind.Move or QueueEntryKind.Delete } discarding
-                    ? DiscardTracked(state, discarding, actions)
-                    : DiscardInline(state);
+                if (state.Current is {Kind: QueueEntryKind.Move or QueueEntryKind.Delete} discarding)
+                {
+                    return DiscardTracked(state, discarding, actions);
+                }
+
+                return DiscardInline(state);
             case CommandKind.DiscardAll:
                 return inline ? DiscardAllInline(state, actions) : DiscardFile(state);
             case CommandKind.SelectAll:
