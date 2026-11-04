@@ -65,11 +65,14 @@ sealed class MacTray : ITray<TrayIcon>
 
     /// <summary>
     /// What <see cref="Apply" /> hands over, which needs no status item, so a test can hand over a
-    /// menu and read back what the library made of it.
+    /// menu and read back what the library made of it. The menu goes as PlatformHeads'
+    /// <see cref="TrayMenuItem.Flatten" /> writes it, which PlatformHeadsMac's
+    /// <c>StatusMenuItem.tree</c> reads back, with <see cref="TrayMenuItem.Flags" /> as
+    /// <c>detray.h</c>'s <c>DETRAY_*</c> bits, which have the same values.
     /// </summary>
     internal static void Send(TrayIcon icon, string tooltip, IReadOnlyList<TrayMenuItem> items)
     {
-        var flat = Flatten(items);
+        var flat = TrayMenuItem.Flatten(items);
         var native = new DetrayItem[flat.Count];
         var strings = new List<IntPtr>();
         try
@@ -82,7 +85,7 @@ sealed class MacTray : ITray<TrayIcon>
                     Id = Utf8(item.Id, strings),
                     Label = Utf8(item.Label, strings),
                     Icon = Utf8(item.IconName ?? "", strings),
-                    Flags = Flags(item),
+                    Flags = (int) item.Flags,
                     Parent = parent
                 };
             }
@@ -96,56 +99,6 @@ sealed class MacTray : ITray<TrayIcon>
                 Marshal.FreeCoTaskMem(pointer);
             }
         }
-    }
-
-    /// <summary>
-    /// The menu as one list, each submenu's items after the item that opens it, with the index of
-    /// that item, or -1 for an item of the menu itself: the shape <c>detray_apply</c> takes, since
-    /// a C struct cannot hold a list of itself.
-    /// </summary>
-    internal static List<(TrayMenuItem Item, int Parent)> Flatten(IReadOnlyList<TrayMenuItem> items)
-    {
-        var flat = new List<(TrayMenuItem Item, int Parent)>();
-        Add(items, -1, flat);
-        return flat;
-    }
-
-    static void Add(IReadOnlyList<TrayMenuItem> items, int parent, List<(TrayMenuItem Item, int Parent)> flat)
-    {
-        foreach (var item in items)
-        {
-            var index = flat.Count;
-            flat.Add((item, parent));
-            if (item.HasChildren)
-            {
-                Add(item.Children!, index, flat);
-            }
-        }
-    }
-
-    static int Flags(TrayMenuItem item)
-    {
-        var flags = 0;
-        if (item.Enabled)
-        {
-            flags |= Detray.Enabled;
-        }
-
-        if (item.Separator)
-        {
-            flags |= Detray.Separator;
-        }
-
-        if (item.Checked is { } on)
-        {
-            flags |= Detray.Checkable;
-            if (on)
-            {
-                flags |= Detray.Checked;
-            }
-        }
-
-        return flags;
     }
 
     static IntPtr Utf8(string text, List<IntPtr> strings)

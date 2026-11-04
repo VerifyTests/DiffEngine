@@ -13,11 +13,6 @@ static class Detray
     /// </summary>
     public const int ExpectedVersion = 1;
 
-    public const int Enabled = 1;
-    public const int Separator = 2;
-    public const int Checkable = 4;
-    public const int Checked = 8;
-
     /// <summary>
     /// Has PlatformHeads' resolver find <see cref="Library" /> under runtimes/{rid}/native for these
     /// imports. Once a process, however many threads ask.

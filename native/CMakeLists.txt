@@ -15,7 +15,7 @@ include(FetchContent)
 FetchContent_Declare(
   platformheads
   GIT_REPOSITORY https://github.com/SimonCropp/PlatformHeads.git
-  GIT_TAG 0.11.0
+  GIT_TAG 0.12.0
   GIT_SHALLOW ON)
 FetchContent_MakeAvailable(platformheads)
 include(${platformheads_SOURCE_DIR}/cmake/PlatformHeads.cmake)

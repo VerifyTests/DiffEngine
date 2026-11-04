@@ -1,30 +1,10 @@
 /// <summary>
 /// The macOS tray's menu across the C ABI. A C struct cannot hold a list of itself, so the menu
 /// goes over as one array with each item's parent by index, and the library makes it a tree again.
+/// Both halves are PlatformHeads', which tests the shape on its own; this is the ABI in between.
 /// </summary>
 public class MacTrayTests
 {
-    [Test]
-    public async Task EachItemFollowsTheItemWhoseSubmenuItIsIn()
-    {
-        var flat = MacTray.Flatten(Menu);
-
-        // As one text, so the order counts
-        await Assert.That(string.Join('\n', flat.Select(_ => $"{_.Item.Id} under {_.Parent}"))).IsEqualTo(
-            """
-            exit under -1
-            startup under -1
-            separator:1 under -1
-            group:Solution under -1
-            move:a under -1
-            move:a:accept under 4
-            move:a:more under 4
-            move:a:more:deeper under 6
-            move:b under -1
-            move:b:accept under 8
-            """.ReplaceLineEndings("\n"));
-    }
-
     /// <summary>
     /// The library's own reading of what it was handed, every field of every item, against the
     /// menu it was handed. Needs no status bar, so it runs on the macOS CI job.
