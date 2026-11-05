@@ -199,7 +199,7 @@ public class ViewerProgramTests
         {
             opened = placement;
             error = null;
-            return new PlacedWindow(new(30, 40, 1000, 700, false));
+            return new PlacedWindow(new(30, 40, 1000, 700));
         }
 
         var code = ViewerProgram.Run(new(Fixtures.File()), server: null, link: null, Open, preferences: preferences);
