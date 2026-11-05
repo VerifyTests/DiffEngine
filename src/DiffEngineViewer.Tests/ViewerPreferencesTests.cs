@@ -25,7 +25,7 @@ public class ViewerPreferencesTests
         using var directory = new TempDirectory();
         var path = directory.File("viewer.settings");
 
-        new ViewerPreferences(path).Window = new(-1900, -20, 900, 600, false);
+        new ViewerPreferences(path).Window = new(-1900, -20, 900, 600);
 
         await Assert.That(new ViewerPreferences(path).Window).IsEqualTo(new WindowPlacement(-1900, -20, 900, 600, false));
     }
@@ -50,7 +50,7 @@ public class ViewerPreferencesTests
         using var directory = new TempDirectory();
         var path = directory.File("DiffEngine", "viewer.settings");
 
-        new ViewerPreferences(path).Window = new(1, 2, 300, 400, false);
+        new ViewerPreferences(path).Window = new(1, 2, 300, 400);
 
         await Assert.That(File.Exists(path)).IsTrue();
     }
@@ -89,11 +89,11 @@ public class ViewerPreferencesTests
         var second = new ViewerPreferences(path);
 
         first.Set("projection", "Goode");
-        second.Window = new(5, 6, 700, 500, false);
+        second.Window = new(5, 6, 700, 500);
 
         var read = new ViewerPreferences(path);
         await Assert.That(read.Get("projection")).IsEqualTo("Goode");
-        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500, false));
+        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500));
     }
 
     /// <summary>
@@ -124,12 +124,12 @@ public class ViewerPreferencesTests
             Drawings = new Dictionary<DocumentFormat, DrawingView>()
         };
         await Assert.That(second.Get("projection")).IsNull();
-        first.Window = new(5, 6, 700, 500, false);
+        first.Window = new(5, 6, 700, 500);
 
         var read = new ViewerPreferences(path);
         await Assert.That(read.Projection).IsEqualTo(MapProjection.Auto);
         await Assert.That(read.Drawings).IsEmpty();
-        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500, false));
+        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(5, 6, 700, 500));
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class ViewerPreferencesTests
         await Assert.That(state.Projection).IsEqualTo(MapProjection.Goode);
 
         new ViewerPreferences(path).Projection = MapProjection.Auto;
-        first.Window = new(5, 6, 700, 500, false);
+        first.Window = new(5, 6, 700, 500);
         first.Remember(state);
 
         await Assert.That(new ViewerPreferences(path).Projection).IsEqualTo(MapProjection.Auto);
@@ -171,7 +171,7 @@ public class ViewerPreferencesTests
         };
         Directory.Delete(path);
 
-        preferences.Window = new(1, 2, 300, 400, false);
+        preferences.Window = new(1, 2, 300, 400);
 
         var read = new ViewerPreferences(path);
         await Assert.That(read.Projection).IsEqualTo(MapProjection.Lambert);
@@ -219,7 +219,7 @@ public class ViewerPreferencesTests
         Directory.CreateDirectory(path);
         var preferences = new ViewerPreferences(path)
         {
-            Window = new(1, 2, 300, 400, false)
+            Window = new(1, 2, 300, 400)
         };
 
         await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400, false));
