@@ -40,7 +40,7 @@ sealed class MenuTray :
 
     public TrayInput Poll()
     {
-        var input = new TrayInput(clicked, false, null);
+        var input = new TrayInput(clicked);
         clicked = null;
         return input;
     }
