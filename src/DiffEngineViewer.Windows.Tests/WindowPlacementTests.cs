@@ -13,7 +13,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnADisplayOpensWhereItWas()
     {
-        var restored = WindowFit.Restorable(new(300, 200, 1100, 700, false), [display]);
+        var restored = WindowFit.Restorable(new(300, 200, 1100, 700), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(300, 200, 1100, 700));
     }
@@ -33,7 +33,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnTheSecondDisplayOpensThere()
     {
-        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900, false), [display, second]);
+        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900), [display, second]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(2200, 100, 1500, 900));
     }
@@ -53,7 +53,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowMostlyOffADisplayIsMovedOntoIt()
     {
-        var restored = WindowFit.Restorable(new(1700, 800, 1100, 700, false), [display]);
+        var restored = WindowFit.Restorable(new(1700, 800, 1100, 700), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(820, 340, 1100, 700));
     }
@@ -76,7 +76,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowLargerThanTheDisplayIsCutToIt()
     {
-        var restored = WindowFit.Restorable(new(100, 100, 3000, 2000, false), [display]);
+        var restored = WindowFit.Restorable(new(100, 100, 3000, 2000), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(0, 0, 1920, 1040));
     }
@@ -129,12 +129,12 @@ public class WindowPlacementTests
     public async Task AFormOpensAtTheBoundsItIsGiven()
     {
         var bounds = OnThisDisplay();
-        using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
+        using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height));
         _ = form.Handle;
 
         await Assert.That(form.Bounds).IsEqualTo(bounds);
         await Assert.That(form.WindowState).IsEqualTo(FormWindowState.Normal);
-        await Assert.That(form.Placement).IsEqualTo(new WindowPlacement(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
+        await Assert.That(form.Placement).IsEqualTo(new WindowPlacement(bounds.X, bounds.Y, bounds.Width, bounds.Height));
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public class WindowPlacementTests
         {
             var bounds = OnThisDisplay();
             WindowPlacement? left;
-            using (var first = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false)))
+            using (var first = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height)))
             {
                 first.Show();
                 first.WindowState = FormWindowState.Maximized;
@@ -183,7 +183,7 @@ public class WindowPlacementTests
         var (bounds, placement) = UnseenDesktop.Run(() =>
         {
             var bounds = OnThisDisplay();
-            using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
+            using var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height));
             form.Show();
             form.WindowState = FormWindowState.Maximized;
 
@@ -203,7 +203,7 @@ public class WindowPlacementTests
     public async Task ADisposedFormStillSaysWhereItWas()
     {
         var bounds = OnThisDisplay();
-        var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height, false));
+        var form = new ViewerForm("title", 800, 600, new(bounds.X, bounds.Y, bounds.Width, bounds.Height));
         _ = form.Handle;
         var before = form.Placement;
 
