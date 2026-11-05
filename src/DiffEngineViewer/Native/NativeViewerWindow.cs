@@ -181,7 +181,10 @@ sealed class NativeViewerWindow :
 
     /// <summary>
     /// Heard as the X server goes, which on Linux is how a logoff ends the process, from inside
-    /// whichever call was reading its events. The macOS shim never calls it.
+    /// whichever call was reading its events. On macOS it is heard at a logout, restart or
+    /// shutdown, from inside the present that pumped AppKit's quit, and AppKit ends the process
+    /// once it returns: PlatformHeadsMac's <c>TerminateGuard</c>, which would otherwise cancel the
+    /// logout by refusing the quit.
     /// </summary>
     public unsafe Action? SessionEnding
     {

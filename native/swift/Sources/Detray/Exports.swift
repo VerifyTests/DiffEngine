@@ -75,6 +75,11 @@ public func detrayQuitting() -> Int32 {
     Tray.shared.quitting ? 1 : 0
 }
 
+@_cdecl("detray_on_session_end")
+public func detrayOnSessionEnd(_ ended: DetraySessionEnd?) {
+    Tray.shared.sessionEnded = ended
+}
+
 @_cdecl("detray_describe")
 public func detrayDescribe(_ buffer: UnsafeMutablePointer<CChar>?, _ capacity: Int32) -> Int32 {
     Utf8Buffer.write(StatusMenuItem.describe(Tray.shared.item.items), buffer, capacity)

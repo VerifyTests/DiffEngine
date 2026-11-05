@@ -11,8 +11,34 @@ sealed class MacTray : ITray<TrayIcon>
     // An id is a path or a snapshot's key with a word either side, which this holds with room over
     readonly byte[] chosen = new byte[64 * 1024];
 
+    /// <summary>
+    /// What a logout, restart or shutdown runs: <see cref="TraySessionEnd.For" />, which stages the
+    /// queue and removes the version marker. Called from inside <see cref="Pump" />, on the thread
+    /// the loop runs on, and AppKit ends the process as it returns, so nothing after the pump runs.
+    /// Static, since the library calls back through a plain function pointer, which carries no
+    /// instance to find it on, and settable after <see cref="Open" />, since what it stages is
+    /// made after the tray.
+    /// </summary>
+    public static Action? SessionEnding { get; set; }
+
     MacTray()
     {
+    }
+
+    /// <summary>
+    /// Nothing may be thrown back into the library, which is inside AppKit's quit.
+    /// </summary>
+    [UnmanagedCallersOnly]
+    static void SessionEnded()
+    {
+        try
+        {
+            SessionEnding?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed while the session was ending");
+        }
     }
 
     /// <summary>
@@ -20,7 +46,7 @@ sealed class MacTray : ITray<TrayIcon>
     /// <paramref name="error" /> when there is no library for this machine, one of another version,
     /// or no status bar to put the item in.
     /// </summary>
-    public static MacTray? Open(out string? error)
+    public static unsafe MacTray? Open(out string? error)
     {
         try
         {
@@ -32,6 +58,8 @@ sealed class MacTray : ITray<TrayIcon>
                 return null;
             }
 
+            // Before Init, which reads it: with none, a logout is refused and cancelled
+            Detray.OnSessionEnd(&SessionEnded);
             if (Detray.Init() == 0)
             {
                 error = "AppKit gave the status item no button to draw in.";
@@ -127,8 +155,10 @@ sealed class MacTray : ITray<TrayIcon>
         Detray.Pump();
 
     /// <summary>
-    /// AppKit was asked to quit. With no Dock icon, that is a logout, which the library turned
-    /// into this, for the loop to end the way Exit does, staging the queue on its way out.
+    /// AppKit was asked to quit other than by the session ending. With no Dock icon, that is a quit
+    /// event sent to the app, such as AppleScript's, which the library refused and turned into
+    /// this, for the loop to end the way Exit does, staging the queue on its way out. A session's
+    /// end is <see cref="SessionEnding" />.
     /// </summary>
     public static bool Quitting =>
         Detray.Quitting() != 0;

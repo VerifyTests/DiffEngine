@@ -148,10 +148,11 @@ public func deviewShutdown() {
     }
 }
 
-/// Never called here: a logout's quit is the app's own (TerminateGuard), which reaches the clean
-/// exit. Only the Linux shim can lose its display out from under it.
+/// Here there is no display to lose: the session's end is a quit from AppKit, at a logout, restart
+/// or shutdown, which TerminateGuard hands to `lost` from inside the pump and then lets through.
 @_cdecl("deview_on_display_lost")
 public func deviewOnDisplayLost(_ lost: DeviewDisplayLost?) {
+    Runtime.shared.sessionEnding = lost
 }
 
 /// Renders into a bitmap of this side's own making rather than asking the view for one, with

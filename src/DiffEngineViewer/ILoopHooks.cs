@@ -4,11 +4,11 @@
 /// Windows a present pumps messages - which is where user32 runs its own modal loops, for dragging
 /// a scrollbar thumb and for moving or sizing the window, and where a logoff ends the session. On
 /// Linux a present reads the X server's events, and a logoff ends the process from inside it as the
-/// server goes. The loop's next step never comes in any of these, so the head is handed those steps
+/// server goes. On macOS a present pumps AppKit's events, and a logout's quit ends the process from
+/// inside it. The loop's next step never comes in any of these, so the head is handed those steps
 /// to run itself.
 /// <para>
-/// Optional. WinForms takes both; the native heads only <see cref="SessionEnding" />, which the
-/// macOS one never calls, since a logout's quit there is the app's own. The Linux one has no modal
+/// Optional. WinForms takes both; the native heads only <see cref="SessionEnding" />. The Linux one has no modal
 /// loops to be caught in. AppKit has: a menu, which is deliberate, and a window being resized,
 /// which still draws the rows sliced for its old size until the mouse comes up. Handing that head
 /// a frame from inside the loop would take a callback in the C ABI.
@@ -27,8 +27,8 @@ interface ILoopHooks
     /// <summary>
     /// The session is ending: stop taking arrivals and stage what the queue holds, before
     /// returning. Windows may end the process as soon as a window has answered the message that
-    /// says so, and Xlib ends it as soon as its handler for the lost server returns, both before
-    /// the loop would get as far as its own shutdown.
+    /// says so, Xlib ends it as soon as its handler for the lost server returns, and AppKit as soon
+    /// as the quit's delegate does, all before the loop would get as far as its own shutdown.
     /// </summary>
     Action? SessionEnding { set; }
 }
