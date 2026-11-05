@@ -6,7 +6,7 @@ public class TrayLoopTests :
     IDisposable
 {
     [Test]
-    public async Task TheTrayIsHandedTheFixedItemsThenTheTracked()
+    public async Task TheTrayIsHandedTheFixedItemsThenTheTracked(Cancel testCancel)
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file);
@@ -15,7 +15,7 @@ public class TrayLoopTests :
         var tray = new StandInTray();
 
         var loop = TrayLoop.Run(tray, tracker, actions, () => TrayIcon.Active, cancel.Token);
-        var model = await tray.FirstApplied.WaitAsync(wait);
+        var model = await tray.FirstApplied.WaitAsync(wait, testCancel);
         await cancel.CancelAsync();
         await loop;
 
@@ -26,14 +26,14 @@ public class TrayLoopTests :
     }
 
     [Test]
-    public async Task AChosenItemIsDone()
+    public async Task AChosenItemIsDone(Cancel testCancel)
     {
         await using var tracker = new RecordingTracker();
         tracker.AddDelete(file);
         using var cancel = new CancelSource();
         var tray = new StandInTray();
         var loop = TrayLoop.Run(tray, tracker, Actions(cancel), () => TrayIcon.Default, cancel.Token);
-        await tray.FirstApplied.WaitAsync(wait);
+        await tray.FirstApplied.WaitAsync(wait, testCancel);
 
         tray.Choose($"delete:{file}:accept");
         await Until(() => tracker.Deletes.Count == 0);
@@ -44,24 +44,24 @@ public class TrayLoopTests :
     }
 
     [Test]
-    public async Task ExitEndsTheLoop()
+    public async Task ExitEndsTheLoop(Cancel testCancel)
     {
         await using var tracker = new RecordingTracker();
         using var cancel = new CancelSource();
         var tray = new StandInTray();
         var loop = TrayLoop.Run(tray, tracker, Actions(cancel), () => TrayIcon.Default, cancel.Token);
-        await tray.FirstApplied.WaitAsync(wait);
+        await tray.FirstApplied.WaitAsync(wait, testCancel);
 
         tray.Choose("exit");
 
-        await loop.WaitAsync(wait);
+        await loop.WaitAsync(wait, testCancel);
     }
 
     /// <summary>
     /// Thrown out of the loop, a failing item would have ended the tray with it.
     /// </summary>
     [Test]
-    public async Task AnItemThatThrowsLeavesTheLoopRunning()
+    public async Task AnItemThatThrowsLeavesTheLoopRunning(Cancel testCancel)
     {
         await using var tracker = new RecordingTracker();
         using var cancel = new CancelSource();
@@ -71,12 +71,12 @@ public class TrayLoopTests :
         };
         var tray = new StandInTray();
         var loop = TrayLoop.Run(tray, tracker, actions, () => TrayIcon.Default, cancel.Token);
-        await tray.FirstApplied.WaitAsync(wait);
+        await tray.FirstApplied.WaitAsync(wait, testCancel);
 
         tray.Choose("debug");
         tray.Choose("exit");
 
-        await loop.WaitAsync(wait);
+        await loop.WaitAsync(wait, testCancel);
     }
 
     /// <summary>
@@ -84,7 +84,7 @@ public class TrayLoopTests :
     /// the queue until the session ends it.
     /// </summary>
     [Test]
-    public async Task WithNoTrayTheLoopWaitsForTheEnd()
+    public async Task WithNoTrayTheLoopWaitsForTheEnd(Cancel testCancel)
     {
         await using var tracker = new RecordingTracker();
         using var cancel = new CancelSource();
@@ -92,7 +92,7 @@ public class TrayLoopTests :
 
         await Assert.That(loop.IsCompleted).IsFalse();
         await cancel.CancelAsync();
-        await loop.WaitAsync(wait);
+        await loop.WaitAsync(wait, testCancel);
     }
 
     /// <summary>
