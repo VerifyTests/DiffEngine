@@ -795,7 +795,12 @@ the comment there about not caching "nothing staged" asks for.
 - CI's `tray-install` job installs the tray from the `windows` job's packages on Windows, Linux
   and macOS, from a source of those alone, checks the viewer and documents folder are where the
   lookups expect and (on Windows) that the command is a GUI apphost, then starts it and waits for
-  it to listen on 3492. `publish` waits for it
+  it to listen on 3492. On macOS it then sends the tray the quit Apple events macOS sends
+  (`.github/scripts/send-quit.swift`, by pid): an ordinary one, which has to be answered -128 and
+  end the tray by its own loop, and a logout's, `kAEQuitReason` set to `kAELogOut`, which must
+  not be answered -128, the refusal that cancels a logout. Both have to end the tray with status
+  0 and its version marker gone. CI cannot log out, so this is the nearest to one it has.
+  `publish` waits for it
 - Update is PlatformHeads' `ToolUpdate` on every head, through the core's `TrayUpdate`, which
   finds the shim from where the tray runs (`ToolUpdate.ShimFor`, null for a build's output) and
   keeps the outcome beside the settings, out of the store the update replaces. A shell waits for
