@@ -87,12 +87,12 @@ static class Program
             owned.Start();
         }
 
-        // A logout, restart or shutdown is heard inside the pump (MacTray.SessionEnding), and AppKit
+        // A logout, restart or shutdown is heard inside the pump (StatusItemApp.SessionEnding), and AppKit
         // ends the process as it returns, since refusing the quit would cancel the logout. The
         // signals are a session's processes being ended otherwise, which .NET answers by ending
         // the process with nothing below run
         var sessionEnding = TraySessionEnd.For(owned, TrayVersionFile.Delete);
-        MacTray.SessionEnding = sessionEnding;
+        StatusItemApp.SessionEnding = sessionEnding;
         using var sessionEnd = new SessionEndSignals(
             sessionEnding,
             _ => Log.Error(_, "Failed while the session was ending"));
@@ -126,8 +126,8 @@ static class Program
                     tray,
                     () =>
                     {
-                        MacTray.Pump();
-                        if (MacTray.Quitting)
+                        StatusItemApp.Pump();
+                        if (StatusItemApp.Quitting)
                         {
                             tokenSource.Cancel();
                         }
@@ -141,6 +141,10 @@ static class Program
         finally
         {
             TrayVersionFile.Delete();
+            if (tray is not null)
+            {
+                StatusItemApp.Stop();
+            }
         }
 
         await tokenSource.CancelAsync();

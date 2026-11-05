@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   native:
-    uses: SimonCropp/PlatformHeads/.github/workflows/build-native.yml@0.13.0
+    uses: SimonCropp/PlatformHeads/.github/workflows/build-native.yml@0.14.0
     permissions:
       contents: write
       pull-requests: write
