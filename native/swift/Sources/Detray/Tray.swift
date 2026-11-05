@@ -1,4 +1,5 @@
 import AppKit
+import CDetray
 import PlatformHeadsMac
 
 /// The status item, and what has come of it since the managed side last asked: the items chosen,
