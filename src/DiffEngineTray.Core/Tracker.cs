@@ -1474,7 +1474,7 @@ class Tracker :
     {
         // The files the pending moves are onto, gathered once: HeldReason walks the moves for
         // the one delete it is asked about, which here would be every move for every delete
-        var awaited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> awaited = [with(StringComparer.OrdinalIgnoreCase)];
         // The moves being accepted on both sides of the pending ones, since a move is in one or
         // the other and goes between them: into the first as an accept begins, and back out of
         // it as one ends
