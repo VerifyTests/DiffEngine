@@ -468,8 +468,8 @@ jobs:
               sleep 1
             done
             [ -n "$listening" ] || { cat "$tool/logs/log.txt" || true; echo "::error::The tray did not listen on 3492"; exit 1; }
-            if grep -q "No status item" "$tool/logs/log.txt"; then
-              cat "$tool/logs/log.txt"
+            if grep -qs "No status item" "$tool/logs/log.txt"; then
+              cat "$tool/logs/log.txt" || true
               echo "::error::The tray has no status item, so nothing pumps the Apple events sent to it"
               exit 1
             fi
@@ -489,12 +489,12 @@ jobs:
             done
             if [ -z "$exited" ]; then
               kill "$pid" || true
-              cat "$tool/logs/log.txt"
+              cat "$tool/logs/log.txt" || true
               echo "::error::The tray was still running ten seconds after a ${1:-plain} quit"
               exit 1
             fi
             wait "$pid" && status=0 || status=$?
-            [ "$status" = 0 ] || { cat "$tool/logs/log.txt"; echo "::error::The tray exited $status after a ${1:-plain} quit"; exit 1; }
+            [ "$status" = 0 ] || { cat "$tool/logs/log.txt" || true; echo "::error::The tray exited $status after a ${1:-plain} quit"; exit 1; }
             ! test -f "$marker" || { echo "::error::The tray left $marker behind after a ${1:-plain} quit"; exit 1; }
           }
 
@@ -504,8 +504,8 @@ jobs:
           quit logout
           [ "$code" != -128 ] || { echo "::error::A logout's quit was refused (-128), which cancels the logout"; exit 1; }
 
-          cat "$tool/logs/log.txt"
-          if grep -q "Failed while the session was ending" "$tool/logs/log.txt"; then
+          cat "$tool/logs/log.txt" || true
+          if grep -qs "Failed while the session was ending" "$tool/logs/log.txt"; then
             echo "::error::The session end failed"
             exit 1
           fi
