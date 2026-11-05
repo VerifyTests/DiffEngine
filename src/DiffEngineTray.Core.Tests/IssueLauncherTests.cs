@@ -21,7 +21,7 @@ public class IssueLauncherTests
     [Test]
     public async Task An_ampersand_in_the_title_does_not_truncate_it()
     {
-        const string message = @"Could not accept 'R&D.received.txt'";
+        const string message = "Could not accept 'R&D.received.txt'";
 
         var url = IssueLauncher.BuildUrl(message);
 
