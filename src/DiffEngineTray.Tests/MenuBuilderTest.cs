@@ -61,7 +61,7 @@ public class MenuBuilderTest :
         var tips = (item.ToolTipText, label.ToolTipText, accept.ToolTipText);
         menu.Close();
 
-        await Assert.That(tips).IsEqualTo((status, status, (string?) null));
+        await Assert.That(tips).IsEqualTo((status, status, null));
     }
 
     /// <summary>
