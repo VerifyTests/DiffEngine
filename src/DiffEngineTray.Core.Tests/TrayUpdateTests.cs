@@ -126,7 +126,7 @@ public class TrayUpdateTests
         var asked = TrayUpdate.CloseOwningViewer(StoppingUnder(StandInTool.Image), port);
 
         await Assert.That(asked).IsTrue();
-        await Assert.That(viewer.StandardOutput.ReadLine()).IsEqualTo("verb: quit");
+        await Assert.That(await viewer.StandardOutput.ReadLineAsync()).IsEqualTo("verb: quit");
         await Assert.That(viewer.WaitForExit(10_000)).IsTrue();
     }
 
