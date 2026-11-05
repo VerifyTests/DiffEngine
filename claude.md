@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
   together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.12.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.13.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -655,12 +655,16 @@ the comment there about not caching "nothing staged" asks for.
   minimised on Windows, through `ViewerInput.Unseen`). `ViewerProgram.Loop` keeps its own `hidden`
   and the head's `unseen` apart and slows `OwnerLink`, `TrackedWatch` and `DocumentWatch` on either.
   Version 13 is `deview_on_display_lost`, which the Linux shim hands to PlatformHeads'
-  `ph::OnDisplayLost`, and the Swift one exports and never calls.
+  `ph::OnDisplayLost`, and the Swift one hands to PlatformHeadsMac's `TerminateGuard` as its
+  `sessionEnding`, with no bump, since the managed side already called it on every platform.
 - A logoff stages an owned queue on every platform, as a clean exit does, since none reaches the
   loop's own shutdown. `ViewerProgram.SessionEnding` does it, once, touching no window, and is
-  heard three ways: on Windows through `HeadForm.SessionEnding`, which saves the placement after
+  heard four ways: on Windows through `HeadForm.SessionEnding`, which saves the placement after
   it; on Linux as the X server goes, through `deview_on_display_lost`, which `NativeViewerWindow`
-  takes as `ILoopHooks.SessionEnding` and from inside which Xlib then calls `exit(1)`; and through
+  takes as `ILoopHooks.SessionEnding` and from inside which Xlib then calls `exit(1)`; on macOS
+  through the same callback, at a logout, restart or shutdown, from inside the present that pumped
+  AppKit's quit, after which AppKit ends the process: refused, as it was, the quit cancelled the
+  logout, and a quit from the Dock still is, reported as a close; and through
   SIGTERM and SIGHUP, which `ViewerProgram` holds PlatformHeads.Core's `SessionEndSignals` for,
   since .NET ends the process on either with no `finally` run. The signals do not save the
   placement, because they come on a thread of their own. A display lost inside a mutation cannot
@@ -741,7 +745,7 @@ the comment there about not caching "nothing staged" asks for.
   native library of its own, `diffengine_tray` (decision G), so a tray change never moves the
   viewer's ABI version. It is a second product of `native/swift`, built by the same `build-native`
   run, which collects it into the head's `runtimes` through PlatformHeads' `mac-libraries`, and
-  committed as the viewer's is. The ABI is `native/include/detray.h`, `DETRAY_VERSION` 1: the
+  committed as the viewer's is. The ABI is `native/include/detray.h`, `DETRAY_VERSION` 2: the
   menu goes over as one array of `DetrayItem`s, each with its parent by index, since a C struct
   cannot hold a list of itself, and the Swift side (`Sources/Detray`) makes it a tree again. Its
   managed half is in the core (`Detray`, `MacTray`), as ProcessEx's native calls are, so the
@@ -751,8 +755,11 @@ the comment there about not caching "nothing staged" asks for.
   AppKit is driven from the main thread only, so
   the loop is `TrayLoop.RunPumped`, on the thread `Main` starts on, with the library's pump as
   its wait; nothing in `Program.Inner` awaits before the loop returns. The app is an accessory,
-  with no Dock icon, App Nap is off (`NapGuard`), and a logout is `TerminateGuard`'s, which
-  refuses the quit and reports it, for the loop to end as Exit does. "Run at startup" is a
+  with no Dock icon, App Nap is off (`NapGuard`), and a quit is `TerminateGuard`'s. A logout,
+  restart or shutdown runs `TraySessionEnd.For` from inside the pump (`detray_on_session_end`,
+  `MacTray.SessionEnding`, set before `detray_init` makes the guard) and is let through, since
+  refusing it cancelled the logout; any other quit is refused and reported (`detray_quitting`),
+  for the loop to end as Exit does. "Run at startup" is a
   launch agent. Packed as `DiffEngineTray.osx-x64` and `.osx-arm64`
 - The tray ships as .NET 10 RID specific tool packages (decision F), by
   `src/DiffEngineTray.Core/TrayHead.targets`, which every head imports after naming its RIDs in

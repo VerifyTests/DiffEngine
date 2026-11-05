@@ -11,7 +11,7 @@ static class Detray
     /// Must match DETRAY_VERSION in native/include/detray.h, so a stale library is reported rather
     /// than read as garbage.
     /// </summary>
-    public const int ExpectedVersion = 1;
+    public const int ExpectedVersion = 2;
 
     /// <summary>
     /// Has PlatformHeads' resolver find <see cref="Library" /> under runtimes/{rid}/native for these
@@ -43,6 +43,9 @@ static class Detray
 
     [DllImport(Library, EntryPoint = "detray_quitting")]
     public static extern int Quitting();
+
+    [DllImport(Library, EntryPoint = "detray_on_session_end")]
+    public static extern unsafe void OnSessionEnd(delegate* unmanaged<void> ended);
 
     [DllImport(Library, EntryPoint = "detray_describe")]
     public static extern int Describe(byte[] buffer, int capacity);

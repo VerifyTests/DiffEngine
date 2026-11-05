@@ -1,4 +1,5 @@
 import AppKit
+import CDetray
 import PlatformHeadsMac
 
 /// The status item, and what has come of it since the managed side last asked: the items chosen,
@@ -11,11 +12,17 @@ final class Tray {
     private var chosen: [String] = []
     private(set) var quitting = false
 
-    /// A logout, for an app with no Dock icon to quit from, turned into the managed side's own
-    /// quit, which stages the queue on its way out. Held here: AppKit keeps its delegate weakly.
-    private lazy var terminateGuard = TerminateGuard { [unowned self] in
-        self.quitting = true
-    }
+    /// What `detray_on_session_end` was handed: the managed side's session end, which stages the
+    /// queue it owns and removes the version marker.
+    var sessionEnded: DetraySessionEnd?
+
+    /// A quit sent to the app, which has no Dock icon to quit from, turned into the managed side's
+    /// own quit, which stages the queue on its way out. A logout, restart or shutdown runs
+    /// `sessionEnded` there and then instead, and AppKit ends the process once it returns. Made in
+    /// `start`, from whatever `sessionEnded` is by then: with none, a session's end is refused as a
+    /// quit is, which cancels the logout but loses nothing. Held here: AppKit keeps its delegate
+    /// weakly.
+    private var terminateGuard: TerminateGuard?
 
     private init() {
         item.chose = { [unowned self] entry in
@@ -31,7 +38,13 @@ final class Tray {
     func start() -> Bool {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)
-        application.delegate = terminateGuard
+        let terminate = TerminateGuard(
+            { [unowned self] in
+                self.quitting = true
+            },
+            sessionEnding: sessionEnded.map { ended -> () -> Void in { ended() } })
+        terminateGuard = terminate
+        application.delegate = terminate
         application.finishLaunching()
         napGuard.begin(reason: "Tracking what test runs leave pending")
         return item.start()

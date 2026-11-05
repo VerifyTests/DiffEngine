@@ -13,13 +13,23 @@ final class Runtime {
 
     private var delegate: WindowDelegate?
 
-    /// A quit from the Dock or a logout, reported as a close, which the managed side answers the
-    /// way it answers the window's close button: it leaves the loop, persists the queue it owns,
-    /// and exits. macOS has no tray to hold the queue instead. Held here because
+    /// A quit from the Dock, reported as a close, which the managed side answers the way it answers
+    /// the window's close button: it leaves the loop, persists the queue it owns, and exits. macOS
+    /// has no tray to hold the queue instead.
+    ///
+    /// A logout, restart or shutdown runs `sessionEnding` instead, there and then, and AppKit ends
+    /// the process once it returns: refused, the quit would cancel the logout. Held here because
     /// `NSApplication.delegate` does not keep it alive.
-    private lazy var terminateGuard = TerminateGuard { [unowned self] in
+    private lazy var terminateGuard = TerminateGuard({ [unowned self] in
         self.input.closeRequested = 1
+    }) { [unowned self] in
+        self.sessionEnding?()
     }
+
+    /// What `deview_on_display_lost` was handed: the managed side's session end, which stages the
+    /// queue it owns and saves the placement. It hands one over on every window, before the first
+    /// present, so before any event that could be a logout is dispatched.
+    var sessionEnding: DeviewDisplayLost?
 
     private let napGuard = NapGuard()
     private var size = CGSize(width: 1100, height: 700)

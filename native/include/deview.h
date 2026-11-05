@@ -435,7 +435,10 @@ typedef struct DeviewPlacement {
  *     they shipped together. And panX and panY are kept inside what either pane can show, where
  *     they were kept inside what the dragged one can.
  * 13: deview_on_display_lost. No struct moved: a new entry point, which a library from before
- *     does not have, and which the managed side calls on every native window.
+ *     does not have, and which the managed side calls on every native window. The macOS library
+ *     came to call it at a logout, restart or shutdown with no bump: the managed side already
+ *     handed it the same session end on every platform, and either side with the other of a
+ *     different age does what it did before.
  */
 #define DEVIEW_VERSION 13
 
@@ -520,8 +523,9 @@ DEVIEW_API void deview_shutdown(void);
  * Has lost called once as the connection to the X server is lost, which is how a logoff ends the
  * Linux viewer: Xlib ends the process with exit(1) as it returns, so it is the one chance to stage
  * an owned queue. Called on the thread inside deview_present or deview_poll_input, from inside that
- * call. NULL stops it. macOS never calls it: a logout's quit there is the app's own, which reaches
- * the clean exit.
+ * call. NULL stops it. macOS calls it at a logout, restart or shutdown, from inside the
+ * deview_present that pumped AppKit's quit, and AppKit ends the process as it returns: refused,
+ * the quit would cancel the logout. A quit from the Dock is still reported as a close.
  */
 DEVIEW_API void deview_on_display_lost(DeviewDisplayLost lost);
 

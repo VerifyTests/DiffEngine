@@ -3,7 +3,7 @@
  * A library of its own beside the viewer's (diffengine_viewer), built from the same Swift package,
  * so a change to either never moves the other's version.
  *
- * Followed by native/swift/Sources/Detray and src/DiffEngineTray.Mac/Detray.cs. Bump
+ * Followed by native/swift/Sources/Detray and src/DiffEngineTray.Core/Detray.cs. Bump
  * DETRAY_VERSION whenever a struct changes or a field changes meaning: the managed side refuses a
  * library whose version is not the one it was built for.
  *
@@ -20,7 +20,15 @@
 extern "C" {
 #endif
 
-#define DETRAY_VERSION 1
+/*
+ * 1: the status item and its menu.
+ * 2: detray_on_session_end, and a logout, restart or shutdown no longer reported by
+ *    detray_quitting. A library from before cancels the logout that asked it to quit.
+ */
+#define DETRAY_VERSION 2
+
+/* What detray_on_session_end calls. */
+typedef void (*DetraySessionEnd)(void);
 
 /* PlatformHeads' TrayMenuFlags and PlatformHeadsMac's StatusMenuFlags, which write and read them. */
 #define DETRAY_ENABLED 1
@@ -70,8 +78,20 @@ DETRAY_API void detray_pump(void);
  */
 DETRAY_API int32_t detray_poll(char* buffer, int32_t capacity);
 
-/* 1 once AppKit has been asked to quit, which for an app with no Dock icon is a logout. */
+/*
+ * 1 once AppKit has been asked to quit other than by the session ending: with no Dock icon, by
+ * something that sent the app a quit event, such as AppleScript's quit. Refused, for the managed
+ * side to end its loop the way Exit does.
+ */
 DETRAY_API int32_t detray_quitting(void);
+
+/*
+ * Has ended called at a logout, restart or shutdown, from inside the detray_pump that dispatched
+ * AppKit's quit, on the main thread. AppKit ends the process as it returns, so it is the one
+ * chance to stage the queue: refused, the quit would cancel the logout. Read by detray_init, so
+ * set before it; with none, a session's end is refused and reported by detray_quitting.
+ */
+DETRAY_API void detray_on_session_end(DetraySessionEnd ended);
 
 /*
  * The menu as the last apply left it, a line an item, as text, written to buffer with its whole

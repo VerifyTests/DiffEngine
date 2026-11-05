@@ -87,11 +87,14 @@ static class Program
             owned.Start();
         }
 
-        // A logout reaches the loop as a quit (MacTray.Quitting), and ends it the way Exit does.
-        // These are a session's processes being ended otherwise, which .NET answers by ending the
-        // process with nothing below run
+        // A logout, restart or shutdown is heard inside the pump (MacTray.SessionEnding), and AppKit
+        // ends the process as it returns, since refusing the quit would cancel the logout. The
+        // signals are a session's processes being ended otherwise, which .NET answers by ending
+        // the process with nothing below run
+        var sessionEnding = TraySessionEnd.For(owned, TrayVersionFile.Delete);
+        MacTray.SessionEnding = sessionEnding;
         using var sessionEnd = new SessionEndSignals(
-            TraySessionEnd.For(owned, TrayVersionFile.Delete),
+            sessionEnding,
             _ => Log.Error(_, "Failed while the session was ending"));
 
         var listener = PiperServer.TryBind(out var bindError);
