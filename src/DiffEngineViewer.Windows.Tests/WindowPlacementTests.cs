@@ -25,7 +25,7 @@ public class WindowPlacementTests
     [Test]
     public async Task ASnappedWindowIsLeftExactlyWhereItWas()
     {
-        var restored = WindowFit.Restorable(new(-7, 0, 974, 1047, false), [display]);
+        var restored = WindowFit.Restorable(new(-7, 0, 974, 1047), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(-7, 0, 974, 1047));
     }
@@ -45,7 +45,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowOnADisplayThatHasGoneIsNotUsed()
     {
-        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900, false), [display]);
+        var restored = WindowFit.Restorable(new(2200, 100, 1500, 900), [display]);
 
         await Assert.That(restored).IsNull();
     }
@@ -65,7 +65,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowWithItsTitleBarOffTheTopIsMovedDown()
     {
-        var restored = WindowFit.Restorable(new(300, -200, 1100, 900, false), [display]);
+        var restored = WindowFit.Restorable(new(300, -200, 1100, 900), [display]);
 
         await Assert.That(restored).IsEqualTo(new Rectangle(300, 0, 1100, 900));
     }
@@ -84,7 +84,7 @@ public class WindowPlacementTests
     [Test]
     public async Task AWindowTooSmallToHaveBeenLeftIsNotUsed()
     {
-        var restored = WindowFit.Restorable(new(300, 200, 40, 20, false), [display]);
+        var restored = WindowFit.Restorable(new(300, 200, 40, 20), [display]);
 
         await Assert.That(restored).IsNull();
     }

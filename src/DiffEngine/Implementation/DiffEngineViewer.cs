@@ -70,11 +70,7 @@ static partial class Implementation
     /// </summary>
     static string[] SearchDirectories(string toolsDirectory, IEnumerable<string> tray, IEnumerable<string> nuGet)
     {
-        var directories = new List<string>
-        {
-            toolsDirectory
-        };
-        directories.AddRange(tray);
+        List<string> directories = [toolsDirectory, .. tray];
         var bundled = BundledViewerDirectory.Find();
         if (bundled != null)
         {

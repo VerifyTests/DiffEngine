@@ -206,7 +206,7 @@ public class ViewerProgramTests
 
         await Assert.That(code).IsEqualTo(0);
         await Assert.That(opened).IsEqualTo(new WindowPlacement(10, 20, 900, 600, true));
-        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(30, 40, 1000, 700, false));
+        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(30, 40, 1000, 700));
     }
 
     /// <summary>

@@ -27,7 +27,7 @@ public class ViewerPreferencesTests
 
         new ViewerPreferences(path).Window = new(-1900, -20, 900, 600);
 
-        await Assert.That(new ViewerPreferences(path).Window).IsEqualTo(new WindowPlacement(-1900, -20, 900, 600, false));
+        await Assert.That(new ViewerPreferences(path).Window).IsEqualTo(new WindowPlacement(-1900, -20, 900, 600));
     }
 
     [Test]
@@ -175,7 +175,7 @@ public class ViewerPreferencesTests
 
         var read = new ViewerPreferences(path);
         await Assert.That(read.Projection).IsEqualTo(MapProjection.Lambert);
-        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400, false));
+        await Assert.That(read.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400));
     }
 
     [Test]
@@ -222,7 +222,7 @@ public class ViewerPreferencesTests
             Window = new(1, 2, 300, 400)
         };
 
-        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400, false));
+        await Assert.That(preferences.Window).IsEqualTo(new WindowPlacement(1, 2, 300, 400));
     }
 
     sealed class TempDirectory : IDisposable

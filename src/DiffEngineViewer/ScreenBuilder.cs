@@ -335,20 +335,19 @@ static class ScreenBuilder
         // And with how many files go with it, where the entry is a document with its pages beneath
         // it: accepting it accepts those, and a button that takes seven files says so
         var derived = current is null ? 0 : QueueProjection.DerivedCount(state.Queue, state.Selected);
-        var buttons = new List<Button>
-        {
+        List<Button> buttons =
+        [
             new(ContextMenu.WithDerived(accept, derived), enabled, CommandKind.Accept),
             new(ContextMenu.WithDerived("Discard", derived), enabled, CommandKind.Discard),
             // Enabled from one, not two. Shift+A has always accepted a queue of one, and a button
             // that refuses what the key it names does reads as a bug rather than a nicety.
-            new("Accept all", state.Queue.Count > 0 && idle, CommandKind.AcceptAll)
-        };
-
-        // Ahead of the variant button, which comes and goes with the entry selected, so these
-        // keep their place in the footer whatever is on screen.
-        buttons.AddRange(ViewButtons(state, body));
-        buttons.AddRange(DocumentButtons(state));
-        buttons.AddRange(ZoomButtons(state));
+            new("Accept all", state.Queue.Count > 0 && idle, CommandKind.AcceptAll),
+            // Ahead of the variant button, which comes and goes with the entry selected, so these
+            // keep their place in the footer whatever is on screen.
+            .. ViewButtons(state, body),
+            .. DocumentButtons(state),
+            .. ZoomButtons(state)
+        ];
 
         if (current is { Kind: QueueEntryKind.Inline, Conflicted: true })
         {
