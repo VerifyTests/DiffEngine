@@ -378,7 +378,8 @@ jobs:
   # The packaging tests read them; only `dotnet tool install` choosing between them shows the
   # right one is found for a machine, and only starting what it laid out shows that it runs. So
   # this installs the tray from the windows job's packages, on each platform, as someone would
-  # from nuget.org, and waits for the installed tray to listen on the piper port.
+  # from nuget.org, and waits for the installed tray to listen on the piper port. On macOS it then
+  # quits the tray both ways macOS does, a logout's quit among them.
   #
   # From a source of those packages alone. Until a release, their version is the one in
   # Directory.Build.props, which nuget.org already has as an older tray, and an install that could
@@ -437,6 +438,77 @@ jobs:
           cat "$tool/logs/log.txt" || true
           kill "$pid" || true
           [ -n "$listening" ] || { echo "::error::The installed tray did not listen on 3492"; exit 1; }
+          wait "$pid" || true
+          echo "tray=$tray" >> "$GITHUB_ENV"
+          echo "tool=$tool" >> "$GITHUB_ENV"
+
+      # The quits macOS sends, by Apple event as it sends them: an ordinary one, which the tray
+      # refuses and turns into its own exit, and a logout's, which it has to let through or the
+      # logout is cancelled. CI cannot log out, so the logout's is sent by hand, with the reason a
+      # logout gives it. Either way the tray exits and takes its version marker with it; after a
+      # logout's, only the session end it ran can have done that, since AppKit ends the process
+      # without the loop's own way out.
+      - name: Quit the tray as macOS does
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          xcrun swiftc -O -o "$RUNNER_TEMP/send-quit" .github/scripts/send-quit.swift
+          marker="${TMPDIR%/}/DiffEngineTray/version.txt"
+
+          quit() {
+            # Listening by its own process id, since that is what the events are sent to
+            "$tray/DiffEngineTray" &
+            pid=$!
+            listening=
+            for i in $(seq 1 30); do
+              if lsof -nP -a -p "$pid" -iTCP:3492 -sTCP:LISTEN > /dev/null 2>&1; then
+                listening=1
+                break
+              fi
+              sleep 1
+            done
+            [ -n "$listening" ] || { cat "$tool/logs/log.txt" || true; echo "::error::The tray did not listen on 3492"; exit 1; }
+            if grep -qs "No status item" "$tool/logs/log.txt"; then
+              cat "$tool/logs/log.txt" || true
+              echo "::error::The tray has no status item, so nothing pumps the Apple events sent to it"
+              exit 1
+            fi
+            test -f "$marker" || { echo "::error::The tray did not write $marker"; exit 1; }
+
+            code=$("$RUNNER_TEMP/send-quit" "$pid" $1)
+            echo "A ${1:-plain} quit was answered $code"
+
+            exited=
+            for i in $(seq 1 20); do
+              state=$(ps -o stat= -p "$pid" | tr -d ' ' || true)
+              if [ -z "$state" ] || [[ "$state" == Z* ]]; then
+                exited=1
+                break
+              fi
+              sleep 0.5
+            done
+            if [ -z "$exited" ]; then
+              kill "$pid" || true
+              cat "$tool/logs/log.txt" || true
+              echo "::error::The tray was still running ten seconds after a ${1:-plain} quit"
+              exit 1
+            fi
+            wait "$pid" && status=0 || status=$?
+            [ "$status" = 0 ] || { cat "$tool/logs/log.txt" || true; echo "::error::The tray exited $status after a ${1:-plain} quit"; exit 1; }
+            ! test -f "$marker" || { echo "::error::The tray left $marker behind after a ${1:-plain} quit"; exit 1; }
+          }
+
+          quit
+          [ "$code" = -128 ] || { echo "::error::A plain quit was answered $code, where the tray refuses it (-128) and exits by its own loop"; exit 1; }
+
+          quit logout
+          [ "$code" != -128 ] || { echo "::error::A logout's quit was refused (-128), which cancels the logout"; exit 1; }
+
+          cat "$tool/logs/log.txt" || true
+          if grep -qs "Failed while the session was ending" "$tool/logs/log.txt"; then
+            echo "::error::The session end failed"
+            exit 1
+          fi
 
       # On Windows the command has to be a GUI apphost as well: a Run key naming a console one, or
       # a .cmd, opens a console at every login.
