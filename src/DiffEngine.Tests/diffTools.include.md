@@ -1074,6 +1074,45 @@ DiffTools.UseOrder(DiffTool.AraxisMerge);
     * `/Applications/Araxis Merge.app/Contents/Utilities/compare`
     * `%PATH%compare`
 
+### [CodeCompare](https://www.devart.com/codecompare/)
+
+  * Cost: Free and Paid
+  * Is MDI: True
+  * Supports auto-refresh: False
+  * Supports text files: True
+  * Use shell execute: True
+  * Create no window: False
+  * Environment variable for custom install location: `DiffEngine_CodeCompare`
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise CodeCompare over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.CodeCompare);
+```
+
+#### Notes:
+
+ * [Command line reference](https://docs.devart.com/code-compare/using-command-line/comparing-via-command-line.html)
+ * Launched with `/environment=standalone`, so a diff always opens in Code Compare rather than in a Visual Studio with the Code Compare extension, and never stops to ask which. [Environment on comparison opening](https://docs.devart.com/code-compare/using-command-line/choosing-environment-on-comparison-opening.html)
+
+#### Windows settings:
+
+  * Example target on left arguments:
+   ```
+   /environment=standalone "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   /environment=standalone "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%ProgramFiles%\Devart\Code Compare\CodeCompare.exe`
+    * `%ProgramW6432%\Devart\Code Compare\CodeCompare.exe`
+    * `%ProgramFiles(x86)%\Devart\Code Compare\CodeCompare.exe`
+    * `%PATH%CodeCompare.exe`
+
 ### [Cursor](https://cursor.com)
 
   * Cost: Free and Paid
