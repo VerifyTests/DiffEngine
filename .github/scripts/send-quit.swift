@@ -22,8 +22,10 @@ let event = NSAppleEventDescriptor(
     returnID: AEReturnID(kAutoGenerateReturnID),
     transactionID: AETransactionID(kAnyTransactionID))
 
+// An attribute of the event, not a parameter, which is where loginwindow puts it and where
+// TerminateGuard reads it from.
 if arguments.count >= 3, arguments[2] == "logout" {
-    event.setParam(
+    event.setAttribute(
         NSAppleEventDescriptor(enumCode: OSType(kAELogOut)),
         forKeyword: AEKeyword(kAEQuitReason))
 }

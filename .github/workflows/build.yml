@@ -425,15 +425,11 @@ jobs:
           test -x "$tool/viewer/$rid/DiffEngineViewer" || { echo "::error::No viewer for $rid at $tool/viewer"; exit 1; }
           test -f "$tool/viewer/documents/DiffEngineViewer.Documents.dll" || { echo "::error::No documents folder at $tool/viewer"; exit 1; }
 
-          # By the tray's own process id: on macOS a connection to 3492 was taken before the tray had
-          # so much as started, so connecting said nothing about it
-          echo "Listening on 3492 before the tray starts:"
-          lsof -nP -iTCP:3492 -sTCP:LISTEN || true
           "$tray/DiffEngineTray" &
           pid=$!
           listening=
           for i in $(seq 1 30); do
-            if lsof -nP -a -p "$pid" -iTCP:3492 -sTCP:LISTEN > /dev/null 2>&1; then
+            if (exec 3<>/dev/tcp/127.0.0.1/3492) 2>/dev/null; then
               listening=1
               break
             fi
@@ -460,6 +456,7 @@ jobs:
           marker="${TMPDIR%/}/DiffEngineTray/version.txt"
 
           quit() {
+            # Listening by its own process id, since that is what the events are sent to
             "$tray/DiffEngineTray" &
             pid=$!
             listening=
