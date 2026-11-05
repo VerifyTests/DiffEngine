@@ -13,6 +13,7 @@ tools/net10.0/osx-x64/DiffEngineTray.runtimeconfig.json
 tools/net10.0/osx-x64/DotnetToolSettings.xml
 tools/net10.0/osx-x64/EmptyFiles.dll
 tools/net10.0/osx-x64/PlatformHeads.Core.dll
+tools/net10.0/osx-x64/PlatformHeads.Mac.dll
 tools/net10.0/osx-x64/Serilog.Sinks.File.dll
 tools/net10.0/osx-x64/Serilog.dll
 tools/net10.0/osx-x64/runtimes/osx-x64/native/libdiffengine_tray.dylib

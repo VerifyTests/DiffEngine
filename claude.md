@@ -616,12 +616,12 @@ the comment there about not caching "nothing staged" asks for.
 **Native shim (`native/`), used by the Mac and Linux heads only:**
 - The build and packaging of the heads is PlatformHeads' (`D:\Code\PlatformHeads`,
   github.com/SimonCropp/PlatformHeads), which BuildMonitor shares: it was worked out here and
-  copied there, and fixes made here did not reach the copy. Seven pins name a tag of it: the
+  copied there, and fixes made here did not reach the copy. Eight pins name a tag of it: the
   `uses:` of `.github/workflows/build-native.yml`, the `GIT_TAG` in
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
-  Linux tray's) and `PlatformHeads.WindowsForms` in `Directory.Packages.props`, which move
-  together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.13.0. So is the native runtime under both heads' drawing: the C++
+  Linux tray's), `PlatformHeads.Mac` (the macOS tray's) and `PlatformHeads.WindowsForms` in
+  `Directory.Packages.props`, which move together, and the `PlatformHeads` package
+  in `native/swift/Package.swift`, all at 0.14.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -745,21 +745,22 @@ the comment there about not caching "nothing staged" asks for.
   native library of its own, `diffengine_tray` (decision G), so a tray change never moves the
   viewer's ABI version. It is a second product of `native/swift`, built by the same `build-native`
   run, which collects it into the head's `runtimes` through PlatformHeads' `mac-libraries`, and
-  committed as the viewer's is. The ABI is `native/include/detray.h`, `DETRAY_VERSION` 2: the
-  menu goes over as one array of `DetrayItem`s, each with its parent by index, since a C struct
-  cannot hold a list of itself, and the Swift side (`Sources/Detray`) makes it a tree again. Its
-  managed half is in the core (`Detray`, `MacTray`), as ProcessEx's native calls are, so the
-  core's tests run it on the macOS job: `MacTrayTests` hands it a menu and reads back what it
-  rebuilt (`detray_describe`), with no status bar. The `unix` job builds it from source first, as
-  it does the viewer's, and the `native` job loads the committed one and checks it is universal.
-  AppKit is driven from the main thread only, so
-  the loop is `TrayLoop.RunPumped`, on the thread `Main` starts on, with the library's pump as
-  its wait; nothing in `Program.Inner` awaits before the loop returns. The app is an accessory,
-  with no Dock icon, App Nap is off (`NapGuard`), and a quit is `TerminateGuard`'s. A logout,
-  restart or shutdown runs `TraySessionEnd.For` from inside the pump (`detray_on_session_end`,
-  `MacTray.SessionEnding`, set before `detray_init` makes the guard) and is let through, since
-  refusing it cancelled the logout; any other quit is refused and reported (`detray_quitting`),
-  for the loop to end as Exit does. "Run at startup" is a
+  committed as the viewer's is. Its ABI and its binding are PlatformHeads': the library's target,
+  `Sources/Detray`, is one file that depends on `PlatformHeadsMacTray`, which SwiftPM links in,
+  so the library exports `platformheads_tray.h`, and the head calls it through `PlatformHeads.Mac`
+  (`MacTray` names the library to `StatusItemTray` and `StatusItemApp`). They were this repository's
+  own, `detray.h` with its binding in the core, until PlatformHeads 0.14.0 took them, so BuildMonitor's
+  tray could share them. `MacTrayTests`, in the core's tests, loads the committed library through
+  `PlatformHeads.Mac`, checks its version and reads back a menu it was handed, with no status bar.
+  The `unix` job builds it from source first, as it does the viewer's, and the `native` job loads
+  the committed one and checks it is universal. AppKit is driven from the main thread only, so
+  the loop is `TrayLoop.RunPumped`, on the thread `Main` starts on, with `StatusItemApp.Pump` as
+  its wait; nothing in `Program.Inner` awaits before the loop returns. `StatusItemApp.Start` makes
+  the app an accessory, with no Dock icon, App Nap off (`NapGuard`), and a quit `TerminateGuard`'s.
+  A logout, restart or shutdown runs `TraySessionEnd.For` from inside the pump
+  (`StatusItemApp.SessionEnding`) and is let through, since refusing it cancelled the logout; any
+  other quit is refused and reported (`StatusItemApp.Quitting`), for the loop to end as Exit does.
+  The `tray-install` job sends both kinds of quit. "Run at startup" is a
   launch agent. Packed as `DiffEngineTray.osx-x64` and `.osx-arm64`
 - The tray ships as .NET 10 RID specific tool packages (decision F), by
   `src/DiffEngineTray.Core/TrayHead.targets`, which every head imports after naming its RIDs in
