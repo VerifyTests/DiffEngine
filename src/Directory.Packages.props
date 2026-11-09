@@ -8,24 +8,24 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
-    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="28.5.1" />
-    <PackageVersion Include="Morph" Version="1.24.0" />
+    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="29.0.0" />
+    <PackageVersion Include="Morph" Version="1.25.1" />
     <PackageVersion Include="Morph.PDFium" Version="1.6.1" />
-    <PackageVersion Include="Morph.Skia" Version="1.24.0" />
+    <PackageVersion Include="Morph.Skia" Version="1.25.1" />
     <!--
     Pinned with its Linux natives, which DiffEngineViewer.Documents references directly: SkiaSharp
     refuses a native library from another version, and the managed half arrives transitively
     through Morph.Skia, so without this the two could drift apart.
     -->
-    <PackageVersion Include="SkiaSharp" Version="4.154.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.155.0" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.155.0" />
     <PackageVersion Include="PlatformHeads" Version="0.14.0" />
     <PackageVersion Include="PlatformHeads.Core" Version="0.14.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.14.0" />
     <PackageVersion Include="PlatformHeads.Mac" Version="0.14.0" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.14.0" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
-    <PackageVersion Include="ProjectDefaults" Version="1.0.187" />
+    <PackageVersion Include="ProjectDefaults" Version="1.0.188" />
     <PackageVersion Include="Squash" Version="2.1.0" />
     <PackageVersion Include="Sbom" Version="0.3.1" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
