@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's), `PlatformHeads.Mac` (the macOS tray's) and `PlatformHeads.WindowsForms` in
   `Directory.Packages.props`, which move together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.14.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.15.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
