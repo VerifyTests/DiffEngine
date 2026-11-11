@@ -148,11 +148,25 @@ static class Program
 
         // The tray's events are raised on this thread as Application.Run pumps it, and what they
         // chose is done here too, a turn at a time, as the other heads' loops do
+        // Asked from the pool, and answered here, on the thread the loop runs on
+        var restarting = false;
+        using var runtime = TrayRuntime.Watch(() => restarting = true);
+
         using var timer = new System.Windows.Forms.Timer
         {
             Interval = (int) TrayLoop.Turn.TotalMilliseconds
         };
-        timer.Tick += (_, _) => turns.Turn();
+        timer.Tick += (_, _) =>
+        {
+            if (restarting)
+            {
+                timer.Stop();
+                Application.Exit();
+                return;
+            }
+
+            turns.Turn();
+        };
         timer.Start();
 
         try

@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's), `PlatformHeads.Mac` (the macOS tray's) and `PlatformHeads.WindowsForms` in
   `Directory.Packages.props`, which move together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.15.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.16.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -821,6 +821,7 @@ the comment there about not caching "nothing staged" asks for.
   container on a private `dbus-daemon` with a stand-in watcher: Update chosen from the menu, the
   tray gone, the install moved from one version to the next, and the new tray registered,
   listening and logging what the update said
+- A servicing update deletes the runtime folder the tray started on, and the process lives on unable to load anything it had not: on Windows the icon went and every move failed to load `System.Diagnostics.Process`, while the mutex kept a new tray out. Every head starts PlatformHeads' `RuntimeWatch` through the core's `TrayRuntime`, which logs what it says: once a framework folder the tray loaded from has gone with another of its major beside it, a shell waits for the tray to exit and starts `Environment.ProcessPath` again, and the tray exits as Exit does. A fix to it goes to PlatformHeads. Not for a tray run as `dotnet DiffEngineTray.dll`
 - The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the

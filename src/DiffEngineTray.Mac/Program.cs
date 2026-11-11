@@ -114,6 +114,7 @@ static class Program
             OpenDiffTool: DiffToolLauncher.Launch,
             RunAtLogin: RunAtLogin.ForPlatform(TrayLogin.Item),
             Update: TrayUpdate.MenuAction(tokenSource.Cancel));
+        using var runtime = TrayRuntime.Watch(tokenSource.Cancel);
         try
         {
             if (tray is null)

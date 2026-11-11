@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         // What every AppKit head does underneath its drawing, and the tray's ABI, shared with
         // BuildMonitor. A pin of PlatformHeads, moved with the other seven.
-        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.15.0")
+        .package(url: "https://github.com/SimonCropp/PlatformHeads", exact: "0.16.0")
     ],
     targets: [
         // Exists only to import the ABI. Swift does not guarantee struct layout, so the structs
