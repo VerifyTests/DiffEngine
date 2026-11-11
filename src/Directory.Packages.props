@@ -10,7 +10,7 @@
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="29.0.0" />
     <PackageVersion Include="Morph" Version="1.25.1" />
-    <PackageVersion Include="Morph.PDFium" Version="1.6.1" />
+    <PackageVersion Include="Morph.PDFium" Version="1.6.2" />
     <PackageVersion Include="Morph.Skia" Version="1.25.1" />
     <!--
     Pinned with its Linux natives, which DiffEngineViewer.Documents references directly: SkiaSharp
