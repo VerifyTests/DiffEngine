@@ -17,8 +17,8 @@
     refuses a native library from another version, and the managed half arrives transitively
     through Morph.Skia, so without this the two could drift apart.
     -->
-    <PackageVersion Include="SkiaSharp" Version="4.155.0" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.155.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.156.0" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.156.0" />
     <PackageVersion Include="PlatformHeads" Version="0.16.0" />
     <PackageVersion Include="PlatformHeads.Core" Version="0.16.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.16.0" />
@@ -35,7 +35,7 @@
     <PackageVersion Include="Verify.TUnit" Version="33.3.4" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
     <PackageVersion Include="Verify" Version="33.3.4" />
-    <PackageVersion Include="TUnit" Version="1.83.8" />
+    <PackageVersion Include="TUnit" Version="1.84.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
   </ItemGroup>
 </Project>
