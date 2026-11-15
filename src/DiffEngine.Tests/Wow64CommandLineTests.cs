@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// Reading the command line of a 32-bit process from this 64-bit one.
 /// <para>

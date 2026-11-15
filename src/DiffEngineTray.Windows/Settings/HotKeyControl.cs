@@ -7,37 +7,38 @@
         keyCombo.Items.AddRange(GetAlphabet().ToArray());
     }
 
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public HotKey? HotKey
+    /// <summary>
+    /// A new one each call, from the controls as they stand. A method rather than a property's
+    /// getter, which WinForms' WFO2000 refuses to have return a new instance on every read.
+    /// </summary>
+    public HotKey? ReadHotKey()
     {
-        get
+        if (!hotKeyEnabled.Checked)
         {
-            if (!hotKeyEnabled.Checked)
-            {
-                return null;
-            }
-
-            return new()
-            {
-                Shift = shift.Checked,
-                Control = control.Checked,
-                Alt = alt.Checked,
-                Key = (string) keyCombo.SelectedItem!
-            };
+            return null;
         }
-        set
+
+        return new()
         {
-            if (value == null)
-            {
-                return;
-            }
+            Shift = shift.Checked,
+            Control = control.Checked,
+            Alt = alt.Checked,
+            Key = (string) keyCombo.SelectedItem!
+        };
+    }
 
-            hotKeyEnabled.Checked = true;
-            keyCombo.SelectedItem = value.Key;
-            shift.Checked = value.Shift;
-            control.Checked = value.Control;
-            alt.Checked = value.Alt;
+    public void ShowHotKey(HotKey? hotKey)
+    {
+        if (hotKey == null)
+        {
+            return;
         }
+
+        hotKeyEnabled.Checked = true;
+        keyCombo.SelectedItem = hotKey.Key;
+        shift.Checked = hotKey.Shift;
+        control.Checked = hotKey.Control;
+        alt.Checked = hotKey.Alt;
     }
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]

@@ -5,6 +5,8 @@ buildTransitive/DiffEngine.targets
 icon.png
 lib/net10.0/DiffEngine.dll
 lib/net10.0/DiffEngine.xml
+lib/net11.0/DiffEngine.dll
+lib/net11.0/DiffEngine.xml
 lib/net462/DiffEngine.dll
 lib/net462/DiffEngine.xml
 lib/net472/DiffEngine.dll

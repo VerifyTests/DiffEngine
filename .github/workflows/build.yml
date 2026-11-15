@@ -255,7 +255,7 @@ jobs:
 
       # Debug and one framework: Release also packs, and publishes every viewer head to do it.
       - name: Build
-        run: dotnet build src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Debug --framework net10.0
+        run: dotnet build src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Debug --framework net11.0
 
       # procps for ps, which is how a running tool is found, and curl for the runtime's installer.
       - name: Install a distribution
@@ -284,7 +284,7 @@ jobs:
           export DOTNET_ROOT="$HOME/.dotnet"
           export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
-          cd "$(wslpath -u '${{ github.workspace }}')/src/DiffEngine.Tests/bin/Debug/net10.0"
+          cd "$(wslpath -u '${{ github.workspace }}')/src/DiffEngine.Tests/bin/Debug/net11.0"
           "$DOTNET_ROOT/dotnet" DiffEngine.Tests.dll --treenode-filter "/*/*/WslLiveTests/*"
 
   # Neither job above loads a committed binary any more: both build the shim from source so their
@@ -421,7 +421,7 @@ jobs:
           tray="$RUNNER_TEMP/tray"
           dotnet tool install DiffEngineTray --tool-path "$tray" --configfile "$RUNNER_TEMP/nuget.config" --version "$version"
 
-          tool="$tray/.store/diffenginetray/$version/diffenginetray.$rid/$version/tools/net10.0/$rid"
+          tool="$tray/.store/diffenginetray/$version/diffenginetray.$rid/$version/tools/net11.0/$rid"
           test -x "$tool/viewer/$rid/DiffEngineViewer" || { echo "::error::No viewer for $rid at $tool/viewer"; exit 1; }
           test -f "$tool/viewer/documents/DiffEngineViewer.Documents.dll" || { echo "::error::No documents folder at $tool/viewer"; exit 1; }
 
@@ -524,7 +524,7 @@ jobs:
           dotnet tool install DiffEngineTray --tool-path $tray --configfile "$env:RUNNER_TEMP\nuget.config" --version $version
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-          $tool = "$tray\.store\diffenginetray\$version\diffenginetray.$rid\$version\tools\net10.0\$rid"
+          $tool = "$tray\.store\diffenginetray\$version\diffenginetray.$rid\$version\tools\net11.0\$rid"
           if (-not (Test-Path "$tool\viewer\$rid\DiffEngineViewer.exe")) { Write-Output "::error::No viewer for $rid at $tool\viewer"; exit 1 }
           if (-not (Test-Path "$tool\viewer\documents\DiffEngineViewer.Documents.dll")) { Write-Output "::error::No documents folder at $tool\viewer"; exit 1 }
 

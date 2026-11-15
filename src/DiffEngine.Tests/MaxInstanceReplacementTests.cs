@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// Relaunching a pair that is already open does not spend an instance slot.
 /// <para>

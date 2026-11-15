@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// A terminal width in the environment. Shells keep COLUMNS for themselves and some setups export
 /// it, and procps then takes it over the unlimited width it gives a pipe: every command line came

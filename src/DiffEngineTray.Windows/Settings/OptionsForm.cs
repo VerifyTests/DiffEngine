@@ -14,9 +14,9 @@
         this()
     {
         this.trySave = trySave;
-        acceptAllHotKey.HotKey = settings.AcceptAllHotKey;
-        acceptOpenHotKey.HotKey = settings.AcceptOpenHotKey;
-        discardAllHotKey.HotKey = settings.DiscardAllHotKey;
+        acceptAllHotKey.ShowHotKey(settings.AcceptAllHotKey);
+        acceptOpenHotKey.ShowHotKey(settings.AcceptOpenHotKey);
+        discardAllHotKey.ShowHotKey(settings.DiscardAllHotKey);
         startupCheckBox.Checked = settings.RunAtStartup;
         targetOnLeftCheckBox.Checked = settings.TargetOnLeft;
         alwaysKillCheckBox.Checked = settings.AlwaysKillLockingProcesses;
@@ -30,9 +30,9 @@
             TargetOnLeft = targetOnLeftCheckBox.Checked,
             RunAtStartup = startupCheckBox.Checked,
             AlwaysKillLockingProcesses = alwaysKillCheckBox.Checked,
-            AcceptAllHotKey = acceptAllHotKey.HotKey,
-            DiscardAllHotKey = discardAllHotKey.HotKey,
-            AcceptOpenHotKey = acceptOpenHotKey.HotKey,
+            AcceptAllHotKey = acceptAllHotKey.ReadHotKey(),
+            DiscardAllHotKey = discardAllHotKey.ReadHotKey(),
+            AcceptOpenHotKey = acceptOpenHotKey.ReadHotKey(),
             MaxInstancesToLaunch = (int) maxInstancesNumericUpDown.Value
         };
 

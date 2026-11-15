@@ -23,7 +23,7 @@
     of its output: Program.cs is that, and ships nowhere.
     -->
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <AssemblyName>DiffEngineTray</AssemblyName>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <ToolPackageRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</ToolPackageRuntimeIdentifiers>

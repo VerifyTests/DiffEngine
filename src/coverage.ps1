@@ -34,8 +34,8 @@ $outDir = Join-Path $repo 'coverage'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 $projects = @(
-    @{ Name = 'DiffEngine.Tests';     Tfm = 'net10.0';         },
-    @{ Name = 'DiffEngineTray.Tests'; Tfm = 'net10.0-windows'; }
+    @{ Name = 'DiffEngine.Tests';     Tfm = 'net11.0';         },
+    @{ Name = 'DiffEngineTray.Tests'; Tfm = 'net11.0-windows'; }
 )
 
 foreach ($project in $projects)

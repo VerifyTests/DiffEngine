@@ -3,6 +3,7 @@ public class RuntimeMonikerTests
     [Test]
     [Arguments(".NETCoreApp,Version=v9.0", "net9.0")]
     [Arguments(".NETCoreApp,Version=v10.0", "net10.0")]
+    [Arguments(".NETCoreApp,Version=v11.0", "net11.0")]
     [Arguments(".NETCoreApp,Version=v3.1", "netcoreapp3.1")]
     [Arguments(".NETFramework,Version=v4.8", "net48")]
     [Arguments(".NETFramework,Version=v4.7.2", "net472")]
@@ -33,7 +34,7 @@ public class RuntimeMonikerTests
     /// </summary>
     [Test]
     public async Task StampReachesAppContext() =>
-        await Assert.That(AppContext.GetData(RuntimeMoniker.Key)).IsEqualTo("net10.0");
+        await Assert.That(AppContext.GetData(RuntimeMoniker.Key)).IsEqualTo("net11.0");
 #endif
 
     /// <summary>
@@ -47,6 +48,6 @@ public class RuntimeMonikerTests
 #if NETFRAMEWORK
         await Assert.That(RuntimeMoniker.Current!).StartsWith("net4");
 #else
-        await Assert.That(RuntimeMoniker.Current).IsEqualTo("net10.0");
+        await Assert.That(RuntimeMoniker.Current).IsEqualTo("net11.0");
 #endif
 }

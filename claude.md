@@ -23,7 +23,7 @@ dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configurati
 dotnet test --project src/DiffEngine.Tests/DiffEngine.Tests.csproj --configuration Release --no-build --no-restore -- --treenode-filter "/*/*/ClassName/MethodName"
 
 # Or run the test project directly, which is the fastest loop and takes the same filter
-src/DiffEngine.Tests/bin/Debug/net10.0/DiffEngine.Tests.exe --treenode-filter "/*/*/ClassName/*"
+src/DiffEngine.Tests/bin/Debug/net11.0/DiffEngine.Tests.exe --treenode-filter "/*/*/ClassName/*"
 
 # Benchmarks, one project per assembly they reach into. --filter takes class or method globs
 dotnet run -c Release --project src/DiffEngine.Benchmarks -- --filter "*TextDiff*"
@@ -38,9 +38,9 @@ dotnet run -c Release --project src/DiffEngineViewer.Windows.Benchmarks -- --fil
 **SDK Requirements:** .NET 10 SDK (see `global.json`, at the repository root rather than under `src`). It also carries `"test": { "runner": "Microsoft.Testing.Platform" }`, which is what puts `dotnet test` on the runner described above. The project uses preview/prerelease SDK features.
 
 **Target Frameworks:**
-- DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0 (Windows also includes .NET Framework targets)
-- DiffEngineTray: net10.0 Windows Forms application, and net10.0 Linux and macOS heads, all on DiffEngineTray.Core (net10.0, every platform)
-- Tests: net10.0 (net48 on Windows)
+- DiffEngine library: net462, net472, net48, net6.0, net7.0, net8.0, net9.0, net10.0, net11.0 (Windows also includes .NET Framework targets)
+- DiffEngineTray: net11.0 Windows Forms application, and net11.0 Linux and macOS heads, all on DiffEngineTray.Core (net11.0, every platform)
+- Tests: net11.0 (net48 on Windows)
 
 ## Architecture Overview
 
@@ -621,7 +621,7 @@ the comment there about not caching "nothing staged" asks for.
   `native/CMakeLists.txt`, `PlatformHeads`, `PlatformHeads.Core`, `PlatformHeads.Linux` (the
   Linux tray's), `PlatformHeads.Mac` (the macOS tray's) and `PlatformHeads.WindowsForms` in
   `Directory.Packages.props`, which move together, and the `PlatformHeads` package
-  in `native/swift/Package.swift`, all at 0.16.0. So is the native runtime under both heads' drawing: the C++
+  in `native/swift/Package.swift`, all at 0.17.0. So is the native runtime under both heads' drawing: the C++
   one `deview.cpp` calls as `ph::` (the window, GLFW's input as it happened, which frames are
   built and drawn, the renderer, the fonts and fontconfig, and the label helpers) and the Swift
   `PlatformHeadsMac` the AppKit head imports (`HeadWindow`, `EventPump`, `TerminateGuard`,
@@ -822,7 +822,7 @@ the comment there about not caching "nothing staged" asks for.
   tray gone, the install moved from one version to the next, and the new tray registered,
   listening and logging what the update said
 - A servicing update deletes the runtime folder the tray started on, and the process lives on unable to load anything it had not: on Windows the icon went and every move failed to load `System.Diagnostics.Process`, while the mutex kept a new tray out. Every head starts PlatformHeads' `RuntimeWatch` through the core's `TrayRuntime`, which logs what it says: once a framework folder the tray loaded from has gone with another of its major beside it, a shell waits for the tray to exit and starts `Environment.ProcessPath` again, and the tray exits as Exit does. A fix to it goes to PlatformHeads. Not for a tray run as `dotnet DiffEngineTray.dll`
-- The core's tests are `DiffEngineTray.Core.Tests` (net10.0), which runs in the unix CI job as
+- The core's tests are `DiffEngineTray.Core.Tests` (net11.0), which runs in the unix CI job as
   well as on Windows. What the menu says and does is `TrayMenuTests` there, as text.
   `DiffEngineTray.Tests` keeps what needs the head: how the menu is drawn, the forms, the
   hot keys, `LockedFilesHandler` and `TrayViewerSyncTest`. The helpers both
