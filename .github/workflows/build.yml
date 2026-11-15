@@ -280,7 +280,7 @@ jobs:
           grep -E 'drvfs' /proc/mounts || true
 
           curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
-          bash /tmp/dotnet-install.sh --channel 10.0 --runtime dotnet --install-dir "$HOME/.dotnet"
+          bash /tmp/dotnet-install.sh --channel 11.0 --runtime dotnet --install-dir "$HOME/.dotnet"
           export DOTNET_ROOT="$HOME/.dotnet"
           export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
