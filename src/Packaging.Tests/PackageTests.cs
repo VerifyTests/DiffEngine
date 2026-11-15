@@ -35,7 +35,7 @@ public class PackageTests
     /// its own choosing.
     /// </summary>
     static string TrayTool(string rid) =>
-        $"tools/net10.0/{rid}/";
+        $"tools/net11.0/{rid}/";
 
     static string TrayViewer(string rid) =>
         $"{TrayTool(rid)}viewer/";
@@ -226,12 +226,12 @@ public class PackageTests
     [Test]
     [PackageTest]
     [Arguments("DiffEngine", bundled)]
-    [Arguments("DiffEngineTray.win-x64", "tools/net10.0/win-x64/viewer/")]
-    [Arguments("DiffEngineTray.win-arm64", "tools/net10.0/win-arm64/viewer/")]
-    [Arguments("DiffEngineTray.linux-x64", "tools/net10.0/linux-x64/viewer/")]
-    [Arguments("DiffEngineTray.linux-arm64", "tools/net10.0/linux-arm64/viewer/")]
-    [Arguments("DiffEngineTray.osx-x64", "tools/net10.0/osx-x64/viewer/")]
-    [Arguments("DiffEngineTray.osx-arm64", "tools/net10.0/osx-arm64/viewer/")]
+    [Arguments("DiffEngineTray.win-x64", "tools/net11.0/win-x64/viewer/")]
+    [Arguments("DiffEngineTray.win-arm64", "tools/net11.0/win-arm64/viewer/")]
+    [Arguments("DiffEngineTray.linux-x64", "tools/net11.0/linux-x64/viewer/")]
+    [Arguments("DiffEngineTray.linux-arm64", "tools/net11.0/linux-arm64/viewer/")]
+    [Arguments("DiffEngineTray.osx-x64", "tools/net11.0/osx-x64/viewer/")]
+    [Arguments("DiffEngineTray.osx-arm64", "tools/net11.0/osx-arm64/viewer/")]
     public async Task EveryBundledViewerIsComplete(string id, string root)
     {
         await using var archive = Packages.Open(id);
@@ -309,12 +309,12 @@ public class PackageTests
     [Arguments("DiffEngineViewer.Windows", tool, "win-x64;win-arm64")]
     [Arguments("DiffEngineViewer.Mac", tool, "osx;osx-x64;osx-arm64")]
     [Arguments("DiffEngineViewer.Linux", tool, "linux-x64;linux-arm64")]
-    [Arguments("DiffEngineTray.win-x64", "tools/net10.0/win-x64/viewer/documents/", "win-x64")]
-    [Arguments("DiffEngineTray.win-arm64", "tools/net10.0/win-arm64/viewer/documents/", "win-arm64")]
-    [Arguments("DiffEngineTray.linux-x64", "tools/net10.0/linux-x64/viewer/documents/", "linux-x64")]
-    [Arguments("DiffEngineTray.linux-arm64", "tools/net10.0/linux-arm64/viewer/documents/", "linux-arm64")]
-    [Arguments("DiffEngineTray.osx-x64", "tools/net10.0/osx-x64/viewer/documents/", "osx;osx-x64")]
-    [Arguments("DiffEngineTray.osx-arm64", "tools/net10.0/osx-arm64/viewer/documents/", "osx;osx-arm64")]
+    [Arguments("DiffEngineTray.win-x64", "tools/net11.0/win-x64/viewer/documents/", "win-x64")]
+    [Arguments("DiffEngineTray.win-arm64", "tools/net11.0/win-arm64/viewer/documents/", "win-arm64")]
+    [Arguments("DiffEngineTray.linux-x64", "tools/net11.0/linux-x64/viewer/documents/", "linux-x64")]
+    [Arguments("DiffEngineTray.linux-arm64", "tools/net11.0/linux-arm64/viewer/documents/", "linux-arm64")]
+    [Arguments("DiffEngineTray.osx-x64", "tools/net11.0/osx-x64/viewer/documents/", "osx;osx-x64")]
+    [Arguments("DiffEngineTray.osx-arm64", "tools/net11.0/osx-arm64/viewer/documents/", "osx;osx-arm64")]
     public async Task EveryDocumentsFolderIsComplete(string id, string root, string rids)
     {
         await using var archive = Packages.Open(id);
@@ -371,7 +371,7 @@ public class PackageTests
         await Assert.That(problems).IsEmpty();
     }
 
-    const string tool = "tools/net10.0/any/documents/";
+    const string tool = "tools/net11.0/any/documents/";
 
     const string depsJson = "DiffEngineViewer.Documents.deps.json";
 

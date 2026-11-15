@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <!--
     Loaded by DiffEngineViewer.Core into an AssemblyLoadContext of its own, from a documents folder
     beside the viewer. EnableDynamicLoading copies every dependency, natives under runtimes/{rid},

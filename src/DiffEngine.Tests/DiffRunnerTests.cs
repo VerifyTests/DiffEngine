@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 [NotInParallel]
 // Needs the Windows only FakeDiffTool.exe, or the Win32 process APIs.
 [RunOn(TUnit.Core.Enums.OS.Windows)]

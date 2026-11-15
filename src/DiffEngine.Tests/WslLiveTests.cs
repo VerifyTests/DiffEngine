@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// Windows tools from inside a real WSL distribution: the host read, a tool found on it, started
 /// through WSL, found again and closed.

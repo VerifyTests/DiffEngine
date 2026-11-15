@@ -82,7 +82,6 @@
         this.acceptAllHotKey.AutoSize = true;
         this.acceptAllHotKey.Dock = System.Windows.Forms.DockStyle.Top;
         this.acceptAllHotKey.Help = "Accept pending deletes and pending moves";
-        this.acceptAllHotKey.HotKey = null;
         this.acceptAllHotKey.Label = "Accept all HotKey";
         this.acceptAllHotKey.Location = new System.Drawing.Point(5, 254);
         this.acceptAllHotKey.Margin = new System.Windows.Forms.Padding(2);
@@ -97,7 +96,6 @@
         this.discardAllHotKey.AutoSize = true;
         this.discardAllHotKey.Dock = System.Windows.Forms.DockStyle.Top;
         this.discardAllHotKey.Help = "Discard all deletes and pending moves";
-        this.discardAllHotKey.HotKey = null;
         this.discardAllHotKey.Label = "Discard all HotKey";
         this.discardAllHotKey.Location = new System.Drawing.Point(5, 140);
         this.discardAllHotKey.Margin = new System.Windows.Forms.Padding(2);
@@ -178,7 +176,6 @@
         this.acceptOpenHotKey.Dock = System.Windows.Forms.DockStyle.Top;
         this.acceptOpenHotKey.Help = "Accept pending deletes and moves with an open diff tool. This works for diff tool" +
                                      "s that are not MDI, eg it does not work for Visual Studio or Rider.";
-        this.acceptOpenHotKey.HotKey = null;
         this.acceptOpenHotKey.Label = "Accept all open HotKey";
         this.acceptOpenHotKey.Location = new System.Drawing.Point(5, 368);
         this.acceptOpenHotKey.Margin = new System.Windows.Forms.Padding(2);

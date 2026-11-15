@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// What the applier does to the file itself, rather than to the text in it. The patch is written
 /// through a temporary and swapped in, and on Linux and macOS that swap is a rename - so what

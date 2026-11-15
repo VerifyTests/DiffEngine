@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-  The tests of the tray's core, on every platform, where DiffEngineTray.Tests is net10.0-windows
+  The tests of the tray's core, on every platform, where DiffEngineTray.Tests is net11.0-windows
   and has the head's WinForms. The helpers both use live here, and that project links them.
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <NoWarn>$(NoWarn);CA1416;NU1902</NoWarn>
     <OutputType>Exe</OutputType>
   </PropertyGroup>

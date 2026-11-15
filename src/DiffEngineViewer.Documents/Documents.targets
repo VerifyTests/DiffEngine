@@ -86,7 +86,7 @@
 
   <!--
   Into the publish rather than the pack: PackAsTool packages the whole publish directory into
-  tools/net10.0/any, so a file named again in the pack is a duplicate, and one added after publish
+  tools/net11.0/any, so a file named again in the pack is a duplicate, and one added after publish
   never reaches it.
   -->
   <Target Name="PublishDocuments"

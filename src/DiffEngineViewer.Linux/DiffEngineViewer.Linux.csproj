@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <!--
     The launcher resolves the executable by name, so every head produces DiffEngineViewer.exe. The
     package id is what differs, because a renderer cannot be chosen at load time the way a native
@@ -18,7 +18,7 @@
     <RollForward>LatestMajor</RollForward>
     <!--
     RuntimeIdentifiers is deliberately NOT set. Combined with PackAsTool it empties the
-    tools/net10.0/any payload, and the per-RID publishes DiffEngine bundles do not need it: each
+    tools/net11.0/any payload, and the per-RID publishes DiffEngine bundles do not need it: each
     one restores for its own single RID.
     -->
     <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>

@@ -1,4 +1,4 @@
-#if NET10_0
+#if NET11_0
 /// <summary>
 /// Which RIDs the bundled viewer is probed for.
 /// <para>

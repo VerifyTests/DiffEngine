@@ -68,14 +68,14 @@
   PlatformHeads gives it, and from the folder DiffEngine tells that target to stage in. There must
   be exactly one publisher: two `dotnet publish` runs of the same project write the same
   intermediate and the same restore assets, and a ProjectReference does not order them, because it
-  builds DiffEngine's inner net10.0 build while the staging happens in its outer build during pack.
+  builds DiffEngine's inner net11.0 build while the staging happens in its outer build during pack.
 
   RuntimeIdentifier and TargetFramework removed and nothing else, deliberately. That makes this the
   same project instance the solution builds, from every head and every RID's build, so MSBuild
   either runs the target once here or hands back the result of having already run it. Any other
   difference forks a second instance and reintroduces the race. TargetFramework is there because a
   RID's pack publishes from an instance of the head for its one framework, which NuGet starts with
-  TargetFramework set; left in, it made DiffEngine's inner net10.0 build stage everything again.
+  TargetFramework set; left in, it made DiffEngine's inner net11.0 build stage everything again.
   -->
   <Target Name="PublishTrayViewer"
           Condition="'$(BundleTrayViewer)' == 'true'"
@@ -108,7 +108,7 @@
 
   <!--
   Into the publish rather than the pack: PackAsTool packages the whole publish directory into
-  tools/net10.0/{rid}, so a file named again in the pack is a duplicate, and one added after
+  tools/net11.0/{rid}, so a file named again in the pack is a duplicate, and one added after
   publish never reaches it.
   -->
   <Target Name="PublishViewerWithTray"

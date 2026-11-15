@@ -311,19 +311,19 @@ The tray tracks such a file as it tracks any other, so it is listed in the menu 
 Beside the installed tool, in the package for the machine's runtime identifier, so it moves with the target framework the tray is built for:
 
 ```
-%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray.{RID}\{VERSION}\tools\net10.0\{RID}\logs
+%UserProfile%\.dotnet\tools\.store\diffenginetray\{VERSION}\diffenginetray.{RID}\{VERSION}\tools\net11.0\{RID}\logs
 ```
 
 For example:
 
 ```
-C:\Users\simon\.dotnet\tools\.store\diffenginetray\21.0.0\diffenginetray.win-x64\21.0.0\tools\net10.0\win-x64\logs
+C:\Users\simon\.dotnet\tools\.store\diffenginetray\21.0.0\diffenginetray.win-x64\21.0.0\tools\net11.0\win-x64\logs
 ```
 
 On macOS and Linux the same, under the home directory:
 
 ```
-~/.dotnet/tools/.store/diffenginetray/{VERSION}/diffenginetray.{RID}/{VERSION}/tools/net10.0/{RID}/logs
+~/.dotnet/tools/.store/diffenginetray/{VERSION}/diffenginetray.{RID}/{VERSION}/tools/net11.0/{RID}/logs
 ```
 
 Up to 20.8.2 the tray was one package for every architecture, and logged to `...\diffenginetray\{VERSION}\diffenginetray\{VERSION}\tools\net10.0\any\logs`.
