@@ -4,14 +4,13 @@ public class HotKeyControlTests
     [Test]
     public async Task WithKeys()
     {
-        using var target = new HotKeyControl
-        {
-            HotKey = new()
+        using var target = new HotKeyControl();
+        target.ShowHotKey(
+            new()
             {
                 Shift = true,
                 Key = "A"
-            }
-        };
+            });
         await Verify(target);
     }
 
