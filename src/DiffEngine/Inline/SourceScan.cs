@@ -366,8 +366,6 @@ sealed class SourceScan(SourceLanguage language, string source) :
     }
 
     List<int>? lineStarts;
-    string? eol;
-    string? indentUnit;
 
     /// <summary>
     /// The offset each line starts at. A line break that ends the source starts no line.
@@ -402,7 +400,7 @@ sealed class SourceScan(SourceLanguage language, string source) :
     /// The line break most of the file's lines end in, a tie going to <c>\r\n</c>, and the
     /// platform's own for a file with none.
     /// </summary>
-    public string Eol => eol ??= DetectEol();
+    public string Eol => field ??= DetectEol();
 
     string DetectEol()
     {
@@ -458,7 +456,7 @@ sealed class SourceScan(SourceLanguage language, string source) :
     /// "" when the file is too small to show a step, which leaves the choice to whoever asked.
     /// </para>
     /// </summary>
-    public string IndentUnit => indentUnit ??= DetectIndentUnit();
+    public string IndentUnit => field ??= DetectIndentUnit();
 
     string DetectIndentUnit()
     {
