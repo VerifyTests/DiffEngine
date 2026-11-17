@@ -10,6 +10,7 @@
     <AssemblyName>DiffEngineTray</AssemblyName>
     <RootNamespace>DiffEngineTray</RootNamespace>
     <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>NETSDK1137;WFAC010;NU5119</NoWarn>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
