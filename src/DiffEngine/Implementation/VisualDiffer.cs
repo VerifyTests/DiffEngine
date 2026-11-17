@@ -12,7 +12,12 @@ static partial class Implementation
             UseShellExecute: true,
             RequiresTarget: true,
             Cost: "Free",
-            BinaryExtensions: [],
+            BinaryExtensions:
+            [
+                ".doc",
+                ".docx",
+                ".pdf"
+            ],
             OsSupport: new(
                 Osx: new(
                     "visdiff",

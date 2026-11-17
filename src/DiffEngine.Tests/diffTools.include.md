@@ -1323,6 +1323,7 @@ DiffTools.UseOrder(DiffTool.SublimeMerge);
   * Use shell execute: True
   * Create no window: False
   * Environment variable for custom install location: `DiffEngine_VisualDiffer`
+  * Supported binaries: .doc, .docx, .pdf
 
 #### Tool order:
 
