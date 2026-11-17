@@ -13,6 +13,7 @@ public static class Definitions
             Implementation.BeyondCompare(),
             Implementation.P4Merge(),
             Implementation.Kaleidoscope(),
+            Implementation.VisualDiffer(),
             Implementation.DeltaWalker(),
             Implementation.WinMerge(),
             Implementation.TortoiseMerge(),

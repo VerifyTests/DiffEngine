@@ -9,6 +9,7 @@ public enum DiffTool
     BeyondCompare,
     P4Merge,
     Kaleidoscope,
+    VisualDiffer,
     DeltaWalker,
     WinMerge,
     TortoiseMerge,

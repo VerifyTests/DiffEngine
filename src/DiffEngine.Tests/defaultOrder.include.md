@@ -3,6 +3,7 @@
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Windows/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
+ * **[VisualDiffer](/docs/diff-tool.md#visualdiffer)** OSX (Cost: Free)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Windows (Cost: Free with option to donate)
  * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Windows (Cost: Free)
