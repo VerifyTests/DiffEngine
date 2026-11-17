@@ -1482,6 +1482,37 @@ DiffTools.UseOrder(DiffTool.SublimeMerge);
   * Scanned paths:
     * `%PATH%smerge`
 
+### [VisualDiffer](https://visualdiffer.com)
+
+  * Cost: Free
+  * Is MDI: True
+  * Supports auto-refresh: True
+  * Supports text files: True
+  * Use shell execute: True
+  * Create no window: False
+  * Environment variable for custom install location: `DiffEngine_VisualDiffer`
+
+#### Tool order:
+
+Use [tool order](diff-tool.order.md) to prioritise VisualDiffer over other tools.
+
+```
+DiffTools.UseOrder(DiffTool.VisualDiffer);
+```
+
+#### OSX settings:
+
+  * Example target on left arguments:
+   ```
+   "targetFile.txt" "tempFile.txt"
+   ```
+  * Example target on right arguments:
+   ```
+   "tempFile.txt" "targetFile.txt"
+   ```
+  * Scanned paths:
+    * `%PATH%visdiff`
+
 ### [VisualStudio](https://docs.microsoft.com/en-us/visualstudio/ide/reference/diff)
 
   * Cost: Paid and free options
