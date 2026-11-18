@@ -896,7 +896,7 @@ public class ViewerProtocolTests
         await Assert.That(all.Message).IsEqualTo("Accepted 2");
         await Assert.That(all.Written).IsTrue();
 
-        var refused = Send(new FakeOwner((true, "Accepted 1, 1 not written")), [@"c:\repo\A.cs|12"]);
+        var refused = Send(new((true, "Accepted 1, 1 not written")), [@"c:\repo\A.cs|12"]);
         await Assert.That(refused.Ok).IsTrue();
         await Assert.That(refused.Written).IsFalse();
 

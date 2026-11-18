@@ -543,7 +543,7 @@ public class PendingFilesDiffTests
     const string pageTarget = @"c:\code\Sample.Test#page_0001.verified.png";
 
     static DiffRunner.TryResolveTool Resolves(ResolvedTool tool) =>
-        ([NotNullWhen(true)] out ResolvedTool? resolved) =>
+        ([NotNullWhen(true)] out resolved) =>
         {
             resolved = tool;
             return true;

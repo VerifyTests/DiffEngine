@@ -36,7 +36,7 @@ public class ToolProcessTests
         var processId = DiffRunner.LaunchProcess(Tool(exe), arguments);
 
         using var process = Process.GetProcessById(processId);
-        var read = Task.Run(() => pipe.ReadByte());
+        var read = Task.Run(pipe.ReadByte);
         try
         {
             pipe.DisposeLocalCopyOfClientHandle();

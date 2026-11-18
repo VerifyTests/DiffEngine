@@ -29,13 +29,13 @@ public class WslPathsTests
     {
         var mounts = WslPaths.ParseMounts(mountTable);
 
-        await Assert.That(mounts).IsEquivalentTo(
+        await Assert.That(mounts).IsEquivalentTo<IList<WslMount>, WslMount>(
         [
-            new WslMount("/mnt/c", @"C:\"),
-            new WslMount("/mnt/d", @"D:\"),
-            new WslMount("/mnt/e", @"E:\"),
-            new WslMount("/mnt/my drive", @"F:\"),
-            new WslMount("/mnt/share", @"\\server\share\")
+            new("/mnt/c", @"C:\"),
+            new("/mnt/d", @"D:\"),
+            new("/mnt/e", @"E:\"),
+            new("/mnt/my drive", @"F:\"),
+            new("/mnt/share", @"\\server\share\")
         ]);
     }
 
