@@ -36,6 +36,17 @@ sealed class FakeViewer : IDisposable
     public List<string> Verbs { get; } = [];
 
     /// <summary>
+    /// The key lists of each <see cref="ViewerVerb.AcceptKeys"/>, in order.
+    /// </summary>
+    public List<List<string>> KeysAccepted { get; } = [];
+
+    /// <summary>
+    /// When true, an <see cref="ViewerVerb.AcceptKeys"/> is answered as an owner from before it
+    /// answers: it cannot read the request.
+    /// </summary>
+    public bool PredatesAcceptKeys { get; set; }
+
+    /// <summary>
     /// When false, every acting verb reports failure, which is how the tray's warning path is
     /// reached without arranging a locked file.
     /// </summary>
@@ -89,6 +100,29 @@ sealed class FakeViewer : IDisposable
         }
 
         var builder = new StringBuilder("version: 1\n");
+        if (verb == "acceptkeys" &&
+            PredatesAcceptKeys)
+        {
+            builder.Append("status: error\n");
+            Append(builder, "message", ViewerServer.UnreadableRequest);
+            return builder.ToString();
+        }
+
+        if (verb == "acceptkeys")
+        {
+            var keys = ViewerMessage.ReadKeys(Decode(Read(request, "body")) ?? "");
+            KeysAccepted.Add(keys);
+            if (Succeed)
+            {
+                Queue.RemoveAll(_ => keys.Contains(_.Key));
+            }
+
+            builder.Append("status: ok\n");
+            Append(builder, "message", Succeed ? $"Accepted {keys.Count}" : FailureMessage);
+            builder.Append($"written: {(Succeed ? "true" : "false")}\n");
+            return builder.ToString();
+        }
+
         if (verb == "list" &&
             ListingFails)
         {

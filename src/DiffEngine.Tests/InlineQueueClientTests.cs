@@ -464,6 +464,9 @@ public class InlineQueueClientTests
             }
         }
 
+        (string? message, bool refused) IQueueOwner.AcceptKeys(IReadOnlyCollection<string> keys) =>
+            throw new NotSupportedException();
+
         string IQueueOwner.DiscardAll()
         {
             lock (gate)

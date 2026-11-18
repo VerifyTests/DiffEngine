@@ -46,6 +46,14 @@ interface IInlineHost
     bool AcceptAll(out string? message, out bool refused);
 
     /// <summary>
+    /// Accepts these snapshots and no others, for a group's header: in one batch, a source file at
+    /// a time, rather than an accept each. True when none of them is still pending unwritten
+    /// afterwards; one that had already gone counts as nothing.
+    /// </summary>
+    /// <param name="message">What the owner said the batch did.</param>
+    bool Accept(IReadOnlyList<PendingSnapshot> snapshots, out string? message);
+
+    /// <summary>
     /// False when the queue owner could not be asked, so a caller clearing its own state knows not
     /// to.
     /// </summary>

@@ -58,6 +58,21 @@ enum ViewerVerb
 
     Accept,
     AcceptAll,
+
+    /// <summary>
+    /// Accept the snapshots whose keys the body lists, one to a line, and no others: a group's
+    /// accept, from the tray's menu or a window attached to the queue. One exchange, carried out
+    /// as the owner's accept-all is, a source file at a time with one read and one write, where an
+    /// <see cref="Accept"/> per key was an exchange and a rewrite of the file each. Answered with
+    /// <see cref="ViewerResponse.Written"/> false when one of them is still pending unwritten:
+    /// refused, failed or conflicted. Tracked keys in the list are left alone.
+    /// <para>
+    /// An owner that predates it cannot parse the request and answers
+    /// <see cref="ViewerServer.UnreadableRequest"/>, which the sender takes as its cue to send an
+    /// <see cref="Accept"/> per key, as it used to.
+    /// </para>
+    /// </summary>
+    AcceptKeys,
     Discard,
     DiscardAll,
 

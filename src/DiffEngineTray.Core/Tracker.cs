@@ -443,12 +443,11 @@ class Tracker :
         });
 
     /// <summary>
-    /// One accept, and what it meant. Both the single and the bulk path have to agree on this, and
-    /// they used to reach it through a switch each - which is how they came to disagree about
-    /// Unknown, one skipping it and the other calling it a failed accept.
+    /// One accept, and what it meant. Unknown is no failure: the entry settled, or another surface
+    /// got to it first. A group's accept is one batch now (<see cref="IInlineHost.Accept(IReadOnlyList{PendingSnapshot}, out string?)"/>),
+    /// whose owner passes over a key with no entry in the same way.
     /// <para>
-    /// False is a failure the caller reports its own way: named, for a click on one snapshot, and
-    /// counted, for a click that swept a group.
+    /// False is a failure the caller reports, naming the snapshot.
     /// </para>
     /// </summary>
     bool TryAcceptOne(PendingSnapshot snapshot, out string? message)
@@ -633,24 +632,20 @@ class Tracker :
         {
             try
             {
-                var failures = new List<string>();
-                foreach (var snapshot in toAccept)
+                // One batch rather than an accept each: see IInlineHost.Accept
+                var list = toAccept.ToList();
+                if (list.Count > 0)
                 {
-                    if (!TryAcceptOne(snapshot, out var message))
+                    if (inline.Accept(list, out var message))
                     {
-                        failures.Add(message ?? snapshot.Name);
-                    }
-                }
-
-                if (failures.Count > 0)
-                {
-                    if (failures.Count == 1)
-                    {
-                        inlineFailed?.Invoke($"Could not accept a snapshot. {failures[0]}");
+                        Log.Information("Inline snapshots accepted for a group of {Count}. {Message}", list.Count, message);
                     }
                     else
                     {
-                        inlineFailed?.Invoke($"Could not accept {failures.Count} snapshots. {failures[0]}");
+                        Log.Warning("Inline snapshots of a group of {Count} not all accepted: {Message}", list.Count, message);
+                        inlineFailed?.Invoke(message is { Length: > 0 }
+                            ? $"Could not accept every snapshot. {message}"
+                            : "Could not accept every snapshot.");
                     }
                 }
 

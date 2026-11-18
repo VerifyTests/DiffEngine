@@ -133,6 +133,62 @@ public class TrackerSnapshotTest
     }
 
     /// <summary>
+    /// A group's header is one request with every key in it, not an accept and a listing each.
+    /// </summary>
+    [Test]
+    public async Task AGroupIsAcceptedInOneRequest()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1", "Other.cs:1", "Third.cs:1");
+        await using var tracker = new RecordingTracker();
+        var group = tracker.Snapshots.Where(_ => _.Name != "Third.cs:1").ToList();
+
+        await tracker.Accept(group);
+
+        await Assert.That(viewer.KeysAccepted.Count).IsEqualTo(1);
+        await Assert.That(viewer.KeysAccepted[0]).IsEquivalentTo(group.Select(_ => _.Key));
+        await Assert.That(viewer.Verbs.Any(_ => _.StartsWith("accept:"))).IsFalse();
+        await Assert.That(tracker.Snapshots.Single().Name).IsEqualTo("Third.cs:1");
+    }
+
+    [Test]
+    public async Task AGroupThatWasNotWrittenReachesTheBalloon()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1", "Other.cs:1")
+        {
+            Succeed = false
+        };
+        var failures = new List<string>();
+        await using var tracker = new RecordingTracker(inlineFailed: failures.Add);
+
+        await tracker.Accept(tracker.Snapshots);
+
+        await Assert.That(failures.Single()).IsEqualTo("Could not accept every snapshot. the file is locked");
+    }
+
+    /// <summary>
+    /// An owner from before the verb cannot read it, and is sent an accept per snapshot instead.
+    /// </summary>
+    [Test]
+    public async Task AGroupFallsBackToAnAcceptEachForAnOlderOwner()
+    {
+        using var viewer = new FakeViewer("Sample.cs:1", "Other.cs:1")
+        {
+            PredatesAcceptKeys = true
+        };
+        await using var tracker = new RecordingTracker();
+        var group = tracker.Snapshots.ToList();
+
+        await tracker.Accept(group);
+
+        foreach (var snapshot in group)
+        {
+            await Assert.That(viewer.Verbs).Contains($"accept:{snapshot.Key}");
+        }
+
+        await Assert.That(tracker.Snapshots).IsEmpty();
+    }
+
+    /// <summary>
     /// A sweep that wrote nothing has to reach the balloon. It used to return true and be silent:
     /// a refused patch counted as an accept and left the queue, so a click that wrote no snapshot
     /// anywhere emptied the menu and said nothing at all.

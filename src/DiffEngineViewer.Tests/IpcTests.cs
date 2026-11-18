@@ -215,6 +215,28 @@ public class IpcTests
         await Assert.That(fixture.Host.State.Queue).IsEmpty();
     }
 
+    /// <summary>
+    /// A group's accept from the tray: one request, the accept-all's batch over those keys, and
+    /// the rest of the queue left as it was.
+    /// </summary>
+    [Test]
+    public async Task AcceptKeysTakesThoseAlone()
+    {
+        using var fixture = new ServerFixture();
+        fixture.Send(Inline(Fixtures.Patch()));
+        fixture.Send(Inline(Fixtures.Patch("OtherTests.cs", 7, null, "new")));
+        fixture.Send(Inline(Fixtures.Patch("ThirdTests.cs", 9, null, "new")));
+        var keys = new[] { QueueEntry.KeyForInline("SampleTests.cs", 42), QueueEntry.KeyForInline("OtherTests.cs", 7) };
+
+        var response = fixture.Send(new(ViewerVerb.AcceptKeys, Body: ViewerMessage.KeysBody(keys)));
+
+        await Assert.That(response.Ok).IsTrue();
+        await Assert.That(response.Written).IsTrue();
+        await Assert.That(response.Message).IsEqualTo("Accepted 2");
+        await Assert.That(fixture.Applied.Count).IsEqualTo(2);
+        await Assert.That(fixture.Host.State.Queue.Single().Key).IsEqualTo(QueueEntry.KeyForInline("ThirdTests.cs", 9));
+    }
+
     [Test]
     public async Task DiscardRemovesWithoutApplying()
     {

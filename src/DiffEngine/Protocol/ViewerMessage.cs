@@ -43,6 +43,20 @@ record ViewerMessage(ViewerVerb Verb, string? Key = null, string? Body = null, s
     /// </summary>
     public string? Source { get; init; }
 
+    /// <summary>
+    /// The body of a <see cref="ViewerVerb.AcceptKeys"/>: a key to a line. A key names a file and
+    /// a line, and neither holds a line break.
+    /// </summary>
+    public static string KeysBody(IEnumerable<string> keys) =>
+        string.Join("\n", keys);
+
+    /// <inheritdoc cref="KeysBody"/>
+    public static List<string> ReadKeys(string body) =>
+        body
+            .Split('\n')
+            .Where(_ => _.Length > 0)
+            .ToList();
+
     public string Build()
     {
         var builder = new StringBuilder($"version: {ViewerPayload.Version}\n");

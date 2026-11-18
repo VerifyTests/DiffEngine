@@ -15,6 +15,12 @@ namespace DiffEngine;
 /// </summary>
 sealed class ViewerServer : IDisposable
 {
+    /// <summary>
+    /// The answer to a request that does not parse, which is also how an owner answers a verb it
+    /// predates: see <see cref="ViewerVerb.AcceptKeys"/>.
+    /// </summary>
+    public const string UnreadableRequest = "Unreadable request";
+
     readonly TcpListener listener;
 
     ViewerServer(TcpListener listener, int port)
@@ -336,7 +342,7 @@ sealed class ViewerServer : IDisposable
     {
         if (!ViewerMessage.TryParse(text, out var message))
         {
-            return ViewerResponse.Error("Unreadable request");
+            return ViewerResponse.Error(UnreadableRequest);
         }
 
         try

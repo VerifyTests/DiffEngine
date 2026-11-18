@@ -1248,6 +1248,13 @@ static class ViewerSession
         BeginAccept(state, null);
 
     /// <summary>
+    /// The same batch over these keys alone, for a wire <see cref="ViewerVerb.AcceptKeys"/>: what
+    /// <see cref="BeginAcceptGroup(SessionState)"/> is to a header, for a group someone else chose.
+    /// </summary>
+    public static SessionState BeginAcceptKeys(SessionState state, IReadOnlyCollection<string> keys) =>
+        BeginAccept(state, keys);
+
+    /// <summary>
     /// A batch over the whole queue or over some of it. One method with a name of its own, rather
     /// than an optional argument on <see cref="BeginAcceptAll"/>, so that one is still a
     /// transition a host can be handed as it is.
