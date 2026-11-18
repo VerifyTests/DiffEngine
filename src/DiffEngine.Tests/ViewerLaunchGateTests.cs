@@ -297,7 +297,7 @@ public class ViewerLaunchGateTests
 
         var outcome = await ViewerLaunchGate.LaunchAsync(
             retry: () => Task.FromResult(true),
-            launch: () => Task.FromResult(viewer.Start()),
+            launch: () => Task.FromResult(viewer.Start())!,
             Cancel.None,
             isOwned: () => false,
             canLaunch: () => false);
@@ -431,7 +431,7 @@ public class ViewerLaunchGateTests
                 isOwned: () => false);
             var outcome = await ViewerLaunchGate.LaunchAsync(
                 retry: () => Task.FromResult(true),
-                launch: () => Task.FromResult(viewer.Start()),
+                launch: () => Task.FromResult(viewer.Start())!,
                 Cancel.None,
                 isOwned: viewer.IsUp);
 
@@ -623,7 +623,7 @@ public class ViewerLaunchGateTests
 
         public int Starts => starts;
 
-        public Process? Start()
+        public Process Start()
         {
             Interlocked.Increment(ref starts);
             Interlocked.Exchange(ref upAt, (elapsed.Elapsed + BindDelay).Ticks);
