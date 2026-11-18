@@ -172,6 +172,62 @@ class RemoteInlineHost : IInlineHost
     }
 
     /// <summary>
+    /// One <see cref="ViewerVerb.AcceptKeys"/>, on <see cref="acceptAllWait"/> since it is an
+    /// accept-all's batch, and the outcome is the reply's <see cref="ViewerResponse.Written"/>.
+    /// An accept and a listing per snapshot was two round trips and a rewrite of the source file
+    /// each, and every accept moved the lines under the keys still to be sent, so a later
+    /// snapshot of the same file could be found gone and passed over as settled.
+    /// <para>
+    /// An owner that predates the verb says it cannot read the request, and is sent an accept per
+    /// snapshot as before.
+    /// </para>
+    /// </summary>
+    public bool Accept(IReadOnlyList<PendingSnapshot> snapshots, out string? message)
+    {
+        var body = ViewerMessage.KeysBody(snapshots.Select(_ => _.Key));
+        if (!Exchange(new(ViewerVerb.AcceptKeys, Body: body), acceptAllWait, out var response))
+        {
+            message = "The snapshot viewer is not running.";
+            return false;
+        }
+
+        if (!response.Ok)
+        {
+            if (response.Message == ViewerServer.UnreadableRequest)
+            {
+                return AcceptEach(snapshots, out message);
+            }
+
+            message = response.Message;
+            return false;
+        }
+
+        message = response.Message is { Length: > 0 } text ? text : null;
+        return response.Written is not false;
+    }
+
+    bool AcceptEach(IReadOnlyList<PendingSnapshot> snapshots, out string? message)
+    {
+        var failures = new List<string>();
+        foreach (var snapshot in snapshots)
+        {
+            var outcome = Accept(snapshot, out var text);
+            if (outcome is AcceptOutcome.Failed or AcceptOutcome.Stale)
+            {
+                failures.Add(text ?? snapshot.Name);
+            }
+        }
+
+        message = failures.Count switch
+        {
+            0 => null,
+            1 => failures[0],
+            _ => $"{failures.Count} were not accepted. {failures[0]}"
+        };
+        return failures.Count == 0;
+    }
+
+    /// <summary>
     /// As <see cref="Discard"/>, and the outcome is returned rather than dropped. Discarded on a
     /// busy owner used to do nothing at all while Tracker.Clear went ahead and emptied its own
     /// snapshot list, so "Discard (n)" reported success and everything reappeared on the next

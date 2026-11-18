@@ -77,6 +77,16 @@ interface IQueueOwner
 
     string? AcceptAll();
 
+    /// <summary>
+    /// The accept-all's batch over these snapshots alone: see <see cref="ViewerVerb.AcceptKeys"/>.
+    /// A key with no entry is passed over, and a tracked key is left alone.
+    /// </summary>
+    /// <returns>
+    /// What the batch said, and whether one of the snapshots named is still pending unwritten:
+    /// not written, failed, or conflicted and so never tried.
+    /// </returns>
+    (string? message, bool refused) AcceptKeys(IReadOnlyCollection<string> keys);
+
     string? DiscardAll();
 
     /// <summary>

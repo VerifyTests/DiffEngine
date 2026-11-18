@@ -146,11 +146,23 @@ sealed class OwnerLink(SessionHost host, int port, DocumentPlugin? documents = n
             message = Send(new(ViewerVerb.Accept, key, null));
         }
 
+        // One request for the lot, which the owner carries out a source file at a time. An
+        // accept each was an exchange and a rewrite of the file per snapshot, and moved the lines
+        // under the keys still to send. An owner that predates the verb cannot read it, and is
+        // sent an accept each as before
         var landed = true;
-        foreach (var key in snapshots)
+        if (snapshots.Count > 0)
         {
-            message = Send(new(ViewerVerb.Accept, key, null), out var written);
-            landed &= written;
+            message = Send(new(ViewerVerb.AcceptKeys, null, ViewerMessage.KeysBody(snapshots)), out landed);
+            if (message == ViewerServer.UnreadableRequest)
+            {
+                landed = true;
+                foreach (var key in snapshots)
+                {
+                    message = Send(new(ViewerVerb.Accept, key, null), out var written);
+                    landed &= written;
+                }
+            }
         }
 
         if (deletes.Count == 0)

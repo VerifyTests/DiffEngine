@@ -94,6 +94,18 @@ class StubInlineHost(params PendingSnapshot[] snapshots) :
     }
 
     /// <summary>
+    /// The groups accepted, each as the keys it was handed, in order.
+    /// </summary>
+    public List<IReadOnlyList<string>> GroupsAccepted { get; } = [];
+
+    public bool Accept(IReadOnlyList<PendingSnapshot> snapshots, out string? message)
+    {
+        GroupsAccepted.Add(snapshots.Select(_ => _.Key).ToList());
+        message = AcceptAllMessage;
+        return !AcceptAllRefuses;
+    }
+
+    /// <summary>
     /// What a bulk discard reports. False is a queue that could not be reached, or one that would
     /// not discard, with <see cref="DiscardAllMessage"/> as what it said.
     /// </summary>

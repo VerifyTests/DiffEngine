@@ -254,6 +254,43 @@ class MessageHandler(
     }
 
     /// <summary>
+    /// As <see cref="IQueueOwner.AcceptAll"/>, over the snapshots named and no others. A batch
+    /// already running is waited out and this one begun after it, as a discard-all does, since
+    /// beginning is a no-op while one runs and the drive would otherwise carry out only that one.
+    /// </summary>
+    (string? message, bool refused) IQueueOwner.AcceptKeys(IReadOnlyCollection<string> keys)
+    {
+        var only = keys
+            .Where(_ => !TrackedKeys.IsTracked(_))
+            .ToHashSet();
+        var conflicted = false;
+        var waiting = false;
+        SessionState Begin(SessionState state)
+        {
+            waiting = state.Batch is not null;
+            if (waiting)
+            {
+                return state;
+            }
+
+            // Never tried, so not in the tally, and still pending unwritten all the same
+            conflicted = state.Queue.Any(_ => _ is { Kind: QueueEntryKind.Inline, Conflicted: true } &&
+                                              only.Contains(_.Key));
+            return ViewerSession.BeginAcceptKeys(state, only);
+        }
+
+        host.Mutate(Begin);
+        if (waiting)
+        {
+            runner.Drive();
+            host.Mutate(Begin);
+        }
+
+        var message = runner.Drive(out var tally);
+        return (message, conflicted || tally.Refused);
+    }
+
+    /// <summary>
     /// As <see cref="IQueueOwner.AcceptAll"/>, and for its reason: each received file is thrown
     /// away outside the lock, a mutation a file, where one mutation around all of them kept the
     /// render loop and every arrival waiting for as long as the deletes took.

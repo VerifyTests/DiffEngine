@@ -517,6 +517,42 @@ sealed class OwnedInlineHost :
         return $"{message}, plus {clause}";
     }
 
+    /// <summary>
+    /// A group's accept, from the tray's menu or an attached window: the accept-all's batch over
+    /// these snapshots, so a file's snapshots are one read and one write, where an accept each
+    /// rewrote the file once a snapshot. Tracked keys are left alone, being the caller's to send.
+    /// </summary>
+    (string? message, bool refused) IQueueOwner.AcceptKeys(IReadOnlyCollection<string> keys)
+    {
+        var only = keys
+            .Where(_ => !TrackedKeys.IsTracked(_))
+            .ToHashSet();
+        string message;
+        bool refused;
+        lock (accepting)
+        {
+            StartProgress(0);
+            try
+            {
+                message = AcceptEvery(0, out refused, only);
+            }
+            finally
+            {
+                EndProgress();
+            }
+        }
+
+        Changed?.Invoke();
+        return (message, refused);
+    }
+
+    public bool Accept(IReadOnlyList<PendingSnapshot> snapshots, out string? message)
+    {
+        var (text, refused) = ((IQueueOwner) this).AcceptKeys(snapshots.Select(_ => _.Key).ToList());
+        message = text;
+        return !refused;
+    }
+
     string IQueueOwner.DiscardAll()
     {
         var tracked = TrackedFiles?.DiscardAll() ?? 0;
@@ -671,13 +707,17 @@ sealed class OwnedInlineHost :
     /// <param name="refused">
     /// A snapshot in this batch was not written, which is what holds the deletes swept after it.
     /// </param>
-    string AcceptEvery(int files, out bool refused)
+    /// <param name="only">
+    /// The keys to accept, for a group's accept, or null for every snapshot in the queue.
+    /// </param>
+    string AcceptEvery(int files, out bool refused, IReadOnlySet<string>? only = null)
     {
         List<string> keys;
         lock (gate)
         {
             keys = queue.Items
-                .Where(_ => !_.Conflicted)
+                .Where(_ => !_.Conflicted &&
+                            (only is null || only.Contains(_.Key)))
                 .Select(_ => _.Key)
                 .ToList();
             // Exact now, where the start could only estimate it: anything can arrive or settle
@@ -772,6 +812,15 @@ sealed class OwnedInlineHost :
 
         lock (gate)
         {
+            // A group's own conflicts, as the viewer's group batch counts them: solution B's are
+            // nothing to do with a header of solution A. Never tried, and still pending unwritten
+            if (only is not null)
+            {
+                var conflicted = queue.Items.Count(_ => _.Conflicted && only.Contains(_.Key));
+                refused = tally.Refused || conflicted > 0;
+                return tally.Message(conflicted);
+            }
+
             refused = tally.Refused;
             return tally.Message(queue.Conflicts);
         }

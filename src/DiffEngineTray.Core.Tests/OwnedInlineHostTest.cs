@@ -976,6 +976,79 @@ public class OwnedInlineHostTest
     }
 
     /// <summary>
+    /// A group's accept is the accept-all's batch over its keys alone: what it was not handed
+    /// stays, and a conflict it was handed is counted, never tried, and said to be unwritten.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptOfKeysTakesThoseAlone()
+    {
+        using var owner = new Owner(_ => InlineApplyResult.Applied);
+        owner.Queue(Repo("SampleTests.cs"), 7);
+        owner.Queue(Repo("SampleTests.cs"), 9);
+        owner.Queue(Repo("OtherTests.cs"), 3);
+        owner.Queue(content: "eight", framework: "net8.0");
+        owner.Queue(content: "nine", framework: "net9.0");
+        var conflict = InlineKey.For(Repo("SampleTests.cs"), 42);
+        var keys = new[] { InlineKey.For(Repo("SampleTests.cs"), 7), InlineKey.For(Repo("SampleTests.cs"), 9), conflict };
+
+        var response = owner.Send(new(ViewerVerb.AcceptKeys, Body: ViewerMessage.KeysBody(keys)), TimeSpan.FromSeconds(30));
+
+        await Assert.That(response.Message).IsEqualTo("Accepted 2, 1 conflict needs review");
+        await Assert.That(response.Written).IsFalse();
+        await Assert.That(owner.Host.List().Select(_ => _.Key))
+            .IsEquivalentTo([InlineKey.For(Repo("OtherTests.cs"), 3), conflict]);
+
+        var rest = owner.Send(new(ViewerVerb.AcceptKeys, Body: ViewerMessage.KeysBody([InlineKey.For(Repo("OtherTests.cs"), 3)])), TimeSpan.FromSeconds(30));
+
+        await Assert.That(rest.Message).IsEqualTo("Accepted 1");
+        await Assert.That(rest.Written).IsTrue();
+    }
+
+    /// <summary>
+    /// With the real applier, the snapshots of a group land in their file and one left out of it
+    /// keeps its literal.
+    /// </summary>
+    [Test]
+    public async Task TheRealApplierWritesTheSnapshotsOfAGroupAlone()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"OwnedInlineHostTest_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var source = Path.Combine(directory, "SampleTests.cs");
+            await File.WriteAllTextAsync(
+                source,
+                """
+                class C
+                {
+                    void One() => Verify(value).Snapshot("old");
+                    void Two() => Verify(value).Snapshot("old");
+                    void Three() => Verify(value).Snapshot("old");
+                }
+                """);
+            using var owner = new Owner();
+            owner.Queue(source, 3, content: "one");
+            owner.Queue(source, 4, content: "two");
+            owner.Queue(source, 5, content: "three");
+            var group = owner.Host.List().Where(_ => _.Key != InlineKey.For(source, 4)).ToList();
+
+            var accepted = owner.Host.Accept(group, out var message);
+
+            await Assert.That(accepted).IsTrue();
+            await Assert.That(message).IsEqualTo("Accepted 2");
+            var written = await File.ReadAllTextAsync(source);
+            await Assert.That(written).Contains("One() => Verify(value).Snapshot(\"one\")");
+            await Assert.That(written).Contains("Two() => Verify(value).Snapshot(\"old\")");
+            await Assert.That(written).Contains("Three() => Verify(value).Snapshot(\"three\")");
+            await Assert.That(owner.Host.List().Single().Key).IsEqualTo(InlineKey.For(source, 4));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    /// <summary>
     /// The tracked files are swept first, and a move being retried while a diff tool lets go of it
     /// is as much of the wait as any snapshot, so they count towards the progress too.
     /// </summary>

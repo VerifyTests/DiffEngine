@@ -42,8 +42,17 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
     /// message of the transition that finished it, rather than whatever the state holds by the
     /// time the caller reads it, since a settle arriving in between clears the status line.
     /// </summary>
-    public string? Drive()
+    public string? Drive() =>
+        Drive(out _);
+
+    /// <inheritdoc cref="Drive()"/>
+    /// <param name="tally">
+    /// How the snapshots of the batch went, as the last step that held it left it, for a caller
+    /// that has to say whether one was not written.
+    /// </param>
+    public string? Drive(out AcceptAllTally tally)
     {
+        tally = default;
         lock (driving)
         {
             busy = true;
@@ -56,6 +65,8 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
                     {
                         return claimed.Message;
                     }
+
+                    tally = claimed.Batch.Tally;
 
                     Func<SessionState, SessionState> record;
                     try
@@ -70,7 +81,11 @@ sealed class AcceptAllRunner(SessionHost host, ViewerActions actions)
                         record = ViewerSession.FailClaimed(claimed, exception.Message);
                     }
 
-                    host.Mutate(record);
+                    var recorded = host.Mutate(record);
+                    if (recorded.Batch is { } batch)
+                    {
+                        tally = batch.Tally;
+                    }
                 }
             }
             finally

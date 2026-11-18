@@ -871,6 +871,40 @@ public class ViewerProtocolTests
     }
 
     /// <summary>
+    /// A group's accept is one request carrying every key, and its answer says whether one of
+    /// them is still pending unwritten, as an accept's says of its one.
+    /// </summary>
+    [Test]
+    public async Task AnAcceptOfKeysCarriesThemAllAndSaysWhetherTheyWereWritten()
+    {
+        static ViewerResponse Send(FakeOwner owner, IEnumerable<string> keys)
+        {
+            var request = new ViewerMessage(ViewerVerb.AcceptKeys, Body: ViewerMessage.KeysBody(keys)).Build();
+            if (!ViewerMessage.TryParse(request, out var message) ||
+                !ViewerResponse.TryParse(ViewerMessageHandler.Handle(owner, message).Build(), out var parsed))
+            {
+                throw new("Unreadable.");
+            }
+
+            return parsed;
+        }
+
+        var landed = new FakeOwner((true, "Accepted 2"), written: true);
+        var all = Send(landed, [@"c:\repo\A.cs|12", @"c:\repo\B.cs|3"]);
+        await Assert.That(landed.KeysAccepted).IsEquivalentTo([@"c:\repo\A.cs|12", @"c:\repo\B.cs|3"]);
+        await Assert.That(all.Ok).IsTrue();
+        await Assert.That(all.Message).IsEqualTo("Accepted 2");
+        await Assert.That(all.Written).IsTrue();
+
+        var refused = Send(new FakeOwner((true, "Accepted 1, 1 not written")), [@"c:\repo\A.cs|12"]);
+        await Assert.That(refused.Ok).IsTrue();
+        await Assert.That(refused.Written).IsFalse();
+
+        // What an owner from before the verb answers, which the sender falls back on
+        await Assert.That(ViewerMessage.TryParse("version: 1\nverb: acceptsomethingnew\n", out _)).IsFalse();
+    }
+
+    /// <summary>
     /// The accept body is the variant origin a reviewer picked, and it has to reach the owner.
     /// </summary>
     [Test]
@@ -932,6 +966,14 @@ public class ViewerProtocolTests
         public (bool ok, string? message) Discard(string key) => act;
 
         public string? AcceptAll() => null;
+
+        public List<string> KeysAccepted { get; } = [];
+
+        public (string? message, bool refused) AcceptKeys(IReadOnlyCollection<string> keys)
+        {
+            KeysAccepted.AddRange(keys);
+            return (act.message, !written);
+        }
 
         public string? DiscardAll() => null;
 

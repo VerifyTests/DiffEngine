@@ -34,6 +34,8 @@ static class ViewerMessageHandler
                 return Act(owner, message.Key, message.Body, message.Verb);
             case ViewerVerb.AcceptAll:
                 return ViewerResponse.Success(owner.AcceptAll());
+            case ViewerVerb.AcceptKeys:
+                return AcceptKeys(owner, message.Body);
             case ViewerVerb.DiscardAll:
                 return ViewerResponse.Success(owner.DiscardAll());
             case ViewerVerb.Focus:
@@ -191,6 +193,20 @@ static class ViewerMessageHandler
         return reply with
         {
             Written = written
+        };
+    }
+
+    static ViewerResponse AcceptKeys(IQueueOwner owner, string? body)
+    {
+        if (body is null)
+        {
+            return ViewerResponse.Error($"{ViewerVerb.AcceptKeys} requires a body");
+        }
+
+        var (message, refused) = owner.AcceptKeys(ViewerMessage.ReadKeys(body));
+        return ViewerResponse.Success(message) with
+        {
+            Written = !refused
         };
     }
 
