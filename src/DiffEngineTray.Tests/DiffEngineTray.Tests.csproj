@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net11.0-windows</TargetFramework>
     <NoWarn>$(NoWarn);CA1416;NU1902</NoWarn>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
