@@ -19,7 +19,7 @@
     -->
     <PackageVersion Include="SkiaSharp" Version="4.156.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.156.1" />
-    <PackageVersion Include="PlatformHeads" Version="0.17.0" />
+    <PackageVersion Include="PlatformHeads" Version="0.17.1" />
     <PackageVersion Include="PlatformHeads.Core" Version="0.17.0" />
     <PackageVersion Include="PlatformHeads.Linux" Version="0.17.0" />
     <PackageVersion Include="PlatformHeads.Mac" Version="0.17.0" />
