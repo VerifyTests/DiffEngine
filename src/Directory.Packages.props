@@ -8,7 +8,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
-    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="29.0.0" />
+    <PackageVersion Include="MarkdownSnippets.MsBuild" Version="30.0.1" />
     <PackageVersion Include="Morph" Version="1.28.0" />
     <PackageVersion Include="Morph.PDFium" Version="1.6.2" />
     <PackageVersion Include="Morph.Skia" Version="1.28.0" />
@@ -32,10 +32,10 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.0.0" />
-    <PackageVersion Include="Verify.TUnit" Version="33.5.0" />
+    <PackageVersion Include="Verify.TUnit" Version="33.6.0" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
-    <PackageVersion Include="Verify" Version="33.5.0" />
-    <PackageVersion Include="TUnit" Version="1.86.6" />
+    <PackageVersion Include="Verify" Version="33.6.0" />
+    <PackageVersion Include="TUnit" Version="1.87.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
   </ItemGroup>
 </Project>
