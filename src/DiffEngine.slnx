@@ -109,9 +109,9 @@
   <Project Path="FakeDiffTool/FakeDiffTool.csproj">
     <BuildType Solution="Release-NotWindows|*" Project="Release" />
     <!--
-    A WinForms app targeting net11.0-windows, so it cannot build off Windows without
-    EnableWindowsTargeting, and the result would not run there anyway. The tests that use it are
-    marked [RunOn(OS.Windows)].
+    A WinForms app targeting net11.0-windows. It sets EnableWindowsTargeting, so a Debug build of
+    the solution works off Windows, but the result would not run there, so Release-NotWindows does
+    not build it. The tests that use it are marked [RunOn(OS.Windows)].
     -->
     <Build Solution="Release-NotWindows|*" Project="false" />
   </Project>
