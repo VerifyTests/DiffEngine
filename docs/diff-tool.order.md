@@ -15,7 +15,6 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[BeyondCompare](/docs/diff-tool.md#beyondcompare)** Windows/OSX/Linux (Cost: Paid)
  * **[P4Merge](/docs/diff-tool.md#p4merge)** Windows/OSX/Linux (Cost: Free)
  * **[Kaleidoscope](/docs/diff-tool.md#kaleidoscope)** OSX (Cost: Paid)
- * **[VisualDiffer](/docs/diff-tool.md#visualdiffer)** OSX (Cost: Free)
  * **[DeltaWalker](/docs/diff-tool.md#deltawalker)** Windows/OSX (Cost: Paid)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Windows (Cost: Free with option to donate)
  * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Windows (Cost: Free)
@@ -33,6 +32,7 @@ To change this file edit the source file and then run MarkdownSnippets.
  * **[AraxisMerge](/docs/diff-tool.md#araxismerge)** Windows/OSX (Cost: Paid)
  * **[Meld](/docs/diff-tool.md#meld)** Windows/OSX/Linux (Cost: Free)
  * **[SublimeMerge](/docs/diff-tool.md#sublimemerge)** Windows/OSX/Linux (Cost: Paid)
+ * **[VisualDiffer](/docs/diff-tool.md#visualdiffer)** OSX (Cost: Free)
  * **[CodeCompare](/docs/diff-tool.md#codecompare)** Windows (Cost: Free and Paid)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
@@ -57,5 +57,5 @@ For example `VisualStudio,Meld` will result in VisualStudio then Meld then all o
 ```cs
 DiffTools.UseOrder(DiffTool.VisualStudio, DiffTool.AraxisMerge);
 ```
-<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L192-L196' title='Snippet source file'>snippet source</a> | <a href='#snippet-UseOrder' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/src/DiffEngine.Tests/DiffToolsTest.cs#L194-L198' title='Snippet source file'>snippet source</a> | <a href='#snippet-UseOrder' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
