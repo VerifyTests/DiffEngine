@@ -23,5 +23,6 @@ static partial class Implementation
                     "visdiff",
                     new(
                         Left: (temp, target) => $"\"{target}\" \"{temp}\"",
-                        Right: (temp, target) => $"\"{temp}\" \"{target}\""))));
+                        Right: (temp, target) => $"\"{temp}\" \"{target}\""),
+                    "/Applications/VisualDiffer.app/Contents/Helpers/")));
 }
