@@ -5,6 +5,7 @@
     <!-- As DiffEngineViewer.Windows.Tests has them: the head draws with WinForms and GDI+. -->
     <TargetFramework>net11.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <!-- Signed for InternalsVisibleTo, and stated here for the reason DiffEngine.Benchmarks gives. -->

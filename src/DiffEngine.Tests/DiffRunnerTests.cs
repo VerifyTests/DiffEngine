@@ -319,7 +319,7 @@ public class DiffRunnerTests
 
     // Resolved on first use rather than in a type initializer. [After(Class)] runs even when every
     // test here is skipped for the OS, so initializing the type has to be safe everywhere, and this
-    // reaches FakeDiffTool, which is only built for Windows and macOS.
+    // reaches FakeDiffTool, which only runs on Windows.
     static ResolvedTool Tool =>
         tool ??= DiffTools.AddTool(
             name: "FakeDiffTool",

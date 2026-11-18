@@ -2,7 +2,21 @@
   <PropertyGroup>
     <TargetFramework>net11.0-windows</TargetFramework>
     <NoWarn>$(NoWarn);CA1416;NU1902</NoWarn>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <!--
+  It builds off Windows, for a Debug build of the solution, but cannot run there. dotnet test runs
+  every test project that is a testing platform application, and fails on a test project that is
+  not one, so off Windows this is neither, and keeps the entry point and the rest that being one
+  would have generated.
+  -->
+  <PropertyGroup Condition=" '$(OS)' != 'Windows_NT' ">
+    <IsTestProject>false</IsTestProject>
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <GenerateTestingPlatformEntryPoint>true</GenerateTestingPlatformEntryPoint>
+    <GenerateSelfRegisteredExtensions>true</GenerateSelfRegisteredExtensions>
+    <GenerateTestingPlatformConfigurationFile>true</GenerateTestingPlatformConfigurationFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\DiffEngine.Tests\MachineSettings.cs" Link="MachineSettings.cs" />

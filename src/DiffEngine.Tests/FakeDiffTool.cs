@@ -10,12 +10,6 @@
             return;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            Exe = Path.GetFullPath(Path.Combine(AssemblyLocation.CurrentDirectory, "../../../../FakeDiffTool/bin/osx-x64/FakeDiffTool"));
-            return;
-        }
-
-        throw new($"FakeDiffTool is only built for Windows and macOS. OS: {RuntimeInformation.OSDescription}");
+        throw new($"FakeDiffTool is a WinForms app and only runs on Windows. OS: {RuntimeInformation.OSDescription}");
     }
 }
