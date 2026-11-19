@@ -202,5 +202,5 @@ public class TrackerSourceTest :
     }
 
     public void Dispose() =>
-        FileEx.SafeDeleteDirectory(directory);
+        Directory.Delete(directory, true);
 }

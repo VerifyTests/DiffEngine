@@ -1525,7 +1525,7 @@ public class TrayViewerSyncTest
         {
             await Tracker.DisposeAsync();
             await Host.DisposeAsync();
-            FileEx.SafeDeleteDirectory(root);
+            Directory.Delete(root, true);
         }
     }
 
@@ -1698,7 +1698,7 @@ public class TrayViewerSyncTest
 
             cancel.Dispose();
             Environment.SetEnvironmentVariable(ViewerClient.PortVariable, previousPort);
-            FileEx.SafeDeleteDirectory(root);
+            Directory.Delete(root, true);
         }
     }
 
