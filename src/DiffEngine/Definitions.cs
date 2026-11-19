@@ -30,6 +30,7 @@ public static class Definitions
             Implementation.AraxisMerge(),
             Implementation.Meld(),
             Implementation.SublimeMerge(),
+            Implementation.VisualDiffer(),
             Implementation.CodeCompare(),
             Implementation.VisualStudioCode(),
             Implementation.VisualStudio(),

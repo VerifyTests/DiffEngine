@@ -22,6 +22,7 @@
  * **[TortoiseIDiff](/docs/diff-tool.md#tortoiseidiff)** Windows (Cost: Free)
  * **[TortoiseMerge](/docs/diff-tool.md#tortoisemerge)** Windows (Cost: Free)
  * **[Vim](/docs/diff-tool.md#vim)** Windows/OSX (Cost: Free with option to donate)
+ * **[VisualDiffer](/docs/diff-tool.md#visualdiffer)** OSX (Cost: Free)
  * **[VisualStudio](/docs/diff-tool.md#visualstudio)** Windows (Cost: Paid and free options)
  * **[VisualStudioCode](/docs/diff-tool.md#visualstudiocode)** Windows/OSX/Linux (Cost: Free)
  * **[WinMerge](/docs/diff-tool.md#winmerge)** Windows (Cost: Free with option to donate)
