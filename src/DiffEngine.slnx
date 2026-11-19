@@ -6,9 +6,7 @@
   </Configurations>
   <Folder Name="/Solution Items/">
     <File Path="../claude.md" />
-    <File Path="../.github/workflows/test.yml" />
     <File Path="../.github/workflows/build-native.yml" />
-    <File Path="../.github/workflows/publish-nuget.yml" />
     <File Path="../native/CMakeLists.txt" />
     <File Path="../readme.source.md" />
     <File Path="../.editorconfig" />
