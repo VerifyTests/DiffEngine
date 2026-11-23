@@ -28,7 +28,7 @@ sealed class ViewerForm : HeadForm
         UseMnemonic = false
     };
 
-    readonly List<FormsButton> pool = [];
+    readonly List<FooterButton> pool = [];
 
     /// <summary>
     /// One bar, not two: both panes are sliced from the same ScrollTop, so they scroll together.
@@ -484,7 +484,7 @@ sealed class ViewerForm : HeadForm
         while (pool.Count < screen.Buttons.Count)
         {
             var index = pool.Count;
-            var button = new FormsButton
+            var button = new FooterButton
             {
                 AutoSize = true,
                 // Sized to the label it has now. The pool relabels its buttons as the screen
