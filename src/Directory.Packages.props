@@ -24,7 +24,7 @@
     <PackageVersion Include="PlatformHeads.Linux" Version="0.17.1" />
     <PackageVersion Include="PlatformHeads.Mac" Version="0.17.1" />
     <PackageVersion Include="PlatformHeads.WindowsForms" Version="0.17.1" />
-    <PackageVersion Include="Polyfill" Version="11.4.5" />
+    <PackageVersion Include="Polyfill" Version="12.0.0" />
     <PackageVersion Include="ProjectDefaults" Version="1.0.191" />
     <PackageVersion Include="Squash" Version="2.2.0" />
     <PackageVersion Include="Sbom" Version="1.0.0" />
