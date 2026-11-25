@@ -9,9 +9,9 @@
     <PackageVersion Include="EmptyFiles" Version="8.20.1" />
     <PackageVersion Include="GeoConvert" Version="2.1.0" />
     <PackageVersion Include="MarkdownSnippets.MsBuild" Version="30.0.1" />
-    <PackageVersion Include="Morph" Version="1.28.0" />
+    <PackageVersion Include="Morph" Version="1.31.0" />
     <PackageVersion Include="Morph.PDFium" Version="1.7.0" />
-    <PackageVersion Include="Morph.Skia" Version="1.28.0" />
+    <PackageVersion Include="Morph.Skia" Version="1.31.0" />
     <!--
     Pinned with its Linux natives, which DiffEngineViewer.Documents references directly: SkiaSharp
     refuses a native library from another version, and the managed half arrives transitively
@@ -32,9 +32,9 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageVersion Include="Verify.WinForms" Version="6.1.1" />
-    <PackageVersion Include="Verify.TUnit" Version="33.7.2" />
+    <PackageVersion Include="Verify.TUnit" Version="33.7.3" />
     <PackageVersion Include="SimpleInfoName" Version="3.2.1" />
-    <PackageVersion Include="Verify" Version="33.7.2" />
+    <PackageVersion Include="Verify" Version="33.7.3" />
     <PackageVersion Include="TUnit" Version="1.87.12" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
   </ItemGroup>
